@@ -1,0 +1,21 @@
+.lexical-playground {
+  --lexical-content-font-size: 15px;
+  --lexical-content-line-height: 1.75;
+  --lexical-content-block-gap: 1rem;
+  --lexical-content-heading-1-size: 28px;
+  --lexical-content-heading-1-line-height: 1.15;
+  --lexical-content-heading-1-weight: 600;
+  --lexical-content-heading-2-size: 18px;
+  --lexical-content-heading-2-line-height: 1.25;
+  --lexical-content-heading-2-weight: 700;
+  --lexical-content-heading-3-size: 15px;
+  --lexical-content-heading-3-line-height: 1.3;
+  --lexical-content-heading-3-weight: 700;
+  --lexical-content-inline-code-font-size: 94%;
+  --lexical-content-code-font-size: 13px;
+  --lexical-content-code-line-height: 1.53;
+  --lexical-content-hr-color: hsl(var(--border));
+  --lexical-content-hr-thickness: 2px;
+  --lexical-content-embed-radius: 16px;
+  --lexical-content-tweet-max-width: 550px;
+}

@@ -86,34 +86,45 @@ const postFixture = {
 
 const setupApiMock = (permissions: string[] | null) => {
   apiFetchMock.mockReset();
+  (
+    window as Window & {
+      __BOOTSTRAP_PUBLIC__?: unknown;
+      __BOOTSTRAP_PUBLIC_ME__?: unknown;
+    }
+  ).__BOOTSTRAP_PUBLIC__ = {
+    settings: {},
+    pages: {},
+    projects: [],
+    posts: [],
+    updates: [],
+    teamMembers: [],
+    teamLinkTypes: [],
+    mediaVariants: {},
+    tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+    generatedAt: "2026-03-10T00:00:00.000Z",
+    payloadMode: "full",
+  };
+  (
+    window as Window & {
+      __BOOTSTRAP_PUBLIC__?: unknown;
+      __BOOTSTRAP_PUBLIC_ME__?: unknown;
+    }
+  ).__BOOTSTRAP_PUBLIC_ME__ = permissions
+    ? {
+        id: "1",
+        name: "Admin",
+        username: "admin",
+        permissions,
+      }
+    : null;
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
 
     if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
       return mockJsonResponse(true, { post: postFixture });
     }
-    if (endpoint === "/api/public/users" && method === "GET") {
-      return mockJsonResponse(true, { users: [], mediaVariants: {} });
-    }
-    if (endpoint === "/api/link-types" && method === "GET") {
-      return mockJsonResponse(true, { items: [] });
-    }
     if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
       return mockJsonResponse(true, { views: 11 });
-    }
-    if (endpoint === "/api/public/me" && method === "GET") {
-      return mockJsonResponse(
-        true,
-        permissions
-          ? {
-              user: {
-                id: "1",
-                name: "Admin",
-                permissions,
-              },
-            }
-          : { user: null },
-      );
     }
     return mockJsonResponse(false, { error: "not_found" }, 404);
   });
@@ -122,6 +133,18 @@ const setupApiMock = (permissions: string[] | null) => {
 describe("Post edit button", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
+    delete (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC__;
+    delete (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC_ME__;
   });
 
   it("exibe botao de editar para usuario com permissao de posts", async () => {

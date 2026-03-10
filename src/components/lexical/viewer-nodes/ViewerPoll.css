@@ -1,0 +1,123 @@
+.PollNode__container {
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--card));
+  border-radius: 10px;
+  display: block;
+  width: 100%;
+  max-width: 600px;
+  min-width: 0;
+  color: hsl(var(--foreground));
+  cursor: default;
+  user-select: none;
+  box-sizing: border-box;
+  margin: 0;
+}
+
+.PollNode__inner {
+  margin: 15px;
+  cursor: default;
+}
+
+.PollNode__heading {
+  margin: 0 0 15px;
+  color: hsl(var(--foreground));
+  text-align: center;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.PollNode__optionContainer {
+  display: flex;
+  flex-direction: row;
+  margin-bottom: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.PollNode__optionInputWrapper {
+  display: flex;
+  flex: 1 1 auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: 5px;
+  position: relative;
+  overflow: hidden;
+  background-color: hsl(var(--background));
+  min-width: 0;
+}
+
+.PollNode__optionInput {
+  display: flex;
+  flex: 1 1 auto;
+  border: 0;
+  padding: 7px;
+  color: hsl(var(--foreground));
+  background-color: transparent;
+  font-weight: bold;
+  outline: 0;
+  z-index: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.PollNode__optionInputVotes {
+  background-color: hsl(var(--primary) / 0.15);
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: width 1s ease;
+  z-index: 0;
+}
+
+.PollNode__optionInputVotesCount {
+  color: hsl(var(--muted-foreground));
+  position: absolute;
+  right: 15px;
+  font-size: 12px;
+  top: 5px;
+}
+
+.PollNode__optionCheckboxWrapper {
+  position: relative;
+  display: flex;
+  width: 22px;
+  height: 22px;
+  border: 1px solid hsl(var(--border));
+  margin-right: 10px;
+  border-radius: 5px;
+  background-color: hsl(var(--background));
+}
+
+.PollNode__optionCheckboxChecked {
+  border: 1px solid hsl(var(--primary));
+  background-color: hsl(var(--primary));
+}
+
+.PollNode__optionCheckboxChecked:after {
+  content: "";
+  cursor: pointer;
+  border-color: #fff;
+  border-style: solid;
+  position: absolute;
+  display: block;
+  top: 4px;
+  width: 5px;
+  left: 8px;
+  height: 9px;
+  margin: 0;
+  transform: rotate(45deg);
+  border-width: 0 2px 2px 0;
+  pointer-events: none;
+}
+
+.PollNode__optionCheckbox {
+  border: 0;
+  position: absolute;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}

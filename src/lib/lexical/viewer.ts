@@ -1,10 +1,31 @@
-import { EMPTY_LEXICAL_JSON, normalizeLexicalJson } from "@/lib/lexical/serialize";
+import { createEditor } from "lexical";
+
+import LexicalViewerNodes from "@/components/lexical/LexicalViewerNodes";
+import { EMPTY_LEXICAL_JSON } from "@/lib/lexical/empty-state";
 
 type SerializedLexicalNodeLike = {
   children?: SerializedLexicalNodeLike[];
   open?: boolean;
   root?: SerializedLexicalNodeLike;
   type?: string;
+};
+
+const getSerializedRoot = (serializedState: unknown) =>
+  (serializedState as { root?: { type?: string; children?: unknown[] } } | null | undefined)?.root;
+
+const hasNonEmptyRootChildren = (serializedState: unknown) => {
+  const root = getSerializedRoot(serializedState);
+  return Array.isArray(root?.children) && root.children.length > 0;
+};
+
+const hasExplicitlyEmptyRoot = (serializedState: unknown) => {
+  const root = getSerializedRoot(serializedState);
+  return root?.type === "root" && Array.isArray(root.children) && root.children.length === 0;
+};
+
+const hasSerializableRoot = (serializedState: unknown) => {
+  const root = getSerializedRoot(serializedState);
+  return root?.type === "root" && Array.isArray(root.children);
 };
 
 const closeCollapsibleContainers = (node: unknown): void => {
@@ -29,12 +50,50 @@ const closeCollapsibleContainers = (node: unknown): void => {
 };
 
 export const normalizeLexicalViewerJson = (value: string) => {
-  const normalized = normalizeLexicalJson(value) ?? EMPTY_LEXICAL_JSON;
+  if (!value) {
+    return EMPTY_LEXICAL_JSON;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return EMPTY_LEXICAL_JSON;
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    return EMPTY_LEXICAL_JSON;
+  }
+
+  if (hasExplicitlyEmptyRoot(parsed)) {
+    return EMPTY_LEXICAL_JSON;
+  }
+
+  if (!hasSerializableRoot(parsed)) {
+    return EMPTY_LEXICAL_JSON;
+  }
+
+  const editor = createEditor({
+    nodes: LexicalViewerNodes,
+    onError: () => {},
+  });
+
+  let normalized: unknown = EMPTY_LEXICAL_JSON;
+  try {
+    const editorState = editor.parseEditorState(JSON.stringify(parsed));
+    editor.setEditorState(editorState);
+    normalized = editor.getEditorState().toJSON();
+    if (!hasNonEmptyRootChildren(normalized)) {
+      return EMPTY_LEXICAL_JSON;
+    }
+  } catch {
+    return EMPTY_LEXICAL_JSON;
+  }
 
   try {
-    const parsed = JSON.parse(normalized) as SerializedLexicalNodeLike;
-    closeCollapsibleContainers(parsed);
-    return JSON.stringify(parsed);
+    const normalizedState = JSON.parse(JSON.stringify(normalized)) as SerializedLexicalNodeLike;
+    closeCollapsibleContainers(normalizedState);
+    return JSON.stringify(normalizedState);
   } catch {
     return EMPTY_LEXICAL_JSON;
   }

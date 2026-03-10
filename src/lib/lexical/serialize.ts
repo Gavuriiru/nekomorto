@@ -10,6 +10,7 @@ import {
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from "@lexical/html";
 import { $createLinkNode } from "@lexical/link";
 import PlaygroundNodes from "@/lexical-playground/nodes/PlaygroundNodes";
+import { EMPTY_LEXICAL_JSON } from "@/lib/lexical/empty-state";
 import { lexicalNodes as bridgeLexicalNodes } from "@/lib/lexical/nodes";
 import {
   buildStyleDeclaration,
@@ -174,31 +175,6 @@ const createPlaygroundLexicalEditor = () =>
     onError: () => {},
   });
 
-const createEmptyLexicalState = () => ({
-  root: {
-    children: [
-      {
-        children: [],
-        direction: null,
-        format: "",
-        indent: 0,
-        textFormat: 0,
-        textStyle: "",
-        type: "paragraph",
-        version: 1,
-      },
-    ],
-    direction: null,
-    format: "",
-    indent: 0,
-    type: "root",
-    version: 1,
-  },
-});
-
-export const EMPTY_LEXICAL_STATE = createEmptyLexicalState();
-export const EMPTY_LEXICAL_JSON = JSON.stringify(EMPTY_LEXICAL_STATE);
-
 const isRootAppendableNode = (node: unknown) =>
   Boolean(node) && ($isElementNode(node) || node instanceof DecoratorNode);
 
@@ -294,6 +270,8 @@ export const normalizeLexicalJson = (value: string) => {
 };
 
 export const safeParseLexicalJson = normalizeLexicalJson;
+
+export { EMPTY_LEXICAL_JSON, EMPTY_LEXICAL_STATE, createEmptyLexicalState } from "@/lib/lexical/empty-state";
 
 export const renderLexicalJsonToHtml = (serialized: string) => {
   const editor = createPlaygroundLexicalEditor();

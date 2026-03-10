@@ -64,15 +64,20 @@ function TweetComponent({
   onLoad,
   tweetID,
 }: TweetComponentProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const targetRef = useRef<HTMLDivElement | null>(null);
 
   const previousTweetIDRef = useRef<string>('');
   const [isTweetLoading, setIsTweetLoading] = useState(false);
 
   const createTweet = useCallback(async () => {
     try {
+      const target = targetRef.current;
+      if (!target) {
+        return;
+      }
+      target.innerHTML = '';
       // @ts-expect-error Twitter is attached to the window.
-      await window.twttr.widgets.createTweet(tweetID, containerRef.current, {
+      await window.twttr.widgets.createTweet(tweetID, target, {
         theme: 'dark',
       });
 
@@ -117,12 +122,10 @@ function TweetComponent({
       className={className}
       format={format}
       nodeKey={nodeKey}>
-      {isTweetLoading ? loadingComponent : null}
-      <div
-        className="lexical-tweet"
-        style={{display: 'inline-block', width: '100%', maxWidth: '550px'}}
-        ref={containerRef}
-      />
+      <div className="lexical-tweet">
+        {isTweetLoading ? loadingComponent : null}
+        <div className="lexical-tweet__target" ref={targetRef} />
+      </div>
     </BlockWithAlignableContents>
   );
 }

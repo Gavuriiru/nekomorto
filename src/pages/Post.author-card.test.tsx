@@ -97,6 +97,30 @@ const usersMediaVariants = {
 
 const setupApiMock = (users: unknown[]) => {
   apiFetchMock.mockReset();
+  (
+    window as Window & {
+      __BOOTSTRAP_PUBLIC__?: unknown;
+      __BOOTSTRAP_PUBLIC_ME__?: unknown;
+    }
+  ).__BOOTSTRAP_PUBLIC__ = {
+    settings: {},
+    pages: {},
+    projects: [],
+    posts: [],
+    updates: [],
+    teamMembers: users,
+    teamLinkTypes: [{ id: "site", label: "Site", icon: "globe" }],
+    mediaVariants: usersMediaVariants,
+    tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+    generatedAt: "2026-03-10T00:00:00.000Z",
+    payloadMode: "full",
+  };
+  (
+    window as Window & {
+      __BOOTSTRAP_PUBLIC__?: unknown;
+      __BOOTSTRAP_PUBLIC_ME__?: unknown;
+    }
+  ).__BOOTSTRAP_PUBLIC_ME__ = null;
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
 
@@ -117,19 +141,8 @@ const setupApiMock = (users: unknown[]) => {
         },
       });
     }
-    if (endpoint === "/api/public/users" && method === "GET") {
-      return mockJsonResponse(true, { users, mediaVariants: usersMediaVariants });
-    }
-    if (endpoint === "/api/link-types" && method === "GET") {
-      return mockJsonResponse(true, {
-        items: [{ id: "site", label: "Site", icon: "globe" }],
-      });
-    }
     if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
       return mockJsonResponse(true, { views: 11 });
-    }
-    if (endpoint === "/api/public/me" && method === "GET") {
-      return mockJsonResponse(true, { user: null });
     }
     return mockJsonResponse(false, { error: "not_found" }, 404);
   });
@@ -138,13 +151,25 @@ const setupApiMock = (users: unknown[]) => {
 describe("Post author card", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
+    delete (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC__;
+    delete (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC_ME__;
   });
 
   it("renderiza o card do autor entre embed e comentarios quando encontra um unico membro", async () => {
     setupApiMock([authorFixture]);
 
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={["/postagem/post-teste#comment-1"]}>
         <Post />
       </MemoryRouter>,
     );
@@ -168,7 +193,7 @@ describe("Post author card", () => {
     setupApiMock([]);
 
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={["/postagem/post-teste#comment-1"]}>
         <Post />
       </MemoryRouter>,
     );

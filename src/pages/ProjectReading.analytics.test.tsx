@@ -99,6 +99,94 @@ const setupProjectReadingApiMock = (
       : options.chapterResponse;
 
   apiFetchMock.mockReset();
+  (
+    window as Window & {
+      __BOOTSTRAP_PUBLIC__?: unknown;
+      __BOOTSTRAP_PUBLIC_ME__?: unknown;
+    }
+  ).__BOOTSTRAP_PUBLIC__ = {
+    settings: {},
+    pages: {},
+    projects: [
+      {
+        id: project.id,
+        title: project.title,
+        titleOriginal: "",
+        titleEnglish: "",
+        synopsis: project.synopsis,
+        description: "",
+        type: project.type,
+        status: "",
+        tags: [],
+        genres: [],
+        cover: project.cover,
+        coverAlt: "",
+        banner: "",
+        bannerAlt: "",
+        heroImageUrl: "",
+        heroImageAlt: "",
+        forceHero: false,
+        trailerUrl: "",
+        studio: "",
+        episodes: "",
+        producers: [],
+        volumeEntries: project.volumeEntries || [],
+        volumeCovers: project.volumeCovers || [],
+        episodeDownloads: Array.isArray(project.episodeDownloads)
+          ? project.episodeDownloads.map((entry) => ({
+              number: Number(entry.number || 0),
+              volume: Number.isFinite(Number(entry.volume)) ? Number(entry.volume) : undefined,
+              title: String(entry.title || ""),
+              releaseDate: String(entry.releaseDate || ""),
+              duration: String(entry.duration || ""),
+              coverImageUrl: String(entry.coverImageUrl || ""),
+              coverImageAlt: String(entry.coverImageAlt || ""),
+              sourceType: String(entry.sourceType || ""),
+              sources: Array.isArray(entry.sources) ? entry.sources : [],
+              progressStage: String(entry.progressStage || ""),
+              completedStages: Array.isArray(entry.completedStages) ? entry.completedStages : [],
+              chapterUpdatedAt: String(entry.chapterUpdatedAt || ""),
+              hasContent:
+                Boolean((entry as { hasContent?: boolean }).hasContent) ||
+                (typeof entry.content === "string" && entry.content.trim().length > 0),
+              entryKind:
+                String((entry as { entryKind?: string }).entryKind || "").trim().toLowerCase() ===
+                "extra"
+                  ? "extra"
+                  : "main",
+              entrySubtype: String((entry as { entrySubtype?: string }).entrySubtype || ""),
+              readingOrder: Number.isFinite(Number(entry.readingOrder))
+                ? Number(entry.readingOrder)
+                : undefined,
+              displayLabel: String((entry as { displayLabel?: string }).displayLabel || ""),
+            }))
+          : [],
+        views: 0,
+        viewsDaily: {},
+      },
+    ],
+    posts: [],
+    updates: [],
+    teamMembers: [],
+    teamLinkTypes: [],
+    mediaVariants: {},
+    tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+    generatedAt: "2026-03-10T00:00:00.000Z",
+    payloadMode: "full",
+  };
+  (
+    window as Window & {
+      __BOOTSTRAP_PUBLIC__?: unknown;
+      __BOOTSTRAP_PUBLIC_ME__?: unknown;
+    }
+  ).__BOOTSTRAP_PUBLIC_ME__ = permissions
+    ? {
+        id: "1",
+        name: "Admin",
+        username: "admin",
+        permissions,
+      }
+    : null;
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
     if (
       endpoint === "/api/public/projects/projeto-teste" &&
@@ -111,20 +199,6 @@ const setupProjectReadingApiMock = (
         chapter: chapterResponse,
       });
     }
-    if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
-      return mockJsonResponse(
-        true,
-        permissions
-          ? {
-              user: {
-                id: "1",
-                name: "Admin",
-                permissions,
-              },
-            }
-          : { user: null },
-      );
-    }
     if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
       return mockJsonResponse(true, { ok: true });
     }
@@ -136,6 +210,18 @@ describe("ProjectReading analytics", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
     window.localStorage.clear();
+    delete (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC__;
+    delete (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC_ME__;
   });
 
   it("envia evento chapter_view ao carregar capitulo", async () => {

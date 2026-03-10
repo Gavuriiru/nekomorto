@@ -11,14 +11,56 @@ describe("build chunking classifier", () => {
     expect(classifyManualChunk("/repo/node_modules/react-router-dom/index.js")).toBeUndefined();
   });
 
-  it("classifica arquivo local do lexical playground como lexical", () => {
+  it("classifica arquivo local do lexical playground como lexical-editor", () => {
     expect(classifyManualChunk("/repo/src/lexical-playground/plugins/ToolbarPlugin/index.tsx")).toBe(
-      "lexical",
+      "lexical-editor",
     );
   });
 
   it("classifica @lexical/react como lexical", () => {
     expect(classifyManualChunk("/repo/node_modules/@lexical/react/LexicalComposer.js")).toBe(
+      "lexical",
+    );
+  });
+
+  it("classifica viewer lexical publico como lexical-viewer", () => {
+    expect(classifyManualChunk("/repo/src/components/lexical/LexicalViewer.tsx")).toBe(
+      "lexical-viewer",
+    );
+  });
+
+  it("classifica PlaygroundNodes do editor como lexical-editor", () => {
+    expect(classifyManualChunk("/repo/src/lexical-playground/nodes/PlaygroundNodes.ts")).toBe(
+      "lexical-editor",
+    );
+  });
+
+  it("classifica registro de nodes do viewer como lexical-viewer", () => {
+    expect(classifyManualChunk("/repo/src/components/lexical/LexicalViewerNodes.ts")).toBe(
+      "lexical-viewer",
+    );
+  });
+
+  it("classifica normalizacao do viewer como lexical-viewer", () => {
+    expect(classifyManualChunk("/repo/src/lib/lexical/viewer.ts")).toBe("lexical-viewer");
+  });
+
+  it("classifica serializacao do editor como lexical-editor", () => {
+    expect(classifyManualChunk("/repo/src/lib/lexical/serialize.ts")).toBe("lexical-editor");
+  });
+
+  it("classifica node read-only do viewer como lexical-viewer", () => {
+    expect(
+      classifyManualChunk("/repo/src/components/lexical/viewer-nodes/ViewerEquationNode.tsx"),
+    ).toBe("lexical-viewer");
+  });
+
+  it("classifica estado vazio compartilhado como lexical", () => {
+    expect(classifyManualChunk("/repo/src/lib/lexical/empty-state.ts")).toBe("lexical");
+  });
+
+  it("classifica node puro de epub como lexical", () => {
+    expect(classifyManualChunk("/repo/src/components/lexical/nodes/EpubImageNode.tsx")).toBe(
       "lexical",
     );
   });
@@ -66,7 +108,16 @@ describe("build chunking classifier", () => {
   it("normaliza caminhos Windows", () => {
     expect(
       classifyManualChunk("D:\\dev\\nekomorto\\src\\lexical-playground\\plugins\\ToolbarPlugin\\index.tsx"),
-    ).toBe("lexical");
+    ).toBe("lexical-editor");
+    expect(
+      classifyManualChunk("D:\\dev\\nekomorto\\src\\lexical-playground\\nodes\\PlaygroundNodes.ts"),
+    ).toBe("lexical-editor");
+    expect(classifyManualChunk("D:\\dev\\nekomorto\\src\\components\\lexical\\LexicalViewerNodes.ts")).toBe(
+      "lexical-viewer",
+    );
+    expect(classifyManualChunk("D:\\dev\\nekomorto\\src\\lib\\lexical\\serialize.ts")).toBe(
+      "lexical-editor",
+    );
     expect(classifyManualChunk("D:\\dev\\nekomorto\\node_modules\\@mui\\x-date-pickers\\index.js")).toBe(
       "mui-date-time-fields",
     );

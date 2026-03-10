@@ -1,3 +1,5 @@
+@import "../components/lexical/lexical-content-tokens.css";
+
 .lexical-playground {
   --lexical-control-bg: hsl(var(--muted));
   --lexical-control-bg-hover: hsl(var(--muted) / 0.82);
@@ -520,6 +522,8 @@
 
 .lexical-playground .ContentEditable__root {
   color: hsl(var(--foreground));
+  font-size: var(--lexical-content-font-size, 15px);
+  line-height: var(--lexical-content-line-height, 1.75);
   min-height: 150px;
   width: 100%;
   cursor: text;
@@ -546,6 +550,21 @@
 ) {
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.lexical-playground .ContentEditable__root > * + *,
+.lexical-playground .ContentEditable__root > [data-lexical-decorator="true"] + *,
+.lexical-playground .ContentEditable__root > * + [data-lexical-decorator="true"] {
+  margin-top: var(--lexical-content-block-gap, 1rem);
+}
+
+.lexical-playground .ContentEditable__root > .PlaygroundEditorTheme__h1 + *,
+.lexical-playground .ContentEditable__root > .PlaygroundEditorTheme__h2 + *,
+.lexical-playground .ContentEditable__root > .PlaygroundEditorTheme__h3 + *,
+.lexical-playground .ContentEditable__root > .PlaygroundEditorTheme__h4 + *,
+.lexical-playground .ContentEditable__root > .PlaygroundEditorTheme__h5 + *,
+.lexical-playground .ContentEditable__root > .PlaygroundEditorTheme__h6 + * {
+  margin-top: 0.65rem;
 }
 
 .lexical-playground .editor-shell.editor-shell--read-only .ContentEditable__root {
@@ -631,27 +650,48 @@
 }
 
 .lexical-playground .lexical-tweet {
-  display: inline-block;
+  display: block;
   width: 100%;
-  max-width: 550px;
+  max-width: var(--lexical-content-tweet-max-width, 550px);
   overflow: hidden;
-  border-radius: 16px;
-  background: hsl(var(--card));
+  overflow: clip;
+  border-radius: var(--lexical-content-embed-radius, 16px);
+  clip-path: inset(0 round var(--lexical-content-embed-radius, 16px));
+  background: transparent;
   vertical-align: top;
+  isolation: isolate;
+  line-height: 0;
 }
 
-.lexical-playground .lexical-tweet > * {
+.lexical-playground .lexical-tweet > *,
+.lexical-playground .lexical-tweet__target > * {
   margin: 0 !important;
 }
 
+.lexical-playground .lexical-tweet__target {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 !important;
+  background: transparent !important;
+  border-radius: inherit;
+  vertical-align: top;
+  line-height: 0;
+}
+
 .lexical-playground .lexical-tweet .twitter-tweet,
+.lexical-playground .lexical-tweet blockquote.twitter-tweet,
 .lexical-playground .lexical-tweet .twitter-tweet-rendered,
 .lexical-playground .twitter-tweet,
 .lexical-playground .twitter-tweet-rendered {
   display: block;
+  margin: 0 !important;
   max-width: 100% !important;
   background: transparent !important;
+  border: 0 !important;
   border-radius: inherit;
+  vertical-align: top;
+  line-height: normal;
 }
 
 .lexical-playground .lexical-tweet iframe,
@@ -661,7 +701,11 @@
   display: block;
   width: 100% !important;
   max-width: 100% !important;
-  border-radius: inherit;
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: inherit !important;
+  clip-path: inset(0 round var(--lexical-content-embed-radius, 16px));
+  vertical-align: top;
 }
 
 .lexical-playground .lexical-youtube {
@@ -685,12 +729,13 @@
 
 .lexical-playground .tweet-skeleton {
   width: 100%;
-  max-width: 550px;
+  max-width: var(--lexical-content-tweet-max-width, 550px);
   border: 1px solid hsl(var(--border));
-  border-radius: 12px;
+  border-radius: var(--lexical-content-embed-radius, 16px);
   background: hsl(var(--card));
   padding: 12px;
   box-sizing: border-box;
+  line-height: normal;
 }
 
 .lexical-playground .tweet-skeleton__header {
@@ -787,7 +832,7 @@
 }
 
 .lexical-playground .PlaygroundEditorTheme__hr {
-  background-color: hsl(var(--border));
+  background-color: transparent;
 }
 
 .lexical-playground ol {

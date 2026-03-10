@@ -1,28 +1,82 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+
+import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import UploadPicture from "@/components/UploadPicture";
+import type { Project } from "@/data/projects";
+import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
-import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
+import {
+  readWindowPublicBootstrap,
+} from "@/lib/public-bootstrap-global";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
-import type { Project } from "@/data/projects";
+import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import type { PublicBootstrapPayload } from "@/types/public-bootstrap";
 
 type ProjectEmbedCardProps = {
   projectId?: string | null;
 };
 
+type ProjectEmbedRecord = Pick<
+  Project,
+  "id" | "cover" | "episodes" | "status" | "studio" | "synopsis" | "tags" | "title" | "type"
+>;
+
 const COVER_ROW_HEIGHT = "calc(8rem * 65 / 46)";
+
+const resolveBootstrapProject = (
+  bootstrapData: PublicBootstrapPayload | null,
+  projectId: string | null | undefined,
+): ProjectEmbedRecord | null => {
+  const normalizedProjectId = String(projectId || "").trim();
+  if (!normalizedProjectId) {
+    return null;
+  }
+  const match =
+    bootstrapData?.projects.find((candidate) => String(candidate.id || "").trim() === normalizedProjectId) ||
+    null;
+  if (!match) {
+    return null;
+  }
+  return {
+    id: match.id,
+    cover: match.cover,
+    episodes: match.episodes,
+    status: match.status,
+    studio: match.studio,
+    synopsis: match.synopsis,
+    tags: match.tags,
+    title: match.title,
+    type: match.type,
+  };
+};
+
+const mergeMediaVariants = (
+  base: UploadMediaVariantsMap,
+  nextValue: unknown,
+) => ({
+  ...base,
+  ...(nextValue && typeof nextValue === "object" ? (nextValue as UploadMediaVariantsMap) : {}),
+});
 
 const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   const apiBase = getApiBase();
-  const [project, setProject] = useState<Project | null>(null);
-  const [projectMediaVariants, setProjectMediaVariants] = useState<UploadMediaVariantsMap>({});
-  const [hasLoaded, setHasLoaded] = useState(false);
-  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
+  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() => readWindowPublicBootstrap());
+  const bootstrapProject = useMemo(
+    () => resolveBootstrapProject(bootstrapData, projectId),
+    [bootstrapData, projectId],
+  );
+  const [project, setProject] = useState<ProjectEmbedRecord | null>(bootstrapProject);
+  const [projectMediaVariants, setProjectMediaVariants] = useState<UploadMediaVariantsMap>(
+    () => bootstrapData?.mediaVariants || {},
+  );
+  const [hasLoaded, setHasLoaded] = useState(Boolean(bootstrapProject));
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
+    () => bootstrapData?.tagTranslations?.tags || {},
+  );
   const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
   const synopsisKey = project?.id ?? projectId ?? "project-embed";
   const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
@@ -43,7 +97,14 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   })();
 
   useEffect(() => {
-    if (!projectId) {
+    setProject(bootstrapProject);
+    setProjectMediaVariants(bootstrapData?.mediaVariants || {});
+    setHasLoaded(Boolean(bootstrapProject));
+    setTagTranslations(bootstrapData?.tagTranslations?.tags || {});
+  }, [bootstrapData, bootstrapProject]);
+
+  useEffect(() => {
+    if (!projectId || bootstrapProject) {
       return;
     }
     let isActive = true;
@@ -53,21 +114,19 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
         if (!response.ok) {
           if (isActive) {
             setProject(null);
-            setProjectMediaVariants({});
           }
           return;
         }
         const data = await response.json();
         if (isActive) {
           setProject(data.project || null);
-          setProjectMediaVariants(
-            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+          setProjectMediaVariants((current) =>
+            mergeMediaVariants(bootstrapData?.mediaVariants || current, data?.mediaVariants),
           );
         }
       } catch {
         if (isActive) {
           setProject(null);
-          setProjectMediaVariants({});
         }
       } finally {
         if (isActive) {
@@ -75,35 +134,42 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
         }
       }
     };
-    load();
+    void load();
     return () => {
       isActive = false;
     };
-  }, [apiBase, projectId]);
+  }, [apiBase, bootstrapData?.mediaVariants, bootstrapProject, projectId]);
 
   useEffect(() => {
+    if (Object.keys(tagTranslations).length > 0) {
+      return;
+    }
     let isActive = true;
     const loadTranslations = async () => {
       try {
-        const response = await apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" });
-        if (!response.ok) {
+        const response = await apiFetch(apiBase, "/api/public/tag-translations", {
+          cache: "no-store",
+        });
+        if (!response.ok || !isActive) {
           return;
         }
         const data = await response.json();
         if (isActive) {
-          setTagTranslations(data.tags || {});
+          setTagTranslations(
+            data?.tags && typeof data.tags === "object"
+              ? (data.tags as Record<string, string>)
+              : {},
+          );
         }
       } catch {
-        if (isActive) {
-          setTagTranslations({});
-        }
+        // Ignore translation fallback failures outside bootstrap-enabled routes.
       }
     };
-    loadTranslations();
+    void loadTranslations();
     return () => {
       isActive = false;
     };
-  }, [apiBase]);
+  }, [apiBase, tagTranslations]);
 
   if (!projectId) {
     return null;
@@ -115,7 +181,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   return (
     <Link
       to={`/projeto/${project?.id ?? projectId}`}
-      className="block focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary rounded-2xl"
+      className="block rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
     >
       <Card className="border-border bg-card shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
         <CardContent className="space-y-4 p-4">
@@ -165,19 +231,34 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
                 {project?.synopsis || ""}
               </p>
               <div data-synopsis-role="badges" className="mt-auto space-y-2 pt-2">
-                <div data-testid="project-embed-primary-badges" className="flex flex-nowrap items-center gap-2 overflow-hidden text-xs sm:flex-wrap">
+                <div
+                  data-testid="project-embed-primary-badges"
+                  className="flex flex-nowrap items-center gap-2 overflow-hidden text-xs sm:flex-wrap"
+                >
                   {project?.status ? (
-                    <Badge data-testid="project-embed-status-badge" variant="outline" className="max-w-[8.5rem] truncate">
+                    <Badge
+                      data-testid="project-embed-status-badge"
+                      variant="outline"
+                      className="max-w-[8.5rem] truncate"
+                    >
                       {project.status}
                     </Badge>
                   ) : null}
                   {project?.studio ? (
-                    <Badge data-testid="project-embed-studio-badge" variant="outline" className="max-w-[8.5rem] truncate">
+                    <Badge
+                      data-testid="project-embed-studio-badge"
+                      variant="outline"
+                      className="max-w-[8.5rem] truncate"
+                    >
                       {project.studio}
                     </Badge>
                   ) : null}
                   {project?.episodes ? (
-                    <Badge data-testid="project-embed-episodes-badge" variant="outline" className="hidden sm:inline-flex">
+                    <Badge
+                      data-testid="project-embed-episodes-badge"
+                      variant="outline"
+                      className="hidden sm:inline-flex"
+                    >
                       {project.episodes}
                     </Badge>
                   ) : null}

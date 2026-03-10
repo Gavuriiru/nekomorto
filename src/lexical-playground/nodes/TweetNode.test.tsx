@@ -41,5 +41,6 @@ describe('TweetNode', () => {
     const {container} = render(decoratedElement);
 
     expect(container.querySelector('.lexical-tweet')).toBeTruthy();
+    expect(container.querySelector('.lexical-tweet__target')).toBeTruthy();
   });
 });

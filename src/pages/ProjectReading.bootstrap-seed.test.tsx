@@ -1,0 +1,200 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+
+import ProjectReading from "@/pages/ProjectReading";
+
+const apiFetchMock = vi.hoisted(() => vi.fn());
+const originalIntersectionObserver = window.IntersectionObserver;
+
+vi.mock("@/lib/api-base", () => ({
+  getApiBase: () => "",
+}));
+
+vi.mock("@/lib/api-client", () => ({
+  apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+}));
+
+vi.mock("@/hooks/use-page-meta", () => ({
+  usePageMeta: () => undefined,
+}));
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  return {
+    ...actual,
+    useParams: () => ({ slug: "projeto-teste", chapter: "1" }),
+  };
+});
+
+vi.mock("@/components/lexical/LexicalViewer", () => ({
+  default: () => <div data-testid="lexical-viewer" />,
+}));
+
+vi.mock("@/components/CommentsSection", () => ({
+  default: () => <div data-testid="comments-section" />,
+}));
+
+const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
+  ({
+    ok,
+    status,
+    json: async () => payload,
+  }) as Response;
+
+describe("ProjectReading bootstrap-first", () => {
+  beforeEach(() => {
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (
+          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+          method === "GET"
+        ) {
+          return await new Promise<Response>(() => undefined);
+        }
+        if (endpoint === "/api/public/analytics/event" && method === "POST") {
+          return mockJsonResponse(true, { ok: true });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
+
+    (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC__ = {
+      settings: {},
+      pages: {},
+      projects: [
+        {
+          id: "projeto-teste",
+          title: "Projeto Bootstrap",
+          titleOriginal: "",
+          titleEnglish: "",
+          synopsis: "Sinopse principal",
+          description: "Descrição",
+          type: "Light Novel",
+          status: "Em andamento",
+          tags: [],
+          genres: [],
+          cover: "/uploads/project-cover.jpg",
+          coverAlt: "Capa",
+          banner: "",
+          bannerAlt: "",
+          heroImageUrl: "/uploads/project-hero.jpg",
+          heroImageAlt: "Hero",
+          forceHero: false,
+          trailerUrl: "",
+          studio: "Studio Teste",
+          episodes: "12 capítulos",
+          producers: [],
+          volumeEntries: [
+            {
+              volume: 2,
+              synopsis: "Sinopse do volume",
+              coverImageUrl: "/uploads/volume-2.jpg",
+              coverImageAlt: "Volume 2",
+            },
+          ],
+          volumeCovers: [],
+          episodeDownloads: [
+            {
+              number: 1,
+              volume: 2,
+              title: "Capítulo Bootstrap",
+              releaseDate: "2026-02-10",
+              duration: "Leitura",
+              coverImageUrl: "/uploads/chapter-1.jpg",
+              coverImageAlt: "Capítulo 1",
+              sourceType: "Web",
+              sources: [],
+              progressStage: "",
+              completedStages: [],
+              chapterUpdatedAt: "2026-02-10T00:00:00.000Z",
+              hasContent: true,
+            },
+          ],
+          views: 0,
+          viewsDaily: {},
+        },
+      ],
+      posts: [],
+      updates: [],
+      teamMembers: [],
+      teamLinkTypes: [],
+      mediaVariants: {},
+      tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+      generatedAt: "2026-03-10T00:00:00.000Z",
+      payloadMode: "full",
+    };
+    (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC_ME__ = {
+      id: "user-1",
+      name: "Admin",
+      username: "admin",
+      permissions: ["projetos"],
+    };
+
+    class MockIntersectionObserver {
+      observe = vi.fn();
+      disconnect = vi.fn();
+      unobserve = vi.fn();
+    }
+
+    Object.defineProperty(window, "IntersectionObserver", {
+      configurable: true,
+      writable: true,
+      value: MockIntersectionObserver,
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, "IntersectionObserver", {
+      configurable: true,
+      writable: true,
+      value: originalIntersectionObserver,
+    });
+    delete (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC__;
+    delete (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC_ME__;
+  });
+
+  it("usa bootstrap para hero e navegacao sem requisitar o projeto novamente", () => {
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Capítulo Bootstrap" })).toBeInTheDocument();
+    expect(screen.getByText("Projeto Bootstrap")).toBeInTheDocument();
+    expect(screen.getByText("Sinopse do volume")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Editar capítulo/i })).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
+    );
+
+    const calledEndpoints = apiFetchMock.mock.calls.map((call) => String(call[1] || ""));
+    expect(calledEndpoints).toContain("/api/public/projects/projeto-teste/chapters/1?volume=2");
+    expect(calledEndpoints).not.toContain("/api/public/projects/projeto-teste");
+    expect(calledEndpoints).not.toContain("/api/public/me");
+    expect(screen.queryByTestId("comments-section")).not.toBeInTheDocument();
+  });
+});

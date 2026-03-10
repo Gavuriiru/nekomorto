@@ -1,4 +1,8 @@
-﻿import CommentsSection from "@/components/CommentsSection";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
+import { ArrowLeft, ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
+
+import CommentsSection from "@/components/CommentsSection";
 import UploadPicture from "@/components/UploadPicture";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { Badge } from "@/components/ui/badge";
@@ -6,8 +10,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Project } from "@/data/projects";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useDeferredVisibility } from "@/hooks/use-deferred-visibility";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { createSlug } from "@/lib/post-content";
+import {
+  readWindowPublicBootstrap,
+  readWindowPublicBootstrapCurrentUser,
+  type PublicBootstrapCurrentUser,
+} from "@/lib/public-bootstrap-global";
 import {
   buildDashboardProjectChapterEditorHref,
   buildProjectPublicReadingHref,
@@ -20,9 +31,7 @@ import { isLightNovelType } from "@/lib/project-utils";
 import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
-import { ArrowLeft, ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import type { PublicBootstrapPayload, PublicBootstrapProject } from "@/types/public-bootstrap";
 import NotFound from "./NotFound";
 
 const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
@@ -33,12 +42,54 @@ const LexicalViewerFallback = () => (
   </div>
 );
 
+type ReadingProject = Project | PublicBootstrapProject;
+
+const normalizeProjectRouteKey = (value: unknown) =>
+  String(createSlug(String(value || "").trim()) || "").trim().toLowerCase();
+
+const resolveBootstrapProject = (
+  bootstrapData: PublicBootstrapPayload | null,
+  slug: string | undefined,
+) => {
+  const rawSlug = String(slug || "").trim();
+  const routeKey = normalizeProjectRouteKey(rawSlug);
+  if (!routeKey && !rawSlug) {
+    return null;
+  }
+  return (
+    bootstrapData?.projects.find((candidate) => {
+      const candidateId = String(candidate.id || "").trim();
+      return (
+        candidateId === rawSlug ||
+        normalizeProjectRouteKey(candidateId) === routeKey ||
+        normalizeProjectRouteKey(candidate.title) === routeKey
+      );
+    }) || null
+  );
+};
+
+const mergeMediaVariants = (
+  base: UploadMediaVariantsMap,
+  nextValue: unknown,
+) => ({
+  ...base,
+  ...(nextValue && typeof nextValue === "object" ? (nextValue as UploadMediaVariantsMap) : {}),
+});
+
 const ProjectReading = () => {
   const { slug, chapter } = useParams<{ slug: string; chapter: string }>();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const apiBase = getApiBase();
-  const [project, setProject] = useState<Project | null>(null);
-  const [currentUser, setCurrentUser] = useState<{ permissions?: string[] } | null>(null);
+  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() => readWindowPublicBootstrap());
+  const [currentUser] = useState<PublicBootstrapCurrentUser | null>(() =>
+    readWindowPublicBootstrapCurrentUser(),
+  );
+  const bootstrapProject = useMemo(
+    () => resolveBootstrapProject(bootstrapData, slug),
+    [bootstrapData, slug],
+  );
+  const [project, setProject] = useState<ReadingProject | null>(bootstrapProject);
   const [chapterContent, setChapterContent] = useState<{
     number: number;
     volume?: number;
@@ -53,102 +104,68 @@ const ProjectReading = () => {
     coverImageUrl?: string;
     coverImageAlt?: string;
   } | null>(null);
-  const [hasLoaded, setHasLoaded] = useState(false);
-  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
+  const [hasLoadedProject, setHasLoadedProject] = useState(Boolean(bootstrapProject));
+  const [hasLoadedChapter, setHasLoadedChapter] = useState(false);
+  const [chapterLoadError, setChapterLoadError] = useState(false);
+  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>(
+    () => bootstrapData?.mediaVariants || {},
+  );
   const trackedChapterViewsRef = useRef<Set<string>>(new Set());
-
-  const pageTitle = useMemo(() => {
-    if (!project) {
-      return "Leitura";
-    }
-    const entryKind = chapterContent?.entryKind === "extra" ? "extra" : "main";
-    const chapterNumber = chapterContent?.number ?? chapter;
-    const chapterLabel =
-      entryKind === "extra"
-        ? String(chapterContent?.displayLabel || "Extra").trim() || "Extra"
-        : chapterNumber
-          ? `Capítulo ${chapterNumber}`
-          : "Capítulo";
-    const titlePart = chapterContent?.title
-      ? `${chapterLabel} - ${chapterContent.title}`
-      : chapterLabel;
-    return `${titlePart} - ${project.title}`;
-  }, [
-    chapter,
-    chapterContent?.displayLabel,
-    chapterContent?.entryKind,
-    chapterContent?.number,
-    chapterContent?.title,
-    project,
-  ]);
+  const { isVisible: isCommentsVisible, sentinelRef: commentsSentinelRef } =
+    useDeferredVisibility({
+      initialVisible: location.hash.startsWith("#comment-"),
+      rootMargin: "400px 0px",
+    });
 
   useEffect(() => {
-    if (!slug) {
-      setHasLoaded(true);
-      return;
-    }
+    setProject(bootstrapProject);
+    setHasLoadedProject(Boolean(bootstrapProject));
+    setMediaVariants(bootstrapData?.mediaVariants || {});
+  }, [bootstrapData, bootstrapProject]);
+
+  useEffect(() => {
     let isActive = true;
-    const load = async () => {
+
+    const loadProject = async () => {
+      if (!slug || bootstrapProject) {
+        if (isActive) {
+          setHasLoadedProject(Boolean(bootstrapProject));
+        }
+        return;
+      }
+
       try {
         const response = await apiFetch(apiBase, `/api/public/projects/${slug}`);
         if (!response.ok) {
           if (isActive) {
             setProject(null);
-            setMediaVariants({});
           }
           return;
         }
         const data = await response.json();
-        if (isActive) {
-          setProject(data.project || null);
-          setMediaVariants(
-            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
-          );
+        if (!isActive) {
+          return;
         }
+        setProject(data.project || null);
+        setMediaVariants((current) =>
+          mergeMediaVariants(bootstrapData?.mediaVariants || current, data?.mediaVariants),
+        );
       } catch {
         if (isActive) {
           setProject(null);
-          setMediaVariants({});
         }
       } finally {
         if (isActive) {
-          setHasLoaded(true);
-        }
-      }
-    };
-    load();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase, slug]);
-
-  useEffect(() => {
-    let isActive = true;
-    const loadCurrentUser = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/me", { auth: true });
-        if (!response.ok) {
-          if (isActive) {
-            setCurrentUser(null);
-          }
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setCurrentUser(data?.user ?? null);
-        }
-      } catch {
-        if (isActive) {
-          setCurrentUser(null);
+          setHasLoadedProject(true);
         }
       }
     };
 
-    loadCurrentUser();
+    void loadProject();
     return () => {
       isActive = false;
     };
-  }, [apiBase]);
+  }, [apiBase, bootstrapData?.mediaVariants, bootstrapProject, slug]);
 
   const chapterNumber = Number(chapter);
   const volumeParamRaw = searchParams.get("volume");
@@ -195,17 +212,14 @@ const ProjectReading = () => {
     if (!project || !Number.isFinite(chapterNumber)) {
       return null;
     }
-    const lookupKey = buildEpisodeKey(
-      chapterNumber,
-      volumeParam,
-    );
+    const lookupKey = buildEpisodeKey(chapterNumber, volumeParam);
     return sortedChapters.find((entry) => {
       if (volumeParam === undefined) {
         return entry.number === chapterNumber;
       }
       return buildEpisodeKey(entry.number, entry.volume) === lookupKey;
     });
-  }, [project, sortedChapters, chapterNumber, volumeParam]);
+  }, [chapterNumber, project, sortedChapters, volumeParam]);
 
   const activeVolume = useMemo(() => {
     const contentVolume = Number(chapterContent?.volume);
@@ -219,15 +233,17 @@ const ProjectReading = () => {
     return volumeParam;
   }, [chapterContent?.volume, chapterData?.volume, volumeParam]);
 
-  const normalizedVolumeEntries = useMemo(() => {
-    return normalizeProjectVolumeEntries(
-      Array.isArray(project?.volumeEntries)
-        ? project.volumeEntries
-        : Array.isArray(project?.volumeCovers)
-          ? project.volumeCovers
-          : [],
-    );
-  }, [project?.volumeEntries, project?.volumeCovers]);
+  const normalizedVolumeEntries = useMemo(
+    () =>
+      normalizeProjectVolumeEntries(
+        Array.isArray(project?.volumeEntries)
+          ? project.volumeEntries
+          : Array.isArray(project?.volumeCovers)
+            ? project.volumeCovers
+            : [],
+      ),
+    [project?.volumeCovers, project?.volumeEntries],
+  );
 
   const volumeEntry = useMemo(
     () => findVolumeCoverByVolume(normalizedVolumeEntries, activeVolume),
@@ -281,9 +297,7 @@ const ProjectReading = () => {
   );
 
   const resolvedChapterSynopsis = useMemo(() => {
-    const explicitChapterSynopsis = String(
-      chapterContent?.synopsis || chapterData?.synopsis || "",
-    ).trim();
+    const explicitChapterSynopsis = String(chapterContent?.synopsis || chapterData?.synopsis || "").trim();
     if (explicitChapterSynopsis) {
       return explicitChapterSynopsis;
     }
@@ -293,6 +307,35 @@ const ProjectReading = () => {
     }
     return String(project?.synopsis || "").trim();
   }, [chapterContent?.synopsis, chapterData?.synopsis, project?.synopsis, volumeEntry?.synopsis]);
+
+  const pageTitle = useMemo(() => {
+    if (!project) {
+      return "Leitura";
+    }
+    const entryKind = chapterContent?.entryKind === "extra" ? "extra" : "main";
+    const chapterLabel =
+      entryKind === "extra"
+        ? String(chapterContent?.displayLabel || chapterData?.displayLabel || "Extra").trim() ||
+          "Extra"
+        : chapterContent?.number || chapterData?.number || chapterNumber
+          ? `Capítulo ${chapterContent?.number || chapterData?.number || chapterNumber}`
+          : "Capítulo";
+    const titlePart =
+      chapterContent?.title || chapterData?.title
+        ? `${chapterLabel} - ${chapterContent?.title || chapterData?.title}`
+        : chapterLabel;
+    return `${titlePart} - ${project.title}`;
+  }, [
+    chapterContent?.displayLabel,
+    chapterContent?.entryKind,
+    chapterContent?.number,
+    chapterContent?.title,
+    chapterData?.displayLabel,
+    chapterData?.number,
+    chapterData?.title,
+    chapterNumber,
+    project,
+  ]);
 
   usePageMeta({
     title: pageTitle,
@@ -308,16 +351,17 @@ const ProjectReading = () => {
       return -1;
     }
     const activeKey = buildEpisodeKey(chapterData.number, chapterData.volume);
-    return sortedChapters.findIndex((entry) => {
-      return buildEpisodeKey(entry.number, entry.volume) === activeKey;
-    });
-  }, [sortedChapters, chapterData]);
+    return sortedChapters.findIndex(
+      (entry) => buildEpisodeKey(entry.number, entry.volume) === activeKey,
+    );
+  }, [chapterData, sortedChapters]);
 
   const previousChapter = currentIndex > 0 ? sortedChapters[currentIndex - 1] : null;
   const nextChapter =
     currentIndex >= 0 && currentIndex < sortedChapters.length - 1
       ? sortedChapters[currentIndex + 1]
       : null;
+
   const chapterBadgeLabel = useMemo(() => {
     const isExtra = chapterContent?.entryKind === "extra" || chapterData?.entryKind === "extra";
     if (isExtra) {
@@ -335,10 +379,12 @@ const ProjectReading = () => {
     chapterData?.number,
     chapterNumber,
   ]);
+
   const canEditChapter = useMemo(() => {
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
     return permissions.includes("*") || permissions.includes("projetos");
   }, [currentUser]);
+
   const editChapterHref = useMemo(() => {
     if (!project?.id) {
       return "";
@@ -347,13 +393,14 @@ const ProjectReading = () => {
     if (!Number.isFinite(chapterNumberValue)) {
       return "";
     }
-    const canonicalChapter = resolveCanonicalEpisodeRouteTarget(sortedChapters, chapterNumberValue, [
-      chapterContent?.volume,
-      chapterData?.volume,
-      volumeParam,
-    ], {
-      exactPreferredOnly: true,
-    });
+    const canonicalChapter = resolveCanonicalEpisodeRouteTarget(
+      sortedChapters,
+      chapterNumberValue,
+      [chapterContent?.volume, chapterData?.volume, volumeParam],
+      {
+        exactPreferredOnly: true,
+      },
+    );
     if (!canonicalChapter) {
       return "";
     }
@@ -375,10 +422,19 @@ const ProjectReading = () => {
 
   useEffect(() => {
     let isActive = true;
-    const load = async () => {
-      if (!project || !Number.isFinite(chapterNumber)) {
+
+    const loadChapter = async () => {
+      setHasLoadedChapter(false);
+      setChapterLoadError(false);
+      setChapterContent(null);
+
+      if (!project?.id || !Number.isFinite(chapterNumber)) {
+        if (isActive) {
+          setHasLoadedChapter(true);
+        }
         return;
       }
+
       const volumeQuery = volumeParam !== undefined ? `?volume=${volumeParam}` : "";
       try {
         const response = await apiFetch(
@@ -388,24 +444,32 @@ const ProjectReading = () => {
         if (!response.ok) {
           if (isActive) {
             setChapterContent(null);
+            setChapterLoadError(true);
           }
           return;
         }
         const data = await response.json();
         if (isActive) {
           setChapterContent(data.chapter || null);
+          setChapterLoadError(false);
         }
       } catch {
         if (isActive) {
           setChapterContent(null);
+          setChapterLoadError(true);
+        }
+      } finally {
+        if (isActive) {
+          setHasLoadedChapter(true);
         }
       }
     };
-    load();
+
+    void loadChapter();
     return () => {
       isActive = false;
     };
-  }, [apiBase, project, chapterNumber, volumeParam]);
+  }, [apiBase, chapterNumber, project?.id, volumeParam]);
 
   useEffect(() => {
     if (!project?.id || !Number.isFinite(chapterContent?.number)) {
@@ -444,11 +508,10 @@ const ProjectReading = () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-  }, [apiBase, project?.id, chapterContent?.number, chapterContent?.volume]);
+  }, [apiBase, chapterContent?.number, chapterContent?.volume, project?.id]);
 
-  const chapterLexical = chapterContent?.content || "";
-
-  if (!slug || (!project && hasLoaded)) {
+  const shouldShowNotFound = !slug || (!project && hasLoadedProject);
+  if (shouldShowNotFound) {
     return <NotFound />;
   }
   if (!project) {
@@ -457,6 +520,8 @@ const ProjectReading = () => {
   if (!isLightNovel) {
     return <NotFound />;
   }
+
+  const chapterLexical = chapterContent?.content || "";
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -474,7 +539,7 @@ const ProjectReading = () => {
             imgClassName="h-full w-full object-cover object-top md:object-[center_18%]"
             loading="eager"
             decoding="async"
-            {...({ fetchpriority: "high" } as Record<string, string>)}
+            fetchPriority="high"
           />
           <div className="project-reading-masthead__backdrop project-reading-masthead__backdrop--veil absolute inset-0" />
           <div className="project-reading-masthead__backdrop project-reading-masthead__backdrop--horizontal absolute inset-0" />
@@ -483,7 +548,7 @@ const ProjectReading = () => {
           <div
             className={`${publicPageLayoutTokens.sectionBase} project-reading-masthead__content relative max-w-6xl pb-10 pt-24 md:pb-16 md:pt-20 lg:pb-20 lg:pt-24`}
           >
-            <div className="project-reading-masthead__layout grid items-center gap-8 md:gap-10 md:grid-cols-[minmax(0,1fr)_250px] lg:grid-cols-[minmax(0,1fr)_270px]">
+            <div className="project-reading-masthead__layout grid items-center gap-8 md:grid-cols-[minmax(0,1fr)_250px] md:gap-10 lg:grid-cols-[minmax(0,1fr)_270px]">
               <div className="project-reading-masthead__body order-2 mx-auto w-48 md:order-1 md:w-full">
                 <div className="project-reading-masthead__meta flex w-full flex-wrap items-center gap-2">
                   <Badge
@@ -557,7 +622,6 @@ const ProjectReading = () => {
                     imgClassName="h-full w-full object-cover object-center"
                     loading="eager"
                     decoding="async"
-                    {...({ fetchpriority: "high" } as Record<string, string>)}
                   />
                 </div>
               </div>
@@ -574,21 +638,26 @@ const ProjectReading = () => {
                     <Suspense fallback={<LexicalViewerFallback />}>
                       <LexicalViewer
                         value={chapterLexical}
-                        className="post-content reader-content min-w-0 w-full space-y-4 text-sm text-muted-foreground"
+                        ariaLabel={`Conteúdo de leitura de ${pageTitle}`}
+                        className="post-content reader-content min-w-0 w-full text-muted-foreground"
                         pollTarget={
-                          project?.id && Number.isFinite(chapterNumber)
+                          project.id && Number.isFinite(chapterNumber)
                             ? {
                                 type: "chapter",
                                 projectId: project.id,
                                 chapterNumber: chapterData?.number ?? chapterNumber,
-                                volume:
-                                  chapterData?.volume ??
-                                  volumeParam,
+                                volume: chapterData?.volume ?? volumeParam,
                               }
                             : undefined
                         }
                       />
                     </Suspense>
+                  ) : !hasLoadedChapter ? (
+                    <LexicalViewerFallback />
+                  ) : chapterLoadError ? (
+                    <div className="project-reading-reader-shell__empty rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-center text-sm text-muted-foreground">
+                      O conteúdo do capítulo não pôde ser carregado agora.
+                    </div>
                   ) : (
                     <div className="project-reading-reader-shell__empty rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-center text-sm text-muted-foreground">
                       Conteúdo ainda não disponível.
@@ -643,14 +712,16 @@ const ProjectReading = () => {
                 </nav>
               ) : null}
 
-              <CommentsSection
-                targetType="chapter"
-                targetId={project.id}
-                chapterNumber={chapterData?.number ?? chapterNumber}
-                volume={
-                  chapterData?.volume ?? volumeParam
-                }
-              />
+              <div ref={commentsSentinelRef} aria-hidden="true" className="h-px w-full" />
+
+              {isCommentsVisible ? (
+                <CommentsSection
+                  targetType="chapter"
+                  targetId={project.id}
+                  chapterNumber={chapterData?.number ?? chapterContent?.number ?? chapterNumber}
+                  volume={chapterData?.volume ?? chapterContent?.volume ?? volumeParam}
+                />
+              ) : null}
             </article>
           </section>
         </section>

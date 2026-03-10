@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   resolveHomeHeroPreloadFromSlide,
+  resolvePublicPostCoverPreload,
+  resolvePublicReaderHeroPreload,
   sanitizePublicMediaVariantEntry,
   shouldExposePublicUploadInMediaVariants,
 } from "../../server/lib/public-media-variants.js";
@@ -105,6 +107,69 @@ describe("public media variants", () => {
     expect(preload).toEqual({
       href: "/uploads/projects/project-1/hero.jpg",
       as: "image",
+      fetchpriority: "high",
+    });
+  });
+
+  it("resolve preload da capa card da postagem com prioridade alta", () => {
+    const preload = resolvePublicPostCoverPreload({
+      coverUrl: "/uploads/posts/post-1-cover.jpg",
+      mediaVariants: {
+        "/uploads/posts/post-1-cover.jpg": {
+          variantsVersion: 1,
+          variants: {
+            card: {
+              formats: {
+                fallback: { url: "/uploads/_variants/post-1/card-v1.jpeg" },
+              },
+            },
+          },
+        },
+      },
+      resolveVariantUrl: () => "",
+    });
+
+    expect(preload).toEqual({
+      href: "/uploads/_variants/post-1/card-v1.jpeg",
+      as: "image",
+      fetchpriority: "high",
+    });
+  });
+
+  it("reutiliza preload responsivo da hero para leitura publica", () => {
+    const preload = resolvePublicReaderHeroPreload({
+      imageUrl: "/uploads/projects/project-1/hero.jpg",
+      mediaVariants: {
+        "/uploads/projects/project-1/hero.jpg": {
+          variantsVersion: 1,
+          variants: {
+            heroSm: {
+              width: 960,
+              height: 540,
+              formats: {
+                avif: { url: "/uploads/_variants/project-1/heroSm-v1.avif" },
+              },
+            },
+            hero: {
+              width: 1600,
+              height: 900,
+              formats: {
+                avif: { url: "/uploads/_variants/project-1/hero-v1.avif" },
+              },
+            },
+          },
+        },
+      },
+      resolveVariantUrl: () => "",
+    });
+
+    expect(preload).toEqual({
+      href: "/uploads/_variants/project-1/hero-v1.avif",
+      as: "image",
+      type: "image/avif",
+      imagesrcset:
+        "/uploads/_variants/project-1/heroSm-v1.avif 960w, /uploads/_variants/project-1/hero-v1.avif 1600w",
+      imagesizes: "100vw",
       fetchpriority: "high",
     });
   });

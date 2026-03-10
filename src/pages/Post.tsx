@@ -1,137 +1,226 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { CalendarDays, Clock, User } from "lucide-react";
 
-import PublicUserProfileCard from "@/components/PublicUserProfileCard";
-import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import CommentsSection from "@/components/CommentsSection";
+import ProjectEmbedCard from "@/components/ProjectEmbedCard";
+import PublicUserProfileCard from "@/components/PublicUserProfileCard";
 import UploadPicture from "@/components/UploadPicture";
+import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { publicPageLayoutTokens } from "@/components/public-page-tokens";
-import { estimateReadTime } from "@/lib/post-content";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { useDeferredVisibility } from "@/hooks/use-deferred-visibility";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { usePageMeta } from "@/hooks/use-page-meta";
-import { useSiteSettings } from "@/hooks/use-site-settings";
 import { formatDateTime } from "@/lib/date";
+import {
+  readWindowPublicBootstrap,
+  readWindowPublicBootstrapCurrentUser,
+  type PublicBootstrapCurrentUser,
+} from "@/lib/public-bootstrap-global";
+import { estimateReadTime } from "@/lib/post-content";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import type { PublicBootstrapPayload, PublicBootstrapPost } from "@/types/public-bootstrap";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
 
 const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
 
 const LexicalViewerFallback = () => (
   <div className="min-h-[320px] w-full rounded-xl border border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
-    Carregando conte?do...
+    Carregando conteúdo...
   </div>
 );
 
+type PostRecord = {
+  id: string;
+  title: string;
+  slug: string;
+  coverImageUrl?: string | null;
+  coverAlt?: string | null;
+  seoImageUrl?: string | null;
+  excerpt: string;
+  content: string;
+  contentFormat?: "lexical";
+  author: string;
+  publishedAt: string;
+  views: number;
+  commentsCount: number;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  projectId?: string | null;
+};
+
 const normalizeAuthorKey = (value: unknown) => String(value || "").trim().toLowerCase();
+const normalizePostSlug = (value: unknown) => String(value || "").trim().toLowerCase();
+
+const toBootstrapPostRecord = (post: PublicBootstrapPost | null): PostRecord | null => {
+  if (!post) {
+    return null;
+  }
+  return {
+    id: post.id,
+    title: post.title,
+    slug: post.slug,
+    coverImageUrl: post.coverImageUrl || null,
+    coverAlt: post.coverAlt || null,
+    seoImageUrl: null,
+    excerpt: post.excerpt,
+    content: "",
+    author: post.author,
+    publishedAt: post.publishedAt,
+    views: 0,
+    commentsCount: 0,
+    seoTitle: null,
+    seoDescription: null,
+    projectId: post.projectId || null,
+  };
+};
+
+const resolveBootstrapPost = (
+  bootstrapData: PublicBootstrapPayload | null,
+  slug: string | undefined,
+) => {
+  const slugKey = normalizePostSlug(slug);
+  if (!slugKey) {
+    return null;
+  }
+  return (
+    bootstrapData?.posts.find((candidate) => normalizePostSlug(candidate.slug) === slugKey) || null
+  );
+};
+
+const resolveBootstrapAuthorCard = (
+  bootstrapData: PublicBootstrapPayload | null,
+  authorName: string | undefined,
+): {
+  member: PublicTeamMember;
+  linkTypes: PublicTeamLinkType[];
+  mediaVariants: UploadMediaVariantsMap;
+} | null => {
+  const authorKey = normalizeAuthorKey(authorName);
+  if (!authorKey) {
+    return null;
+  }
+  const matches = (bootstrapData?.teamMembers || []).filter(
+    (candidate) => normalizeAuthorKey(candidate.name) === authorKey,
+  );
+  if (matches.length !== 1) {
+    return null;
+  }
+  return {
+    member: matches[0],
+    linkTypes: bootstrapData?.teamLinkTypes || [],
+    mediaVariants: bootstrapData?.mediaVariants || {},
+  };
+};
+
+const mergeMediaVariants = (
+  base: UploadMediaVariantsMap,
+  nextValue: unknown,
+) => ({
+  ...base,
+  ...(nextValue && typeof nextValue === "object" ? (nextValue as UploadMediaVariantsMap) : {}),
+});
 
 const Post = () => {
   const { slug } = useParams();
+  const location = useLocation();
   const apiBase = getApiBase();
-  const [post, setPost] = useState<{
-    id: string;
-    title: string;
-    slug: string;
-    coverImageUrl?: string | null;
-    coverAlt?: string | null;
-    seoImageUrl?: string | null;
-    excerpt: string;
-    content: string;
-    contentFormat?: "lexical";
-    author: string;
-    publishedAt: string;
-    views: number;
-    commentsCount: number;
-    seoTitle?: string | null;
-    seoDescription?: string | null;
-    projectId?: string | null;
-  } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() => readWindowPublicBootstrap());
+  const [currentUser] = useState<PublicBootstrapCurrentUser | null>(() =>
+    readWindowPublicBootstrapCurrentUser(),
+  );
+  const bootstrapPost = useMemo(() => resolveBootstrapPost(bootstrapData, slug), [bootstrapData, slug]);
+  const bootstrapPostRecord = useMemo(() => toBootstrapPostRecord(bootstrapPost), [bootstrapPost]);
+  const [post, setPost] = useState<PostRecord | null>(bootstrapPostRecord);
+  const [hasLoaded, setHasLoaded] = useState(Boolean(bootstrapPostRecord));
   const [loadError, setLoadError] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{ permissions?: string[] } | null>(null);
-  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
-  const [authorMember, setAuthorMember] = useState<PublicTeamMember | null>(null);
-  const [authorLinkTypes, setAuthorLinkTypes] = useState<PublicTeamLinkType[]>([]);
-  const [authorMediaVariants, setAuthorMediaVariants] = useState<UploadMediaVariantsMap>({});
+  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>(
+    () => bootstrapData?.mediaVariants || {},
+  );
   const trackedViewsRef = useRef<Set<string>>(new Set());
   const { settings } = useSiteSettings();
+  const { isVisible: areDeferredSectionsVisible, sentinelRef: deferredSectionsSentinelRef } =
+    useDeferredVisibility({
+      initialVisible: location.hash.startsWith("#comment-"),
+      rootMargin: "400px 0px",
+    });
+
+  useEffect(() => {
+    setPost(bootstrapPostRecord);
+    setHasLoaded(Boolean(bootstrapPostRecord));
+    setLoadError(false);
+    setMediaVariants(bootstrapData?.mediaVariants || {});
+  }, [bootstrapData, bootstrapPostRecord]);
 
   useEffect(() => {
     let isActive = true;
+
     const load = async () => {
+      if (!slug) {
+        if (isActive) {
+          setPost(null);
+          setHasLoaded(true);
+        }
+        return;
+      }
+
       try {
-        setIsLoading(true);
         const response = await apiFetch(apiBase, `/api/public/posts/${slug}`);
         if (!response.ok) {
           if (isActive) {
+            if (!bootstrapPostRecord) {
+              setPost(null);
+            }
             setLoadError(true);
-            setPost(null);
-            setMediaVariants({});
           }
           return;
         }
         const data = await response.json();
-        if (isActive) {
-          setPost(data.post);
-          setMediaVariants(
-            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
-          );
-          setLoadError(false);
+        if (!isActive) {
+          return;
         }
+        setPost((current) => ({
+          ...(current || bootstrapPostRecord || {
+            id: "",
+            title: "",
+            slug: String(slug || ""),
+            excerpt: "",
+            content: "",
+            author: "",
+            publishedAt: "",
+            views: 0,
+            commentsCount: 0,
+          }),
+          ...(data?.post || {}),
+        }));
+        setMediaVariants((current) =>
+          mergeMediaVariants(bootstrapData?.mediaVariants || current, data?.mediaVariants),
+        );
+        setLoadError(false);
       } catch {
         if (isActive) {
+          if (!bootstrapPostRecord) {
+            setPost(null);
+          }
           setLoadError(true);
-          setPost(null);
-          setMediaVariants({});
         }
       } finally {
         if (isActive) {
-          setIsLoading(false);
+          setHasLoaded(true);
         }
       }
     };
 
-    if (slug) {
-      load();
-    }
-
+    void load();
     return () => {
       isActive = false;
     };
-  }, [apiBase, slug]);
-
-  useEffect(() => {
-    let isActive = true;
-    const loadCurrentUser = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/me", { auth: true });
-        if (!response.ok) {
-          if (isActive) {
-            setCurrentUser(null);
-          }
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setCurrentUser(data?.user ?? null);
-        }
-      } catch {
-        if (isActive) {
-          setCurrentUser(null);
-        }
-      }
-    };
-
-    loadCurrentUser();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
+  }, [apiBase, bootstrapData?.mediaVariants, bootstrapPostRecord, slug]);
 
   useEffect(() => {
     if (!post?.slug) {
@@ -144,64 +233,10 @@ const Post = () => {
     void apiFetch(apiBase, `/api/public/posts/${post.slug}/view`, { method: "POST" });
   }, [apiBase, post?.slug]);
 
-  useEffect(() => {
-    let isActive = true;
-    const clearAuthorCard = () => {
-      setAuthorMember(null);
-      setAuthorLinkTypes([]);
-      setAuthorMediaVariants({});
-    };
-    const authorKey = normalizeAuthorKey(post?.author);
-    if (!authorKey) {
-      clearAuthorCard();
-      return () => {
-        isActive = false;
-      };
-    }
-
-    const loadAuthorCard = async () => {
-      try {
-        const [usersRes, linkTypesRes] = await Promise.all([
-          apiFetch(apiBase, "/api/public/users"),
-          apiFetch(apiBase, "/api/link-types"),
-        ]);
-        if (!usersRes.ok || !linkTypesRes.ok) {
-          if (isActive) {
-            clearAuthorCard();
-          }
-          return;
-        }
-        const [usersData, linkTypesData] = await Promise.all([usersRes.json(), linkTypesRes.json()]);
-        const users = Array.isArray(usersData?.users) ? usersData.users : [];
-        const matches = users.filter(
-          (candidate) => normalizeAuthorKey((candidate as { name?: string }).name) === authorKey,
-        );
-        if (!isActive) {
-          return;
-        }
-        if (matches.length !== 1) {
-          clearAuthorCard();
-          return;
-        }
-        setAuthorMember(matches[0] as PublicTeamMember);
-        setAuthorLinkTypes(Array.isArray(linkTypesData?.items) ? linkTypesData.items : []);
-        setAuthorMediaVariants(
-          usersData?.mediaVariants && typeof usersData.mediaVariants === "object"
-            ? usersData.mediaVariants
-            : {},
-        );
-      } catch {
-        if (isActive) {
-          clearAuthorCard();
-        }
-      }
-    };
-
-    void loadAuthorCard();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase, post?.author]);
+  const authorCard = useMemo(
+    () => resolveBootstrapAuthorCard(bootstrapData, post?.author),
+    [bootstrapData, post?.author],
+  );
 
   const shareImage = useMemo(
     () =>
@@ -212,10 +247,7 @@ const Post = () => {
   );
 
   const postOgImageAlt = useMemo(
-    () =>
-      post?.title
-        ? `Card de compartilhamento da postagem ${post.title}`
-        : "",
+    () => (post?.title ? `Card de compartilhamento da postagem ${post.title}` : ""),
     [post?.title],
   );
 
@@ -239,7 +271,7 @@ const Post = () => {
     if (!post) {
       return "";
     }
-    return estimateReadTime(post.content || "");
+    return estimateReadTime(post.content || post.excerpt || "");
   }, [post]);
 
   const canEditPost = useMemo(() => {
@@ -249,23 +281,25 @@ const Post = () => {
 
   const heroCoverSrc = post?.coverImageUrl || post?.seoImageUrl || "/placeholder.svg";
   const heroCoverAlt = post?.coverAlt || `Capa do post: ${post?.title || ""}`;
+  const shouldShowNotFound = !post && hasLoaded;
+  const shouldShowLoadingState = !post && !hasLoaded;
 
   return (
     <div className="min-h-screen bg-background">
       <main className="pb-20">
-        {isLoading ? (
+        {shouldShowLoadingState ? (
           <div
-            className={`${publicPageLayoutTokens.sectionBase} max-w-6xl rounded-2xl border border-border/60 py-10 pt-20 text-sm text-muted-foreground bg-card/60`}
+            className={`${publicPageLayoutTokens.sectionBase} max-w-6xl rounded-2xl border border-border/60 bg-card/60 py-10 pt-20 text-sm text-muted-foreground`}
           >
             Carregando postagem...
           </div>
-        ) : loadError || !post ? (
+        ) : shouldShowNotFound ? (
           <div
-            className={`${publicPageLayoutTokens.sectionBase} max-w-6xl rounded-2xl border border-dashed border-border/60 py-10 pt-20 text-sm text-muted-foreground bg-card/60`}
+            className={`${publicPageLayoutTokens.sectionBase} max-w-6xl rounded-2xl border border-dashed border-border/60 bg-card/60 py-10 pt-20 text-sm text-muted-foreground`}
           >
-            Postagem n?o encontrada.
+            Postagem não encontrada.
           </div>
-        ) : (
+        ) : post ? (
           <>
             <section data-testid="post-reader-hero" className="relative overflow-hidden">
               <UploadPicture
@@ -277,7 +311,6 @@ const Post = () => {
                 imgClassName="h-full w-full object-cover object-top md:object-[center_18%]"
                 loading="eager"
                 decoding="async"
-                {...({ fetchpriority: "high" } as Record<string, string>)}
               />
               <div className="absolute inset-0 bg-background/28 backdrop-blur-[1.5px]" />
               <div className="absolute inset-0 bg-linear-to-r from-background/84 via-background/34 to-background/78" />
@@ -303,10 +336,12 @@ const Post = () => {
                         <CalendarDays className="h-4 w-4 text-primary/70" aria-hidden="true" />
                         {formattedDate}
                       </span>
-                      <span className="inline-flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                        {readTime}
-                      </span>
+                      {readTime ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                          {readTime}
+                        </span>
+                      ) : null}
                     </div>
                     <div className="flex w-full flex-wrap justify-center gap-2 md:justify-start">
                       <Badge variant="outline" className="text-xs uppercase tracking-wide">
@@ -348,7 +383,7 @@ const Post = () => {
                     imgClassName="absolute inset-0 block h-full w-full object-cover object-top"
                     loading="eager"
                     decoding="async"
-                    {...({ fetchpriority: "high" } as Record<string, string>)}
+                    fetchPriority="high"
                   />
                 </div>
               </div>
@@ -361,38 +396,61 @@ const Post = () => {
                 <article data-testid="post-reader-main" className="min-w-0 space-y-8">
                   <Card className="border-border/60 bg-card/85 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.75)]">
                     <CardContent className="min-w-0 space-y-7 p-6 text-sm leading-relaxed text-muted-foreground md:p-8">
-                      <Suspense fallback={<LexicalViewerFallback />}>
-                        <LexicalViewer
-                          value={post.content || ""}
-                          className="post-content reader-content min-w-0 w-full space-y-4 text-muted-foreground leading-relaxed md:text-base"
-                          pollTarget={post?.slug ? { type: "post", slug: post.slug } : undefined}
-                        />
-                      </Suspense>
+                      {post.content ? (
+                        <Suspense fallback={<LexicalViewerFallback />}>
+                          <LexicalViewer
+                            value={post.content}
+                            ariaLabel={`Conteúdo da postagem ${post.title}`}
+                            className="post-content reader-content min-w-0 w-full text-muted-foreground"
+                            pollTarget={post.slug ? { type: "post", slug: post.slug } : undefined}
+                          />
+                        </Suspense>
+                      ) : !hasLoaded ? (
+                        <LexicalViewerFallback />
+                      ) : loadError ? (
+                        <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
+                          O conteúdo completo da postagem não pôde ser carregado agora.
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
+                          Conteúdo ainda não disponível.
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 
-                  {post.projectId ? <ProjectEmbedCard projectId={post.projectId} /> : null}
+                  <div
+                    ref={deferredSectionsSentinelRef}
+                    aria-hidden="true"
+                    className="h-px w-full"
+                  />
 
-                  {authorMember ? (
+                  {areDeferredSectionsVisible && post.projectId ? (
+                    <ProjectEmbedCard projectId={post.projectId} />
+                  ) : null}
+
+                  {areDeferredSectionsVisible && authorCard ? (
                     <section aria-labelledby="post-author-heading">
                       <h2 id="post-author-heading" className="sr-only">
                         Sobre o autor
                       </h2>
                       <PublicUserProfileCard
                         testId="post-author-card"
-                        member={authorMember}
-                        linkTypes={authorLinkTypes}
-                        mediaVariants={authorMediaVariants}
+                        member={authorCard.member}
+                        linkTypes={authorCard.linkTypes}
+                        mediaVariants={authorCard.mediaVariants}
                       />
                     </section>
                   ) : null}
 
-                  <CommentsSection targetType="post" targetId={post.slug} />
+                  {areDeferredSectionsVisible ? (
+                    <CommentsSection targetType="post" targetId={post.slug} />
+                  ) : null}
                 </article>
               </section>
             </section>
           </>
-        )}
+        ) : null}
       </main>
     </div>
   );

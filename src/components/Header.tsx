@@ -173,6 +173,9 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     }
     return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`);
   };
+  const currentPath = normalizePathname(location.pathname);
+  const isReaderAwareRoute =
+    /^\/postagem\/.+/.test(currentPath) || /^\/projeto(?:s)?\/.+\/leitura\/.+/.test(currentPath);
 
   const queryTrimmed = query.trim();
   const hasMinimumSearchQueryLength = queryTrimmed.length >= MIN_SUGGEST_QUERY_LENGTH;
@@ -295,7 +298,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   }, [isSearchOpen]);
 
   useEffect(() => {
-    if (isMobile) {
+    if (isMobile || isReaderAwareRoute) {
       return;
     }
     let isActive = true;
@@ -318,7 +321,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       isActive = false;
       cancelIdle();
     };
-  }, [isMobile]);
+  }, [isMobile, isReaderAwareRoute]);
 
   useEffect(() => {
     if (shouldRenderActionMenus) {
@@ -350,7 +353,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   }, [shouldRenderActionMenus]);
 
   useEffect(() => {
-    if (isMobile || !currentUser || shouldRenderActionMenus) {
+    if (isMobile || isReaderAwareRoute || !currentUser || shouldRenderActionMenus) {
       return;
     }
     let isActive = true;
@@ -364,7 +367,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     return () => {
       isActive = false;
     };
-  }, [currentUser, isMobile, shouldRenderActionMenus]);
+  }, [currentUser, isMobile, isReaderAwareRoute, shouldRenderActionMenus]);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {

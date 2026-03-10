@@ -415,6 +415,45 @@ export const resolveHomeHeroPreloadFromSlide = ({
   };
 };
 
+export const resolvePublicReaderHeroPreload = ({
+  imageUrl,
+  mediaVariants,
+  resolveVariantUrl,
+} = {}) =>
+  resolveHomeHeroPreloadFromSlide({
+    imageUrl,
+    mediaVariants,
+    resolveVariantUrl,
+  });
+
+export const resolvePublicPostCoverPreload = ({
+  coverUrl,
+  mediaVariants,
+  resolveVariantUrl,
+} = {}) => {
+  const sourceCoverUrl = String(coverUrl || "").trim();
+  if (!sourceCoverUrl) {
+    return null;
+  }
+  const normalizedCoverUrl = normalizePublicUploadUrl(sourceCoverUrl);
+  const href =
+    (normalizedCoverUrl
+      ? readPublicVariantAssetUrl(mediaVariants?.[normalizedCoverUrl]?.variants?.card?.formats, "")
+      : "") ||
+    (typeof resolveVariantUrl === "function" ? resolveVariantUrl(sourceCoverUrl, "card") : "") ||
+    sourceCoverUrl;
+
+  if (!href) {
+    return null;
+  }
+
+  return {
+    href,
+    as: "image",
+    fetchpriority: "high",
+  };
+};
+
 export const resolveProjectPosterPreload = ({
   coverUrl,
   mediaVariants,

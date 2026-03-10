@@ -1,5 +1,7 @@
 export type ManualChunkName =
   | "lexical"
+  | "lexical-editor"
+  | "lexical-viewer"
   | "charts"
   | "mui-date-time-fields"
   | "mui"
@@ -14,10 +16,43 @@ const lexicalNodeModulePatterns = [
   "/node_modules/yjs/",
 ] as const;
 
-const lexicalLocalPatterns = [
+const lexicalSharedLocalPatterns = [
+  "/src/components/lexical/nodes/EpubHeadingNode.ts",
+  "/src/components/lexical/nodes/EpubImageNode.tsx",
+  "/src/components/lexical/nodes/EpubParagraphNode.ts",
+  "/src/components/lexical/nodes/ImageNode.tsx",
+  "/src/components/lexical/nodes/VideoNode.tsx",
+  "/src/components/lexical/nodes/epub-style.ts",
+  "/src/lib/lexical/empty-state.ts",
+] as const;
+
+const lexicalViewerLocalPatterns = [
+  "/src/components/lexical/LexicalViewer.tsx",
+  "/src/components/lexical/LexicalViewerNodes.ts",
+  "/src/components/lexical/lexical-viewer.css",
+  "/src/components/lexical/LexicalViewerTheme.ts",
+  "/src/components/lexical/viewer-nodes/",
+  "/src/lib/lexical/viewer.ts",
+  "/src/lexical-playground/nodes/EmojiNode.tsx",
+  "/src/lexical-playground/nodes/KeywordNode.ts",
+  "/src/lexical-playground/nodes/LayoutContainerNode.ts",
+  "/src/lexical-playground/nodes/LayoutItemNode.ts",
+  "/src/lexical-playground/nodes/MentionNode.ts",
+  "/src/lexical-playground/nodes/SpecialTextNode.tsx",
+  "/src/lexical-playground/nodes/TweetNode.tsx",
+  "/src/lexical-playground/nodes/YouTubeNode.tsx",
+  "/src/lexical-playground/plugins/CollapsiblePlugin/CollapsibleContainerNode.ts",
+  "/src/lexical-playground/plugins/CollapsiblePlugin/CollapsibleContentNode.ts",
+  "/src/lexical-playground/plugins/CollapsiblePlugin/CollapsibleTitleNode.ts",
+  "/src/lexical-playground/plugins/CollapsiblePlugin/CollapsibleUtils.ts",
+] as const;
+
+const lexicalEditorLocalPatterns = [
   "/src/lexical-playground/",
-  "/src/components/lexical/",
-  "/src/lib/lexical/",
+  "/src/components/lexical/LexicalEditor.tsx",
+  "/src/components/lexical/LexicalToolbar.tsx",
+  "/src/lib/lexical/nodes.ts",
+  "/src/lib/lexical/serialize.ts",
 ] as const;
 
 const chartsNodeModulePatterns = [
@@ -59,11 +94,19 @@ export const normalizeChunkModuleId = (id: string) => id.replace(/\\/g, "/");
 export const classifyManualChunk = (id: string): ManualChunkName | undefined => {
   const normalizedId = normalizeChunkModuleId(id);
 
+  if (includesAny(normalizedId, lexicalViewerLocalPatterns)) {
+    return "lexical-viewer";
+  }
+
   if (
     includesAny(normalizedId, lexicalNodeModulePatterns) ||
-    includesAny(normalizedId, lexicalLocalPatterns)
+    includesAny(normalizedId, lexicalSharedLocalPatterns)
   ) {
     return "lexical";
+  }
+
+  if (includesAny(normalizedId, lexicalEditorLocalPatterns)) {
+    return "lexical-editor";
   }
 
   if (

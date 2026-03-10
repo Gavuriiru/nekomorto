@@ -194,6 +194,7 @@ export default defineConfig(({ mode }) => {
         : {},
     },
     build: {
+      sourcemap: env.VITE_BUILD_SOURCEMAP === "true",
       rollupOptions: {
         output: {
           onlyExplicitManualChunks: true,

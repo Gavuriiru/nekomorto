@@ -226,6 +226,22 @@ describe("Header mobile search layout", () => {
     expect(getScheduleOnBrowserLoadIdleCallsByDelay(1200).length).toBeGreaterThan(0);
   });
 
+  it("desliga preload idle dos menus em rotas de leitura e postagem", async () => {
+    useIsMobileMock.mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={["/postagem/post-teste"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(scheduleOnBrowserLoadIdleMock).toHaveBeenCalled();
+    });
+    expect(getScheduleOnBrowserLoadIdleCallsByDelay(1200)).toHaveLength(0);
+    expect(getScheduleOnBrowserLoadIdleCallsByDelay(2500).length).toBeGreaterThan(0);
+  });
+
   it("aplica gradiente abaixo do header fixo apenas apos scroll", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>

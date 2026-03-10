@@ -38,6 +38,7 @@ function getTotalVotes(options: Options): number {
 }
 
 function PollOptionComponent({
+  question,
   option,
   index,
   options,
@@ -46,6 +47,7 @@ function PollOptionComponent({
   isEditable,
   onVote,
 }: {
+  question: string;
   index: number;
   option: Option;
   options: Options;
@@ -77,6 +79,7 @@ function PollOptionComponent({
           ref={checkboxRef}
           className="PollNode__optionCheckbox"
           type="checkbox"
+          aria-label={`${question}: ${text || `Opção ${index + 1}`}`}
           onChange={(e) => {
             const nextChecked = e.target.checked;
             withPollNode((node) => {
@@ -95,32 +98,34 @@ function PollOptionComponent({
         <span className="PollNode__optionInputVotesCount">
           {votes > 0 && (votes === 1 ? '1 voto' : `${votes} votos`)}
         </span>
-        <input
-          className="PollNode__optionInput"
-          type="text"
-          value={text}
-          readOnly={!isEditable}
-          onChange={
-            isEditable
-              ? (e) => {
-                  const target = e.target;
-                  const value = target.value;
-                  const selectionStart = target.selectionStart;
-                  const selectionEnd = target.selectionEnd;
-                  withPollNode(
-                    (node) => {
-                      node.setOptionText(option, value);
-                    },
-                    () => {
-                      target.selectionStart = selectionStart;
-                      target.selectionEnd = selectionEnd;
-                    },
-                  );
-                }
-              : undefined
-          }
-          placeholder={`Opção ${index + 1}`}
-        />
+        {isEditable ? (
+          <input
+            className="PollNode__optionInput"
+            type="text"
+            value={text}
+            aria-label={`Texto da opção ${index + 1}`}
+            onChange={(e) => {
+              const target = e.target;
+              const value = target.value;
+              const selectionStart = target.selectionStart;
+              const selectionEnd = target.selectionEnd;
+              withPollNode(
+                (node) => {
+                  node.setOptionText(option, value);
+                },
+                () => {
+                  target.selectionStart = selectionStart;
+                  target.selectionEnd = selectionEnd;
+                },
+              );
+            }}
+            placeholder={`Opção ${index + 1}`}
+          />
+        ) : (
+          <span className="PollNode__optionInput" aria-hidden="true">
+            {text}
+          </span>
+        )}
       </div>
       {isEditable ? (
         <button
@@ -221,6 +226,7 @@ export default function PollComponent({
           return (
             <PollOptionComponent
               key={key}
+              question={question}
               withPollNode={withPollNode}
               option={option}
               index={index}

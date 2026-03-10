@@ -132,6 +132,8 @@ import { buildPublicBootstrapPayload } from "./lib/public-bootstrap.js";
 import {
   resolveExistingPublicVariantUrl,
   resolveHomeHeroPreloadFromSlide,
+  resolvePublicPostCoverPreload,
+  resolvePublicReaderHeroPreload,
   sanitizePublicMediaVariantEntry,
   shouldExposePublicUploadInMediaVariants,
 } from "./lib/public-media-variants.js";
@@ -12270,6 +12272,67 @@ const resolveHomeHeroPreload = (publicBootstrap) => {
   });
 };
 
+const findBootstrapProjectByRouteSlug = (projects, routeSlug) => {
+  const rawRouteSlug = String(routeSlug || "").trim();
+  if (!rawRouteSlug) {
+    return null;
+  }
+  const normalizedRouteSlug = createSlug(rawRouteSlug);
+  return (
+    (Array.isArray(projects) ? projects : []).find((candidate) => {
+      const candidateId = String(candidate?.id || "").trim();
+      return (
+        candidateId === rawRouteSlug ||
+        createSlug(candidateId) === normalizedRouteSlug ||
+        createSlug(candidate?.title || "") === normalizedRouteSlug
+      );
+    }) || null
+  );
+};
+
+const resolveBootstrapReadingHeroImageUrl = ({
+  project,
+  chapterNumber,
+  volume,
+}) => {
+  if (!project || !Number.isFinite(chapterNumber)) {
+    return "";
+  }
+  const episodes = Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : [];
+  const matchingEpisode =
+    episodes.find((episode) => {
+      if (Number(episode?.number) !== chapterNumber) {
+        return false;
+      }
+      if (!Number.isFinite(volume)) {
+        return true;
+      }
+      return Number(episode?.volume) === volume;
+    }) || null;
+  const resolvedVolume = Number.isFinite(volume)
+    ? volume
+    : Number.isFinite(Number(matchingEpisode?.volume))
+      ? Number(matchingEpisode.volume)
+      : undefined;
+  const volumeEntry =
+    Number.isFinite(resolvedVolume) && Array.isArray(project?.volumeEntries)
+      ? project.volumeEntries.find((entry) => Number(entry?.volume) === resolvedVolume) || null
+      : null;
+  const volumeCover =
+    Number.isFinite(resolvedVolume) && Array.isArray(project?.volumeCovers)
+      ? project.volumeCovers.find((entry) => Number(entry?.volume) === resolvedVolume) || null
+      : null;
+
+  return (
+    String(matchingEpisode?.coverImageUrl || "").trim() ||
+    String(volumeEntry?.coverImageUrl || "").trim() ||
+    String(volumeCover?.coverImageUrl || "").trim() ||
+    String(project?.cover || "").trim() ||
+    String(project?.heroImageUrl || "").trim() ||
+    String(project?.banner || "").trim()
+  );
+};
+
 const escapeHtmlAttribute = (value) =>
   String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -12358,6 +12421,40 @@ const injectPublicBootstrapHtml = ({
     });
     if (teamAvatarPreload) {
       preloads.push(teamAvatarPreload);
+    }
+  }
+  if (req?.path?.startsWith("/postagem/")) {
+    const routeSlug = String(req?.params?.slug || "").trim();
+    const bootstrapPost =
+      (Array.isArray(publicBootstrap?.posts) ? publicBootstrap.posts : []).find(
+        (candidate) => String(candidate?.slug || "").trim() === routeSlug,
+      ) || null;
+    const postCoverPreload = resolvePublicPostCoverPreload({
+      coverUrl: bootstrapPost?.coverImageUrl || "",
+      mediaVariants: publicBootstrap?.mediaVariants,
+      resolveVariantUrl: resolveMetaImageVariantUrl,
+    });
+    if (postCoverPreload) {
+      preloads.push(postCoverPreload);
+    }
+  }
+  if (/^\/projeto(?:s)?\/.+\/leitura\/.+/.test(String(req?.path || ""))) {
+    const routeProjectId = String(req?.params?.id || "").trim();
+    const chapterNumber = Number(req?.params?.chapter);
+    const routeVolume = Number(req?.query?.volume);
+    const bootstrapProject = findBootstrapProjectByRouteSlug(publicBootstrap?.projects, routeProjectId);
+    const readingHeroImageUrl = resolveBootstrapReadingHeroImageUrl({
+      project: bootstrapProject,
+      chapterNumber,
+      volume: Number.isFinite(routeVolume) ? routeVolume : undefined,
+    });
+    const readerHeroPreload = resolvePublicReaderHeroPreload({
+      imageUrl: readingHeroImageUrl,
+      mediaVariants: publicBootstrap?.mediaVariants,
+      resolveVariantUrl: resolveMetaImageVariantUrl,
+    });
+    if (readerHeroPreload) {
+      preloads.push(readerHeroPreload);
     }
   }
   if (preloads.length > 0) {
