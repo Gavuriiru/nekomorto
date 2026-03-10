@@ -109,6 +109,7 @@ export type ImageLibraryOptions = {
   projectImagesView?: "flat" | "by-project";
   currentSelectionUrls?: string[];
   scopeUserId?: string;
+  onRequestNavigateToUploads?: () => boolean | Promise<boolean>;
 };
 
 type ImageLibraryDialogProps = {
@@ -133,6 +134,7 @@ type ImageLibraryDialogProps = {
   cropSlot?: string;
   scopeUserId?: string;
   allowUploadManagementActions?: boolean;
+  onRequestNavigateToUploads?: () => boolean | Promise<boolean>;
   onSave: (payload: ImageLibrarySavePayload) => void;
 };
 
@@ -1310,6 +1312,7 @@ const ImageLibraryDialog = ({
   cropSlot,
   scopeUserId,
   allowUploadManagementActions = true,
+  onRequestNavigateToUploads,
   onSave,
 }: ImageLibraryDialogProps) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -1343,6 +1346,7 @@ const ImageLibraryDialog = ({
   const [isApplyingCrop, setIsApplyingCrop] = useState(false);
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
   const [isLibraryHydratedForOpen, setIsLibraryHydratedForOpen] = useState(false);
+  const [isNavigatingToUploads, setIsNavigatingToUploads] = useState(false);
   const [pendingRevealRequest, setPendingRevealRequest] = useState<{
     url: string;
     token: number;
@@ -1641,6 +1645,17 @@ const ImageLibraryDialog = ({
     () => listAll || uploadFolderFilterOptions.length > 1,
     [listAll, uploadFolderFilterOptions.length],
   );
+  const hasUploadsInResolvedFolderContext = useMemo(() => {
+    if (!resolvedUploadFolderForFilter) {
+      return false;
+    }
+    return uploads.some((item) =>
+      isFolderWithinSelection({
+        itemFolder: resolveItemFolder(item),
+        selectedFolder: resolvedUploadFolderForFilter,
+      }),
+    );
+  }, [resolvedUploadFolderForFilter, uploads]);
   const isUploadsFilterReadyForInitialExpansion = useMemo(() => {
     if (uploads.length === 0) {
       return true;
@@ -1663,6 +1678,19 @@ const ImageLibraryDialog = ({
 
   useEffect(() => {
     const fallbackFilter = resolvedUploadFolderForFilter || uploadFolderFilterOptions[0] || "__all__";
+    const shouldFallbackMissingContextToAll =
+      !hasInitializedUploadAccordionStateForOpenRef.current &&
+      resolvedUploadFolderForFilter &&
+      uploads.length > 0 &&
+      shouldShowAllFoldersFilterOption &&
+      !hasUploadsInResolvedFolderContext;
+    if (
+      shouldFallbackMissingContextToAll &&
+      uploadsFolderFilter === resolvedUploadFolderForFilter
+    ) {
+      setUploadsFolderFilter("__all__");
+      return;
+    }
     if (uploadsFolderFilter === "__all__") {
       if (!shouldShowAllFoldersFilterOption && fallbackFilter !== "__all__") {
         setUploadsFolderFilter(fallbackFilter);
@@ -1683,8 +1711,10 @@ const ImageLibraryDialog = ({
       setUploadsFolderFilter(shouldShowAllFoldersFilterOption ? "__all__" : fallbackFilter);
     }
   }, [
+    hasUploadsInResolvedFolderContext,
     resolvedUploadFolderForFilter,
     shouldShowAllFoldersFilterOption,
+    uploads.length,
     uploadFolderFilterOptions,
     uploadsFolderFilter,
   ]);
@@ -1888,6 +1918,7 @@ const ImageLibraryDialog = ({
       setOpenProjectFolderKeysByGroup({});
       setPendingRevealRequest(null);
       setUploadsLoadError("");
+      setIsNavigatingToUploads(false);
       return;
     }
   }, [open]);
@@ -1946,7 +1977,7 @@ const ImageLibraryDialog = ({
   ]);
 
   useEffect(() => {
-    if (!open || !cropAvatar || !pendingRevealRequest?.url) {
+    if (!open || !pendingRevealRequest?.url) {
       return;
     }
     const targetKey = toComparableSelectionKey(pendingRevealRequest.url);
@@ -1961,13 +1992,15 @@ const ImageLibraryDialog = ({
       return;
     }
     const targetFolder = resolveItemFolder(matchedUpload);
-    const matchesCurrentFolderFilter =
-      uploadsFolderFilter === "__all__" ||
-      isFolderWithinSelection({
-        itemFolder: targetFolder,
-        selectedFolder: uploadsFolderFilter,
-      });
-    if (!matchesCurrentFolderFilter) {
+    const shouldFocusExactFolder =
+      Boolean(targetFolder) &&
+      (uploadsFolderFilter === "__all__" ||
+        !isFolderWithinSelection({
+          itemFolder: targetFolder,
+          selectedFolder: uploadsFolderFilter,
+        }) ||
+        uploadsFolderFilter !== targetFolder);
+    if (shouldFocusExactFolder) {
       setUploadsFolderFilter(targetFolder || "__all__");
       return;
     }
@@ -2001,7 +2034,6 @@ const ImageLibraryDialog = ({
     setPendingRevealRequest(null);
   }, [
     allItemsByComparableKey,
-    cropAvatar,
     filteredUploads,
     matchesSearch,
     normalizedSearch,
@@ -2321,9 +2353,10 @@ const ImageLibraryDialog = ({
           } else {
             setSelectedUrls([lastUploadedUrl]);
           }
-          if (cropAvatar && mode === "single" && lastUploadedUrl) {
+          if (lastUploadedUrl) {
             requestRevealUpload(lastUploadedUrl, {
-              openCrop: shouldAutoOpenAvatarCrop(lastUploadedUrl),
+              openCrop:
+                cropAvatar && mode === "single" && shouldAutoOpenAvatarCrop(lastUploadedUrl),
             });
           }
           toast({
@@ -2393,9 +2426,9 @@ const ImageLibraryDialog = ({
       } else {
         setSelectedUrls([createdUrl]);
       }
-      if (cropAvatar && mode === "single") {
+      if (createdUrl) {
         requestRevealUpload(createdUrl, {
-          openCrop: shouldAutoOpenAvatarCrop(createdUrl),
+          openCrop: cropAvatar && mode === "single" && shouldAutoOpenAvatarCrop(createdUrl),
         });
       }
       toast({
@@ -2690,6 +2723,22 @@ const ImageLibraryDialog = ({
     });
     onOpenChange(false);
   };
+
+  const handleNavigateToUploads = useCallback(async () => {
+    if (!onRequestNavigateToUploads || isNavigatingToUploads) {
+      return;
+    }
+    setIsNavigatingToUploads(true);
+    try {
+      const shouldClose = await onRequestNavigateToUploads();
+      if (shouldClose === false) {
+        return;
+      }
+      onOpenChange(false);
+    } finally {
+      setIsNavigatingToUploads(false);
+    }
+  }, [isNavigatingToUploads, onOpenChange, onRequestNavigateToUploads]);
 
   const applyCrop = useCallback(
     async (dataUrl: string) => {
@@ -3254,6 +3303,17 @@ const ImageLibraryDialog = ({
                 onClick={() => setSelectedUrls([])}
               >
                 Limpar seleção
+              </Button>
+            ) : null}
+            {onRequestNavigateToUploads ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                disabled={isUploading || isNavigatingToUploads}
+                onClick={() => void handleNavigateToUploads()}
+              >
+                {isNavigatingToUploads ? "Abrindo uploads..." : "Ir para uploads"}
               </Button>
             ) : null}
             <Button

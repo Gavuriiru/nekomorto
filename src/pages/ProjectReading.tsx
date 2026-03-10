@@ -9,7 +9,10 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { buildDashboardProjectChapterEditorHref } from "@/lib/project-editor-routes";
-import { buildEpisodeKey } from "@/lib/project-episode-key";
+import {
+  buildEpisodeKey,
+  resolveCanonicalEpisodeRouteTarget,
+} from "@/lib/project-episode-key";
 import { isLightNovelType } from "@/lib/project-utils";
 import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
@@ -338,8 +341,31 @@ const ProjectReading = () => {
     if (!Number.isFinite(chapterNumberValue)) {
       return "";
     }
-    return buildDashboardProjectChapterEditorHref(project.id, chapterNumberValue, activeVolume);
-  }, [activeVolume, chapterContent?.number, chapterData?.number, chapterNumber, project?.id]);
+    const canonicalChapter = resolveCanonicalEpisodeRouteTarget(sortedChapters, chapterNumberValue, [
+      chapterContent?.volume,
+      chapterData?.volume,
+      volumeParam,
+    ], {
+      exactPreferredOnly: true,
+    });
+    if (!canonicalChapter) {
+      return "";
+    }
+    return buildDashboardProjectChapterEditorHref(
+      project.id,
+      Number(canonicalChapter.number),
+      canonicalChapter.volume,
+    );
+  }, [
+    chapterContent?.number,
+    chapterContent?.volume,
+    chapterData?.number,
+    chapterData?.volume,
+    chapterNumber,
+    project?.id,
+    sortedChapters,
+    volumeParam,
+  ]);
 
   useEffect(() => {
     let isActive = true;

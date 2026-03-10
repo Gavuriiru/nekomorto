@@ -193,6 +193,58 @@ describe("ImageLibraryDialog upload folder focus", () => {
     expect(screen.queryByText("Imagem Capitulo")).not.toBeInTheDocument();
   });
 
+  it("revela upload deduplicado em outra pasta mesmo fora do fluxo de avatar", async () => {
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "legacy-episode.png",
+              label: "Imagem Episodios",
+              fileName: "legacy-episode.png",
+              folder: episodesFolder,
+              mime: "image/png",
+              size: 101,
+              url: `/uploads/${episodesFolder}/legacy-episode.png`,
+            },
+          ],
+        });
+      }
+      if (path === "/api/uploads/image" && String(options?.method || "GET").toUpperCase() === "POST") {
+        return mockJsonResponse(true, {
+          url: `/uploads/${episodesFolder}/legacy-episode.png`,
+        });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderDialog();
+
+    const searchInput = screen.getByPlaceholderText("Pesquisar por nome, projeto ou URL...");
+    fireEvent.change(searchInput, { target: { value: "oculto" } });
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
+    expect(fileInput).toBeTruthy();
+
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [new File(["same"], "same.png", { type: "image/png" })] },
+    });
+
+    const folderSelect = await getFolderFilterTrigger();
+    await waitFor(() => {
+      expect(searchInput).toHaveValue("");
+      expect(folderSelect).toHaveTextContent(episodesFolder);
+      expect(screen.getByText("Imagem Episodios")).toBeInTheDocument();
+      expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
+    });
+
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
+  });
+
   it("abre o dropdown de pasta com as opcoes visiveis acima do modal", async () => {
     renderDialog();
 

@@ -12,6 +12,7 @@ export type ThemeModeContextValue = {
 };
 
 export const THEME_MODE_STORAGE_KEY = "nekomata:theme-mode-preference";
+export const THEME_MODE_PRESERVE_MOTION_ATTRIBUTE = "data-theme-mode-preserve-motion";
 
 export const ThemeModeContext = createContext<ThemeModeContextValue>({
   globalMode: "dark",

@@ -1,5 +1,7 @@
-import { Moon, Sun } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import "@theme-toggles/react/css/Classic.css";
+import { Classic } from "@theme-toggles/react/dist/index.js";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { THEME_MODE_PRESERVE_MOTION_ATTRIBUTE } from "@/hooks/theme-mode-context";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import { cn } from "@/lib/utils";
 
@@ -13,32 +15,32 @@ const ThemeModeSwitcher = ({ className, buttonClassName }: ThemeModeSwitcherProp
 
   const nextMode = effectiveMode === "dark" ? "light" : "dark";
   const nextModeLabel = nextMode === "light" ? "claro" : "escuro";
-  const ThemeIcon = effectiveMode === "dark" ? Moon : Sun;
 
-  const handleToggle = () => {
-    if (nextMode === globalMode) {
+  const handleToggle = (nextIsDark: boolean) => {
+    const nextPreference = nextIsDark ? "dark" : "light";
+    if (nextPreference === globalMode) {
       setPreference("global");
       return;
     }
-    setPreference(nextMode);
+    setPreference(nextPreference);
   };
 
   return (
-    <Button
+    <Classic
       type="button"
-      variant="ghost"
-      size="icon"
+      duration={200}
+      toggled={effectiveMode === "dark"}
       className={cn(
-        "h-10 w-10 rounded-full text-foreground/80 hover:text-foreground",
+        buttonVariants({ variant: "ghost", size: "icon" }),
+        "rounded-full text-foreground/80 hover:bg-accent hover:text-foreground",
         className,
         buttonClassName,
       )}
       aria-label={`Alternar para tema ${nextModeLabel}`}
       title={`Alternar para tema ${nextModeLabel}`}
-      onClick={handleToggle}
-    >
-      <ThemeIcon className="h-4 w-4" />
-    </Button>
+      onToggle={handleToggle}
+      {...{ [THEME_MODE_PRESERVE_MOTION_ATTRIBUTE]: "true" }}
+    />
   );
 };
 

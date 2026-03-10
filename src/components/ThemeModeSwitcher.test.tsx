@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
+import { THEME_MODE_PRESERVE_MOTION_ATTRIBUTE } from "@/hooks/theme-mode-context";
 
 const setPreferenceMock = vi.hoisted(() => vi.fn());
 const useThemeModeMock = vi.hoisted(() => vi.fn());
@@ -24,14 +25,19 @@ describe("ThemeModeSwitcher", () => {
     useThemeModeMock.mockReset();
   });
 
-  it("exibe lua no modo escuro e label para alternar para claro", () => {
+  it("renderiza o toggle Classic no modo escuro com label para alternar para claro", () => {
     useThemeModeMock.mockReturnValue(createThemeState());
     const { container } = render(<ThemeModeSwitcher />);
     const button = screen.getByRole("button", { name: "Alternar para tema claro" });
 
     expect(button).toBeInTheDocument();
     expect(button).toHaveClass("text-foreground/80");
-    expect(container.querySelector("svg.lucide-moon")).not.toBeNull();
+    expect(button).toHaveClass("hover:bg-accent");
+    expect(button).toHaveClass("hover:text-foreground");
+    expect(button).not.toHaveClass("hover:text-accent-foreground");
+    expect(button).toHaveClass("theme-toggle--toggled");
+    expect(button).toHaveAttribute(THEME_MODE_PRESERVE_MOTION_ATTRIBUTE, "true");
+    expect(container.querySelector("svg.theme-toggle__classic")).not.toBeNull();
   });
 
   it("em global dark alterna para light", () => {
@@ -56,7 +62,7 @@ describe("ThemeModeSwitcher", () => {
     const { container } = render(<ThemeModeSwitcher />);
 
     expect(screen.getByRole("button", { name: "Alternar para tema escuro" })).toBeInTheDocument();
-    expect(container.querySelector("svg.lucide-sun")).not.toBeNull();
+    expect(container.querySelector("svg.theme-toggle__classic")).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Alternar para tema escuro" }));
 

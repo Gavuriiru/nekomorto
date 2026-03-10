@@ -3,9 +3,17 @@ export const getEpisodeNumberValue = (value: unknown) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-export const getEpisodeVolumeValue = (value: unknown) => {
+const getEpisodeVolumeIdentity = (value: unknown) => {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return null;
+  }
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return Number.isFinite(parsed) ? Math.floor(parsed) : null;
+};
+
+export const getEpisodeVolumeValue = (value: unknown) => {
+  const normalized = getEpisodeVolumeIdentity(value);
+  return normalized ?? 0;
 };
 
 export const EXTRA_TECHNICAL_NUMBER_BASE = 100000;
@@ -15,7 +23,8 @@ export const buildEpisodeKey = (number: unknown, volume?: unknown) => {
   if (safeNumber === null) {
     return "";
   }
-  return `${safeNumber}:${getEpisodeVolumeValue(volume)}`;
+  const normalizedVolume = getEpisodeVolumeIdentity(volume);
+  return `${safeNumber}:${normalizedVolume === null ? "none" : normalizedVolume}`;
 };
 
 export const resolveNextExtraTechnicalNumber = <
@@ -136,7 +145,7 @@ export const resolveEpisodeLookup = <
   const safeVolume =
     volume === null || volume === undefined || String(volume).trim() === ""
       ? null
-      : getEpisodeVolumeValue(volume);
+      : getEpisodeVolumeIdentity(volume);
 
   const matches = (Array.isArray(episodes) ? episodes : [])
     .map((episode, index) => ({ episode, index }))
@@ -148,7 +157,7 @@ export const resolveEpisodeLookup = <
 
   if (safeVolume !== null) {
     const exact = matches.find(
-      ({ episode }) => getEpisodeVolumeValue(episode?.volume) === getEpisodeVolumeValue(safeVolume),
+      ({ episode }) => getEpisodeVolumeIdentity(episode?.volume) === safeVolume,
     );
     if (!exact) {
       return { ok: false as const, code: "not_found" as const };
@@ -171,4 +180,55 @@ export const resolveEpisodeLookup = <
     ...matches[0],
     key: buildEpisodeKey(matches[0].episode?.number, matches[0].episode?.volume),
   };
+};
+
+export const resolveCanonicalEpisodeRouteTarget = <
+  Episode extends {
+    number?: unknown;
+    volume?: unknown;
+  },
+>(
+  episodes: Episode[],
+  episodeNumber: unknown,
+  preferredVolumes: unknown[] = [],
+  options?: {
+    exactPreferredOnly?: boolean;
+  },
+) => {
+  const safeNumber = getEpisodeNumberValue(episodeNumber);
+  if (safeNumber === null) {
+    return null;
+  }
+
+  const normalizedPreferredVolumes = preferredVolumes
+    .map((value) => {
+      if (value === null || value === undefined || String(value).trim() === "") {
+        return null;
+      }
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) {
+        return null;
+      }
+      const normalized = Math.floor(parsed);
+      return normalized >= 0 ? normalized : null;
+    })
+    .filter((value, index, values): value is number => value !== null && values.indexOf(value) === index);
+
+  for (const volume of normalizedPreferredVolumes) {
+    const exactLookup = resolveEpisodeLookup(episodes, safeNumber, volume);
+    if (exactLookup.ok) {
+      return exactLookup.episode;
+    }
+  }
+
+  if (normalizedPreferredVolumes.length > 0 && options?.exactPreferredOnly) {
+    return null;
+  }
+
+  const fallbackLookup = resolveEpisodeLookup(episodes, safeNumber);
+  if (fallbackLookup.ok) {
+    return fallbackLookup.episode;
+  }
+
+  return null;
 };

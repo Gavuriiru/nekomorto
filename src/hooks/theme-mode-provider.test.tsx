@@ -1,9 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SiteSettings } from "@/types/site-settings";
 import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
 import { resolveRouteThemeColor } from "@/lib/route-theme-color";
 import {
+  THEME_MODE_PRESERVE_MOTION_ATTRIBUTE,
   THEME_MODE_STORAGE_KEY,
   type ThemeModePreference,
 } from "@/hooks/theme-mode-context";
@@ -11,6 +12,7 @@ import { ThemeModeProvider } from "@/hooks/theme-mode-provider";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 
 const createSettings = (override: Partial<SiteSettings> = {}) => mergeSettings(defaultSettings, override);
+const THEME_TRANSITION_STYLE_SELECTOR = 'style[data-theme-mode-disable-transitions="true"]';
 
 const ThemeProbe = () => {
   const { globalMode, effectiveMode, preference, setPreference } = useThemeMode();
@@ -64,6 +66,37 @@ const assertThemeColor = (color: string) => {
   );
 };
 
+const mockAnimationFrames = () => {
+  let nextHandle = 1;
+  let callbacks = new Map<number, FrameRequestCallback>();
+
+  const requestAnimationFrameMock = vi
+    .spyOn(window, "requestAnimationFrame")
+    .mockImplementation((callback: FrameRequestCallback) => {
+      const handle = nextHandle++;
+      callbacks.set(handle, callback);
+      return handle;
+    });
+
+  const cancelAnimationFrameMock = vi
+    .spyOn(window, "cancelAnimationFrame")
+    .mockImplementation((handle: number) => {
+      callbacks.delete(handle);
+    });
+
+  return {
+    flushFrame() {
+      const currentCallbacks = [...callbacks.entries()];
+      callbacks = new Map<number, FrameRequestCallback>();
+      currentCallbacks.forEach(([, callback]) => callback(performance.now()));
+    },
+    restore() {
+      requestAnimationFrameMock.mockRestore();
+      cancelAnimationFrameMock.mockRestore();
+    },
+  };
+};
+
 describe("ThemeModeProvider", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -78,6 +111,11 @@ describe("ThemeModeProvider", () => {
       document.head.appendChild(themeColorMeta);
     }
     themeColorMeta.setAttribute("content", "");
+  });
+
+  afterEach(() => {
+    document.head.querySelector(THEME_TRANSITION_STYLE_SELECTOR)?.remove();
+    vi.restoreAllMocks();
   });
 
   it("follows global mode when preference is global", async () => {
@@ -154,6 +192,7 @@ describe("ThemeModeProvider", () => {
     await waitFor(() => {
       assertThemeColor("#34A853");
     });
+    expect(document.head.querySelector(THEME_TRANSITION_STYLE_SELECTOR)).toBeNull();
   });
 
   it("uses a route-specific theme color for dashboard routes", async () => {
@@ -161,5 +200,71 @@ describe("ThemeModeProvider", () => {
     renderWithSettings(createSettings({ theme: { accent: "#9667e0", mode: "dark" } }));
 
     assertThemeColor("#9667e0");
+  });
+
+  it("temporarily disables transitions while switching theme mode", async () => {
+    const animationFrames = mockAnimationFrames();
+
+    try {
+      renderWithSettings(createSettings({ theme: { accent: "#9667e0", mode: "light" } }));
+      fireEvent.click(screen.getByRole("button", { name: "set-dark" }));
+
+      const style = document.head.querySelector<HTMLStyleElement>(THEME_TRANSITION_STYLE_SELECTOR);
+      expect(style).not.toBeNull();
+      expect(style?.textContent).toContain("transition:none !important");
+      expect(style?.textContent).toContain(THEME_MODE_PRESERVE_MOTION_ATTRIBUTE);
+      expect(style?.textContent).toContain(`*:not([${THEME_MODE_PRESERVE_MOTION_ATTRIBUTE}="true"]`);
+      assertDocumentTheme("dark");
+
+      animationFrames.flushFrame();
+      expect(document.head.querySelector(THEME_TRANSITION_STYLE_SELECTOR)).not.toBeNull();
+
+      animationFrames.flushFrame();
+      expect(document.head.querySelector(THEME_TRANSITION_STYLE_SELECTOR)).toBeNull();
+    } finally {
+      animationFrames.restore();
+    }
+  });
+
+  it("does not create the temporary transition style when only the accent changes", async () => {
+    const view = renderWithSettings(createSettings({ theme: { accent: "#9667e0", mode: "dark" } }));
+
+    expect(document.head.querySelector(THEME_TRANSITION_STYLE_SELECTOR)).toBeNull();
+
+    view.rerender(
+      <SiteSettingsContext.Provider
+        value={{
+          settings: createSettings({ theme: { accent: "#34A853", mode: "dark" } }),
+          isLoading: false,
+          refresh: async () => undefined,
+        }}
+      >
+        <ThemeModeProvider>
+          <ThemeProbe />
+        </ThemeModeProvider>
+      </SiteSettingsContext.Provider>,
+    );
+
+    await waitFor(() => {
+      assertThemeColor("#34A853");
+    });
+    expect(document.head.querySelector(THEME_TRANSITION_STYLE_SELECTOR)).toBeNull();
+  });
+
+  it("cleans up temporary theme transition on unmount", async () => {
+    const animationFrames = mockAnimationFrames();
+
+    try {
+      const view = renderWithSettings(createSettings({ theme: { accent: "#9667e0", mode: "light" } }));
+      fireEvent.click(screen.getByRole("button", { name: "set-dark" }));
+
+      expect(document.head.querySelector(THEME_TRANSITION_STYLE_SELECTOR)).not.toBeNull();
+
+      view.unmount();
+
+      expect(document.head.querySelector(THEME_TRANSITION_STYLE_SELECTOR)).toBeNull();
+    } finally {
+      animationFrames.restore();
+    }
   });
 });

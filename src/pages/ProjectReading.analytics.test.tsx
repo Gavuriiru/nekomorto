@@ -77,8 +77,26 @@ const createProjectFixture = (episodeDownloads?: Array<Record<string, unknown>>)
 const setupProjectReadingApiMock = (
   episodeDownloads?: Array<Record<string, unknown>>,
   permissions: string[] | null = null,
+  options?: {
+    project?: ReturnType<typeof createProjectFixture>;
+    chapterEndpoint?: string;
+    chapterResponse?: Record<string, unknown> | null;
+  },
 ) => {
-  const project = createProjectFixture(episodeDownloads);
+  const project = options?.project || createProjectFixture(episodeDownloads);
+  const chapterEndpoint =
+    options?.chapterEndpoint || "/api/public/projects/projeto-teste/chapters/1?volume=2";
+  const chapterResponse =
+    options?.chapterResponse === undefined
+      ? {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1",
+          synopsis: "Resumo do capitulo",
+          content: "<p>Conteudo</p>",
+          contentFormat: "lexical",
+        }
+      : options.chapterResponse;
 
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
@@ -88,19 +106,9 @@ const setupProjectReadingApiMock = (
     ) {
       return mockJsonResponse(true, { project });
     }
-    if (
-      endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
-      (!options?.method || options.method === "GET")
-    ) {
+    if (endpoint === chapterEndpoint && (!options?.method || options.method === "GET")) {
       return mockJsonResponse(true, {
-        chapter: {
-          number: 1,
-          volume: 2,
-          title: "Capitulo 1",
-          synopsis: "Resumo do capitulo",
-          content: "<p>Conteudo</p>",
-          contentFormat: "lexical",
-        },
+        chapter: chapterResponse,
       });
     }
     if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
@@ -226,6 +234,135 @@ describe("ProjectReading analytics", () => {
       "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
     );
     expect(editLink.querySelector("svg")).not.toBeNull();
+  });
+
+  it("mantem o CTA de editar capitulo canonico em capitulo ambiguo quando a resposta publica omite o volume", async () => {
+    setupProjectReadingApiMock(
+      [
+        {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1 - Volume 2",
+          synopsis: "Resumo do capitulo",
+          content: "<p>Conteudo</p>",
+        },
+        {
+          number: 1,
+          volume: 3,
+          title: "Capitulo 1 - Volume 3",
+          synopsis: "Resumo do capitulo 3",
+          content: "<p>Conteudo 3</p>",
+        },
+      ],
+      ["projetos"],
+      {
+        chapterResponse: {
+          number: 1,
+          title: "Capitulo 1 - Publico",
+          synopsis: "Resumo do capitulo",
+          content: "<p>Conteudo</p>",
+          contentFormat: "lexical",
+        },
+      },
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
+    const editLink = await screen.findByRole("link", { name: /Editar cap.tulo/i });
+    expect(editLink).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
+    );
+  });
+
+  it("mantem o CTA de editar capitulo com ?volume=0 quando esse é o desambiguador canônico", async () => {
+    setupProjectReadingApiMock(
+      [
+        {
+          number: 1,
+          volume: 0,
+          title: "Capitulo 1 - Volume 0",
+          synopsis: "Resumo do capitulo",
+          content: "<p>Conteudo</p>",
+        },
+        {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1 - Volume 2",
+          synopsis: "Resumo do capitulo 2",
+          content: "<p>Conteudo 2</p>",
+        },
+      ],
+      ["projetos"],
+      {
+        chapterEndpoint: "/api/public/projects/projeto-teste/chapters/1?volume=0",
+        chapterResponse: {
+          number: 1,
+          title: "Capitulo 1 - Publico",
+          synopsis: "Resumo do capitulo",
+          content: "<p>Conteudo</p>",
+          contentFormat: "lexical",
+        },
+      },
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=0"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
+    const editLink = await screen.findByRole("link", { name: /Editar cap.tulo/i });
+    expect(editLink).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/projeto-teste/capitulos/1?volume=0",
+    );
+  });
+
+  it("nao renderiza o CTA de editar capitulo quando a resolucao canonica continua ambigua", async () => {
+    setupProjectReadingApiMock(
+      [
+        {
+          number: 1,
+          title: "Capitulo 1 - Sem volume",
+          synopsis: "Resumo do capitulo",
+          content: "<p>Conteudo</p>",
+        },
+        {
+          number: 1,
+          volume: 3,
+          title: "Capitulo 1 - Volume 3",
+          synopsis: "Resumo do capitulo 3",
+          content: "<p>Conteudo 3</p>",
+        },
+      ],
+      ["projetos"],
+      {
+        chapterEndpoint: "/api/public/projects/projeto-teste/chapters/1",
+        chapterResponse: {
+          number: 1,
+          title: "Capitulo 1 - Publico",
+          synopsis: "Resumo do capitulo",
+          content: "<p>Conteudo</p>",
+          contentFormat: "lexical",
+        },
+      },
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
+    expect(screen.queryByRole("link", { name: /Editar cap.tulo/i })).not.toBeInTheDocument();
   });
 
   it("nao exibe CTA de editar capitulo sem permissao", async () => {

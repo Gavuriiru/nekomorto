@@ -113,6 +113,7 @@ export function InsertImageDialog({
       projectImageProjectIds={imageLibraryOptions?.projectImageProjectIds}
       projectImagesView={imageLibraryOptions?.projectImagesView}
       currentSelectionUrls={imageLibraryOptions?.currentSelectionUrls}
+      onRequestNavigateToUploads={imageLibraryOptions?.onRequestNavigateToUploads}
       mode="multiple"
       allowDeselect
       onSave={({items}) => {

@@ -12,7 +12,9 @@ describe("Lexical viewer/editor shared styles", () => {
     expect(cssSource).toContain("--lexical-table-background: hsl(var(--background));");
     expect(cssSource).toContain("--lexical-table-background-header: hsl(var(--muted));");
     expect(cssSource).toContain("--lexical-table-selection: hsl(var(--primary) / 0.22);");
-    expect(cssSource).toContain(".lexical-playground .PlaygroundEditorTheme__tableFrozenRow tr:nth-of-type(1) > th");
+    expect(cssSource).toContain(
+      ".lexical-playground .PlaygroundEditorTheme__tableFrozenRow tr:nth-of-type(1) > th",
+    );
     expect(cssSource).toContain(".lexical-playground .PlaygroundEditorTheme__tableAddColumns");
     expect(cssSource).toContain(".lexical-playground .PlaygroundEditorTheme__tableCellSelected::after");
   });

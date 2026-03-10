@@ -85,4 +85,31 @@ describe("ImageLibraryDialog cancel button", () => {
     });
     expect(onSave).not.toHaveBeenCalled();
   });
+
+  it("exibe acao para uploads e mantem o modal aberto quando a navegacao e cancelada", async () => {
+    const onOpenChange = vi.fn();
+    const onRequestNavigateToUploads = vi.fn(async () => false);
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={onOpenChange}
+        apiBase="http://api.local"
+        projectImageProjectIds={EMPTY_PROJECT_IMAGE_IDS}
+        onRequestNavigateToUploads={onRequestNavigateToUploads}
+        onSave={() => undefined}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Ir para uploads" }));
+
+    await waitFor(() => {
+      expect(onRequestNavigateToUploads).toHaveBeenCalledTimes(1);
+    });
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+  });
 });

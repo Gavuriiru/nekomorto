@@ -42,6 +42,7 @@ describe('InsertImageDialog', () => {
 
   it('repassa projectImagesView e currentSelectionUrls para a biblioteca', () => {
     const activeEditor = {} as LexicalEditor;
+    const onRequestNavigateToUploads = vi.fn();
 
     render(
       <InsertImageDialog
@@ -55,6 +56,7 @@ describe('InsertImageDialog', () => {
           projectImageProjectIds: [],
           projectImagesView: 'by-project',
           currentSelectionUrls: ['/uploads/posts/a.png'],
+          onRequestNavigateToUploads,
         }}
       />,
     );
@@ -62,10 +64,12 @@ describe('InsertImageDialog', () => {
     const props = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
       currentSelectionUrls?: string[];
       projectImagesView?: 'flat' | 'by-project';
+      onRequestNavigateToUploads?: () => boolean | Promise<boolean>;
     };
 
     expect(props.projectImagesView).toBe('by-project');
     expect(props.currentSelectionUrls).toEqual(['/uploads/posts/a.png']);
+    expect(props.onRequestNavigateToUploads).toBe(onRequestNavigateToUploads);
   });
 
   it('filtra imagens ja selecionadas e duplicadas, preservando a ordem das novas', () => {
