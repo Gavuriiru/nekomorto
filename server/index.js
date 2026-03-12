@@ -122,6 +122,7 @@ import {
   buildProjectOgCardModel,
   buildProjectOgImagePath,
   buildProjectOgImageResponse,
+  loadProjectOgArtworkDataUrl,
 } from "./lib/project-og.js";
 import { findDuplicateVolumeCover } from "./lib/project-volume-covers.js";
 import {
@@ -15578,8 +15579,20 @@ app.get("/api/og/project/:id", async (req, res) => {
       return res.status(200).send(Buffer.from(cached.buffer));
     }
     const rendered = await ogRenderCache.getOrCreateInFlight(cacheKey, async () => {
+      const [artworkDataUrl, backdropDataUrl] = await Promise.all([
+        loadProjectOgArtworkDataUrl({
+          artworkUrl: baseModel.artworkUrl,
+          origin: PRIMARY_APP_ORIGIN,
+        }),
+        loadProjectOgArtworkDataUrl({
+          artworkUrl: baseModel.backdropUrl,
+          origin: PRIMARY_APP_ORIGIN,
+        }),
+      ]);
       const imageResponse = buildProjectOgImageResponse({
         ...baseModel,
+        artworkDataUrl,
+        backdropDataUrl,
       });
       const arrayBuffer = await imageResponse.arrayBuffer();
       const contentType = imageResponse.headers.get("content-type") || "image/png";

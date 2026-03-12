@@ -27,8 +27,8 @@ export const optimizeOgPngBuffer = async ({
   }
 
   const attempts = [
-    { palette: true, compressionLevel: 9, quality: 92 },
-    { palette: true, compressionLevel: 9, quality: 82 },
+    { palette: true, compressionLevel: 1, quality: 100 },
+    { palette: true, compressionLevel: 1, quality: 100 },
   ];
 
   let best = buffer;

@@ -39,17 +39,15 @@ const baseProject = {
 const transparentDataUrl =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
-const assertTransparentPng = async (buffer: Buffer) => {
+const assertRenderedPng = async (buffer: Buffer) => {
   const metadata = await sharp(buffer).metadata();
   expect(metadata.width).toBe(OG_PROJECT_WIDTH);
   expect(metadata.height).toBe(OG_PROJECT_HEIGHT);
-  expect(metadata.hasAlpha).toBe(true);
 
-  const stats = await sharp(buffer).stats();
+  const stats = await sharp(buffer).ensureAlpha().stats();
   const alpha = stats.channels[3];
   expect(alpha).toBeDefined();
-  expect(alpha.min).toBe(0);
-  expect(alpha.max).toBe(0);
+  expect(alpha.max).toBeGreaterThan(0);
 };
 
 describe("project og helper", () => {
@@ -61,15 +59,17 @@ describe("project og helper", () => {
     const model = buildProjectOgCardModel({
       project: {
         ...baseProject,
-        genres: ["drama", "misterio", "drama", "acao", "romance", "sobrenatural"],
+        genres: ["drama", "misterio", "drama"],
+        tags: ["psicologico", "sobrenatural", "psicologico"],
       },
       settings: baseSettings,
-      tagTranslations: { psicologico: "Psicologico" },
+      tagTranslations: {
+        psicologico: "Psicologico",
+        sobrenatural: "Sobrenatural",
+      },
       genreTranslations: {
         drama: "Drama",
         misterio: "Misterio",
-        acao: "Acao",
-        romance: "Romance",
       },
       origin: "https://nekomata.moe",
       resolveVariantUrl: (value: string, preset: string) => `${value}?preset=${preset}`,
@@ -82,49 +82,81 @@ describe("project og helper", () => {
     expect(model.eyebrowSeparator).toBe("\u2022");
     expect(model.title).toBe("Oshi no Ko");
     expect(model.subtitle).toBe("Doga Kobo");
-    expect(model.chips).toEqual(["Drama", "Misterio", "Acao", "Romance"]);
+    expect(model.chips).toEqual(["Drama", "Misterio", "Psicologico", "Sobrenatural"]);
     expect(model.artworkSource).toBe("cover");
     expect(model.artworkUrl).toBe("/uploads/projects/oshi-no-ko/cover.jpg?preset=poster");
+    expect(model.backdropSource).toBe("banner");
+    expect(model.backdropUrl).toBe("/uploads/projects/oshi-no-ko/banner.jpg?preset=hero");
   });
 
   it("falls back to default accent palette when color is invalid", () => {
     expect(resolveProjectOgPalette("not-a-color")).toEqual(resolveProjectOgPalette("#9667e0"));
   });
 
-  it("returns neutral stubs for static assets and fonts", () => {
+  it("returns neutral static assets and real Geist font buffers", () => {
     expect(loadProjectOgStaticAssetDataUrl("overlayShadow")).toBe(transparentDataUrl);
     expect(loadProjectOgStaticAssetDataUrl("anything")).toBe(transparentDataUrl);
-    expect(loadProjectOgFontBuffers()).toEqual({});
-    expect(buildProjectOgFonts()).toEqual([]);
+    expect(loadProjectOgFontBuffers()).toEqual(
+      expect.objectContaining({
+        title: expect.any(Buffer),
+        eyebrow: expect.any(Buffer),
+        subtitle: expect.any(Buffer),
+        chip: expect.any(Buffer),
+      }),
+    );
+    expect(buildProjectOgFonts()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "Geist", weight: 700 }),
+        expect.objectContaining({ name: "Geist", weight: 500 }),
+        expect.objectContaining({ name: "Geist", weight: 300 }),
+        expect.objectContaining({ name: "Geist", weight: 200 }),
+      ]),
+    );
   });
 
-  it("returns transparent artwork by default and preserves incoming data urls", async () => {
+  it("returns local artwork data urls when available and preserves incoming data urls", async () => {
     const dataUrl = "data:image/png;base64,AAA";
-    await expect(loadProjectOgArtworkDataUrl({ artworkUrl: "https://example.com/image.png" })).resolves.toBe(
-      transparentDataUrl,
-    );
+    await expect(loadProjectOgArtworkDataUrl({ artworkUrl: "https://example.com/image.png" })).resolves.toBe("");
     await expect(loadProjectOgArtworkDataUrl({ artworkUrl: dataUrl })).resolves.toBe(dataUrl);
   });
 
-  it("builds minimal transparent scenes for current and legacy render paths", () => {
+  it("pushes the studio label down when the project name wraps", () => {
+    const model = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        title:
+          "Um titulo de projeto longo o bastante para quebrar em multiplas linhas no card Open Graph",
+      },
+      settings: baseSettings,
+      tagTranslations: {},
+      genreTranslations: {},
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+
+    expect(model.titleLines.length).toBeGreaterThan(1);
+    expect(model.subtitleTop).toBeGreaterThan(model.layout.subtitleBaseTop);
+  });
+
+  it("builds the current and legacy scenes with the project card layer", () => {
     const currentScene = buildProjectOgScene({});
     const legacyScene = buildLegacyProjectOgScene({});
     const currentProps = currentScene.props as Record<string, unknown>;
     const legacyProps = legacyScene.props as Record<string, unknown>;
 
-    expect(currentProps["data-og-layer"]).toBe("og-zero-baseline");
-    expect(legacyProps["data-og-layer"]).toBe("og-zero-baseline");
+    expect(currentProps["data-og-layer"]).toBe("project-og-card");
+    expect(legacyProps["data-og-layer"]).toBe("project-og-card");
     expect(currentProps.style).toEqual(
       expect.objectContaining({
         display: "flex",
         width: OG_PROJECT_WIDTH,
         height: OG_PROJECT_HEIGHT,
-        backgroundColor: "rgba(0, 0, 0, 0)",
+        backgroundColor: "#02050b",
       }),
     );
   });
 
-  it("renders a transparent PNG through ImageResponse for project OG", async () => {
+  it("renders a project PNG through ImageResponse for project OG", async () => {
     const model = buildProjectOgCardModel({
       project: baseProject,
       settings: baseSettings,
@@ -138,10 +170,10 @@ describe("project og helper", () => {
 
     expect(response.headers.get("content-type")).toContain("image/png");
     expect(buffer.length).toBeGreaterThan(0);
-    await assertTransparentPng(buffer);
+    await assertRenderedPng(buffer);
   });
 
-  it("renders a transparent PNG through legacy ImageResponse path", async () => {
+  it("renders a project PNG through legacy ImageResponse path", async () => {
     const model = buildProjectOgCardModel({
       project: baseProject,
       settings: baseSettings,
@@ -155,6 +187,6 @@ describe("project og helper", () => {
 
     expect(response.headers.get("content-type")).toContain("image/png");
     expect(buffer.length).toBeGreaterThan(0);
-    await assertTransparentPng(buffer);
+    await assertRenderedPng(buffer);
   });
 });
