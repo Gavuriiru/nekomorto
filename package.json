@@ -25,6 +25,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "db:backup": "node --env-file=.env scripts/backup-data.mjs",
     "db:backfill:normalized": "node --env-file=.env scripts/backfill-normalized-runtime.mjs",
+    "projects:backfill:anilist": "node --env-file=.env scripts/backfill-project-anilist-metadata.mjs",
     "api:smoke": "node scripts/smoke-api.mjs",
     "api:health:check": "node scripts/check-health.mjs",
     "staging:parity:check": "node scripts/check-staging-parity.mjs",

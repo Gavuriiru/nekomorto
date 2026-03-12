@@ -71,6 +71,22 @@ const findElement = (
   return null;
 };
 
+const findAllElements = (
+  node: unknown,
+  predicate: (candidate: { props?: Record<string, unknown> }) => boolean,
+): Array<{ props?: Record<string, unknown> }> => {
+  if (!node || typeof node !== "object") {
+    return [];
+  }
+  const candidate = node as { props?: Record<string, unknown> };
+  const matches = predicate(candidate) ? [candidate] : [];
+  const children = toArray(candidate.props?.children);
+  return children.reduce<Array<{ props?: Record<string, unknown> }>>(
+    (all, child) => all.concat(findAllElements(child, predicate)),
+    matches,
+  );
+};
+
 const assertRenderedPng = async (buffer: Buffer) => {
   const metadata = await sharp(buffer).metadata();
   expect(metadata.width).toBe(OG_PROJECT_WIDTH);
@@ -814,7 +830,7 @@ describe("project og helper", () => {
     );
   });
 
-  it("renders the stronger panel gradient and keeps the processed backdrop above the cover", () => {
+  it("renders the smoother panel gradient and keeps the processed backdrop above the cover", () => {
     const model = buildProjectOgCardModel({
       project: baseProject,
       settings: baseSettings,
@@ -835,20 +851,57 @@ describe("project og helper", () => {
         child?.props?.["data-og-part"] === "backdrop" &&
         child?.props?.["data-og-processed"] === "true",
     );
-    const startStop = findElement(
+    const gradientStops = findAllElements(
       scene,
-      (candidate) => candidate.props?.offset === "0%" && candidate.props?.stopColor === model.palette.accentDarkStart,
+      (candidate) => typeof candidate.props?.offset === "string" && typeof candidate.props?.stopColor === "string",
     );
-    const endStop = findElement(
-      scene,
-      (candidate) =>
-        candidate.props?.offset === "100%" && candidate.props?.stopColor === model.palette.accentDarkEnd,
-    );
+    const stopOffsets = gradientStops.map((stop) => stop.props?.offset);
+    const stopOpacities = gradientStops.map((stop) => stop.props?.stopOpacity);
 
     expect(artworkIndex).toBeGreaterThanOrEqual(0);
     expect(backdropIndex).toBeGreaterThan(artworkIndex);
-    expect(startStop?.props?.stopOpacity).toBe("0.86");
-    expect(endStop?.props?.stopOpacity).toBe("0.90");
+    expect(gradientStops).toHaveLength(7);
+    expect(stopOffsets).toEqual(["0%", "12%", "28%", "46%", "66%", "84%", "100%"]);
+    expect(stopOpacities).toEqual(["0.86", "0.867", "0.874", "0.881", "0.888", "0.894", "0.90"]);
+    expect(gradientStops[0]?.props?.stopColor).toBe(model.palette.accentDarkStart);
+    expect(gradientStops[6]?.props?.stopColor).toBe(model.palette.accentDarkEnd);
+    expect(gradientStops[1]?.props?.stopColor).not.toBe(model.palette.accentDarkStart);
+    expect(gradientStops[5]?.props?.stopColor).not.toBe(model.palette.accentDarkEnd);
+  });
+
+  it("renders a dark artwork fallback and no empty image nodes when the project has no images", () => {
+    const model = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        cover: "",
+        heroImageUrl: "",
+        banner: "",
+      },
+      settings: baseSettings,
+      tagTranslations: {},
+      genreTranslations: {},
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+    const scene = buildProjectOgScene(model);
+    const children = toArray(scene.props?.children) as Array<{ props?: Record<string, unknown> }>;
+    const artworkNode = children.find((child) => child?.props?.["data-og-part"] === "artwork");
+    const artworkFallbackNode = children.find(
+      (child) => child?.props?.["data-og-part"] === "artwork-fallback",
+    );
+    const backdropNode = children.find((child) => child?.props?.["data-og-part"] === "backdrop");
+
+    expect(artworkNode).toBeUndefined();
+    expect(backdropNode).toBeUndefined();
+    expect(artworkFallbackNode).toBeDefined();
+    expect(artworkFallbackNode?.props?.style).toEqual(
+      expect.objectContaining({
+        backgroundColor: model.palette.bgBase,
+        background: `linear-gradient(180deg, ${model.palette.accentDarkStart} 0%, ${model.palette.accentDarkEnd} 100%)`,
+      }),
+    );
+    expect(String(artworkFallbackNode?.props?.style?.background || "").toLowerCase()).not.toContain("#fff");
+    expect(String(artworkFallbackNode?.props?.style?.backgroundColor || "").toLowerCase()).not.toBe("#ffffff");
   });
 
   it("builds the current and legacy scenes with the project card layer", () => {

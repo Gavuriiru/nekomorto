@@ -25,9 +25,7 @@ const TITLE_EMERGENCY_MIN_FONT_SIZE = 28;
 const TITLE_VISUAL_MIN_REFERENCE_TEXT =
   "Rekishi ni Nokoru Akujo ni Naruzo: Akuyaku Reijou ni Naru hodo Ouji no Dekiai wa Kasoku Suru you desu!";
 const PROJECT_OG_SCENE_VERSION = "project-og-v3";
-const PROJECT_OG_PANEL_GRADIENT_OPACITY_START = "0.86";
-const PROJECT_OG_PANEL_GRADIENT_OPACITY_END = "0.90";
-const PROJECT_OG_BACKDROP_BLUR = 35;
+const PROJECT_OG_BACKDROP_BLUR = 10;
 
 const TITLE_FONT_WEIGHT = 700;
 const EYEBROW_FONT_WEIGHT = 300;
@@ -251,6 +249,21 @@ const rgbToHex = ({ r, g, b }) =>
     .map((channel) => clamp(Math.round(channel), 0, 255).toString(16).padStart(2, "0"))
     .join("")}`;
 
+const mixRgb = (start, end, amount) => ({
+  r: start.r + (end.r - start.r) * amount,
+  g: start.g + (end.g - start.g) * amount,
+  b: start.b + (end.b - start.b) * amount,
+});
+
+const mixHexColors = (startHex, endHex, amount) => {
+  const start = hexToRgb(startHex);
+  const end = hexToRgb(endHex);
+  if (!start || !end) {
+    return normalizeHex(startHex) || normalizeHex(endHex) || DEFAULT_BACKGROUND;
+  }
+  return rgbToHex(mixRgb(start, end, clamp(Number(amount), 0, 1)));
+};
+
 const rgbToHsl = ({ r, g, b }) => {
   const normalizedR = r / 255;
   const normalizedG = g / 255;
@@ -331,6 +344,44 @@ const rgba = (rgb, alpha) =>
     0,
     255,
   )}, ${alpha})`;
+
+const buildPanelGradientStops = (palette) => [
+  {
+    offset: "0%",
+    stopColor: palette.accentDarkStart,
+    stopOpacity: "0.86",
+  },
+  {
+    offset: "12%",
+    stopColor: mixHexColors(palette.accentDarkStart, palette.accentDarkEnd, 0.12),
+    stopOpacity: "0.867",
+  },
+  {
+    offset: "28%",
+    stopColor: mixHexColors(palette.accentDarkStart, palette.accentDarkEnd, 0.28),
+    stopOpacity: "0.874",
+  },
+  {
+    offset: "46%",
+    stopColor: mixHexColors(palette.accentDarkStart, palette.accentDarkEnd, 0.46),
+    stopOpacity: "0.881",
+  },
+  {
+    offset: "66%",
+    stopColor: mixHexColors(palette.accentDarkStart, palette.accentDarkEnd, 0.66),
+    stopOpacity: "0.888",
+  },
+  {
+    offset: "84%",
+    stopColor: mixHexColors(palette.accentDarkStart, palette.accentDarkEnd, 0.84),
+    stopOpacity: "0.894",
+  },
+  {
+    offset: "100%",
+    stopColor: palette.accentDarkEnd,
+    stopOpacity: "0.90",
+  },
+];
 
 const toTranslationMap = (record) => {
   const map = new Map();
@@ -1507,8 +1558,23 @@ const buildBackdropNode = (model, backdropSrc) => {
   });
 };
 
-const buildBackgroundSvgNode = (model) =>
-  createElement(
+const buildArtworkFallbackNode = (model) =>
+  createElement("div", {
+    "data-og-part": "artwork-fallback",
+    style: {
+      position: "absolute",
+      left: model.layout.artworkLeft,
+      top: model.layout.artworkTop,
+      width: model.layout.artworkWidth,
+      height: model.layout.artworkHeight,
+      backgroundColor: model.palette.bgBase,
+      background: `linear-gradient(180deg, ${model.palette.accentDarkStart} 0%, ${model.palette.accentDarkEnd} 100%)`,
+    },
+  });
+
+const buildBackgroundSvgNode = (model) => {
+  const panelGradientStops = buildPanelGradientStops(model.palette);
+  return createElement(
     "svg",
     {
       width: OG_PROJECT_WIDTH,
@@ -1531,16 +1597,7 @@ const buildBackgroundSvgNode = (model) =>
           x2: "100%",
           y2: "100%",
         },
-        createElement("stop", {
-          offset: "0%",
-          stopColor: model.palette.accentDarkStart,
-          stopOpacity: PROJECT_OG_PANEL_GRADIENT_OPACITY_START,
-        }),
-        createElement("stop", {
-          offset: "100%",
-          stopColor: model.palette.accentDarkEnd,
-          stopOpacity: PROJECT_OG_PANEL_GRADIENT_OPACITY_END,
-        }),
+        ...panelGradientStops.map((stop) => createElement("stop", stop)),
       ),
       createElement(
         "filter",
@@ -1602,6 +1659,7 @@ const buildBackgroundSvgNode = (model) =>
       strokeWidth: String(model.layout.dividerStrokeWidth),
     }),
   );
+};
 
 export const buildProjectOgImagePath = (projectId) =>
   `/api/og/project/${encodeURIComponent(String(projectId || "").trim())}`;
@@ -1882,16 +1940,7 @@ export const buildProjectOgScene = (model = {}) => {
             objectFit: "cover",
           },
         })
-      : createElement("div", {
-          style: {
-            position: "absolute",
-            left: safeModel.layout.artworkLeft,
-            top: safeModel.layout.artworkTop,
-            width: safeModel.layout.artworkWidth,
-            height: safeModel.layout.artworkHeight,
-            background: `linear-gradient(180deg, ${safeModel.palette.accentDarkStart} 0%, ${safeModel.palette.accentDarkEnd} 100%)`,
-          },
-        }),
+      : buildArtworkFallbackNode(safeModel),
     hasProcessedBackdrop ? buildBackdropNode(safeModel, backdropSrc) : null,
     buildBackgroundSvgNode(safeModel),
     buildEyebrowNode(safeModel),

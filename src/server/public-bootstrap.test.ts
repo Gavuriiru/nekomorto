@@ -31,6 +31,7 @@ describe("public bootstrap payload", () => {
           heroImageUrl: "/uploads/hero.jpg",
           heroImageAlt: "Hero do projeto",
           studio: "Studio Teste",
+          animationStudios: ["Studio Teste"],
           episodes: "12 episodios",
           producers: ["Produtora 1"],
           volumeEntries: [
@@ -171,6 +172,7 @@ describe("public bootstrap payload", () => {
     expect(project.titleEnglish).toBe("Project");
     expect(project.genres).toEqual(["drama"]);
     expect(project.studio).toBe("Studio Teste");
+    expect(project.animationStudios).toEqual(["Studio Teste"]);
     expect(project.episodes).toBe("12 episodios");
     expect(project.producers).toEqual(["Produtora 1"]);
     expect(project.views).toBe(0);
