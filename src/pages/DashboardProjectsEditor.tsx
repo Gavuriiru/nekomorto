@@ -56,6 +56,7 @@ import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { parseAniListMediaId } from "@/lib/anilist";
+import { deriveAniListMediaOrganization } from "@/lib/anilist-media";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
@@ -250,6 +251,7 @@ type ProjectRecord = {
   status: string;
   year: string;
   studio: string;
+  animationStudios: string[];
   episodes: string;
   tags: string[];
   genres: string[];
@@ -464,8 +466,21 @@ type AniListMedia = {
   averageScore?: number | null;
   bannerImage?: string | null;
   coverImage?: { extraLarge?: string | null; large?: string | null } | null;
-  studios?: { nodes?: Array<{ name: string; isAnimationStudio?: boolean | null }> } | null;
-  producers?: { nodes?: Array<{ name: string }> } | null;
+  studios?: {
+    edges?: Array<{
+      isMain?: boolean | null;
+      node?: {
+        id?: number | string | null;
+        name?: string | null;
+        isAnimationStudio?: boolean | null;
+      } | null;
+    }>;
+  } | null;
+  organization?: {
+    studio?: string | null;
+    animationStudios?: string[] | null;
+    producers?: string[] | null;
+  } | null;
   tags?: Array<{ name: string; rank?: number | null; isMediaSpoiler?: boolean | null }> | null;
   trailer?: { id?: string | null; site?: string | null } | null;
   relations?: {
@@ -496,6 +511,7 @@ const emptyProject: ProjectForm = {
   status: "Em andamento",
   year: "",
   studio: "",
+  animationStudios: [],
   episodes: "",
   tags: [],
   genres: [],
@@ -644,6 +660,20 @@ const stripHtml = (value?: string | null) => {
     .replace(/<[^>]*>/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+};
+
+const normalizeUniqueStringList = (values: Array<string | null | undefined>) => {
+  const seen = new Set<string>();
+  return values.reduce<string[]>((acc, value) => {
+    const normalized = String(value || "").trim();
+    const key = normalized.toLowerCase();
+    if (!normalized || seen.has(key)) {
+      return acc;
+    }
+    seen.add(key);
+    acc.push(normalized);
+    return acc;
+  }, []);
 };
 
 const digitsOnly = (value: string) => value.replace(/\D/g, "");
@@ -1177,6 +1207,7 @@ const DashboardProjectsEditor = () => {
   const [anilistIdInput, setAnilistIdInput] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [genreInput, setGenreInput] = useState("");
+  const [animationStudioInput, setAnimationStudioInput] = useState("");
   const [producerInput, setProducerInput] = useState("");
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
@@ -2714,6 +2745,7 @@ const DashboardProjectsEditor = () => {
         status: project.status || "",
         year: project.year || "",
         studio: project.studio || "",
+        animationStudios: Array.isArray(project.animationStudios) ? project.animationStudios : [],
         episodes: project.episodes || "",
         tags: Array.isArray(project.tags) ? project.tags : [],
         genres: Array.isArray(project.genres) ? project.genres : [],
@@ -4170,6 +4202,7 @@ const DashboardProjectsEditor = () => {
       status: formState.status?.trim() || "",
       year: formState.year?.trim() || "",
       studio: formState.studio?.trim() || "",
+      animationStudios: normalizeUniqueStringList(formState.animationStudios),
       episodes: formState.episodes?.trim() || "",
       tags: formState.tags.filter(Boolean),
       genres: formState.genres.filter(Boolean),
@@ -4187,7 +4220,7 @@ const DashboardProjectsEditor = () => {
       country: formState.country?.trim() || "",
       source: formState.source?.trim() || "",
       discordRoleId: normalizedDiscordRoleId || "",
-      producers: formState.producers.filter(Boolean),
+      producers: normalizeUniqueStringList(formState.producers),
       startDate: formState.startDate || "",
       endDate: formState.endDate || "",
       trailerUrl: formState.trailerUrl?.trim() || "",
@@ -4394,11 +4427,10 @@ const DashboardProjectsEditor = () => {
   };
 
   const mapAniListToForm = (media: AniListMedia) => {
-    const studio =
-      media.studios?.nodes?.find((item) => item.isAnimationStudio)?.name ||
-      media.studios?.nodes?.[0]?.name ||
-      "";
-    const producers = media.producers?.nodes?.map((item) => item.name).filter(Boolean) || [];
+    const organization = media.organization || deriveAniListMediaOrganization(media);
+    const studio = String(organization?.studio || "").trim();
+    const animationStudios = normalizeUniqueStringList(organization?.animationStudios || []);
+    const producers = normalizeUniqueStringList(organization?.producers || []);
     const tags = (media.tags || [])
       .filter((tag) => !tag.isMediaSpoiler)
       .sort((a, b) => (b.rank || 0) - (a.rank || 0))
@@ -4496,7 +4528,8 @@ const DashboardProjectsEditor = () => {
       type: formatType(media.format || "") || prev.type,
       status: formatStatus(media.status || "") || prev.status,
       year: media.seasonYear ? String(media.seasonYear) : prev.year,
-      studio,
+      studio: studio || prev.studio,
+      animationStudios,
       episodes: media.episodes ? String(media.episodes) : prev.episodes,
       genres: genresFromMedia.length ? genresFromMedia : prev.genres,
       tags: tags.length ? tags : prev.tags,
@@ -4624,6 +4657,25 @@ const DashboardProjectsEditor = () => {
     setFormState((prev) => ({ ...prev, genres: prev.genres.filter((item) => item !== genre) }));
   };
 
+  const handleAddAnimationStudio = () => {
+    const next = animationStudioInput.trim();
+    if (!next) {
+      return;
+    }
+    setFormState((prev) => ({
+      ...prev,
+      animationStudios: normalizeUniqueStringList([...prev.animationStudios, next]),
+    }));
+    setAnimationStudioInput("");
+  };
+
+  const handleRemoveAnimationStudio = (studio: string) => {
+    setFormState((prev) => ({
+      ...prev,
+      animationStudios: prev.animationStudios.filter((item) => item !== studio),
+    }));
+  };
+
   const handleAddProducer = () => {
     const next = producerInput.trim();
     if (!next) {
@@ -4631,9 +4683,16 @@ const DashboardProjectsEditor = () => {
     }
     setFormState((prev) => ({
       ...prev,
-      producers: prev.producers.includes(next) ? prev.producers : [...prev.producers, next],
+      producers: normalizeUniqueStringList([...prev.producers, next]),
     }));
     setProducerInput("");
+  };
+
+  const handleRemoveProducer = (producer: string) => {
+    setFormState((prev) => ({
+      ...prev,
+      producers: prev.producers.filter((item) => item !== producer),
+    }));
   };
 
   const setEpisodeEntryKind = useCallback(
@@ -4977,23 +5036,13 @@ const DashboardProjectsEditor = () => {
                         <span className="sr-only">{`Abrir projeto ${project.title}`}</span>
                       </button>
                       <div className="grid gap-2 md:gap-6 md:grid-cols-[220px_1fr]">
-                        <div className="relative aspect-2/3 w-full">
+                        <div data-slot="project-card-cover" className="relative aspect-2/3 w-full">
                           <img
                             src={project.cover || "/placeholder.svg"}
                             alt={project.title}
                             className="pointer-events-none h-full w-full object-cover object-center"
                             loading="lazy"
                           />
-                          {project.tags[0] ? (
-                            <Badge className="pointer-events-none absolute right-3 top-3 text-[10px] uppercase bg-background/85 text-foreground">
-                              {translateTag(
-                                sortByTranslatedLabel(project.tags || [], (tag) =>
-                                  translateTag(tag, tagTranslationMap),
-                                )[0] || "",
-                                tagTranslationMap,
-                              )}
-                            </Badge>
-                          ) : null}
                         </div>
                         <div
                           data-slot="project-card-content"
@@ -5001,9 +5050,9 @@ const DashboardProjectsEditor = () => {
                         >
                           <div
                             data-slot="project-card-top"
-                            className="flex flex-wrap items-start justify-between gap-4"
+                            className="flex flex-col items-start gap-4 md:flex-row md:items-start md:justify-between"
                           >
-                            <div className="space-y-2">
+                            <div className="min-w-0 flex-1 space-y-2">
                               <div className="flex flex-wrap items-center gap-2">
                                 <Badge variant="outline" className="text-[10px] uppercase">
                                   {project.status}
@@ -5012,12 +5061,12 @@ const DashboardProjectsEditor = () => {
                                   {project.type}
                                 </Badge>
                               </div>
-                              <h3 className="text-lg font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
+                              <h3 className="line-clamp-2 break-words text-lg font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
                                 {project.title}
                               </h3>
                               <p className="text-xs text-muted-foreground">{project.studio}</p>
                             </div>
-                            <div className="relative z-20 flex items-center gap-2">
+                            <div className="relative z-20 flex shrink-0 items-center gap-2">
                               <Button variant="ghost" size="icon" title="Visualizar" asChild>
                                 <Link to={`/projeto/${project.id}`}>
                                   <Eye className="h-4 w-4" />
@@ -5853,6 +5902,82 @@ const DashboardProjectsEditor = () => {
                                 }
                                 placeholder="Opcional: ID numerico do cargo"
                               />
+                            </div>
+                          </div>
+                        </section>
+                        <section
+                          className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
+                        >
+                          <div className="space-y-1">
+                            <h3 className={editorSectionBlockTitleClassName}>EstÃºdios e produtoras</h3>
+                            <p className="text-xs leading-5 text-muted-foreground">
+                              Separe o estÃºdio principal dos estÃºdios de animaÃ§Ã£o e das produtoras.
+                            </p>
+                          </div>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>EstÃºdio principal</Label>
+                              <Input
+                                value={formState.studio}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, studio: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Produtoras</Label>
+                              <Input
+                                value={producerInput}
+                                onChange={(event) => setProducerInput(event.target.value)}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    handleAddProducer();
+                                  }
+                                }}
+                                placeholder="Adicionar produtora e pressionar Enter"
+                              />
+                            </div>
+                            <div className="space-y-2 md:col-span-2">
+                              <Label>EstÃºdios de animaÃ§Ã£o</Label>
+                              <Input
+                                value={animationStudioInput}
+                                onChange={(event) => setAnimationStudioInput(event.target.value)}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    handleAddAnimationStudio();
+                                  }
+                                }}
+                                placeholder="Adicionar estÃºdio de animaÃ§Ã£o e pressionar Enter"
+                              />
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {formState.animationStudios.map((studioName, index) => (
+                                  <Badge
+                                    key={`${studioName}-${index}`}
+                                    variant="secondary"
+                                    onClick={() => handleRemoveAnimationStudio(studioName)}
+                                    className="cursor-pointer"
+                                  >
+                                    {studioName}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="space-y-2 md:col-span-2">
+                              <Label>Lista atual de produtoras</Label>
+                              <div className="flex flex-wrap gap-2">
+                                {formState.producers.map((producer, index) => (
+                                  <Badge
+                                    key={`${producer}-${index}`}
+                                    variant="secondary"
+                                    onClick={() => handleRemoveProducer(producer)}
+                                    className="cursor-pointer"
+                                  >
+                                    {producer}
+                                  </Badge>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </section>

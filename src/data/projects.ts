@@ -69,6 +69,7 @@ export type Project = {
   status: string;
   year: string;
   studio: string;
+  animationStudios?: string[];
   episodes: string;
   tags: string[];
   genres?: string[];

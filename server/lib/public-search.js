@@ -225,7 +225,16 @@ const rankProjectSuggestions = (projects, tokens) => {
         : "",
     );
     const metadataField = prepareField(
-      [project?.type, project?.status, project?.year, project?.studio].filter(Boolean).join(" "),
+      [
+        project?.type,
+        project?.status,
+        project?.year,
+        project?.studio,
+        ...(Array.isArray(project?.animationStudios) ? project.animationStudios : []),
+        ...(Array.isArray(project?.producers) ? project.producers : []),
+      ]
+        .filter(Boolean)
+        .join(" "),
     );
     const summaryField = prepareField(
       [project?.synopsis, project?.description].filter(Boolean).join(" "),
@@ -389,4 +398,3 @@ export const publicSearchConfig = {
   defaultLimit: DEFAULT_LIMIT,
   maxLimit: MAX_LIMIT,
 };
-

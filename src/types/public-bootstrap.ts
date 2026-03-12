@@ -55,6 +55,7 @@ export type PublicBootstrapProject = {
   forceHero: boolean;
   trailerUrl: string;
   studio: string;
+  animationStudios: string[];
   episodes: string;
   producers: string[];
   volumeEntries?: PublicBootstrapVolumeEntry[];

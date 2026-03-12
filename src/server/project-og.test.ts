@@ -133,6 +133,26 @@ const resolveExpectedTitleLineMaxWidth = ({
   );
 };
 
+const resolveExpectedTagRowMaxWidth = ({
+  layout,
+  rowIndex,
+  inset = 64,
+}: {
+  layout: Record<string, number | string>;
+  rowIndex: number;
+  inset?: number;
+}) => {
+  void rowIndex;
+  const rowTop = Number(layout.tagsTop);
+  const centerY = rowTop + Number(layout.tagHeight) / 2;
+  const diagonalX = resolveDiagonalXAtY(String(layout.panelPoints || ""), centerY);
+  const rawWidth = diagonalX - Number(layout.tagsLeft) - inset;
+  return Math.min(
+    OG_PROJECT_WIDTH - Number(layout.tagsLeft),
+    Math.max(Number(layout.tagsMaxWidth), rawWidth),
+  );
+};
+
 describe("project og helper", () => {
   it("builds encoded project OG path", () => {
     expect(buildProjectOgImagePath("id com espaco")).toBe("/api/og/project/id%20com%20espaco");
@@ -171,6 +191,111 @@ describe("project og helper", () => {
     expect(model.backdropSource).toBe("banner");
     expect(model.backdropUrl).toBe("/uploads/projects/oshi-no-ko/banner.jpg?preset=hero");
     expect(model.sceneVersion).toBeTruthy();
+  });
+
+  it("keeps studio as the subtitle when studio and author staff are both present", () => {
+    const model = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        animeStaff: [
+          {
+            role: "Original Creator",
+            members: ["Aka Akasaka"],
+          },
+        ],
+      },
+      settings: baseSettings,
+      tagTranslations: {},
+      genreTranslations: {},
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+
+    expect(model.subtitle).toBe("Doga Kobo");
+  });
+
+  it("falls back to the first original creator when the project has no studio", () => {
+    const model = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        studio: "",
+        animeStaff: [
+          {
+            role: "Original Creator",
+            members: ["Aka Akasaka", "Mengo Yokoyari"],
+          },
+        ],
+      },
+      settings: baseSettings,
+      tagTranslations: {},
+      genreTranslations: {},
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+
+    expect(model.subtitle).toBe("Aka Akasaka");
+  });
+
+  it("accepts equivalent anime staff author roles in portuguese and english", () => {
+    const authorOriginalModel = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        studio: "",
+        animeStaff: [
+          {
+            role: "Autor original",
+            members: ["Inio Asano"],
+          },
+        ],
+      },
+      settings: baseSettings,
+      tagTranslations: {},
+      genreTranslations: {},
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+    const storyModel = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        studio: "",
+        animeStaff: [
+          {
+            role: "Story",
+            members: ["Naoki Urasawa"],
+          },
+        ],
+      },
+      settings: baseSettings,
+      tagTranslations: {},
+      genreTranslations: {},
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+
+    expect(authorOriginalModel.subtitle).toBe("Inio Asano");
+    expect(storyModel.subtitle).toBe("Naoki Urasawa");
+  });
+
+  it("keeps the subtitle empty when there is no studio or matching author role", () => {
+    const model = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        studio: "",
+        animeStaff: [
+          {
+            role: "Director",
+            members: ["Hiroshi Seko"],
+          },
+        ],
+      },
+      settings: baseSettings,
+      tagTranslations: {},
+      genreTranslations: {},
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+
+    expect(model.subtitle).toBe("");
   });
 
   it("falls back to default accent palette when color is invalid", () => {
@@ -276,6 +401,75 @@ describe("project og helper", () => {
     expect(model.subtitleBottom).toBeLessThanOrEqual(model.layout.tagsTop - model.layout.subtitleLimitGap);
   });
 
+  it("keeps the oshi no ko title at the visual maximum size", () => {
+    const model = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        title: "[Oshi no Ko]",
+      },
+      settings: baseSettings,
+      tagTranslations: {},
+      genreTranslations: {},
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+
+    expect(model.titleFontSize).toBeCloseTo(72.0604476928711, 4);
+    expect(model.titleLines).toEqual(["[Oshi no Ko]"]);
+    expect(model.titleTruncated).toBe(false);
+  });
+
+  it("truncates fallback author subtitles and keeps the subtitle position limits", () => {
+    const model = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        studio: "",
+        title:
+          "Um titulo de projeto longo o bastante para quebrar em multiplas linhas no card Open Graph",
+        animeStaff: [
+          {
+            role: "Original Story",
+            members: ["Um nome de autor extremamente longo para validar truncamento na linha secundaria"],
+          },
+        ],
+      },
+      settings: baseSettings,
+      tagTranslations: {},
+      genreTranslations: {},
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+
+    expect(model.subtitle.endsWith("...")).toBe(true);
+    expect(model.subtitle.length).toBeLessThanOrEqual(42);
+    expect(model.subtitleTop).toBe(model.layout.titleTop + model.titleHeight + model.layout.subtitleGap);
+    expect(model.subtitleBottom).toBeLessThanOrEqual(model.layout.tagsTop - model.layout.subtitleLimitGap);
+  });
+
+  it("recalibrates the visual minimum title size from the rekishi reference case", () => {
+    const model = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        type: "Light Novel",
+        status: "Em andamento",
+        studio: "Izumi Ookido",
+        title:
+          "Rekishi ni Nokoru Akujo ni Naruzo: Akuyaku Reijou ni Naru hodo Ouji no Dekiai wa Kasoku Suru you desu!",
+      },
+      settings: baseSettings,
+      tagTranslations: {},
+      genreTranslations: {},
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+
+    expect(model.layout.titleMinFontSize).toBeCloseTo(58.5, 4);
+    expect(model.titleFontSize).toBeCloseTo(model.layout.titleMinFontSize, 4);
+    expect(model.titleLines.length).toBeGreaterThan(model.layout.titleMaxLines);
+    expect(model.titleTruncated).toBe(false);
+    expect(model.subtitleBottom).toBeLessThanOrEqual(model.layout.tagsTop - model.layout.subtitleLimitGap);
+  });
+
   it("keeps the classroom title larger and without ellipsis while the studio still fits", () => {
     const model = buildProjectOgCardModel({
       project: {
@@ -290,7 +484,6 @@ describe("project og helper", () => {
     });
 
     expect(model.titleFontSize).toBeGreaterThan(model.layout.titleMinFontSize);
-    expect(model.titleLines.length).toBeLessThanOrEqual(model.layout.titleMaxLines);
     expect(model.titleTruncated).toBe(false);
     expect(model.titleLineLayouts).toHaveLength(model.titleLines.length);
     expect(model.titleLineLayouts[0]?.maxWidth).toBeGreaterThan(model.layout.titleWidth);
@@ -328,7 +521,7 @@ describe("project og helper", () => {
     });
   });
 
-  it("allows four lines before truncating an oversized title", () => {
+  it("allows titles longer than four lines without truncating while preserving subtitle spacing", () => {
     const model = buildProjectOgCardModel({
       project: {
         ...baseProject,
@@ -342,10 +535,213 @@ describe("project og helper", () => {
       resolveVariantUrl: (value: string) => value,
     });
 
-    expect(model.layout.titleMaxLines).toBe(4);
-    expect(model.titleLines.length).toBe(model.layout.titleMaxLines);
-    expect(model.titleTruncated).toBe(true);
-    expect(model.titleLines.at(-1)).toContain("...");
+    expect(model.titleLines.length).toBeGreaterThan(model.layout.titleMaxLines);
+    expect(model.titleFontSize).toBeLessThan(model.layout.titleMinFontSize);
+    expect(model.titleFontSize).toBeGreaterThanOrEqual(28);
+    expect(model.titleTruncated).toBe(false);
+    expect(model.titleLines.at(-1)).not.toContain("...");
+    expect(model.subtitleBottom).toBeLessThanOrEqual(model.layout.tagsTop - model.layout.subtitleLimitGap);
+  });
+
+  it("extends the first chip row toward the diagonal and can show more than four short chips", () => {
+    const model = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        genres: ["drama", "acao", "idol"],
+        tags: ["escola", "slice", "mecha"],
+      },
+      settings: baseSettings,
+      tagTranslations: {
+        escola: "Escola",
+        slice: "Slice",
+        mecha: "Mecha",
+      },
+      genreTranslations: {
+        drama: "Drama",
+        acao: "Acao",
+        idol: "Idol",
+      },
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+
+    expect(model.chips.length).toBeGreaterThan(4);
+    expect(model.chipLayouts.length).toBe(model.chips.length);
+    expect(model.chipLayouts.every((chip) => chip.truncated === false)).toBe(true);
+    expect(model.chipLayouts[0]?.maxWidth).toBeGreaterThan(model.layout.tagsMaxWidth);
+    expect(model.chipLayouts[0]?.maxWidth).toBeCloseTo(
+      resolveExpectedTagRowMaxWidth({
+        layout: model.layout as unknown as Record<string, number | string>,
+        rowIndex: 0,
+      }),
+      3,
+    );
+  });
+
+  it("skips an oversized badge in the middle and only reuses it as the final deferred fallback", () => {
+    const model = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        genres: ["drama", "protagonista masculino de elite extremamente analitico", "acao"],
+        tags: ["idol", "slice", "mecha"],
+      },
+      settings: baseSettings,
+      tagTranslations: {
+        "protagonista masculino de elite extremamente analitico":
+          "Protagonista masculino de elite extremamente analitico",
+        idol: "Idol",
+        slice: "Slice",
+        mecha: "Mecha",
+      },
+      genreTranslations: {
+        drama: "Drama",
+        acao: "Acao",
+        "protagonista masculino de elite extremamente analitico":
+          "Protagonista masculino de elite extremamente analitico",
+      },
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+    const lastChip = model.chipLayouts.at(-1);
+
+    expect(model.chipLayouts.map((chip) => chip.sourceIndex)).toEqual([0, 2, 3, 4, 5]);
+    expect(model.chipLayouts.every((chip) => chip.truncated === false)).toBe(true);
+    expect(model.chipLayouts.some((chip) => chip.fallbackDeferred)).toBe(false);
+    expect(lastChip).toBeDefined();
+    expect(lastChip?.row).toBe(0);
+    expect(lastChip?.truncated).toBe(false);
+    expect(lastChip?.text).toBe("Mecha");
+    expect(lastChip?.maxWidth).toBeCloseTo(
+      resolveExpectedTagRowMaxWidth({
+        layout: model.layout as unknown as Record<string, number | string>,
+        rowIndex: 0,
+      }),
+      3,
+    );
+  });
+
+  it("prioritizes word-boundary truncation for the final deferred badge", () => {
+    const model = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        genres: ["drama", "misterio"],
+        tags: ["protagonista masculino de elite extremamente analitico"],
+      },
+      settings: baseSettings,
+      tagTranslations: {
+        "protagonista masculino de elite extremamente analitico":
+          "Protagonista masculino de elite extremamente analitico",
+      },
+      genreTranslations: {
+        drama: "Drama",
+        misterio: "Misterio",
+      },
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+    const lastChip = model.chipLayouts.at(-1);
+
+    expect(lastChip).toBeDefined();
+    expect(lastChip?.truncated).toBe(true);
+    expect(lastChip?.fallbackDeferred).toBe(true);
+    expect(lastChip?.text).toBe("Protagonista masculino de elite...");
+  });
+
+  it("omits the final deferred badge when only a tiny fallback would fit", () => {
+    const model = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        genres: ["drama"],
+        tags: ["psicologico", "escola", "elenco coral", "protagonista masculino"],
+      },
+      settings: baseSettings,
+      tagTranslations: {
+        psicologico: "Psicologico",
+        escola: "Escola",
+        "elenco coral": "Elenco coral",
+        "protagonista masculino": "Protagonista masculino",
+      },
+      genreTranslations: {
+        drama: "Drama",
+      },
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+    const lastChip = model.chipLayouts.at(-1);
+
+    expect(model.chips).toEqual(["Drama", "Psicologico", "Escola", "Elenco coral", "Protagonista masculino"]);
+    expect(model.chipLayouts.map((chip) => chip.text)).toEqual([
+      "Drama",
+      "Psicologico",
+      "Escola",
+      "Elenco coral",
+    ]);
+    expect(model.chipLayouts.some((chip) => chip.fallbackDeferred)).toBe(false);
+    expect(lastChip?.text).toBe("Elenco coral");
+  });
+
+  it("omits a deferred single-word badge when no word-boundary truncation is possible", () => {
+    const model = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        genres: ["drama", "acao", "escola"],
+        tags: ["supercalifragilisticexpialidociousultralongo", "idol", "slice"],
+      },
+      settings: baseSettings,
+      tagTranslations: {
+        supercalifragilisticexpialidociousultralongo:
+          "supercalifragilisticexpialidociousultralongo",
+        idol: "Idol",
+        slice: "Slice",
+      },
+      genreTranslations: {
+        drama: "Drama",
+        acao: "Acao",
+        escola: "Escola",
+      },
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+    const lastChip = model.chipLayouts.at(-1);
+
+    expect(model.chipLayouts.every((chip) => chip.truncated === false)).toBe(true);
+    expect(lastChip).toBeDefined();
+    expect(lastChip?.fallbackDeferred).toBe(false);
+    expect(lastChip?.sourceIndex).toBe(5);
+    expect(lastChip?.truncated).toBe(false);
+    expect(lastChip?.text).toBe("Slice");
+  });
+
+  it("stops adding chips when there is not enough useful space for another deferred fallback", () => {
+    const model = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        genres: ["drama", "acao", "idol"],
+        tags: ["escola", "slice", "mecha", "retro"],
+      },
+      settings: baseSettings,
+      tagTranslations: {
+        escola: "Escola",
+        slice: "Slice",
+        mecha: "Mecha",
+        retro: "Retro",
+      },
+      genreTranslations: {
+        drama: "Drama",
+        acao: "Acao",
+        idol: "Idol",
+      },
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+    const lastChip = model.chipLayouts.at(-1);
+
+    expect(lastChip).toBeDefined();
+    expect(model.chipLayouts.every((chip) => chip.row === 0 && chip.y === 0)).toBe(true);
+    expect(model.chipLayouts.length).toBeLessThan(model.chips.length);
+    expect(model.chipLayouts.some((chip) => chip.fallbackDeferred)).toBe(false);
+    expect(lastChip?.truncated).toBe(false);
+    expect(lastChip?.text).not.toContain("...");
   });
 
   it("renders title and chips with nowrap styles and revised chip padding", () => {
@@ -353,13 +749,14 @@ describe("project og helper", () => {
       project: {
         ...baseProject,
         title: "Youkoso Jitsuryoku Shijou Shugi no Kyoushitsu e",
-        tags: ["psicologico", "escola", "protagonista masculino"],
+        tags: ["psicologico", "escola", "protagonista masculino", "slice"],
       },
       settings: baseSettings,
       tagTranslations: {
         psicologico: "Psicologico",
         escola: "Escola",
         "protagonista masculino": "Protagonista masculino",
+        slice: "Slice",
       },
       genreTranslations: { drama: "Drama", misterio: "Misterio" },
       origin: "https://nekomata.moe",
@@ -399,8 +796,17 @@ describe("project og helper", () => {
 
     expect(tagsNode).not.toBeNull();
     const chips = toArray(tagsNode?.props?.children) as Array<{ props?: Record<string, unknown> }>;
+    expect(tagsNode?.props?.style).toEqual(
+      expect.objectContaining({
+        width: expect.any(Number),
+        height: model.layout.tagHeight,
+      }),
+    );
     expect(chips[0]?.props?.style).toEqual(
       expect.objectContaining({
+        position: "absolute",
+        left: model.chipLayouts[0]?.x,
+        top: 0,
         whiteSpace: "nowrap",
         paddingLeft: 14.5,
         paddingRight: 14.5,

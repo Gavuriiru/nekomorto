@@ -785,6 +785,8 @@ const Projects = () => {
                   project.type,
                   project.status,
                   project.studio,
+                  ...(Array.isArray(project.animationStudios) ? project.animationStudios : []),
+                  ...(Array.isArray(project.producers) ? project.producers : []),
                   ...(Array.isArray(project.tags) ? project.tags : []),
                   ...(Array.isArray(project.genres) ? project.genres : []),
                 ]

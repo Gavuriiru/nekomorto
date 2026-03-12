@@ -40,6 +40,7 @@ Este documento descreve o schema logico atual com PostgreSQL como unica fonte de
 - `status` (string)
 - `year` (string)
 - `studio` (string)
+- `animationStudios` (string[])
 - `episodes` (string)
 - `tags` (string[])
 - `genres` (string[])

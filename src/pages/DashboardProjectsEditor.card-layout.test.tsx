@@ -201,10 +201,14 @@ describe("DashboardProjectsEditor card layout", () => {
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
 
     const card = await screen.findByTestId("dashboard-project-card-project-layout");
+    const cover = card.querySelector('[data-slot="project-card-cover"]');
     const content = card.querySelector('[data-slot="project-card-content"]');
     const middle = card.querySelector('[data-slot="project-card-middle"]');
     const meta = card.querySelector('[data-slot="project-card-meta"]');
 
+    expect(cover).not.toBeNull();
+    expect(within(cover as HTMLElement).getByRole("img", { name: "Oshi no Ko" })).toBeInTheDocument();
+    expect(within(cover as HTMLElement).queryByText("Atualizacao")).toBeNull();
     expect(content).not.toBeNull();
     expect(classTokens(content)).toContain("flex");
     expect(classTokens(content)).toContain("flex-col");
@@ -249,11 +253,14 @@ describe("DashboardProjectsEditor card layout", () => {
   });
 
   it("preserva o clamp da sinopse e as acoes do topo no card reestruturado", async () => {
+    const longTitle =
+      "Rekishi ni Nokoru Akujo ni Naruzo: Akuyaku Reijou ni Naru hodo Ouji no Dekiai wa Kasoku Suru you desu!";
+
     setupApiMock({
       projects: [
         createProject({
           id: "project-long",
-          title: "Projeto Longo",
+          title: longTitle,
           synopsis:
             "Uma sinopse longa o suficiente para ocupar varias linhas e validar que a estrutura do card continua usando line-clamp-3 enquanto o rodape segue ancorado no fundo da coluna direita.",
           tags: ["Atualizacao"],
@@ -266,13 +273,27 @@ describe("DashboardProjectsEditor card layout", () => {
     renderEditor();
 
     const card = await screen.findByTestId("dashboard-project-card-project-long");
+    const top = card.querySelector('[data-slot="project-card-top"]');
     const synopsis = card.querySelector('[data-slot="project-card-synopsis"]');
     const meta = card.querySelector('[data-slot="project-card-meta"]');
+    const title = within(card).getByRole("heading", { level: 3, name: /Rekishi ni Nokoru Akujo/i });
+    const titleBlock = title.parentElement;
+    const actions = within(card).getByTitle("Visualizar").parentElement;
 
+    expect(top).not.toBeNull();
+    expect(classTokens(top)).toContain("flex-col");
+    expect(classTokens(top)).toContain("md:flex-row");
     expect(synopsis).not.toBeNull();
     expect(classTokens(synopsis)).toContain("line-clamp-3");
     expect(meta).not.toBeNull();
     expect(classTokens(meta)).toContain("mt-auto");
+    expect(titleBlock).not.toBeNull();
+    expect(classTokens(titleBlock)).toContain("min-w-0");
+    expect(classTokens(titleBlock)).toContain("flex-1");
+    expect(classTokens(title)).toContain("line-clamp-2");
+    expect(classTokens(title)).toContain("break-words");
+    expect(actions).not.toBeNull();
+    expect(classTokens(actions)).toContain("shrink-0");
     expect(within(card).getByTitle("Visualizar")).toBeInTheDocument();
     expect(within(card).getByTitle("Copiar link")).toBeInTheDocument();
     expect(within(card).getByTitle("Excluir")).toBeInTheDocument();

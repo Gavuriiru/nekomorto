@@ -20,6 +20,10 @@ const EYEBROW_SEPARATOR = "\u2022";
 const TRANSPARENT_PIXEL_DATA_URL =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 const TITLE_DIAGONAL_INSET = 64;
+const TITLE_FONT_SIZE_STEP = 0.5;
+const TITLE_EMERGENCY_MIN_FONT_SIZE = 28;
+const TITLE_VISUAL_MIN_REFERENCE_TEXT =
+  "Rekishi ni Nokoru Akujo ni Naruzo: Akuyaku Reijou ni Naru hodo Ouji no Dekiai wa Kasoku Suru you desu!";
 const PROJECT_OG_SCENE_VERSION = "project-og-v3";
 const PROJECT_OG_PANEL_GRADIENT_OPACITY_START = "0.86";
 const PROJECT_OG_PANEL_GRADIENT_OPACITY_END = "0.90";
@@ -116,9 +120,47 @@ const DEFAULT_LAYOUT = Object.freeze({
 const fontBufferCache = new Map();
 const fontParserCache = new Map();
 let projectOgFontsCache = null;
+let projectOgTitleVisualMinFontSizeCache = null;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-const cloneLayout = () => ({ ...DEFAULT_LAYOUT });
+const normalizeFontSizeValue = (value) => Number(Number(value).toFixed(4));
+
+const buildDescendingFontSizes = ({ maxFontSize, minFontSize, step = TITLE_FONT_SIZE_STEP }) => {
+  const sizes = [];
+  const push = (value) => {
+    const normalized = normalizeFontSizeValue(value);
+    if (!Number.isFinite(normalized)) {
+      return;
+    }
+    if (sizes.some((entry) => Math.abs(entry - normalized) < 0.0001)) {
+      return;
+    }
+    sizes.push(normalized);
+  };
+
+  const safeMax = Number(maxFontSize);
+  const safeMin = Number(minFontSize);
+  const safeStep = Number(step);
+  if (!Number.isFinite(safeMax) || !Number.isFinite(safeMin) || !Number.isFinite(safeStep) || safeStep <= 0) {
+    return sizes;
+  }
+
+  push(safeMax);
+  for (
+    let candidate = Math.floor(safeMax / safeStep) * safeStep;
+    candidate >= safeMin - safeStep / 2;
+    candidate -= safeStep
+  ) {
+    push(candidate);
+  }
+  return sizes.filter((value) => value >= safeMin - 0.0001);
+};
+
+const cloneLayout = () => {
+  const layout = { ...DEFAULT_LAYOUT };
+  layout.titleMinFontSize = resolveProjectOgTitleVisualMinFontSize(layout);
+  return layout;
+};
 
 const truncateText = (value, maxLength) => {
   const normalized = String(value || "").trim();
@@ -135,6 +177,45 @@ const normalizeKey = (value) =>
   String(value || "")
     .trim()
     .toLowerCase();
+
+const PROJECT_OG_AUTHOR_ROLE_PRIORITY = [
+  "original creator",
+  "autor original",
+  "original story",
+  "historia original",
+  "story",
+  "historia",
+];
+
+const normalizeProjectOgRoleKey = (value) =>
+  normalizeKey(
+    String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, ""),
+  );
+
+const resolveProjectOgSubtitle = (project) => {
+  const studio = String(project?.studio || "").trim();
+  if (studio) {
+    return studio;
+  }
+
+  const animeStaff = Array.isArray(project?.animeStaff) ? project.animeStaff : [];
+  for (const roleKey of PROJECT_OG_AUTHOR_ROLE_PRIORITY) {
+    const staffEntry = animeStaff.find((entry) => normalizeProjectOgRoleKey(entry?.role) === roleKey);
+    if (!staffEntry) {
+      continue;
+    }
+    const authorName = (Array.isArray(staffEntry?.members) ? staffEntry.members : [])
+      .map((member) => String(member || "").trim())
+      .find(Boolean);
+    if (authorName) {
+      return authorName;
+    }
+  }
+
+  return "";
+};
 
 const normalizeHex = (value) => {
   const cleaned = String(value || "")
@@ -531,6 +612,15 @@ const getTitleLineMaxWidth = ({ layout = DEFAULT_LAYOUT, fontSize, lineIndex }) 
   return clamp(rawWidth, Number(layout.titleWidth) || 0, OG_PROJECT_WIDTH - Number(layout.titleLeft));
 };
 
+const getTagRowMaxWidth = ({ layout = DEFAULT_LAYOUT, rowIndex }) => {
+  void rowIndex;
+  const rowTop = Number(layout.tagsTop);
+  const centerY = rowTop + Number(layout.tagHeight) / 2;
+  const diagonalX = getDiagonalXAtY({ layout, y: centerY });
+  const rawWidth = diagonalX - Number(layout.tagsLeft) - TITLE_DIAGONAL_INSET;
+  return clamp(rawWidth, Number(layout.tagsMaxWidth) || 0, OG_PROJECT_WIDTH - Number(layout.tagsLeft));
+};
+
 const buildTitleLineLayouts = ({ lines, layout = DEFAULT_LAYOUT, fontSize }) =>
   (Array.isArray(lines) ? lines : []).map((text, index) => ({
     text: String(text || ""),
@@ -540,6 +630,101 @@ const buildTitleLineLayouts = ({ lines, layout = DEFAULT_LAYOUT, fontSize }) =>
       lineIndex: index,
     }),
   }));
+
+const buildTitleCandidate = ({ text, layout = DEFAULT_LAYOUT, fontSize, lines, truncated }) => {
+  const titleHeight = lines.length * fontSize * TITLE_LINE_HEIGHT;
+  const lineLayouts = buildTitleLineLayouts({
+    lines,
+    layout,
+    fontSize,
+  });
+  const renderWidth = Math.max(
+    Number(layout.titleWidth) || 0,
+    ...lineLayouts.map((entry) => Number(entry.maxWidth) || 0),
+  );
+  const subtitleTop =
+    lines.length <= 1 ? layout.subtitleBaseTop : layout.titleTop + titleHeight + layout.subtitleGap;
+  const subtitleHeight = layout.subtitleFontSize * 1.2;
+  const subtitleBottom = subtitleTop + subtitleHeight;
+  const subtitleBottomLimit = layout.tagsTop - layout.subtitleLimitGap;
+  return {
+    text,
+    lines,
+    lineLayouts,
+    renderWidth,
+    fontSize,
+    lineHeight: TITLE_LINE_HEIGHT,
+    height: titleHeight,
+    lineCount: lines.length,
+    singleWordLineCount: lines.filter((line) => countWords(line) <= 1).length,
+    truncated,
+    subtitleTop,
+    subtitleBottom,
+    subtitleBottomLimit,
+    fitsWithinSubtitleLimit: subtitleBottom <= subtitleBottomLimit,
+  };
+};
+
+const buildUnlimitedTitleLines = ({ text, layout = DEFAULT_LAYOUT, fontSize }) =>
+  wrapTextLinesByLineWidths({
+    text,
+    getLineMaxWidth: (lineIndex) =>
+      getTitleLineMaxWidth({
+        layout,
+        fontSize,
+        lineIndex,
+      }),
+    fontSize,
+    fontWeight: TITLE_FONT_WEIGHT,
+    maxLines: 999,
+  });
+
+const resolveTechnicalTitleMaxLines = ({ layout = DEFAULT_LAYOUT, fontSize }) => {
+  const subtitleHeight = Number(layout.subtitleFontSize) * 1.2;
+  const availableHeight =
+    Number(layout.tagsTop) -
+    Number(layout.subtitleLimitGap) -
+    Number(layout.titleTop) -
+    Number(layout.subtitleGap) -
+    subtitleHeight;
+  const lineHeightPx = Number(fontSize) * TITLE_LINE_HEIGHT;
+  if (!Number.isFinite(availableHeight) || !Number.isFinite(lineHeightPx) || lineHeightPx <= 0) {
+    return Math.max(1, Math.floor(Number(layout.titleMaxLines) || 1));
+  }
+  return Math.max(1, Math.floor(availableHeight / lineHeightPx));
+};
+
+const resolveProjectOgTitleVisualMinFontSize = (layout = DEFAULT_LAYOUT) => {
+  if (projectOgTitleVisualMinFontSizeCache !== null) {
+    return projectOgTitleVisualMinFontSizeCache;
+  }
+
+  const fontSizes = buildDescendingFontSizes({
+    maxFontSize: Number(layout.titleBaseFontSize),
+    minFontSize: TITLE_EMERGENCY_MIN_FONT_SIZE,
+  });
+  for (const fontSize of fontSizes) {
+    const lines = buildUnlimitedTitleLines({
+      text: TITLE_VISUAL_MIN_REFERENCE_TEXT,
+      layout,
+      fontSize,
+    });
+    const candidate = buildTitleCandidate({
+      text: TITLE_VISUAL_MIN_REFERENCE_TEXT,
+      layout,
+      fontSize,
+      lines,
+      truncated: false,
+    });
+    if (candidate.fitsWithinSubtitleLimit) {
+      projectOgTitleVisualMinFontSizeCache = fontSize;
+      return fontSize;
+    }
+  }
+
+  projectOgTitleVisualMinFontSizeCache = Number(DEFAULT_LAYOUT.titleMinFontSize);
+  return projectOgTitleVisualMinFontSizeCache;
+};
 
 const wrapTextLinesByLineWidths = ({
   text,
@@ -612,157 +797,77 @@ const wrapTextLinesByLineWidths = ({
 
 const buildTitleLayout = (title, layout = DEFAULT_LAYOUT) => {
   const normalizedTitle = String(title || "").trim() || "Projeto";
-  const fontSizes = [
-    layout.titleBaseFontSize,
-    70,
-    68,
-    66,
-    64,
-    62,
-    60,
-    58,
-    56,
-    54,
-    52,
-    50,
-    48,
-    layout.titleMinFontSize,
-  ];
+  const visualMinFontSize = Number(layout.titleMinFontSize) || resolveProjectOgTitleVisualMinFontSize(layout);
+  const regularFontSizes = buildDescendingFontSizes({
+    maxFontSize: Number(layout.titleBaseFontSize),
+    minFontSize: visualMinFontSize,
+  });
+  const emergencyFontSizes =
+    visualMinFontSize - TITLE_FONT_SIZE_STEP >= TITLE_EMERGENCY_MIN_FONT_SIZE
+      ? buildDescendingFontSizes({
+          maxFontSize: visualMinFontSize - TITLE_FONT_SIZE_STEP,
+          minFontSize: TITLE_EMERGENCY_MIN_FONT_SIZE,
+        })
+      : [];
 
-  const createCandidate = ({ fontSize, lines, fullLines, truncated }) => {
-    const titleHeight = lines.length * fontSize * TITLE_LINE_HEIGHT;
-    const lineLayouts = buildTitleLineLayouts({
-      lines,
+  const fullFontSizes = [...regularFontSizes, ...emergencyFontSizes];
+  for (const fontSize of fullFontSizes) {
+    const fullLines = buildUnlimitedTitleLines({
+      text: normalizedTitle,
       layout,
       fontSize,
     });
-    const renderWidth = Math.max(
-      Number(layout.titleWidth) || 0,
-      ...lineLayouts.map((entry) => Number(entry.maxWidth) || 0),
-    );
-    const subtitleTop =
-      lines.length <= 1
-        ? layout.subtitleBaseTop
-        : layout.titleTop + titleHeight + layout.subtitleGap;
-    const subtitleHeight = layout.subtitleFontSize * 1.2;
-    const subtitleBottom = subtitleTop + subtitleHeight;
-    const subtitleBottomLimit = layout.tagsTop - layout.subtitleLimitGap;
-    return {
+    const completeCandidate = buildTitleCandidate({
       text: normalizedTitle,
-      lines,
-      lineLayouts,
-      renderWidth,
-      fullLines,
+      layout,
       fontSize,
-      lineHeight: TITLE_LINE_HEIGHT,
-      height: titleHeight,
-      lineCount: lines.length,
-      singleWordLineCount: lines.filter((line) => countWords(line) <= 1).length,
-      truncated,
-      subtitleTop,
-      subtitleBottom,
-      subtitleBottomLimit,
-      fitsWithinSubtitleLimit: subtitleBottom <= subtitleBottomLimit,
-    };
-  };
-
-  const selectTitleCandidate = (currentBest, nextCandidate) => {
-    if (!currentBest) {
-      return nextCandidate;
-    }
-    if (currentBest.fontSize !== nextCandidate.fontSize) {
-      return nextCandidate.fontSize > currentBest.fontSize ? nextCandidate : currentBest;
-    }
-    if (currentBest.lineCount !== nextCandidate.lineCount) {
-      return nextCandidate.lineCount < currentBest.lineCount ? nextCandidate : currentBest;
-    }
-    if (currentBest.singleWordLineCount !== nextCandidate.singleWordLineCount) {
-      return nextCandidate.singleWordLineCount < currentBest.singleWordLineCount
-        ? nextCandidate
-        : currentBest;
-    }
-    return currentBest;
-  };
-
-  let bestCompleteCandidate = null;
-  let bestTruncatedCandidate = null;
-  for (const fontSize of fontSizes) {
-    const getLineMaxWidth = (lineIndex) =>
-      getTitleLineMaxWidth({
-        layout,
-        fontSize,
-        lineIndex,
-      });
-    const fullLines = wrapTextLinesByLineWidths({
-      text: normalizedTitle,
-      getLineMaxWidth,
-      fontSize,
-      fontWeight: TITLE_FONT_WEIGHT,
-      maxLines: 999,
+      lines: fullLines,
+      truncated: false,
     });
-
-    if (fullLines.length <= layout.titleMaxLines) {
-      const completeCandidate = createCandidate({
-        fontSize,
-        lines: fullLines,
-        fullLines,
+    if (completeCandidate.fitsWithinSubtitleLimit) {
+      return {
+        text: completeCandidate.text,
+        lines: completeCandidate.lines,
+        lineLayouts: completeCandidate.lineLayouts,
+        renderWidth: completeCandidate.renderWidth,
+        fontSize: completeCandidate.fontSize,
+        lineHeight: completeCandidate.lineHeight,
+        height: completeCandidate.height,
+        subtitleTop: completeCandidate.subtitleTop,
+        subtitleBottom: completeCandidate.subtitleBottom,
+        subtitleBottomLimit: completeCandidate.subtitleBottomLimit,
         truncated: false,
-      });
-      if (completeCandidate.fitsWithinSubtitleLimit) {
-        bestCompleteCandidate = selectTitleCandidate(bestCompleteCandidate, completeCandidate);
-      }
-      continue;
-    }
-
-    const truncatedLines = wrapTextLinesByLineWidths({
-      text: normalizedTitle,
-      getLineMaxWidth,
-      fontSize,
-      fontWeight: TITLE_FONT_WEIGHT,
-      maxLines: layout.titleMaxLines,
-    });
-    const truncatedCandidate = createCandidate({
-      fontSize,
-      lines: truncatedLines,
-      fullLines,
-      truncated: true,
-    });
-    if (truncatedCandidate.fitsWithinSubtitleLimit) {
-      bestTruncatedCandidate = selectTitleCandidate(bestTruncatedCandidate, truncatedCandidate);
+      };
     }
   }
 
-  const resolvedCandidate = bestCompleteCandidate || bestTruncatedCandidate || (() => {
-    const getLineMaxWidth = (lineIndex) =>
+  const technicalFallbackFontSize = Math.min(
+    visualMinFontSize,
+    emergencyFontSizes[emergencyFontSizes.length - 1] || TITLE_EMERGENCY_MIN_FONT_SIZE,
+  );
+  const technicalMaxLines = resolveTechnicalTitleMaxLines({
+    layout,
+    fontSize: technicalFallbackFontSize,
+  });
+  const technicalFallbackLines = wrapTextLinesByLineWidths({
+    text: normalizedTitle,
+    getLineMaxWidth: (lineIndex) =>
       getTitleLineMaxWidth({
         layout,
-        fontSize: layout.titleMinFontSize,
+        fontSize: technicalFallbackFontSize,
         lineIndex,
-      });
-    const fullLines = wrapTextLinesByLineWidths({
-      text: normalizedTitle,
-      getLineMaxWidth,
-      fontSize: layout.titleMinFontSize,
-      fontWeight: TITLE_FONT_WEIGHT,
-      maxLines: 999,
-    });
-    const fallbackLines =
-      fullLines.length <= layout.titleMaxLines
-        ? fullLines
-        : wrapTextLinesByLineWidths({
-          text: normalizedTitle,
-          getLineMaxWidth,
-          fontSize: layout.titleMinFontSize,
-          fontWeight: TITLE_FONT_WEIGHT,
-          maxLines: layout.titleMaxLines,
-        });
-    return createCandidate({
-      fontSize: layout.titleMinFontSize,
-      lines: fallbackLines,
-      fullLines,
-      truncated: fullLines.length > layout.titleMaxLines,
-    });
-  })();
+      }),
+    fontSize: technicalFallbackFontSize,
+    fontWeight: TITLE_FONT_WEIGHT,
+    maxLines: technicalMaxLines,
+  });
+  const resolvedCandidate = buildTitleCandidate({
+    text: normalizedTitle,
+    layout,
+    fontSize: technicalFallbackFontSize,
+    lines: technicalFallbackLines,
+    truncated: true,
+  });
   return {
     text: resolvedCandidate.text,
     lines: resolvedCandidate.lines,
@@ -778,7 +883,49 @@ const buildTitleLayout = (title, layout = DEFAULT_LAYOUT) => {
   };
 };
 
-const buildChipTextLayout = (chip, maxTextWidth, layout) => {
+const measureEllipsizedChipLine = (
+  text,
+  maxWidth,
+  fontSize,
+  fontWeight,
+  { allowCharacterFallback = false } = {},
+) => {
+  const normalized = String(text || "").trim();
+  if (!normalized) {
+    return "";
+  }
+  if (measureTextWidth({ text: normalized, fontSize, fontWeight }) <= maxWidth) {
+    return normalized;
+  }
+
+  const words = normalized.split(/\s+/).filter(Boolean);
+  if (words.length > 1) {
+    for (let wordCount = words.length - 1; wordCount >= 1; wordCount -= 1) {
+      const candidate = `${words.slice(0, wordCount).join(" ")}...`;
+      if (measureTextWidth({ text: candidate, fontSize, fontWeight }) <= maxWidth) {
+        return candidate;
+      }
+    }
+  }
+
+  if (!allowCharacterFallback) {
+    return "";
+  }
+
+  let fallback = normalized;
+  while (fallback.length > 1) {
+    const candidate = `${fallback.slice(0, -1).trimEnd()}...`;
+    if (measureTextWidth({ text: candidate, fontSize, fontWeight }) <= maxWidth) {
+      return candidate;
+    }
+    fallback = fallback.slice(0, -1);
+  }
+
+  return measureTextWidth({ text: "...", fontSize, fontWeight }) <= maxWidth ? "..." : "";
+};
+
+const buildChipTextLayout = (chip, maxTextWidth, layout, options = {}) => {
+  const normalizedChip = String(chip || "").trim();
   const fallbackWidth = Math.max(
     measureTextWidth({
       text: "...",
@@ -788,7 +935,22 @@ const buildChipTextLayout = (chip, maxTextWidth, layout) => {
     12,
   );
   const safeMaxTextWidth = Math.max(maxTextWidth, fallbackWidth);
-  const text = measureEllipsizedLine(chip, safeMaxTextWidth, layout.tagFontSize, CHIP_FONT_WEIGHT);
+  const text = measureEllipsizedChipLine(
+    normalizedChip,
+    safeMaxTextWidth,
+    layout.tagFontSize,
+    CHIP_FONT_WEIGHT,
+    options,
+  );
+  if (!text || text === "...") {
+    return {
+      text: "",
+      textWidth: 0,
+      width: 0,
+      truncated: false,
+      usable: false,
+    };
+  }
   const textWidth = measureTextWidth({
     text,
     fontSize: layout.tagFontSize,
@@ -798,6 +960,8 @@ const buildChipTextLayout = (chip, maxTextWidth, layout) => {
     text,
     textWidth,
     width: textWidth + layout.tagPaddingX * 2,
+    truncated: text !== normalizedChip,
+    usable: true,
   };
 };
 
@@ -806,32 +970,83 @@ const buildChipLayouts = (chips, layout = DEFAULT_LAYOUT) => {
   if (safeChips.length === 0) {
     return [];
   }
+  const minTextWidth = measureTextWidth({
+    text: "...",
+    fontSize: layout.tagFontSize,
+    fontWeight: CHIP_FONT_WEIGHT,
+  });
+  const minChipWidth = minTextWidth + layout.tagPaddingX * 2;
+  const rowMaxWidth = getTagRowMaxWidth({ layout, rowIndex: 0 });
+  const chipLayouts = [];
+  const deferredCandidates = [];
+  let usedWidth = 0;
 
-  const gapWidth = layout.tagGap * Math.max(safeChips.length - 1, 0);
-  let remainingWidth = Math.max(layout.tagsMaxWidth - gapWidth, 0);
-  return safeChips.map((chip, index) => {
-    const remainingChipCount = safeChips.length - index;
-    const minRemainingTextWidth = measureTextWidth({
-      text: "...",
+  safeChips.forEach((chip, sourceIndex) => {
+    const chipText = String(chip || "").trim();
+    if (!chipText) {
+      return;
+    }
+
+    const naturalTextWidth = measureTextWidth({
+      text: chipText,
       fontSize: layout.tagFontSize,
       fontWeight: CHIP_FONT_WEIGHT,
     });
-    const minRemainingChipWidth =
-      remainingChipCount > 1
-        ? (remainingChipCount - 1) * (minRemainingTextWidth + layout.tagPaddingX * 2)
-        : 0;
-    const maxChipWidth = Math.max(
-      layout.tagPaddingX * 2 + minRemainingTextWidth,
-      remainingWidth - minRemainingChipWidth,
-    );
-    const chipLayout = buildChipTextLayout(
-      chip,
-      maxChipWidth - layout.tagPaddingX * 2,
-      layout,
-    );
-    remainingWidth = Math.max(0, remainingWidth - chipLayout.width);
-    return chipLayout;
+    const naturalWidth = naturalTextWidth + layout.tagPaddingX * 2;
+    const gapBefore = usedWidth > 0 ? layout.tagGap : 0;
+    const remainingWidth = rowMaxWidth - usedWidth - gapBefore;
+    if (naturalWidth <= remainingWidth) {
+      chipLayouts.push({
+        text: chipText,
+        width: naturalWidth,
+        row: 0,
+        x: usedWidth + gapBefore,
+        y: 0,
+        maxWidth: rowMaxWidth,
+        truncated: false,
+        sourceIndex,
+        fallbackDeferred: false,
+      });
+      usedWidth += gapBefore + naturalWidth;
+      return;
+    }
+    deferredCandidates.push({
+      text: chipText,
+      sourceIndex,
+    });
   });
+
+  const gapBefore = usedWidth > 0 ? layout.tagGap : 0;
+  const remainingWidth = rowMaxWidth - usedWidth - gapBefore;
+  if (remainingWidth < minChipWidth) {
+    return chipLayouts;
+  }
+
+  for (const candidate of deferredCandidates) {
+    const chipLayout = buildChipTextLayout(
+      candidate.text,
+      Math.max(remainingWidth - layout.tagPaddingX * 2, minTextWidth),
+      layout,
+      { allowCharacterFallback: false },
+    );
+    if (!chipLayout.usable || !chipLayout.truncated) {
+      continue;
+    }
+    chipLayouts.push({
+      text: chipLayout.text,
+      width: Math.min(chipLayout.width, remainingWidth),
+      row: 0,
+      x: usedWidth + gapBefore,
+      y: 0,
+      maxWidth: rowMaxWidth,
+      truncated: true,
+      sourceIndex: candidate.sourceIndex,
+      fallbackDeferred: true,
+    });
+    break;
+  }
+
+  return chipLayouts;
 };
 
 const guessMimeType = (value) => {
@@ -1230,9 +1445,9 @@ const buildTagsNode = (model) => {
         position: "absolute",
         left: model.layout.tagsLeft,
         top: model.layout.tagsTop,
-        maxWidth: model.layout.tagsMaxWidth,
         display: "flex",
-        alignItems: "center",
+        width: Math.max(0, ...chipLayouts.map((chip) => Number(chip.x) + Number(chip.width))),
+        height: model.layout.tagHeight,
       },
     },
     ...chipLayouts.map((chip, index) =>
@@ -1241,6 +1456,9 @@ const buildTagsNode = (model) => {
         {
           key: `chip-${normalizeKey(chip.text)}-${index}`,
           style: {
+            position: "absolute",
+            left: chip.x,
+            top: chip.y,
             width: chip.width,
             maxWidth: chip.width,
             height: model.layout.tagHeight,
@@ -1251,7 +1469,6 @@ const buildTagsNode = (model) => {
             borderRadius: model.layout.tagRadius,
             paddingLeft: model.layout.tagPaddingX,
             paddingRight: model.layout.tagPaddingX,
-            marginRight: index === chipLayouts.length - 1 ? 0 : model.layout.tagGap,
             color: "#9b9b9b",
             fontFamily: "Geist",
             fontSize: model.layout.tagFontSize,
@@ -1457,7 +1674,7 @@ export const buildProjectOgCardModel = ({
   const layout = cloneLayout();
   const title = String(safeProject.title || "").trim() || "Projeto";
   const titleLayout = buildTitleLayout(title, layout);
-  const subtitle = truncateText(safeProject.studio || "", 42);
+  const subtitle = truncateText(resolveProjectOgSubtitle(safeProject), 42);
   const eyebrowParts = [safeProject.type, safeProject.status]
     .map((value) => String(value || "").trim())
     .filter(Boolean);
@@ -1478,11 +1695,11 @@ export const buildProjectOgCardModel = ({
   const chips = [];
   sourceValues.forEach((value) => {
     const normalized = normalizeKey(value);
-    if (!normalized || seenChips.has(normalized) || chips.length >= 4) {
+    if (!normalized || seenChips.has(normalized)) {
       return;
     }
     seenChips.add(normalized);
-    chips.push(truncateText(value, 24));
+    chips.push(String(value || "").trim());
   });
 
   const palette = resolveProjectOgPalette(settings?.theme?.accent);

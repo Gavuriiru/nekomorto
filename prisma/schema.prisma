@@ -487,6 +487,7 @@ model ProjectV2Record {
   status        String
   year          String
   studio        String
+  animationStudios String[]
   episodes      String
   tags          String[]
   genres        String[]

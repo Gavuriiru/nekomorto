@@ -23,6 +23,7 @@ import {
   writeExportFile,
 } from "./lib/admin-exports.js";
 import { API_CONTRACT_VERSION, buildApiContractV1 } from "./lib/api-contract-v1.js";
+import { ANILIST_API, fetchAniListMediaById } from "./lib/anilist-client.js";
 import {
   AccessRole,
   BASIC_PROFILE_FIELDS,
@@ -229,6 +230,7 @@ import {
 import { toDiscordWebhookPayload } from "./lib/webhooks/providers/discord.js";
 import { buildOperationalAlertsWebhookNotification } from "./lib/webhooks/templates/operational-alerts.js";
 import { diffOperationalAlertSets } from "./lib/webhooks/transitions.js";
+import { deriveAniListMediaOrganization } from "../src/lib/anilist-media.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -865,7 +867,6 @@ const emitSecurityEvent = ({
 };
 
 const DISCORD_API = "https://discord.com/api/v10";
-const ANILIST_API = "https://graphql.anilist.co";
 const SCOPES = ["identify", "email"];
 
 const {
@@ -5734,6 +5735,9 @@ const normalizeProjects = (projects) =>
       status: String(project.status || ""),
       year: String(project.year || ""),
       studio: String(project.studio || ""),
+      animationStudios: Array.isArray(project.animationStudios)
+        ? project.animationStudios.filter(Boolean)
+        : [],
       episodes: String(project.episodes || ""),
       tags: Array.isArray(project.tags) ? project.tags.filter(Boolean) : [],
       genres: Array.isArray(project.genres) ? project.genres.filter(Boolean) : [],
@@ -5785,6 +5789,9 @@ const normalizeProjects = (projects) =>
       normalized.description,
       normalized.type,
       normalized.status,
+      normalized.studio,
+      ...(Array.isArray(normalized.animationStudios) ? normalized.animationStudios : []),
+      ...(Array.isArray(normalized.producers) ? normalized.producers : []),
       ...(Array.isArray(normalized.tags) ? normalized.tags : []),
       ...(Array.isArray(normalized.genres) ? normalized.genres : []),
     );
@@ -12681,6 +12688,7 @@ app.get("/api/public/projects", (req, res) => {
     status: project.status,
     year: project.year,
     studio: project.studio,
+    animationStudios: project.animationStudios,
     episodes: project.episodes,
     tags: project.tags,
     genres: project.genres,
@@ -13437,72 +13445,23 @@ app.get("/api/anilist/:id", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "invalid_id" });
   }
   try {
-    const query = `
-      query ($id: Int) {
-        Media(id: $id) {
-          id
-          title {
-            romaji
-            english
-            native
-          }
-          description
-          episodes
-          genres
-          format
-          status
-          countryOfOrigin
-          season
-          seasonYear
-          startDate { year month day }
-          endDate { year month day }
-          source
-          averageScore
-          bannerImage
-          coverImage { extraLarge large }
-          studios {
-            nodes { id name isAnimationStudio }
-          }
-          producers: studios(isMain: false) {
-            nodes { id name }
-          }
-          tags {
-            name
-            rank
-            isMediaSpoiler
-          }
-          trailer {
-            id
-            site
-            thumbnail
-          }
-          relations {
-            edges { relationType }
-            nodes {
-              id
-              title { romaji }
-              format
-              status
-              coverImage { large }
-            }
-          }
-          staff(sort: RELEVANCE, perPage: 10) {
-            edges { role }
-            nodes { name { full } }
-          }
-        }
-      }
-    `;
-    const response = await fetch(ANILIST_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query, variables: { id } }),
-    });
-    if (!response.ok) {
-      return res.status(502).json({ error: "anilist_failed" });
+    const result = await fetchAniListMediaById(id);
+    if (!result.ok) {
+      return res.status(result.error === "invalid_id" ? 400 : 502).json({ error: result.error });
     }
-    const data = await response.json();
-    return res.json(data);
+    const media = result.media
+      ? {
+          ...result.media,
+          organization: deriveAniListMediaOrganization(result.media),
+        }
+      : null;
+    return res.json({
+      ...(result.data && typeof result.data === "object" ? result.data : {}),
+      data: {
+        ...(result.data?.data && typeof result.data.data === "object" ? result.data.data : {}),
+        Media: media,
+      },
+    });
   } catch {
     return res.status(502).json({ error: "anilist_failed" });
   }

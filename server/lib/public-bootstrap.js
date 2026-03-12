@@ -130,6 +130,7 @@ export const toPublicBootstrapProject = (project) => ({
   forceHero: Boolean(project?.forceHero),
   trailerUrl: safeString(project?.trailerUrl),
   studio: safeString(project?.studio),
+  animationStudios: safeStringArray(project?.animationStudios),
   episodes: safeString(project?.episodes),
   producers: safeStringArray(project?.producers),
   volumeEntries: sanitizeVolumeEntries(project?.volumeEntries),
