@@ -10,9 +10,12 @@ const baseModel = {
   eyebrow: "Anime • Finalizado",
   title: "Oshi no Ko",
   subtitle: "Doga Kobo",
+  sceneVersion: "project-og-v3",
   titleFontSize: 84,
   artworkUrl: "/uploads/projects/oshi-no-ko/cover.jpg",
   artworkSource: "cover",
+  backdropUrl: "/uploads/projects/oshi-no-ko/banner.jpg",
+  backdropSource: "banner",
   palette: {
     accentPrimary: "#3173ff",
     accentLine: "#49b6ff",
@@ -102,7 +105,7 @@ describe("og render cache", () => {
     expect(b).toEqual({ ok: true });
   });
 
-  it("changes fingerprint and key when accent or title changes", () => {
+  it("changes fingerprint and key when accent, backdrop or scene version changes", () => {
     const originalFingerprint = buildOgRenderFingerprint({
       kind: "project",
       id: "oshi-no-ko",
@@ -124,6 +127,14 @@ describe("og render cache", () => {
       ...baseModel,
       title: "Oshi no Ko 2",
     };
+    const backdropChangedModel = {
+      ...baseModel,
+      backdropUrl: "/uploads/projects/oshi-no-ko/banner-v2.jpg",
+    };
+    const versionChangedModel = {
+      ...baseModel,
+      sceneVersion: "project-og-v4",
+    };
 
     const accentFingerprint = buildOgRenderFingerprint({
       kind: "project",
@@ -140,9 +151,21 @@ describe("og render cache", () => {
       id: "oshi-no-ko",
       model: titleChangedModel,
     });
+    const backdropKey = buildOgRenderCacheKey({
+      kind: "project",
+      id: "oshi-no-ko",
+      model: backdropChangedModel,
+    });
+    const versionKey = buildOgRenderCacheKey({
+      kind: "project",
+      id: "oshi-no-ko",
+      model: versionChangedModel,
+    });
 
     expect(accentFingerprint).not.toBe(originalFingerprint);
     expect(accentKey).not.toBe(originalKey);
     expect(titleKey).not.toBe(originalKey);
+    expect(backdropKey).not.toBe(originalKey);
+    expect(versionKey).not.toBe(originalKey);
   });
 });

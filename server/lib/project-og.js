@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import opentype from "@shuding/opentype.js/dist/opentype.module.js";
 import React from "react";
 import { ImageResponse } from "@vercel/og";
+import sharp from "sharp";
 
 export const OG_PROJECT_WIDTH = 1200;
 export const OG_PROJECT_HEIGHT = 630;
@@ -18,6 +19,11 @@ const DEFAULT_BACKGROUND = "#02050b";
 const EYEBROW_SEPARATOR = "\u2022";
 const TRANSPARENT_PIXEL_DATA_URL =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+const TITLE_DIAGONAL_INSET = 64;
+const PROJECT_OG_SCENE_VERSION = "project-og-v3";
+const PROJECT_OG_PANEL_GRADIENT_OPACITY_START = "0.86";
+const PROJECT_OG_PANEL_GRADIENT_OPACITY_END = "0.90";
+const PROJECT_OG_BACKDROP_BLUR = 35;
 
 const TITLE_FONT_WEIGHT = 700;
 const EYEBROW_FONT_WEIGHT = 300;
@@ -69,6 +75,10 @@ const DEFAULT_LAYOUT = Object.freeze({
   artworkTop: -3,
   artworkWidth: 453,
   artworkHeight: 641,
+  backdropLeft: 0,
+  backdropTop: 0,
+  backdropWidth: 803,
+  backdropHeight: 630,
   eyebrowLeft: 57.57,
   eyebrowTop: 55,
   eyebrowFontSize: 28.636211395263672,
@@ -78,13 +88,14 @@ const DEFAULT_LAYOUT = Object.freeze({
   titleLeft: 53,
   titleTop: 93.83402252197266,
   titleWidth: 493.2709655761719,
-  titleMaxLines: 3,
+  titleMaxLines: 4,
   titleBaseFontSize: 72.0604476928711,
   titleMinFontSize: 46,
   subtitleLeft: 55.284423828125,
   subtitleBaseTop: 193.2034454345703,
   subtitleFontSize: 30.654399871826172,
-  subtitleGap: 12.9,
+  subtitleGap: 18,
+  subtitleLimitGap: 24,
   subtitleMaxWidth: 360,
   tagsLeft: 56,
   tagsTop: 560,
@@ -93,7 +104,7 @@ const DEFAULT_LAYOUT = Object.freeze({
   tagHeight: 29,
   tagRadius: 15.84,
   tagFontSize: 22.17411994934082,
-  tagPaddingX: 12,
+  tagPaddingX: 14.5,
   dividerLeft: 744,
   dividerTop: 0,
   dividerWidth: 59,
@@ -377,6 +388,12 @@ const measureTextWidth = ({ text, fontSize, fontWeight }) => {
   }
 };
 
+const countWords = (value) =>
+  String(value || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+
 const measureEllipsizedLine = (text, maxWidth, fontSize, fontWeight) => {
   const normalized = String(text || "").trim();
   if (!normalized) {
@@ -463,65 +480,358 @@ const wrapTextLines = ({ text, maxWidth, fontSize, fontWeight, maxLines }) => {
   return trimmed;
 };
 
+const getPanelDiagonalSegment = (layout = DEFAULT_LAYOUT) => {
+  const points = parsePolygonPoints(layout.panelPoints);
+  if (points.length >= 3) {
+    return {
+      start: points[1],
+      end: points[2],
+    };
+  }
+
+  return {
+    start: {
+      x: Number(layout.backdropWidth) || 803,
+      y: 0,
+    },
+    end: {
+      x: Number(layout.dividerLeft) || Number(layout.backdropWidth) || 803,
+      y: Number(layout.backdropHeight) || OG_PROJECT_HEIGHT,
+    },
+  };
+};
+
+const getDiagonalXAtY = ({ layout = DEFAULT_LAYOUT, y }) => {
+  const segment = getPanelDiagonalSegment(layout);
+  const startY = Number(segment?.start?.y);
+  const endY = Number(segment?.end?.y);
+  const startX = Number(segment?.start?.x);
+  const endX = Number(segment?.end?.x);
+
+  if (
+    !Number.isFinite(startX) ||
+    !Number.isFinite(endX) ||
+    !Number.isFinite(startY) ||
+    !Number.isFinite(endY) ||
+    startY === endY
+  ) {
+    return Number(layout.dividerLeft) || Number(layout.backdropWidth) || OG_PROJECT_WIDTH;
+  }
+
+  const progress = (Number(y) - startY) / (endY - startY);
+  return startX + (endX - startX) * progress;
+};
+
+const getTitleLineMaxWidth = ({ layout = DEFAULT_LAYOUT, fontSize, lineIndex }) => {
+  const safeLineIndex = Math.max(0, Math.floor(Number(lineIndex) || 0));
+  const lineHeightPx = Number(fontSize) * TITLE_LINE_HEIGHT;
+  const centerY = Number(layout.titleTop) + safeLineIndex * lineHeightPx + lineHeightPx / 2;
+  const diagonalX = getDiagonalXAtY({ layout, y: centerY });
+  const rawWidth = diagonalX - Number(layout.titleLeft) - TITLE_DIAGONAL_INSET;
+  return clamp(rawWidth, Number(layout.titleWidth) || 0, OG_PROJECT_WIDTH - Number(layout.titleLeft));
+};
+
+const buildTitleLineLayouts = ({ lines, layout = DEFAULT_LAYOUT, fontSize }) =>
+  (Array.isArray(lines) ? lines : []).map((text, index) => ({
+    text: String(text || ""),
+    maxWidth: getTitleLineMaxWidth({
+      layout,
+      fontSize,
+      lineIndex: index,
+    }),
+  }));
+
+const wrapTextLinesByLineWidths = ({
+  text,
+  getLineMaxWidth,
+  fontSize,
+  fontWeight,
+  maxLines,
+}) => {
+  const normalizedText = String(text || "")
+    .replace(/\r\n/g, "\n")
+    .trim();
+  if (!normalizedText) {
+    return [""];
+  }
+
+  const resolveMaxWidth = (lineIndex) => {
+    const value = Number(getLineMaxWidth(lineIndex));
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  };
+
+  const paragraphs = normalizedText.split("\n");
+  const lines = [];
+
+  paragraphs.forEach((paragraph) => {
+    const words = paragraph.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) {
+      lines.push("");
+      return;
+    }
+
+    let currentLine = "";
+    words.forEach((word) => {
+      const nextLine = currentLine ? `${currentLine} ${word}` : word;
+      const nextWidth = measureTextWidth({
+        text: nextLine,
+        fontSize,
+        fontWeight,
+      });
+      const lineMaxWidth = resolveMaxWidth(lines.length);
+
+      if (!currentLine || nextWidth <= lineMaxWidth) {
+        currentLine = nextLine;
+        return;
+      }
+
+      lines.push(currentLine);
+      currentLine = word;
+    });
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+  });
+
+  const safeMaxLines = Math.max(1, Math.floor(Number(maxLines) || 1));
+  if (lines.length <= safeMaxLines) {
+    return lines;
+  }
+
+  const trimmed = lines.slice(0, safeMaxLines);
+  const overflowRemainder = lines.slice(safeMaxLines - 1).join(" ");
+  trimmed[safeMaxLines - 1] = measureEllipsizedLine(
+    overflowRemainder,
+    resolveMaxWidth(safeMaxLines - 1),
+    fontSize,
+    fontWeight,
+  );
+  return trimmed;
+};
+
 const buildTitleLayout = (title, layout = DEFAULT_LAYOUT) => {
   const normalizedTitle = String(title || "").trim() || "Projeto";
   const fontSizes = [
     layout.titleBaseFontSize,
+    70,
     68,
+    66,
     64,
+    62,
     60,
+    58,
     56,
+    54,
     52,
+    50,
+    48,
     layout.titleMinFontSize,
   ];
 
-  for (const fontSize of fontSizes) {
-    const lines = wrapTextLines({
+  const createCandidate = ({ fontSize, lines, fullLines, truncated }) => {
+    const titleHeight = lines.length * fontSize * TITLE_LINE_HEIGHT;
+    const lineLayouts = buildTitleLineLayouts({
+      lines,
+      layout,
+      fontSize,
+    });
+    const renderWidth = Math.max(
+      Number(layout.titleWidth) || 0,
+      ...lineLayouts.map((entry) => Number(entry.maxWidth) || 0),
+    );
+    const subtitleTop =
+      lines.length <= 1
+        ? layout.subtitleBaseTop
+        : layout.titleTop + titleHeight + layout.subtitleGap;
+    const subtitleHeight = layout.subtitleFontSize * 1.2;
+    const subtitleBottom = subtitleTop + subtitleHeight;
+    const subtitleBottomLimit = layout.tagsTop - layout.subtitleLimitGap;
+    return {
       text: normalizedTitle,
-      maxWidth: layout.titleWidth,
+      lines,
+      lineLayouts,
+      renderWidth,
+      fullLines,
+      fontSize,
+      lineHeight: TITLE_LINE_HEIGHT,
+      height: titleHeight,
+      lineCount: lines.length,
+      singleWordLineCount: lines.filter((line) => countWords(line) <= 1).length,
+      truncated,
+      subtitleTop,
+      subtitleBottom,
+      subtitleBottomLimit,
+      fitsWithinSubtitleLimit: subtitleBottom <= subtitleBottomLimit,
+    };
+  };
+
+  const selectTitleCandidate = (currentBest, nextCandidate) => {
+    if (!currentBest) {
+      return nextCandidate;
+    }
+    if (currentBest.fontSize !== nextCandidate.fontSize) {
+      return nextCandidate.fontSize > currentBest.fontSize ? nextCandidate : currentBest;
+    }
+    if (currentBest.lineCount !== nextCandidate.lineCount) {
+      return nextCandidate.lineCount < currentBest.lineCount ? nextCandidate : currentBest;
+    }
+    if (currentBest.singleWordLineCount !== nextCandidate.singleWordLineCount) {
+      return nextCandidate.singleWordLineCount < currentBest.singleWordLineCount
+        ? nextCandidate
+        : currentBest;
+    }
+    return currentBest;
+  };
+
+  let bestCompleteCandidate = null;
+  let bestTruncatedCandidate = null;
+  for (const fontSize of fontSizes) {
+    const getLineMaxWidth = (lineIndex) =>
+      getTitleLineMaxWidth({
+        layout,
+        fontSize,
+        lineIndex,
+      });
+    const fullLines = wrapTextLinesByLineWidths({
+      text: normalizedTitle,
+      getLineMaxWidth,
+      fontSize,
+      fontWeight: TITLE_FONT_WEIGHT,
+      maxLines: 999,
+    });
+
+    if (fullLines.length <= layout.titleMaxLines) {
+      const completeCandidate = createCandidate({
+        fontSize,
+        lines: fullLines,
+        fullLines,
+        truncated: false,
+      });
+      if (completeCandidate.fitsWithinSubtitleLimit) {
+        bestCompleteCandidate = selectTitleCandidate(bestCompleteCandidate, completeCandidate);
+      }
+      continue;
+    }
+
+    const truncatedLines = wrapTextLinesByLineWidths({
+      text: normalizedTitle,
+      getLineMaxWidth,
       fontSize,
       fontWeight: TITLE_FONT_WEIGHT,
       maxLines: layout.titleMaxLines,
     });
-    const longestLine = Math.max(
-      ...lines.map((line) =>
-        measureTextWidth({
-          text: line,
-          fontSize,
-          fontWeight: TITLE_FONT_WEIGHT,
-        }),
-      ),
-    );
-    if (lines.length <= layout.titleMaxLines && longestLine <= layout.titleWidth) {
-      const titleHeight = lines.length * fontSize * TITLE_LINE_HEIGHT;
-      return {
-        text: normalizedTitle,
-        lines,
-        fontSize,
-        lineHeight: TITLE_LINE_HEIGHT,
-        height: titleHeight,
-        subtitleTop: layout.titleTop + titleHeight + layout.subtitleGap,
-      };
+    const truncatedCandidate = createCandidate({
+      fontSize,
+      lines: truncatedLines,
+      fullLines,
+      truncated: true,
+    });
+    if (truncatedCandidate.fitsWithinSubtitleLimit) {
+      bestTruncatedCandidate = selectTitleCandidate(bestTruncatedCandidate, truncatedCandidate);
     }
   }
 
-  const fallbackFontSize = layout.titleMinFontSize;
-  const lines = wrapTextLines({
-    text: normalizedTitle,
-    maxWidth: layout.titleWidth,
-    fontSize: fallbackFontSize,
-    fontWeight: TITLE_FONT_WEIGHT,
-    maxLines: layout.titleMaxLines,
-  });
-  const titleHeight = lines.length * fallbackFontSize * TITLE_LINE_HEIGHT;
+  const resolvedCandidate = bestCompleteCandidate || bestTruncatedCandidate || (() => {
+    const getLineMaxWidth = (lineIndex) =>
+      getTitleLineMaxWidth({
+        layout,
+        fontSize: layout.titleMinFontSize,
+        lineIndex,
+      });
+    const fullLines = wrapTextLinesByLineWidths({
+      text: normalizedTitle,
+      getLineMaxWidth,
+      fontSize: layout.titleMinFontSize,
+      fontWeight: TITLE_FONT_WEIGHT,
+      maxLines: 999,
+    });
+    const fallbackLines =
+      fullLines.length <= layout.titleMaxLines
+        ? fullLines
+        : wrapTextLinesByLineWidths({
+          text: normalizedTitle,
+          getLineMaxWidth,
+          fontSize: layout.titleMinFontSize,
+          fontWeight: TITLE_FONT_WEIGHT,
+          maxLines: layout.titleMaxLines,
+        });
+    return createCandidate({
+      fontSize: layout.titleMinFontSize,
+      lines: fallbackLines,
+      fullLines,
+      truncated: fullLines.length > layout.titleMaxLines,
+    });
+  })();
   return {
-    text: normalizedTitle,
-    lines,
-    fontSize: fallbackFontSize,
-    lineHeight: TITLE_LINE_HEIGHT,
-    height: titleHeight,
-    subtitleTop: layout.titleTop + titleHeight + layout.subtitleGap,
+    text: resolvedCandidate.text,
+    lines: resolvedCandidate.lines,
+    lineLayouts: resolvedCandidate.lineLayouts,
+    renderWidth: resolvedCandidate.renderWidth,
+    fontSize: resolvedCandidate.fontSize,
+    lineHeight: resolvedCandidate.lineHeight,
+    height: resolvedCandidate.height,
+    subtitleTop: resolvedCandidate.subtitleTop,
+    subtitleBottom: resolvedCandidate.subtitleBottom,
+    subtitleBottomLimit: resolvedCandidate.subtitleBottomLimit,
+    truncated: resolvedCandidate.truncated,
   };
+};
+
+const buildChipTextLayout = (chip, maxTextWidth, layout) => {
+  const fallbackWidth = Math.max(
+    measureTextWidth({
+      text: "...",
+      fontSize: layout.tagFontSize,
+      fontWeight: CHIP_FONT_WEIGHT,
+    }),
+    12,
+  );
+  const safeMaxTextWidth = Math.max(maxTextWidth, fallbackWidth);
+  const text = measureEllipsizedLine(chip, safeMaxTextWidth, layout.tagFontSize, CHIP_FONT_WEIGHT);
+  const textWidth = measureTextWidth({
+    text,
+    fontSize: layout.tagFontSize,
+    fontWeight: CHIP_FONT_WEIGHT,
+  });
+  return {
+    text,
+    textWidth,
+    width: textWidth + layout.tagPaddingX * 2,
+  };
+};
+
+const buildChipLayouts = (chips, layout = DEFAULT_LAYOUT) => {
+  const safeChips = Array.isArray(chips) ? chips.filter(Boolean) : [];
+  if (safeChips.length === 0) {
+    return [];
+  }
+
+  const gapWidth = layout.tagGap * Math.max(safeChips.length - 1, 0);
+  let remainingWidth = Math.max(layout.tagsMaxWidth - gapWidth, 0);
+  return safeChips.map((chip, index) => {
+    const remainingChipCount = safeChips.length - index;
+    const minRemainingTextWidth = measureTextWidth({
+      text: "...",
+      fontSize: layout.tagFontSize,
+      fontWeight: CHIP_FONT_WEIGHT,
+    });
+    const minRemainingChipWidth =
+      remainingChipCount > 1
+        ? (remainingChipCount - 1) * (minRemainingTextWidth + layout.tagPaddingX * 2)
+        : 0;
+    const maxChipWidth = Math.max(
+      layout.tagPaddingX * 2 + minRemainingTextWidth,
+      remainingWidth - minRemainingChipWidth,
+    );
+    const chipLayout = buildChipTextLayout(
+      chip,
+      maxChipWidth - layout.tagPaddingX * 2,
+      layout,
+    );
+    remainingWidth = Math.max(0, remainingWidth - chipLayout.width);
+    return chipLayout;
+  });
 };
 
 const guessMimeType = (value) => {
@@ -550,46 +860,204 @@ const guessMimeType = (value) => {
 const bufferToDataUrl = (buffer, mimeType) =>
   `data:${mimeType};base64,${Buffer.from(buffer).toString("base64")}`;
 
-const loadLocalArtworkDataUrl = (artworkUrl) => {
+const parseDataUrlAsset = (value) => {
+  const normalized = String(value || "").trim();
+  if (!normalized.startsWith("data:")) {
+    return null;
+  }
+  const separatorIndex = normalized.indexOf(",");
+  if (separatorIndex <= 5) {
+    return null;
+  }
+  const header = normalized.slice(5, separatorIndex);
+  const body = normalized.slice(separatorIndex + 1);
+  const mimeType = header.split(";")[0] || "application/octet-stream";
+  const isBase64 = /(?:^|;)base64(?:;|$)/i.test(header);
+
+  try {
+    return {
+      buffer: isBase64 ? Buffer.from(body, "base64") : Buffer.from(decodeURIComponent(body), "utf8"),
+      mimeType,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const loadLocalArtworkAsset = (artworkUrl) => {
   const normalized = String(artworkUrl || "").trim();
   if (!normalized.startsWith("/")) {
-    return "";
+    return null;
   }
 
   const filePath = path.join(PUBLIC_DIR, normalized.replace(/^\/+/, "").replace(/\//g, path.sep));
   try {
     if (!fs.existsSync(filePath)) {
-      return "";
+      return null;
     }
     const stats = fs.statSync(filePath);
     if (!stats.isFile()) {
-      return "";
+      return null;
     }
-    const buffer = fs.readFileSync(filePath);
-    return bufferToDataUrl(buffer, guessMimeType(filePath));
+    return {
+      buffer: fs.readFileSync(filePath),
+      mimeType: guessMimeType(filePath),
+    };
   } catch {
-    return "";
+    return null;
   }
 };
 
-const loadRemoteArtworkDataUrl = async (artworkUrl) => {
+const loadRemoteArtworkAsset = async (artworkUrl) => {
   const normalized = String(artworkUrl || "").trim();
   if (!normalized) {
-    return "";
+    return null;
   }
   try {
     const response = await fetch(normalized);
     if (!response.ok) {
-      return "";
+      return null;
     }
     const mimeType = String(response.headers.get("content-type") || guessMimeType(normalized))
       .split(";")[0]
       .trim();
     const arrayBuffer = await response.arrayBuffer();
-    return bufferToDataUrl(Buffer.from(arrayBuffer), mimeType || guessMimeType(normalized));
+    return {
+      buffer: Buffer.from(arrayBuffer),
+      mimeType: mimeType || guessMimeType(normalized),
+    };
   } catch {
-    return "";
+    return null;
   }
+};
+
+const loadProjectOgArtworkAsset = async ({ artworkUrl, artworkDataUrl, origin } = {}) => {
+  const inlineAsset = parseDataUrlAsset(artworkDataUrl);
+  if (inlineAsset?.buffer) {
+    return inlineAsset;
+  }
+
+  const normalized = String(artworkUrl || "").trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const embeddedUrlAsset = parseDataUrlAsset(normalized);
+  if (embeddedUrlAsset?.buffer) {
+    return embeddedUrlAsset;
+  }
+
+  const localAsset = loadLocalArtworkAsset(normalized);
+  if (localAsset?.buffer) {
+    return localAsset;
+  }
+
+  if (/^https?:\/\//i.test(normalized)) {
+    return loadRemoteArtworkAsset(normalized);
+  }
+
+  if (normalized.startsWith("/") && origin) {
+    return loadRemoteArtworkAsset(`${String(origin).replace(/\/+$/, "")}${normalized}`);
+  }
+
+  return null;
+};
+
+const toRoundedPositiveNumber = (value, fallback) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return fallback;
+  }
+  return Math.round(numeric);
+};
+
+const parsePolygonPoints = (value) =>
+  String(value || "")
+    .trim()
+    .split(/\s+/)
+    .map((pair) => {
+      const [x, y] = pair.split(",");
+      const parsedX = Number(x);
+      const parsedY = Number(y);
+      if (!Number.isFinite(parsedX) || !Number.isFinite(parsedY)) {
+        return null;
+      }
+      return {
+        x: Math.round(parsedX),
+        y: Math.round(parsedY),
+      };
+    })
+    .filter(Boolean);
+
+const buildBackdropMaskPoints = (layout = DEFAULT_LAYOUT) => {
+  const points = parsePolygonPoints(layout.panelPoints);
+  if (points.length > 0) {
+    return points.map((point) => `${point.x},${point.y}`).join(" ");
+  }
+
+  const backdropWidth = toRoundedPositiveNumber(layout.backdropWidth, 803);
+  const backdropHeight = toRoundedPositiveNumber(layout.backdropHeight, OG_PROJECT_HEIGHT);
+  const dividerLeft = toRoundedPositiveNumber(layout.dividerLeft, backdropWidth);
+  return `0,0 ${backdropWidth},0 ${dividerLeft},${backdropHeight} 0,${backdropHeight}`;
+};
+
+const buildBackdropMaskSvg = (layout = DEFAULT_LAYOUT) =>
+  Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_PROJECT_WIDTH}" height="${OG_PROJECT_HEIGHT}" viewBox="0 0 ${OG_PROJECT_WIDTH} ${OG_PROJECT_HEIGHT}"><polygon fill="#ffffff" points="${buildBackdropMaskPoints(layout)}"/></svg>`,
+    "utf8",
+  );
+
+const buildProcessedBackdropBuffer = async ({ buffer, layout = DEFAULT_LAYOUT } = {}) => {
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+    return Buffer.alloc(0);
+  }
+
+  const backdropLeft = Math.round(Number(layout.backdropLeft) || 0);
+  const backdropTop = Math.round(Number(layout.backdropTop) || 0);
+  const backdropWidth = toRoundedPositiveNumber(layout.backdropWidth, 803);
+  const backdropHeight = toRoundedPositiveNumber(layout.backdropHeight, OG_PROJECT_HEIGHT);
+  const overscan = Math.max(
+    toRoundedPositiveNumber(layout.dividerWidth, 0),
+    Math.round(PROJECT_OG_BACKDROP_BLUR * 2),
+  );
+  const maskedBackdrop = await sharp(buffer)
+    .resize({
+      width: backdropWidth + overscan,
+      height: backdropHeight,
+      fit: "cover",
+      position: "centre",
+    })
+    .ensureAlpha()
+    .blur(PROJECT_OG_BACKDROP_BLUR)
+    .png()
+    .toBuffer();
+
+  return sharp({
+    create: {
+      width: OG_PROJECT_WIDTH,
+      height: OG_PROJECT_HEIGHT,
+      channels: 4,
+      background: {
+        r: 0,
+        g: 0,
+        b: 0,
+        alpha: 0,
+      },
+    },
+  })
+    .composite([
+      {
+        input: maskedBackdrop,
+        left: backdropLeft,
+        top: backdropTop,
+      },
+      {
+        input: buildBackdropMaskSvg(layout),
+        blend: "dest-in",
+      },
+    ])
+    .png()
+    .toBuffer();
 };
 
 const resolveRenderableImageSrc = ({ dataUrl, url }) => {
@@ -615,7 +1083,7 @@ const buildTitleNode = (model) =>
         position: "absolute",
         left: model.layout.titleLeft,
         top: model.layout.titleTop,
-        width: model.layout.titleWidth,
+        width: model.titleRenderWidth,
         display: "flex",
         flexDirection: "column",
         color: "#ffffff",
@@ -626,7 +1094,16 @@ const buildTitleNode = (model) =>
         letterSpacing: 0,
       },
     },
-    ...(Array.isArray(model.titleLines) ? model.titleLines : [String(model.title || "Projeto")]).map(
+    ...(
+      Array.isArray(model.titleLineLayouts) && model.titleLineLayouts.length > 0
+        ? model.titleLineLayouts
+        : (Array.isArray(model.titleLines) ? model.titleLines : [String(model.title || "Projeto")]).map(
+            (line) => ({
+              text: line,
+              maxWidth: model.layout.titleWidth,
+            }),
+          )
+    ).map(
       (line, index) =>
         createElement(
           "div",
@@ -634,9 +1111,12 @@ const buildTitleNode = (model) =>
             key: `title-line-${index}`,
             style: {
               display: "flex",
+              width: line.maxWidth,
+              maxWidth: line.maxWidth,
+              whiteSpace: "nowrap",
             },
           },
-          line,
+          line.text,
         ),
     ),
   );
@@ -735,8 +1215,11 @@ const buildSubtitleNode = (model) => {
 };
 
 const buildTagsNode = (model) => {
-  const chips = Array.isArray(model.chips) ? model.chips.filter(Boolean) : [];
-  if (chips.length === 0) {
+  const chipLayouts =
+    Array.isArray(model.chipLayouts) && model.chipLayouts.length > 0
+      ? model.chipLayouts
+      : buildChipLayouts(model.chips, model.layout);
+  if (chipLayouts.length === 0) {
     return null;
   }
 
@@ -752,12 +1235,14 @@ const buildTagsNode = (model) => {
         alignItems: "center",
       },
     },
-    ...chips.map((chip, index) =>
+    ...chipLayouts.map((chip, index) =>
       createElement(
         "div",
         {
-          key: `chip-${normalizeKey(chip)}-${index}`,
+          key: `chip-${normalizeKey(chip.text)}-${index}`,
           style: {
+            width: chip.width,
+            maxWidth: chip.width,
             height: model.layout.tagHeight,
             display: "flex",
             alignItems: "center",
@@ -766,21 +1251,46 @@ const buildTagsNode = (model) => {
             borderRadius: model.layout.tagRadius,
             paddingLeft: model.layout.tagPaddingX,
             paddingRight: model.layout.tagPaddingX,
-            marginRight: index === chips.length - 1 ? 0 : model.layout.tagGap,
+            marginRight: index === chipLayouts.length - 1 ? 0 : model.layout.tagGap,
             color: "#9b9b9b",
             fontFamily: "Geist",
             fontSize: model.layout.tagFontSize,
             fontWeight: CHIP_FONT_WEIGHT,
             lineHeight: 1.2,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
           },
         },
-        chip,
+        chip.text,
       ),
     ),
   );
 };
 
-const buildBackgroundSvgNode = (model, artworkSrc) =>
+const buildBackdropNode = (model, backdropSrc) => {
+  if (!backdropSrc) {
+    return null;
+  }
+  const processed = String(model.backdropDataUrl || "").trim().length > 0;
+  return createElement("img", {
+    src: backdropSrc,
+    alt: "",
+    "data-og-part": "backdrop",
+    "data-og-processed": processed ? "true" : "false",
+    width: processed ? OG_PROJECT_WIDTH : model.layout.backdropWidth,
+    height: processed ? OG_PROJECT_HEIGHT : model.layout.backdropHeight,
+    style: {
+      position: "absolute",
+      left: processed ? 0 : model.layout.backdropLeft,
+      top: processed ? 0 : model.layout.backdropTop,
+      width: processed ? OG_PROJECT_WIDTH : model.layout.backdropWidth,
+      height: processed ? OG_PROJECT_HEIGHT : model.layout.backdropHeight,
+      objectFit: processed ? "fill" : "cover",
+    },
+  });
+};
+
+const buildBackgroundSvgNode = (model) =>
   createElement(
     "svg",
     {
@@ -807,50 +1317,12 @@ const buildBackgroundSvgNode = (model, artworkSrc) =>
         createElement("stop", {
           offset: "0%",
           stopColor: model.palette.accentDarkStart,
-          stopOpacity: "1",
+          stopOpacity: PROJECT_OG_PANEL_GRADIENT_OPACITY_START,
         }),
         createElement("stop", {
           offset: "100%",
           stopColor: model.palette.accentDarkEnd,
-          stopOpacity: "1",
-        }),
-      ),
-      createElement(
-        "linearGradient",
-        {
-          id: "project-panel-overlay",
-          x1: "0%",
-          y1: "0%",
-          x2: "100%",
-          y2: "0%",
-        },
-        createElement("stop", {
-          offset: "0%",
-          stopColor: "#000407",
-          stopOpacity: "0.08",
-        }),
-        createElement("stop", {
-          offset: "65%",
-          stopColor: "#000407",
-          stopOpacity: "0.4",
-        }),
-        createElement("stop", {
-          offset: "100%",
-          stopColor: "#000407",
-          stopOpacity: "0.7",
-        }),
-      ),
-      createElement(
-        "filter",
-        {
-          id: "project-panel-banner-blur",
-          x: "-40%",
-          y: "-40%",
-          width: "180%",
-          height: "180%",
-        },
-        createElement("feGaussianBlur", {
-          stdDeviation: "42",
+          stopOpacity: PROJECT_OG_PANEL_GRADIENT_OPACITY_END,
         }),
       ),
       createElement(
@@ -885,18 +1357,6 @@ const buildBackgroundSvgNode = (model, artworkSrc) =>
       {
         clipPath: "url(#project-panel-clip)",
       },
-      artworkSrc
-        ? createElement("image", {
-            href: artworkSrc,
-            x: "-180",
-            y: "-70",
-            width: "1080",
-            height: "760",
-            opacity: "0.24",
-            preserveAspectRatio: "xMidYMid slice",
-            filter: "url(#project-panel-banner-blur)",
-          })
-        : null,
       createElement("ellipse", {
         cx: "480",
         cy: "210",
@@ -904,7 +1364,7 @@ const buildBackgroundSvgNode = (model, artworkSrc) =>
         ry: "240",
         fill: model.palette.accentGlow,
         filter: "url(#project-panel-glow-blur)",
-        opacity: "0.85",
+        opacity: "0.28",
       }),
       createElement("ellipse", {
         cx: "685",
@@ -913,14 +1373,7 @@ const buildBackgroundSvgNode = (model, artworkSrc) =>
         ry: "150",
         fill: model.palette.accentGlow,
         filter: "url(#project-panel-glow-blur)",
-        opacity: "0.3",
-      }),
-      createElement("rect", {
-        x: "0",
-        y: "0",
-        width: "840",
-        height: "630",
-        fill: "url(#project-panel-overlay)",
+        opacity: "0.14",
       }),
     ),
     createElement("line", {
@@ -1035,6 +1488,7 @@ export const buildProjectOgCardModel = ({
   const palette = resolveProjectOgPalette(settings?.theme?.accent);
   const artwork = pickArtworkCandidate(safeProject, resolveVariantUrl, origin);
   const backdrop = pickBackdropCandidate(safeProject, resolveVariantUrl, origin);
+  const chipLayouts = buildChipLayouts(chips, layout);
 
   return {
     width: OG_PROJECT_WIDTH,
@@ -1044,9 +1498,14 @@ export const buildProjectOgCardModel = ({
     eyebrowSeparator: EYEBROW_SEPARATOR,
     title,
     titleLines: titleLayout.lines,
+    titleLineLayouts: titleLayout.lineLayouts,
     subtitle,
     subtitleTop: titleLayout.subtitleTop,
+    subtitleBottom: titleLayout.subtitleBottom,
+    subtitleBottomLimit: titleLayout.subtitleBottomLimit,
+    titleTruncated: titleLayout.truncated,
     chips,
+    chipLayouts,
     imageAlt,
     artworkUrl: artwork.artworkUrl,
     artworkSource: artwork.artworkSource,
@@ -1054,9 +1513,11 @@ export const buildProjectOgCardModel = ({
     backdropUrl: backdrop.artworkUrl,
     backdropSource: backdrop.artworkSource,
     backdropDataUrl: "",
+    sceneVersion: PROJECT_OG_SCENE_VERSION,
     palette,
     titleFontSize: titleLayout.fontSize,
     titleLineHeight: titleLayout.lineHeight,
+    titleRenderWidth: titleLayout.renderWidth,
     titleHeight: titleLayout.height,
     layout,
     fontFamilies: {
@@ -1077,9 +1538,9 @@ export const loadProjectOgArtworkDataUrl = async ({ artworkUrl, origin } = {}) =
     return normalized;
   }
 
-  const localDataUrl = loadLocalArtworkDataUrl(normalized);
-  if (localDataUrl) {
-    return localDataUrl;
+  const localAsset = loadLocalArtworkAsset(normalized);
+  if (localAsset?.buffer) {
+    return bufferToDataUrl(localAsset.buffer, localAsset.mimeType || guessMimeType(artworkUrl));
   }
 
   if (/^https?:\/\//i.test(normalized)) {
@@ -1087,10 +1548,43 @@ export const loadProjectOgArtworkDataUrl = async ({ artworkUrl, origin } = {}) =
   }
 
   if (normalized.startsWith("/") && origin) {
-    return loadRemoteArtworkDataUrl(`${String(origin).replace(/\/+$/, "")}${normalized}`);
+    const remoteAsset = await loadRemoteArtworkAsset(
+      `${String(origin).replace(/\/+$/, "")}${normalized}`,
+    );
+    if (remoteAsset?.buffer) {
+      return bufferToDataUrl(remoteAsset.buffer, remoteAsset.mimeType || guessMimeType(artworkUrl));
+    }
   }
 
   return "";
+};
+
+export const loadProjectOgProcessedBackdropDataUrl = async ({
+  artworkUrl,
+  artworkDataUrl,
+  origin,
+  layout,
+} = {}) => {
+  const asset = await loadProjectOgArtworkAsset({
+    artworkUrl,
+    artworkDataUrl,
+    origin,
+  });
+  if (!asset?.buffer) {
+    return "";
+  }
+  try {
+    const processedBuffer = await buildProcessedBackdropBuffer({
+      buffer: asset.buffer,
+      layout,
+    });
+    if (!Buffer.isBuffer(processedBuffer) || processedBuffer.length === 0) {
+      return "";
+    }
+    return bufferToDataUrl(processedBuffer, "image/png");
+  } catch {
+    return "";
+  }
 };
 
 export const buildLegacyProjectOgScene = (model) => buildProjectOgScene(model);
@@ -1111,8 +1605,19 @@ export const buildProjectOgScene = (model = {}) => {
     title: String(model?.title || "").trim() || "Projeto",
     titleLines:
       Array.isArray(model?.titleLines) && model.titleLines.length > 0 ? model.titleLines : ["Projeto"],
+    titleLineLayouts:
+      Array.isArray(model?.titleLineLayouts) && model.titleLineLayouts.length > 0
+        ? model.titleLineLayouts
+        : (Array.isArray(model?.titleLines) && model.titleLines.length > 0
+            ? model.titleLines
+            : ["Projeto"]
+          ).map((line) => ({
+            text: String(line || ""),
+            maxWidth: layout.titleWidth,
+          })),
     titleFontSize: Number(model?.titleFontSize) || layout.titleBaseFontSize,
     titleLineHeight: Number(model?.titleLineHeight) || TITLE_LINE_HEIGHT,
+    titleRenderWidth: Number(model?.titleRenderWidth) || layout.titleWidth,
     subtitleTop: Number(model?.subtitleTop) || layout.subtitleBaseTop,
     eyebrowParts: Array.isArray(model?.eyebrowParts) ? model.eyebrowParts : [],
     chips: Array.isArray(model?.chips) ? model.chips : [],
@@ -1127,6 +1632,7 @@ export const buildProjectOgScene = (model = {}) => {
       dataUrl: safeModel.backdropDataUrl,
       url: safeModel.backdropUrl,
     }) || artworkSrc;
+  const hasProcessedBackdrop = String(safeModel.backdropDataUrl || "").trim().length > 0;
 
   return createElement(
     "div",
@@ -1142,10 +1648,12 @@ export const buildProjectOgScene = (model = {}) => {
         fontFamily: "Geist",
       },
     },
+    hasProcessedBackdrop ? null : buildBackdropNode(safeModel, backdropSrc),
     artworkSrc
       ? createElement("img", {
           src: artworkSrc,
           alt: "",
+          "data-og-part": "artwork",
           width: safeModel.layout.artworkWidth,
           height: safeModel.layout.artworkHeight,
           style: {
@@ -1167,7 +1675,8 @@ export const buildProjectOgScene = (model = {}) => {
             background: `linear-gradient(180deg, ${safeModel.palette.accentDarkStart} 0%, ${safeModel.palette.accentDarkEnd} 100%)`,
           },
         }),
-    buildBackgroundSvgNode(safeModel, backdropSrc),
+    hasProcessedBackdrop ? buildBackdropNode(safeModel, backdropSrc) : null,
+    buildBackgroundSvgNode(safeModel),
     buildEyebrowNode(safeModel),
     buildTitleNode(safeModel),
     buildSubtitleNode(safeModel),

@@ -123,6 +123,7 @@ import {
   buildProjectOgImagePath,
   buildProjectOgImageResponse,
   loadProjectOgArtworkDataUrl,
+  loadProjectOgProcessedBackdropDataUrl,
 } from "./lib/project-og.js";
 import { findDuplicateVolumeCover } from "./lib/project-volume-covers.js";
 import {
@@ -15584,9 +15585,10 @@ app.get("/api/og/project/:id", async (req, res) => {
           artworkUrl: baseModel.artworkUrl,
           origin: PRIMARY_APP_ORIGIN,
         }),
-        loadProjectOgArtworkDataUrl({
+        loadProjectOgProcessedBackdropDataUrl({
           artworkUrl: baseModel.backdropUrl,
           origin: PRIMARY_APP_ORIGIN,
+          layout: baseModel.layout,
         }),
       ]);
       const imageResponse = buildProjectOgImageResponse({
@@ -15599,6 +15601,7 @@ app.get("/api/og/project/:id", async (req, res) => {
       const rawBuffer = Buffer.from(arrayBuffer);
       const optimizedBuffer = await optimizeOgPngBuffer({
         buffer: rawBuffer,
+        mode: "lossless",
       });
       ogRenderCache.write(cacheKey, { buffer: optimizedBuffer, contentType });
       return { buffer: optimizedBuffer, contentType };

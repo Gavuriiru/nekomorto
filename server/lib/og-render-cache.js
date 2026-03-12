@@ -21,11 +21,14 @@ const pickModelFingerprint = (model) => {
     eyebrow: normalizeText(safeModel.eyebrow),
     title: normalizeText(safeModel.title),
     subtitle: normalizeText(safeModel.subtitle),
+    sceneVersion: normalizeText(safeModel.sceneVersion),
     titleFontSize: Number.isFinite(Number(safeModel.titleFontSize))
       ? Number(safeModel.titleFontSize)
       : 0,
     artworkUrl: normalizeText(safeModel.artworkUrl),
     artworkSource: normalizeText(safeModel.artworkSource),
+    backdropUrl: normalizeText(safeModel.backdropUrl),
+    backdropSource: normalizeText(safeModel.backdropSource),
     palette: {
       accentPrimary: normalizeText(palette.accentPrimary),
       accentLine: normalizeText(palette.accentLine),
