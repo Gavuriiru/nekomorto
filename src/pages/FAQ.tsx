@@ -6,6 +6,11 @@ import { HelpCircle, Info, Users, Rocket, Shield, Sparkles } from "lucide-react"
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+import {
+  buildInstitutionalOgImageAlt,
+  buildInstitutionalOgRevision,
+  buildVersionedInstitutionalOgImagePath,
+} from "../../shared/institutional-og-seo.js";
 
 const iconMap: Record<string, typeof HelpCircle> = {
   HelpCircle,
@@ -106,8 +111,15 @@ const FAQ = () => {
   const pageMediaVariants = bootstrap?.mediaVariants || {};
   usePageMeta({
     title: "FAQ",
-    image: faq.shareImage || undefined,
-    imageAlt: faq.shareImageAlt || undefined,
+    image: buildVersionedInstitutionalOgImagePath({
+      pageKey: "faq",
+      revision: buildInstitutionalOgRevision({
+        pageKey: "faq",
+        pages: bootstrap?.pages,
+        settings: bootstrap?.settings,
+      }),
+    }),
+    imageAlt: buildInstitutionalOgImageAlt("faq"),
     mediaVariants: pageMediaVariants,
   });
 

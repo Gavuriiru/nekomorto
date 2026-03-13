@@ -17,6 +17,11 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+import {
+  buildInstitutionalOgImageAlt,
+  buildInstitutionalOgRevision,
+  buildVersionedInstitutionalOgImagePath,
+} from "../../shared/institutional-og-seo.js";
 
 const iconMap = {
   Languages,
@@ -117,8 +122,15 @@ const Recruitment = () => {
   const pageMediaVariants = bootstrap?.mediaVariants || {};
   usePageMeta({
     title: "Recrutamento",
-    image: recruitment.shareImage || undefined,
-    imageAlt: recruitment.shareImageAlt || undefined,
+    image: buildVersionedInstitutionalOgImagePath({
+      pageKey: "recruitment",
+      revision: buildInstitutionalOgRevision({
+        pageKey: "recruitment",
+        pages: bootstrap?.pages,
+        settings: bootstrap?.settings,
+      }),
+    }),
+    imageAlt: buildInstitutionalOgImageAlt("recruitment"),
     mediaVariants: pageMediaVariants,
   });
 

@@ -26,6 +26,11 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePixQrCode } from "@/hooks/use-pix-qr-code";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+import {
+  buildInstitutionalOgImageAlt,
+  buildInstitutionalOgRevision,
+  buildVersionedInstitutionalOgImagePath,
+} from "../../shared/institutional-og-seo.js";
 
 const iconMap: Record<string, typeof Server> = {
   Server,
@@ -87,8 +92,15 @@ const Donations = () => {
     String(settings.site.name || settings.footer.brandName || "NEKOMATA").trim() || "NEKOMATA";
   usePageMeta({
     title: "Doações",
-    image: donations.shareImage || undefined,
-    imageAlt: donations.shareImageAlt || undefined,
+    image: buildVersionedInstitutionalOgImagePath({
+      pageKey: "donations",
+      revision: buildInstitutionalOgRevision({
+        pageKey: "donations",
+        pages: bootstrap?.pages,
+        settings: bootstrap?.settings,
+      }),
+    }),
+    imageAlt: buildInstitutionalOgImageAlt("donations"),
     mediaVariants: pageMediaVariants,
   });
 

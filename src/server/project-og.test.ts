@@ -869,6 +869,63 @@ describe("project og helper", () => {
     expect(gradientStops[5]?.props?.stopColor).not.toBe(model.palette.accentDarkEnd);
   });
 
+  it("uses the reduced artwork bleed while keeping cover fit and fallback geometry aligned", () => {
+    const model = buildProjectOgCardModel({
+      project: baseProject,
+      settings: baseSettings,
+      tagTranslations: {},
+      genreTranslations: {},
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+    const sceneWithArtwork = buildProjectOgScene({
+      ...model,
+      artworkDataUrl: transparentDataUrl,
+    });
+    const artworkNode = findElement(
+      sceneWithArtwork,
+      (candidate) => candidate.props?.["data-og-part"] === "artwork",
+    );
+
+    expect(model.layout.artworkTop).toBe(-1);
+    expect(model.layout.artworkHeight).toBe(632);
+    expect(artworkNode).not.toBeNull();
+    expect(artworkNode?.props?.style).toEqual(
+      expect.objectContaining({
+        top: -1,
+        height: 632,
+        objectFit: "cover",
+      }),
+    );
+
+    const fallbackModel = buildProjectOgCardModel({
+      project: {
+        ...baseProject,
+        cover: "",
+        heroImageUrl: "",
+        banner: "",
+      },
+      settings: baseSettings,
+      tagTranslations: {},
+      genreTranslations: {},
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string) => value,
+    });
+    const fallbackScene = buildProjectOgScene(fallbackModel);
+    const fallbackNode = findElement(
+      fallbackScene,
+      (candidate) => candidate.props?.["data-og-part"] === "artwork-fallback",
+    );
+
+    expect(fallbackNode).not.toBeNull();
+    expect(fallbackNode?.props?.style).toEqual(
+      expect.objectContaining({
+        top: -1,
+        height: 632,
+      }),
+    );
+  });
+
   it("renders a dark artwork fallback and no empty image nodes when the project has no images", () => {
     const model = buildProjectOgCardModel({
       project: {

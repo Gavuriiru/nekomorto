@@ -74,9 +74,9 @@ const FONT_FILES = Object.freeze({
 
 const DEFAULT_LAYOUT = Object.freeze({
   artworkLeft: 747,
-  artworkTop: -3,
+  artworkTop: -1,
   artworkWidth: 453,
-  artworkHeight: 641,
+  artworkHeight: 632,
   backdropLeft: 0,
   backdropTop: 0,
   backdropWidth: 803,

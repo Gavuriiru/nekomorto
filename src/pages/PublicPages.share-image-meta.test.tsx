@@ -2,8 +2,18 @@ import { render, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import About from "@/pages/About";
+import Donations from "@/pages/Donations";
+import FAQ from "@/pages/FAQ";
 import Index from "@/pages/Index";
 import Projects from "@/pages/Projects";
+import Recruitment from "@/pages/Recruitment";
+import Team from "@/pages/Team";
+import {
+  buildInstitutionalOgImageAlt,
+  buildInstitutionalOgRevision,
+  buildVersionedInstitutionalOgImagePath,
+} from "../../shared/institutional-og-seo.js";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const usePageMetaMock = vi.hoisted(() => vi.fn());
@@ -27,11 +37,47 @@ vi.mock("@/hooks/use-dynamic-synopsis-clamp", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-site-settings", () => ({
+  useSiteSettings: () => ({
+    settings: {
+      site: {
+        name: "Nekomata",
+        description: "Descricao padrao do site",
+      },
+      footer: {
+        brandName: "",
+      },
+      community: {
+        discordUrl: "#",
+      },
+      theme: {
+        accent: "#3173ff",
+      },
+    },
+  }),
+}));
+
+vi.mock("@/hooks/use-pix-qr-code", () => ({
+  usePixQrCode: () => ({
+    imageDataUrl: "",
+    isLoading: false,
+    error: null,
+  }),
+}));
+
 vi.mock("@/components/HeroSection", () => ({
   default: () => null,
 }));
 
 vi.mock("@/components/ReleasesSection", () => ({
+  default: () => null,
+}));
+
+vi.mock("@/components/PublicPageHero", () => ({
+  default: () => null,
+}));
+
+vi.mock("@/components/PublicUserProfileCard", () => ({
   default: () => null,
 }));
 
@@ -43,7 +89,21 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
   }) as Response;
 
 const bootstrapPayload = {
-  settings: {},
+  settings: {
+    site: {
+      name: "Nekomata",
+      description: "Descricao padrao do site",
+    },
+    footer: {
+      brandName: "",
+    },
+    community: {
+      discordUrl: "#",
+    },
+    theme: {
+      accent: "#3173ff",
+    },
+  },
   pages: {
     home: {
       shareImage: "/uploads/home-og.jpg",
@@ -53,10 +113,37 @@ const bootstrapPayload = {
       shareImage: "/uploads/projects-og.jpg",
       shareImageAlt: "Capa da pagina de projetos",
     },
+    about: {
+      shareImage: "/uploads/about-og.jpg",
+      shareImageAlt: "Capa da pagina sobre",
+      heroSubtitle: "Conheca melhor a equipe e a proposta editorial da Nekomata.",
+    },
+    donations: {
+      shareImage: "/uploads/donations-og.jpg",
+      shareImageAlt: "Capa da pagina de doacoes",
+      heroSubtitle: "Ajude a manter o projeto no ar.",
+    },
+    faq: {
+      shareImage: "/uploads/faq-og.jpg",
+      shareImageAlt: "Capa da pagina FAQ",
+      heroSubtitle: "Respostas para as duvidas mais comuns.",
+    },
+    team: {
+      shareImage: "/uploads/team-og.jpg",
+      shareImageAlt: "Capa da pagina equipe",
+      heroSubtitle: "Conheca quem faz tudo acontecer.",
+    },
+    recruitment: {
+      shareImage: "/uploads/recruitment-og.jpg",
+      shareImageAlt: "Capa da pagina recrutamento",
+      heroSubtitle: "Venha fazer parte da equipe.",
+    },
   },
   projects: [],
   posts: [],
   updates: [],
+  teamMembers: [],
+  teamLinkTypes: [],
   tagTranslations: {
     tags: {},
     genres: {},
@@ -64,7 +151,21 @@ const bootstrapPayload = {
   },
   generatedAt: "2026-03-03T20:00:00.000Z",
   mediaVariants: {},
+  payloadMode: "full",
 };
+
+const getInstitutionalImage = (pageKey: string) =>
+  buildVersionedInstitutionalOgImagePath({
+    pageKey,
+    revision: buildInstitutionalOgRevision({
+      pageKey,
+      pages: bootstrapPayload.pages,
+      settings: bootstrapPayload.settings,
+    }),
+  });
+
+const hasMetaCall = (matcher: (arg: Record<string, unknown>) => boolean) =>
+  usePageMetaMock.mock.calls.some(([arg]) => matcher(arg as Record<string, unknown>));
 
 describe("Public pages share image meta", () => {
   beforeEach(() => {
@@ -82,6 +183,12 @@ describe("Public pages share image meta", () => {
       if (path === "/api/public/tag-translations") {
         return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
       }
+      if (path === "/api/public/users") {
+        return mockJsonResponse(true, { users: [], mediaVariants: {} });
+      }
+      if (path === "/api/link-types") {
+        return mockJsonResponse(true, { items: [] });
+      }
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
   });
@@ -94,7 +201,7 @@ describe("Public pages share image meta", () => {
     ).__BOOTSTRAP_PUBLIC__;
   });
 
-  it("Index aplica pages.home.shareImage no metadata", async () => {
+  it("Index mantem pages.home.shareImage no metadata", async () => {
     render(
       <MemoryRouter>
         <Index />
@@ -102,16 +209,15 @@ describe("Public pages share image meta", () => {
     );
 
     await waitFor(() => {
-      expect(usePageMetaMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          image: "/uploads/home-og.jpg",
-          imageAlt: "Capa da pagina inicial",
-        }),
-      );
+      expect(
+        hasMetaCall(
+          (arg) => arg.image === "/uploads/home-og.jpg" && arg.imageAlt === "Capa da pagina inicial",
+        ),
+      ).toBe(true);
     });
   });
 
-  it("Projects aplica pages.projects.shareImage no metadata", async () => {
+  it("Projects publica o card OG institucional versionado", async () => {
     render(
       <MemoryRouter initialEntries={["/projetos"]}>
         <Projects />
@@ -119,17 +225,112 @@ describe("Public pages share image meta", () => {
     );
 
     await waitFor(() => {
-      expect(usePageMetaMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "Projetos",
-          image: "/uploads/projects-og.jpg",
-          imageAlt: "Capa da pagina de projetos",
-        }),
-      );
+      expect(
+        hasMetaCall(
+          (arg) =>
+            arg.title === "Projetos" &&
+            arg.image === getInstitutionalImage("projects") &&
+            arg.imageAlt === buildInstitutionalOgImageAlt("projects"),
+        ),
+      ).toBe(true);
     });
 
     expect(
       apiFetchMock.mock.calls.some((call) => call[1] === "/api/public/pages"),
     ).toBe(false);
+  });
+
+  it("About publica o card OG institucional versionado", async () => {
+    render(
+      <MemoryRouter initialEntries={["/sobre"]}>
+        <About />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        hasMetaCall(
+          (arg) =>
+            arg.title === "Sobre" &&
+            arg.image === getInstitutionalImage("about") &&
+            arg.imageAlt === buildInstitutionalOgImageAlt("about"),
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("Donations publica o card OG institucional versionado", async () => {
+    render(
+      <MemoryRouter initialEntries={["/doacoes"]}>
+        <Donations />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        hasMetaCall(
+          (arg) =>
+            String(arg.image || "") === getInstitutionalImage("donations") &&
+            arg.imageAlt === buildInstitutionalOgImageAlt("donations"),
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("FAQ publica o card OG institucional versionado", async () => {
+    render(
+      <MemoryRouter initialEntries={["/faq"]}>
+        <FAQ />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        hasMetaCall(
+          (arg) =>
+            arg.title === "FAQ" &&
+            arg.image === getInstitutionalImage("faq") &&
+            arg.imageAlt === buildInstitutionalOgImageAlt("faq"),
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("Team publica o card OG institucional versionado", async () => {
+    render(
+      <MemoryRouter initialEntries={["/equipe"]}>
+        <Team />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        hasMetaCall(
+          (arg) =>
+            arg.title === "Equipe" &&
+            arg.image === getInstitutionalImage("team") &&
+            arg.imageAlt === buildInstitutionalOgImageAlt("team"),
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("Recruitment publica o card OG institucional versionado", async () => {
+    render(
+      <MemoryRouter initialEntries={["/recrutamento"]}>
+        <Recruitment />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        hasMetaCall(
+          (arg) =>
+            arg.title === "Recrutamento" &&
+            arg.image === getInstitutionalImage("recruitment") &&
+            arg.imageAlt === buildInstitutionalOgImageAlt("recruitment"),
+        ),
+      ).toBe(true);
+    });
   });
 });

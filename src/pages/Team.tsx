@@ -8,6 +8,11 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import {
+  buildInstitutionalOgImageAlt,
+  buildInstitutionalOgRevision,
+  buildVersionedInstitutionalOgImagePath,
+} from "../../shared/institutional-og-seo.js";
+import {
   normalizeUploadVariantUrlKey,
   type UploadMediaVariantsMap,
 } from "@/lib/upload-variants";
@@ -61,8 +66,15 @@ const Team = () => {
 
   usePageMeta({
     title: "Equipe",
-    image: pageCopy.shareImage || undefined,
-    imageAlt: pageCopy.shareImageAlt || undefined,
+    image: buildVersionedInstitutionalOgImagePath({
+      pageKey: "team",
+      revision: buildInstitutionalOgRevision({
+        pageKey: "team",
+        pages: bootstrap?.pages,
+        settings: bootstrap?.settings,
+      }),
+    }),
+    imageAlt: buildInstitutionalOgImageAlt("team"),
     mediaVariants: pageMediaVariants,
   });
 

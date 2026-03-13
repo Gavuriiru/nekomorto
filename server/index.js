@@ -70,8 +70,13 @@ import { createJobQueue } from "./lib/job-queue.js";
 import { createJsonFileCache } from "./lib/json-file-cache.js";
 import { truncateMetaDescription } from "./lib/meta-description.js";
 import { createMetricsRegistry } from "./lib/metrics.js";
-import { optimizeOgPngBuffer } from "./lib/og-image-output.js";
-import { buildOgRenderCacheKey, createOgRenderCache } from "./lib/og-render-cache.js";
+import { createOgRenderCache } from "./lib/og-render-cache.js";
+import {
+  buildInstitutionalOgDeliveryHeaders,
+  buildInstitutionalOgRevisionValue,
+  buildVersionedInstitutionalOgImagePath,
+  getInstitutionalOgCachedRender,
+} from "./lib/institutional-og-delivery.js";
 import {
   buildOperationalAlertsResponse,
   buildOperationalAlertsV1,
@@ -84,14 +89,9 @@ import {
 } from "./lib/origin-config.js";
 import { canAccessApiDuringPendingMfa } from "./lib/pending-mfa-guard.js";
 import {
-  buildPostOgCardModel,
   buildPostOgImagePath,
-  buildPostOgImageResponse,
 } from "./lib/post-og.js";
-import {
-  loadProjectOgArtworkDataUrl,
-  loadProjectOgProcessedBackdropDataUrl,
-} from "./lib/project-og.js";
+import { getPostOgCachedRender } from "./lib/post-og-delivery.js";
 import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
 import { resolvePostStatus } from "./lib/post-status.js";
 import { dedupePostVersionRecordsNewestFirst } from "./lib/post-version-dedupe.js";
@@ -244,6 +244,13 @@ import { toDiscordWebhookPayload } from "./lib/webhooks/providers/discord.js";
 import { buildOperationalAlertsWebhookNotification } from "./lib/webhooks/templates/operational-alerts.js";
 import { diffOperationalAlertSets } from "./lib/webhooks/transitions.js";
 import { deriveAniListMediaOrganization } from "../src/lib/anilist-media.js";
+import {
+  buildInstitutionalOgImageAlt,
+  resolveInstitutionalOgPageKeyFromPath,
+  resolveInstitutionalOgPagePath,
+  resolveInstitutionalOgPageTitle,
+  resolveInstitutionalOgSupportText,
+} from "../shared/institutional-og-seo.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -2098,6 +2105,52 @@ const buildSiteMetaWithSettings = (settings) => ({
 });
 
 const buildSiteMeta = () => buildSiteMetaWithSettings(loadSiteSettings());
+
+const buildInstitutionalPageMeta = (
+  pageKey,
+  {
+    settings = loadSiteSettings(),
+    pages = loadPages(),
+  } = {},
+) => {
+  const resolvedPageKey = String(pageKey || "").trim();
+  const titleText = resolveInstitutionalOgPageTitle(resolvedPageKey);
+  if (!titleText) {
+    return buildSiteMetaWithSettings(settings);
+  }
+
+  const siteName = settings.site?.name || "Nekomata";
+  const separator = settings.site?.titleSeparator ?? "";
+  const description = truncateMetaDescription(
+    resolveInstitutionalOgSupportText({
+      pageKey: resolvedPageKey,
+      pages,
+      settings,
+    }) ||
+      settings.site?.description ||
+      "",
+  );
+  const imageRevision = buildInstitutionalOgRevisionValue({
+    pageKey: resolvedPageKey,
+    pages,
+    settings,
+  });
+  const image = buildVersionedInstitutionalOgImagePath({
+    pageKey: resolvedPageKey,
+    revision: imageRevision,
+  });
+
+  return {
+    title: `${titleText}${separator}${siteName}`,
+    description,
+    image,
+    imageAlt: buildInstitutionalOgImageAlt(resolvedPageKey),
+    url: `${PRIMARY_APP_ORIGIN}${resolveInstitutionalOgPagePath(resolvedPageKey)}`,
+    type: "website",
+    siteName,
+    favicon: settings.site?.faviconUrl || "",
+  };
+};
 
 const getPageTitleFromPathLegacy = (value) => {
   const pathValue = String(value || "/");
@@ -15699,6 +15752,44 @@ app.post("/api/logout", (req, res) => {
   res.json({ ok: true });
 });
 
+app.get("/api/og/institutional/:pageKey", async (req, res) => {
+  const pageKey = String(req.params.pageKey || "").trim();
+  if (!resolveInstitutionalOgPageTitle(pageKey)) {
+    return res.status(404).type("text/plain").send("not_found");
+  }
+
+  try {
+    const settings = loadSiteSettings();
+    const pages = loadPages();
+    const rendered = await getInstitutionalOgCachedRender({
+      pageKey,
+      pages,
+      settings,
+      origin: PRIMARY_APP_ORIGIN,
+      resolveVariantUrl: resolveMetaImageVariantUrl,
+      ogRenderCache,
+    });
+    if (!rendered) {
+      return res.status(404).type("text/plain").send("not_found");
+    }
+
+    const deliveryHeaders = buildInstitutionalOgDeliveryHeaders({
+      cacheHit: rendered.cacheHit,
+      timings: rendered.timings,
+    });
+
+    res.setHeader("Content-Type", rendered.contentType || "image/png");
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
+    res.setHeader("X-OG-Cache", deliveryHeaders.cache);
+    if (deliveryHeaders.serverTiming) {
+      res.setHeader("Server-Timing", deliveryHeaders.serverTiming);
+    }
+    return res.status(200).send(Buffer.from(rendered.buffer));
+  } catch {
+    return res.status(500).type("text/plain").send("image_generation_failed");
+  }
+});
+
 app.get("/api/og/project/:id/reading/:chapter", async (req, res) => {
   const id = String(req.params.id || "").trim();
   const chapterNumber = Number(req.params.chapter);
@@ -15805,60 +15896,18 @@ app.get("/api/og/post/:slug", async (req, res) => {
       ? getPublicVisibleProjects().find((item) => String(item?.id || "").trim() === relatedProjectId) || null
       : null;
     const resolvedAuthor = resolveEditorialAuthorFromPost(post);
-    const baseModel = buildPostOgCardModel({
+    const rendered = await getPostOgCachedRender({
       post,
       relatedProject,
-      settings,
       resolvedCover,
       firstPostImage,
       resolvedAuthor,
       defaultBackdropUrl: settings.site?.defaultShareImage || "",
-      tagTranslations: translations?.tags,
-      genreTranslations: translations?.genres,
+      settings,
+      translations,
       origin: PRIMARY_APP_ORIGIN,
       resolveVariantUrl: resolveMetaImageVariantUrl,
-    });
-    const cacheKey = buildOgRenderCacheKey({
-      kind: "post",
-      id: slug,
-      model: baseModel,
-    });
-    const cached = ogRenderCache.read(cacheKey);
-    if (cached) {
-      res.setHeader("Content-Type", cached.contentType || "image/png");
-      res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
-      return res.status(200).send(Buffer.from(cached.buffer));
-    }
-    const rendered = await ogRenderCache.getOrCreateInFlight(cacheKey, async () => {
-      const [artworkDataUrl, backdropDataUrl, subtitleAvatarDataUrl] = await Promise.all([
-        loadProjectOgArtworkDataUrl({
-          artworkUrl: baseModel.artworkUrl,
-          origin: PRIMARY_APP_ORIGIN,
-        }),
-        loadProjectOgProcessedBackdropDataUrl({
-          artworkUrl: baseModel.backdropUrl,
-          origin: PRIMARY_APP_ORIGIN,
-          layout: baseModel.layout,
-        }),
-        loadProjectOgArtworkDataUrl({
-          artworkUrl: baseModel.subtitleAvatarUrl,
-          origin: PRIMARY_APP_ORIGIN,
-        }),
-      ]);
-      const imageResponse = buildPostOgImageResponse({
-        ...baseModel,
-        artworkDataUrl,
-        backdropDataUrl,
-        subtitleAvatarDataUrl,
-      });
-      const arrayBuffer = await imageResponse.arrayBuffer();
-      const contentType = imageResponse.headers.get("content-type") || "image/png";
-      const rawBuffer = Buffer.from(arrayBuffer);
-      const optimizedBuffer = await optimizeOgPngBuffer({
-        buffer: rawBuffer,
-      });
-      ogRenderCache.write(cacheKey, { buffer: optimizedBuffer, contentType });
-      return { buffer: optimizedBuffer, contentType };
+      ogRenderCache,
     });
 
     res.setHeader("Content-Type", rendered.contentType || "image/png");
@@ -16020,7 +16069,13 @@ app.get("*", async (req, res) => {
   try {
     const settings = loadSiteSettings();
     const pages = loadPages();
-    const meta = buildSiteMetaWithSettings(settings);
+    const institutionalPageKey = resolveInstitutionalOgPageKeyFromPath(req.path);
+    const meta = institutionalPageKey
+      ? buildInstitutionalPageMeta(institutionalPageKey, {
+          settings,
+          pages,
+        })
+      : buildSiteMetaWithSettings(settings);
     const routeThemeColor = resolveRouteThemeColor({
       pathname: req.path,
       accentHex: settings?.theme?.accent,
@@ -16028,7 +16083,11 @@ app.get("*", async (req, res) => {
     const siteName = settings.site?.name || "Nekomata";
     const separator = settings.site?.titleSeparator ?? "";
     const pageTitle = getPageTitleFromPath(req.path);
-    const title = pageTitle ? `${pageTitle}${separator}${siteName}` : siteName;
+    const title = institutionalPageKey
+      ? meta.title
+      : pageTitle
+        ? `${pageTitle}${separator}${siteName}`
+        : siteName;
     const canonicalUrl = `${PRIMARY_APP_ORIGIN}${req.path}`;
     const structuredData = buildSchemaOrgPayload({
       origin: PRIMARY_APP_ORIGIN,

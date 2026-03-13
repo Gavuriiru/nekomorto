@@ -36,6 +36,11 @@ import {
 import { normalizeSearchText } from "@/lib/search-ranking";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { cn } from "@/lib/utils";
+import {
+  buildInstitutionalOgImageAlt,
+  buildInstitutionalOgRevision,
+  buildVersionedInstitutionalOgImagePath,
+} from "../../shared/institutional-og-seo.js";
 
 const alphabetOptions = ["Todas", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
@@ -453,14 +458,19 @@ const Projects = () => {
   const selectedGenre = searchParams.get("genero") || searchParams.get("genre") || "Todos";
   const selectedQuery = searchParams.get("q") || "";
   const [searchInputValue, setSearchInputValue] = useState(() => selectedQuery);
-  const shareImage = bootstrap?.pages.projects.shareImage || "";
-  const shareImageAlt = bootstrap?.pages.projects.shareImageAlt || "";
   const pageMediaVariants = bootstrap?.mediaVariants || {};
 
   usePageMeta({
     title: "Projetos",
-    image: shareImage || undefined,
-    imageAlt: shareImageAlt || undefined,
+    image: buildVersionedInstitutionalOgImagePath({
+      pageKey: "projects",
+      revision: buildInstitutionalOgRevision({
+        pageKey: "projects",
+        pages: bootstrap?.pages,
+        settings: bootstrap?.settings,
+      }),
+    }),
+    imageAlt: buildInstitutionalOgImageAlt("projects"),
     mediaVariants: pageMediaVariants,
   });
 

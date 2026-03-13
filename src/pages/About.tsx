@@ -20,6 +20,11 @@ import {
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+import {
+  buildInstitutionalOgImageAlt,
+  buildInstitutionalOgRevision,
+  buildVersionedInstitutionalOgImagePath,
+} from "../../shared/institutional-og-seo.js";
 
 const iconMap: Record<string, typeof Heart> = {
   Heart,
@@ -141,8 +146,15 @@ const About = () => {
   }, [bootstrap]);
   usePageMeta({
     title: "Sobre",
-    image: about.shareImage || undefined,
-    imageAlt: about.shareImageAlt || undefined,
+    image: buildVersionedInstitutionalOgImagePath({
+      pageKey: "about",
+      revision: buildInstitutionalOgRevision({
+        pageKey: "about",
+        pages: bootstrap?.pages,
+        settings: bootstrap?.settings,
+      }),
+    }),
+    imageAlt: buildInstitutionalOgImageAlt("about"),
     mediaVariants: pageMediaVariants,
   });
 
