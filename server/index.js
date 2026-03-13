@@ -103,6 +103,7 @@ import {
   applyEpisodePublicationMetadata,
   collectEpisodeUpdates as collectEpisodeUpdatesByVisibility,
   isEpisodePublic,
+  resolveProjectUpdateUnitLabel,
 } from "./lib/project-episode-updates.js";
 import {
   buildEpisodeKey,
@@ -170,7 +171,7 @@ import { createRateLimiter } from "./lib/rate-limiter.js";
 import { importRemoteImageFile } from "./lib/remote-image-import.js";
 import { createResponseCache } from "./lib/response-cache.js";
 import { createRevisionToken } from "./lib/revision-token.js";
-import { resolveRouteThemeColor } from "./lib/route-theme-color.js";
+import { resolveThemeColor } from "./lib/theme-color.js";
 import { buildRssXml } from "./lib/rss-xml.js";
 import { buildSchemaOrgPayload, serializeSchemaOrgEntry } from "./lib/schema-org.js";
 import {
@@ -2338,6 +2339,147 @@ const buildPostMeta = (post) => {
     type: "article",
     siteName,
     favicon: settings.site?.faviconUrl || "",
+  };
+};
+
+const pickFirstNonEmptyText = (...values) => {
+  for (const value of values) {
+    const normalized = String(value || "").trim();
+    if (normalized) {
+      return normalized;
+    }
+  }
+  return "";
+};
+
+const buildEditorialWebhookImageContext = ({
+  post = null,
+  project = null,
+  chapter = null,
+  settings = loadSiteSettings(),
+  translations = loadTagTranslations(),
+} = {}) => {
+  const safePost = post && typeof post === "object" ? post : null;
+  const safeProject = project && typeof project === "object" ? project : null;
+  const safeChapter = chapter && typeof chapter === "object" ? chapter : null;
+  const fallbackSiteImageUrl = pickFirstNonEmptyText(
+    settings?.site?.defaultShareImage,
+    "/placeholder.svg",
+  );
+
+  const resolvedPostCover = safePost ? resolvePostCover(safePost) : null;
+  const firstPostImage = safePost
+    ? extractFirstImageFromPostContent(safePost.content, safePost.contentFormat)
+    : null;
+
+  const postSlug = String(safePost?.slug || "").trim();
+  const postOgImageUrl = postSlug
+    ? buildVersionedPostOgImagePath({
+        slug: postSlug,
+        revision: buildPostOgRevision({
+          post: safePost,
+          settings,
+          coverImageUrl: resolvedPostCover?.coverImageUrl,
+          firstPostImageUrl: firstPostImage?.coverImageUrl,
+        }),
+      })
+    : "";
+
+  const projectId = String(safeProject?.id || "").trim();
+  const projectOgImageUrl = projectId
+    ? buildVersionedProjectOgImagePath({
+        projectId,
+        revision: buildProjectOgRevision({
+          project: safeProject,
+          settings,
+          translations,
+          origin: PRIMARY_APP_ORIGIN,
+          resolveVariantUrl: resolveMetaImageVariantUrl,
+        }),
+      })
+    : "";
+
+  const chapterNumber = Number(safeChapter?.number);
+  const chapterVolume = Number(safeChapter?.volume);
+  let chapterOgImageUrl = "";
+  if (projectId && Number.isFinite(chapterNumber)) {
+    const chapterModel = buildProjectReadingOgCardModel({
+      project: safeProject,
+      chapterNumber,
+      volume: Number.isFinite(chapterVolume) ? chapterVolume : undefined,
+      settings,
+      tagTranslations: translations?.tags,
+      genreTranslations: translations?.genres,
+      origin: PRIMARY_APP_ORIGIN,
+      resolveVariantUrl: resolveMetaImageVariantUrl,
+    });
+    if (chapterModel) {
+      const chapterNumberResolved = Number.isFinite(Number(chapterModel.chapterNumberResolved))
+        ? Number(chapterModel.chapterNumberResolved)
+        : chapterNumber;
+      const chapterVolumeResolved = Number.isFinite(Number(chapterModel.volumeResolved))
+        ? Number(chapterModel.volumeResolved)
+        : Number.isFinite(chapterVolume)
+          ? chapterVolume
+          : undefined;
+      chapterOgImageUrl = buildVersionedProjectReadingOgImagePath({
+        projectId,
+        chapterNumber: chapterNumberResolved,
+        volume: chapterVolumeResolved,
+        revision: buildProjectReadingOgRevisionValue({
+          project: safeProject,
+          chapterNumber: chapterNumberResolved,
+          volume: chapterVolumeResolved,
+          settings,
+          translations,
+        }),
+      });
+    }
+  }
+
+  const resolvedProjectOgImageUrl = pickFirstNonEmptyText(projectOgImageUrl);
+  const resolvedChapterOgImageUrl = pickFirstNonEmptyText(
+    chapterOgImageUrl,
+    resolvedProjectOgImageUrl,
+  );
+
+  return {
+    postImageUrl: pickFirstNonEmptyText(
+      resolvedPostCover?.coverImageUrl,
+      firstPostImage?.coverImageUrl,
+      postOgImageUrl,
+      fallbackSiteImageUrl,
+      "/placeholder.svg",
+    ),
+    postOgImageUrl,
+    projectImageUrl: pickFirstNonEmptyText(
+      safeProject?.cover,
+      safeProject?.heroImageUrl,
+      safeProject?.banner,
+      projectOgImageUrl,
+      fallbackSiteImageUrl,
+      "/placeholder.svg",
+    ),
+    projectBackdropImageUrl: pickFirstNonEmptyText(
+      safeProject?.banner,
+      safeProject?.heroImageUrl,
+      safeProject?.cover,
+      projectOgImageUrl,
+      fallbackSiteImageUrl,
+      "/placeholder.svg",
+    ),
+    projectOgImageUrl,
+    chapterImageUrl: pickFirstNonEmptyText(
+      safeChapter?.coverImageUrl,
+      safeProject?.heroImageUrl,
+      safeProject?.banner,
+      safeProject?.cover,
+      resolvedChapterOgImageUrl,
+      resolvedProjectOgImageUrl,
+      fallbackSiteImageUrl,
+      "/placeholder.svg",
+    ),
+    chapterOgImageUrl: resolvedChapterOgImageUrl,
   };
 };
 const MAX_SVG_SIZE_BYTES = 256 * 1024;
@@ -6161,11 +6303,10 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
     ? nextProject.episodeDownloads
     : [];
   const prevMap = new Map(prevEpisodes.map((ep) => [Number(ep.number), ep]));
-  const isChapterBased = isChapterBasedType(nextProject?.type || "");
-  const unitLabel = isChapterBased ? "Capítulo" : "Episódio";
   const isLightNovel = isLightNovelType(nextProject?.type || "");
   nextEpisodes.forEach((ep) => {
     const number = Number(ep.number);
+    const unitLabel = resolveProjectUpdateUnitLabel(nextProject?.type || "", ep);
     const sources = Array.isArray(ep.sources) ? ep.sources.filter((s) => s.url) : [];
     const hasContent = typeof ep.content === "string" && ep.content.trim().length > 0;
     if (!sources.length && !(isLightNovel && hasContent)) {
@@ -6381,6 +6522,7 @@ const prepareEditorialWebhookDispatch = ({
     String(update?.updatedAt || safePost?.updatedAt || safeProject?.updatedAt || "").trim() ||
     new Date().toISOString();
   const siteSettings = loadSiteSettings();
+  const translations = loadTagTranslations();
   const siteName = String(siteSettings?.site?.name || "Nekomata").trim() || "Nekomata";
   const siteUrl = PRIMARY_APP_ORIGIN;
   const siteLogoUrl =
@@ -6392,6 +6534,13 @@ const prepareEditorialWebhookDispatch = ({
     ).trim() || "";
   const siteCoverImageUrl = String(siteSettings?.site?.defaultShareImage || "").trim();
   const siteFaviconUrl = String(siteSettings?.site?.faviconUrl || "").trim();
+  const imageContext = buildEditorialWebhookImageContext({
+    post: safePost,
+    project: safeProject,
+    chapter: safeChapter,
+    settings: siteSettings,
+    translations,
+  });
   const context = buildEditorialEventContext({
     eventKey,
     occurredAt,
@@ -6407,6 +6556,13 @@ const prepareEditorialWebhookDispatch = ({
     project: safeProject,
     chapter: safeChapter,
     update,
+    postImageUrl: imageContext.postImageUrl,
+    postOgImageUrl: imageContext.postOgImageUrl,
+    projectImageUrl: imageContext.projectImageUrl,
+    projectBackdropImageUrl: imageContext.projectBackdropImageUrl,
+    projectOgImageUrl: imageContext.projectOgImageUrl,
+    chapterImageUrl: imageContext.chapterImageUrl,
+    chapterOgImageUrl: imageContext.chapterOgImageUrl,
   });
   const rendered = renderWebhookTemplate(template, context);
   const payload = toDiscordWebhookPayload({
@@ -13331,14 +13487,16 @@ app.post("/api/integrations/webhooks/editorial/test", requireAuth, async (req, r
       updatedAt: String(chapterSource?.chapterUpdatedAt || chapterSource?.updatedAt || now),
       coverImageUrl: String(chapterSource?.coverImageUrl || ""),
     };
+    const sampleUpdateUnit = resolveProjectUpdateUnitLabel(sampleProject?.type || "", chapterSource);
     const sampleUpdate = {
       kind: eventKey === "project_adjust" ? "Ajuste" : "Lançamento",
       reason:
         eventKey === "project_adjust"
-          ? "Conteúdo revisado para melhorar qualidade."
-          : "Novo capítulo/episódio publicado.",
-      unit: isChapterBasedType(sampleProject?.type || "") ? "Capítulo" : "Episódio",
+          ? `Conteúdo ajustado no ${sampleUpdateUnit.toLowerCase()} ${safeChapterNumber}`
+          : `${sampleUpdateUnit} ${safeChapterNumber} disponível`,
+      unit: sampleUpdateUnit,
       episodeNumber: safeChapterNumber,
+      volume: sampleChapter.volume,
       updatedAt: now,
     };
 
@@ -15970,10 +16128,7 @@ app.get(
       const translations = loadTagTranslations();
       const pages = loadPages();
       const canonicalUrl = `${PRIMARY_APP_ORIGIN}${req.path}`;
-      const routeThemeColor = resolveRouteThemeColor({
-        pathname: req.path,
-        accentHex: settings?.theme?.accent,
-      });
+      const themeColor = resolveThemeColor(settings?.theme?.accent);
       if (req.path.startsWith("/postagem/")) {
         const slug = String(req.params.slug || "");
         const post = normalizePosts(loadPosts()).find((item) => item.slug === slug);
@@ -15991,7 +16146,7 @@ app.get(
             ...meta,
             url: canonicalUrl,
             structuredData,
-            themeColor: routeThemeColor,
+            themeColor,
           }),
           req,
           settings,
@@ -16036,7 +16191,7 @@ app.get(
             ...meta,
             url: canonicalUrl,
             structuredData,
-            themeColor: routeThemeColor,
+            themeColor,
           }),
           req,
           settings,
@@ -16058,7 +16213,7 @@ app.get(
           ...meta,
           url: canonicalUrl,
           structuredData,
-          themeColor: routeThemeColor,
+          themeColor,
         }),
         req,
         settings,
@@ -16089,10 +16244,7 @@ app.get("*", async (req, res) => {
           pages,
         })
       : buildSiteMetaWithSettings(settings);
-    const routeThemeColor = resolveRouteThemeColor({
-      pathname: req.path,
-      accentHex: settings?.theme?.accent,
-    });
+    const themeColor = resolveThemeColor(settings?.theme?.accent);
     const siteName = settings.site?.name || "Nekomata";
     const separator = settings.site?.titleSeparator ?? "";
     const pageTitle = getPageTitleFromPath(req.path);
@@ -16115,7 +16267,7 @@ app.get("*", async (req, res) => {
       title,
       url: canonicalUrl,
       structuredData,
-      themeColor: routeThemeColor,
+      themeColor,
     });
     const html = shouldInjectPublicBootstrap
       ? injectPublicBootstrapHtml({

@@ -157,8 +157,14 @@ describe("webhooks", () => {
     const settings = normalizeEditorialWebhookSettings({}, { projectTypes: ["Anime"] });
     settings.channels.posts.templates.post_create.content =
       "{{site.logoUrl}} {{mention.category}} {{mention.general}}";
-    settings.channels.projects.templates.project_release.embed.imageUrl = "{{project.synopsis}}";
-    settings.channels.projects.templates.project_adjust.embed.description = "{{chapter.synopsis}}";
+    settings.channels.posts.templates.post_create.embed.thumbnailUrl = "{{post.imageUrl}}";
+    settings.channels.posts.templates.post_update.embed.imageUrl = "{{project.backdropImageUrl}}";
+    settings.channels.posts.templates.post_update.embed.description =
+      "{{post.excerpt}} {{post.ogImageUrl}}";
+    settings.channels.projects.templates.project_release.embed.thumbnailUrl = "{{project.imageUrl}}";
+    settings.channels.projects.templates.project_release.embed.imageUrl = "{{chapter.imageUrl}}";
+    settings.channels.projects.templates.project_adjust.embed.description =
+      "{{chapter.synopsis}} {{chapter.ogImageUrl}} {{project.ogImageUrl}}";
     settings.channels.projects.templates.project_release.embed.fields = [
       { name: "Legado", value: "{{project.status}}", inline: true },
     ];
@@ -223,8 +229,8 @@ describe("webhooks", () => {
           authorName: "{{author.name}}",
           authorIconUrl: "{{author.avatarUrl}}",
           authorUrl: "{{site.url}}",
-          thumbnailUrl: "{{project.cover}}",
-          imageUrl: "{{project.banner}}",
+          thumbnailUrl: "{{project.imageUrl}}",
+          imageUrl: "{{chapter.imageUrl}}",
           fields: [],
         },
       },
@@ -235,9 +241,14 @@ describe("webhooks", () => {
           url: "https://example.com/projeto-x",
           cover: "https://example.com/cover.jpg",
           banner: "https://example.com/banner.jpg",
+          imageUrl: "https://example.com/project-image.jpg",
           synopsis: "Sinopse do projeto",
         },
-        chapter: { title: "Capítulo 1", synopsis: "Sinopse do capítulo" },
+        chapter: {
+          title: "Capítulo 1",
+          synopsis: "Sinopse do capítulo",
+          imageUrl: "https://example.com/chapter-image.jpg",
+        },
         site: { name: "Nekomata", logoUrl: "https://example.com/logo.png", url: "https://example.com" },
         author: { name: "Equipe", avatarUrl: "https://example.com/avatar.png" },
       },
@@ -245,8 +256,8 @@ describe("webhooks", () => {
 
     expect(rendered.content).toBe("<@&999>");
     expect(rendered.embed.authorName).toBe("Equipe");
-    expect(rendered.embed.thumbnailUrl).toBe("https://example.com/cover.jpg");
-    expect(rendered.embed.imageUrl).toBe("https://example.com/banner.jpg");
+    expect(rendered.embed.thumbnailUrl).toBe("https://example.com/project-image.jpg");
+    expect(rendered.embed.imageUrl).toBe("https://example.com/chapter-image.jpg");
     expect(rendered.embed.description).toContain("Sinopse do projeto");
     expect(rendered.embed.description).toContain("Sinopse do capítulo");
   });
@@ -265,6 +276,7 @@ describe("webhooks", () => {
       chapter: { coverImageUrl: "   " },
     });
     expect(withHeroFallback.chapter.coverImageUrl).toBe("https://example.com/hero.jpg");
+    expect(withHeroFallback.chapter.imageUrl).toBe("https://example.com/hero.jpg");
 
     const withoutSources = buildEditorialEventContext({
       origin: "https://example.com",
@@ -272,6 +284,59 @@ describe("webhooks", () => {
       chapter: { coverImageUrl: "" },
     });
     expect(withoutSources.chapter.coverImageUrl).toBe("");
+    expect(withoutSources.chapter.imageUrl).toBe("/placeholder.svg");
+  });
+
+  it("resolve placeholders de imagem e og com fallback explicito", () => {
+    const context = buildEditorialEventContext({
+      origin: "https://example.com",
+      siteCoverImageUrl: "https://example.com/site-cover.jpg",
+      post: {
+        coverImageUrl: "",
+      },
+      project: {
+        cover: "",
+        heroImageUrl: "https://example.com/project-hero.jpg",
+        banner: "https://example.com/project-banner.jpg",
+      },
+      chapter: {
+        coverImageUrl: "",
+      },
+      postOgImageUrl: "https://example.com/post-og.jpg",
+      projectOgImageUrl: "https://example.com/project-og.jpg",
+      chapterOgImageUrl: "",
+    });
+
+    expect(context.post.ogImageUrl).toBe("https://example.com/post-og.jpg");
+    expect(context.post.imageUrl).toBe("https://example.com/post-og.jpg");
+    expect(context.project.ogImageUrl).toBe("https://example.com/project-og.jpg");
+    expect(context.project.imageUrl).toBe("https://example.com/project-hero.jpg");
+    expect(context.project.backdropImageUrl).toBe("https://example.com/project-banner.jpg");
+    expect(context.chapter.ogImageUrl).toBe("https://example.com/project-og.jpg");
+    expect(context.chapter.imageUrl).toBe("https://example.com/project-hero.jpg");
+  });
+
+  it("cai para a imagem padrao do site e depois para /placeholder.svg", () => {
+    const withSiteFallback = buildEditorialEventContext({
+      origin: "https://example.com",
+      siteCoverImageUrl: "https://example.com/site-cover.jpg",
+      post: {},
+      project: {},
+      chapter: {},
+    });
+    expect(withSiteFallback.post.imageUrl).toBe("https://example.com/site-cover.jpg");
+    expect(withSiteFallback.project.imageUrl).toBe("https://example.com/site-cover.jpg");
+    expect(withSiteFallback.chapter.imageUrl).toBe("https://example.com/site-cover.jpg");
+
+    const withPlaceholderFallback = buildEditorialEventContext({
+      origin: "https://example.com",
+      post: {},
+      project: {},
+      chapter: {},
+    });
+    expect(withPlaceholderFallback.post.imageUrl).toBe("/placeholder.svg");
+    expect(withPlaceholderFallback.project.backdropImageUrl).toBe("/placeholder.svg");
+    expect(withPlaceholderFallback.chapter.imageUrl).toBe("/placeholder.svg");
   });
 });
 

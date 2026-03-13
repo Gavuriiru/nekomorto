@@ -1,24 +1,26 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { resolveRouteThemeColor } from "@/lib/route-theme-color";
+import { resolveThemeColor } from "@/lib/theme-color";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+
+const mockSiteSettings = {
+  site: {
+    name: "Nekomata",
+    description: "Descricao padrao",
+    defaultShareImage: "/uploads/default-og.jpg",
+    defaultShareImageAlt: "Imagem padrao",
+    titleSeparator: " | ",
+  },
+  theme: {
+    accent: "#9667e0",
+  },
+};
 
 vi.mock("@/hooks/use-site-settings", () => ({
   useSiteSettings: () => ({
     isLoading: false,
-    settings: {
-      site: {
-        name: "Nekomata",
-        description: "Descricao padrao",
-        defaultShareImage: "/uploads/default-og.jpg",
-        defaultShareImageAlt: "Imagem padrao",
-        titleSeparator: " | ",
-      },
-      theme: {
-        accent: "#9667e0",
-      },
-    },
+    settings: mockSiteSettings,
   }),
 }));
 
@@ -46,6 +48,7 @@ describe("usePageMeta accessibility metadata", () => {
     document.head.innerHTML = "";
     document.title = "";
     window.history.replaceState(null, "", "/");
+    mockSiteSettings.theme.accent = "#9667e0";
     (window as Window & typeof globalThis & { __BOOTSTRAP_PUBLIC__?: unknown }).__BOOTSTRAP_PUBLIC__ =
       undefined;
   });
@@ -133,7 +136,7 @@ describe("usePageMeta accessibility metadata", () => {
     expect((twitterDescription || "").length).toBeLessThanOrEqual(160);
   });
 
-  it("creates and updates theme-color according to the current route", () => {
+  it("keeps theme-color equal to the accent across route changes", () => {
     window.history.replaceState(null, "", "/projetos");
     const view = render(<TestMeta />);
 
@@ -141,12 +144,7 @@ describe("usePageMeta accessibility metadata", () => {
       document
         .querySelector('meta[name="theme-color"]')
         ?.getAttribute("content"),
-    ).toBe(
-      resolveRouteThemeColor({
-        pathname: "/projetos",
-        accentHex: "#9667e0",
-      }),
-    );
+    ).toBe(resolveThemeColor("#9667e0"));
 
     window.history.replaceState(null, "", "/postagem/slug-teste");
     view.rerender(<TestMeta description="Atualizado para disparar o effect" />);
@@ -155,11 +153,25 @@ describe("usePageMeta accessibility metadata", () => {
       document
         .querySelector('meta[name="theme-color"]')
         ?.getAttribute("content"),
-    ).toBe(
-      resolveRouteThemeColor({
-        pathname: "/postagem/slug-teste",
-        accentHex: "#9667e0",
-      }),
-    );
+    ).toBe(resolveThemeColor("#9667e0"));
+  });
+
+  it("updates theme-color when the accent changes", () => {
+    const view = render(<TestMeta />);
+
+    expect(
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.getAttribute("content"),
+    ).toBe(resolveThemeColor("#9667e0"));
+
+    mockSiteSettings.theme.accent = "#34A853";
+    view.rerender(<TestMeta description="Atualizado para novo accent" />);
+
+    expect(
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.getAttribute("content"),
+    ).toBe(resolveThemeColor("#34A853"));
   });
 });

@@ -8,7 +8,7 @@ import {
   type ThemeModeContextValue,
   type ThemeModePreference,
 } from "@/hooks/theme-mode-context";
-import { resolveRouteThemeColor } from "@/lib/route-theme-color";
+import { resolveThemeColor } from "@/lib/theme-color";
 
 const normalizeMode = (value: unknown): ThemeMode => (value === "light" ? "light" : "dark");
 const normalizePreference = (value: unknown): ThemeModePreference => {
@@ -51,13 +51,7 @@ const applyThemeToDocument = (mode: ThemeMode, accentHex: unknown) => {
   }
   const themeColorMeta = document.querySelector('meta[name="theme-color"]');
   if (themeColorMeta) {
-    themeColorMeta.setAttribute(
-      "content",
-      resolveRouteThemeColor({
-        pathname: typeof window === "undefined" ? "/" : window.location.pathname,
-        accentHex,
-      }),
-    );
+    themeColorMeta.setAttribute("content", resolveThemeColor(accentHex));
   }
 };
 

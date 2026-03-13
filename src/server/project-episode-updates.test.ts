@@ -4,6 +4,7 @@ import {
   applyEpisodePublicationMetadata,
   collectEpisodeUpdates,
   isEpisodePublic,
+  resolveProjectUpdateUnitLabel,
 } from "../../server/lib/project-episode-updates.js";
 
 describe("project episode updates", () => {
@@ -157,5 +158,65 @@ describe("project episode updates", () => {
         sources: [],
       }),
     ).toBe(false);
+  });
+
+  it("usa Especial como unidade propria para lancamentos e ajustes", () => {
+    const updates = collectEpisodeUpdates(
+      {
+        type: "Especial",
+        episodeDownloads: [
+          {
+            number: 1,
+            title: "Especial 1",
+            publicationStatus: "published",
+            chapterUpdatedAt: "2026-03-01T10:00:00.000Z",
+            sources: [{ label: "Drive", url: "https://example.com/especial-1-v1" }],
+          },
+        ],
+      },
+      {
+        type: "Special",
+        episodeDownloads: [
+          {
+            number: 1,
+            title: "Especial 1 revisado",
+            publicationStatus: "published",
+            chapterUpdatedAt: "2026-03-02T10:00:00.000Z",
+            sources: [{ label: "Drive", url: "https://example.com/especial-1-v2" }],
+          },
+          {
+            number: 2,
+            title: "Especial 2",
+            publicationStatus: "published",
+            chapterUpdatedAt: "2026-03-02T11:00:00.000Z",
+            sources: [{ label: "Drive", url: "https://example.com/especial-2" }],
+          },
+        ],
+      },
+      "2026-03-02T11:00:00.000Z",
+    ).sort((a, b) => Number(a.episodeNumber || 0) - Number(b.episodeNumber || 0));
+
+    expect(updates).toEqual([
+      expect.objectContaining({
+        kind: "Ajuste",
+        unit: "Especial",
+        reason: "Links ajustados no especial 1",
+        episodeNumber: 1,
+      }),
+      expect.objectContaining({
+        kind: "Lançamento",
+        unit: "Especial",
+        reason: "Especial 2 disponível",
+        episodeNumber: 2,
+      }),
+    ]);
+  });
+
+  it("resolve a unidade textual por tipo e entry kind", () => {
+    expect(resolveProjectUpdateUnitLabel("Especial", { number: 1 })).toBe("Especial");
+    expect(resolveProjectUpdateUnitLabel("special", { number: 1 })).toBe("Especial");
+    expect(resolveProjectUpdateUnitLabel("Light Novel", { number: 1 })).toBe("Capítulo");
+    expect(resolveProjectUpdateUnitLabel("Anime", { number: 1 })).toBe("Episódio");
+    expect(resolveProjectUpdateUnitLabel("Especial", { entryKind: "extra", number: 1 })).toBe("Extra");
   });
 });

@@ -8,11 +8,21 @@ import {
 
 const sortStrings = (values) => [...values].sort((a, b) => a.localeCompare(b, "en"));
 
-const normalizeType = (type) => String(type || "").toLowerCase();
+const normalizeType = (type) =>
+  String(type || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 
 const isLightNovelType = (type) => {
   const normalized = normalizeType(type);
   return normalized.includes("light") || normalized.includes("novel");
+};
+
+export const isSpecialProjectType = (type) => {
+  const normalized = normalizeType(type);
+  return normalized === "especial" || normalized === "special";
 };
 
 const isChapterBasedType = (type) => {
@@ -23,6 +33,16 @@ const isChapterBasedType = (type) => {
     normalized.includes("light") ||
     normalized.includes("novel")
   );
+};
+
+export const resolveProjectUpdateUnitLabel = (projectType, episode) => {
+  if (getEpisodeEntryKind(episode) === "extra") {
+    return "Extra";
+  }
+  if (isSpecialProjectType(projectType)) {
+    return "Especial";
+  }
+  return isChapterBasedType(projectType) ? "Capítulo" : "Episódio";
 };
 
 export const isEpisodePublic = (projectType, episode) => {
@@ -91,8 +111,6 @@ export const collectEpisodeUpdates = (prevProject, nextProject, now) => {
   const prevMap = new Map(
     prevEpisodes.map((episode) => [buildEpisodeKey(episode?.number, episode?.volume), episode]),
   );
-  const isChapterBased = isChapterBasedType(nextProject?.type || "");
-
   nextEpisodes.forEach((episode) => {
     const key = buildEpisodeKey(episode?.number, episode?.volume);
     const prevEpisode = prevMap.get(key) || null;
@@ -104,7 +122,7 @@ export const collectEpisodeUpdates = (prevProject, nextProject, now) => {
 
     const isExtra = getEpisodeEntryKind(episode) === "extra";
     const safeTitle = String(episode?.title || "").trim() || "Extra";
-    const unitLabel = isExtra ? "Extra" : isChapterBased ? "Capítulo" : "Episódio";
+    const unitLabel = resolveProjectUpdateUnitLabel(nextProject?.type || "", episode);
     const updatedAt = String(episode?.chapterUpdatedAt || now).trim() || now;
 
     if (!wasPublic) {

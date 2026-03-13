@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SiteSettings } from "@/types/site-settings";
 import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
-import { resolveRouteThemeColor } from "@/lib/route-theme-color";
+import { resolveThemeColor } from "@/lib/theme-color";
 import {
   THEME_MODE_PRESERVE_MOTION_ATTRIBUTE,
   THEME_MODE_STORAGE_KEY,
@@ -58,12 +58,7 @@ const assertDocumentTheme = (mode: "light" | "dark") => {
 
 const assertThemeColor = (color: string) => {
   const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-  expect(themeColorMeta?.getAttribute("content")).toBe(
-    resolveRouteThemeColor({
-      pathname: window.location.pathname,
-      accentHex: color,
-    }),
-  );
+  expect(themeColorMeta?.getAttribute("content")).toBe(resolveThemeColor(color));
 };
 
 const mockAnimationFrames = () => {
@@ -195,11 +190,15 @@ describe("ThemeModeProvider", () => {
     expect(document.head.querySelector(THEME_TRANSITION_STYLE_SELECTOR)).toBeNull();
   });
 
-  it("uses a route-specific theme color for dashboard routes", async () => {
-    window.history.replaceState(null, "", "/dashboard/posts");
-    renderWithSettings(createSettings({ theme: { accent: "#9667e0", mode: "dark" } }));
+  it("uses the same theme color across routes for the same accent", async () => {
+    const routes = ["/", "/projetos", "/postagem/slug-teste", "/dashboard/posts"];
 
-    assertThemeColor("#9667e0");
+    routes.forEach((route) => {
+      window.history.replaceState(null, "", route);
+      const view = renderWithSettings(createSettings({ theme: { accent: "#9667e0", mode: "dark" } }));
+      assertThemeColor("#9667e0");
+      view.unmount();
+    });
   });
 
   it("temporarily disables transitions while switching theme mode", async () => {

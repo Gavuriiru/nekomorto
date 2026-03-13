@@ -3,7 +3,7 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getCanonicalPageUrl } from "@/lib/canonical-url";
 import { truncateMetaDescription } from "@/lib/meta-description";
-import { resolveRouteThemeColor } from "@/lib/route-theme-color";
+import { resolveThemeColor } from "@/lib/theme-color";
 import {
   resolveUploadVariantUrl,
   type UploadMediaVariantsMap,
@@ -96,13 +96,9 @@ export const usePageMeta = ({
     );
   }, [effectiveMediaVariants, image, settings.site.defaultShareImage]);
   const pageImageAlt = imageAlt ?? settings.site.defaultShareImageAlt ?? "";
-  const pathname = typeof window === "undefined" ? "/" : window.location.pathname;
   const currentHref = typeof window === "undefined" ? "" : window.location.href;
   const canonicalUrl = currentHref ? getCanonicalPageUrl(currentHref) || currentHref : "";
-  const themeColor = resolveRouteThemeColor({
-    pathname,
-    accentHex: settings.theme?.accent,
-  });
+  const themeColor = resolveThemeColor(settings.theme?.accent);
 
   useLayoutEffect(() => {
     if (isLoading) {

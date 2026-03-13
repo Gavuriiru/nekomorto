@@ -20,6 +20,7 @@ const MAX_RETRIES = 5;
 const MAX_TEMPLATE_FIELDS = 25;
 const ROLE_ID_PATTERN = /^\d+$/;
 const FALLBACK_PROJECT_TYPES = Object.freeze(["Anime", "Manga", "Light Novel"]);
+const DEFAULT_IMAGE_PLACEHOLDER_PATH = "/placeholder.svg";
 const TEMPLATE_PLACEHOLDER_PATTERN = /{{\s*([a-zA-Z0-9_.]+)\s*}}/g;
 const MENTION_PLACEHOLDER_ALIAS_MAP = Object.freeze({
   "mention.category": "mention.type",
@@ -106,8 +107,8 @@ const buildDefaultTemplate = (eventKey) => {
         authorName: "{{author.name}}",
         authorIconUrl: "{{author.avatarUrl}}",
         authorUrl: "{{site.url}}",
-        thumbnailUrl: "{{post.coverImageUrl}}",
-        imageUrl: "{{project.banner}}",
+        thumbnailUrl: "{{post.imageUrl}}",
+        imageUrl: "{{project.backdropImageUrl}}",
         fields: [
           { name: "Status", value: "{{post.status}}", inline: true },
           { name: "Projeto", value: "{{project.title}}", inline: true },
@@ -128,8 +129,8 @@ const buildDefaultTemplate = (eventKey) => {
         authorName: "{{author.name}}",
         authorIconUrl: "{{author.avatarUrl}}",
         authorUrl: "{{site.url}}",
-        thumbnailUrl: "{{post.coverImageUrl}}",
-        imageUrl: "{{project.banner}}",
+        thumbnailUrl: "{{post.imageUrl}}",
+        imageUrl: "{{project.backdropImageUrl}}",
         fields: [
           { name: "Status", value: "{{post.status}}", inline: true },
           { name: "Projeto", value: "{{project.title}}", inline: true },
@@ -150,8 +151,8 @@ const buildDefaultTemplate = (eventKey) => {
         authorName: "{{event.label}}",
         authorIconUrl: "{{site.logoUrl}}",
         authorUrl: "{{site.url}}",
-        thumbnailUrl: "{{project.cover}}",
-        imageUrl: "{{project.banner}}",
+        thumbnailUrl: "{{project.imageUrl}}",
+        imageUrl: "{{chapter.imageUrl}}",
         fields: [
           { name: "{{update.unit}}", value: "{{chapter.number}}", inline: true },
           { name: "Título", value: "{{chapter.title}}", inline: true },
@@ -171,8 +172,8 @@ const buildDefaultTemplate = (eventKey) => {
       authorName: "{{event.label}}",
       authorIconUrl: "{{site.logoUrl}}",
       authorUrl: "{{site.url}}",
-      thumbnailUrl: "{{project.cover}}",
-      imageUrl: "{{project.banner}}",
+      thumbnailUrl: "{{project.imageUrl}}",
+      imageUrl: "{{chapter.imageUrl}}",
       fields: [
         { name: "{{update.unit}}", value: "{{chapter.number}}", inline: true },
         { name: "Título", value: "{{chapter.title}}", inline: true },
@@ -537,6 +538,9 @@ const PROJECT_PLACEHOLDERS = [
   "project.cover",
   "project.banner",
   "project.heroImageUrl",
+  "project.imageUrl",
+  "project.backdropImageUrl",
+  "project.ogImageUrl",
   "project.synopsis",
   "project.status",
   "project.year",
@@ -570,6 +574,8 @@ const POST_PLACEHOLDERS = [
   "post.tags",
   "post.coverImageUrl",
   "post.coverAlt",
+  "post.imageUrl",
+  "post.ogImageUrl",
 ];
 
 const CHAPTER_PLACEHOLDERS = [
@@ -580,6 +586,8 @@ const CHAPTER_PLACEHOLDERS = [
   "chapter.releaseDate",
   "chapter.updatedAt",
   "chapter.coverImageUrl",
+  "chapter.imageUrl",
+  "chapter.ogImageUrl",
 ];
 
 const UPDATE_PLACEHOLDERS = [
@@ -811,6 +819,16 @@ export const buildEditorialMentions = ({
   };
 };
 
+const pickFirstText = (...values) => {
+  for (const value of values) {
+    const normalized = String(value || "").trim();
+    if (normalized) {
+      return normalized;
+    }
+  }
+  return "";
+};
+
 export const buildEditorialEventContext = ({
   eventKey,
   occurredAt,
@@ -826,6 +844,13 @@ export const buildEditorialEventContext = ({
   project,
   chapter,
   update,
+  postImageUrl,
+  postOgImageUrl,
+  projectImageUrl,
+  projectBackdropImageUrl,
+  projectOgImageUrl,
+  chapterImageUrl,
+  chapterOgImageUrl,
 } = {}) => {
   const safePost = asObject(post);
   const safeProject = asObject(project);
@@ -838,10 +863,46 @@ export const buildEditorialEventContext = ({
   const normalizedOrigin = String(origin || "").replace(/\/+$/, "");
   const resolvedAuthorName = String(safeAuthor.name || safePost.author || "").trim();
   const resolvedAuthorAvatarUrl = String(safeAuthor.avatarUrl || safePost.authorAvatarUrl || "").trim();
-  const chapterCoverImageUrl =
-    String(safeChapter.coverImageUrl || "").trim() ||
-    String(safeProject.heroImageUrl || "").trim() ||
-    "";
+  const fallbackSiteImageUrl = pickFirstText(siteCoverImageUrl, DEFAULT_IMAGE_PLACEHOLDER_PATH);
+  const chapterCoverImageUrl = pickFirstText(safeChapter.coverImageUrl, safeProject.heroImageUrl);
+  const resolvedProjectOgImageUrl = pickFirstText(projectOgImageUrl);
+  const resolvedPostOgImageUrl = pickFirstText(postOgImageUrl);
+  const resolvedChapterOgImageUrl = pickFirstText(chapterOgImageUrl, resolvedProjectOgImageUrl);
+  const resolvedPostImageUrl = pickFirstText(
+    postImageUrl,
+    safePost.coverImageUrl,
+    resolvedPostOgImageUrl,
+    fallbackSiteImageUrl,
+    DEFAULT_IMAGE_PLACEHOLDER_PATH,
+  );
+  const resolvedProjectImageUrl = pickFirstText(
+    projectImageUrl,
+    safeProject.cover,
+    safeProject.heroImageUrl,
+    safeProject.banner,
+    resolvedProjectOgImageUrl,
+    fallbackSiteImageUrl,
+    DEFAULT_IMAGE_PLACEHOLDER_PATH,
+  );
+  const resolvedProjectBackdropImageUrl = pickFirstText(
+    projectBackdropImageUrl,
+    safeProject.banner,
+    safeProject.heroImageUrl,
+    safeProject.cover,
+    resolvedProjectOgImageUrl,
+    fallbackSiteImageUrl,
+    DEFAULT_IMAGE_PLACEHOLDER_PATH,
+  );
+  const resolvedChapterImageUrl = pickFirstText(
+    chapterImageUrl,
+    chapterCoverImageUrl,
+    safeProject.banner,
+    safeProject.cover,
+    resolvedChapterOgImageUrl,
+    resolvedProjectOgImageUrl,
+    fallbackSiteImageUrl,
+    DEFAULT_IMAGE_PLACEHOLDER_PATH,
+  );
 
   return {
     event: {
@@ -882,6 +943,8 @@ export const buildEditorialEventContext = ({
       tags: asArray(safePost.tags).map((item) => String(item || "")).filter(Boolean),
       coverImageUrl: String(safePost.coverImageUrl || ""),
       coverAlt: String(safePost.coverAlt || ""),
+      imageUrl: resolvedPostImageUrl,
+      ogImageUrl: resolvedPostOgImageUrl,
     },
     project: {
       id: projectId,
@@ -909,6 +972,9 @@ export const buildEditorialEventContext = ({
       startDate: String(safeProject.startDate || ""),
       endDate: String(safeProject.endDate || ""),
       trailerUrl: String(safeProject.trailerUrl || ""),
+      imageUrl: resolvedProjectImageUrl,
+      backdropImageUrl: resolvedProjectBackdropImageUrl,
+      ogImageUrl: resolvedProjectOgImageUrl,
     },
     chapter: {
       number: Number.isFinite(Number(safeChapter.number)) ? Number(safeChapter.number) : "",
@@ -918,6 +984,8 @@ export const buildEditorialEventContext = ({
       releaseDate: String(safeChapter.releaseDate || ""),
       updatedAt: String(safeChapter.updatedAt || ""),
       coverImageUrl: chapterCoverImageUrl,
+      imageUrl: resolvedChapterImageUrl,
+      ogImageUrl: resolvedChapterOgImageUrl,
     },
     update: {
       kind: String(safeUpdate.kind || ""),

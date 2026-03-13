@@ -48,8 +48,11 @@ describe("html bootstrap injection", () => {
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC_ME__ = ");
     expect(result).toContain("window.__BOOTSTRAP_SKIP_PUBLIC_FETCH__ = false");
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC_PROMISE__");
-    expect(result).toContain("resolveThemeColorSection");
-    expect(result).toContain("window.location.pathname");
+    expect(result).toContain("normalizeThemeColor");
+    expect(result).toContain("meta.setAttribute('content', normalizeThemeColor(accentHex));");
+    expect(result).not.toContain("resolveThemeColorSection");
+    expect(result).not.toContain("THEME_COLOR_OFFSETS");
+    expect(result).not.toContain("applyThemeColor(window.location.pathname");
     expect(result).toContain("fetch('/api/public/bootstrap'");
     expect(result).toContain('rel="preload"');
     expect(result).toContain('href="/uploads/_variants/hero-v1.avif"');

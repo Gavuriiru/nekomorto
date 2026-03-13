@@ -22,12 +22,17 @@ import { Button } from "@/components/ui/button";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import {
+  readWindowPublicBootstrapCurrentUser,
+  type PublicBootstrapCurrentUser,
+} from "@/lib/public-bootstrap-global";
 import { Plus, Save, Send, Trash2 } from "lucide-react";
 
 type ChannelKey = "posts" | "projects";
@@ -57,6 +62,14 @@ type TemplateEmbed = {
 };
 type Template = { content: string; embed: TemplateEmbed };
 type TypeRole = { type: string; roleId: string; enabled: boolean; order: number };
+type DashboardCurrentUser = {
+  id: string;
+  name: string;
+  username: string;
+  avatarUrl?: string | null;
+  permissions?: string[];
+  grants?: Partial<Record<string, boolean>>;
+};
 
 type EditorialSettings = {
   version: 1;
@@ -132,6 +145,8 @@ const POST_PLACEHOLDERS = [
   "post.tags",
   "post.coverImageUrl",
   "post.coverAlt",
+  "post.imageUrl",
+  "post.ogImageUrl",
 ];
 
 const PROJECT_PLACEHOLDERS = [
@@ -143,6 +158,9 @@ const PROJECT_PLACEHOLDERS = [
   "project.cover",
   "project.banner",
   "project.heroImageUrl",
+  "project.imageUrl",
+  "project.backdropImageUrl",
+  "project.ogImageUrl",
   "project.synopsis",
   "project.tags",
   "project.genres",
@@ -156,6 +174,8 @@ const CHAPTER_PLACEHOLDERS = [
   "chapter.releaseDate",
   "chapter.updatedAt",
   "chapter.coverImageUrl",
+  "chapter.imageUrl",
+  "chapter.ogImageUrl",
 ];
 
 const UPDATE_PLACEHOLDERS = [
@@ -212,8 +232,8 @@ const defaultTemplate = (eventKey: EventKey): Template => ({
     authorName: eventKey.startsWith("post") ? "{{author.name}}" : "{{event.label}}",
     authorIconUrl: eventKey.startsWith("post") ? "{{author.avatarUrl}}" : "{{site.logoUrl}}",
     authorUrl: "{{site.url}}",
-    thumbnailUrl: eventKey.startsWith("post") ? "{{post.coverImageUrl}}" : "{{project.cover}}",
-    imageUrl: "{{project.banner}}",
+    thumbnailUrl: eventKey.startsWith("post") ? "{{post.imageUrl}}" : "{{project.imageUrl}}",
+    imageUrl: eventKey.startsWith("post") ? "{{project.backdropImageUrl}}" : "{{chapter.imageUrl}}",
     fields: eventKey.startsWith("post")
       ? [
           { name: "Status", value: "{{post.status}}", inline: true },
@@ -311,19 +331,70 @@ const normalizeHexColor = (value: string, fallback: string) => {
   return fallback;
 };
 
+const asDashboardCurrentUser = (
+  value: PublicBootstrapCurrentUser | null,
+): DashboardCurrentUser | null => {
+  if (!value) {
+    return null;
+  }
+  return {
+    id: value.id,
+    name: value.name,
+    username: value.username,
+    avatarUrl: value.avatarUrl,
+    permissions: value.permissions,
+    grants: value.grants,
+  };
+};
+
+const WebhookSectionSkeleton = ({
+  title,
+  description,
+  testId,
+  delayMs,
+}: {
+  title: string;
+  description: string;
+  testId: string;
+  delayMs: number;
+}) => (
+  <section
+    className="rounded-xl border border-border/60 bg-card/80 px-4 py-4 animate-slide-up opacity-0"
+    style={dashboardAnimationDelay(delayMs)}
+    data-testid={testId}
+  >
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h2 className="text-sm font-semibold">{title}</h2>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+        <Skeleton className="h-9 w-24 shrink-0" />
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <Skeleton className="h-10 md:col-span-2" />
+        <Skeleton className="h-10" />
+        <Skeleton className="h-10" />
+      </div>
+      <Skeleton className="h-12 w-full" />
+      <div className="space-y-3">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    </div>
+  </section>
+);
+
 const DashboardWebhooks = () => {
   usePageMeta({ title: "Webhooks", noIndex: true });
   const navigate = useNavigate();
   const apiBase = getApiBase();
+  const bootstrapCurrentUser = useMemo(() => readWindowPublicBootstrapCurrentUser(), []);
 
-  const [currentUser, setCurrentUser] = useState<{
-    id: string;
-    name: string;
-    username: string;
-    permissions?: string[];
-    grants?: Partial<Record<string, boolean>>;
-  } | null>(null);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [currentUser, setCurrentUser] = useState<DashboardCurrentUser | null>(() =>
+    asDashboardCurrentUser(bootstrapCurrentUser),
+  );
+  const [isLoadingUser, setIsLoadingUser] = useState(() => !bootstrapCurrentUser);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadError, setHasLoadError] = useState(false);
   const [projectTypes, setProjectTypes] = useState<string[]>(DEFAULT_PROJECT_TYPES);
@@ -409,8 +480,11 @@ const DashboardWebhooks = () => {
   }, [apiBase]);
 
   useEffect(() => {
+    if (bootstrapCurrentUser) {
+      return;
+    }
     void loadCurrentUser();
-  }, [loadCurrentUser]);
+  }, [bootstrapCurrentUser, loadCurrentUser]);
 
   useEffect(() => {
     void loadSettings();
@@ -697,31 +771,6 @@ const DashboardWebhooks = () => {
     }
   }, [apiBase]);
 
-  if (isLoading) {
-    return (
-      <DashboardShell currentUser={currentUser} isLoadingUser={isLoadingUser} onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}>
-        <DashboardPageContainer reveal={false}>
-          <AsyncState kind="loading" title="Carregando webhooks" description="Buscando configurações editoriais." />
-        </DashboardPageContainer>
-      </DashboardShell>
-    );
-  }
-
-  if (hasLoadError) {
-    return (
-      <DashboardShell currentUser={currentUser} isLoadingUser={isLoadingUser} onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}>
-        <DashboardPageContainer reveal={false}>
-          <AsyncState
-            kind="error"
-            title="Falha ao carregar"
-            description="Não foi possível buscar os webhooks editoriais."
-            action={<Button onClick={() => void loadSettings()}>Tentar novamente</Button>}
-          />
-        </DashboardPageContainer>
-      </DashboardShell>
-    );
-  }
-
   if (!isLoadingUser && !canManageIntegrations) {
     return (
       <DashboardShell currentUser={currentUser} isLoadingUser={isLoadingUser} onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}>
@@ -749,14 +798,42 @@ const DashboardWebhooks = () => {
               type="button"
               className="gap-2"
               onClick={() => void handleSaveAll()}
-              disabled={isSavingAll}
+              disabled={isSavingAll || isLoading || hasLoadError}
             >
               <Save className="h-4 w-4" />
               {isSavingAll ? "Salvando..." : "Salvar"}
             </Button>
           }
         />
-
+        {hasLoadError ? (
+          <AsyncState
+            kind="error"
+            title="Falha ao carregar"
+            description="Não foi possível buscar os webhooks editoriais."
+            action={<Button onClick={() => void loadSettings()}>Tentar novamente</Button>}
+          />
+        ) : isLoading ? (
+          <div className="space-y-4">
+            <WebhookSectionSkeleton
+              title="Tipos e menções"
+              description="Carregando roles e mapeamentos por tipo."
+              testId="dashboard-webhooks-loading-section-types"
+              delayMs={SECTION_REVEAL_DELAYS.types}
+            />
+            <WebhookSectionSkeleton
+              title="Posts"
+              description="Carregando eventos e templates de posts."
+              testId="dashboard-webhooks-loading-section-posts"
+              delayMs={SECTION_REVEAL_DELAYS.posts}
+            />
+            <WebhookSectionSkeleton
+              title="Projetos"
+              description="Carregando eventos e templates de projetos."
+              testId="dashboard-webhooks-loading-section-projects"
+              delayMs={SECTION_REVEAL_DELAYS.projects}
+            />
+          </div>
+        ) : (
         <Accordion
           type="multiple"
           value={openSections}
@@ -1193,6 +1270,7 @@ const DashboardWebhooks = () => {
             );
           })}
         </Accordion>
+        )}
       </DashboardPageContainer>
     </DashboardShell>
   );

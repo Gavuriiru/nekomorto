@@ -35,6 +35,20 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     status,
     json: async () => payload,
   }) as Response;
+
+const createDeferredResponse = () => {
+  let resolve: ((value: Response) => void) | null = null;
+  const promise = new Promise<Response>((res) => {
+    resolve = res;
+  });
+  return {
+    promise,
+    resolve: (value: Response) => {
+      resolve?.(value);
+    },
+  };
+};
+
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
@@ -67,8 +81,8 @@ const baseSettings = {
             authorName: "{{author.name}}",
             authorIconUrl: "{{author.avatarUrl}}",
             authorUrl: "{{site.url}}",
-            thumbnailUrl: "{{post.coverImageUrl}}",
-            imageUrl: "{{project.banner}}",
+            thumbnailUrl: "{{post.imageUrl}}",
+            imageUrl: "{{project.backdropImageUrl}}",
             fields: [],
           },
         },
@@ -84,8 +98,8 @@ const baseSettings = {
             authorName: "{{author.name}}",
             authorIconUrl: "{{author.avatarUrl}}",
             authorUrl: "{{site.url}}",
-            thumbnailUrl: "{{post.coverImageUrl}}",
-            imageUrl: "{{project.banner}}",
+            thumbnailUrl: "{{post.imageUrl}}",
+            imageUrl: "{{project.backdropImageUrl}}",
             fields: [],
           },
         },
@@ -110,8 +124,8 @@ const baseSettings = {
             authorName: "{{event.label}}",
             authorIconUrl: "{{site.logoUrl}}",
             authorUrl: "{{site.url}}",
-            thumbnailUrl: "{{project.cover}}",
-            imageUrl: "{{project.banner}}",
+            thumbnailUrl: "{{project.imageUrl}}",
+            imageUrl: "{{chapter.imageUrl}}",
             fields: [],
           },
         },
@@ -127,8 +141,8 @@ const baseSettings = {
             authorName: "{{event.label}}",
             authorIconUrl: "{{site.logoUrl}}",
             authorUrl: "{{site.url}}",
-            thumbnailUrl: "{{project.cover}}",
-            imageUrl: "{{project.banner}}",
+            thumbnailUrl: "{{project.imageUrl}}",
+            imageUrl: "{{chapter.imageUrl}}",
             fields: [],
           },
         },
@@ -200,6 +214,56 @@ describe("DashboardWebhooks layout", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
     toastMock.mockReset();
+    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = undefined;
+  });
+
+  it("mantem shell e placeholders de secao enquanto settings carregam sem refazer /api/me com bootstrap", async () => {
+    const settingsDeferred = createDeferredResponse();
+    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = {
+      id: "user-1",
+      name: "Admin",
+      username: "admin",
+      avatarUrl: null,
+      permissions: ["integracoes"],
+      grants: { integracoes: true },
+    };
+
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (path === "/api/integrations/webhooks/editorial" && method === "GET") {
+        return settingsDeferred.promise;
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: /Webhooks editoriais/i })).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-webhooks-loading-section-types")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-webhooks-loading-section-posts")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-webhooks-loading-section-projects")).toBeInTheDocument();
+    expect(screen.queryByText(/Carregando webhooks/i)).not.toBeInTheDocument();
+    expect(
+      apiFetchMock.mock.calls.some(
+        (call) =>
+          String(call[1] || "") === "/api/me" &&
+          String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase() === "GET",
+      ),
+    ).toBe(false);
+
+    settingsDeferred.resolve(
+      mockJsonResponse(true, {
+        settings: baseSettings,
+        projectTypes: ["Anime", "Manga"],
+      }),
+    );
+
+    expect(await screen.findByText(/Role geral de lan/i)).toBeInTheDocument();
   });
 
   it("inicia com accordion principal aberto, internos colapsados e organiza o editor na ordem esperada", async () => {
@@ -229,9 +293,15 @@ describe("DashboardWebhooks layout", () => {
       expect(screen.getByText(/Conte.*da mensagem/i)).toBeInTheDocument();
     });
 
+    expect(screen.getByDisplayValue("{{post.imageUrl}}")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("{{project.backdropImageUrl}}")).toBeInTheDocument();
+
     expect(screen.getByText(/^#[0-9A-F]{6}$/i)).toBeInTheDocument();
     expect(screen.getByText("{{mention.type}}")).toBeInTheDocument();
     expect(screen.getByText("{{mention.release}}")).toBeInTheDocument();
+    expect(screen.getByText("{{post.imageUrl}}")).toBeInTheDocument();
+    expect(screen.getByText("{{post.ogImageUrl}}")).toBeInTheDocument();
+    expect(screen.getByText("{{project.backdropImageUrl}}")).toBeInTheDocument();
     expect(screen.queryByText("{{mention.category}}")).not.toBeInTheDocument();
     expect(screen.queryByText("{{mention.general}}")).not.toBeInTheDocument();
 
@@ -242,6 +312,17 @@ describe("DashboardWebhooks layout", () => {
     expectBefore(/Campos da embed/i, /URL da imagem/i);
     expectBefore(/URL da imagem/i, /Rodap/i);
     expectBefore(/Rodap/i, /Cor da embed/i);
+
+    fireEvent.click(screen.getByRole("button", { name: /Novo lan/i }));
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("{{project.imageUrl}}")).toBeInTheDocument();
+    });
+    expect(screen.getByDisplayValue("{{chapter.imageUrl}}")).toBeInTheDocument();
+    expect(screen.getAllByText("{{project.imageUrl}}").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("{{project.ogImageUrl}}").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("{{chapter.imageUrl}}").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("{{chapter.ogImageUrl}}").length).toBeGreaterThan(0);
   });
 
   it("permite carregar a página quando o acesso vem por grants em vez de permissions", async () => {
