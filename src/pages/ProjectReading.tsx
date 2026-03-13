@@ -12,6 +12,7 @@ import type { Project } from "@/data/projects";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useDeferredVisibility } from "@/hooks/use-deferred-visibility";
 import { getApiBase } from "@/lib/api-base";
+import { normalizeAssetUrl } from "@/lib/asset-url";
 import { apiFetch } from "@/lib/api-client";
 import { createSlug } from "@/lib/post-content";
 import {
@@ -32,6 +33,11 @@ import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicBootstrapPayload, PublicBootstrapProject } from "@/types/public-bootstrap";
+import {
+  buildProjectReadingOgImagePath,
+  buildProjectReadingOgRevision,
+  resolveProjectReadingOgSnapshot,
+} from "../../shared/project-reading-og-seo.js";
 import NotFound from "./NotFound";
 
 const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
@@ -337,11 +343,75 @@ const ProjectReading = () => {
     project,
   ]);
 
+  const readingOgSnapshot = useMemo(
+    () =>
+      resolveProjectReadingOgSnapshot({
+        project,
+        chapterNumber,
+        volume: activeVolume,
+        settings: bootstrapData?.settings,
+        tagTranslations: bootstrapData?.tagTranslations?.tags,
+        genreTranslations: bootstrapData?.tagTranslations?.genres,
+      }),
+    [
+      activeVolume,
+      bootstrapData?.settings,
+      bootstrapData?.tagTranslations?.genres,
+      bootstrapData?.tagTranslations?.tags,
+      chapterNumber,
+      project,
+    ],
+  );
+
+  const readingOgRevision = useMemo(
+    () =>
+      buildProjectReadingOgRevision({
+        project,
+        chapterNumber,
+        volume: activeVolume,
+        settings: bootstrapData?.settings,
+        tagTranslations: bootstrapData?.tagTranslations?.tags,
+        genreTranslations: bootstrapData?.tagTranslations?.genres,
+      }),
+    [
+      activeVolume,
+      bootstrapData?.settings,
+      bootstrapData?.tagTranslations?.genres,
+      bootstrapData?.tagTranslations?.tags,
+      chapterNumber,
+      project,
+    ],
+  );
+
+  const readingOgImage = useMemo(() => {
+    if (!project?.id || !readingOgSnapshot || !readingOgRevision) {
+      return "";
+    }
+    return normalizeAssetUrl(
+      buildProjectReadingOgImagePath({
+        projectId: project.id,
+        chapterNumber: readingOgSnapshot.chapterNumberResolved ?? chapterNumber,
+        volume: readingOgSnapshot.volumeResolved,
+        revision: readingOgRevision,
+      }),
+    );
+  }, [chapterNumber, project?.id, readingOgRevision, readingOgSnapshot]);
+
+  const projectOgImage = useMemo(
+    () =>
+      project?.id ? normalizeAssetUrl(`/api/og/project/${encodeURIComponent(project.id)}`) : "",
+    [project?.id],
+  );
+
+  const readingOgImageAlt = useMemo(() => {
+    return String(readingOgSnapshot?.imageAlt || "").trim();
+  }, [readingOgSnapshot]);
+
   usePageMeta({
     title: pageTitle,
     description: resolvedChapterSynopsis,
-    image: heroImage,
-    imageAlt: heroImageAlt,
+    image: readingOgImage || projectOgImage || heroImage,
+    imageAlt: readingOgImage ? readingOgImageAlt : projectOgImage ? `Card de compartilhamento do projeto ${project?.title || ""}` : heroImageAlt,
     mediaVariants,
     type: "article",
   });

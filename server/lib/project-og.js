@@ -19,7 +19,7 @@ const DEFAULT_BACKGROUND = "#02050b";
 const EYEBROW_SEPARATOR = "\u2022";
 const TRANSPARENT_PIXEL_DATA_URL =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
-const TITLE_DIAGONAL_INSET = 64;
+export const TITLE_DIAGONAL_INSET = 64;
 const TITLE_FONT_SIZE_STEP = 0.5;
 const TITLE_EMERGENCY_MIN_FONT_SIZE = 28;
 const TITLE_VISUAL_MIN_REFERENCE_TEXT =
@@ -504,7 +504,7 @@ const getFontParserByWeight = (weight) => {
   }
 };
 
-const measureTextWidth = ({ text, fontSize, fontWeight }) => {
+export const measureTextWidth = ({ text, fontSize, fontWeight }) => {
   const normalizedText = String(text || "");
   if (!normalizedText) {
     return 0;
@@ -633,7 +633,7 @@ const getPanelDiagonalSegment = (layout = DEFAULT_LAYOUT) => {
   };
 };
 
-const getDiagonalXAtY = ({ layout = DEFAULT_LAYOUT, y }) => {
+export const getDiagonalXAtY = ({ layout = DEFAULT_LAYOUT, y }) => {
   const segment = getPanelDiagonalSegment(layout);
   const startY = Number(segment?.start?.y);
   const endY = Number(segment?.end?.y);
@@ -682,7 +682,14 @@ const buildTitleLineLayouts = ({ lines, layout = DEFAULT_LAYOUT, fontSize }) =>
     }),
   }));
 
-const buildTitleCandidate = ({ text, layout = DEFAULT_LAYOUT, fontSize, lines, truncated }) => {
+const buildTitleCandidate = ({
+  text,
+  layout = DEFAULT_LAYOUT,
+  fontSize,
+  lines,
+  truncated,
+  subtitleHeightOverride,
+}) => {
   const titleHeight = lines.length * fontSize * TITLE_LINE_HEIGHT;
   const lineLayouts = buildTitleLineLayouts({
     lines,
@@ -695,7 +702,10 @@ const buildTitleCandidate = ({ text, layout = DEFAULT_LAYOUT, fontSize, lines, t
   );
   const subtitleTop =
     lines.length <= 1 ? layout.subtitleBaseTop : layout.titleTop + titleHeight + layout.subtitleGap;
-  const subtitleHeight = layout.subtitleFontSize * 1.2;
+  const subtitleHeight =
+    Number.isFinite(Number(subtitleHeightOverride)) && Number(subtitleHeightOverride) > 0
+      ? Number(subtitleHeightOverride)
+      : layout.subtitleFontSize * 1.2;
   const subtitleBottom = subtitleTop + subtitleHeight;
   const subtitleBottomLimit = layout.tagsTop - layout.subtitleLimitGap;
   return {
@@ -730,8 +740,15 @@ const buildUnlimitedTitleLines = ({ text, layout = DEFAULT_LAYOUT, fontSize }) =
     maxLines: 999,
   });
 
-const resolveTechnicalTitleMaxLines = ({ layout = DEFAULT_LAYOUT, fontSize }) => {
-  const subtitleHeight = Number(layout.subtitleFontSize) * 1.2;
+const resolveTechnicalTitleMaxLines = ({
+  layout = DEFAULT_LAYOUT,
+  fontSize,
+  subtitleHeightOverride,
+}) => {
+  const subtitleHeight =
+    Number.isFinite(Number(subtitleHeightOverride)) && Number(subtitleHeightOverride) > 0
+      ? Number(subtitleHeightOverride)
+      : Number(layout.subtitleFontSize) * 1.2;
   const availableHeight =
     Number(layout.tagsTop) -
     Number(layout.subtitleLimitGap) -
@@ -846,7 +863,7 @@ const wrapTextLinesByLineWidths = ({
   return trimmed;
 };
 
-const buildTitleLayout = (title, layout = DEFAULT_LAYOUT) => {
+const buildTitleLayout = (title, layout = DEFAULT_LAYOUT, { subtitleHeightOverride } = {}) => {
   const normalizedTitle = String(title || "").trim() || "Projeto";
   const visualMinFontSize = Number(layout.titleMinFontSize) || resolveProjectOgTitleVisualMinFontSize(layout);
   const regularFontSizes = buildDescendingFontSizes({
@@ -874,6 +891,7 @@ const buildTitleLayout = (title, layout = DEFAULT_LAYOUT) => {
       fontSize,
       lines: fullLines,
       truncated: false,
+      subtitleHeightOverride,
     });
     if (completeCandidate.fitsWithinSubtitleLimit) {
       return {
@@ -899,6 +917,7 @@ const buildTitleLayout = (title, layout = DEFAULT_LAYOUT) => {
   const technicalMaxLines = resolveTechnicalTitleMaxLines({
     layout,
     fontSize: technicalFallbackFontSize,
+    subtitleHeightOverride,
   });
   const technicalFallbackLines = wrapTextLinesByLineWidths({
     text: normalizedTitle,
@@ -918,6 +937,7 @@ const buildTitleLayout = (title, layout = DEFAULT_LAYOUT) => {
     fontSize: technicalFallbackFontSize,
     lines: technicalFallbackLines,
     truncated: true,
+    subtitleHeightOverride,
   });
   return {
     text: resolvedCandidate.text,
@@ -1456,10 +1476,64 @@ const buildEyebrowNode = (model) => {
 };
 
 const buildSubtitleNode = (model) => {
+  const subtitleLineLayouts =
+    Array.isArray(model.subtitleLineLayouts) && model.subtitleLineLayouts.length > 0
+      ? model.subtitleLineLayouts
+      : null;
+  if (subtitleLineLayouts) {
+    const lineHeightPx =
+      (Number(model.layout?.subtitleFontSize) || 0) * 1.2;
+    const subtitleHeight =
+      Number(model.subtitleHeight) || subtitleLineLayouts.length * lineHeightPx;
+    const subtitleRenderWidth = Math.max(
+      0,
+      ...subtitleLineLayouts.map((line) => Number(line.maxWidth) || 0),
+    );
+
+    return createElement(
+      "div",
+      {
+        style: {
+          position: "absolute",
+          left: model.layout.subtitleLeft,
+          top: model.subtitleTop,
+          width: subtitleRenderWidth,
+          height: subtitleHeight,
+          display: "flex",
+          flexDirection: "column",
+          color: model.palette.accentPrimary,
+          fontFamily: "Geist",
+          fontSize: model.layout.subtitleFontSize,
+          fontWeight: SUBTITLE_FONT_WEIGHT,
+          lineHeight: 1.2,
+        },
+      },
+      ...subtitleLineLayouts.map((line, index) =>
+        createElement(
+          "div",
+          {
+            key: `subtitle-line-${index}`,
+            style: {
+              width: Number(line.maxWidth) || subtitleRenderWidth,
+              maxWidth: Number(line.maxWidth) || subtitleRenderWidth,
+              height: lineHeightPx,
+              display: "block",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+            },
+          },
+          String(line.text || ""),
+        ),
+      ),
+    );
+  }
+
   const subtitle = String(model.subtitle || "").trim();
   if (!subtitle) {
     return null;
   }
+  const shouldNoWrap = Boolean(model.subtitleNoWrap);
+  const subtitleWidth = Number(model.layout?.subtitleMaxWidth) || 0;
   return createElement(
     "div",
     {
@@ -1468,7 +1542,17 @@ const buildSubtitleNode = (model) => {
         left: model.layout.subtitleLeft,
         top: model.subtitleTop,
         maxWidth: model.layout.subtitleMaxWidth,
-        display: "flex",
+        ...(shouldNoWrap && subtitleWidth > 0
+          ? {
+              width: subtitleWidth,
+              display: "block",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }
+          : {
+              display: "flex",
+            }),
         color: model.palette.accentPrimary,
         fontFamily: "Geist",
         fontSize: model.layout.subtitleFontSize,
@@ -1727,11 +1811,12 @@ export const buildProjectOgCardModel = ({
   genreTranslations,
   origin,
   resolveVariantUrl,
+  titleLayoutOptions,
 }) => {
   const safeProject = project && typeof project === "object" ? project : {};
   const layout = cloneLayout();
   const title = String(safeProject.title || "").trim() || "Projeto";
-  const titleLayout = buildTitleLayout(title, layout);
+  const titleLayout = buildTitleLayout(title, layout, titleLayoutOptions);
   const subtitle = truncateText(resolveProjectOgSubtitle(safeProject), 42);
   const eyebrowParts = [safeProject.type, safeProject.status]
     .map((value) => String(value || "").trim())

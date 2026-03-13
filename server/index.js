@@ -126,6 +126,15 @@ import {
   getProjectOgCachedRender,
   prewarmProjectOgCache,
 } from "./lib/project-og-delivery.js";
+import {
+  buildProjectReadingOgCardModel,
+} from "./lib/project-reading-og.js";
+import {
+  buildProjectReadingOgDeliveryHeaders,
+  buildProjectReadingOgRevisionValue,
+  buildVersionedProjectReadingOgImagePath,
+  getProjectReadingOgCachedRender,
+} from "./lib/project-reading-og-delivery.js";
 import { findDuplicateVolumeCover } from "./lib/project-volume-covers.js";
 import {
   normalizeLegacyInviteCardText,
@@ -2174,6 +2183,65 @@ const buildProjectMeta = (
     image,
     imageAlt,
     url: `${PRIMARY_APP_ORIGIN}/projeto/${project?.id || ""}`,
+    type: "article",
+    siteName,
+    favicon: settings.site?.faviconUrl || "",
+  };
+};
+
+const buildProjectReadingMeta = (
+  project,
+  {
+    chapterNumber,
+    volume,
+    settings = loadSiteSettings(),
+    translations = loadTagTranslations(),
+  } = {},
+) => {
+  const model = buildProjectReadingOgCardModel({
+    project,
+    chapterNumber,
+    volume,
+    settings,
+    tagTranslations: translations?.tags,
+    genreTranslations: translations?.genres,
+    origin: PRIMARY_APP_ORIGIN,
+    resolveVariantUrl: resolveMetaImageVariantUrl,
+  });
+  if (!model) {
+    return null;
+  }
+
+  const siteName = settings.site?.name || "Nekomata";
+  const title = model?.seoTitle ? `${model.seoTitle} | ${siteName}` : siteName;
+  const description = truncateMetaDescription(
+    stripHtml(model?.seoDescription || "") || settings.site?.description || "",
+  );
+  const imageRevision = buildProjectReadingOgRevisionValue({
+    project,
+    chapterNumber,
+    volume,
+    settings,
+    translations,
+  });
+  const image = buildVersionedProjectReadingOgImagePath({
+    projectId: project?.id || "",
+    chapterNumber: model.chapterNumberResolved ?? chapterNumber,
+    volume: model.volumeResolved,
+    revision: imageRevision,
+  });
+  const volumeQuery = Number.isFinite(Number(model.volumeResolved))
+    ? `?volume=${encodeURIComponent(String(model.volumeResolved))}`
+    : "";
+
+  return {
+    title,
+    description,
+    image,
+    imageAlt:
+      String(model?.imageAlt || "").trim() ||
+      `Card de compartilhamento da leitura de ${String(project?.title || "Projeto").trim() || "Projeto"}`,
+    url: `${PRIMARY_APP_ORIGIN}/projeto/${encodeURIComponent(String(project?.id || "").trim())}/leitura/${encodeURIComponent(String(model.chapterNumberResolved ?? chapterNumber))}${volumeQuery}`,
     type: "article",
     siteName,
     favicon: settings.site?.faviconUrl || "",
@@ -15627,6 +15695,49 @@ app.post("/api/logout", (req, res) => {
   res.json({ ok: true });
 });
 
+app.get("/api/og/project/:id/reading/:chapter", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const chapterNumber = Number(req.params.chapter);
+  const volume = Number(req.query?.volume);
+  const project = getPublicVisibleProjects().find((item) => String(item?.id || "").trim() === id);
+  if (!project || !Number.isFinite(chapterNumber)) {
+    return res.status(404).type("text/plain").send("not_found");
+  }
+
+  try {
+    const settings = loadSiteSettings();
+    const translations = loadTagTranslations();
+    const rendered = await getProjectReadingOgCachedRender({
+      project,
+      chapterNumber,
+      volume: Number.isFinite(volume) ? volume : undefined,
+      settings,
+      translations,
+      origin: PRIMARY_APP_ORIGIN,
+      resolveVariantUrl: resolveMetaImageVariantUrl,
+      ogRenderCache,
+    });
+    if (!rendered) {
+      return res.status(404).type("text/plain").send("not_found");
+    }
+
+    const deliveryHeaders = buildProjectReadingOgDeliveryHeaders({
+      cacheHit: rendered.cacheHit,
+      timings: rendered.timings,
+    });
+
+    res.setHeader("Content-Type", rendered.contentType || "image/png");
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
+    res.setHeader("X-OG-Cache", deliveryHeaders.cache);
+    if (deliveryHeaders.serverTiming) {
+      res.setHeader("Server-Timing", deliveryHeaders.serverTiming);
+    }
+    return res.status(200).send(Buffer.from(rendered.buffer));
+  } catch {
+    return res.status(500).type("text/plain").send("image_generation_failed");
+  }
+});
+
 app.get("/api/og/project/:id", async (req, res) => {
   const id = String(req.params.id || "").trim();
   const project = getPublicVisibleProjects().find((item) => String(item?.id || "").trim() === id);
@@ -15758,6 +15869,7 @@ app.get(
   async (req, res) => {
     try {
       const settings = loadSiteSettings();
+      const translations = loadTagTranslations();
       const pages = loadPages();
       const canonicalUrl = `${PRIMARY_APP_ORIGIN}${req.path}`;
       const routeThemeColor = resolveRouteThemeColor({
@@ -15793,11 +15905,25 @@ app.get(
       if (req.path.startsWith("/projeto/") || req.path.startsWith("/projetos/")) {
         const id = String(req.params.id || "");
         const project = normalizeProjects(loadProjects()).find((item) => String(item.id) === id);
+        const isReadingRoute = /^\/projeto(?:s)?\/.+\/leitura\/.+/.test(String(req.path || ""));
+        const chapterNumber = Number(req.params.chapter);
+        const routeVolume = Number(req.query?.volume);
         const meta = project
-          ? buildProjectMeta(project, {
-              settings,
-              translations: loadTagTranslations(),
-            })
+          ? isReadingRoute
+            ? buildProjectReadingMeta(project, {
+                chapterNumber,
+                volume: Number.isFinite(routeVolume) ? routeVolume : undefined,
+                settings,
+                translations,
+              }) ||
+              buildProjectMeta(project, {
+                settings,
+                translations,
+              })
+            : buildProjectMeta(project, {
+                settings,
+                translations,
+              })
           : buildSiteMetaWithSettings(settings);
         const structuredData = buildSchemaOrgPayload({
           origin: PRIMARY_APP_ORIGIN,
