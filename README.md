@@ -233,60 +233,77 @@ Observacoes importantes para `NODE_ENV=production`:
 
 ## 7. Variaveis de Ambiente (guia completo)
 
-Arquivo base para desenvolvimento:
+Arquivos oficiais desta secao:
 
-- `.env.example`
+- `dev base`: `.env.example`
+- `prod compose`: `ops/prod/.env.prod.example`
+- `dev deploy`: `ops/dev/.env.dev.example`
 
-Arquivo base para producao com Docker Compose:
+Convencoes usadas nas tabelas:
 
-- `ops/prod/.env.prod.example`
+- `bool backend`: aceita `true/false/1/0/yes/no/on/off`
+- `bool frontend flexivel`: aceita `true/false/1/0/yes/no/on/off`
+- `bool frontend estrito`: somente `true` habilita; qualquer outro valor cai no default
+- `CSV`: lista separada por virgula; espacos sao ignorados quando aplicavel
+- `URL http(s)` / `origem http(s)`: URL absoluta com schema; `APP_ORIGIN` e `ADMIN_ORIGINS` usam apenas a origem
 
-### 7.1 Variaveis principais
+### 7.1 Runtime e rede
 
-| Variavel | Dev | Producao | Descricao |
-| --- | --- | --- | --- |
-| `DATABASE_URL` | obrigatoria | obrigatoria | String de conexao PostgreSQL. Sem ela o servidor nao sobe. |
-| `APP_ORIGIN` | opcional | obrigatoria | Lista de origens publicas permitidas (separadas por virgula). |
-| `SESSION_SECRET` | recomendada | obrigatoria | Segredo de sessao HTTP. |
-| `DISCORD_CLIENT_ID` | opcional | obrigatoria | OAuth Discord. |
-| `DISCORD_CLIENT_SECRET` | opcional | obrigatoria | OAuth Discord. |
-| `OWNER_IDS` | opcional | condicional | IDs dos owners iniciais (virgula). |
-| `BOOTSTRAP_TOKEN` | opcional | condicional | Token one-shot para criar primeiro owner quando `OWNER_IDS` estiver vazio. |
-| `PORT` | opcional | opcional | Porta HTTP da app (`8080` por padrao). |
-| `SESSION_TABLE` | opcional | opcional | Tabela de sessao (`user_sessions` por padrao). |
-| `MAINTENANCE_MODE` | opcional | opcional | Bloqueia mutacoes `POST/PUT/PATCH/DELETE` na API quando `true`. |
-| `APP_IMAGE_REPO` | n/a | opcional | Repositorio da imagem Docker da app em producao (`ghcr.io/gavuriiru/nekomorto` por padrao). |
-| `APP_IMAGE_TAG` | n/a | opcional | Tag da imagem usada no deploy (`latest` por padrao; no CI usamos `sha-<commit>`). |
-| `ADMIN_ORIGINS` | opcional | opcional | Origens extras para painel/admin. |
-| `DISCORD_REDIRECT_URI` | opcional | opcional | `auto` (padrao) ou URL absoluta fixa. |
-| `VITE_API_BASE` | opcional | opcional | Override da base de API no frontend. Em modo integrado/producao same-origin, deixe vazio. |
+| Variavel | Onde aparece | Obrigatoria quando | Default | Valores/Formato | Descricao |
+| --- | --- | --- | --- | --- | --- |
+| `NODE_ENV` | `dev base`, `prod compose`, `dev deploy` | sempre | sem fallback seguro; os exemplos definem `development` ou `production` | `development` ou `production` | Controla as regras de runtime. Em `production`, a app exige `APP_ORIGIN`, credenciais Discord e configuracao inicial de owner. |
+| `PORT` | `dev base`, `prod compose`, `dev deploy` | nunca | `8080` | inteiro de porta TCP | Porta HTTP da app. |
+| `DATABASE_URL` | `dev base`, `prod compose`, `dev deploy` | sempre | nenhum | string de conexao PostgreSQL | Sem ela o servidor nao sobe. |
+| `PRISMA_TX_TIMEOUT_MS` | `dev base` | nunca | `30000` | inteiro em ms, clamp `1-600000` | Timeout padrao das transacoes Prisma. |
+| `PRISMA_TX_MAX_WAIT_MS` | `dev base` | nunca | `5000` | inteiro em ms, clamp `1-600000` | Espera maxima na fila de transacoes Prisma. |
+| `MAINTENANCE_MODE` | `dev base`, `prod compose`, `dev deploy` | nunca | `false` | `bool backend` | Quando ligado, bloqueia mutacoes `POST/PUT/PATCH/DELETE` em `/api`. |
+| `STAGING_API_BASE` | `dev base` | nunca | vazio | `URL http(s)` | Base opcional para smoke/health checks durante cutover ou paridade com staging. |
+| `APP_ORIGIN` | `dev base`, `prod compose`, `dev deploy` | `production` | em dev, se vazio, o backend usa `http://127.0.0.1:5173` como origem primaria local | `CSV` de origens `http(s)` absolutas | Lista de origens publicas permitidas. A primeira origem valida vira host canonico para links, OG e auth fallback. |
+| `ADMIN_ORIGINS` | `prod compose`, `dev deploy` | nunca | vazio | `CSV` de origens `http(s)` absolutas | Origens extras autorizadas para painel/admin. Sao somadas a `APP_ORIGIN`. |
+| `VITE_API_BASE` | `dev base` | nunca | vazio | `URL http(s)` | Override opcional da base da API no frontend. Em same-origin, producao e tunel, deixe vazio. |
 
-Condicional em producao:
+### 7.2 Auth, sessao e bootstrap
 
-- `OWNER_IDS` ou `BOOTSTRAP_TOKEN`: pelo menos um dos dois precisa estar configurado.
+| Variavel | Onde aparece | Obrigatoria quando | Default | Valores/Formato | Descricao |
+| --- | --- | --- | --- | --- | --- |
+| `DISCORD_CLIENT_ID` | `dev base`, `prod compose`, `dev deploy` | `production` | vazio | string | Client ID do OAuth do Discord. |
+| `DISCORD_CLIENT_SECRET` | `dev base`, `prod compose`, `dev deploy` | `production` | vazio | string secreta | Client secret do OAuth do Discord. |
+| `DISCORD_REDIRECT_URI` | `dev base`, `prod compose`, `dev deploy` | nunca | `auto` | `auto` ou `URL http(s)` absoluta | Em `auto`, o callback vai para `<origem-permitida>/login`. Se definido manualmente, precisa ser URL absoluta valida. |
+| `SESSION_SECRET` | `dev base`, `prod compose`, `dev deploy` | `production`, exceto quando `SESSION_SECRETS` estiver preenchido | vazio; em dev, se `SESSION_SECRETS` tambem estiver vazio, cai no fallback inseguro `dev-session-secret` | string secreta longa | Segredo principal de sessao HTTP. |
+| `SESSION_SECRETS` | `dev base`, `prod compose`, `dev deploy` | nunca | vazio | `CSV` de secrets, mais novo primeiro | Lista de rotacao de secrets de sessao. Quando preenchida, substitui `SESSION_SECRET` como lista aceita e o primeiro valor vira o ativo. |
+| `SESSION_TABLE` | `dev base`, `prod compose`, `dev deploy` | nunca | `user_sessions` | nome de tabela SQL | Nome da tabela usada pelo `connect-pg-simple`. |
+| `OWNER_IDS` | `dev base`, `prod compose`, `dev deploy` | `production` quando `BOOTSTRAP_TOKEN` estiver vazio | vazio; em dev existe fallback interno para um owner local do projeto | `CSV` de IDs de usuario do Discord | Owners iniciais carregados no boot. |
+| `BOOTSTRAP_TOKEN` | `dev base`, `prod compose`, `dev deploy` | `production` quando `OWNER_IDS` estiver vazio | vazio | string secreta | Token one-shot para `POST /api/bootstrap-owner` criar o primeiro owner. |
 
-### 7.2 Variaveis opcionais relevantes
+Regra de producao:
 
-- `STAGING_API_BASE`
-- `ANALYTICS_IP_SALT`
-- `ANALYTICS_RETENTION_DAYS` (default: `90`)
-- `ANALYTICS_AGG_RETENTION_DAYS` (default: `365`)
-- `AUTO_UPLOAD_REORGANIZE_ON_STARTUP`
-- `RBAC_V2_ENABLED`
-- `RBAC_V2_ACCEPT_LEGACY_STAR`
-- `VITE_RBAC_V2_ENABLED`
-- `VITE_DASHBOARD_AUTOSAVE_ENABLED`
-- `VITE_DASHBOARD_AUTOSAVE_DEBOUNCE_MS`
-- `VITE_DASHBOARD_AUTOSAVE_RETRY_MAX`
-- `VITE_DASHBOARD_AUTOSAVE_RETRY_BASE_MS`
+- Configure `OWNER_IDS` ou `BOOTSTRAP_TOKEN`; pelo menos um dos dois precisa existir.
 
-### 7.3 Convencao de uploads
+### 7.3 Frontend e feature flags
 
-- O contrato publico de uploads do projeto e sempre `/uploads/...`.
-- O modo padrao continua sendo `local`.
-- A configuracao detalhada para storage externo fica na secao seguinte.
+| Variavel | Onde aparece | Obrigatoria quando | Default | Valores/Formato | Descricao |
+| --- | --- | --- | --- | --- | --- |
+| `VITE_PWA_DEV_ENABLED` | `dev base` | nunca | `false` | `bool frontend estrito` | Liga manifest, swap e workbox no dev do Vite. |
+| `VITE_DASHBOARD_AUTOSAVE_ENABLED` | `dev base` | nunca | `true` | `bool frontend flexivel` | Habilita autosave do dashboard por padrao. |
+| `VITE_DASHBOARD_AUTOSAVE_DEBOUNCE_MS` | `dev base` | nunca | `1200` | inteiro em ms, clamp `300-10000` | Debounce entre edicoes e envio do autosave. |
+| `VITE_DASHBOARD_AUTOSAVE_RETRY_MAX` | `dev base` | nunca | `2` | inteiro, clamp `0-5` | Quantidade maxima de retries do autosave. |
+| `VITE_DASHBOARD_AUTOSAVE_RETRY_BASE_MS` | `dev base` | nunca | `1500` | inteiro em ms, clamp `300-10000` | Base do backoff entre retries do autosave. |
+| `RBAC_V2_ENABLED` | `dev base`, `prod compose`, `dev deploy` | nunca | `false` | `bool backend` | Ativa o fluxo backend do RBAC v2. |
+| `RBAC_V2_ACCEPT_LEGACY_STAR` | `dev base`, `prod compose`, `dev deploy` | nunca | `true` | `bool backend` | Mantem compatibilidade com o atalho legado `*` ao migrar para RBAC v2. |
+| `VITE_RBAC_V2_ENABLED` | `dev base` | nunca | `false` | `bool frontend flexivel` | Liga o frontend para ler grants do RBAC v2. |
 
-### 7.4 Storage externo de uploads (local, S3 e R2)
+### 7.4 Analytics e comportamento operacional
+
+| Variavel | Onde aparece | Obrigatoria quando | Default | Valores/Formato | Descricao |
+| --- | --- | --- | --- | --- | --- |
+| `ANALYTICS_IP_SALT` | `dev base`, `prod compose`, `dev deploy` | nunca | vazio; se ficar vazio, o backend cai para `SESSION_SECRET` e depois `dev-analytics-salt` | string | Salt usado para hash de IP nos eventos de analytics. |
+| `ANALYTICS_RETENTION_DAYS` | `dev base`, `prod compose`, `dev deploy` | nunca | `90` | inteiro em dias, clamp `7-3650` | Retencao dos eventos brutos de analytics. |
+| `ANALYTICS_AGG_RETENTION_DAYS` | `dev base`, `prod compose`, `dev deploy` | nunca | `365` | inteiro em dias, clamp `30-3650` | Retencao dos agregados de analytics. |
+| `AUTO_UPLOAD_REORGANIZE_ON_STARTUP` | `dev base`, `prod compose`, `dev deploy` | nunca | `false` | `bool backend` | Executa a reorganizacao automatica de pastas de upload no startup. |
+| `OG_PUBLIC_TARGET_KB` | `dev base` | nunca | `350` | inteiro em KB, faixa valida `150-1024` | Tamanho alvo do primeiro JPEG publico aceitavel para cards OG. Valores fora da faixa voltam ao default. |
+| `OG_PUBLIC_JPEG_QUALITIES` | `dev base` | nunca | `84,80,76,72` | `CSV` de inteiros `60-100` | Escada de qualidades JPEG para OG publico. Entradas invalidas sao ignoradas; a lista final fica unica e em ordem decrescente. |
+
+### 7.5 Uploads/storage
 
 O contrato publico de uploads continua sendo `/uploads/...` em todos os modos.
 Mesmo com storage externo, a app continua entregando assets via proxy (`UPLOAD_STORAGE_DELIVERY=proxy`), entao frontend, payloads publicos e referencias salvas no banco nao mudam.
@@ -296,23 +313,21 @@ Defaults e comportamento base:
 - `UPLOAD_STORAGE_DRIVER=local` continua sendo o padrao.
 - `UPLOAD_STORAGE_DELIVERY=proxy` continua sendo o padrao desta fase.
 - Ao ativar `UPLOAD_STORAGE_DRIVER=s3`, apenas uploads novos passam a usar o provider ativo.
-- Uploads antigos continuam em `local` ate sync explicito.
-- `storageProvider` e detalhe interno/administrativo; o frontend continua consumindo `/uploads/...`.
+- Uploads antigos continuam em `local` ate sync ou restore explicito.
+- `storageProvider` continua sendo detalhe interno; o frontend segue consumindo `/uploads/...`.
 
-Variaveis:
-
-| Variavel | Dev | Producao | Descricao |
-| --- | --- | --- | --- |
-| `UPLOAD_STORAGE_DRIVER` | opcional | opcional | Provider ativo. Use `local` (default) ou `s3`. |
-| `UPLOAD_STORAGE_DELIVERY` | opcional | opcional | Modo de entrega. Nesta fase, mantenha `proxy` (default). |
-| `UPLOAD_STORAGE_BUCKET` | opcional | obrigatoria se `UPLOAD_STORAGE_DRIVER=s3` | Bucket do provider S3-compatible. |
-| `UPLOAD_STORAGE_REGION` | opcional | obrigatoria se `UPLOAD_STORAGE_DRIVER=s3` | Regiao do bucket. Em R2, use `auto`. |
-| `UPLOAD_STORAGE_ENDPOINT` | opcional | opcional | Endpoint customizado. Normalmente obrigatorio em R2 e omitido em AWS S3. |
-| `UPLOAD_STORAGE_ACCESS_KEY_ID` | opcional | obrigatoria se `UPLOAD_STORAGE_DRIVER=s3` | Credencial de acesso do provider. |
-| `UPLOAD_STORAGE_SECRET_ACCESS_KEY` | opcional | obrigatoria se `UPLOAD_STORAGE_DRIVER=s3` | Segredo de acesso do provider. |
-| `UPLOAD_STORAGE_PREFIX` | opcional | opcional | Prefixo interno das object keys no bucket, sem alterar a URL publica. |
-| `UPLOAD_STORAGE_S3_FORCE_PATH_STYLE` | opcional | opcional | Use `true` apenas se o provider exigir path-style. Default: `false`. |
-| `UPLOAD_STORAGE_PUBLIC_BASE_URL` | opcional | opcional | Reservado para casos futuros de entrega publica direta; nao e usado no fluxo padrao atual. |
+| Variavel | Onde aparece | Obrigatoria quando | Default | Valores/Formato | Descricao |
+| --- | --- | --- | --- | --- | --- |
+| `UPLOAD_STORAGE_DRIVER` | `dev base` | nunca | `local` | `local` ou `s3` | Provider ativo. Valores desconhecidos caem para `local`. |
+| `UPLOAD_STORAGE_DELIVERY` | `dev base` | nunca | `proxy` | `proxy` | Modo de entrega desta fase. Mantenha `proxy` para preservar `/uploads/...`. |
+| `UPLOAD_STORAGE_BUCKET` | `dev base` | quando `UPLOAD_STORAGE_DRIVER=s3` | vazio | nome de bucket | Bucket do provider S3-compatible. |
+| `UPLOAD_STORAGE_REGION` | `dev base` | quando `UPLOAD_STORAGE_DRIVER=s3` | vazio | string | Regiao do bucket. Em Cloudflare R2, use `auto`. |
+| `UPLOAD_STORAGE_ENDPOINT` | `dev base` | depende do provider; normalmente necessario em R2 | vazio | `URL http(s)` | Endpoint customizado do provider S3-compatible. |
+| `UPLOAD_STORAGE_ACCESS_KEY_ID` | `dev base` | quando `UPLOAD_STORAGE_DRIVER=s3` | vazio | string | Credencial de acesso do provider. |
+| `UPLOAD_STORAGE_SECRET_ACCESS_KEY` | `dev base` | quando `UPLOAD_STORAGE_DRIVER=s3` | vazio | string secreta | Segredo de acesso do provider. |
+| `UPLOAD_STORAGE_PREFIX` | `dev base` | nunca | vazio | fragmento de path sem `/` inicial/final | Prefixo interno das object keys no bucket. |
+| `UPLOAD_STORAGE_S3_FORCE_PATH_STYLE` | `dev base` | nunca | `false` | `bool backend` | Use `true` somente se o provider exigir path-style. |
+| `UPLOAD_STORAGE_PUBLIC_BASE_URL` | `dev base` | nunca | vazio | `URL http(s)` | Reservado para futuros fluxos de entrega publica direta; nao participa do fluxo padrao atual. |
 
 Exemplo com Cloudflare R2:
 
@@ -349,7 +364,39 @@ Fora do escopo desta fase:
 - upload direto do browser para bucket
 - entrega publica direta por CDN/bucket
 
-### 7.5 Bootstrap de owner (`/api/bootstrap-owner`)
+### 7.6 Seguranca, MFA, exports, metrics e alerts
+
+| Variavel | Onde aparece | Obrigatoria quando | Default | Valores/Formato | Descricao |
+| --- | --- | --- | --- | --- | --- |
+| `DATA_ENCRYPTION_KEYS_JSON` | `dev base`, `prod compose`, `dev deploy` | nunca | vazio | JSON no formato `{"activeKeyId":"key-2026-01","keys":{"key-2026-01":"<base64>"}}` | Keyring para criptografia em repouso. Prefira JSON; o parser ainda aceita secret legacy simples como fallback. |
+| `SECURITY_RECOVERY_CODE_PEPPER` | `dev base`, `prod compose`, `dev deploy` | recomendado quando MFA estiver em uso | vazio | string secreta | Pepper adicional para proteger recovery codes de MFA. |
+| `MFA_ISSUER` | `dev base`, `prod compose` | nunca | `Nekomata` | string | Nome exibido pelos apps autenticadores nos TOTP da plataforma. |
+| `TOTP_ICON_URL` | `dev base`, `prod compose` | nunca | vazio | `URL http(s)` | Icone publico opcional para o cadastro TOTP. |
+| `MFA_ENROLLMENT_TTL_MS` | `dev base`, `prod compose` | nunca | `600000` | inteiro em ms, clamp `60000-86400000` | TTL da tentativa de enrollment MFA. |
+| `ADMIN_EXPORTS_DIR` | `dev base`, `prod compose` | nunca | `backups/admin-exports` | caminho relativo ao repo ou absoluto | Diretorio usado para armazenar exports administrativos temporarios. |
+| `ADMIN_EXPORT_TTL_HOURS` | `dev base`, `prod compose` | nunca | `24` | inteiro em horas, clamp `1-168` | Tempo de vida dos arquivos em `ADMIN_EXPORTS_DIR`. |
+| `METRICS_ENABLED` | `dev base`, `prod compose`, `dev deploy` | nunca | `false` | `bool backend` | Habilita a exposicao de metrics operacionais. |
+| `METRICS_TOKEN` | `dev base`, `prod compose`, `dev deploy` | quando `METRICS_ENABLED=true` | vazio | string secreta | Token exigido para acessar metrics quando elas estiverem habilitadas. |
+| `OPS_ALERTS_WEBHOOK_ENABLED` | `dev base`, `prod compose` | nunca | `false` | `bool backend` | Liga os alertas operacionais/webhooks da categoria 6. |
+| `OPS_ALERTS_WEBHOOK_PROVIDER` | `dev base`, `prod compose` | quando `OPS_ALERTS_WEBHOOK_ENABLED=true` | `discord` | `discord` | Provider do webhook. Hoje somente `discord` e suportado; valores diferentes fazem o envio ser ignorado. |
+| `OPS_ALERTS_WEBHOOK_URL` | `dev base`, `prod compose` | quando `OPS_ALERTS_WEBHOOK_ENABLED=true` | vazio | `URL http(s)` | URL do webhook operacional. |
+| `OPS_ALERTS_WEBHOOK_TIMEOUT_MS` | `dev base`, `prod compose` | nunca | `5000` | inteiro em ms, clamp `1000-30000` | Timeout do envio do webhook. |
+| `OPS_ALERTS_WEBHOOK_INTERVAL_MS` | `dev base`, `prod compose` | nunca | `60000` | inteiro em ms, clamp `10000-3600000` | Intervalo minimo entre envios recorrentes do webhook. |
+| `OPS_ALERTS_DB_LATENCY_WARNING_MS` | `dev base`, `prod compose` | nunca | `1000` | inteiro em ms, clamp `50-60000` | Latencia do banco que passa a gerar warning operacional. |
+
+### 7.7 Deploy/container vars dos exemplos oficiais
+
+| Variavel | Onde aparece | Obrigatoria quando | Default | Valores/Formato | Descricao |
+| --- | --- | --- | --- | --- | --- |
+| `APP_IMAGE_REPO` | `prod compose`, `dev deploy` | nunca | `ghcr.io/gavuriiru/nekomorto` no compose e no script de deploy | repositorio Docker | Repositorio da imagem da app usada no deploy. |
+| `APP_IMAGE_TAG` | `prod compose`, `dev deploy` | nunca | `latest` no compose e no script de deploy | tag Docker | Tag da imagem da app. O padrao de CI costuma usar `sha-<commit>`. |
+| `APP_COMMIT_SHA` | `dev deploy` | nunca | vazio; se `APP_IMAGE_TAG` seguir `sha-<commit>`, o backend tenta inferir o SHA | hash de commit | Metadata opcional de build exposta pela app. |
+| `APP_BUILD_TIME` | `dev deploy` | nunca | vazio | timestamp; prefira ISO 8601 UTC | Metadata opcional com o horario do build. |
+| `POSTGRES_DB` | `prod compose`, `dev deploy` | quando usar o `docker-compose.prod.yml` oficial | `nekomorto` no compose; o exemplo de dev deploy usa `nekomorto_dev` | nome de banco PostgreSQL | Nome do banco inicial do container Postgres e do healthcheck. |
+| `POSTGRES_USER` | `prod compose`, `dev deploy` | quando usar o `docker-compose.prod.yml` oficial | `nekomorto_app` no compose; o exemplo de dev deploy usa `nekomorto_dev` | nome de usuario PostgreSQL | Usuario do container Postgres. |
+| `POSTGRES_PASSWORD` | `prod compose`, `dev deploy` | quando usar o `docker-compose.prod.yml` oficial | nenhum | string secreta forte | Senha do container Postgres. O compose falha sem ela. |
+
+### 7.8 Bootstrap de owner (`/api/bootstrap-owner`)
 
 Use apenas quando `OWNER_IDS` estiver vazio e voce tiver definido `BOOTSTRAP_TOKEN`.
 
