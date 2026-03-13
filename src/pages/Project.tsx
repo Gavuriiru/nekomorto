@@ -59,6 +59,7 @@ const ProjectPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const apiBase = getApiBase();
   const [project, setProject] = useState<Project | null>(null);
+  const [projectRevision, setProjectRevision] = useState("");
   const [hasLoaded, setHasLoaded] = useState(false);
   const [projectDirectory, setProjectDirectory] = useState<Project[]>([]);
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
@@ -76,9 +77,13 @@ const ProjectPage = () => {
   const shareImage = useMemo(
     () =>
       project?.id
-        ? normalizeAssetUrl(`/api/og/project/${encodeURIComponent(project.id)}`)
+        ? normalizeAssetUrl(
+            `/api/og/project/${encodeURIComponent(project.id)}${
+              projectRevision ? `?v=${encodeURIComponent(projectRevision)}` : ""
+            }`,
+          )
         : normalizeAssetUrl(settings.site.defaultShareImage),
-    [project?.id, settings.site.defaultShareImage],
+    [project?.id, projectRevision, settings.site.defaultShareImage],
   );
 
   usePageMeta({
@@ -101,6 +106,7 @@ const ProjectPage = () => {
         if (!response.ok) {
           if (isActive) {
             setProject(null);
+            setProjectRevision("");
             setMediaVariants({});
           }
           return;
@@ -108,6 +114,7 @@ const ProjectPage = () => {
         const data = await response.json();
         if (isActive) {
           setProject(data.project || null);
+          setProjectRevision(String(data?.revision || "").trim());
           setMediaVariants(
             data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
           );
@@ -115,6 +122,7 @@ const ProjectPage = () => {
       } catch {
         if (isActive) {
           setProject(null);
+          setProjectRevision("");
           setMediaVariants({});
         }
       } finally {

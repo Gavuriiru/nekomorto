@@ -1,0 +1,229 @@
+import { performance } from "node:perf_hooks";
+
+import { buildOgRenderCacheKey } from "./og-render-cache.js";
+import {
+  PROJECT_OG_SCENE_VERSION,
+  buildProjectOgCardModel,
+  buildProjectOgImagePath,
+  buildProjectOgImageResponse,
+  loadProjectOgArtworkDataUrl,
+  loadProjectOgProcessedBackdropDataUrl,
+} from "./project-og.js";
+import { createRevisionToken } from "./revision-token.js";
+
+const PROJECT_OG_TIMING_ORDER = [
+  "cache_read",
+  "artwork_load",
+  "backdrop_process",
+  "image_render",
+  "png_optimize",
+  "total",
+];
+
+const roundTimingMs = (value) => Number(Math.max(0, Number(value) || 0).toFixed(2));
+
+const measureTiming = async (timings, key, factory) => {
+  const startedAt = performance.now();
+  const result = await factory();
+  timings[key] = roundTimingMs(performance.now() - startedAt);
+  return result;
+};
+
+const normalizeRevision = (value) => String(value || "").trim();
+
+const buildProjectOgBaseModel = ({
+  project,
+  settings,
+  translations,
+  origin,
+  resolveVariantUrl,
+} = {}) =>
+  buildProjectOgCardModel({
+    project,
+    settings,
+    tagTranslations: translations?.tags,
+    genreTranslations: translations?.genres,
+    origin,
+    resolveVariantUrl,
+  });
+
+export const buildProjectOgRevision = ({
+  project,
+  settings,
+  translations,
+  origin,
+  resolveVariantUrl,
+  sceneVersion = PROJECT_OG_SCENE_VERSION,
+} = {}) => {
+  const baseModel = buildProjectOgBaseModel({
+    project,
+    settings,
+    translations,
+    origin,
+    resolveVariantUrl,
+  });
+  return createRevisionToken({
+    model: baseModel,
+    sceneVersion: normalizeRevision(sceneVersion || baseModel.sceneVersion || PROJECT_OG_SCENE_VERSION),
+  });
+};
+
+export const buildVersionedProjectOgImagePath = ({ projectId, revision } = {}) => {
+  const basePath = buildProjectOgImagePath(projectId);
+  const normalizedRevision = normalizeRevision(revision);
+  if (!normalizedRevision) {
+    return basePath;
+  }
+  const separator = basePath.includes("?") ? "&" : "?";
+  return `${basePath}${separator}v=${encodeURIComponent(normalizedRevision)}`;
+};
+
+export const buildProjectOgDeliveryHeaders = ({ cacheHit, timings } = {}) => {
+  const serverTiming = PROJECT_OG_TIMING_ORDER.filter((key) => Number.isFinite(Number(timings?.[key])))
+    .map((key) => `${key};dur=${roundTimingMs(timings[key])}`)
+    .join(", ");
+
+  return {
+    serverTiming,
+    cache: cacheHit ? "hit" : "miss",
+  };
+};
+
+const renderProjectOgBuffer = async ({
+  baseModel,
+  origin,
+} = {}) => {
+  const timings = {};
+  const [artworkDataUrl, backdropDataUrl] = await Promise.all([
+    measureTiming(timings, "artwork_load", async () =>
+      loadProjectOgArtworkDataUrl({
+        artworkUrl: baseModel?.artworkUrl,
+        origin,
+      }),
+    ),
+    measureTiming(timings, "backdrop_process", async () =>
+      loadProjectOgProcessedBackdropDataUrl({
+        artworkUrl: baseModel?.backdropUrl,
+        origin,
+        layout: baseModel?.layout,
+      }),
+    ),
+  ]);
+
+  const imageResponse = buildProjectOgImageResponse({
+    ...baseModel,
+    artworkDataUrl,
+    backdropDataUrl,
+  });
+  const rawBuffer = await measureTiming(timings, "image_render", async () =>
+    Buffer.from(await imageResponse.arrayBuffer()),
+  );
+  timings.png_optimize = 0;
+
+  return {
+    buffer: rawBuffer,
+    contentType: imageResponse.headers.get("content-type") || "image/png",
+    timings,
+    model: baseModel,
+  };
+};
+
+export const getProjectOgCachedRender = async ({
+  project,
+  settings,
+  translations,
+  origin,
+  resolveVariantUrl,
+  ogRenderCache,
+} = {}) => {
+  const totalStartedAt = performance.now();
+  const timings = {};
+  const model = buildProjectOgBaseModel({
+    project,
+    settings,
+    translations,
+    origin,
+    resolveVariantUrl,
+  });
+  const cacheKey = buildOgRenderCacheKey({
+    kind: "project",
+    id: String(project?.id || "").trim(),
+    model,
+  });
+  const cached = await measureTiming(timings, "cache_read", async () =>
+    ogRenderCache?.read?.(cacheKey) || null,
+  );
+
+  if (cached) {
+    timings.total = roundTimingMs(performance.now() - totalStartedAt);
+    return {
+      buffer: Buffer.from(cached.buffer),
+      contentType: cached.contentType || "image/png",
+      cacheHit: true,
+      cacheKey,
+      model,
+      timings,
+    };
+  }
+
+  const renderFactory = async () => {
+    const rendered = await renderProjectOgBuffer({
+      baseModel: model,
+      origin,
+    });
+    ogRenderCache?.write?.(cacheKey, {
+      buffer: rendered.buffer,
+      contentType: rendered.contentType,
+    });
+    return rendered;
+  };
+  const rendered = ogRenderCache?.getOrCreateInFlight
+    ? await ogRenderCache.getOrCreateInFlight(cacheKey, renderFactory)
+    : await renderFactory();
+
+  Object.assign(timings, rendered.timings || {});
+  timings.total = roundTimingMs(performance.now() - totalStartedAt);
+  return {
+    buffer: Buffer.from(rendered.buffer),
+    contentType: rendered.contentType || "image/png",
+    cacheHit: false,
+    cacheKey,
+    model,
+    timings,
+  };
+};
+
+export const prewarmProjectOgCache = async ({
+  projects,
+  settings,
+  translations,
+  origin,
+  resolveVariantUrl,
+  ogRenderCache,
+} = {}) => {
+  const safeProjects = Array.isArray(projects) ? projects.filter(Boolean) : [];
+  let warmed = 0;
+  let cacheHits = 0;
+
+  for (const project of safeProjects) {
+    const rendered = await getProjectOgCachedRender({
+      project,
+      settings,
+      translations,
+      origin,
+      resolveVariantUrl,
+      ogRenderCache,
+    });
+    if (rendered.cacheHit) {
+      cacheHits += 1;
+    } else {
+      warmed += 1;
+    }
+  }
+
+  return {
+    total: safeProjects.length,
+    warmed,
+    cacheHits,
+  };
+};

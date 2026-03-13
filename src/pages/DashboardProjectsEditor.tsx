@@ -75,6 +75,7 @@ import { normalizeEpubImportJob, type EpubImportJob } from "@/lib/project-epub";
 import {
   buildDashboardProjectChapterEditorHref,
   buildDashboardProjectChaptersEditorHref,
+  buildProjectPublicHref,
 } from "@/lib/project-editor-routes";
 import {
   EXTRA_TECHNICAL_NUMBER_BASE,
@@ -4915,6 +4916,7 @@ const DashboardProjectsEditor = () => {
   const lightNovelContentHref = editingProject?.id
     ? buildDashboardProjectChaptersEditorHref(editingProject.id)
     : "";
+  const publicProjectHref = editingProject?.id ? buildProjectPublicHref(editingProject.id) : "";
 
   return (
     <>
@@ -5068,7 +5070,7 @@ const DashboardProjectsEditor = () => {
                             </div>
                             <div className="relative z-20 flex shrink-0 items-center gap-2">
                               <Button variant="ghost" size="icon" title="Visualizar" asChild>
-                                <Link to={`/projeto/${project.id}`}>
+                                <Link to={buildProjectPublicHref(project.id)}>
                                   <Eye className="h-4 w-4" />
                                 </Link>
                               </Button>
@@ -5077,7 +5079,7 @@ const DashboardProjectsEditor = () => {
                                 size="icon"
                                 title="Copiar link"
                                 onClick={() => {
-                                  const url = `${window.location.origin}/projeto/${project.id}`;
+                                  const url = `${window.location.origin}${buildProjectPublicHref(project.id)}`;
                                   navigator.clipboard.writeText(url).catch(() => {
                                     const textarea = document.createElement("textarea");
                                     textarea.value = url;
@@ -5909,14 +5911,14 @@ const DashboardProjectsEditor = () => {
                           className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
                         >
                           <div className="space-y-1">
-                            <h3 className={editorSectionBlockTitleClassName}>EstÃºdios e produtoras</h3>
+                            <h3 className={editorSectionBlockTitleClassName}>Estúdios e produtoras</h3>
                             <p className="text-xs leading-5 text-muted-foreground">
-                              Separe o estÃºdio principal dos estÃºdios de animaÃ§Ã£o e das produtoras.
+                              Separe o estúdio principal dos estúdios de animação e das produtoras.
                             </p>
                           </div>
                           <div className="grid gap-4 md:grid-cols-2">
                             <div className="space-y-2">
-                              <Label>EstÃºdio principal</Label>
+                              <Label>Estúdio principal</Label>
                               <Input
                                 value={formState.studio}
                                 onChange={(event) =>
@@ -5939,7 +5941,7 @@ const DashboardProjectsEditor = () => {
                               />
                             </div>
                             <div className="space-y-2 md:col-span-2">
-                              <Label>EstÃºdios de animaÃ§Ã£o</Label>
+                              <Label>Estúdios de animação</Label>
                               <Input
                                 value={animationStudioInput}
                                 onChange={(event) => setAnimationStudioInput(event.target.value)}
@@ -5949,7 +5951,7 @@ const DashboardProjectsEditor = () => {
                                     handleAddAnimationStudio();
                                   }
                                 }}
-                                placeholder="Adicionar estÃºdio de animaÃ§Ã£o e pressionar Enter"
+                                placeholder="Adicionar estúdio de animação e pressionar Enter"
                               />
                               <div className="mt-2 flex flex-wrap gap-2">
                                 {formState.animationStudios.map((studioName, index) => (
@@ -8360,17 +8362,44 @@ const DashboardProjectsEditor = () => {
               </div>
             </div>
             <div className="project-editor-footer flex items-center justify-between gap-3 border-t border-border/60 bg-background/95 px-4 py-1.5 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2 lg:px-8">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 md:gap-3">
                 {isLightNovel ? (
                   lightNovelContentHref ? (
-                    <Button type="button" variant="outline" asChild>
-                      <Link to={lightNovelContentHref}>Conteúdo</Link>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
+                      asChild
+                    >
+                      <Link to={lightNovelContentHref}>
+                        <FileText className="h-4 w-4" aria-hidden="true" />
+                        <span className="sr-only md:not-sr-only">Conteúdo</span>
+                      </Link>
                     </Button>
                   ) : (
-                    <Button type="button" variant="outline" disabled>
-                      Conteúdo
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
+                      disabled
+                    >
+                      <FileText className="h-4 w-4" aria-hidden="true" />
+                      <span className="sr-only md:not-sr-only">Conteúdo</span>
                     </Button>
                   )
+                ) : null}
+                {publicProjectHref ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
+                    asChild
+                  >
+                    <Link target="_blank" rel="noreferrer" to={publicProjectHref}>
+                      <Eye className="h-4 w-4" aria-hidden="true" />
+                      <span className="sr-only md:not-sr-only">Visualizar página</span>
+                    </Link>
+                  </Button>
                 ) : null}
               </div>
               <div className="flex items-center gap-3">

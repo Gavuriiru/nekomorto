@@ -492,11 +492,73 @@ describe("DashboardProjectsEditor edit query", () => {
     }
     const footerColumns = Array.from(footer.children) as HTMLElement[];
     expect(footerColumns).toHaveLength(2);
-    expect(within(footerColumns[0]).getByRole("link", { name: "Conteúdo" })).toBeInTheDocument();
+    const footerLinks = within(footerColumns[0]).getAllByRole("link");
+    expect(footerLinks.map((link) => link.textContent)).toEqual(["Conteúdo", "Visualizar página"]);
+    expect(footerLinks[0]).toHaveAttribute("href", "/dashboard/projetos/project-ln-1/capitulos");
+    expect(footerLinks[1]).toHaveAttribute("href", "/projeto/project-ln-1");
+    expect(footerLinks[0].className).toContain("w-10");
+    expect(footerLinks[0].className).toContain("md:w-auto");
+    expect(footerLinks[1].className).toContain("w-10");
+    expect(footerLinks[1].className).toContain("md:w-auto");
+    expect(within(footerLinks[0]).getByText("Conteúdo").className).toContain("sr-only");
+    expect(within(footerLinks[0]).getByText("Conteúdo").className).toContain("md:not-sr-only");
+    expect(within(footerLinks[1]).getByText("Visualizar página").className).toContain("sr-only");
+    expect(within(footerLinks[1]).getByText("Visualizar página").className).toContain(
+      "md:not-sr-only",
+    );
     expect(within(footerColumns[1]).getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
     expect(
       within(footerColumns[1]).getByRole("button", { name: "Salvar projeto" }),
     ).toBeInTheDocument();
+  });
+
+  it("exibe o link da página pública em nova aba só para projeto salvo e sem mojibake no bloco novo", async () => {
+    setupApiMock({ canManageProjects: true, projects: [projectFixture] });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos?edit=project-1"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    await screen.findByText("Editar projeto");
+
+    const editorDialog = await waitFor(() => {
+      const node = document.querySelector(".project-editor-dialog");
+      expect(node).not.toBeNull();
+      return node as HTMLElement;
+    });
+    const publicLink = within(editorDialog).getByRole("link", { name: "Visualizar página" });
+    expect(publicLink).toHaveAttribute("href", "/projeto/project-1");
+    expect(publicLink).toHaveAttribute("target", "_blank");
+    expect(publicLink).toHaveAttribute("rel", "noreferrer");
+    expect(within(editorDialog).getByText("Estúdios e produtoras")).toBeInTheDocument();
+    expect(within(editorDialog).getByText("Estúdio principal")).toBeInTheDocument();
+    expect(within(editorDialog).getByText("Estúdios de animação")).toBeInTheDocument();
+    expect(
+      within(editorDialog).getByPlaceholderText(
+        "Adicionar estúdio de animação e pressionar Enter",
+      ),
+    ).toBeInTheDocument();
+    expect(within(editorDialog).queryByText("EstÃºdios e produtoras")).not.toBeInTheDocument();
+  });
+
+  it("oculta o link da página pública ao criar um projeto novo", async () => {
+    setupApiMock({ canManageProjects: true, projects: [projectFixture] });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos?edit=new"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    await screen.findByRole("heading", { name: "Novo projeto" });
+
+    expect(screen.queryByRole("link", { name: "Visualizar página" })).not.toBeInTheDocument();
   });
 
   it("exibe um CTA de rodapé para abrir o editor dedicado no estado neutro", async () => {

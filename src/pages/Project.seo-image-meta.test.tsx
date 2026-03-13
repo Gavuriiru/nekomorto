@@ -104,6 +104,7 @@ describe("Project SEO image meta", () => {
       commentsCount: 0,
       episodeDownloads: [],
     };
+    const projectRevision = "og-revision-123";
 
     apiFetchMock.mockImplementation(
       async (_apiBase: string, endpoint: string, options?: RequestInit) => {
@@ -143,13 +144,13 @@ describe("Project SEO image meta", () => {
       ).toBe(true);
     });
 
-    resolveProjectRequest(mockJsonResponse(true, { project }));
+    resolveProjectRequest(mockJsonResponse(true, { project, revision: projectRevision }));
 
     await waitFor(() => {
       expect(
         hasMetaCall(
           (arg) =>
-            String(arg.image || "").includes("/api/og/project/projeto-teste") &&
+            String(arg.image || "").includes(`/api/og/project/projeto-teste?v=${projectRevision}`) &&
             arg.imageAlt === "Card de compartilhamento do projeto Projeto Teste" &&
             arg.type === "article",
         ),

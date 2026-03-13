@@ -120,12 +120,12 @@ import {
 import { importProjectEpub } from "./lib/project-epub-import.js";
 import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
 import {
-  buildProjectOgCardModel,
-  buildProjectOgImagePath,
-  buildProjectOgImageResponse,
-  loadProjectOgArtworkDataUrl,
-  loadProjectOgProcessedBackdropDataUrl,
-} from "./lib/project-og.js";
+  buildProjectOgDeliveryHeaders,
+  buildProjectOgRevision,
+  buildVersionedProjectOgImagePath,
+  getProjectOgCachedRender,
+  prewarmProjectOgCache,
+} from "./lib/project-og-delivery.js";
 import { findDuplicateVolumeCover } from "./lib/project-volume-covers.js";
 import {
   normalizeLegacyInviteCardText,
@@ -2144,14 +2144,29 @@ const getPageTitleFromPath = (value) => {
   return match ? match[1] : "";
 };
 
-const buildProjectMeta = (project) => {
-  const settings = loadSiteSettings();
+const buildProjectMeta = (
+  project,
+  {
+    settings = loadSiteSettings(),
+    translations = loadTagTranslations(),
+  } = {},
+) => {
   const siteName = settings.site?.name || "Nekomata";
   const title = project?.title ? `${project.title} | ${siteName}` : siteName;
   const description = truncateMetaDescription(
     stripHtml(project?.synopsis || project?.description || "") || settings.site?.description || "",
   );
-  const image = buildProjectOgImagePath(project?.id || "");
+  const imageRevision = buildProjectOgRevision({
+    project,
+    settings,
+    translations,
+    origin: PRIMARY_APP_ORIGIN,
+    resolveVariantUrl: resolveMetaImageVariantUrl,
+  });
+  const image = buildVersionedProjectOgImagePath({
+    projectId: project?.id || "",
+    revision: imageRevision,
+  });
   const imageAlt = `Card de compartilhamento do projeto ${String(project?.title || "Projeto").trim() || "Projeto"}`;
   return {
     title,
@@ -4878,6 +4893,72 @@ const resolveMetaImageVariantUrl = (value, preset = "og") => {
     entry,
     preset,
     fallbackUrl,
+  });
+};
+
+const MAX_PROJECT_OG_LOG_USER_AGENT_LENGTH = 200;
+
+const selectVisibleProjectsForOgPrewarm = (projectIds) => {
+  const visibleProjects = getPublicVisibleProjects();
+  const normalizedIds = Array.isArray(projectIds)
+    ? projectIds
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    : [];
+  if (normalizedIds.length === 0) {
+    return visibleProjects;
+  }
+  const allowedIds = new Set(normalizedIds);
+  return visibleProjects.filter((project) => allowedIds.has(String(project?.id || "").trim()));
+};
+
+const enqueueProjectOgPrewarm = ({ reason = "manual", projectIds } = {}) =>
+  backgroundJobQueue.enqueue({
+    type: "project-og-prewarm",
+    payload: {
+      reason: String(reason || "manual").trim() || "manual",
+      projectIds: Array.isArray(projectIds)
+        ? projectIds.map((value) => String(value || "").trim()).filter(Boolean)
+        : [],
+    },
+    run: async () => {
+      const selectedProjects = selectVisibleProjectsForOgPrewarm(projectIds);
+      if (selectedProjects.length === 0) {
+        return {
+          total: 0,
+          warmed: 0,
+          cacheHits: 0,
+        };
+      }
+      return prewarmProjectOgCache({
+        projects: selectedProjects,
+        settings: loadSiteSettings(),
+        translations: loadTagTranslations(),
+        origin: PRIMARY_APP_ORIGIN,
+        resolveVariantUrl: resolveMetaImageVariantUrl,
+        ogRenderCache,
+      });
+    },
+  });
+
+const logProjectOgDelivery = ({ projectId, cacheHit, timings, userAgent } = {}) => {
+  const totalMs = Number(timings?.total || 0);
+  if (cacheHit && totalMs <= 500) {
+    return;
+  }
+  console.info("project_og_delivery", {
+    projectId: String(projectId || "").trim() || null,
+    cacheHit: Boolean(cacheHit),
+    totalMs,
+    timings:
+      timings && typeof timings === "object"
+        ? Object.fromEntries(
+            Object.entries(timings)
+              .filter(([, value]) => Number.isFinite(Number(value)))
+              .map(([key, value]) => [key, Number(value)]),
+          )
+        : {},
+    userAgent: String(userAgent || "").trim().slice(0, MAX_PROJECT_OG_LOG_USER_AGENT_LENGTH) || null,
   });
 };
 
@@ -11382,6 +11463,10 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   const persistedProject =
     normalizeProjects(loadProjects()).find((project) => project.id === nextProject.id) ||
     nextProject;
+  void enqueueProjectOgPrewarm({
+    reason: "project-create",
+    projectIds: [persistedProject.id],
+  }).catch(() => undefined);
 
   for (const update of webhookUpdates) {
     const eventKey = resolveProjectWebhookEventKey(update.kind);
@@ -11535,6 +11620,10 @@ app.put("/api/projects/:id/chapters/:number", requireAuth, async (req, res) => {
   await runAutoUploadReorganization({ trigger: "project-save", req });
   const persistedProject =
     normalizeProjects(loadProjects()).find((project) => project.id === merged.id) || merged;
+  void enqueueProjectOgPrewarm({
+    reason: "project-chapter-update",
+    projectIds: [persistedProject.id],
+  }).catch(() => undefined);
   for (const update of episodeWebhookUpdates) {
     const eventKey = resolveProjectWebhookEventKey(update.kind);
     if (!eventKey) {
@@ -11710,6 +11799,10 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
   await runAutoUploadReorganization({ trigger: "project-save", req });
   const persistedProject =
     normalizeProjects(loadProjects()).find((project) => project.id === merged.id) || merged;
+  void enqueueProjectOgPrewarm({
+    reason: "project-update",
+    projectIds: [persistedProject.id],
+  }).catch(() => undefined);
   for (const update of webhookUpdates) {
     const eventKey = resolveProjectWebhookEventKey(update.kind);
     if (!eventKey) {
@@ -11793,6 +11886,10 @@ app.post("/api/projects/:id/restore", requireAuth, (req, res) => {
   projects[index] = restored;
   writeProjects(projects);
   appendAuditLog(req, "projects.restore", "projects", { id });
+  void enqueueProjectOgPrewarm({
+    reason: "project-restore",
+    projectIds: [restored.id],
+  }).catch(() => undefined);
   return res.json({ project: restored });
 });
 
@@ -12744,8 +12841,17 @@ app.get("/api/public/projects/:id", (req, res) => {
     return res.status(404).json({ error: "not_found" });
   }
   const { discordRoleId: _discordRoleId, ...projectWithoutDiscordRoleId } = project;
+  const settings = loadSiteSettings();
+  const translations = loadTagTranslations();
   return res.json({
     project: projectWithoutDiscordRoleId,
+    revision: buildProjectOgRevision({
+      project: projectWithoutDiscordRoleId,
+      settings,
+      translations,
+      origin: PRIMARY_APP_ORIGIN,
+      resolveVariantUrl: resolveMetaImageVariantUrl,
+    }),
     mediaVariants: buildPublicMediaVariants(projectWithoutDiscordRoleId),
   });
 });
@@ -13235,6 +13341,9 @@ app.post("/api/tag-translations/anilist-sync", requireAuth, async (req, res) => 
     });
     const payload = { tags: nextTags, genres: nextGenres, staffRoles: nextStaffRoles };
     writeTagTranslations(payload);
+    void enqueueProjectOgPrewarm({
+      reason: "tag-translations-anilist-sync",
+    }).catch(() => undefined);
     return res.json(payload);
   } catch {
     return res.status(502).json({ error: "anilist_failed" });
@@ -13297,6 +13406,9 @@ app.put("/api/settings", requireAuth, (req, res) => {
   );
   removedIcons.forEach((url) => deletePrivateUploadByUrl(url));
   appendAuditLog(req, "settings.update", "settings", {});
+  void enqueueProjectOgPrewarm({
+    reason: "settings-update",
+  }).catch(() => undefined);
   return res.json({ settings: normalized, revision: createRevisionToken(normalized) });
 });
 
@@ -13375,6 +13487,9 @@ app.post("/api/tag-translations/sync", requireAuth, (req, res) => {
 
   const payload = { tags: nextTags, genres: nextGenres, staffRoles: nextStaffRoles };
   writeTagTranslations(payload);
+  void enqueueProjectOgPrewarm({
+    reason: "tag-translations-sync",
+  }).catch(() => undefined);
   return res.json(payload);
 });
 
@@ -13432,6 +13547,9 @@ app.put("/api/tag-translations", requireAuth, (req, res) => {
     staffRoles: normalizedStaffRoles,
   };
   writeTagTranslations(payload);
+  void enqueueProjectOgPrewarm({
+    reason: "tag-translations-update",
+  }).catch(() => undefined);
   return res.json({ ...payload, revision: createRevisionToken(payload) });
 });
 
@@ -15519,55 +15637,31 @@ app.get("/api/og/project/:id", async (req, res) => {
   try {
     const settings = loadSiteSettings();
     const translations = loadTagTranslations();
-    const baseModel = buildProjectOgCardModel({
+    const rendered = await getProjectOgCachedRender({
       project,
       settings,
-      tagTranslations: translations?.tags,
-      genreTranslations: translations?.genres,
+      translations,
       origin: PRIMARY_APP_ORIGIN,
       resolveVariantUrl: resolveMetaImageVariantUrl,
+      ogRenderCache,
     });
-    const cacheKey = buildOgRenderCacheKey({
-      kind: "project",
-      id,
-      model: baseModel,
-    });
-    const cached = ogRenderCache.read(cacheKey);
-    if (cached) {
-      res.setHeader("Content-Type", cached.contentType || "image/png");
-      res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
-      return res.status(200).send(Buffer.from(cached.buffer));
-    }
-    const rendered = await ogRenderCache.getOrCreateInFlight(cacheKey, async () => {
-      const [artworkDataUrl, backdropDataUrl] = await Promise.all([
-        loadProjectOgArtworkDataUrl({
-          artworkUrl: baseModel.artworkUrl,
-          origin: PRIMARY_APP_ORIGIN,
-        }),
-        loadProjectOgProcessedBackdropDataUrl({
-          artworkUrl: baseModel.backdropUrl,
-          origin: PRIMARY_APP_ORIGIN,
-          layout: baseModel.layout,
-        }),
-      ]);
-      const imageResponse = buildProjectOgImageResponse({
-        ...baseModel,
-        artworkDataUrl,
-        backdropDataUrl,
-      });
-      const arrayBuffer = await imageResponse.arrayBuffer();
-      const contentType = imageResponse.headers.get("content-type") || "image/png";
-      const rawBuffer = Buffer.from(arrayBuffer);
-      const optimizedBuffer = await optimizeOgPngBuffer({
-        buffer: rawBuffer,
-        mode: "lossless",
-      });
-      ogRenderCache.write(cacheKey, { buffer: optimizedBuffer, contentType });
-      return { buffer: optimizedBuffer, contentType };
+    const deliveryHeaders = buildProjectOgDeliveryHeaders({
+      cacheHit: rendered.cacheHit,
+      timings: rendered.timings,
     });
 
     res.setHeader("Content-Type", rendered.contentType || "image/png");
     res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
+    res.setHeader("X-OG-Cache", deliveryHeaders.cache);
+    if (deliveryHeaders.serverTiming) {
+      res.setHeader("Server-Timing", deliveryHeaders.serverTiming);
+    }
+    logProjectOgDelivery({
+      projectId: id,
+      cacheHit: rendered.cacheHit,
+      timings: rendered.timings,
+      userAgent: req.headers["user-agent"],
+    });
     return res.status(200).send(Buffer.from(rendered.buffer));
   } catch {
     return res.status(500).type("text/plain").send("image_generation_failed");
@@ -15699,7 +15793,12 @@ app.get(
       if (req.path.startsWith("/projeto/") || req.path.startsWith("/projetos/")) {
         const id = String(req.params.id || "");
         const project = normalizeProjects(loadProjects()).find((item) => String(item.id) === id);
-        const meta = project ? buildProjectMeta(project) : buildSiteMetaWithSettings(settings);
+        const meta = project
+          ? buildProjectMeta(project, {
+              settings,
+              translations: loadTagTranslations(),
+            })
+          : buildSiteMetaWithSettings(settings);
         const structuredData = buildSchemaOrgPayload({
           origin: PRIMARY_APP_ORIGIN,
           pathname: req.path,
