@@ -1532,8 +1532,111 @@ const buildSubtitleNode = (model) => {
   if (!subtitle) {
     return null;
   }
+  const subtitleAvatarSrc = resolveRenderableImageSrc({
+    dataUrl: model.subtitleAvatarDataUrl,
+    url: model.subtitleAvatarUrl,
+  });
+  const hasSubtitleAvatar = Boolean(subtitleAvatarSrc);
   const shouldNoWrap = Boolean(model.subtitleNoWrap);
   const subtitleWidth = Number(model.layout?.subtitleMaxWidth) || 0;
+  const subtitleAvatarSize = hasSubtitleAvatar
+    ? Number(model.layout?.subtitleAvatarSize) || 27
+    : 0;
+  const subtitleAvatarGap = hasSubtitleAvatar
+    ? Number(model.layout?.subtitleAvatarGap) || 8
+    : 0;
+  const subtitleTextMaxWidth =
+    shouldNoWrap && subtitleWidth > 0
+      ? Math.max(0, Number(model.subtitleTextMaxWidth) || subtitleWidth - subtitleAvatarSize - subtitleAvatarGap)
+      : 0;
+  const measuredSubtitleWidth = measureTextWidth({
+    text: subtitle,
+    fontSize: Number(model.layout?.subtitleFontSize) || 0,
+    fontWeight: SUBTITLE_FONT_WEIGHT,
+  });
+  const subtitleTextRenderWidth =
+    shouldNoWrap && subtitleWidth > 0
+      ? Math.min(
+          Number(model.subtitleTextRenderWidth) || measuredSubtitleWidth,
+          subtitleTextMaxWidth || subtitleWidth,
+        )
+      : 0;
+  const subtitleRenderWidth =
+    shouldNoWrap && subtitleWidth > 0
+      ? Number(model.subtitleRenderWidth) ||
+        subtitleTextRenderWidth + (hasSubtitleAvatar ? subtitleAvatarSize + subtitleAvatarGap : 0)
+      : 0;
+  const subtitleContainerWidth =
+    shouldNoWrap && subtitleWidth > 0
+      ? Math.min(subtitleWidth, subtitleRenderWidth + (hasSubtitleAvatar ? 8 : 0))
+      : 0;
+
+  if (hasSubtitleAvatar) {
+    return createElement(
+      "div",
+      {
+        style: {
+          position: "absolute",
+          left: model.layout.subtitleLeft,
+          top: model.subtitleTop,
+          width: subtitleContainerWidth || subtitleRenderWidth || undefined,
+          maxWidth: model.layout.subtitleMaxWidth,
+          display: "flex",
+          alignItems: "center",
+          gap: subtitleAvatarGap,
+          color: model.palette.accentPrimary,
+          fontFamily: "Geist",
+          fontSize: model.layout.subtitleFontSize,
+          fontWeight: SUBTITLE_FONT_WEIGHT,
+          lineHeight: 1.2,
+        },
+      },
+        createElement(
+          "div",
+          {
+            style: {
+              minWidth: 0,
+              maxWidth: subtitleTextMaxWidth || undefined,
+              display: "block",
+              flexShrink: 1,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            },
+        },
+        subtitle,
+      ),
+      createElement(
+        "div",
+        {
+          "data-og-part": "subtitle-avatar",
+          style: {
+            width: subtitleAvatarSize,
+            height: subtitleAvatarSize,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: subtitleAvatarSize / 2,
+            overflow: "hidden",
+            backgroundColor: "rgba(255, 255, 255, 0.12)",
+            flexShrink: 0,
+          },
+        },
+        createElement("img", {
+          src: subtitleAvatarSrc,
+          alt: "",
+          width: subtitleAvatarSize,
+          height: subtitleAvatarSize,
+          style: {
+            width: subtitleAvatarSize,
+            height: subtitleAvatarSize,
+            objectFit: "cover",
+          },
+        }),
+      ),
+    );
+  }
+
   return createElement(
     "div",
     {
@@ -1544,7 +1647,7 @@ const buildSubtitleNode = (model) => {
         maxWidth: model.layout.subtitleMaxWidth,
         ...(shouldNoWrap && subtitleWidth > 0
           ? {
-              width: subtitleWidth,
+              width: subtitleRenderWidth || subtitleWidth,
               display: "block",
               whiteSpace: "nowrap",
               overflow: "hidden",

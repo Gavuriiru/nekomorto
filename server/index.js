@@ -88,6 +88,10 @@ import {
   buildPostOgImagePath,
   buildPostOgImageResponse,
 } from "./lib/post-og.js";
+import {
+  loadProjectOgArtworkDataUrl,
+  loadProjectOgProcessedBackdropDataUrl,
+} from "./lib/project-og.js";
 import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
 import { resolvePostStatus } from "./lib/post-status.js";
 import { dedupePostVersionRecordsNewestFirst } from "./lib/post-version-dedupe.js";
@@ -15793,11 +15797,25 @@ app.get("/api/og/post/:slug", async (req, res) => {
 
   try {
     const settings = loadSiteSettings();
+    const translations = loadTagTranslations();
     const resolvedCover = resolvePostCover(post);
+    const firstPostImage = extractFirstImageFromPostContent(post.content, post.contentFormat);
+    const relatedProjectId = String(post.projectId || "").trim();
+    const relatedProject = relatedProjectId
+      ? getPublicVisibleProjects().find((item) => String(item?.id || "").trim() === relatedProjectId) || null
+      : null;
+    const resolvedAuthor = resolveEditorialAuthorFromPost(post);
     const baseModel = buildPostOgCardModel({
       post,
+      relatedProject,
       settings,
       resolvedCover,
+      firstPostImage,
+      resolvedAuthor,
+      defaultBackdropUrl: settings.site?.defaultShareImage || "",
+      tagTranslations: translations?.tags,
+      genreTranslations: translations?.genres,
+      origin: PRIMARY_APP_ORIGIN,
       resolveVariantUrl: resolveMetaImageVariantUrl,
     });
     const cacheKey = buildOgRenderCacheKey({
@@ -15812,8 +15830,26 @@ app.get("/api/og/post/:slug", async (req, res) => {
       return res.status(200).send(Buffer.from(cached.buffer));
     }
     const rendered = await ogRenderCache.getOrCreateInFlight(cacheKey, async () => {
+      const [artworkDataUrl, backdropDataUrl, subtitleAvatarDataUrl] = await Promise.all([
+        loadProjectOgArtworkDataUrl({
+          artworkUrl: baseModel.artworkUrl,
+          origin: PRIMARY_APP_ORIGIN,
+        }),
+        loadProjectOgProcessedBackdropDataUrl({
+          artworkUrl: baseModel.backdropUrl,
+          origin: PRIMARY_APP_ORIGIN,
+          layout: baseModel.layout,
+        }),
+        loadProjectOgArtworkDataUrl({
+          artworkUrl: baseModel.subtitleAvatarUrl,
+          origin: PRIMARY_APP_ORIGIN,
+        }),
+      ]);
       const imageResponse = buildPostOgImageResponse({
         ...baseModel,
+        artworkDataUrl,
+        backdropDataUrl,
+        subtitleAvatarDataUrl,
       });
       const arrayBuffer = await imageResponse.arrayBuffer();
       const contentType = imageResponse.headers.get("content-type") || "image/png";
