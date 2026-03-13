@@ -7,6 +7,7 @@ import {
   computeBufferSha256,
   findUploadByHash,
   mergeUploadVariantPresetKeys,
+  normalizeUploadVariantPresetKeys,
   normalizeVariants,
   resolveUploadAbsolutePath,
   resolveUploadVariantPresetKeysForArea,
@@ -171,14 +172,20 @@ const ensureUploadHasRequiredVariants = async ({
   if (!currentEntry) {
     return uploadEntry;
   }
-  const currentVariantPresetKeys = Object.keys(normalizeVariants(currentEntry?.variants));
-  const requiredVariantPresetKeys = mergeUploadVariantPresetKeys(
-    currentVariantPresetKeys,
-    variantPresetKeys,
+  const currentVariantPresetKeys = normalizeUploadVariantPresetKeys(
+    Object.keys(normalizeVariants(currentEntry?.variants)),
   );
-  if (requiredVariantPresetKeys.length <= currentVariantPresetKeys.length) {
+  const requestedVariantPresetKeys = normalizeUploadVariantPresetKeys(variantPresetKeys);
+  if (
+    requestedVariantPresetKeys.length === 0 ||
+    requestedVariantPresetKeys.every((presetKey) => currentVariantPresetKeys.includes(presetKey))
+  ) {
     return currentEntry;
   }
+  const requiredVariantPresetKeys = mergeUploadVariantPresetKeys(
+    currentVariantPresetKeys,
+    requestedVariantPresetKeys,
+  );
   const sourcePath = resolveUploadAbsolutePath({ uploadsDir, uploadUrl: currentEntry?.url });
   if (!sourcePath || !fs.existsSync(sourcePath)) {
     return currentEntry;
@@ -252,7 +259,7 @@ export const storeUploadImageBuffer = async ({
       uploadEntry: ensuredEntry,
       uploads: nextUploads,
       dedupeHit: true,
-      variantsGenerated: Object.keys(normalizeVariants(ensuredEntry?.variants)).length > 0,
+      variantsGenerated: true,
       variantGenerationError: "",
       hashSha256,
     };

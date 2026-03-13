@@ -6,14 +6,23 @@ import sharp from "sharp";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  attachUploadMediaMetadata,
   buildStorageAreaSummary,
   generateUploadVariants,
+  POST_UPLOAD_VARIANT_PRESET_KEYS,
   PROJECT_UPLOAD_VARIANT_PRESET_KEYS,
   UPLOAD_VARIANT_PRESET_KEYS,
+  USER_UPLOAD_VARIANT_PRESET_KEYS,
+  resolveUploadVariantPresetKeysForArea,
 } from "../../server/lib/upload-media.js";
 import { storeUploadImageBuffer } from "../../server/lib/uploads-import.js";
 
 const tempDirs: string[] = [];
+const PROJECT_AND_POST_UPLOAD_VARIANT_PRESET_KEYS = UPLOAD_VARIANT_PRESET_KEYS.filter(
+  (presetKey) =>
+    PROJECT_UPLOAD_VARIANT_PRESET_KEYS.includes(presetKey) ||
+    POST_UPLOAD_VARIANT_PRESET_KEYS.includes(presetKey),
+);
 
 const createTempUploadsDir = () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nekomorto-upload-media-"));
@@ -46,6 +55,27 @@ afterEach(() => {
 });
 
 describe("upload-media", () => {
+  it("resolve perfis de variantes por area", () => {
+    expect(resolveUploadVariantPresetKeysForArea("projects/demo")).toEqual(
+      PROJECT_UPLOAD_VARIANT_PRESET_KEYS,
+    );
+    expect(resolveUploadVariantPresetKeysForArea("posts")).toEqual(
+      POST_UPLOAD_VARIANT_PRESET_KEYS,
+    );
+    expect(resolveUploadVariantPresetKeysForArea("users/avatar")).toEqual(
+      USER_UPLOAD_VARIANT_PRESET_KEYS,
+    );
+    expect(resolveUploadVariantPresetKeysForArea("")).toEqual([]);
+    expect(resolveUploadVariantPresetKeysForArea("branding/logo")).toEqual([]);
+    expect(resolveUploadVariantPresetKeysForArea("shared/banners")).toEqual([]);
+    expect(resolveUploadVariantPresetKeysForArea("downloads/report")).toEqual([]);
+    expect(resolveUploadVariantPresetKeysForArea("socials/card")).toEqual([]);
+    expect(resolveUploadVariantPresetKeysForArea("tmp/epub-imports/demo")).toEqual([]);
+    expect(resolveUploadVariantPresetKeysForArea("future-area")).toEqual(
+      UPLOAD_VARIANT_PRESET_KEYS,
+    );
+  });
+
   it("gera apenas avif e evita upscale em imagens pequenas", async () => {
     const uploadsDir = createTempUploadsDir();
     const sourcePath = path.join(uploadsDir, "source.png");
@@ -213,7 +243,136 @@ describe("upload-media", () => {
     );
   }, 15_000);
 
-  it("expande variantes deduplicadas quando a mesma imagem volta em uma area com perfil maior", async () => {
+  it("remove variantes e apaga o diretorio quando o perfil explicito fica vazio", async () => {
+    const uploadsDir = createTempUploadsDir();
+    const sourcePath = path.join(uploadsDir, "post-source.png");
+
+    await createPatternSourceImage(sourcePath);
+
+    const initial = await attachUploadMediaMetadata({
+      uploadsDir,
+      entry: {
+        id: "post-upload",
+        url: "/uploads/posts/post-source.png",
+        fileName: "post-source.png",
+        folder: "posts",
+        area: "posts",
+        mime: "image/png",
+      },
+      sourcePath,
+      sourceMime: "image/png",
+      hashSha256: "hash-1",
+      regenerateVariants: true,
+      variantPresetKeys: POST_UPLOAD_VARIANT_PRESET_KEYS,
+    });
+
+    const variantDir = path.join(uploadsDir, "_variants", "post-upload");
+    expect(fs.existsSync(variantDir)).toBe(true);
+    expect(Object.keys(initial.variants)).toEqual(POST_UPLOAD_VARIANT_PRESET_KEYS);
+    expect(Number(initial.variantBytes || 0)).toBeGreaterThan(0);
+
+    const cleared = await attachUploadMediaMetadata({
+      uploadsDir,
+      entry: initial,
+      sourcePath,
+      sourceMime: "image/png",
+      hashSha256: "hash-1",
+      regenerateVariants: true,
+      variantPresetKeys: [],
+    });
+
+    expect(cleared.variants).toEqual({});
+    expect(cleared.variantBytes).toBe(0);
+    expect(fs.existsSync(variantDir)).toBe(false);
+  }, 15_000);
+
+  it("gera apenas square para uploads fresh de users", async () => {
+    const uploadsDir = createTempUploadsDir();
+    const buffer = await sharp({
+      create: {
+        width: 640,
+        height: 640,
+        channels: 3,
+        background: { r: 52, g: 96, b: 180 },
+      },
+    })
+      .png()
+      .toBuffer();
+
+    const stored = await storeUploadImageBuffer({
+      uploadsDir,
+      uploads: [],
+      buffer,
+      mime: "image/png",
+      filename: "avatar.png",
+      folder: "users",
+    });
+
+    expect(stored.dedupeHit).toBe(false);
+    expect(stored.variantsGenerated).toBe(true);
+    expect(Object.keys(stored.uploadEntry.variants)).toEqual(USER_UPLOAD_VARIANT_PRESET_KEYS);
+  });
+
+  it("gera apenas o perfil de posts para uploads fresh de posts", async () => {
+    const uploadsDir = createTempUploadsDir();
+    const buffer = await sharp({
+      create: {
+        width: 1600,
+        height: 900,
+        channels: 3,
+        background: { r: 164, g: 72, b: 88 },
+      },
+    })
+      .png()
+      .toBuffer();
+
+    const stored = await storeUploadImageBuffer({
+      uploadsDir,
+      uploads: [],
+      buffer,
+      mime: "image/png",
+      filename: "post-cover.png",
+      folder: "posts",
+    });
+
+    expect(stored.dedupeHit).toBe(false);
+    expect(stored.variantsGenerated).toBe(true);
+    expect(Object.keys(stored.uploadEntry.variants)).toEqual(POST_UPLOAD_VARIANT_PRESET_KEYS);
+  });
+
+  it("nao gera variantes para uploads fresh de tmp epub imports", async () => {
+    const uploadsDir = createTempUploadsDir();
+    const buffer = await sharp({
+      create: {
+        width: 1200,
+        height: 1600,
+        channels: 3,
+        background: { r: 96, g: 132, b: 80 },
+      },
+    })
+      .png()
+      .toBuffer();
+
+    const stored = await storeUploadImageBuffer({
+      uploadsDir,
+      uploads: [],
+      buffer,
+      mime: "image/png",
+      filename: "chapter-cover.png",
+      folder: "tmp/epub-imports/user/import-1",
+    });
+
+    expect(stored.dedupeHit).toBe(false);
+    expect(stored.variantsGenerated).toBe(true);
+    expect(stored.variantGenerationError).toBe("");
+    expect(stored.uploadEntry.variants).toEqual({});
+    expect(stored.uploadEntry.variantBytes).toBe(0);
+    expect(
+      fs.existsSync(path.join(uploadsDir, "_variants", String(stored.uploadEntry.id || ""))),
+    ).toBe(false);
+  });
+
+  it("mantem variantes compartilhadas e adiciona so o necessario quando projects deduplica com posts", async () => {
     const uploadsDir = createTempUploadsDir();
     const buffer = await sharp({
       create: {
@@ -248,9 +407,51 @@ describe("upload-media", () => {
 
     expect(second.dedupeHit).toBe(true);
     expect(second.uploadEntry.id).toBe(first.uploadEntry.id);
-    expect(Object.keys(second.uploadEntry.variants)).toEqual(UPLOAD_VARIANT_PRESET_KEYS);
+    expect(second.variantsGenerated).toBe(true);
+    expect(Object.keys(second.uploadEntry.variants)).toEqual(
+      PROJECT_AND_POST_UPLOAD_VARIANT_PRESET_KEYS,
+    );
     expect(second.uploadEntry.variants.card?.formats?.avif?.url).toContain("/card-v1.avif");
-    expect(second.uploadEntry.variants.og?.formats?.avif?.url).toContain("/og-v1.avif");
-    expect(second.uploadEntry.variants.square?.formats?.avif?.url).toContain("/square-v1.avif");
+    expect(second.uploadEntry.variants.cardWide?.formats?.avif?.url).toContain("/cardWide-v1.avif");
+    expect(second.uploadEntry.variants.poster?.formats?.avif?.url).toContain("/poster-v1.avif");
+  }, 15_000);
+
+  it("expande variantes deduplicadas quando a mesma imagem sai de area sem perfil para projects", async () => {
+    const uploadsDir = createTempUploadsDir();
+    const buffer = await sharp({
+      create: {
+        width: 1280,
+        height: 1800,
+        channels: 3,
+        background: { r: 112, g: 96, b: 164 },
+      },
+    })
+      .png()
+      .toBuffer();
+
+    const first = await storeUploadImageBuffer({
+      uploadsDir,
+      uploads: [],
+      buffer,
+      mime: "image/png",
+      filename: "tmp-cover.png",
+      folder: "tmp/epub-imports/user/import-2",
+    });
+
+    expect(first.uploadEntry.variants).toEqual({});
+
+    const second = await storeUploadImageBuffer({
+      uploadsDir,
+      uploads: first.uploads,
+      buffer,
+      mime: "image/png",
+      filename: "project-cover.png",
+      folder: "projects/demo",
+    });
+
+    expect(second.dedupeHit).toBe(true);
+    expect(second.variantsGenerated).toBe(true);
+    expect(second.uploadEntry.id).toBe(first.uploadEntry.id);
+    expect(Object.keys(second.uploadEntry.variants)).toEqual(PROJECT_UPLOAD_VARIANT_PRESET_KEYS);
   }, 15_000);
 });

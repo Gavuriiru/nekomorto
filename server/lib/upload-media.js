@@ -34,6 +34,25 @@ export const PROJECT_UPLOAD_VARIANT_PRESET_KEYS = Object.freeze([
   "posterThumbSm",
   "posterThumb",
 ]);
+export const POST_UPLOAD_VARIANT_PRESET_KEYS = Object.freeze([
+  "card",
+  "cardHomeXs",
+  "cardHomeSm",
+  "cardHome",
+  "heroXs",
+  "heroSm",
+  "heroMd",
+  "hero",
+]);
+export const USER_UPLOAD_VARIANT_PRESET_KEYS = Object.freeze(["square"]);
+const DISABLED_UPLOAD_VARIANT_AREAS = new Set([
+  "root",
+  "branding",
+  "shared",
+  "downloads",
+  "socials",
+  "tmp",
+]);
 const UPLOAD_VARIANT_AVIF_QUALITY = Object.freeze({
   cardHomeXs: 47,
   cardHomeSm: 47,
@@ -125,16 +144,26 @@ const normalizeVariantPresetKeyList = (value) => {
   return next;
 };
 
+export const normalizeUploadVariantPresetKeys = (value) => normalizeVariantPresetKeyList(value);
+
 export const mergeUploadVariantPresetKeys = (...values) => {
   const merged = values.flatMap((item) => normalizeVariantPresetKeyList(item));
-  const next = normalizeVariantPresetKeyList(merged);
-  return next.length > 0 ? next : [...UPLOAD_VARIANT_PRESET_KEYS];
+  return normalizeVariantPresetKeyList(merged);
 };
 
 export const resolveUploadVariantPresetKeysForArea = (value) => {
   const area = toArea(value);
   if (area === "projects") {
     return [...PROJECT_UPLOAD_VARIANT_PRESET_KEYS];
+  }
+  if (area === "posts") {
+    return [...POST_UPLOAD_VARIANT_PRESET_KEYS];
+  }
+  if (area === "users") {
+    return [...USER_UPLOAD_VARIANT_PRESET_KEYS];
+  }
+  if (DISABLED_UPLOAD_VARIANT_AREAS.has(area)) {
+    return [];
   }
   return [...UPLOAD_VARIANT_PRESET_KEYS];
 };
@@ -240,8 +269,41 @@ const computeFocalCoverRect = ({
 const toUploadVariantUrl = ({ uploadId, preset, version, extension }) =>
   `/uploads/_variants/${encodeURIComponent(uploadId)}/${preset}-v${version}.${extension}`;
 
+const isPathInsideRoot = (rootPath, targetPath) => {
+  const safeRoot = path.resolve(rootPath);
+  const safeTarget = path.resolve(targetPath);
+  const relative = path.relative(safeRoot, safeTarget);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+};
+
+const resolveUploadVariantDirectory = (uploadsDir, uploadId) => {
+  const safeUploadsDir = String(uploadsDir || "").trim();
+  const safeUploadId = String(uploadId || "").trim();
+  if (!safeUploadsDir || !safeUploadId) {
+    return null;
+  }
+  const variantsRootDir = path.resolve(path.join(safeUploadsDir, "_variants"));
+  const variantDir = path.resolve(path.join(variantsRootDir, safeUploadId));
+  if (!isPathInsideRoot(variantsRootDir, variantDir)) {
+    throw new Error("invalid_variant_path");
+  }
+  return variantDir;
+};
+
+const removeUploadVariantDirectory = (uploadsDir, uploadId) => {
+  const variantDir = resolveUploadVariantDirectory(uploadsDir, uploadId);
+  if (!variantDir) {
+    return null;
+  }
+  fs.rmSync(variantDir, { recursive: true, force: true });
+  return variantDir;
+};
+
 const resetVariantDirectory = (uploadsDir, uploadId) => {
-  const dir = path.join(uploadsDir, "_variants", uploadId);
+  const dir = resolveUploadVariantDirectory(uploadsDir, uploadId);
+  if (!dir) {
+    return null;
+  }
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
   return dir;
@@ -638,7 +700,18 @@ export const generateUploadVariants = async ({
     typeof focalCrops !== "undefined"
       ? deriveFocalPointsFromCrops(safeFocalCrops)
       : safeFocalPoints;
-  const presetKeys = mergeUploadVariantPresetKeys(variantPresetKeys);
+  const presetKeys = Array.isArray(variantPresetKeys)
+    ? normalizeUploadVariantPresetKeys(variantPresetKeys)
+    : [...UPLOAD_VARIANT_PRESET_KEYS];
+  if (presetKeys.length === 0) {
+    removeUploadVariantDirectory(uploadsDir, uploadId);
+    return {
+      variants: {},
+      sourceWidth,
+      sourceHeight,
+      variantBytes: 0,
+    };
+  }
   const variantDir = resetVariantDirectory(uploadsDir, uploadId);
   const cardBaseRect = computeFocalCoverRectFromCrop({
     sourceWidth,
@@ -800,21 +873,33 @@ export const attachUploadMediaMetadata = async ({
     .toLowerCase();
   const nextVersion = sanitizeVariantVersion(variantsVersion ?? current.variantsVersion ?? 1);
   let nextVariants = normalizeVariants(current.variants);
-  const existingVariantPresetKeys = Object.keys(nextVariants);
-  const requiredVariantPresetKeys =
-    normalizeVariantPresetKeyList(variantPresetKeys).length > 0
-      ? normalizeVariantPresetKeyList(variantPresetKeys)
-      : existingVariantPresetKeys.length > 0
-        ? mergeUploadVariantPresetKeys(
-            existingVariantPresetKeys,
-            resolveUploadVariantPresetKeysForEntry(current),
-          )
-        : resolveUploadVariantPresetKeysForEntry(current);
+  const requiredVariantPresetKeys = Array.isArray(variantPresetKeys)
+    ? normalizeUploadVariantPresetKeys(variantPresetKeys)
+    : resolveUploadVariantPresetKeysForEntry(current);
   let sourceWidth = toNumberOrNull(current.width);
   let sourceHeight = toNumberOrNull(current.height);
   let variantBytes = sumVariantSizes(nextVariants).bytes;
 
-  if (regenerateVariants && sourcePath && isRasterUploadMime(sourceMime)) {
+  if (regenerateVariants && requiredVariantPresetKeys.length === 0) {
+    if (sourcePath && isRasterUploadMime(sourceMime)) {
+      const cleared = await generateUploadVariants({
+        uploadsDir,
+        uploadId: String(current.id || ""),
+        sourcePath,
+        sourceMime,
+        focalPoints: incomingFocalPoints,
+        focalCrops,
+        variantsVersion: nextVersion,
+        variantPresetKeys: [],
+      });
+      sourceWidth = toNumberOrNull(cleared.sourceWidth) ?? sourceWidth;
+      sourceHeight = toNumberOrNull(cleared.sourceHeight) ?? sourceHeight;
+    } else {
+      removeUploadVariantDirectory(uploadsDir, String(current.id || ""));
+    }
+    nextVariants = {};
+    variantBytes = 0;
+  } else if (regenerateVariants && sourcePath && isRasterUploadMime(sourceMime)) {
     const generated = await generateUploadVariants({
       uploadsDir,
       uploadId: String(current.id || ""),

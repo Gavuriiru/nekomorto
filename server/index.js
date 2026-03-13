@@ -212,6 +212,7 @@ import {
   findUploadByHash,
   getPrimaryFocalPoint,
   mergeUploadVariantPresetKeys,
+  normalizeUploadVariantPresetKeys,
   normalizeFocalCrops,
   normalizeFocalPoints,
   normalizeVariants,
@@ -5032,14 +5033,20 @@ const ensureUploadEntryHasRequiredVariants = async ({
   if (!currentEntry) {
     return { entry, uploads: Array.isArray(uploads) ? uploads : [], changed: false };
   }
-  const currentVariantPresetKeys = Object.keys(normalizeVariants(currentEntry?.variants));
-  const mergedVariantPresetKeys = mergeUploadVariantPresetKeys(
-    currentVariantPresetKeys,
-    requiredVariantPresetKeys,
+  const currentVariantPresetKeys = normalizeUploadVariantPresetKeys(
+    Object.keys(normalizeVariants(currentEntry?.variants)),
   );
-  if (mergedVariantPresetKeys.length <= currentVariantPresetKeys.length) {
+  const requestedVariantPresetKeys = normalizeUploadVariantPresetKeys(requiredVariantPresetKeys);
+  if (
+    requestedVariantPresetKeys.length === 0 ||
+    requestedVariantPresetKeys.every((presetKey) => currentVariantPresetKeys.includes(presetKey))
+  ) {
     return { entry: currentEntry, uploads: Array.isArray(uploads) ? uploads : [], changed: false };
   }
+  const mergedVariantPresetKeys = mergeUploadVariantPresetKeys(
+    currentVariantPresetKeys,
+    requestedVariantPresetKeys,
+  );
 
   try {
     const currentProvider = readUploadStorageProvider(currentEntry, "local");
@@ -14119,8 +14126,6 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
       requiredVariantPresetKeys: resolveUploadVariantPresetKeysForArea(safeFolder),
     });
     const resolvedDedupeEntry = dedupeResolution.entry;
-    const dedupeVariantsGenerated =
-      Object.keys(normalizeVariants(resolvedDedupeEntry?.variants)).length > 0;
     const dedupeFocalState = readUploadFocalState(resolvedDedupeEntry);
     appendAuditLog(req, "uploads.image", "uploads", {
       uploadId: resolvedDedupeEntry.id,
@@ -14142,7 +14147,7 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
       focalPoint: dedupeFocalState.focalPoint,
       variants: normalizeVariants(resolvedDedupeEntry.variants),
       area: resolvedDedupeEntry.area || "",
-      variantsGenerated: dedupeVariantsGenerated,
+      variantsGenerated: true,
     });
   }
 
@@ -14977,8 +14982,6 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
       requiredVariantPresetKeys: resolveUploadVariantPresetKeysForArea(safeFolder),
     });
     const resolvedDedupeEntry = dedupeResolution.entry;
-    const dedupeVariantsGenerated =
-      Object.keys(normalizeVariants(resolvedDedupeEntry?.variants)).length > 0;
     const dedupeFocalState = readUploadFocalState(resolvedDedupeEntry);
     cleanupUploadStagingWorkspace(stagingWorkspace);
     appendAuditLog(req, "uploads.image_from_url", "uploads", {
@@ -15001,7 +15004,7 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
       focalPoint: dedupeFocalState.focalPoint,
       variants: normalizeVariants(resolvedDedupeEntry.variants),
       area: resolvedDedupeEntry.area || "",
-      variantsGenerated: dedupeVariantsGenerated,
+      variantsGenerated: true,
     });
   }
 
