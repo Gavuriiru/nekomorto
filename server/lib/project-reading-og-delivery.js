@@ -14,13 +14,17 @@ import {
   loadProjectOgArtworkDataUrl,
   loadProjectOgProcessedBackdropDataUrl,
 } from "./project-og.js";
+import {
+  optimizeOgPublicImageBuffer,
+  resolveOgPublicImageEncodingConfig,
+} from "./og-image-output.js";
 
 const PROJECT_READING_OG_TIMING_ORDER = [
   "cache_read",
   "artwork_load",
   "backdrop_process",
   "image_render",
-  "png_optimize",
+  "image_optimize",
   "total",
 ];
 
@@ -102,6 +106,7 @@ const renderProjectReadingOgBuffer = async ({
   origin,
 } = {}) => {
   const timings = {};
+  const imageEncodingConfig = resolveOgPublicImageEncodingConfig();
   const [artworkDataUrl, backdropDataUrl] = await Promise.all([
     measureTiming(timings, "artwork_load", async () =>
       loadProjectOgArtworkDataUrl({
@@ -123,14 +128,24 @@ const renderProjectReadingOgBuffer = async ({
     artworkDataUrl,
     backdropDataUrl,
   });
+  const sourceContentType = imageResponse.headers.get("content-type") || "image/png";
   const rawBuffer = await measureTiming(timings, "image_render", async () =>
     Buffer.from(await imageResponse.arrayBuffer()),
   );
-  timings.png_optimize = 0;
+  const optimizedAsset = await measureTiming(timings, "image_optimize", async () =>
+    optimizeOgPublicImageBuffer({
+      buffer: rawBuffer,
+      sourceContentType,
+      targetFormat: "jpeg",
+      profile: "visually-lossless",
+      maxBytes: imageEncodingConfig.maxBytes,
+      qualityLadder: imageEncodingConfig.qualityLadder,
+    }),
+  );
 
   return {
-    buffer: rawBuffer,
-    contentType: imageResponse.headers.get("content-type") || "image/png",
+    buffer: optimizedAsset.buffer,
+    contentType: optimizedAsset.contentType || sourceContentType,
     timings,
     model: baseModel,
   };

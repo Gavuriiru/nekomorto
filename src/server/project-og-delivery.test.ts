@@ -6,10 +6,11 @@ const buildProjectOgCardModelMock = vi.hoisted(() => vi.fn());
 const buildProjectOgImageResponseMock = vi.hoisted(() => vi.fn());
 const loadProjectOgArtworkDataUrlMock = vi.hoisted(() => vi.fn());
 const loadProjectOgProcessedBackdropDataUrlMock = vi.hoisted(() => vi.fn());
-const optimizeOgPngBufferMock = vi.hoisted(() => vi.fn());
+const optimizeOgPublicImageBufferMock = vi.hoisted(() => vi.fn());
+const resolveOgPublicImageEncodingConfigMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../server/lib/project-og.js", () => ({
-  PROJECT_OG_SCENE_VERSION: "project-og-v3",
+  PROJECT_OG_SCENE_VERSION: "project-og-v4",
   buildProjectOgCardModel: buildProjectOgCardModelMock,
   buildProjectOgImagePath: (projectId: string) =>
     `/api/og/project/${encodeURIComponent(String(projectId || "").trim())}`,
@@ -19,7 +20,8 @@ vi.mock("../../server/lib/project-og.js", () => ({
 }));
 
 vi.mock("../../server/lib/og-image-output.js", () => ({
-  optimizeOgPngBuffer: optimizeOgPngBufferMock,
+  optimizeOgPublicImageBuffer: optimizeOgPublicImageBufferMock,
+  resolveOgPublicImageEncodingConfig: resolveOgPublicImageEncodingConfigMock,
 }));
 
 import {
@@ -51,20 +53,34 @@ const translationsFixture = {
   genres: {},
 };
 
+const imageEncodingConfigFixture = {
+  targetKb: 320,
+  maxBytes: 320 * 1024,
+  qualityLadder: [82, 78, 74],
+};
+
 describe("project og delivery", () => {
   beforeEach(() => {
     buildProjectOgCardModelMock.mockReset();
     buildProjectOgImageResponseMock.mockReset();
     loadProjectOgArtworkDataUrlMock.mockReset();
     loadProjectOgProcessedBackdropDataUrlMock.mockReset();
-    optimizeOgPngBufferMock.mockReset();
+    optimizeOgPublicImageBufferMock.mockReset();
+    resolveOgPublicImageEncodingConfigMock.mockReset();
+    optimizeOgPublicImageBufferMock.mockImplementation(async ({ buffer }: { buffer?: Buffer }) => ({
+      buffer: Buffer.from(`optimized:${Buffer.isBuffer(buffer) ? buffer.toString() : ""}`),
+      contentType: "image/jpeg",
+      format: "jpeg",
+      quality: 80,
+    }));
+    resolveOgPublicImageEncodingConfigMock.mockReturnValue(imageEncodingConfigFixture);
 
     buildProjectOgCardModelMock.mockImplementation(
       ({ project, settings }: { project?: Record<string, unknown>; settings?: Record<string, unknown> }) => ({
         eyebrow: `${String(project?.type || "")} • ${String(project?.status || "")}`,
         title: String(project?.title || "Projeto"),
         subtitle: String(project?.studio || ""),
-        sceneVersion: "project-og-v3",
+        sceneVersion: "project-og-v4",
         titleFontSize: 72,
         artworkUrl: String(project?.cover || ""),
         artworkSource: "cover",
@@ -133,7 +149,7 @@ describe("project og delivery", () => {
       translations: translationsFixture,
       origin: "https://nekomata.moe",
       resolveVariantUrl: (value: string) => value,
-      sceneVersion: "project-og-v3",
+      sceneVersion: "project-og-v4",
     });
     const versionChanged = buildProjectOgRevision({
       project: projectFixture,
@@ -141,7 +157,7 @@ describe("project og delivery", () => {
       translations: translationsFixture,
       origin: "https://nekomata.moe",
       resolveVariantUrl: (value: string) => value,
-      sceneVersion: "project-og-v4",
+      sceneVersion: "project-og-v5",
     });
 
     expect(versionChanged).not.toBe(original);
@@ -179,11 +195,21 @@ describe("project og delivery", () => {
     expect(first.cacheHit).toBe(false);
     expect(second.cacheHit).toBe(true);
     expect(buildProjectOgImageResponseMock).toHaveBeenCalledTimes(1);
-    expect(optimizeOgPngBufferMock).not.toHaveBeenCalled();
+    expect(optimizeOgPublicImageBufferMock).toHaveBeenCalledTimes(1);
+    expect(optimizeOgPublicImageBufferMock).toHaveBeenCalledWith({
+      buffer: expect.any(Buffer),
+      sourceContentType: "image/png",
+      targetFormat: "jpeg",
+      profile: "visually-lossless",
+      maxBytes: imageEncodingConfigFixture.maxBytes,
+      qualityLadder: imageEncodingConfigFixture.qualityLadder,
+    });
+    expect(first.contentType).toBe("image/jpeg");
+    expect(first.buffer.toString()).toContain("optimized:");
     expect(firstHeaders.cache).toBe("miss");
     expect(firstHeaders.serverTiming).toContain("cache_read;dur=");
     expect(firstHeaders.serverTiming).toContain("image_render;dur=");
-    expect(firstHeaders.serverTiming).toContain("png_optimize;dur=0");
+    expect(firstHeaders.serverTiming).toContain("image_optimize;dur=");
     expect(firstHeaders.serverTiming).toContain("total;dur=");
     expect(secondHeaders.cache).toBe("hit");
     expect(secondHeaders.serverTiming).toContain("cache_read;dur=");

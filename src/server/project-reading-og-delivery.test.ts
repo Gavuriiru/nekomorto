@@ -6,9 +6,11 @@ const buildProjectReadingOgCardModelMock = vi.hoisted(() => vi.fn());
 const buildProjectReadingOgImageResponseMock = vi.hoisted(() => vi.fn());
 const loadProjectOgArtworkDataUrlMock = vi.hoisted(() => vi.fn());
 const loadProjectOgProcessedBackdropDataUrlMock = vi.hoisted(() => vi.fn());
+const optimizeOgPublicImageBufferMock = vi.hoisted(() => vi.fn());
+const resolveOgPublicImageEncodingConfigMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../server/lib/project-reading-og.js", () => ({
-  PROJECT_READING_OG_SCENE_VERSION: "project-reading-og-v1",
+  PROJECT_READING_OG_SCENE_VERSION: "project-reading-og-v2",
   buildProjectReadingOgCardModel: buildProjectReadingOgCardModelMock,
   buildProjectReadingOgImagePath: ({
     projectId,
@@ -37,6 +39,11 @@ vi.mock("../../server/lib/project-reading-og.js", () => ({
 vi.mock("../../server/lib/project-og.js", () => ({
   loadProjectOgArtworkDataUrl: loadProjectOgArtworkDataUrlMock,
   loadProjectOgProcessedBackdropDataUrl: loadProjectOgProcessedBackdropDataUrlMock,
+}));
+
+vi.mock("../../server/lib/og-image-output.js", () => ({
+  optimizeOgPublicImageBuffer: optimizeOgPublicImageBufferMock,
+  resolveOgPublicImageEncodingConfig: resolveOgPublicImageEncodingConfigMock,
 }));
 
 import {
@@ -82,12 +89,27 @@ const translationsFixture = {
   },
 };
 
+const imageEncodingConfigFixture = {
+  targetKb: 320,
+  maxBytes: 320 * 1024,
+  qualityLadder: [82, 78, 74],
+};
+
 describe("project reading og delivery", () => {
   beforeEach(() => {
     buildProjectReadingOgCardModelMock.mockReset();
     buildProjectReadingOgImageResponseMock.mockReset();
     loadProjectOgArtworkDataUrlMock.mockReset();
     loadProjectOgProcessedBackdropDataUrlMock.mockReset();
+    optimizeOgPublicImageBufferMock.mockReset();
+    resolveOgPublicImageEncodingConfigMock.mockReset();
+    optimizeOgPublicImageBufferMock.mockImplementation(async ({ buffer }: { buffer?: Buffer }) => ({
+      buffer: Buffer.from(`optimized:${Buffer.isBuffer(buffer) ? buffer.toString() : ""}`),
+      contentType: "image/jpeg",
+      format: "jpeg",
+      quality: 80,
+    }));
+    resolveOgPublicImageEncodingConfigMock.mockReturnValue(imageEncodingConfigFixture);
 
     buildProjectReadingOgCardModelMock.mockImplementation(
       ({
@@ -107,7 +129,7 @@ describe("project reading og delivery", () => {
         subtitle: String(project?.title || "Projeto"),
         chapterNumberResolved: Number(chapterNumber || 1),
         volumeResolved: Number(volume || 2),
-        sceneVersion: "project-reading-og-v1",
+        sceneVersion: "project-reading-og-v2",
         titleFontSize: 72,
         artworkUrl: String(project?.cover || ""),
         artworkSource: "project-cover",
@@ -266,12 +288,23 @@ describe("project reading og delivery", () => {
     expect(first?.cacheHit).toBe(false);
     expect(second?.cacheHit).toBe(true);
     expect(buildProjectReadingOgImageResponseMock).toHaveBeenCalledTimes(1);
+    expect(optimizeOgPublicImageBufferMock).toHaveBeenCalledTimes(1);
+    expect(optimizeOgPublicImageBufferMock).toHaveBeenCalledWith({
+      buffer: expect.any(Buffer),
+      sourceContentType: "image/png",
+      targetFormat: "jpeg",
+      profile: "visually-lossless",
+      maxBytes: imageEncodingConfigFixture.maxBytes,
+      qualityLadder: imageEncodingConfigFixture.qualityLadder,
+    });
+    expect(first?.contentType).toBe("image/jpeg");
+    expect(first?.buffer.toString()).toContain("optimized:");
     expect(firstHeaders.cache).toBe("miss");
     expect(firstHeaders.serverTiming).toContain("cache_read;dur=");
     expect(firstHeaders.serverTiming).toContain("artwork_load;dur=");
     expect(firstHeaders.serverTiming).toContain("backdrop_process;dur=");
     expect(firstHeaders.serverTiming).toContain("image_render;dur=");
-    expect(firstHeaders.serverTiming).toContain("png_optimize;dur=0");
+    expect(firstHeaders.serverTiming).toContain("image_optimize;dur=");
     expect(firstHeaders.serverTiming).toContain("total;dur=");
     expect(secondHeaders.cache).toBe("hit");
     expect(secondHeaders.serverTiming).toContain("cache_read;dur=");

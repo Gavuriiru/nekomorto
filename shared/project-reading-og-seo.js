@@ -1,6 +1,6 @@
 import { createStableRevisionToken } from "./stable-revision-token.js";
 
-export const PROJECT_READING_OG_SCENE_VERSION = "project-reading-og-v1";
+export const PROJECT_READING_OG_SCENE_VERSION = "project-reading-og-v2";
 
 const normalizeText = (value) => String(value || "").trim();
 const normalizeKey = (value) => normalizeText(value).toLowerCase();

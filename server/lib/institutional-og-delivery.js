@@ -7,6 +7,10 @@ import {
   loadInstitutionalOgBackgroundDataUrl,
 } from "./institutional-og.js";
 import {
+  optimizeOgPublicImageBuffer,
+  resolveOgPublicImageEncodingConfig,
+} from "./og-image-output.js";
+import {
   INSTITUTIONAL_OG_SCENE_VERSION,
   buildInstitutionalOgRevision,
   buildVersionedInstitutionalOgImagePath,
@@ -16,7 +20,7 @@ const INSTITUTIONAL_OG_TIMING_ORDER = [
   "cache_read",
   "background_load",
   "image_render",
-  "png_optimize",
+  "image_optimize",
   "total",
 ];
 
@@ -49,6 +53,7 @@ const renderInstitutionalOgBuffer = async ({
   origin,
 } = {}) => {
   const timings = {};
+  const imageEncodingConfig = resolveOgPublicImageEncodingConfig();
   const backgroundDataUrl = await measureTiming(timings, "background_load", async () =>
     loadInstitutionalOgBackgroundDataUrl({
       backgroundUrl: baseModel?.backgroundUrl,
@@ -59,14 +64,24 @@ const renderInstitutionalOgBuffer = async ({
     ...baseModel,
     backgroundDataUrl,
   });
+  const sourceContentType = imageResponse.headers.get("content-type") || "image/png";
   const rawBuffer = await measureTiming(timings, "image_render", async () =>
     Buffer.from(await imageResponse.arrayBuffer()),
   );
-  timings.png_optimize = 0;
+  const optimizedAsset = await measureTiming(timings, "image_optimize", async () =>
+    optimizeOgPublicImageBuffer({
+      buffer: rawBuffer,
+      sourceContentType,
+      targetFormat: "jpeg",
+      profile: "visually-lossless",
+      maxBytes: imageEncodingConfig.maxBytes,
+      qualityLadder: imageEncodingConfig.qualityLadder,
+    }),
+  );
 
   return {
-    buffer: rawBuffer,
-    contentType: imageResponse.headers.get("content-type") || "image/png",
+    buffer: optimizedAsset.buffer,
+    contentType: optimizedAsset.contentType || sourceContentType,
     timings,
     model: baseModel,
   };

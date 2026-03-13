@@ -141,7 +141,7 @@ describe("post og helper", () => {
     expect(model.backdropSource).toBe("post-first-image");
     expect(model.backdropUrl).toBe("/uploads/posts/post-1/body.jpg?preset=hero");
     expect(model.subtitleAvatarUrl).toBe("https://cdn.example.com/avatar.png");
-    expect(model.sceneVersion).toBe("post-og-v1");
+    expect(model.sceneVersion).toBe("post-og-v2");
   });
 
   it("falls back from post cover to first post image and then project cover for artwork", () => {

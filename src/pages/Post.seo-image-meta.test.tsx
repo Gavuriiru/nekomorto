@@ -150,7 +150,7 @@ describe("Post SEO image meta", () => {
       expect(
         hasMetaCall(
           (arg) =>
-            String(arg.image || "").includes("/api/og/post/post-teste") &&
+            /\/api\/og\/post\/post-teste\?v=/.test(String(arg.image || "")) &&
             arg.imageAlt === "Card de compartilhamento da postagem Post de Teste" &&
             arg.type === "article",
         ),

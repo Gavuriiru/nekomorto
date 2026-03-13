@@ -24,7 +24,7 @@ const TITLE_FONT_SIZE_STEP = 0.5;
 const TITLE_EMERGENCY_MIN_FONT_SIZE = 28;
 const TITLE_VISUAL_MIN_REFERENCE_TEXT =
   "Rekishi ni Nokoru Akujo ni Naruzo: Akuyaku Reijou ni Naru hodo Ouji no Dekiai wa Kasoku Suru you desu!";
-export const PROJECT_OG_SCENE_VERSION = "project-og-v3";
+export const PROJECT_OG_SCENE_VERSION = "project-og-v4";
 const PROJECT_OG_BACKDROP_BLUR = 10;
 
 const TITLE_FONT_WEIGHT = 700;

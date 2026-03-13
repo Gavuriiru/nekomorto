@@ -1,6 +1,6 @@
 import { createStableRevisionToken } from "./stable-revision-token.js";
 
-export const INSTITUTIONAL_OG_SCENE_VERSION = "institutional-og-v1";
+export const INSTITUTIONAL_OG_SCENE_VERSION = "institutional-og-v2";
 
 export const INSTITUTIONAL_OG_PAGE_KEYS = Object.freeze([
   "projects",
@@ -112,4 +112,3 @@ export const buildInstitutionalOgRevision = ({
     }),
   });
 };
-

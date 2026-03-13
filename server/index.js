@@ -89,8 +89,10 @@ import {
 } from "./lib/origin-config.js";
 import { canAccessApiDuringPendingMfa } from "./lib/pending-mfa-guard.js";
 import {
-  buildPostOgImagePath,
-} from "./lib/post-og.js";
+  buildPostOgImageAlt,
+  buildPostOgRevision,
+  buildVersionedPostOgImagePath,
+} from "../shared/post-og-seo.js";
 import { getPostOgCachedRender } from "./lib/post-og-delivery.js";
 import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
 import { resolvePostStatus } from "./lib/post-status.js";
@@ -2314,8 +2316,19 @@ const buildPostMeta = (post) => {
       settings.site?.description ||
       "",
   );
-  const image = buildPostOgImagePath(post?.slug || "");
-  const imageAlt = `Card de compartilhamento da postagem ${String(post?.title || "Postagem").trim() || "Postagem"}`;
+  const resolvedCover = resolvePostCover(post);
+  const firstPostImage = extractFirstImageFromPostContent(post?.content, post?.contentFormat);
+  const imageRevision = buildPostOgRevision({
+    post,
+    settings,
+    coverImageUrl: resolvedCover?.coverImageUrl,
+    firstPostImageUrl: firstPostImage?.coverImageUrl,
+  });
+  const image = buildVersionedPostOgImagePath({
+    slug: post?.slug || "",
+    revision: imageRevision,
+  });
+  const imageAlt = buildPostOgImageAlt(post?.title);
   return {
     title,
     description,

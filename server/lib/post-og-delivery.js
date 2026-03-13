@@ -7,6 +7,10 @@ import {
   loadProjectOgArtworkDataUrl,
   loadProjectOgProcessedBackdropDataUrl,
 } from "./project-og.js";
+import {
+  optimizeOgPublicImageBuffer,
+  resolveOgPublicImageEncodingConfig,
+} from "./og-image-output.js";
 
 const buildPostOgBaseModel = ({
   post,
@@ -38,6 +42,7 @@ const renderPostOgBuffer = async ({
   baseModel,
   origin,
 } = {}) => {
+  const imageEncodingConfig = resolveOgPublicImageEncodingConfig();
   const [artworkDataUrl, backdropDataUrl, subtitleAvatarDataUrl] = await Promise.all([
     loadProjectOgArtworkDataUrl({
       artworkUrl: baseModel?.artworkUrl,
@@ -59,10 +64,20 @@ const renderPostOgBuffer = async ({
     backdropDataUrl,
     subtitleAvatarDataUrl,
   });
+  const sourceContentType = imageResponse.headers.get("content-type") || "image/png";
+  const rawBuffer = Buffer.from(await imageResponse.arrayBuffer());
+  const optimizedAsset = await optimizeOgPublicImageBuffer({
+    buffer: rawBuffer,
+    sourceContentType,
+    targetFormat: "jpeg",
+    profile: "visually-lossless",
+    maxBytes: imageEncodingConfig.maxBytes,
+    qualityLadder: imageEncodingConfig.qualityLadder,
+  });
 
   return {
-    buffer: Buffer.from(await imageResponse.arrayBuffer()),
-    contentType: imageResponse.headers.get("content-type") || "image/png",
+    buffer: optimizedAsset.buffer,
+    contentType: optimizedAsset.contentType || sourceContentType,
     model: baseModel,
   };
 };

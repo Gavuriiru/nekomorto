@@ -17,6 +17,7 @@ import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
+import { extractFirstImageFromPostContent } from "@/lib/post-cover";
 import {
   readWindowPublicBootstrap,
   readWindowPublicBootstrapCurrentUser,
@@ -26,6 +27,11 @@ import { estimateReadTime } from "@/lib/post-content";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicBootstrapPayload, PublicBootstrapPost } from "@/types/public-bootstrap";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
+import {
+  buildPostOgImageAlt,
+  buildPostOgRevision,
+  buildVersionedPostOgImagePath,
+} from "../../shared/post-og-seo.js";
 
 const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
 
@@ -237,17 +243,34 @@ const Post = () => {
     () => resolveBootstrapAuthorCard(bootstrapData, post?.author),
     [bootstrapData, post?.author],
   );
+  const postOgRevision = useMemo(() => {
+    if (!post?.slug) {
+      return "";
+    }
+    return buildPostOgRevision({
+      post,
+      settings,
+      coverImageUrl: post.coverImageUrl,
+      firstPostImageUrl: extractFirstImageFromPostContent(post.content, post.contentFormat)
+        ?.coverImageUrl,
+    });
+  }, [post, settings]);
 
   const shareImage = useMemo(
     () =>
       post?.slug
-        ? normalizeAssetUrl(`/api/og/post/${encodeURIComponent(post.slug)}`)
+        ? normalizeAssetUrl(
+            buildVersionedPostOgImagePath({
+              slug: post.slug,
+              revision: postOgRevision,
+            }),
+          )
         : normalizeAssetUrl(settings.site.defaultShareImage),
-    [post?.slug, settings.site.defaultShareImage],
+    [post?.slug, postOgRevision, settings.site.defaultShareImage],
   );
 
   const postOgImageAlt = useMemo(
-    () => (post?.title ? `Card de compartilhamento da postagem ${post.title}` : ""),
+    () => (post?.title ? buildPostOgImageAlt(post.title) : ""),
     [post?.title],
   );
 

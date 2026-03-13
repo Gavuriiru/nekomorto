@@ -6,7 +6,8 @@ const buildPostOgCardModelMock = vi.hoisted(() => vi.fn());
 const buildPostOgImageResponseMock = vi.hoisted(() => vi.fn());
 const loadProjectOgArtworkDataUrlMock = vi.hoisted(() => vi.fn());
 const loadProjectOgProcessedBackdropDataUrlMock = vi.hoisted(() => vi.fn());
-const optimizeOgPngBufferMock = vi.hoisted(() => vi.fn());
+const optimizeOgPublicImageBufferMock = vi.hoisted(() => vi.fn());
+const resolveOgPublicImageEncodingConfigMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../server/lib/post-og.js", () => ({
   buildPostOgCardModel: buildPostOgCardModelMock,
@@ -19,7 +20,8 @@ vi.mock("../../server/lib/project-og.js", () => ({
 }));
 
 vi.mock("../../server/lib/og-image-output.js", () => ({
-  optimizeOgPngBuffer: optimizeOgPngBufferMock,
+  optimizeOgPublicImageBuffer: optimizeOgPublicImageBufferMock,
+  resolveOgPublicImageEncodingConfig: resolveOgPublicImageEncodingConfigMock,
 }));
 
 import { getPostOgCachedRender } from "../../server/lib/post-og-delivery.js";
@@ -47,13 +49,27 @@ const translationsFixture = {
   genres: {},
 };
 
+const imageEncodingConfigFixture = {
+  targetKb: 320,
+  maxBytes: 320 * 1024,
+  qualityLadder: [82, 78, 74],
+};
+
 describe("post og delivery", () => {
   beforeEach(() => {
     buildPostOgCardModelMock.mockReset();
     buildPostOgImageResponseMock.mockReset();
     loadProjectOgArtworkDataUrlMock.mockReset();
     loadProjectOgProcessedBackdropDataUrlMock.mockReset();
-    optimizeOgPngBufferMock.mockReset();
+    optimizeOgPublicImageBufferMock.mockReset();
+    resolveOgPublicImageEncodingConfigMock.mockReset();
+    optimizeOgPublicImageBufferMock.mockImplementation(async ({ buffer }: { buffer?: Buffer }) => ({
+      buffer: Buffer.from(`optimized:${Buffer.isBuffer(buffer) ? buffer.toString() : ""}`),
+      contentType: "image/jpeg",
+      format: "jpeg",
+      quality: 80,
+    }));
+    resolveOgPublicImageEncodingConfigMock.mockReturnValue(imageEncodingConfigFixture);
 
     buildPostOgCardModelMock.mockImplementation(
       ({
@@ -66,7 +82,7 @@ describe("post og delivery", () => {
         eyebrow: "Postagem",
         title: String(post?.title || "Postagem"),
         subtitle: String(post?.author || ""),
-        sceneVersion: "post-og-v1",
+        sceneVersion: "post-og-v2",
         artworkUrl: "/uploads/posts/post-1/cover.jpg",
         artworkSource: "post-cover",
         backdropUrl: "/uploads/posts/post-1/body.jpg",
@@ -126,7 +142,7 @@ describe("post og delivery", () => {
     );
   });
 
-  it("renders and caches the raw post OG buffer without calling the PNG optimizer", async () => {
+  it("renders and caches the optimized post OG buffer through conservative jpeg encoding", async () => {
     const cache = createOgRenderCache({ ttlMs: 300_000, maxEntries: 8 });
 
     const first = await getPostOgCachedRender({
@@ -150,8 +166,18 @@ describe("post og delivery", () => {
 
     expect(first.cacheHit).toBe(false);
     expect(buildPostOgImageResponseMock).toHaveBeenCalledTimes(1);
-    expect(optimizeOgPngBufferMock).not.toHaveBeenCalled();
-    expect(cached?.contentType).toBe("image/png");
+    expect(optimizeOgPublicImageBufferMock).toHaveBeenCalledTimes(1);
+    expect(optimizeOgPublicImageBufferMock).toHaveBeenCalledWith({
+      buffer: expect.any(Buffer),
+      sourceContentType: "image/png",
+      targetFormat: "jpeg",
+      profile: "visually-lossless",
+      maxBytes: imageEncodingConfigFixture.maxBytes,
+      qualityLadder: imageEncodingConfigFixture.qualityLadder,
+    });
+    expect(cached?.contentType).toBe("image/jpeg");
+    expect(first.contentType).toBe("image/jpeg");
+    expect(first.buffer.toString()).toContain("optimized:");
     expect(Buffer.compare(Buffer.from(cached?.buffer || []), first.buffer)).toBe(0);
   });
 

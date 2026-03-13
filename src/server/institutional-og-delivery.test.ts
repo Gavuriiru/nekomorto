@@ -5,11 +5,18 @@ import { createOgRenderCache } from "../../server/lib/og-render-cache.js";
 const buildInstitutionalOgCardModelMock = vi.hoisted(() => vi.fn());
 const buildInstitutionalOgImageResponseMock = vi.hoisted(() => vi.fn());
 const loadInstitutionalOgBackgroundDataUrlMock = vi.hoisted(() => vi.fn());
+const optimizeOgPublicImageBufferMock = vi.hoisted(() => vi.fn());
+const resolveOgPublicImageEncodingConfigMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../server/lib/institutional-og.js", () => ({
   buildInstitutionalOgCardModel: buildInstitutionalOgCardModelMock,
   buildInstitutionalOgImageResponse: buildInstitutionalOgImageResponseMock,
   loadInstitutionalOgBackgroundDataUrl: loadInstitutionalOgBackgroundDataUrlMock,
+}));
+
+vi.mock("../../server/lib/og-image-output.js", () => ({
+  optimizeOgPublicImageBuffer: optimizeOgPublicImageBufferMock,
+  resolveOgPublicImageEncodingConfig: resolveOgPublicImageEncodingConfigMock,
 }));
 
 import {
@@ -65,11 +72,26 @@ const pagesFixture = {
   },
 };
 
+const imageEncodingConfigFixture = {
+  targetKb: 320,
+  maxBytes: 320 * 1024,
+  qualityLadder: [82, 78, 74],
+};
+
 describe("institutional og delivery", () => {
   beforeEach(() => {
     buildInstitutionalOgCardModelMock.mockReset();
     buildInstitutionalOgImageResponseMock.mockReset();
     loadInstitutionalOgBackgroundDataUrlMock.mockReset();
+    optimizeOgPublicImageBufferMock.mockReset();
+    resolveOgPublicImageEncodingConfigMock.mockReset();
+    optimizeOgPublicImageBufferMock.mockImplementation(async ({ buffer }: { buffer?: Buffer }) => ({
+      buffer: Buffer.from(`optimized:${Buffer.isBuffer(buffer) ? buffer.toString() : ""}`),
+      contentType: "image/jpeg",
+      format: "jpeg",
+      quality: 80,
+    }));
+    resolveOgPublicImageEncodingConfigMock.mockReturnValue(imageEncodingConfigFixture);
 
     buildInstitutionalOgCardModelMock.mockImplementation(
       ({
@@ -83,7 +105,7 @@ describe("institutional og delivery", () => {
         title: "Sobre",
         subtitle: "Conheca a fansub.",
         siteName: "Nekomata",
-        sceneVersion: "institutional-og-v1",
+        sceneVersion: "institutional-og-v2",
         backgroundUrl: "/uploads/about.jpg",
         backgroundSource: "page-share-image",
         palette: {
@@ -214,11 +236,22 @@ describe("institutional og delivery", () => {
     expect(first?.cacheHit).toBe(false);
     expect(second?.cacheHit).toBe(true);
     expect(buildInstitutionalOgImageResponseMock).toHaveBeenCalledTimes(1);
+    expect(optimizeOgPublicImageBufferMock).toHaveBeenCalledTimes(1);
+    expect(optimizeOgPublicImageBufferMock).toHaveBeenCalledWith({
+      buffer: expect.any(Buffer),
+      sourceContentType: "image/png",
+      targetFormat: "jpeg",
+      profile: "visually-lossless",
+      maxBytes: imageEncodingConfigFixture.maxBytes,
+      qualityLadder: imageEncodingConfigFixture.qualityLadder,
+    });
+    expect(first?.contentType).toBe("image/jpeg");
+    expect(first?.buffer.toString()).toContain("optimized:");
     expect(firstHeaders.cache).toBe("miss");
     expect(firstHeaders.serverTiming).toContain("cache_read;dur=");
     expect(firstHeaders.serverTiming).toContain("background_load;dur=");
     expect(firstHeaders.serverTiming).toContain("image_render;dur=");
-    expect(firstHeaders.serverTiming).toContain("png_optimize;dur=0");
+    expect(firstHeaders.serverTiming).toContain("image_optimize;dur=");
     expect(secondHeaders.cache).toBe("hit");
     expect(secondHeaders.serverTiming).not.toContain("image_render;dur=");
   });
