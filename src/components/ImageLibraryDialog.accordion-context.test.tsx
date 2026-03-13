@@ -24,6 +24,7 @@ const chapterFolder = "projects/proj-1/capitulos/volume-1/capitulo-2";
 const missingChapterFolder = "projects/proj-1/capitulos/volume-1/capitulo-9";
 const volumeFolder = "projects/proj-1/capitulos/volume-1";
 const episodesFolder = "projects/proj-1/episodes";
+const usersFolder = "users";
 
 let uploadFilesFixture: Array<Record<string, unknown>> = [];
 let projectImagesFixture: Array<Record<string, unknown>> = [];
@@ -44,11 +45,13 @@ const renderDialog = (props: Partial<ComponentProps<typeof ImageLibraryDialog>> 
   );
 
 const expectTriggerExpanded = async (name: RegExp | string, expanded: boolean) => {
-  const trigger = await screen.findByRole("button", { name });
+  const triggers = await screen.findAllByRole("button", { name });
+  const trigger = triggers.find((candidate) => candidate.hasAttribute("aria-controls"));
+  expect(trigger).toBeTruthy();
   await waitFor(() => {
     expect(trigger).toHaveAttribute("aria-expanded", expanded ? "true" : "false");
   });
-  return trigger;
+  return trigger as HTMLButtonElement;
 };
 
 const getFolderFilterTrigger = async () =>
@@ -316,5 +319,144 @@ describe("ImageLibraryDialog accordion context", () => {
     await expectTriggerExpanded(/Projeto Dois/i, false);
     await expectTriggerExpanded(/capitulos\/volume-1/i, true);
     expect(screen.queryByText("Episodio")).not.toBeInTheDocument();
+  });
+
+  it("faz fallback do filtro inicial para todas as pastas quando o contexto atual e uma pasta de projeto removida do dropdown", async () => {
+    uploadFilesFixture = [
+      {
+        name: "exclusive.png",
+        label: "Upload Projeto",
+        fileName: "exclusive.png",
+        folder: projectRootFolder,
+        mime: "image/png",
+        size: 100,
+        url: "/uploads/projects/proj-1/exclusive.png",
+      },
+      {
+        name: "avatar.png",
+        label: "Upload Users",
+        fileName: "avatar.png",
+        folder: usersFolder,
+        mime: "image/png",
+        size: 101,
+        url: "/uploads/users/avatar.png",
+      },
+    ];
+    projectImagesFixture = [
+      {
+        url: "/uploads/projects/proj-1/root.png",
+        label: "Projeto Um (Capa)",
+        folder: projectRootFolder,
+        projectId: "proj-1",
+        projectTitle: "Projeto Um",
+        kind: "cover",
+      },
+    ];
+
+    renderDialog({
+      uploadFolder: projectRootFolder,
+      listFolders: [projectRootFolder, usersFolder],
+      includeProjectImages: true,
+      projectImagesView: "by-project",
+      projectImageProjectIds: ["proj-1"],
+    });
+
+    const folderSelect = await getFolderFilterTrigger();
+    await waitFor(() => {
+      expect(folderSelect).toHaveTextContent("Todas as pastas");
+    });
+
+    await expectTriggerExpanded(/Raiz do projeto/i, true);
+    await expectTriggerExpanded(/Projeto Um/i, true);
+    expect(screen.getByText("Upload Projeto")).toBeInTheDocument();
+    expect(screen.getByText("Projeto Um (Capa)")).toBeInTheDocument();
+  });
+
+  it("usa rotulos nao ambiguos no topo quando a biblioteca mistura varias raizes de projeto", async () => {
+    uploadFilesFixture = [
+      {
+        name: "cover-10.png",
+        label: "Projeto 10",
+        fileName: "cover-10.png",
+        folder: "projects/proj-10",
+        mime: "image/png",
+        size: 100,
+        url: "/uploads/projects/proj-10/cover-10.png",
+      },
+      {
+        name: "cover-2.png",
+        label: "Projeto 2",
+        fileName: "cover-2.png",
+        folder: "projects/proj-2",
+        mime: "image/png",
+        size: 100,
+        url: "/uploads/projects/proj-2/cover-2.png",
+      },
+    ];
+
+    renderDialog({
+      uploadFolder: "projects",
+      listFolders: ["projects"],
+      includeProjectImages: true,
+      projectImagesView: "by-project",
+      projectImageProjectIds: ["proj-2", "proj-10"],
+    });
+
+    const project2Trigger = await screen.findByRole("button", { name: /projects\/proj-2/i });
+    const project10Trigger = await screen.findByRole("button", { name: /projects\/proj-10/i });
+
+    expect(screen.queryByRole("button", { name: /^Raiz do projeto$/i })).not.toBeInTheDocument();
+    expect(project2Trigger.compareDocumentPosition(project10Trigger)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it("remove uploads duplicados do topo em bibliotecas de projeto especificas e preserva uploads exclusivos", async () => {
+    uploadFilesFixture = [
+      {
+        name: "root.png",
+        label: "Upload Duplicado",
+        fileName: "root.png",
+        folder: projectRootFolder,
+        mime: "image/png",
+        size: 100,
+        url: "/uploads/projects/proj-1/root.png",
+      },
+      {
+        name: "exclusive.png",
+        label: "Upload Exclusivo",
+        fileName: "exclusive.png",
+        folder: projectRootFolder,
+        mime: "image/png",
+        size: 120,
+        url: "/uploads/projects/proj-1/exclusive.png",
+      },
+    ];
+    projectImagesFixture = [
+      {
+        url: "/uploads/projects/proj-1/root.png",
+        label: "Projeto Um (Capa)",
+        folder: projectRootFolder,
+        projectId: "proj-1",
+        projectTitle: "Projeto Um",
+        kind: "cover",
+      },
+    ];
+
+    renderDialog({
+      uploadFolder: projectRootFolder,
+      listFolders: [projectRootFolder],
+      includeProjectImages: true,
+      projectImagesView: "by-project",
+      projectImageProjectIds: ["proj-1"],
+    });
+
+    await expectTriggerExpanded(/Raiz do projeto/i, true);
+    await waitFor(() => {
+      expect(screen.getByText("Upload Exclusivo")).toBeInTheDocument();
+      expect(screen.queryByText("Upload Duplicado")).not.toBeInTheDocument();
+    });
+    await expectTriggerExpanded(/Projeto Um/i, true);
+    expect(screen.getByText("Projeto Um (Capa)")).toBeInTheDocument();
   });
 });

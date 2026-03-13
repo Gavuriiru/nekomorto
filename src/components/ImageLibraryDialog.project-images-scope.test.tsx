@@ -23,6 +23,37 @@ describe("ImageLibraryDialog project image scope", () => {
     apiFetchMock.mockReset();
   });
 
+  it("omite a secao de imagens de projeto quando includeProjectImages esta desativado", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return mockJsonResponse(true, { files: [] });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        listFolders={["posts"]}
+        listAll={false}
+        includeProjectImages={false}
+        onSave={() => undefined}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalled();
+    });
+
+    expect(screen.queryByText("Imagens dos projetos")).not.toBeInTheDocument();
+    expect(screen.queryByText("Imagens de projeto ocultas neste contexto.")).not.toBeInTheDocument();
+  });
+
   it("nao consulta /api/uploads/project-images por padrao", async () => {
     apiFetchMock.mockImplementation(async (_base: string, path: string) => {
       if (path.startsWith("/api/uploads/list")) {
@@ -53,6 +84,37 @@ describe("ImageLibraryDialog project image scope", () => {
       (call) => String(call[1] || "") === "/api/uploads/project-images",
     );
     expect(calledProjectImagesEndpoint).toBe(false);
+  });
+
+  it("mantem a secao visivel com mensagem vazia quando includeProjectImages esta ativo", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return mockJsonResponse(true, { files: [] });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        listFolders={["posts"]}
+        listAll={false}
+        includeProjectImages
+        onSave={() => undefined}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalled();
+    });
+
+    expect(screen.getByText("Imagens dos projetos")).toBeInTheDocument();
+    expect(screen.getByText("Nenhuma imagem de projeto encontrada.")).toBeInTheDocument();
   });
 
   it("ignora itens de projeto fora de /uploads/projects/", async () => {

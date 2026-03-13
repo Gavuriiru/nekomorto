@@ -233,6 +233,14 @@ export const renderAvatarCropDataUrl = async (
 const toEffectiveName = (item: LibraryImageItem) =>
   item.name || item.fileName || item.label || "Imagem";
 
+const PT_BR_NATURAL_COLLATOR = new Intl.Collator("pt-BR", {
+  sensitivity: "base",
+  numeric: true,
+});
+
+const compareNaturalTextPtBr = (left: string | null | undefined, right: string | null | undefined) =>
+  PT_BR_NATURAL_COLLATOR.compare(String(left || ""), String(right || ""));
+
 const stripUrlQueryAndHash = (value: string) => value.split(/[?#]/)[0] || "";
 
 const normalizeComparableUploadUrl = (value: string | null | undefined) => {
@@ -397,6 +405,11 @@ const listFolderSelfAndAncestors = (value: string | null | undefined) => {
   return [...ancestors].reverse();
 };
 
+const isProjectsNamespaceFolder = (folder: string | null | undefined) => {
+  const normalized = sanitizeUploadFolderForComparison(folder);
+  return normalized === "projects" || normalized.startsWith("projects/");
+};
+
 const resolveProjectRootFromFolder = (folder: string) => {
   const normalized = sanitizeUploadFolderForComparison(folder);
   if (!normalized.startsWith("projects/")) {
@@ -433,6 +446,29 @@ const toRelativeProjectFolderLabel = ({
   return normalizedFolder;
 };
 
+const resolveUploadFolderGroupTitle = ({
+  folder,
+  scopedProjectRoot,
+  preferFullProjectPath = false,
+}: {
+  folder: string;
+  scopedProjectRoot: string;
+  preferFullProjectPath?: boolean;
+}) => {
+  const normalizedFolder = sanitizeUploadFolderForComparison(folder);
+  if (!normalizedFolder) {
+    return "Sem pasta";
+  }
+  const folderProjectRoot = resolveProjectRootFromFolder(normalizedFolder);
+  if (preferFullProjectPath && folderProjectRoot) {
+    return normalizedFolder;
+  }
+  return toRelativeProjectFolderLabel({
+    folder: normalizedFolder,
+    projectRoot: scopedProjectRoot || folderProjectRoot,
+  });
+};
+
 const compareProjectFolderGroupsRootFirst = <T extends { folder: string; title: string }>(
   left: T,
   right: T,
@@ -450,11 +486,11 @@ const compareProjectFolderGroupsRootFirst = <T extends { folder: string; title: 
     }
   }
 
-  const titleComparison = left.title.localeCompare(right.title, "pt-BR");
+  const titleComparison = compareNaturalTextPtBr(left.title, right.title);
   if (titleComparison !== 0) {
     return titleComparison;
   }
-  return leftFolder.localeCompare(rightFolder, "pt-BR");
+  return compareNaturalTextPtBr(leftFolder, rightFolder);
 };
 
 const resolveContextProjectIdFromFolder = (folder: string | null | undefined) => {
@@ -492,6 +528,22 @@ const resolveClosestFolderGroupKey = <T extends { key: string; folder: string }>
     }
   }
   return "";
+};
+
+const assignLibraryCardRef = (
+  cardRefs: { current: Record<string, HTMLButtonElement | null> },
+  url: string,
+  node: HTMLButtonElement | null,
+) => {
+  const key = toComparableSelectionKey(url);
+  if (!key) {
+    return;
+  }
+  if (node) {
+    cardRefs.current[key] = node;
+    return;
+  }
+  delete cardRefs.current[key];
 };
 
 const isLegacyGeneratedAvatarFileName = (value: string | null | undefined) => {
@@ -1356,6 +1408,7 @@ const ImageLibraryDialog = ({
   const hasInitializedProjectAccordionStateForOpenRef = useRef(false);
   const revealRequestTokenRef = useRef(0);
   const uploadCardRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const projectCardRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const resolvedUploadFolderForFilter = useMemo(
     () => sanitizeUploadFolderForComparison(uploadFolder),
     [uploadFolder],
@@ -1380,9 +1433,46 @@ const ImageLibraryDialog = ({
     () => parseStableFolderSignature(listFoldersSignature),
     [listFoldersSignature],
   );
+  const projectScopeFolders = useMemo(() => {
+    const set = new Set<string>();
+    normalizedListFolders
+      .map((folder) => sanitizeUploadFolderForComparison(folder))
+      .filter(Boolean)
+      .forEach((folder) => set.add(folder));
+    if (resolvedUploadFolderForFilter) {
+      set.add(resolvedUploadFolderForFilter);
+    }
+    return Array.from(set);
+  }, [normalizedListFolders, resolvedUploadFolderForFilter]);
+  const includesProjectsRootInScope = useMemo(
+    () => projectScopeFolders.includes("projects"),
+    [projectScopeFolders],
+  );
+  const scopedProjectRoots = useMemo(() => {
+    const set = new Set<string>();
+    projectScopeFolders.forEach((folder) => {
+      const projectRoot = resolveProjectRootFromFolder(folder);
+      if (projectRoot) {
+        set.add(projectRoot);
+      }
+    });
+    return Array.from(set);
+  }, [projectScopeFolders]);
   const allowedProjectImageIdSet = useMemo(
     () => new Set(normalizedProjectImageProjectIds),
     [normalizedProjectImageProjectIds],
+  );
+  const isBroadProjectLibraryContext = useMemo(
+    () =>
+      includeProjectImages &&
+      (includesProjectsRootInScope || scopedProjectRoots.length > 1),
+    [includeProjectImages, includesProjectsRootInScope, scopedProjectRoots.length],
+  );
+  const isProjectLibraryContext = useMemo(
+    () =>
+      includeProjectImages &&
+      (includesProjectsRootInScope || scopedProjectRoots.length > 0),
+    [includeProjectImages, includesProjectsRootInScope, scopedProjectRoots.length],
   );
 
   const folders = useMemo(() => {
@@ -1512,15 +1602,10 @@ const ImageLibraryDialog = ({
     [cropAvatar, cropSlot, cropTargetFolder, mode],
   );
   const setUploadCardRef = useCallback((url: string, node: HTMLButtonElement | null) => {
-    const key = toComparableSelectionKey(url);
-    if (!key) {
-      return;
-    }
-    if (node) {
-      uploadCardRefs.current[key] = node;
-      return;
-    }
-    delete uploadCardRefs.current[key];
+    assignLibraryCardRef(uploadCardRefs, url, node);
+  }, []);
+  const setProjectCardRef = useCallback((url: string, node: HTMLButtonElement | null) => {
+    assignLibraryCardRef(projectCardRefs, url, node);
   }, []);
   const normalizedSearch = searchQuery.trim().toLowerCase();
 
@@ -1529,7 +1614,7 @@ const ImageLibraryDialog = ({
       const next = [...items];
       next.sort((left, right) => {
         if (sortMode === "name") {
-          return toEffectiveName(left).localeCompare(toEffectiveName(right), "pt-BR");
+          return compareNaturalTextPtBr(toEffectiveName(left), toEffectiveName(right));
         }
         const leftTs = new Date(left.createdAt || 0).getTime();
         const rightTs = new Date(right.createdAt || 0).getTime();
@@ -1542,7 +1627,7 @@ const ImageLibraryDialog = ({
         } else if (safeLeftTs !== safeRightTs) {
           return safeRightTs - safeLeftTs;
         }
-        return toEffectiveName(left).localeCompare(toEffectiveName(right), "pt-BR");
+        return compareNaturalTextPtBr(toEffectiveName(left), toEffectiveName(right));
       });
       return next;
     },
@@ -1582,9 +1667,28 @@ const ImageLibraryDialog = ({
       return selectedResolvedUrlSet.has(item.url);
     });
   }, [cropAvatar, selectedResolvedUrlSet, uploads]);
+  const projectImageComparableKeySet = useMemo(() => {
+    const set = new Set<string>();
+    projectImages.forEach((item) => {
+      set.add(toComparableSelectionKey(item.url));
+    });
+    return set;
+  }, [projectImages]);
+  const renderableUploads = useMemo(() => {
+    if (!isProjectLibraryContext) {
+      return visibleUploads;
+    }
+    return visibleUploads.filter((item) => {
+      const folder = resolveItemFolder(item);
+      if (!resolveProjectRootFromFolder(folder)) {
+        return true;
+      }
+      return !projectImageComparableKeySet.has(toComparableSelectionKey(item.url));
+    });
+  }, [isProjectLibraryContext, projectImageComparableKeySet, visibleUploads]);
 
   const filteredUploads = useMemo(() => {
-    const bySearch = visibleUploads.filter(matchesSearch);
+    const bySearch = renderableUploads.filter(matchesSearch);
     const byFolder =
       uploadsFolderFilter === "__all__"
         ? bySearch
@@ -1596,7 +1700,7 @@ const ImageLibraryDialog = ({
               }),
           );
     return sortLibraryItems(byFolder);
-  }, [matchesSearch, sortLibraryItems, uploadsFolderFilter, visibleUploads]);
+  }, [matchesSearch, renderableUploads, sortLibraryItems, uploadsFolderFilter]);
   const filteredProjectImages = useMemo(
     () => sortLibraryItems(projectImages.filter(matchesSearch)),
     [matchesSearch, projectImages, sortLibraryItems],
@@ -1612,50 +1716,130 @@ const ImageLibraryDialog = ({
       groupMap.get(key)?.push(item);
     });
 
-    const scopedProjectRoot = resolveProjectRootFromFolder(resolvedUploadFolderForFilter);
+    const scopedProjectRoot = isBroadProjectLibraryContext
+      ? ""
+      : resolveProjectRootFromFolder(resolvedUploadFolderForFilter);
     return Array.from(groupMap.entries())
       .map(([key, items]) => {
         const folder = key === "__sem-pasta__" ? "" : key;
-        const folderProjectRoot = resolveProjectRootFromFolder(folder);
-        const projectRoot = scopedProjectRoot || folderProjectRoot;
         return {
           key: `upload-folder:${key}`,
           folder,
-          title: toRelativeProjectFolderLabel({
+          title: resolveUploadFolderGroupTitle({
             folder,
-            projectRoot,
+            scopedProjectRoot,
+            preferFullProjectPath: isBroadProjectLibraryContext,
           }),
           items: sortLibraryItems(items),
         } satisfies UploadFolderGroup;
       })
       .sort(compareProjectFolderGroupsRootFirst);
-  }, [filteredUploads, resolvedUploadFolderForFilter, sortLibraryItems]);
+  }, [
+    filteredUploads,
+    isBroadProjectLibraryContext,
+    resolvedUploadFolderForFilter,
+    sortLibraryItems,
+  ]);
+  const shouldExcludeProjectFoldersFromUploadFilter = includeProjectImages;
+  const resolvedUploadFolderForFilterOption = useMemo(() => {
+    if (
+      shouldExcludeProjectFoldersFromUploadFilter &&
+      isProjectsNamespaceFolder(resolvedUploadFolderForFilter)
+    ) {
+      return "";
+    }
+    return resolvedUploadFolderForFilter;
+  }, [resolvedUploadFolderForFilter, shouldExcludeProjectFoldersFromUploadFilter]);
+  const hasHiddenProjectUploadsInTopSection = useMemo(
+    () =>
+      shouldExcludeProjectFoldersFromUploadFilter &&
+      renderableUploads.some((item) => isProjectsNamespaceFolder(resolveItemFolder(item))),
+    [renderableUploads, shouldExcludeProjectFoldersFromUploadFilter],
+  );
+  const hasProjectFolderContextExcludedFromUploadFilter = useMemo(
+    () =>
+      shouldExcludeProjectFoldersFromUploadFilter &&
+      (
+        isProjectsNamespaceFolder(resolvedUploadFolderForFilter) ||
+        normalizedListFolders.some((folder) => isProjectsNamespaceFolder(folder)) ||
+        hasHiddenProjectUploadsInTopSection
+      ),
+    [
+      hasHiddenProjectUploadsInTopSection,
+      normalizedListFolders,
+      resolvedUploadFolderForFilter,
+      shouldExcludeProjectFoldersFromUploadFilter,
+    ],
+  );
   const uploadFolderFilterOptions = useMemo(() => {
     const set = new Set<string>();
+    const registerFolderCandidates = (folder: string | null | undefined) => {
+      listFolderAncestors(folder).forEach((candidate) => {
+        if (
+          shouldExcludeProjectFoldersFromUploadFilter &&
+          isProjectsNamespaceFolder(candidate)
+        ) {
+          return;
+        }
+        set.add(candidate);
+      });
+    };
     normalizedListFolders.forEach((folder) => {
-      listFolderAncestors(folder).forEach((candidate) => set.add(candidate));
+      registerFolderCandidates(folder);
     });
-    listFolderAncestors(resolvedUploadFolderForFilter).forEach((candidate) => set.add(candidate));
-    uploads.forEach((item) => {
-      listFolderAncestors(resolveItemFolder(item)).forEach((candidate) => set.add(candidate));
+    registerFolderCandidates(resolvedUploadFolderForFilter);
+    renderableUploads.forEach((item) => {
+      registerFolderCandidates(resolveItemFolder(item));
     });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [normalizedListFolders, resolvedUploadFolderForFilter, uploads]);
-  const shouldShowAllFoldersFilterOption = useMemo(
-    () => listAll || uploadFolderFilterOptions.length > 1,
-    [listAll, uploadFolderFilterOptions.length],
-  );
+    return Array.from(set).sort(compareNaturalTextPtBr);
+  }, [
+    normalizedListFolders,
+    renderableUploads,
+    resolvedUploadFolderForFilter,
+    shouldExcludeProjectFoldersFromUploadFilter,
+  ]);
+  const shouldShowAllFoldersFilterOption = useMemo(() => {
+    if (!shouldExcludeProjectFoldersFromUploadFilter) {
+      return listAll || uploadFolderFilterOptions.length > 1;
+    }
+    if (uploadFolderFilterOptions.length === 0) {
+      return false;
+    }
+    return (
+      listAll ||
+      uploadFolderFilterOptions.length > 1 ||
+      hasProjectFolderContextExcludedFromUploadFilter
+    );
+  }, [
+    hasProjectFolderContextExcludedFromUploadFilter,
+    listAll,
+    shouldExcludeProjectFoldersFromUploadFilter,
+    uploadFolderFilterOptions.length,
+  ]);
+  const shouldRenderUploadsFolderFilter = useMemo(() => {
+    if (
+      shouldExcludeProjectFoldersFromUploadFilter &&
+      uploadFolderFilterOptions.length === 0
+    ) {
+      return false;
+    }
+    return shouldShowAllFoldersFilterOption || uploadFolderFilterOptions.length > 0;
+  }, [
+    shouldExcludeProjectFoldersFromUploadFilter,
+    shouldShowAllFoldersFilterOption,
+    uploadFolderFilterOptions.length,
+  ]);
   const hasUploadsInResolvedFolderContext = useMemo(() => {
-    if (!resolvedUploadFolderForFilter) {
+    if (!resolvedUploadFolderForFilterOption) {
       return false;
     }
     return uploads.some((item) =>
       isFolderWithinSelection({
         itemFolder: resolveItemFolder(item),
-        selectedFolder: resolvedUploadFolderForFilter,
+        selectedFolder: resolvedUploadFolderForFilterOption,
       }),
     );
-  }, [resolvedUploadFolderForFilter, uploads]);
+  }, [resolvedUploadFolderForFilterOption, uploads]);
   const isUploadsFilterReadyForInitialExpansion = useMemo(() => {
     if (uploads.length === 0) {
       return true;
@@ -1673,20 +1857,21 @@ const ImageLibraryDialog = ({
     if (!open) {
       return;
     }
-    setUploadsFolderFilter(resolvedUploadFolderForFilter || "__all__");
-  }, [open, resolvedUploadFolderForFilter]);
+    setUploadsFolderFilter(resolvedUploadFolderForFilterOption || "__all__");
+  }, [open, resolvedUploadFolderForFilterOption]);
 
   useEffect(() => {
-    const fallbackFilter = resolvedUploadFolderForFilter || uploadFolderFilterOptions[0] || "__all__";
+    const fallbackFilter =
+      resolvedUploadFolderForFilterOption || uploadFolderFilterOptions[0] || "__all__";
     const shouldFallbackMissingContextToAll =
       !hasInitializedUploadAccordionStateForOpenRef.current &&
-      resolvedUploadFolderForFilter &&
+      resolvedUploadFolderForFilterOption &&
       uploads.length > 0 &&
       shouldShowAllFoldersFilterOption &&
       !hasUploadsInResolvedFolderContext;
     if (
       shouldFallbackMissingContextToAll &&
-      uploadsFolderFilter === resolvedUploadFolderForFilter
+      uploadsFolderFilter === resolvedUploadFolderForFilterOption
     ) {
       setUploadsFolderFilter("__all__");
       return;
@@ -1712,7 +1897,7 @@ const ImageLibraryDialog = ({
     }
   }, [
     hasUploadsInResolvedFolderContext,
-    resolvedUploadFolderForFilter,
+    resolvedUploadFolderForFilterOption,
     shouldShowAllFoldersFilterOption,
     uploads.length,
     uploadFolderFilterOptions,
@@ -1850,7 +2035,7 @@ const ImageLibraryDialog = ({
           folders,
         } satisfies ProjectImageGroup;
       })
-      .sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
+      .sort((a, b) => compareNaturalTextPtBr(a.title, b.title));
   }, [filteredProjectImages]);
 
   const initialOpenUploadGroupKeys = useMemo(() => {
@@ -1981,65 +2166,132 @@ const ImageLibraryDialog = ({
       return;
     }
     const targetKey = toComparableSelectionKey(pendingRevealRequest.url);
-    const matchedUpload =
-      uploads.find((item) => toComparableSelectionKey(item.url) === targetKey) ??
-      allItemsByComparableKey.get(targetKey);
-    if (!matchedUpload || matchedUpload.source !== "upload") {
+    const matchedUpload = uploads.find((item) => toComparableSelectionKey(item.url) === targetKey);
+    const matchedProjectItem = projectImages.find(
+      (item) => toComparableSelectionKey(item.url) === targetKey,
+    );
+    if (!matchedUpload && !matchedProjectItem) {
       return;
     }
-    if (normalizedSearch && !matchesSearch(matchedUpload)) {
+    const searchHidesTarget =
+      normalizedSearch &&
+      ![matchedUpload, matchedProjectItem]
+        .filter((item): item is LibraryImageItem => Boolean(item))
+        .some((item) => matchesSearch(item));
+    if (searchHidesTarget) {
       setSearchQuery("");
       return;
     }
-    const targetFolder = resolveItemFolder(matchedUpload);
-    const shouldFocusExactFolder =
-      Boolean(targetFolder) &&
-      (uploadsFolderFilter === "__all__" ||
-        !isFolderWithinSelection({
-          itemFolder: targetFolder,
-          selectedFolder: uploadsFolderFilter,
-        }) ||
-        uploadsFolderFilter !== targetFolder);
-    if (shouldFocusExactFolder) {
-      setUploadsFolderFilter(targetFolder || "__all__");
-      return;
-    }
-    const isVisibleInFilteredUploads = filteredUploads.some(
+    const isUploadRenderable = renderableUploads.some(
       (item) => toComparableSelectionKey(item.url) === targetKey,
     );
-    if (!isVisibleInFilteredUploads) {
+    if (matchedUpload && isUploadRenderable) {
+      const targetFolder = resolveItemFolder(matchedUpload);
+      const shouldFocusExactFolder =
+        Boolean(targetFolder) &&
+        (uploadsFolderFilter === "__all__" ||
+          !isFolderWithinSelection({
+            itemFolder: targetFolder,
+            selectedFolder: uploadsFolderFilter,
+          }) ||
+          uploadsFolderFilter !== targetFolder);
+      if (shouldFocusExactFolder) {
+        setUploadsFolderFilter(targetFolder || "__all__");
+        return;
+      }
+      const isVisibleInFilteredUploads = filteredUploads.some(
+        (item) => toComparableSelectionKey(item.url) === targetKey,
+      );
+      if (!isVisibleInFilteredUploads) {
+        return;
+      }
+      const targetUploadGroup = uploadFolderGroups.find((group) =>
+        group.items.some((item) => toComparableSelectionKey(item.url) === targetKey),
+      );
+      if (targetUploadGroup && !openUploadGroupKeys.includes(targetUploadGroup.key)) {
+        setOpenUploadGroupKeys([targetUploadGroup.key]);
+        return;
+      }
+      const targetUploadCard = uploadCardRefs.current[targetKey];
+      if (!targetUploadCard) {
+        return;
+      }
+      if (typeof targetUploadCard.scrollIntoView === "function") {
+        targetUploadCard.scrollIntoView({
+          block: "nearest",
+          inline: "nearest",
+          behavior: "smooth",
+        });
+      }
+      if (pendingRevealRequest.openCrop && shouldAutoOpenAvatarCrop(matchedUpload.url)) {
+        setIsCropDialogOpen(true);
+      }
+      setPendingRevealRequest(null);
       return;
     }
-    const targetGroup = uploadFolderGroups.find((group) =>
-      group.items.some((item) => toComparableSelectionKey(item.url) === targetKey),
+    if (!matchedProjectItem) {
+      return;
+    }
+    const isVisibleInFilteredProjectImages = filteredProjectImages.some(
+      (item) => toComparableSelectionKey(item.url) === targetKey,
     );
-    if (targetGroup && !openUploadGroupKeys.includes(targetGroup.key)) {
-      setOpenUploadGroupKeys([targetGroup.key]);
+    if (!isVisibleInFilteredProjectImages) {
       return;
     }
-    const targetCard = uploadCardRefs.current[targetKey];
-    if (!targetCard) {
+    if (projectImagesView === "by-project") {
+      const targetProjectGroup = projectImageGroups.find((group) =>
+        group.items.some((item) => toComparableSelectionKey(item.url) === targetKey),
+      );
+      if (!targetProjectGroup) {
+        return;
+      }
+      if (!openProjectGroupKeys.includes(targetProjectGroup.key)) {
+        setOpenProjectGroupKeys([targetProjectGroup.key]);
+        return;
+      }
+      const targetProjectFolder = targetProjectGroup.folders.find((folderGroup) =>
+        folderGroup.items.some((item) => toComparableSelectionKey(item.url) === targetKey),
+      );
+      if (targetProjectFolder) {
+        const openProjectFolderKeys = openProjectFolderKeysByGroup[targetProjectGroup.key] || [];
+        if (!openProjectFolderKeys.includes(targetProjectFolder.key)) {
+          setOpenProjectFolderKeysByGroup((prev) => ({
+            ...prev,
+            [targetProjectGroup.key]: [targetProjectFolder.key],
+          }));
+          return;
+        }
+      }
+    }
+    const targetProjectCard = projectCardRefs.current[targetKey];
+    if (!targetProjectCard) {
       return;
     }
-    if (typeof targetCard.scrollIntoView === "function") {
-      targetCard.scrollIntoView({
+    if (typeof targetProjectCard.scrollIntoView === "function") {
+      targetProjectCard.scrollIntoView({
         block: "nearest",
         inline: "nearest",
         behavior: "smooth",
       });
     }
-    if (pendingRevealRequest.openCrop && shouldAutoOpenAvatarCrop(matchedUpload.url)) {
+    if (pendingRevealRequest.openCrop && matchedUpload && shouldAutoOpenAvatarCrop(matchedUpload.url)) {
       setIsCropDialogOpen(true);
     }
     setPendingRevealRequest(null);
   }, [
-    allItemsByComparableKey,
     filteredUploads,
+    filteredProjectImages,
     matchesSearch,
     normalizedSearch,
     open,
+    openProjectFolderKeysByGroup,
+    openProjectGroupKeys,
     openUploadGroupKeys,
     pendingRevealRequest,
+    projectImageGroups,
+    projectImages,
+    projectImagesView,
+    renderableUploads,
     shouldAutoOpenAvatarCrop,
     uploadFolderGroups,
     uploads,
@@ -2819,13 +3071,20 @@ const ImageLibraryDialog = ({
     ],
   );
 
-  const renderGrid = (items: LibraryImageItem[], emptyText: string) => {
+  const renderGrid = (
+    items: LibraryImageItem[],
+    emptyText: string,
+    options?: { section?: "upload" | "project" },
+  ) => {
     if (isLoading) {
       return <ImageLibraryDialogLoadingGrid className="mt-3" testId="image-library-loading-grid" />;
     }
     if (items.length === 0) {
       return <p className="mt-3 text-xs text-muted-foreground">{emptyText}</p>;
     }
+    const section =
+      options?.section ?? (items.some((item) => item.source === "project") ? "project" : "upload");
+    const setCardRef = section === "upload" ? setUploadCardRef : setProjectCardRef;
     return (
       <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((item) => {
@@ -2843,8 +3102,9 @@ const ImageLibraryDialog = ({
             <ContextMenu key={`${item.source}:${item.url}`}>
               <ContextMenuTrigger asChild>
                 <button
-                  ref={(node) => setUploadCardRef(item.url, node)}
+                  ref={(node) => setCardRef(item.url, node)}
                   type="button"
+                  data-library-section={section}
                   className={`group overflow-hidden rounded-xl border border-border/60 bg-card/60 text-left transition hover:border-primary/40 ${
                     isSelected ? "ring-2 ring-inset ring-primary/60 border-primary/60" : ""
                   }`}
@@ -3000,7 +3260,9 @@ const ImageLibraryDialog = ({
                         </span>
                       </AccordionTrigger>
                       <AccordionContent className="[&>div]:mt-0">
-                        {renderGrid(folder.items, "Nenhuma imagem disponivel nesta pasta.")}
+                        {renderGrid(folder.items, "Nenhuma imagem disponivel nesta pasta.", {
+                          section: "project",
+                        })}
                       </AccordionContent>
                     </AccordionItem>
                   ))}
@@ -3200,30 +3462,32 @@ const ImageLibraryDialog = ({
                 className="mb-3 flex flex-wrap items-center justify-between gap-3"
               >
                 <div className="flex flex-1 flex-wrap items-center gap-2">
-                  <Select
-                    value={uploadsFolderFilter}
-                    onValueChange={setUploadsFolderFilter}
-                  >
-                    <SelectTrigger
-                      aria-label="Filtrar por pasta"
-                      className="h-9 min-w-0 w-full flex-1 basis-[11rem] bg-card/70 transition-[border-color,box-shadow] focus:border-primary/60 focus:ring-2 focus:ring-inset focus:ring-primary/60 focus:ring-offset-0 data-[state=open]:border-primary/60 data-[state=open]:ring-2 data-[state=open]:ring-inset data-[state=open]:ring-primary/60 data-[state=open]:ring-offset-0 sm:flex-none sm:w-[220px]"
+                  {shouldRenderUploadsFolderFilter ? (
+                    <Select
+                      value={uploadsFolderFilter}
+                      onValueChange={setUploadsFolderFilter}
                     >
-                      <SelectValue placeholder="Todas as pastas" />
-                    </SelectTrigger>
-                    <SelectContent
-                      align="start"
-                      className="z-[210] origin-[var(--radix-select-content-transform-origin)]"
-                    >
-                      {shouldShowAllFoldersFilterOption ? (
-                        <SelectItem value="__all__">Todas as pastas</SelectItem>
-                      ) : null}
-                      {uploadFolderFilterOptions.map((folder) => (
-                        <SelectItem key={folder} value={folder}>
-                          {folder}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                      <SelectTrigger
+                        aria-label="Filtrar por pasta"
+                        className="h-9 min-w-0 w-full flex-1 basis-[11rem] bg-card/70 transition-[border-color,box-shadow] focus:border-primary/60 focus:ring-2 focus:ring-inset focus:ring-primary/60 focus:ring-offset-0 data-[state=open]:border-primary/60 data-[state=open]:ring-2 data-[state=open]:ring-inset data-[state=open]:ring-primary/60 data-[state=open]:ring-offset-0 sm:flex-none sm:w-[220px]"
+                      >
+                        <SelectValue placeholder="Todas as pastas" />
+                      </SelectTrigger>
+                      <SelectContent
+                        align="start"
+                        className="z-[210] origin-[var(--radix-select-content-transform-origin)]"
+                      >
+                        {shouldShowAllFoldersFilterOption ? (
+                          <SelectItem value="__all__">Todas as pastas</SelectItem>
+                        ) : null}
+                        {uploadFolderFilterOptions.map((folder) => (
+                          <SelectItem key={folder} value={folder}>
+                            {folder}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : null}
                   <Select
                     value={sortMode}
                     onValueChange={(value) => setSortMode(value as "recent" | "oldest" | "name")}
@@ -3258,8 +3522,9 @@ const ImageLibraryDialog = ({
                   : "Nenhum upload disponivel.",
               )}
             </div>
-            <div>
-              <div className="flex flex-wrap items-center justify-between gap-2">
+            {includeProjectImages ? (
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold text-foreground">Imagens dos projetos</h3>
                 <span className="text-xs text-muted-foreground">
                   Ordenação:{" "}
@@ -3270,8 +3535,7 @@ const ImageLibraryDialog = ({
                       : "nome"}
                 </span>
               </div>
-              {includeProjectImages ? (
-                projectImagesView === "by-project" ? (
+                {projectImagesView === "by-project" ? (
                   renderProjectGroups(
                     projectImageGroups,
                     normalizedSearch
@@ -3285,13 +3549,9 @@ const ImageLibraryDialog = ({
                       ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
                       : "Nenhuma imagem de projeto encontrada.",
                   )
-                )
-              ) : (
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Imagens de projeto ocultas neste contexto.
-                </p>
-              )}
-            </div>
+                )}
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-4 flex flex-col-reverse justify-end gap-2 sm:flex-row">

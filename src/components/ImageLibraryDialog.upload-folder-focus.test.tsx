@@ -55,6 +55,7 @@ const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
 
 const chapterFolder = "projects/proj-1/capitulos/volume-1/capitulo-2";
 const episodesFolder = "projects/proj-1/episodes";
+const usersFolder = "users";
 
 const uploadFilesFixture = [
   {
@@ -116,6 +117,57 @@ const renderAvatarDialog = (listFolders: string[]) =>
       cropTargetFolder="users"
       cropSlot="avatar-user-1"
       scopeUserId="user-1"
+      onSave={() => undefined}
+    />,
+  );
+
+const renderBroadProjectDialog = () =>
+  render(
+    <ImageLibraryDialog
+      open
+      onOpenChange={() => undefined}
+      apiBase="http://api.local"
+      uploadFolder="projects"
+      listFolders={["projects"]}
+      listAll={false}
+      includeProjectImages
+      projectImageProjectIds={["proj-1"]}
+      projectImagesView="by-project"
+      mode="single"
+      onSave={() => undefined}
+    />,
+  );
+
+const renderScopedProjectDialog = () =>
+  render(
+    <ImageLibraryDialog
+      open
+      onOpenChange={() => undefined}
+      apiBase="http://api.local"
+      uploadFolder="projects/proj-1"
+      listFolders={["projects/proj-1"]}
+      listAll={false}
+      includeProjectImages
+      projectImageProjectIds={["proj-1"]}
+      projectImagesView="by-project"
+      mode="single"
+      onSave={() => undefined}
+    />,
+  );
+
+const renderMixedProjectFilterDialog = () =>
+  render(
+    <ImageLibraryDialog
+      open
+      onOpenChange={() => undefined}
+      apiBase="http://api.local"
+      uploadFolder={usersFolder}
+      listFolders={[usersFolder, "projects/proj-1"]}
+      listAll={false}
+      includeProjectImages
+      projectImageProjectIds={["proj-1"]}
+      projectImagesView="by-project"
+      mode="single"
       onSave={() => undefined}
     />,
   );
@@ -245,6 +297,210 @@ describe("ImageLibraryDialog upload folder focus", () => {
     expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
+  it("prefere o card de upload quando o item revelado continua visivel no topo", async () => {
+    const scrolledSections: string[] = [];
+    HTMLElement.prototype.scrollIntoView = vi.fn(function (this: HTMLElement) {
+      scrolledSections.push(this.dataset.librarySection || "");
+    });
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "cover.png",
+              label: "Upload Raiz",
+              fileName: "cover.png",
+              folder: "projects/proj-1",
+              mime: "image/png",
+              size: 101,
+              url: "/uploads/projects/proj-1/cover.png",
+            },
+          ],
+        });
+      }
+      if (path === "/api/uploads/image" && String(options?.method || "GET").toUpperCase() === "POST") {
+        return mockJsonResponse(true, {
+          url: "/uploads/projects/proj-1/cover.png",
+        });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, {
+          items: [
+            {
+              url: "/uploads/projects/proj-1/banner.png",
+              label: "Projeto Um (Banner)",
+              projectId: "proj-1",
+              projectTitle: "Projeto Um",
+              kind: "banner",
+              folder: "projects/proj-1",
+            },
+          ],
+        });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="projects/proj-1"
+        listFolders={["projects/proj-1"]}
+        listAll={false}
+        includeProjectImages
+        projectImageProjectIds={["proj-1"]}
+        projectImagesView="by-project"
+        mode="single"
+        onSave={() => undefined}
+      />,
+    );
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
+    expect(fileInput).toBeTruthy();
+
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [new File(["same"], "same.png", { type: "image/png" })] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Upload Raiz")).toBeInTheDocument();
+      expect(screen.getByText("Projeto Um (Banner)")).toBeInTheDocument();
+      expect(scrolledSections).toContain("upload");
+    });
+  });
+
+  it("faz fallback para o card de projeto quando o upload do topo foi desduplicado na biblioteca de projeto escopada", async () => {
+    const scrolledSections: string[] = [];
+    HTMLElement.prototype.scrollIntoView = vi.fn(function (this: HTMLElement) {
+      scrolledSections.push(this.dataset.librarySection || "");
+    });
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "cover.png",
+              label: "Upload Projeto",
+              fileName: "cover.png",
+              folder: "projects/proj-1",
+              mime: "image/png",
+              size: 101,
+              url: "/uploads/projects/proj-1/cover.png",
+            },
+          ],
+        });
+      }
+      if (path === "/api/uploads/image" && String(options?.method || "GET").toUpperCase() === "POST") {
+        return mockJsonResponse(true, {
+          url: "/uploads/projects/proj-1/cover.png",
+        });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, {
+          items: [
+            {
+              url: "/uploads/projects/proj-1/cover.png",
+              label: "Projeto Um (Capa)",
+              projectId: "proj-1",
+              projectTitle: "Projeto Um",
+              kind: "cover",
+              folder: "projects/proj-1",
+            },
+          ],
+        });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderScopedProjectDialog();
+
+    const searchInput = screen.getByPlaceholderText("Pesquisar por nome, projeto ou URL...");
+    fireEvent.change(searchInput, { target: { value: "oculto" } });
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
+    expect(fileInput).toBeTruthy();
+
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [new File(["same"], "same.png", { type: "image/png" })] },
+    });
+
+    await waitFor(() => {
+      expect(searchInput).toHaveValue("");
+      expect(screen.getByText("Projeto Um (Capa)")).toBeInTheDocument();
+      expect(scrolledSections).toContain("project");
+    });
+
+    expect(screen.queryByText("Upload Projeto")).not.toBeInTheDocument();
+  });
+
+  it("faz fallback para o card de projeto quando o upload do topo foi desduplicado na biblioteca ampla", async () => {
+    const scrolledSections: string[] = [];
+    HTMLElement.prototype.scrollIntoView = vi.fn(function (this: HTMLElement) {
+      scrolledSections.push(this.dataset.librarySection || "");
+    });
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "cover.png",
+              label: "Upload Projeto",
+              fileName: "cover.png",
+              folder: "projects/proj-1",
+              mime: "image/png",
+              size: 101,
+              url: "/uploads/projects/proj-1/cover.png",
+            },
+          ],
+        });
+      }
+      if (path === "/api/uploads/image" && String(options?.method || "GET").toUpperCase() === "POST") {
+        return mockJsonResponse(true, {
+          url: "/uploads/projects/proj-1/cover.png",
+        });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, {
+          items: [
+            {
+              url: "/uploads/projects/proj-1/cover.png",
+              label: "Projeto Um (Capa)",
+              projectId: "proj-1",
+              projectTitle: "Projeto Um",
+              kind: "cover",
+              folder: "projects/proj-1",
+            },
+          ],
+        });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderBroadProjectDialog();
+
+    const searchInput = screen.getByPlaceholderText("Pesquisar por nome, projeto ou URL...");
+    fireEvent.change(searchInput, { target: { value: "oculto" } });
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
+    expect(fileInput).toBeTruthy();
+
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [new File(["same"], "same.png", { type: "image/png" })] },
+    });
+
+    await waitFor(() => {
+      expect(searchInput).toHaveValue("");
+      expect(screen.getByText("Projeto Um (Capa)")).toBeInTheDocument();
+      expect(scrolledSections).toContain("project");
+    });
+
+    expect(screen.queryByRole("button", { name: /projects\/proj-1/i })).not.toBeInTheDocument();
+  });
+
   it("abre o dropdown de pasta com as opcoes visiveis acima do modal", async () => {
     renderDialog();
 
@@ -260,6 +516,70 @@ describe("ImageLibraryDialog upload folder focus", () => {
     expect(String(listbox.className)).toContain(
       "origin-[var(--radix-select-content-transform-origin)]",
     );
+  });
+
+  it("remove caminhos de projeto do dropdown quando imagens de projeto estao habilitadas", async () => {
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "avatar.png",
+              label: "Avatar",
+              fileName: "avatar.png",
+              folder: usersFolder,
+              mime: "image/png",
+              size: 100,
+              url: "/uploads/users/avatar.png",
+            },
+            {
+              name: "cover.png",
+              label: "Upload Projeto",
+              fileName: "cover.png",
+              folder: "projects/proj-1",
+              mime: "image/png",
+              size: 101,
+              url: "/uploads/projects/proj-1/cover-exclusive.png",
+            },
+          ],
+        });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, {
+          items: [
+            {
+              url: "/uploads/projects/proj-1/cover-canonical.png",
+              label: "Projeto Um (Capa)",
+              projectId: "proj-1",
+              projectTitle: "Projeto Um",
+              kind: "cover",
+              folder: "projects/proj-1",
+            },
+          ],
+        });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderMixedProjectFilterDialog();
+
+    const folderSelect = await getFolderFilterTrigger();
+    folderSelect.focus();
+    fireEvent.keyDown(folderSelect, { key: "ArrowDown", code: "ArrowDown" });
+
+    expect(await screen.findByRole("option", { name: "Todas as pastas" })).toBeVisible();
+    expect(await screen.findByRole("option", { name: usersFolder })).toBeVisible();
+    expect(screen.queryByRole("option", { name: "projects" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "projects/proj-1" })).not.toBeInTheDocument();
+  });
+
+  it("oculta o dropdown de pasta quando so restam uploads em projects", async () => {
+    renderScopedProjectDialog();
+
+    expect(screen.queryByRole("combobox", { name: "Filtrar por pasta" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("combobox", { name: "Ordenar biblioteca" })).toBeInTheDocument();
+    expect(await screen.findByText("Imagem Raiz")).toBeInTheDocument();
   });
 
   it("oculta 'Todas as pastas' quando o fluxo de avatar so pode navegar em users", async () => {
