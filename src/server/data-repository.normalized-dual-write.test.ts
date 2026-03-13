@@ -135,6 +135,7 @@ describe("DbDataRepository normalized dual-write", () => {
         where: { id: "upload-2" },
         create: expect.objectContaining({
           folder: "posts/featured",
+          storageProvider: "local",
         }),
       }),
     );
@@ -174,6 +175,7 @@ describe("DbDataRepository normalized dual-write", () => {
         create: expect.objectContaining({
           id: "upload-1",
           hashSha256: "dup-hash",
+          storageProvider: "local",
         }),
       }),
     );
@@ -183,6 +185,7 @@ describe("DbDataRepository normalized dual-write", () => {
         create: expect.objectContaining({
           id: "upload-2",
           hashSha256: null,
+          storageProvider: "local",
         }),
       }),
     );

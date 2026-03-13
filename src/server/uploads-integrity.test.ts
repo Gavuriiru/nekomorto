@@ -1,7 +1,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { runUploadsIntegrityCheck } from "../../server/lib/uploads-integrity.js";
 
@@ -61,7 +61,7 @@ afterEach(() => {
 });
 
 describe("runUploadsIntegrityCheck", () => {
-  it("passa quando arquivo /uploads referenciado existe em disco", () => {
+  it("passa quando arquivo /uploads referenciado existe em disco", async () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
         posts: [
@@ -75,13 +75,13 @@ describe("runUploadsIntegrityCheck", () => {
       [{ relativePath: "posts/cover-ok.png" }],
     );
 
-    const result = runUploadsIntegrityCheck({ datasets, uploadsDir });
+    const result = await runUploadsIntegrityCheck({ datasets, uploadsDir });
 
     expect(result.ok).toBe(true);
     expect(result.criticalCount).toBe(0);
   });
 
-  it("falha quando post, projeto e update apontam para /uploads ausente", () => {
+  it("falha quando post, projeto e update apontam para /uploads ausente", async () => {
     const { uploadsDir, datasets } = createTempWorkspace({
       posts: [
         {
@@ -114,7 +114,7 @@ describe("runUploadsIntegrityCheck", () => {
       ],
     });
 
-    const result = runUploadsIntegrityCheck({ datasets, uploadsDir });
+    const result = await runUploadsIntegrityCheck({ datasets, uploadsDir });
     const missingSourceIssues = result.criticalIssues.filter((item) => item.type === "missing_source_file");
 
     expect(result.ok).toBe(false);
@@ -127,7 +127,7 @@ describe("runUploadsIntegrityCheck", () => {
     );
   });
 
-  it("falha quando o metadata de upload aponta para variant ausente", () => {
+  it("falha quando o metadata de upload aponta para variant ausente", async () => {
     const { uploadsDir, datasets } = createTempWorkspace({
       uploads: [
         {
@@ -144,7 +144,7 @@ describe("runUploadsIntegrityCheck", () => {
       ],
     });
 
-    const result = runUploadsIntegrityCheck({ datasets, uploadsDir });
+    const result = await runUploadsIntegrityCheck({ datasets, uploadsDir });
     const missingVariantIssues = result.criticalIssues.filter((item) => item.type === "missing_variant_file");
 
     expect(result.ok).toBe(false);
@@ -158,7 +158,7 @@ describe("runUploadsIntegrityCheck", () => {
     ]);
   });
 
-  it("normaliza URL absoluta de /uploads e valida corretamente", () => {
+  it("normaliza URL absoluta de /uploads e valida corretamente", async () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
         posts: [
@@ -172,13 +172,13 @@ describe("runUploadsIntegrityCheck", () => {
       [{ relativePath: "posts/absolute-cover.png" }],
     );
 
-    const result = runUploadsIntegrityCheck({ datasets, uploadsDir });
+    const result = await runUploadsIntegrityCheck({ datasets, uploadsDir });
 
     expect(result.ok).toBe(true);
     expect(result.criticalCount).toBe(0);
   });
 
-  it("ignora URL externa sem /uploads", () => {
+  it("ignora URL externa sem /uploads", async () => {
     const { uploadsDir, datasets } = createTempWorkspace({
       posts: [
         {
@@ -189,14 +189,14 @@ describe("runUploadsIntegrityCheck", () => {
       ],
     });
 
-    const result = runUploadsIntegrityCheck({ datasets, uploadsDir });
+    const result = await runUploadsIntegrityCheck({ datasets, uploadsDir });
 
     expect(result.ok).toBe(true);
     expect(result.criticalCount).toBe(0);
     expect(result.referencedUrlsCount).toBe(0);
   });
 
-  it("falha quando branding em site settings referencia /uploads ausente", () => {
+  it("falha quando branding em site settings referencia /uploads ausente", async () => {
     const { uploadsDir, datasets } = createTempWorkspace({
       siteSettings: {
         site: {
@@ -211,7 +211,7 @@ describe("runUploadsIntegrityCheck", () => {
       },
     });
 
-    const result = runUploadsIntegrityCheck({ datasets, uploadsDir });
+    const result = await runUploadsIntegrityCheck({ datasets, uploadsDir });
     const missingSourceUrls = result.criticalIssues
       .filter((item) => item.type === "missing_source_file")
       .map((item) => item.url);
@@ -224,5 +224,104 @@ describe("runUploadsIntegrityCheck", () => {
         "/uploads/branding/wordmark.svg",
       ]),
     );
+  });
+
+  it("aceita uploads remotos em modo fast sem fazer head no provider", async () => {
+    const storageService = {
+      headUpload: vi.fn(async () => ({ exists: false })),
+    };
+    const { uploadsDir, datasets } = createTempWorkspace({
+      posts: [
+        {
+          id: "post-remote-fast",
+          slug: "post-remote-fast",
+          coverImageUrl: "/uploads/posts/remote-fast.png",
+        },
+      ],
+      uploads: [
+        {
+          id: "upload-remote-fast",
+          url: "/uploads/posts/remote-fast.png",
+          storageProvider: "s3",
+          variants: {
+            card: {
+              formats: {
+                avif: {
+                  url: "/uploads/_variants/upload-remote-fast/card-v1.avif",
+                },
+              },
+            },
+          },
+        },
+      ],
+    });
+
+    const result = await runUploadsIntegrityCheck({
+      datasets,
+      uploadsDir,
+      mode: "fast",
+      storageService,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.criticalCount).toBe(0);
+    expect(storageService.headUpload).not.toHaveBeenCalled();
+  });
+
+  it("valida uploads remotos em modo deep usando head no provider", async () => {
+    const storageService = {
+      headUpload: vi.fn(async ({ uploadUrl }) => ({
+        exists: uploadUrl !== "/uploads/_variants/upload-remote-deep/card-v1.avif",
+      })),
+    };
+    const { uploadsDir, datasets } = createTempWorkspace({
+      posts: [
+        {
+          id: "post-remote-deep",
+          slug: "post-remote-deep",
+          coverImageUrl: "/uploads/posts/remote-deep.png",
+        },
+      ],
+      uploads: [
+        {
+          id: "upload-remote-deep",
+          url: "/uploads/posts/remote-deep.png",
+          storageProvider: "s3",
+          variants: {
+            card: {
+              formats: {
+                avif: {
+                  url: "/uploads/_variants/upload-remote-deep/card-v1.avif",
+                },
+              },
+            },
+          },
+        },
+      ],
+    });
+
+    const result = await runUploadsIntegrityCheck({
+      datasets,
+      uploadsDir,
+      mode: "deep",
+      storageService,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.criticalIssues).toEqual([
+      expect.objectContaining({
+        type: "missing_variant_file",
+        url: "/uploads/_variants/upload-remote-deep/card-v1.avif",
+        source: "uploads-metadata",
+      }),
+    ]);
+    expect(storageService.headUpload).toHaveBeenCalledWith({
+      provider: "s3",
+      uploadUrl: "/uploads/posts/remote-deep.png",
+    });
+    expect(storageService.headUpload).toHaveBeenCalledWith({
+      provider: "s3",
+      uploadUrl: "/uploads/_variants/upload-remote-deep/card-v1.avif",
+    });
   });
 });

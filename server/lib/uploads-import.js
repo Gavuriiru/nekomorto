@@ -271,6 +271,7 @@ export const storeUploadImageBuffer = async ({
     url: buildUploadRelativeUrl({ folder: safeFolder, fileName }),
     fileName,
     folder: safeFolder,
+    storageProvider: "local",
     size: sourceBuffer.length,
     mime: normalizedMime,
     width: validation.dimensions?.width || null,

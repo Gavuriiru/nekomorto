@@ -5,6 +5,7 @@ import {
   normalizeUploadUrl,
   runUploadsReorganization,
 } from "./uploads-reorganizer.js";
+import { readUploadStorageProvider } from "./upload-storage.js";
 import { normalizePublicUploadUrl } from "./public-media-variants.js";
 
 const CRITICAL_ISSUE_TYPES = new Set([
@@ -73,55 +74,100 @@ const collectUploadUrlsDeep = (value, urls) => {
   }
 };
 
-const collectMissingUploadRefsFromDatasets = (datasets, uploadsDir) => {
+const buildUploadsByUrl = (datasets) =>
+  new Map(
+    (Array.isArray(datasets?.uploads) ? datasets.uploads : [])
+      .map((entry) => [normalizeUploadUrl(entry?.url), entry])
+      .filter(([key]) => Boolean(key)),
+  );
+
+const uploadExists = async ({
+  uploadUrl,
+  uploadsDir,
+  uploadEntry,
+  mode = "fast",
+  storageService,
+} = {}) => {
+  const storageProvider = readUploadStorageProvider(uploadEntry);
+  if (storageProvider === "s3") {
+    if (!uploadEntry) {
+      return false;
+    }
+    if (String(mode || "fast").trim().toLowerCase() !== "deep") {
+      return true;
+    }
+    if (!storageService) {
+      return false;
+    }
+    const remoteHead = await storageService.headUpload({
+      provider: "s3",
+      uploadUrl,
+    });
+    return Boolean(remoteHead?.exists);
+  }
+  const relative = getUploadRelativePath(uploadUrl);
+  const diskPath = path.join(uploadsDir, relative);
+  return fileExists(diskPath);
+};
+
+const collectMissingUploadRefsFromDatasets = async (datasets, uploadsDir, options = {}) => {
   const uploadUrls = new Set();
   DATASETS_TO_SCAN.forEach((datasetKey) => {
     collectUploadUrlsDeep(datasets?.[datasetKey], uploadUrls);
   });
+  const uploadsByUrl = buildUploadsByUrl(datasets);
 
-  return [...uploadUrls]
-    .sort((a, b) => a.localeCompare(b, "en"))
-    .map((uploadUrl) => {
-      const relative = getUploadRelativePath(uploadUrl);
-      const diskPath = path.join(uploadsDir, relative);
-      if (fileExists(diskPath)) {
-        return null;
-      }
-      return {
+  const missing = [];
+  for (const uploadUrl of [...uploadUrls].sort((a, b) => a.localeCompare(b, "en"))) {
+    const relative = getUploadRelativePath(uploadUrl);
+    const exists = await uploadExists({
+      uploadUrl,
+      uploadsDir,
+      uploadEntry: uploadsByUrl.get(uploadUrl) || null,
+      ...options,
+    });
+    if (!exists) {
+      missing.push({
         type: "missing_source_file",
         url: uploadUrl,
         path: relative,
-      };
-    })
-    .filter(Boolean);
+      });
+    }
+  }
+  return missing;
 };
 
-const collectMissingVariantRefsFromUploads = (datasets, uploadsDir) => {
+const collectMissingVariantRefsFromUploads = async (datasets, uploadsDir, options = {}) => {
   const uploads = Array.isArray(datasets?.uploads) ? datasets.uploads : [];
   const issues = [];
 
-  uploads.forEach((upload) => {
+  for (const upload of uploads) {
     const variants = upload?.variants;
     if (!variants || typeof variants !== "object") {
-      return;
+      continue;
     }
-    Object.entries(variants).forEach(([presetKey, presetRecord]) => {
+    for (const [presetKey, presetRecord] of Object.entries(variants)) {
       const formats =
         presetRecord?.formats && typeof presetRecord.formats === "object"
           ? presetRecord.formats
           : null;
       if (!formats) {
-        return;
+        continue;
       }
-      Object.entries(formats).forEach(([formatKey, formatRecord]) => {
+      for (const [formatKey, formatRecord] of Object.entries(formats)) {
         const uploadUrl = normalizePublicUploadUrl(formatRecord?.url);
         if (!uploadUrl) {
-          return;
+          continue;
         }
         const relative = getUploadRelativePath(uploadUrl);
-        const diskPath = path.join(uploadsDir, relative);
-        if (fileExists(diskPath)) {
-          return;
+        const exists = await uploadExists({
+          uploadUrl,
+          uploadsDir,
+          uploadEntry: upload,
+          ...options,
+        });
+        if (exists) {
+          continue;
         }
         issues.push({
           type: "missing_variant_file",
@@ -129,9 +175,9 @@ const collectMissingVariantRefsFromUploads = (datasets, uploadsDir) => {
           path: relative,
           target: `${String(upload?.id || "")}:${presetKey}:${formatKey}`,
         });
-      });
-    });
-  });
+      }
+    }
+  }
 
   return issues;
 };
@@ -158,30 +204,55 @@ const mergeCriticalIssues = (issues) => {
   });
 };
 
-export const runUploadsIntegrityCheck = ({
+export const runUploadsIntegrityCheck = async ({
   datasets,
   uploadsDir = path.join(process.cwd(), "public", "uploads"),
   maxExamples = 20,
   privateRootFolders,
+  mode = "fast",
+  storageService,
 } = {}) => {
-  const reorganizationReport = runUploadsReorganization({
-    datasets,
-    uploadsDir,
-    applyChanges: false,
-    privateRootFolders,
-  });
+  const safeMode = String(mode || "fast").trim().toLowerCase() === "deep" ? "deep" : "fast";
+  const uploads = Array.isArray(datasets?.uploads) ? datasets.uploads : [];
+  const hasRemoteUploads = uploads.some((entry) => readUploadStorageProvider(entry) === "s3");
+  const reorganizationReport = hasRemoteUploads
+    ? {
+        skipped: [],
+        rewritten: datasets || {},
+        referencedUrlsCount: (() => {
+          const urls = new Set();
+          DATASETS_TO_SCAN.forEach((datasetKey) => collectUploadUrlsDeep(datasets?.[datasetKey], urls));
+          return urls.size;
+        })(),
+        plannedMovesCount: 0,
+        uploadsInventoryCount: uploads.length,
+      }
+    : runUploadsReorganization({
+        datasets,
+        uploadsDir,
+        applyChanges: false,
+        privateRootFolders,
+      });
 
   const criticalFromReorganization = (reorganizationReport.skipped || [])
     .filter((issue) => hasCriticalType(issue?.type))
     .map((issue) => normalizeIssue(issue, "reorganization"));
-  const criticalFromDatasetScan = collectMissingUploadRefsFromDatasets(
+  const criticalFromDatasetScan = (await collectMissingUploadRefsFromDatasets(
     reorganizationReport.rewritten || datasets || {},
     uploadsDir,
-  ).map((issue) => normalizeIssue(issue, "dataset-scan"));
-  const criticalFromUploadsMetadata = collectMissingVariantRefsFromUploads(
+    {
+      mode: safeMode,
+      storageService,
+    },
+  )).map((issue) => normalizeIssue(issue, "dataset-scan"));
+  const criticalFromUploadsMetadata = (await collectMissingVariantRefsFromUploads(
     reorganizationReport.rewritten || datasets || {},
     uploadsDir,
-  ).map((issue) => normalizeIssue(issue, "uploads-metadata"));
+    {
+      mode: safeMode,
+      storageService,
+    },
+  )).map((issue) => normalizeIssue(issue, "uploads-metadata"));
 
   const criticalIssues = mergeCriticalIssues([
     ...criticalFromReorganization,

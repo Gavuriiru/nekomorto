@@ -247,7 +247,7 @@ describe("buildDiskStorageAreaSummary", () => {
 });
 
 describe("runUploadsCleanup", () => {
-  it("mantem a analise de uploads sem uso e ignora uploads referenciados", () => {
+  it("mantem a analise de uploads sem uso e ignora uploads referenciados", async () => {
     const { uploadsDir, datasets } = createTempWorkspace({
       posts: [{ coverImageUrl: "/uploads/posts/used.png" }],
       uploads: [
@@ -256,7 +256,7 @@ describe("runUploadsCleanup", () => {
       ],
     });
 
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+    const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
 
     expect(result.mode).toBe("dry-run");
     expect(result.unusedCount).toBe(1);
@@ -272,7 +272,7 @@ describe("runUploadsCleanup", () => {
     ]);
   });
 
-  it("considera capas de volume como uploads referenciados", () => {
+  it("considera capas de volume como uploads referenciados", async () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
         projects: [
@@ -297,13 +297,13 @@ describe("runUploadsCleanup", () => {
       [{ relativePath: "projects/project-1/volumes/cover-v1.png" }],
     );
 
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+    const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
 
     expect(result.unusedCount).toBe(0);
     expect(result.examples).toEqual([]);
   });
 
-  it("detecta originais soltos no disco fora do inventario", () => {
+  it("detecta originais soltos no disco fora do inventario", async () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
         uploads: [],
@@ -311,7 +311,7 @@ describe("runUploadsCleanup", () => {
       [{ relativePath: "posts/loose.png", content: Buffer.alloc(42) }],
     );
 
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+    const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
 
     expect(result.looseOriginalFilesCount).toBe(1);
     expect(result.looseOriginalTotals).toEqual(
@@ -333,7 +333,7 @@ describe("runUploadsCleanup", () => {
     );
   });
 
-  it("nao marca original solto quando o arquivo esta referenciado mesmo sem metadata de upload", () => {
+  it("nao marca original solto quando o arquivo esta referenciado mesmo sem metadata de upload", async () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
         posts: [{ coverImageUrl: "/uploads/posts/referenced.png" }],
@@ -342,13 +342,13 @@ describe("runUploadsCleanup", () => {
       [{ relativePath: "posts/referenced.png", content: Buffer.alloc(30) }],
     );
 
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+    const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
 
     expect(result.looseOriginalFilesCount).toBe(0);
     expect(result.examples).toEqual([]);
   });
 
-  it("move originais soltos para _quarantine sem apagar definitivamente na mesma execucao", () => {
+  it("move originais soltos para _quarantine sem apagar definitivamente na mesma execucao", async () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
         uploads: [],
@@ -356,7 +356,7 @@ describe("runUploadsCleanup", () => {
       [{ relativePath: "posts/loose.png", content: Buffer.alloc(55) }],
     );
 
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
+    const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
     const quarantineFiles = listRelativeFiles(path.join(uploadsDir, "_quarantine"));
 
     expect(result.quarantinedLooseOriginalFilesCount).toBe(1);
@@ -371,7 +371,7 @@ describe("runUploadsCleanup", () => {
     expect(quarantineFiles.some((item) => item.endsWith("posts/loose.png"))).toBe(true);
   });
 
-  it("purga somente arquivos vencidos da quarentena e preserva os recentes", () => {
+  it("purga somente arquivos vencidos da quarentena e preserva os recentes", async () => {
     const freshDateFolder = new Date().toISOString().slice(0, 10);
     const { uploadsDir, datasets } = createTempWorkspace(
       {
@@ -383,7 +383,7 @@ describe("runUploadsCleanup", () => {
       ],
     );
 
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
+    const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
 
     expect(result.quarantinePendingDeleteCount).toBe(1);
     expect(result.deletedQuarantineFilesCount).toBe(1);
@@ -391,7 +391,7 @@ describe("runUploadsCleanup", () => {
     expect(fs.existsSync(path.join(uploadsDir, "_quarantine", freshDateFolder, "posts", "fresh.png"))).toBe(true);
   });
 
-  it("combina uploads sem uso, variantes orfas e originais soltos no mesmo relatorio", () => {
+  it("combina uploads sem uso, variantes orfas e originais soltos no mesmo relatorio", async () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
         posts: [{ coverImageUrl: "/uploads/posts/used.png" }],
@@ -407,7 +407,7 @@ describe("runUploadsCleanup", () => {
       ],
     );
 
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+    const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
     const scopes = result.examples.map((item) => item.scope);
 
     expect(result.unusedUploadCount).toBe(1);
@@ -418,7 +418,7 @@ describe("runUploadsCleanup", () => {
     expect(scopes).toContain("loose_original");
   });
 
-  it("aplica sufixo quando ja existe arquivo com mesmo nome na quarentena", () => {
+  it("aplica sufixo quando ja existe arquivo com mesmo nome na quarentena", async () => {
     const todayFolder = new Date().toISOString().slice(0, 10);
     const { uploadsDir, datasets } = createTempWorkspace(
       {
@@ -430,7 +430,7 @@ describe("runUploadsCleanup", () => {
       ],
     );
 
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
+    const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
     const targetFiles = listRelativeFiles(path.join(uploadsDir, "_quarantine", todayFolder, "posts"));
 
     expect(result.quarantinedLooseOriginalFilesCount).toBe(1);
@@ -438,7 +438,7 @@ describe("runUploadsCleanup", () => {
     expect(targetFiles.some((item) => /^duplicate__\d+(?:-\d+)?\.png$/.test(path.posix.basename(item)))).toBe(true);
   });
 
-  it("inclui diretorio de variantes sem upload correspondente como orfao", () => {
+  it("inclui diretorio de variantes sem upload correspondente como orfao", async () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
         uploads: [],
@@ -449,7 +449,7 @@ describe("runUploadsCleanup", () => {
       ],
     );
 
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+    const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
 
     expect(result.unusedUploadCount).toBe(0);
     expect(result.orphanedVariantFilesCount).toBe(2);
@@ -475,7 +475,7 @@ describe("runUploadsCleanup", () => {
     );
   });
 
-  it("preserva variantes esperadas e remove apenas arquivos extras de uploads ativos", () => {
+  it("preserva variantes esperadas e remove apenas arquivos extras de uploads ativos", async () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
         posts: [{ coverImageUrl: "/uploads/posts/cover.png" }],
@@ -501,7 +501,7 @@ describe("runUploadsCleanup", () => {
       ],
     );
 
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
+    const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
 
     expect(result.deletedUnusedUploadsCount).toBe(0);
     expect(result.deletedOrphanedVariantFilesCount).toBe(1);
@@ -511,7 +511,7 @@ describe("runUploadsCleanup", () => {
     expect(fs.existsSync(path.join(uploadsDir, "_variants", "u-active", "old-card.webp"))).toBe(false);
   });
 
-  it("nao duplica contagem de variantes quando o upload ja sera removido por estar sem uso", () => {
+  it("nao duplica contagem de variantes quando o upload ja sera removido por estar sem uso", async () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
         uploads: [
@@ -537,7 +537,7 @@ describe("runUploadsCleanup", () => {
       ],
     );
 
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+    const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
 
     expect(result.unusedUploadCount).toBe(1);
     expect(result.orphanedVariantFilesCount).toBe(0);
@@ -551,7 +551,7 @@ describe("runUploadsCleanup", () => {
     );
   });
 
-  it("soma corretamente bytes de multiplos arquivos em um diretorio orfao", () => {
+  it("soma corretamente bytes de multiplos arquivos em um diretorio orfao", async () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
         uploads: [],
@@ -563,7 +563,7 @@ describe("runUploadsCleanup", () => {
       ],
     );
 
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+    const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
 
     expect(result.orphanedVariantFilesCount).toBe(3);
     expect(result.orphanedVariantDirsCount).toBe(1);
@@ -571,7 +571,7 @@ describe("runUploadsCleanup", () => {
     expect(result.totals.variantFiles).toBe(3);
   });
 
-  it("remove diretorios vazios apos limpar variantes orfas em upload ativo", () => {
+  it("remove diretorios vazios apos limpar variantes orfas em upload ativo", async () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
         posts: [{ coverImageUrl: "/uploads/posts/cover.png" }],
@@ -588,7 +588,7 @@ describe("runUploadsCleanup", () => {
       [{ relativePath: "_variants/u-active/nested/old.webp", content: Buffer.alloc(12) }],
     );
 
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
+    const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
 
     expect(result.deletedOrphanedVariantFilesCount).toBe(1);
     expect(result.failedCount).toBe(0);
@@ -596,7 +596,7 @@ describe("runUploadsCleanup", () => {
     expect(fs.existsSync(path.join(uploadsDir, "_variants", "u-active"))).toBe(false);
   });
 
-  it("registra falha de variante sem bloquear outras remocoes", () => {
+  it("registra falha de variante sem bloquear outras remocoes", async () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
         posts: [{ coverImageUrl: "/uploads/posts/cover.png" }],
@@ -625,7 +625,7 @@ describe("runUploadsCleanup", () => {
       return originalRmSync(target as fs.PathLike, options as fs.RmOptions);
     });
 
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
+    const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
 
     expect(result.deletedOrphanedVariantFilesCount).toBe(1);
     expect(result.failedCount).toBe(1);
@@ -640,7 +640,7 @@ describe("runUploadsCleanup", () => {
     expect(fs.existsSync(path.join(uploadsDir, "_variants", "u-active", "fail.webp"))).toBe(true);
   });
 
-  it("mistura exemplos de upload e variante e respeita exampleLimit", () => {
+  it("mistura exemplos de upload e variante e respeita exampleLimit", async () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
         posts: [
@@ -671,7 +671,7 @@ describe("runUploadsCleanup", () => {
       ],
     );
 
-    const result = runUploadsCleanup({
+    const result = await runUploadsCleanup({
       datasets,
       uploadsDir,
       applyChanges: false,
@@ -693,6 +693,51 @@ describe("runUploadsCleanup", () => {
         totalBytes: 200,
       }),
     );
+  });
+
+  it("remove uploads remotos sem uso via storage service em modo apply", async () => {
+    const storageService = {
+      deleteUpload: vi.fn(async () => ({ ok: true })),
+      deleteUploadPrefix: vi.fn(async () => ({ ok: true, deletedCount: 1 })),
+    };
+    const { uploadsDir, datasets } = createTempWorkspace({
+      uploads: [
+        {
+          id: "u-remote-unused",
+          url: "/uploads/posts/remote-unused.png",
+          fileName: "remote-unused.png",
+          folder: "posts",
+          size: 120,
+          storageProvider: "s3",
+          variants: {
+            card: {
+              formats: {
+                avif: { url: "/uploads/_variants/u-remote-unused/card-v1.avif", size: 30 },
+              },
+            },
+          },
+        },
+      ],
+    });
+
+    const result = await runUploadsCleanup({
+      datasets,
+      uploadsDir,
+      applyChanges: true,
+      storageService,
+    });
+
+    expect(result.deletedUnusedUploadsCount).toBe(1);
+    expect(result.failedCount).toBe(0);
+    expect(result.rewritten.uploads).toEqual([]);
+    expect(storageService.deleteUpload).toHaveBeenCalledWith({
+      provider: "s3",
+      uploadUrl: "/uploads/posts/remote-unused.png",
+    });
+    expect(storageService.deleteUploadPrefix).toHaveBeenCalledWith({
+      provider: "s3",
+      uploadUrlPrefix: "/uploads/_variants/u-remote-unused/",
+    });
   });
 
   it("bloqueia caminho de quarentena com tentativa de traversal", () => {

@@ -105,10 +105,14 @@ export const resolvePublicUploadDiskPath = ({
 export const publicAssetExists = ({
   uploadsDir = path.join(process.cwd(), "public", "uploads"),
   assetUrl,
+  assetExists,
 } = {}) => {
   const normalizedUrl = normalizePublicUploadUrl(assetUrl);
   if (!normalizedUrl) {
     return true;
+  }
+  if (typeof assetExists === "function") {
+    return assetExists(normalizedUrl);
   }
   const diskPath = resolvePublicUploadDiskPath({ uploadsDir, uploadUrl: normalizedUrl });
   if (!diskPath) {
@@ -140,7 +144,7 @@ export const readPublicVariantAssetUrl = (formats, fallbackUrl = "") => {
 
 export const sanitizePublicVariantFormats = (
   formats,
-  { uploadsDir = path.join(process.cwd(), "public", "uploads") } = {},
+  { uploadsDir = path.join(process.cwd(), "public", "uploads"), assetExists } = {},
 ) => {
   const source = formats && typeof formats === "object" ? formats : null;
   if (!source) {
@@ -153,7 +157,7 @@ export const sanitizePublicVariantFormats = (
       return;
     }
     const url = String(format.url || "").trim();
-    if (!url || !publicAssetExists({ uploadsDir, assetUrl: url })) {
+    if (!url || !publicAssetExists({ uploadsDir, assetUrl: url, assetExists })) {
       return;
     }
     sanitized[formatKey] = {
@@ -166,12 +170,12 @@ export const sanitizePublicVariantFormats = (
 
 export const sanitizePublicVariantPresetRecord = (
   presetRecord,
-  { uploadsDir = path.join(process.cwd(), "public", "uploads") } = {},
+  { uploadsDir = path.join(process.cwd(), "public", "uploads"), assetExists } = {},
 ) => {
   if (!presetRecord || typeof presetRecord !== "object") {
     return null;
   }
-  const formats = sanitizePublicVariantFormats(presetRecord.formats, { uploadsDir });
+  const formats = sanitizePublicVariantFormats(presetRecord.formats, { uploadsDir, assetExists });
   if (!formats) {
     return null;
   }
@@ -191,14 +195,14 @@ export const sanitizePublicVariantPresetRecord = (
 
 export const sanitizePublicVariantMap = (
   variants,
-  { uploadsDir = path.join(process.cwd(), "public", "uploads") } = {},
+  { uploadsDir = path.join(process.cwd(), "public", "uploads"), assetExists } = {},
 ) => {
   if (!variants || typeof variants !== "object") {
     return null;
   }
   const sanitized = {};
   Object.entries(variants).forEach(([presetKey, presetRecord]) => {
-    const nextPreset = sanitizePublicVariantPresetRecord(presetRecord, { uploadsDir });
+    const nextPreset = sanitizePublicVariantPresetRecord(presetRecord, { uploadsDir, assetExists });
     if (!nextPreset) {
       return;
     }
@@ -209,12 +213,12 @@ export const sanitizePublicVariantMap = (
 
 export const sanitizePublicMediaVariantEntry = (
   entry,
-  { uploadsDir = path.join(process.cwd(), "public", "uploads") } = {},
+  { uploadsDir = path.join(process.cwd(), "public", "uploads"), assetExists } = {},
 ) => {
   if (!entry || typeof entry !== "object") {
     return null;
   }
-  const variants = sanitizePublicVariantMap(entry.variants, { uploadsDir });
+  const variants = sanitizePublicVariantMap(entry.variants, { uploadsDir, assetExists });
   if (!variants) {
     return null;
   }
@@ -239,10 +243,14 @@ export const resolveExistingPublicVariantUrl = ({
   preset,
   fallbackUrl,
   uploadsDir = path.join(process.cwd(), "public", "uploads"),
+  assetExists,
 } = {}) => {
   const variants =
     entry?.variants && typeof entry.variants === "object" ? entry.variants : entry?.variants;
-  const presetRecord = sanitizePublicVariantPresetRecord(variants?.[preset], { uploadsDir });
+  const presetRecord = sanitizePublicVariantPresetRecord(variants?.[preset], {
+    uploadsDir,
+    assetExists,
+  });
   if (!presetRecord) {
     return String(fallbackUrl || "").trim();
   }

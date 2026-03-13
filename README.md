@@ -280,7 +280,76 @@ Condicional em producao:
 - `VITE_DASHBOARD_AUTOSAVE_RETRY_MAX`
 - `VITE_DASHBOARD_AUTOSAVE_RETRY_BASE_MS`
 
-### 7.3 Bootstrap de owner (`/api/bootstrap-owner`)
+### 7.3 Convencao de uploads
+
+- O contrato publico de uploads do projeto e sempre `/uploads/...`.
+- O modo padrao continua sendo `local`.
+- A configuracao detalhada para storage externo fica na secao seguinte.
+
+### 7.4 Storage externo de uploads (local, S3 e R2)
+
+O contrato publico de uploads continua sendo `/uploads/...` em todos os modos.
+Mesmo com storage externo, a app continua entregando assets via proxy (`UPLOAD_STORAGE_DELIVERY=proxy`), entao frontend, payloads publicos e referencias salvas no banco nao mudam.
+
+Defaults e comportamento base:
+
+- `UPLOAD_STORAGE_DRIVER=local` continua sendo o padrao.
+- `UPLOAD_STORAGE_DELIVERY=proxy` continua sendo o padrao desta fase.
+- Ao ativar `UPLOAD_STORAGE_DRIVER=s3`, apenas uploads novos passam a usar o provider ativo.
+- Uploads antigos continuam em `local` ate sync explicito.
+- `storageProvider` e detalhe interno/administrativo; o frontend continua consumindo `/uploads/...`.
+
+Variaveis:
+
+| Variavel | Dev | Producao | Descricao |
+| --- | --- | --- | --- |
+| `UPLOAD_STORAGE_DRIVER` | opcional | opcional | Provider ativo. Use `local` (default) ou `s3`. |
+| `UPLOAD_STORAGE_DELIVERY` | opcional | opcional | Modo de entrega. Nesta fase, mantenha `proxy` (default). |
+| `UPLOAD_STORAGE_BUCKET` | opcional | obrigatoria se `UPLOAD_STORAGE_DRIVER=s3` | Bucket do provider S3-compatible. |
+| `UPLOAD_STORAGE_REGION` | opcional | obrigatoria se `UPLOAD_STORAGE_DRIVER=s3` | Regiao do bucket. Em R2, use `auto`. |
+| `UPLOAD_STORAGE_ENDPOINT` | opcional | opcional | Endpoint customizado. Normalmente obrigatorio em R2 e omitido em AWS S3. |
+| `UPLOAD_STORAGE_ACCESS_KEY_ID` | opcional | obrigatoria se `UPLOAD_STORAGE_DRIVER=s3` | Credencial de acesso do provider. |
+| `UPLOAD_STORAGE_SECRET_ACCESS_KEY` | opcional | obrigatoria se `UPLOAD_STORAGE_DRIVER=s3` | Segredo de acesso do provider. |
+| `UPLOAD_STORAGE_PREFIX` | opcional | opcional | Prefixo interno das object keys no bucket, sem alterar a URL publica. |
+| `UPLOAD_STORAGE_S3_FORCE_PATH_STYLE` | opcional | opcional | Use `true` apenas se o provider exigir path-style. Default: `false`. |
+| `UPLOAD_STORAGE_PUBLIC_BASE_URL` | opcional | opcional | Reservado para casos futuros de entrega publica direta; nao e usado no fluxo padrao atual. |
+
+Exemplo com Cloudflare R2:
+
+```dotenv
+UPLOAD_STORAGE_DRIVER=s3
+UPLOAD_STORAGE_DELIVERY=proxy
+UPLOAD_STORAGE_BUCKET=nekomorto-media
+UPLOAD_STORAGE_REGION=auto
+UPLOAD_STORAGE_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com
+UPLOAD_STORAGE_ACCESS_KEY_ID=<r2_access_key_id>
+UPLOAD_STORAGE_SECRET_ACCESS_KEY=<r2_secret_access_key>
+UPLOAD_STORAGE_PREFIX=prod
+UPLOAD_STORAGE_S3_FORCE_PATH_STYLE=false
+UPLOAD_STORAGE_PUBLIC_BASE_URL=
+```
+
+Exemplo com AWS S3:
+
+```dotenv
+UPLOAD_STORAGE_DRIVER=s3
+UPLOAD_STORAGE_DELIVERY=proxy
+UPLOAD_STORAGE_BUCKET=nekomorto-media
+UPLOAD_STORAGE_REGION=us-east-1
+UPLOAD_STORAGE_ACCESS_KEY_ID=<aws_access_key_id>
+UPLOAD_STORAGE_SECRET_ACCESS_KEY=<aws_secret_access_key>
+UPLOAD_STORAGE_PREFIX=prod
+UPLOAD_STORAGE_S3_FORCE_PATH_STYLE=false
+UPLOAD_STORAGE_PUBLIC_BASE_URL=
+```
+
+Fora do escopo desta fase:
+
+- signed URLs
+- upload direto do browser para bucket
+- entrega publica direta por CDN/bucket
+
+### 7.5 Bootstrap de owner (`/api/bootstrap-owner`)
 
 Use apenas quando `OWNER_IDS` estiver vazio e voce tiver definido `BOOTSTRAP_TOKEN`.
 
@@ -379,11 +448,18 @@ cd /srv/nekomorto
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d postgres
 docker compose --env-file .env.prod -f docker-compose.prod.yml pull app
 docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run uploads:check-integrity
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run uploads:check-integrity -- --mode=fast
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d app caddy
 ```
 
 Esse fluxo pressupoe que a imagem ja foi publicada no GHCR (via `push` em `main` ou `workflow_dispatch`).
+
+Notas operacionais para uploads:
+
+- `fast` e o modo recomendado no deploy por custo e latencia.
+- Use `deep` apenas para validacoes manuais mais fortes, especialmente apos sync/restore.
+- Se `UPLOAD_STORAGE_DRIVER=s3`, bucket e credenciais precisam existir antes do rollout.
+- Durante a fase mista (`local + s3`), preserve `public/uploads` no host ate concluir validacao e decidir pelo rollback ou consolidacao.
 
 ### 8.7 Validacao apos deploy
 
@@ -443,7 +519,7 @@ Comportamento do deploy remoto (`ops/prod/deploy-prod.sh`):
 3. Sobe `postgres`.
 4. Faz `pull` da imagem `app` definida por `APP_IMAGE_REPO:APP_IMAGE_TAG`.
 5. Aplica migracoes Prisma.
-6. Executa check de integridade de uploads (`npm run uploads:check-integrity`).
+6. Executa check de integridade de uploads em modo rapido (`npm run uploads:check-integrity -- --mode=fast`).
 7. Sobe `app` + `caddy`.
 8. Executa healthcheck interno e externo.
 
@@ -522,6 +598,47 @@ Valide com o check de integridade:
 ```bash
 node --env-file=.env scripts/check-upload-integrity.mjs
 ```
+
+### 10.5 Migracao e rollback entre local e object storage
+
+Fluxo recomendado para adotar storage externo sem mudar URLs publicas:
+
+1. Habilite `UPLOAD_STORAGE_DRIVER=s3` apenas para uploads novos.
+2. Opcionalmente sincronize uploads legados para o bucket.
+3. Valide com check de integridade.
+4. Se precisar voltar, restaure os arquivos para `public/uploads`.
+5. So depois volte `UPLOAD_STORAGE_DRIVER=local`.
+
+Sync para object storage:
+
+```bash
+npm run uploads:sync-to-object-storage -- --dry-run
+npm run uploads:sync-to-object-storage -- --apply
+```
+
+Restore do object storage para `public/uploads`:
+
+```bash
+npm run uploads:restore-from-object-storage -- --dry-run
+npm run uploads:restore-from-object-storage -- --apply
+```
+
+Filtros suportados:
+
+- `--folder <pasta>`
+- `--upload-id <id>`
+
+Exemplos:
+
+```bash
+npm run uploads:sync-to-object-storage -- --apply --folder=posts
+npm run uploads:restore-from-object-storage -- --apply --upload-id=<upload-id>
+```
+
+Validacao recomendada:
+
+- Deploy e rotina normal: `npm run uploads:check-integrity -- --mode=fast`
+- Verificacao manual mais forte apos sync/restore: `npm run uploads:check-integrity -- --mode=deep`
 
 ## 11. Operacao de Manutencao
 
@@ -748,6 +865,73 @@ npm run uploads:check-integrity
 
 3. Se o comando falhar, repita a restauracao ate eliminar `missing_source_file` e `missing_upload_file_for_inventory`.
 
+### Erro: `storage_provider_not_configured` ou falha ao iniciar com `UPLOAD_STORAGE_DRIVER=s3`
+
+Causa comum:
+
+- bucket, regiao ou credenciais nao configurados
+- `UPLOAD_STORAGE_ENDPOINT` ausente em providers que exigem endpoint customizado (ex.: R2)
+
+Correcao:
+
+1. Confirme no `.env` ou `.env.prod`:
+   - `UPLOAD_STORAGE_BUCKET`
+   - `UPLOAD_STORAGE_REGION`
+   - `UPLOAD_STORAGE_ACCESS_KEY_ID`
+   - `UPLOAD_STORAGE_SECRET_ACCESS_KEY`
+2. Se estiver usando R2, defina `UPLOAD_STORAGE_ENDPOINT`.
+3. Se nao quiser usar bucket agora, volte para:
+
+```dotenv
+UPLOAD_STORAGE_DRIVER=local
+UPLOAD_STORAGE_DELIVERY=proxy
+```
+
+### Erro: check em modo `deep` acusa assets remotos ausentes
+
+Causa comum:
+
+- o upload foi marcado como remoto, mas original ou variantes nao existem mais no bucket
+- sync parcial ou rollback incompleto
+
+Correcao:
+
+1. Rode novamente o sync ou restore apropriado.
+2. Revalide com:
+
+```bash
+npm run uploads:check-integrity -- --mode=deep
+```
+
+3. Nao volte `UPLOAD_STORAGE_DRIVER=local` enquanto os arquivos ainda nao tiverem sido restaurados para `public/uploads`.
+
+### Erro: rollback para `local` concluido no `.env`, mas arquivos continuam faltando
+
+Causa comum:
+
+- `UPLOAD_STORAGE_DRIVER=local` foi reativado antes do restore do object storage para `public/uploads`
+
+Correcao:
+
+1. Restaure primeiro os arquivos:
+
+```bash
+npm run uploads:restore-from-object-storage -- --apply
+```
+
+2. Valide em modo forte:
+
+```bash
+npm run uploads:check-integrity -- --mode=deep
+```
+
+3. So depois mantenha `UPLOAD_STORAGE_DRIVER=local`.
+
+### Diferenca pratica entre `fast` e `deep` no check de integridade
+
+- `fast`: recomendado para deploy e rotina. Valida referencias, metadata e arquivos locais sem fazer verificacao remota em massa.
+- `deep`: recomendado para auditoria manual, pos-sync e pos-restore. Tambem faz verificacao remota dos assets em storage externo.
+
 ## 13. Referencia Rapida de Comandos
 
 Setup local rapido:
@@ -779,6 +963,12 @@ Qualidade:
 npm run lint
 npm run test
 npm run uploads:check-integrity
+npm run uploads:check-integrity -- --mode=fast
+npm run uploads:check-integrity -- --mode=deep
+npm run uploads:sync-to-object-storage -- --dry-run
+npm run uploads:sync-to-object-storage -- --apply
+npm run uploads:restore-from-object-storage -- --dry-run
+npm run uploads:restore-from-object-storage -- --apply
 ```
 
 Producao (ordem):
@@ -787,7 +977,7 @@ Producao (ordem):
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d postgres
 docker compose --env-file .env.prod -f docker-compose.prod.yml pull app
 docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run uploads:check-integrity
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run uploads:check-integrity -- --mode=fast
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d app caddy
 ```
 

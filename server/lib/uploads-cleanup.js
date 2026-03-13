@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { buildStorageAreaSummary, deriveUploadArea, normalizeVariants } from "./upload-media.js";
+import { getUploadVariantUrlPrefix, readUploadStorageProvider } from "./upload-storage.js";
 import { extractUploadUrlsFromText, normalizeUploadUrl } from "./uploads-reorganizer.js";
 import { EPUB_IMPORT_TMP_PREFIX, EPUB_IMPORT_TMP_TTL_MS, isEpubImportTempFolder } from "./uploads-import.js";
 
@@ -1143,11 +1144,12 @@ const sortFailures = (failures) =>
     return String(left?.kind || "").localeCompare(String(right?.kind || ""), "en");
   });
 
-export const runUploadsCleanup = ({
+export const runUploadsCleanup = async ({
   datasets,
   uploadsDir = path.join(process.cwd(), "public", "uploads"),
   applyChanges = false,
   exampleLimit = 8,
+  storageService = null,
 } = {}) => {
   const nowTs = Date.now();
   const uploadsRootDir = path.resolve(uploadsDir);
@@ -1209,27 +1211,45 @@ export const runUploadsCleanup = ({
   let deletedQuarantineDirsCount = 0;
   const failures = [];
 
-  unusedUploadCandidates.forEach((upload) => {
+  for (const upload of unusedUploadCandidates) {
     const normalizedUrl = normalizeUploadUrl(upload?.url) || String(upload?.url || "").trim();
 
     try {
-      const uploadId = String(upload?.id || "").trim();
-      if (uploadId) {
-        const variantDir = path.resolve(path.join(uploadsDir, VARIANTS_ROOT_SEGMENT, uploadId));
-        if (!isPathInsideRoot(variantsRootDir, variantDir)) {
-          throw new Error("invalid_variant_path");
+      const storageProvider = readUploadStorageProvider(upload);
+      if (storageProvider === "s3") {
+        if (!storageService) {
+          throw new Error("storage_service_required");
         }
-        fs.rmSync(variantDir, { recursive: true, force: true });
-      }
+        await storageService.deleteUpload({
+          provider: "s3",
+          uploadUrl: normalizedUrl,
+        });
+        const variantPrefix = getUploadVariantUrlPrefix(upload);
+        if (variantPrefix) {
+          await storageService.deleteUploadPrefix({
+            provider: "s3",
+            uploadUrlPrefix: variantPrefix,
+          });
+        }
+      } else {
+        const uploadId = String(upload?.id || "").trim();
+        if (uploadId) {
+          const variantDir = path.resolve(path.join(uploadsDir, VARIANTS_ROOT_SEGMENT, uploadId));
+          if (!isPathInsideRoot(variantsRootDir, variantDir)) {
+            throw new Error("invalid_variant_path");
+          }
+          fs.rmSync(variantDir, { recursive: true, force: true });
+        }
 
-      const originalPath = resolveUploadPathFromUrl({
-        uploadsDir,
-        uploadUrl: normalizedUrl,
-      });
-      if (!originalPath || !isPathInsideRoot(uploadsRootDir, originalPath)) {
-        throw new Error("invalid_upload_path");
+        const originalPath = resolveUploadPathFromUrl({
+          uploadsDir,
+          uploadUrl: normalizedUrl,
+        });
+        if (!originalPath || !isPathInsideRoot(uploadsRootDir, originalPath)) {
+          throw new Error("invalid_upload_path");
+        }
+        fs.rmSync(originalPath, { force: true });
       }
-      fs.rmSync(originalPath, { force: true });
       deletedUploads.add(upload);
     } catch (error) {
       failures.push({
@@ -1238,7 +1258,7 @@ export const runUploadsCleanup = ({
         reason: String(error?.message || error || "cleanup_failed"),
       });
     }
-  });
+  }
 
   orphanedVariantDirectoryGroups.forEach((group) => {
     try {

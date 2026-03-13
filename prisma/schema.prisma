@@ -453,6 +453,7 @@ model UploadV2Record {
   fileName        String
   folder          String
   area            String
+  storageProvider String   @default("local")
   mime            String
   size            Int?
   width           Int?

@@ -43,6 +43,8 @@
     "preview": "vite preview",
     "uploads:reorganize": "node --env-file=.env scripts/reorganize-upload-folders.mjs",
     "uploads:check-integrity": "node --env-file=.env scripts/check-upload-integrity.mjs",
+    "uploads:sync-to-object-storage": "node --env-file=.env scripts/sync-uploads-to-object-storage.mjs",
+    "uploads:restore-from-object-storage": "node --env-file=.env scripts/restore-uploads-from-object-storage.mjs",
     "uploads:generate-inventory": "node --env-file=.env scripts/generate-uploads-inventory.mjs",
     "uploads:localize-project-images": "node --env-file=.env scripts/localize-project-images.mjs",
     "uploads:isolate-project-images": "node --env-file=.env scripts/isolate-project-images.mjs",
@@ -55,6 +57,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1009.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@floating-ui/react": "^0.27.16",

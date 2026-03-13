@@ -206,6 +206,7 @@ import {
 } from "./lib/totp.js";
 import {
   attachUploadMediaMetadata,
+  buildStorageAreaSummary,
   computeBufferSha256,
   deriveFocalPointsFromCrops,
   findUploadByHash,
@@ -218,6 +219,21 @@ import {
   resolveUploadVariantPresetKeysForArea,
 } from "./lib/upload-media.js";
 import { buildDiskStorageAreaSummary, runUploadsCleanup } from "./lib/uploads-cleanup.js";
+import { createUploadsDeliveryMiddleware } from "./lib/uploads-delivery.js";
+import {
+  createUploadStorageService,
+  getUploadAssetDescriptors,
+  getUploadVariantUrlPrefix,
+  normalizeUploadStorageProvider,
+  readUploadStorageProvider,
+} from "./lib/upload-storage.js";
+import {
+  cleanupUploadStagingWorkspace,
+  createUploadStagingWorkspace,
+  materializeUploadEntrySourceToStaging,
+  persistUploadEntryFromStaging,
+  writeUploadBufferToStaging,
+} from "./lib/uploads-storage-runtime.js";
 import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
 import {
   sanitizeAssetUrl,
@@ -258,6 +274,9 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PUBLIC_UPLOADS_DIR = path.join(__dirname, "..", "public", "uploads");
+const uploadStorageService = createUploadStorageService({
+  uploadsDir: PUBLIC_UPLOADS_DIR,
+});
 
 const app = express();
 app.disable("x-powered-by");
@@ -3109,6 +3128,14 @@ app.get("/manifest.webmanifest", (_req, res) => {
 const uploadsPublicDir = path.join(clientRootDir, "public", "uploads");
 app.use("/uploads/_quarantine", (_req, res) => res.status(404).end());
 app.use(
+  createUploadsDeliveryMiddleware({
+    uploadsDir: uploadsPublicDir,
+    loadUploads: () => loadUploads(),
+    storageService: uploadStorageService,
+    defaultCacheControl: STATIC_DEFAULT_CACHE_CONTROL,
+  }),
+);
+app.use(
   "/uploads",
   express.static(uploadsPublicDir, {
     setHeaders: (res) => {
@@ -4802,7 +4829,10 @@ const loadUploads = () => {
     return [];
   }
   const parsed = dataRepository.loadUploads();
-  return Array.isArray(parsed) ? parsed : [];
+  return (Array.isArray(parsed) ? parsed : []).map((entry) => ({
+    ...(entry && typeof entry === "object" ? entry : {}),
+    storageProvider: readUploadStorageProvider(entry, "local"),
+  }));
 };
 
 const writeUploads = (uploads, options = {}) => {
@@ -4813,6 +4843,113 @@ const writeUploads = (uploads, options = {}) => {
     return Promise.resolve();
   }
   return undefined;
+};
+
+const deleteManagedUploadEntryAssets = async (entry, providerOverride) => {
+  const currentEntry = entry && typeof entry === "object" ? entry : null;
+  if (!currentEntry) {
+    return;
+  }
+  const provider = normalizeUploadStorageProvider(
+    providerOverride || readUploadStorageProvider(currentEntry, "local"),
+    uploadStorageService.activeProvider,
+  );
+  try {
+    await uploadStorageService.deleteUpload({
+      provider,
+      uploadUrl: currentEntry.url,
+    });
+  } catch {
+    // best-effort delete
+  }
+  const variantPrefix = getUploadVariantUrlPrefix(currentEntry);
+  if (!variantPrefix) {
+    return;
+  }
+  try {
+    await uploadStorageService.deleteUploadPrefix({
+      provider,
+      uploadUrlPrefix: variantPrefix,
+    });
+  } catch {
+    // best-effort delete
+  }
+};
+
+const buildManagedStorageAreaSummary = (uploads) => {
+  const allUploads = Array.isArray(uploads) ? uploads : [];
+  const localUploads = allUploads.filter(
+    (entry) => readUploadStorageProvider(entry, "local") === "local",
+  );
+  const remoteUploads = allUploads.filter(
+    (entry) => readUploadStorageProvider(entry, "local") === "s3",
+  );
+  const localSummary = buildDiskStorageAreaSummary({
+    uploads: localUploads,
+    uploadsDir: PUBLIC_UPLOADS_DIR,
+  });
+  const remoteSummary = buildStorageAreaSummary(remoteUploads);
+  const areasMap = new Map();
+
+  const mergeRows = (rows) => {
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+      const area = String(row?.area || "root");
+      const current = areasMap.get(area) || {
+        area,
+        originalBytes: 0,
+        variantBytes: 0,
+        totalBytes: 0,
+        originalFiles: 0,
+        variantFiles: 0,
+        totalFiles: 0,
+      };
+      areasMap.set(area, {
+        area,
+        originalBytes: current.originalBytes + Number(row?.originalBytes || 0),
+        variantBytes: current.variantBytes + Number(row?.variantBytes || 0),
+        totalBytes: current.totalBytes + Number(row?.totalBytes || 0),
+        originalFiles: current.originalFiles + Number(row?.originalFiles || 0),
+        variantFiles: current.variantFiles + Number(row?.variantFiles || 0),
+        totalFiles: current.totalFiles + Number(row?.totalFiles || 0),
+      });
+    });
+  };
+
+  mergeRows(localSummary?.areas);
+  mergeRows(remoteSummary?.areas);
+
+  const areas = Array.from(areasMap.values()).sort((left, right) => {
+    if (left.totalBytes !== right.totalBytes) {
+      return right.totalBytes - left.totalBytes;
+    }
+    return String(left.area || "").localeCompare(String(right.area || ""), "en");
+  });
+  const totals = areas.reduce(
+    (acc, item) => ({
+      area: "total",
+      originalBytes: acc.originalBytes + Number(item?.originalBytes || 0),
+      variantBytes: acc.variantBytes + Number(item?.variantBytes || 0),
+      totalBytes: acc.totalBytes + Number(item?.totalBytes || 0),
+      originalFiles: acc.originalFiles + Number(item?.originalFiles || 0),
+      variantFiles: acc.variantFiles + Number(item?.variantFiles || 0),
+      totalFiles: acc.totalFiles + Number(item?.totalFiles || 0),
+    }),
+    {
+      area: "total",
+      originalBytes: 0,
+      variantBytes: 0,
+      totalBytes: 0,
+      originalFiles: 0,
+      variantFiles: 0,
+      totalFiles: 0,
+    },
+  );
+
+  return {
+    generatedAt: new Date().toISOString(),
+    totals,
+    areas,
+  };
 };
 
 const upsertUploadEntries = (incomingEntries) => {
@@ -4838,6 +4975,7 @@ const upsertUploadEntries = (incomingEntries) => {
       url: nextUrl,
       fileName: String(entry?.fileName || current?.fileName || ""),
       folder: String(entry?.folder || current?.folder || ""),
+      storageProvider: readUploadStorageProvider(entry, readUploadStorageProvider(current, "local")),
       size: Number.isFinite(entry?.size) ? Number(entry.size) : (current?.size ?? null),
       mime: String(entry?.mime || current?.mime || ""),
       width: Number.isFinite(entry?.width) ? Number(entry.width) : (current?.width ?? null),
@@ -4902,34 +5040,61 @@ const ensureUploadEntryHasRequiredVariants = async ({
   if (mergedVariantPresetKeys.length <= currentVariantPresetKeys.length) {
     return { entry: currentEntry, uploads: Array.isArray(uploads) ? uploads : [], changed: false };
   }
-  const sourcePath = resolveUploadAbsolutePath({ uploadsDir, uploadUrl: currentEntry?.url });
-  if (!sourcePath || !fs.existsSync(sourcePath)) {
-    return { entry: currentEntry, uploads: Array.isArray(uploads) ? uploads : [], changed: false };
-  }
 
   try {
-    const updatedEntry = await attachUploadMediaMetadata({
-      uploadsDir,
-      entry: currentEntry,
-      sourcePath,
-      sourceMime: sourceMime || currentEntry?.mime,
-      hashSha256,
-      variantsVersion: Math.max(1, Number(currentEntry?.variantsVersion || 1)),
-      regenerateVariants: true,
-      variantPresetKeys: mergedVariantPresetKeys,
-    });
-    if (JSON.stringify(updatedEntry) === JSON.stringify(currentEntry)) {
-      return {
-        entry: updatedEntry,
-        uploads: Array.isArray(uploads) ? uploads : [],
-        changed: false,
-      };
+    const currentProvider = readUploadStorageProvider(currentEntry, "local");
+    let stagingWorkspace = null;
+    let stagingUploadsDir = uploadsDir;
+    let sourcePath = resolveUploadAbsolutePath({ uploadsDir, uploadUrl: currentEntry?.url });
+    try {
+      if (currentProvider !== "local" || !sourcePath || !fs.existsSync(sourcePath)) {
+        stagingWorkspace = createUploadStagingWorkspace();
+        stagingUploadsDir = stagingWorkspace.uploadsDir;
+        const materialized = await materializeUploadEntrySourceToStaging({
+          storageService: uploadStorageService,
+          entry: currentEntry,
+          uploadsDir: stagingUploadsDir,
+        });
+        sourcePath = materialized.sourcePath;
+      }
+
+      const updatedEntry = await attachUploadMediaMetadata({
+        uploadsDir: stagingUploadsDir,
+        entry: {
+          ...currentEntry,
+          storageProvider: currentProvider,
+        },
+        sourcePath,
+        sourceMime: sourceMime || currentEntry?.mime,
+        hashSha256,
+        variantsVersion: Math.max(1, Number(currentEntry?.variantsVersion || 1)),
+        regenerateVariants: true,
+        variantPresetKeys: mergedVariantPresetKeys,
+      });
+      if (currentProvider !== "local") {
+        await persistUploadEntryFromStaging({
+          storageService: uploadStorageService,
+          entry: updatedEntry,
+          uploadsDir: stagingUploadsDir,
+          provider: currentProvider,
+          cacheControl: STATIC_DEFAULT_CACHE_CONTROL,
+        });
+      }
+      if (JSON.stringify(updatedEntry) === JSON.stringify(currentEntry)) {
+        return {
+          entry: updatedEntry,
+          uploads: Array.isArray(uploads) ? uploads : [],
+          changed: false,
+        };
+      }
+      const nextUploads = (Array.isArray(uploads) ? uploads : []).map((item) =>
+        String(item?.id || "") === String(currentEntry?.id || "") ? updatedEntry : item,
+      );
+      writeUploads(nextUploads);
+      return { entry: updatedEntry, uploads: nextUploads, changed: true };
+    } finally {
+      cleanupUploadStagingWorkspace(stagingWorkspace);
     }
-    const nextUploads = (Array.isArray(uploads) ? uploads : []).map((item) =>
-      String(item?.id || "") === String(currentEntry?.id || "") ? updatedEntry : item,
-    );
-    writeUploads(nextUploads);
-    return { entry: updatedEntry, uploads: nextUploads, changed: true };
   } catch {
     return { entry: currentEntry, uploads: Array.isArray(uploads) ? uploads : [], changed: false };
   }
@@ -5137,6 +5302,10 @@ const buildPublicMediaVariants = (sourcesInput, options = {}) => {
       },
       {
         uploadsDir: PUBLIC_UPLOADS_DIR,
+        assetExists:
+          readUploadStorageProvider(entry, "local") === "s3"
+            ? () => true
+            : undefined,
       },
     );
     if (!sanitizedEntry) {
@@ -5153,6 +5322,10 @@ const resolveUploadVariantUrlFromEntry = ({ entry, preset, fallbackUrl }) =>
     preset,
     fallbackUrl,
     uploadsDir: PUBLIC_UPLOADS_DIR,
+    assetExists:
+      readUploadStorageProvider(entry, "local") === "s3"
+        ? () => true
+        : undefined,
   });
 
 const resolveMetaImageVariantUrl = (value, preset = "og") => {
@@ -13927,6 +14100,7 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "svg_too_large" });
   }
   const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+  const activeStorageProvider = uploadStorageService.activeProvider;
   const sourceBuffer =
     mime === "image/svg+xml" ? Buffer.from(sanitizeSvg(buffer.toString("utf-8")), "utf-8") : buffer;
   const hashSha256 = computeBufferSha256(sourceBuffer);
@@ -13975,15 +14149,10 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
   const ext = getUploadExtFromMime(mime);
   const safeName = sanitizeUploadBaseName(filename || "upload");
   const safeSlot = sanitizeUploadSlot(slot);
-  const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
-  fs.mkdirSync(targetDir, { recursive: true });
   const useSlotName = Boolean(safeSlot && isPrivateUploadFolder(safeFolder));
   const fileName = useSlotName
     ? `${safeSlot}.${ext}`
     : `${safeName || "imagem"}-${Date.now()}.${ext}`;
-  const filePath = path.join(targetDir, fileName);
-  fs.writeFileSync(filePath, sourceBuffer);
-
   const relativeUrl = `/uploads/${safeFolder ? `${safeFolder}/` : ""}${fileName}`;
   const existingIndex = uploads.findIndex((item) => item.url === relativeUrl);
   const existingEntry = existingIndex >= 0 ? uploads[existingIndex] : null;
@@ -14003,6 +14172,7 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
     altText: readUploadAltText(existingEntry),
     slot: safeSlot || readUploadSlot(existingEntry) || undefined,
     slotManaged: useSlotName ? true : readUploadSlotManaged(existingEntry),
+    storageProvider: activeStorageProvider,
   };
   const requestedFocalState = resolveIncomingUploadFocalState(requestedFocalPayload, {
     ...(existingEntry || {}),
@@ -14011,10 +14181,19 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
   let uploadEntry = uploadEntryBase;
   let variantsGenerated = true;
   let variantGenerationError = "";
+  const stagingWorkspace = createUploadStagingWorkspace();
   try {
+    const filePath = writeUploadBufferToStaging({
+      uploadsDir: stagingWorkspace.uploadsDir,
+      uploadUrl: relativeUrl,
+      buffer: sourceBuffer,
+    });
     uploadEntry = await attachUploadMediaMetadata({
-      uploadsDir,
-      entry: uploadEntryBase,
+      uploadsDir: stagingWorkspace.uploadsDir,
+      entry: {
+        ...uploadEntryBase,
+        storageProvider: activeStorageProvider,
+      },
       sourcePath: filePath,
       sourceMime: mime,
       hashSha256,
@@ -14024,6 +14203,13 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
       focalPoints: requestedFocalState.focalPoints,
       variantsVersion,
       regenerateVariants: true,
+    });
+    await persistUploadEntryFromStaging({
+      storageService: uploadStorageService,
+      entry: uploadEntry,
+      uploadsDir: stagingWorkspace.uploadsDir,
+      provider: activeStorageProvider,
+      cacheControl: STATIC_DEFAULT_CACHE_CONTROL,
     });
   } catch (error) {
     variantsGenerated = false;
@@ -14044,7 +14230,28 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
       variants: {},
       variantBytes: 0,
       area: safeFolder ? String(safeFolder).split("/")[0] : "root",
+      storageProvider: activeStorageProvider,
     };
+    try {
+      await uploadStorageService.putUploadUrl({
+        provider: activeStorageProvider,
+        uploadUrl: relativeUrl,
+        buffer: sourceBuffer,
+        contentType: mime,
+        cacheControl: STATIC_DEFAULT_CACHE_CONTROL,
+      });
+    } catch {
+      return res.status(500).json({ error: "upload_persist_failed" });
+    }
+  } finally {
+    cleanupUploadStagingWorkspace(stagingWorkspace);
+  }
+
+  if (
+    existingEntry &&
+    readUploadStorageProvider(existingEntry, "local") !== activeStorageProvider
+  ) {
+    void deleteManagedUploadEntryAssets(existingEntry).catch(() => undefined);
   }
 
   if (existingIndex >= 0) {
@@ -14101,7 +14308,6 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
     .toLowerCase();
   const listRecursively =
     listAll || (Boolean(folder) && (recursive === "1" || recursive === "true"));
-  const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
   try {
     const usedUrls = getUsedUploadUrls();
     const uploadMeta = loadUploads();
@@ -14110,51 +14316,44 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
         .map((item) => [normalizeUploadUrl(item?.url), item])
         .filter(([key]) => Boolean(key)),
     );
-    const collectFiles = (dir, base) => {
-      if (!fs.existsSync(dir)) {
-        return [];
+    const matchesFolder = (resolvedFolder) => {
+      const normalizedFolder = String(resolvedFolder || "").trim();
+      if (listAll) {
+        return true;
       }
-      const entries = fs.readdirSync(dir, { withFileTypes: true });
-      const results = [];
-      entries.forEach((entry) => {
-        const fullPath = path.join(dir, entry.name);
-        const nextBase = path.join(base, entry.name);
-        const normalizedBase = nextBase.split(path.sep).join("/");
-        if (normalizedBase === "_variants" || normalizedBase.startsWith("_variants/")) {
-          return;
+      if (listRecursively) {
+        if (!safeFolder) {
+          return true;
         }
-        if (entry.isDirectory()) {
-          if (!isUploadFolderAllowedInScope(normalizedBase, uploadAccessScope)) {
-            return;
-          }
-          results.push(...collectFiles(fullPath, nextBase));
-          return;
+        return normalizedFolder === safeFolder || normalizedFolder.startsWith(`${safeFolder}/`);
+      }
+      return normalizedFolder === safeFolder;
+    };
+    const metadataFiles = uploadMeta
+      .map((meta) => {
+        const normalizedUrl = normalizeUploadUrl(meta?.url);
+        if (!normalizedUrl) {
+          return null;
         }
-        if (!/\.(png|jpe?g|gif|webp|svg(\+xml)?)$/i.test(entry.name)) {
-          return;
-        }
-        const relative = normalizedBase;
-        const url = `/uploads/${relative}`;
-        const normalizedUrl = normalizeUploadUrl(url) || url;
-        const stat = fs.statSync(fullPath);
-        const meta = uploadMetaMap.get(normalizedUrl) || null;
+        const relative = normalizedUrl.replace(/^\/uploads\//, "");
         const resolvedFolder =
           meta?.folder ?? path.dirname(relative).replace(/\\/g, "/").replace(/^\.$/, "");
-        if (!isUploadFolderAllowedInScope(resolvedFolder, uploadAccessScope)) {
-          return;
+        if (!matchesFolder(resolvedFolder) || !isUploadFolderAllowedInScope(resolvedFolder, uploadAccessScope)) {
+          return null;
         }
         const inUse = usedUrls.has(normalizedUrl);
         const focalState = readUploadFocalState(meta);
-        results.push({
+        return {
           id: meta?.id || null,
-          name: entry.name,
+          name: meta?.fileName || path.basename(relative),
           url: normalizedUrl,
           source: "upload",
           folder: resolvedFolder,
-          fileName: meta?.fileName || entry.name,
-          mime: meta?.mime || getUploadMimeFromExtension(path.extname(entry.name).replace(".", "")),
-          size: typeof meta?.size === "number" ? meta.size : stat.size,
-          createdAt: meta?.createdAt || stat.mtime.toISOString(),
+          fileName: meta?.fileName || path.basename(relative),
+          mime:
+            meta?.mime || getUploadMimeFromExtension(path.extname(path.basename(relative)).replace(".", "")),
+          size: typeof meta?.size === "number" ? meta.size : null,
+          createdAt: meta?.createdAt || null,
           width: typeof meta?.width === "number" ? meta.width : null,
           height: typeof meta?.height === "number" ? meta.height : null,
           hashSha256: typeof meta?.hashSha256 === "string" ? meta.hashSha256 : "",
@@ -14169,71 +14368,84 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
           area:
             typeof meta?.area === "string" && meta.area
               ? meta.area
-              : String(
-                  (meta?.folder || path.dirname(relative).replace(/\\/g, "/")).split("/")[0] ||
-                    "root",
-                ),
+              : String((resolvedFolder || "").split("/")[0] || "root"),
           altText: readUploadAltText(meta),
           slot: readUploadSlot(meta) || undefined,
           slotManaged: readUploadSlotManaged(meta),
+          storageProvider: readUploadStorageProvider(meta, "local"),
           inUse,
           canDelete: !inUse,
-        });
+        };
+      })
+      .filter(Boolean);
+    const seenUrls = new Set(metadataFiles.map((item) => String(item?.url || "")));
+    const collectLooseLocalFiles = (dir, base) => {
+      if (!fs.existsSync(dir)) {
+        return [];
+      }
+      return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const fullPath = path.join(dir, entry.name);
+        const nextBase = path.join(base, entry.name);
+        const normalizedBase = nextBase.split(path.sep).join("/");
+        if (normalizedBase === "_variants" || normalizedBase.startsWith("_variants/")) {
+          return [];
+        }
+        if (entry.isDirectory()) {
+          if (!isUploadFolderAllowedInScope(normalizedBase, uploadAccessScope)) {
+            return [];
+          }
+          return collectLooseLocalFiles(fullPath, nextBase);
+        }
+        if (!/\.(png|jpe?g|gif|webp|svg(\+xml)?)$/i.test(entry.name)) {
+          return [];
+        }
+        const relative = normalizedBase;
+        const url = `/uploads/${relative}`;
+        const normalizedUrl = normalizeUploadUrl(url) || url;
+        if (seenUrls.has(normalizedUrl) || uploadMetaMap.has(normalizedUrl)) {
+          return [];
+        }
+        const resolvedFolder = path.dirname(relative).replace(/\\/g, "/").replace(/^\.$/, "");
+        if (!matchesFolder(resolvedFolder) || !isUploadFolderAllowedInScope(resolvedFolder, uploadAccessScope)) {
+          return [];
+        }
+        const stat = fs.statSync(fullPath);
+        const inUse = usedUrls.has(normalizedUrl);
+        return [
+          {
+            id: null,
+            name: entry.name,
+            url: normalizedUrl,
+            source: "upload",
+            folder: resolvedFolder,
+            fileName: entry.name,
+            mime: getUploadMimeFromExtension(path.extname(entry.name).replace(".", "")),
+            size: stat.size,
+            createdAt: stat.mtime.toISOString(),
+            width: null,
+            height: null,
+            hashSha256: "",
+            focalCrops: undefined,
+            focalPoints: undefined,
+            focalPoint: undefined,
+            variantsVersion: 1,
+            variants: {},
+            variantBytes: 0,
+            area: String((resolvedFolder || "").split("/")[0] || "root"),
+            altText: "",
+            slot: undefined,
+            slotManaged: false,
+            storageProvider: "local",
+            inUse,
+            canDelete: !inUse,
+          },
+        ];
       });
-      return results;
     };
-    const files = listRecursively
-      ? collectFiles(listAll ? uploadsDir : targetDir, listAll ? "" : safeFolder)
-      : (fs.existsSync(targetDir) ? fs.readdirSync(targetDir) : [])
-          .filter((item) => /\.(png|jpe?g|gif|webp|svg(\+xml)?)$/i.test(item))
-          .map((item) => {
-            const fullPath = path.join(targetDir, item);
-            const relativePath = `${safeFolder ? `${safeFolder}/` : ""}${item}`;
-            const url = `/uploads/${relativePath}`;
-            const normalizedUrl = normalizeUploadUrl(url) || url;
-            const stat = fs.statSync(fullPath);
-            const meta = uploadMetaMap.get(normalizedUrl) || null;
-            const resolvedFolder = meta?.folder ?? safeFolder;
-            if (!isUploadFolderAllowedInScope(resolvedFolder, uploadAccessScope)) {
-              return null;
-            }
-            const inUse = usedUrls.has(normalizedUrl);
-            const focalState = readUploadFocalState(meta);
-            return {
-              id: meta?.id || null,
-              name: item,
-              url: normalizedUrl,
-              source: "upload",
-              folder: resolvedFolder,
-              fileName: meta?.fileName || item,
-              mime: meta?.mime || getUploadMimeFromExtension(path.extname(item).replace(".", "")),
-              size: typeof meta?.size === "number" ? meta.size : stat.size,
-              createdAt: meta?.createdAt || stat.mtime.toISOString(),
-              width: typeof meta?.width === "number" ? meta.width : null,
-              height: typeof meta?.height === "number" ? meta.height : null,
-              hashSha256: typeof meta?.hashSha256 === "string" ? meta.hashSha256 : "",
-              focalCrops: focalState.focalCrops,
-              focalPoints: focalState.focalPoints,
-              focalPoint: focalState.focalPoint,
-              variantsVersion: Number.isFinite(Number(meta?.variantsVersion))
-                ? Number(meta.variantsVersion)
-                : 1,
-              variants: normalizeVariants(meta?.variants),
-              variantBytes: Number.isFinite(Number(meta?.variantBytes))
-                ? Number(meta.variantBytes)
-                : 0,
-              area:
-                typeof meta?.area === "string" && meta.area
-                  ? meta.area
-                  : String((meta?.folder || safeFolder || "").split("/")[0] || "root"),
-              altText: readUploadAltText(meta),
-              slot: readUploadSlot(meta) || undefined,
-              slotManaged: readUploadSlotManaged(meta),
-              inUse,
-              canDelete: !inUse,
-            };
-          })
-          .filter(Boolean);
+    const looseLocalFiles = collectLooseLocalFiles(uploadsDir, "");
+    const files = [...metadataFiles, ...looseLocalFiles].sort((left, right) =>
+      String(left.url || "").localeCompare(String(right.url || ""), "en"),
+    );
     return res.json({ files });
   } catch {
     return res.json({ files: [] });
@@ -14256,8 +14468,34 @@ app.patch("/api/uploads/:id/focal-point", requireAuth, async (req, res) => {
   }
   const current = uploads[targetIndex];
   const uploadsDir = path.join(__dirname, "..", "public", "uploads");
-  const sourcePath = resolveUploadAbsolutePath({ uploadsDir, uploadUrl: current?.url });
-  if (!sourcePath || !fs.existsSync(sourcePath)) {
+  const currentProvider = readUploadStorageProvider(current, "local");
+  const stagingWorkspace = createUploadStagingWorkspace();
+  let sourcePath = "";
+  let sourceBuffer = null;
+  try {
+    if (currentProvider === "local") {
+      const localSourcePath = resolveUploadAbsolutePath({ uploadsDir, uploadUrl: current?.url });
+      if (!localSourcePath || !fs.existsSync(localSourcePath)) {
+        cleanupUploadStagingWorkspace(stagingWorkspace);
+        return res.status(404).json({ error: "upload_file_not_found" });
+      }
+      sourceBuffer = fs.readFileSync(localSourcePath);
+      sourcePath = writeUploadBufferToStaging({
+        uploadsDir: stagingWorkspace.uploadsDir,
+        uploadUrl: current?.url,
+        buffer: sourceBuffer,
+      });
+    } else {
+      const materialized = await materializeUploadEntrySourceToStaging({
+        storageService: uploadStorageService,
+        entry: current,
+        uploadsDir: stagingWorkspace.uploadsDir,
+      });
+      sourceBuffer = materialized.buffer;
+      sourcePath = materialized.sourcePath;
+    }
+  } catch {
+    cleanupUploadStagingWorkspace(stagingWorkspace);
     return res.status(404).json({ error: "upload_file_not_found" });
   }
   let hashSha256 = String(current?.hashSha256 || "")
@@ -14265,9 +14503,9 @@ app.patch("/api/uploads/:id/focal-point", requireAuth, async (req, res) => {
     .toLowerCase();
   if (!hashSha256) {
     try {
-      const sourceBuffer = fs.readFileSync(sourcePath);
       hashSha256 = computeBufferSha256(sourceBuffer);
     } catch {
+      cleanupUploadStagingWorkspace(stagingWorkspace);
       return res.status(500).json({ error: "upload_file_read_failed" });
     }
   }
@@ -14284,8 +14522,11 @@ app.patch("/api/uploads/:id/focal-point", requireAuth, async (req, res) => {
   let updated = null;
   try {
     updated = await attachUploadMediaMetadata({
-      uploadsDir,
-      entry: current,
+      uploadsDir: stagingWorkspace.uploadsDir,
+      entry: {
+        ...current,
+        storageProvider: currentProvider,
+      },
       sourcePath,
       sourceMime: current?.mime,
       hashSha256,
@@ -14296,9 +14537,18 @@ app.patch("/api/uploads/:id/focal-point", requireAuth, async (req, res) => {
       variantsVersion: nextVersion,
       regenerateVariants: true,
     });
+    await persistUploadEntryFromStaging({
+      storageService: uploadStorageService,
+      entry: updated,
+      uploadsDir: stagingWorkspace.uploadsDir,
+      provider: currentProvider,
+      cacheControl: STATIC_DEFAULT_CACHE_CONTROL,
+    });
   } catch {
+    cleanupUploadStagingWorkspace(stagingWorkspace);
     return res.status(500).json({ error: "focal_point_update_failed" });
   }
+  cleanupUploadStagingWorkspace(stagingWorkspace);
 
   uploads[targetIndex] = updated;
   writeUploads(uploads);
@@ -14381,24 +14631,22 @@ app.get("/api/uploads/storage/areas", requireAuth, (req, res) => {
   if (!canManageUploads(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
-  const summary = buildDiskStorageAreaSummary({
-    uploads: loadUploads(),
-    uploadsDir: path.join(__dirname, "..", "public", "uploads"),
-  });
+  const summary = buildManagedStorageAreaSummary(loadUploads());
   return res.json(summary);
 });
 
-app.get("/api/uploads/storage/cleanup", requireAuth, (req, res) => {
+app.get("/api/uploads/storage/cleanup", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
   if (!canManageUploads(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
 
-  const report = runUploadsCleanup({
+  const report = await runUploadsCleanup({
     datasets: loadUploadsCleanupDatasets(),
     uploadsDir: path.join(__dirname, "..", "public", "uploads"),
     applyChanges: false,
     exampleLimit: 8,
+    storageService: uploadStorageService,
   });
 
   return res.json({
@@ -14417,7 +14665,7 @@ app.get("/api/uploads/storage/cleanup", requireAuth, (req, res) => {
   });
 });
 
-app.post("/api/uploads/storage/cleanup", requireAuth, (req, res) => {
+app.post("/api/uploads/storage/cleanup", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
   if (!canManageUploads(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
@@ -14428,11 +14676,12 @@ app.post("/api/uploads/storage/cleanup", requireAuth, (req, res) => {
   }
 
   try {
-    const report = runUploadsCleanup({
+    const report = await runUploadsCleanup({
       datasets: loadUploadsCleanupDatasets(),
       uploadsDir: path.join(__dirname, "..", "public", "uploads"),
       applyChanges: true,
       exampleLimit: 8,
+      storageService: uploadStorageService,
     });
 
     if (report.changed) {
@@ -14659,13 +14908,16 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
 
   const remoteUrl = String(req.body?.url || "").trim();
   const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+  const activeStorageProvider = uploadStorageService.activeProvider;
+  const stagingWorkspace = createUploadStagingWorkspace();
   const importResult = await importRemoteImageFile({
     remoteUrl,
     folder: safeFolder,
-    uploadsDir,
+    uploadsDir: stagingWorkspace.uploadsDir,
     timeoutMs: 20_000,
   });
   if (!importResult.ok) {
+    cleanupUploadStagingWorkspace(stagingWorkspace);
     const code = String(importResult.error?.code || "fetch_failed");
     if (code === "url_required") {
       return res.status(400).json({ error: "url_required" });
@@ -14688,8 +14940,12 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
   const entry = importResult.entry;
   const requestedFocalPayload = extractRequestedUploadFocalPayload(req.body);
   const requestedFocalState = resolveIncomingUploadFocalState(requestedFocalPayload, entry);
-  const sourcePath = resolveUploadAbsolutePath({ uploadsDir, uploadUrl: entry?.url });
+  const sourcePath = resolveUploadAbsolutePath({
+    uploadsDir: stagingWorkspace.uploadsDir,
+    uploadUrl: entry?.url,
+  });
   if (!sourcePath || !fs.existsSync(sourcePath)) {
+    cleanupUploadStagingWorkspace(stagingWorkspace);
     return res.status(500).json({ error: "imported_file_not_found" });
   }
 
@@ -14698,6 +14954,7 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
     const importedBuffer = fs.readFileSync(sourcePath);
     hashSha256 = computeBufferSha256(importedBuffer);
   } catch {
+    cleanupUploadStagingWorkspace(stagingWorkspace);
     return res.status(500).json({ error: "imported_file_read_failed" });
   }
 
@@ -14723,11 +14980,7 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
     const dedupeVariantsGenerated =
       Object.keys(normalizeVariants(resolvedDedupeEntry?.variants)).length > 0;
     const dedupeFocalState = readUploadFocalState(resolvedDedupeEntry);
-    try {
-      fs.unlinkSync(sourcePath);
-    } catch {
-      // ignore cleanup failure and keep dedupe response
-    }
+    cleanupUploadStagingWorkspace(stagingWorkspace);
     appendAuditLog(req, "uploads.image_from_url", "uploads", {
       uploadId: resolvedDedupeEntry.id,
       url: resolvedDedupeEntry.url,
@@ -14757,10 +15010,11 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
   let variantGenerationError = "";
   try {
     enrichedEntry = await attachUploadMediaMetadata({
-      uploadsDir,
+      uploadsDir: stagingWorkspace.uploadsDir,
       entry: {
         ...entry,
         area: String(String(entry?.folder || "").split("/")[0] || "root"),
+        storageProvider: activeStorageProvider,
       },
       sourcePath,
       sourceMime: entry?.mime,
@@ -14771,6 +15025,13 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
       focalPoints: requestedFocalState.focalPoints,
       variantsVersion: Math.max(1, Number(entry?.variantsVersion || 1)),
       regenerateVariants: true,
+    });
+    await persistUploadEntryFromStaging({
+      storageService: uploadStorageService,
+      entry: enrichedEntry,
+      uploadsDir: stagingWorkspace.uploadsDir,
+      provider: activeStorageProvider,
+      cacheControl: STATIC_DEFAULT_CACHE_CONTROL,
     });
   } catch (error) {
     variantsGenerated = false;
@@ -14791,8 +15052,23 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
       variants: {},
       variantBytes: 0,
       area: String(String(entry?.folder || "").split("/")[0] || "root"),
+      storageProvider: activeStorageProvider,
     };
+    try {
+      const originalBuffer = fs.readFileSync(sourcePath);
+      await uploadStorageService.putUploadUrl({
+        provider: activeStorageProvider,
+        uploadUrl: enrichedEntry.url,
+        buffer: originalBuffer,
+        contentType: enrichedEntry.mime,
+        cacheControl: STATIC_DEFAULT_CACHE_CONTROL,
+      });
+    } catch {
+      cleanupUploadStagingWorkspace(stagingWorkspace);
+      return res.status(500).json({ error: "upload_persist_failed" });
+    }
   }
+  cleanupUploadStagingWorkspace(stagingWorkspace);
 
   upsertUploadEntries([enrichedEntry]);
   appendAuditLog(req, "uploads.image_from_url", "uploads", {
@@ -14972,7 +15248,7 @@ const replaceUploadReferencesDeep = (value, oldUrl, newUrl) => {
   return { value, count: 0 };
 };
 
-app.put("/api/uploads/rename", requireAuth, (req, res) => {
+app.put("/api/uploads/rename", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
   if (!canManageUploads(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
@@ -14988,7 +15264,6 @@ app.put("/api/uploads/rename", requireAuth, (req, res) => {
   }
 
   try {
-    const uploadsDir = path.join(__dirname, "..", "public", "uploads");
     const parsed = new URL(normalized, PRIMARY_APP_ORIGIN);
     const pathname = decodeURIComponent(parsed.pathname || "");
     if (!pathname.startsWith("/uploads/")) {
@@ -15007,25 +15282,34 @@ app.put("/api/uploads/rename", requireAuth, (req, res) => {
       return res.json({ ok: true, oldUrl: normalized, newUrl: normalized, updatedReferences: 0 });
     }
 
-    const oldFilePath = path.join(uploadsDir, relativePath);
     const nextRelativePath = `${oldFolder ? `${oldFolder}/` : ""}${nextFileName}`;
-    const nextFilePath = path.join(uploadsDir, nextRelativePath);
-    const resolvedOld = path.resolve(oldFilePath);
-    const resolvedNew = path.resolve(nextFilePath);
-    const uploadsRoot = path.resolve(uploadsDir);
-    if (!resolvedOld.startsWith(uploadsRoot) || !resolvedNew.startsWith(uploadsRoot)) {
-      return res.status(400).json({ error: "invalid_path" });
-    }
-    if (!fs.existsSync(resolvedOld)) {
-      return res.status(404).json({ error: "not_found" });
-    }
-    if (fs.existsSync(resolvedNew)) {
-      return res.status(409).json({ error: "name_conflict" });
-    }
-    fs.renameSync(resolvedOld, resolvedNew);
-
     const nextUrl = `/uploads/${nextRelativePath}`;
     const uploads = loadUploads();
+    const currentEntry = uploads.find((item) => item.url === normalized) || null;
+    const provider = readUploadStorageProvider(currentEntry, "local");
+    const sourceHead = await uploadStorageService.headUpload({
+      provider,
+      uploadUrl: normalized,
+    });
+    if (!sourceHead?.exists) {
+      return res.status(404).json({ error: "not_found" });
+    }
+    const targetHead = await uploadStorageService.headUpload({
+      provider,
+      uploadUrl: nextUrl,
+    });
+    if (targetHead?.exists) {
+      return res.status(409).json({ error: "name_conflict" });
+    }
+    await uploadStorageService.copyUpload({
+      provider,
+      sourceUrl: normalized,
+      targetUrl: nextUrl,
+    });
+    await uploadStorageService.deleteUpload({
+      provider,
+      uploadUrl: normalized,
+    });
     const uploadsNext = uploads.map((item) =>
       item.url === normalized
         ? {
@@ -15034,6 +15318,7 @@ app.put("/api/uploads/rename", requireAuth, (req, res) => {
             fileName: nextFileName,
             folder: oldFolder,
             area: String((oldFolder || "").split("/")[0] || "root"),
+            storageProvider: provider,
           }
         : item,
     );
@@ -15116,7 +15401,7 @@ app.put("/api/uploads/rename", requireAuth, (req, res) => {
   }
 });
 
-app.delete("/api/uploads/delete", requireAuth, (req, res) => {
+app.delete("/api/uploads/delete", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
   if (!canManageUploads(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
@@ -15134,33 +15419,29 @@ app.delete("/api/uploads/delete", requireAuth, (req, res) => {
   }
 
   try {
-    const uploadsDir = path.join(__dirname, "..", "public", "uploads");
     const parsed = new URL(normalized, PRIMARY_APP_ORIGIN);
     const pathname = decodeURIComponent(parsed.pathname || "");
     if (!pathname.startsWith("/uploads/")) {
       return res.status(400).json({ error: "invalid_path" });
     }
-    const relativePath = pathname.replace(/^\/uploads\//, "");
-    const targetPath = path.join(uploadsDir, relativePath);
-    const resolved = path.resolve(targetPath);
-    if (!resolved.startsWith(path.resolve(uploadsDir))) {
-      return res.status(400).json({ error: "invalid_path" });
-    }
-    if (fs.existsSync(resolved)) {
-      fs.unlinkSync(resolved);
-    }
     const uploads = loadUploads();
     const targetEntry = uploads.find((item) => item.url === normalized) || null;
+    const provider = readUploadStorageProvider(targetEntry, "local");
+    await uploadStorageService.deleteUpload({
+      provider,
+      uploadUrl: normalized,
+    });
     const nextUploads = uploads.filter((item) => item.url !== normalized);
     if (nextUploads.length !== uploads.length) {
       writeUploads(nextUploads);
     }
-    const variantDir = targetEntry?.id
-      ? path.join(uploadsDir, "_variants", String(targetEntry.id))
-      : null;
-    if (variantDir) {
+    const variantPrefix = getUploadVariantUrlPrefix(targetEntry);
+    if (variantPrefix) {
       try {
-        fs.rmSync(variantDir, { recursive: true, force: true });
+        await uploadStorageService.deleteUploadPrefix({
+          provider,
+          uploadUrlPrefix: variantPrefix,
+        });
       } catch {
         // ignore variant cleanup failure
       }

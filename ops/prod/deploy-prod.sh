@@ -50,7 +50,7 @@ echo "[deploy] Applying Prisma migrations..."
 compose_cmd run --rm app npm run prisma:migrate:deploy
 
 echo "[deploy] Checking uploads integrity..."
-compose_cmd run --rm app npm run uploads:check-integrity
+compose_cmd run --rm app npm run uploads:check-integrity -- --mode=fast
 
 echo "[deploy] Starting app + caddy..."
 compose_cmd up -d app caddy

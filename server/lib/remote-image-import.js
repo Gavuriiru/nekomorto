@@ -527,6 +527,7 @@ const buildEntryFromDiskFile = ({ filePath, fileName, folder, createdAt }) => {
     url: buildUploadUrl(folder, fileName),
     fileName,
     folder: folder || "",
+    storageProvider: "local",
     size,
     mime,
     width: validation.dimensions?.width || null,

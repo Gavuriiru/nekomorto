@@ -1,15 +1,19 @@
 import path from "path";
 import { runUploadsIntegrityCheck } from "../server/lib/uploads-integrity.js";
+import { createUploadStorageService } from "../server/lib/upload-storage.js";
 import { loadDbDatasets, prisma } from "./lib/db-datasets.mjs";
 
 const HELP_FLAG = "--help";
 const MAX_EXAMPLES_FLAG = "--max-examples";
+const MODE_FLAG = "--mode";
 const DEFAULT_MAX_EXAMPLES = 20;
+const DEFAULT_MODE = "fast";
 
 const printHelp = () => {
   console.log("Uso:");
   console.log("  node scripts/check-upload-integrity.mjs");
   console.log("  node scripts/check-upload-integrity.mjs --max-examples 25");
+  console.log("  node scripts/check-upload-integrity.mjs --mode deep");
   console.log("  node scripts/check-upload-integrity.mjs --help");
 };
 
@@ -25,8 +29,23 @@ const parseMaxExamples = (args) => {
   return Math.floor(raw);
 };
 
-const printSummary = (result, uploadsDir) => {
+const parseMode = (args) => {
+  const index = args.findIndex((item) => item === MODE_FLAG);
+  if (index === -1) {
+    return DEFAULT_MODE;
+  }
+  const raw = String(args[index + 1] || "")
+    .trim()
+    .toLowerCase();
+  if (raw !== "fast" && raw !== "deep") {
+    throw new Error("Valor invalido para --mode. Use fast ou deep.");
+  }
+  return raw;
+};
+
+const printSummary = (result, uploadsDir, mode) => {
   console.log("Modo: check-integrity");
+  console.log(`Profundidade: ${mode}`);
   console.log(`Pasta de uploads: ${uploadsDir}`);
   console.log(`URLs referenciadas em posts/projetos: ${result.referencedUrlsCount}`);
   console.log(`Movimentos planejados (dry-run): ${result.plannedMovesCount}`);
@@ -66,24 +85,29 @@ if (!String(process.env.DATABASE_URL || "").trim()) {
 }
 
 let maxExamples = DEFAULT_MAX_EXAMPLES;
+let mode = DEFAULT_MODE;
 try {
   maxExamples = parseMaxExamples(args);
+  mode = parseMode(args);
 } catch (error) {
   console.error(String(error?.message || error));
   process.exit(1);
 }
 
 const uploadsDir = path.join(process.cwd(), "public", "uploads");
+const storageService = createUploadStorageService({ uploadsDir });
 
 try {
   const datasets = await loadDbDatasets(prisma);
-  const result = runUploadsIntegrityCheck({
+  const result = await runUploadsIntegrityCheck({
     datasets,
     uploadsDir,
     maxExamples,
+    mode,
+    storageService,
   });
 
-  printSummary(result, uploadsDir);
+  printSummary(result, uploadsDir, mode);
 
   if (!result.ok) {
     console.error("\nIntegridade de uploads: FALHOU.");
