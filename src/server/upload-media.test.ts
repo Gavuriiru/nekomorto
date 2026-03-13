@@ -8,11 +8,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   attachUploadMediaMetadata,
   buildStorageAreaSummary,
+  DEFAULT_UPLOAD_VARIANT_AVIF_QUALITY,
   generateUploadVariants,
   POST_UPLOAD_VARIANT_PRESET_KEYS,
   PROJECT_UPLOAD_VARIANT_PRESET_KEYS,
   UPLOAD_VARIANT_PRESET_KEYS,
   USER_UPLOAD_VARIANT_PRESET_KEYS,
+  resolveUploadVariantAvifQuality,
   resolveUploadVariantPresetKeysForArea,
 } from "../../server/lib/upload-media.js";
 import { storeUploadImageBuffer } from "../../server/lib/uploads-import.js";
@@ -74,6 +76,57 @@ describe("upload-media", () => {
     expect(resolveUploadVariantPresetKeysForArea("future-area")).toEqual(
       UPLOAD_VARIANT_PRESET_KEYS,
     );
+  });
+
+  it("usa o default 90 quando o env de qualidade avif nao existe", () => {
+    expect(resolveUploadVariantAvifQuality("card", { env: {} })).toBe(
+      DEFAULT_UPLOAD_VARIANT_AVIF_QUALITY,
+    );
+  });
+
+  it("aceita qualidade avif valida via env", () => {
+    expect(
+      resolveUploadVariantAvifQuality("card", {
+        env: { UPLOAD_VARIANT_AVIF_QUALITY: "75" },
+      }),
+    ).toBe(75);
+  });
+
+  it("faz fallback para 90 quando o env de qualidade avif e invalido", () => {
+    expect(
+      resolveUploadVariantAvifQuality("card", {
+        env: { UPLOAD_VARIANT_AVIF_QUALITY: "abc" },
+      }),
+    ).toBe(DEFAULT_UPLOAD_VARIANT_AVIF_QUALITY);
+    expect(
+      resolveUploadVariantAvifQuality("card", {
+        env: { UPLOAD_VARIANT_AVIF_QUALITY: "75.5" },
+      }),
+    ).toBe(DEFAULT_UPLOAD_VARIANT_AVIF_QUALITY);
+  });
+
+  it("faz fallback para 90 quando o env de qualidade avif sai da faixa valida", () => {
+    expect(
+      resolveUploadVariantAvifQuality("card", {
+        env: { UPLOAD_VARIANT_AVIF_QUALITY: "0" },
+      }),
+    ).toBe(DEFAULT_UPLOAD_VARIANT_AVIF_QUALITY);
+    expect(
+      resolveUploadVariantAvifQuality("card", {
+        env: { UPLOAD_VARIANT_AVIF_QUALITY: "101" },
+      }),
+    ).toBe(DEFAULT_UPLOAD_VARIANT_AVIF_QUALITY);
+  });
+
+  it("usa a qualidade resolvida para todos os presets", () => {
+    expect(
+      UPLOAD_VARIANT_PRESET_KEYS.every(
+        (presetKey) =>
+          resolveUploadVariantAvifQuality(presetKey, {
+            env: { UPLOAD_VARIANT_AVIF_QUALITY: "90" },
+          }) === 90,
+      ),
+    ).toBe(true);
   });
 
   it("gera apenas avif e evita upscale em imagens pequenas", async () => {
@@ -184,24 +237,6 @@ describe("upload-media", () => {
       },
     ]);
   });
-
-  it("mantem posterThumbSm e posterThumb abaixo dos tetos esperados", async () => {
-    const uploadsDir = createTempUploadsDir();
-    const sourcePath = path.join(uploadsDir, "pattern-source.png");
-
-    await createPatternSourceImage(sourcePath);
-
-    const generated = await generateUploadVariants({
-      uploadsDir,
-      uploadId: "upload-pattern",
-      sourcePath,
-      sourceMime: "image/png",
-      variantsVersion: 1,
-    });
-
-    expect(generated.variants.posterThumbSm?.formats?.avif?.size).toBeLessThanOrEqual(9_000);
-    expect(generated.variants.posterThumb?.formats?.avif?.size).toBeLessThanOrEqual(46_000);
-  }, 15_000);
 
   it("gera apenas o perfil enxuto para uploads de projects quando solicitado", async () => {
     const uploadsDir = createTempUploadsDir();

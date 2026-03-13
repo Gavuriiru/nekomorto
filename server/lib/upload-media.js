@@ -53,17 +53,9 @@ const DISABLED_UPLOAD_VARIANT_AREAS = new Set([
   "socials",
   "tmp",
 ]);
-const UPLOAD_VARIANT_AVIF_QUALITY = Object.freeze({
-  cardHomeXs: 47,
-  cardHomeSm: 47,
-  cardHome: 47,
-  heroXs: 32,
-  heroSm: 34,
-  heroMd: 40,
-  hero: 45,
-  posterThumbSm: 40,
-  posterThumb: 42,
-});
+export const DEFAULT_UPLOAD_VARIANT_AVIF_QUALITY = 90;
+const UPLOAD_VARIANT_AVIF_QUALITY_MIN = 1;
+const UPLOAD_VARIANT_AVIF_QUALITY_MAX = 100;
 const UPLOAD_FOCAL_PRESET_KEYS = Object.freeze(["card", "hero"]);
 const UPLOAD_FOCAL_PRESET_FALLBACK_ORDER = Object.freeze({
   card: Object.freeze(["card", "og", "thumb"]),
@@ -145,6 +137,28 @@ const normalizeVariantPresetKeyList = (value) => {
 };
 
 export const normalizeUploadVariantPresetKeys = (value) => normalizeVariantPresetKeyList(value);
+
+const resolveNormalizedUploadVariantAvifQuality = (value) => {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) {
+    return DEFAULT_UPLOAD_VARIANT_AVIF_QUALITY;
+  }
+  if (!/^\d+$/.test(normalized)) {
+    return DEFAULT_UPLOAD_VARIANT_AVIF_QUALITY;
+  }
+  const parsed = Number(normalized);
+  if (
+    !Number.isInteger(parsed) ||
+    parsed < UPLOAD_VARIANT_AVIF_QUALITY_MIN ||
+    parsed > UPLOAD_VARIANT_AVIF_QUALITY_MAX
+  ) {
+    return DEFAULT_UPLOAD_VARIANT_AVIF_QUALITY;
+  }
+  return parsed;
+};
+
+export const resolveUploadVariantAvifQuality = (_presetKey, { env = process.env } = {}) =>
+  resolveNormalizedUploadVariantAvifQuality(env?.UPLOAD_VARIANT_AVIF_QUALITY);
 
 export const mergeUploadVariantPresetKeys = (...values) => {
   const merged = values.flatMap((item) => normalizeVariantPresetKeyList(item));
@@ -808,10 +822,7 @@ export const generateUploadVariants = async ({
     const preset = UPLOAD_VARIANT_PRESETS[presetKey];
     const rect = variantRects[presetKey];
     const base = createBaseVariantPipeline({ sourcePath, rect, preset });
-    const avifQuality =
-      Number(UPLOAD_VARIANT_AVIF_QUALITY[presetKey]) > 0
-        ? Number(UPLOAD_VARIANT_AVIF_QUALITY[presetKey])
-        : 52;
+    const avifQuality = resolveUploadVariantAvifQuality(presetKey);
     const avifPath = createVariantFilePath({
       dir: variantDir,
       preset: presetKey,

@@ -310,14 +310,17 @@ Mesmo com storage externo, a app continua entregando assets via proxy (`UPLOAD_S
 
 Defaults e comportamento base:
 
+- `UPLOAD_VARIANT_AVIF_QUALITY=90` continua sendo o padrao.
 - `UPLOAD_STORAGE_DRIVER=local` continua sendo o padrao.
 - `UPLOAD_STORAGE_DELIVERY=proxy` continua sendo o padrao desta fase.
 - Ao ativar `UPLOAD_STORAGE_DRIVER=s3`, apenas uploads novos passam a usar o provider ativo.
 - Uploads antigos continuam em `local` ate sync ou restore explicito.
 - `storageProvider` continua sendo detalhe interno; o frontend segue consumindo `/uploads/...`.
+- Mudar `UPLOAD_VARIANT_AVIF_QUALITY` so afeta variantes novas ou regeneradas.
 
 | Variavel | Onde aparece | Obrigatoria quando | Default | Valores/Formato | Descricao |
 | --- | --- | --- | --- | --- | --- |
+| `UPLOAD_VARIANT_AVIF_QUALITY` | `dev base`, `prod compose`, `dev deploy` | nunca | `90` | inteiro `1-100`; entradas invalidas voltam para `90` | Qualidade AVIF global das variantes geradas para uploads. Valores maiores aumentam fidelidade, trafego e armazenamento. So afeta uploads novos ou regenerados/backfill. |
 | `UPLOAD_STORAGE_DRIVER` | `dev base` | nunca | `local` | `local` ou `s3` | Provider ativo. Valores desconhecidos caem para `local`. |
 | `UPLOAD_STORAGE_DELIVERY` | `dev base` | nunca | `proxy` | `proxy` | Modo de entrega desta fase. Mantenha `proxy` para preservar `/uploads/...`. |
 | `UPLOAD_STORAGE_BUCKET` | `dev base` | quando `UPLOAD_STORAGE_DRIVER=s3` | vazio | nome de bucket | Bucket do provider S3-compatible. |
