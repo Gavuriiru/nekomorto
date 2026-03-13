@@ -4,7 +4,9 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import DashboardPosts from "@/pages/DashboardPosts";
 
-const apiFetchMock = vi.hoisted(() => vi.fn());
+const { apiFetchMock } = vi.hoisted(() => ({
+  apiFetchMock: vi.fn(),
+}));
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -95,6 +97,19 @@ const setupApiMock = (initialStatus: PostStatus) => {
     if (path === `/api/posts/${post.id}` && method === "PUT") {
       const body = JSON.parse(String((options as RequestInit).body || "{}"));
       post = { ...post, ...body };
+      return mockJsonResponse(true, { post });
+    }
+    if (path === "/api/posts" && method === "POST") {
+      const body = JSON.parse(String((options as RequestInit).body || "{}"));
+      post = {
+        ...createPost((body.status as PostStatus) || "draft"),
+        ...body,
+        id: "post-2",
+        slug: body.slug || "post-2",
+        publishedAt: body.publishedAt || "2026-02-10T12:00:00.000Z",
+        views: 0,
+        commentsCount: 0,
+      };
       return mockJsonResponse(true, { post });
     }
     if (path === "/api/users" && method === "GET") {
@@ -200,5 +215,43 @@ describe("DashboardPosts publish draft", () => {
       expect(payload.status).toBe("published");
       expect(payload.publishedAt).toBe("2026-02-10T12:00:00.000Z");
     });
+  });
+
+  it("mantem o modal aberto ao salvar rascunho de uma nova postagem", async () => {
+    setupApiMock("draft");
+
+    render(
+      <MemoryRouter>
+        <DashboardPosts />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    fireEvent.click(screen.getByRole("button", { name: "Nova postagem" }));
+
+    const dialog = await screen.findByRole("dialog");
+    const titleInput = dialog.querySelector<HTMLInputElement>("#post-title");
+    expect(titleInput).not.toBeNull();
+    fireEvent.change(titleInput as HTMLInputElement, { target: { value: "Novo rascunho" } });
+
+    await waitFor(() => {
+      const slugInput = dialog.querySelector<HTMLInputElement>("#post-slug");
+      expect(slugInput).not.toBeNull();
+      expect((slugInput as HTMLInputElement).value).toBe("novo-rascunho");
+    });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar rascunho" }));
+
+    await waitFor(() => {
+      const postCall = apiFetchMock.mock.calls.find((call) => {
+        const path = call[1];
+        const options = (call[2] || {}) as RequestInit;
+        return path === "/api/posts" && String(options.method || "GET").toUpperCase() === "POST";
+      });
+      expect(postCall).toBeDefined();
+    });
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Nova postagem" })).toBeInTheDocument();
   });
 });

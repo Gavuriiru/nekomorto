@@ -48,6 +48,7 @@ vi.mock("@/components/lexical/LexicalEditor", async () => {
     (
       props: {
         followCaretScroll?: boolean;
+        autoFocus?: boolean;
       },
       ref: React.ForwardedRef<{ blur: () => void }>,
     ) => {
@@ -389,7 +390,11 @@ describe("DashboardPosts edit query", () => {
     expect(classTokens(editorSectionContent as HTMLElement)).toContain("pb-2.5");
     expect(
       lexicalEditorPropsSpy.mock.calls.some(
-        ([props]) => Boolean((props as { followCaretScroll?: boolean }).followCaretScroll),
+        ([props]) =>
+          Boolean(
+            (props as { followCaretScroll?: boolean; autoFocus?: boolean }).followCaretScroll &&
+              (props as { followCaretScroll?: boolean; autoFocus?: boolean }).autoFocus === false,
+          ),
       ),
     ).toBe(true);
     expect(screen.getByText("Postagem em edição")).toBeInTheDocument();

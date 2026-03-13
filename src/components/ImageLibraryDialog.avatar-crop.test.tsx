@@ -2,9 +2,8 @@ import { useState } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import ImageLibraryDialog, {
-  renderAvatarCropDataUrl,
-} from "@/components/ImageLibraryDialog";
+import ImageLibraryDialog from "@/components/ImageLibraryDialog";
+import { renderAvatarCropDataUrl } from "@/components/ImageLibraryDialog.avatar-crop";
 
 const {
   apiFetchMock,

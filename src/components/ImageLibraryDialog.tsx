@@ -9,7 +9,7 @@ import {
   type SyntheticEvent,
 } from "react";
 import { CircleStencil, FixedCropper, type FixedCropperRef } from "react-advanced-cropper";
-import { drawCroppedArea, ImageRestriction } from "advanced-cropper";
+import { ImageRestriction } from "advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
 
 import {
@@ -49,6 +49,11 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import { Loader2, Search } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import {
+  AVATAR_CROPPER_BOUNDARY_SIZE,
+  renderAvatarCropDataUrl,
+  resolveAvatarCropStencilSize,
+} from "@/components/ImageLibraryDialog.avatar-crop";
 import {
   computeUploadContainFitRect,
   UPLOAD_FOCAL_PRESET_KEYS,
@@ -138,10 +143,6 @@ type ImageLibraryDialogProps = {
   onSave: (payload: ImageLibrarySavePayload) => void;
 };
 
-const CROPPER_BOUNDARY_SIZE = 320;
-const CROPPER_OUTPUT_SIZE = 512;
-type AvatarCropperHandle = Pick<FixedCropperRef, "getCoordinates" | "getImage" | "getState">;
-
 const fileToDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -149,86 +150,6 @@ const fileToDataUrl = (file: File) =>
     reader.onerror = () => reject(new Error("file_read_failed"));
     reader.readAsDataURL(file);
   });
-
-const loadAvatarCropSourceImage = (src: string) =>
-  new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    const handleLoad = () => {
-      image.onload = null;
-      image.onerror = null;
-      resolve(image);
-    };
-    const handleError = () => {
-      image.onload = null;
-      image.onerror = null;
-      reject(new Error("cropper_image_load_failed"));
-    };
-    image.onload = handleLoad;
-    image.onerror = handleError;
-    image.src = src;
-  });
-
-export const resolveAvatarCropStencilSize = (state?: {
-  boundary?: { width?: number; height?: number };
-}) => {
-  const boundaryWidth = Number(state?.boundary?.width);
-  const boundaryHeight = Number(state?.boundary?.height);
-  const size = Math.max(
-    1,
-    Math.min(
-      CROPPER_BOUNDARY_SIZE,
-      Number.isFinite(boundaryWidth) && boundaryWidth > 0 ? boundaryWidth : CROPPER_BOUNDARY_SIZE,
-      Number.isFinite(boundaryHeight) && boundaryHeight > 0
-        ? boundaryHeight
-        : CROPPER_BOUNDARY_SIZE,
-    ),
-  );
-  return {
-    width: size,
-    height: size,
-  };
-};
-
-export const renderAvatarCropDataUrl = async (
-  cropper: AvatarCropperHandle | null,
-  fallbackSrc = "",
-) => {
-  const state = cropper?.getState();
-  const coordinates = cropper?.getCoordinates();
-  const cropperImage = cropper?.getImage();
-  const imageSrc = String(cropperImage?.src || fallbackSrc || "").trim();
-  if (!state || !coordinates || !cropperImage || !imageSrc) {
-    throw new Error("cropper_state_unavailable");
-  }
-  if (coordinates.width <= 0 || coordinates.height <= 0) {
-    throw new Error("cropper_coordinates_invalid");
-  }
-  const sourceImage = await loadAvatarCropSourceImage(imageSrc);
-  const resultCanvas = document.createElement("canvas");
-  const spareCanvas = document.createElement("canvas");
-  const renderedCanvas = drawCroppedArea(
-    {
-      ...state,
-      coordinates,
-      transforms: state.transforms || cropperImage.transforms,
-    },
-    sourceImage,
-    resultCanvas,
-    spareCanvas,
-    {
-      width: CROPPER_OUTPUT_SIZE,
-      height: CROPPER_OUTPUT_SIZE,
-      fillColor: "transparent",
-      imageSmoothingEnabled: true,
-      imageSmoothingQuality: "high",
-    },
-  );
-  const normalizedDataUrl = String(renderedCanvas?.toDataURL("image/png") || "").trim();
-  if (!normalizedDataUrl) {
-    throw new Error("empty_crop_result");
-  }
-  return normalizedDataUrl;
-};
 
 const toEffectiveName = (item: LibraryImageItem) =>
   item.name || item.fileName || item.label || "Imagem";
@@ -769,7 +690,10 @@ const AvatarCropWorkspace = ({
           </p>
           <div
             className="avatar-cropper-preview relative mx-auto overflow-hidden rounded-xl bg-background/40"
-            style={{ width: CROPPER_BOUNDARY_SIZE, height: CROPPER_BOUNDARY_SIZE }}
+            style={{
+              width: AVATAR_CROPPER_BOUNDARY_SIZE,
+              height: AVATAR_CROPPER_BOUNDARY_SIZE,
+            }}
           >
             <div className="avatar-cropper-shell">
               <FixedCropper
