@@ -88,6 +88,7 @@ import {
 import { buildChapterFolder, resolveProjectImageFolders } from "@/lib/project-image-folders";
 import {
   buildTranslationMap,
+  normalizeKey,
   sortByTranslatedLabel,
   translateAnilistRole,
   translateGenre,
@@ -236,6 +237,13 @@ type ProjectStaff = {
   members: string[];
 };
 
+type TaxonomySuggestionOption = {
+  value: string;
+  label: string;
+  normalizedValue: string;
+  normalizedLabel: string;
+};
+
 type EditorProjectEpisode = ProjectEpisode & {
   _editorKey?: string;
 };
@@ -287,6 +295,72 @@ type ProjectRecord = {
   updatedAt?: string;
   deletedAt?: string | null;
   deletedBy?: string | null;
+};
+
+const appendUniqueValue = (values: string[], nextValue: string) =>
+  values.includes(nextValue) ? values : [...values, nextValue];
+
+const buildTaxonomySuggestionOptions = (
+  values: string[],
+  translate: (value: string) => string,
+): TaxonomySuggestionOption[] => {
+  const uniqueValues = Array.from(
+    new Set(values.map((value) => String(value || "").trim()).filter(Boolean)),
+  );
+
+  return sortByTranslatedLabel(uniqueValues, translate).map((value) => {
+    const label = translate(value);
+    return {
+      value,
+      label,
+      normalizedValue: normalizeKey(value),
+      normalizedLabel: normalizeKey(label),
+    };
+  });
+};
+
+const buildTaxonomySuggestionLookup = (options: TaxonomySuggestionOption[]) => {
+  const lookup = new Map<string, string>();
+
+  options.forEach((option) => {
+    if (option.normalizedValue && !lookup.has(option.normalizedValue)) {
+      lookup.set(option.normalizedValue, option.value);
+    }
+    if (option.normalizedLabel && !lookup.has(option.normalizedLabel)) {
+      lookup.set(option.normalizedLabel, option.value);
+    }
+  });
+
+  return lookup;
+};
+
+const filterTaxonomySuggestions = (
+  options: TaxonomySuggestionOption[],
+  query: string,
+  selectedValues: string[],
+) => {
+  const normalizedQuery = normalizeKey(query);
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  const selectedSet = new Set(selectedValues);
+  return options
+    .filter(
+      (option) =>
+        !selectedSet.has(option.value) &&
+        (option.normalizedValue.includes(normalizedQuery) ||
+          option.normalizedLabel.includes(normalizedQuery)),
+    )
+    .slice(0, 6);
+};
+
+const resolveTaxonomyInputValue = (input: string, lookup: Map<string, string>) => {
+  const trimmedInput = String(input || "").trim();
+  if (!trimmedInput) {
+    return "";
+  }
+  return lookup.get(normalizeKey(trimmedInput)) || trimmedInput;
 };
 
 type ProjectForm = Omit<ProjectRecord, "views" | "commentsCount" | "order" | "episodeDownloads"> & {
@@ -1510,41 +1584,89 @@ const DashboardProjectsEditor = () => {
     [formState.genres, genreTranslationMap],
   );
 
-  const knownTags = useMemo(() => {
+  const knownTagValues = useMemo(() => {
     const set = new Set<string>();
     projects.forEach((project) => {
-      (project.tags || []).forEach((tag) => set.add(tag));
+      (project.tags || []).forEach((tag) => {
+        const normalizedTag = String(tag || "").trim();
+        if (normalizedTag) {
+          set.add(normalizedTag);
+        }
+      });
     });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [projects]);
+    Object.keys(tagTranslations).forEach((tag) => {
+      const normalizedTag = String(tag || "").trim();
+      if (normalizedTag) {
+        set.add(normalizedTag);
+      }
+    });
+    formState.tags.forEach((tag) => {
+      const normalizedTag = String(tag || "").trim();
+      if (normalizedTag) {
+        set.add(normalizedTag);
+      }
+    });
+    return Array.from(set);
+  }, [formState.tags, projects, tagTranslations]);
 
-  const knownGenres = useMemo(() => {
+  const knownGenresValues = useMemo(() => {
     const set = new Set<string>();
     projects.forEach((project) => {
-      (project.genres || []).forEach((genre) => set.add(genre));
+      (project.genres || []).forEach((genre) => {
+        const normalizedGenre = String(genre || "").trim();
+        if (normalizedGenre) {
+          set.add(normalizedGenre);
+        }
+      });
     });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [projects]);
+    Object.keys(genreTranslations).forEach((genre) => {
+      const normalizedGenre = String(genre || "").trim();
+      if (normalizedGenre) {
+        set.add(normalizedGenre);
+      }
+    });
+    formState.genres.forEach((genre) => {
+      const normalizedGenre = String(genre || "").trim();
+      if (normalizedGenre) {
+        set.add(normalizedGenre);
+      }
+    });
+    return Array.from(set);
+  }, [formState.genres, genreTranslations, projects]);
+
+  const tagSuggestionOptions = useMemo(
+    () =>
+      buildTaxonomySuggestionOptions(knownTagValues, (tag) =>
+        translateTag(tag, tagTranslationMap),
+      ),
+    [knownTagValues, tagTranslationMap],
+  );
+
+  const genreSuggestionOptions = useMemo(
+    () =>
+      buildTaxonomySuggestionOptions(knownGenresValues, (genre) =>
+        translateGenre(genre, genreTranslationMap),
+      ),
+    [genreTranslationMap, knownGenresValues],
+  );
+
+  const tagSuggestionLookup = useMemo(
+    () => buildTaxonomySuggestionLookup(tagSuggestionOptions),
+    [tagSuggestionOptions],
+  );
+
+  const genreSuggestionLookup = useMemo(
+    () => buildTaxonomySuggestionLookup(genreSuggestionOptions),
+    [genreSuggestionOptions],
+  );
 
   const tagSuggestions = useMemo(() => {
-    const query = tagInput.trim().toLowerCase();
-    if (!query) {
-      return [];
-    }
-    return knownTags
-      .filter((tag) => tag.toLowerCase().includes(query) && !formState.tags.includes(tag))
-      .slice(0, 6);
-  }, [tagInput, knownTags, formState.tags]);
+    return filterTaxonomySuggestions(tagSuggestionOptions, tagInput, formState.tags);
+  }, [formState.tags, tagInput, tagSuggestionOptions]);
 
   const genreSuggestions = useMemo(() => {
-    const query = genreInput.trim().toLowerCase();
-    if (!query) {
-      return [];
-    }
-    return knownGenres
-      .filter((genre) => genre.toLowerCase().includes(query) && !formState.genres.includes(genre))
-      .slice(0, 6);
-  }, [genreInput, knownGenres, formState.genres]);
+    return filterTaxonomySuggestions(genreSuggestionOptions, genreInput, formState.genres);
+  }, [formState.genres, genreInput, genreSuggestionOptions]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -4626,27 +4748,43 @@ const DashboardProjectsEditor = () => {
     });
   };
 
-  const handleAddTag = () => {
-    const next = tagInput.trim();
-    if (!next) {
+  const appendTagValue = (value: string) => {
+    const nextValue = String(value || "").trim();
+    if (!nextValue) {
       return;
     }
     setFormState((prev) => ({
       ...prev,
-      tags: prev.tags.includes(next) ? prev.tags : [...prev.tags, next],
+      tags: appendUniqueValue(prev.tags, nextValue),
     }));
+  };
+
+  const appendGenreValue = (value: string) => {
+    const nextValue = String(value || "").trim();
+    if (!nextValue) {
+      return;
+    }
+    setFormState((prev) => ({
+      ...prev,
+      genres: appendUniqueValue(prev.genres, nextValue),
+    }));
+  };
+
+  const handleAddTag = () => {
+    const next = resolveTaxonomyInputValue(tagInput, tagSuggestionLookup);
+    if (!next) {
+      return;
+    }
+    appendTagValue(next);
     setTagInput("");
   };
 
   const handleAddGenre = () => {
-    const next = genreInput.trim();
+    const next = resolveTaxonomyInputValue(genreInput, genreSuggestionLookup);
     if (!next) {
       return;
     }
-    setFormState((prev) => ({
-      ...prev,
-      genres: prev.genres.includes(next) ? prev.genres : [...prev.genres, next],
-    }));
+    appendGenreValue(next);
     setGenreInput("");
   };
 
@@ -5696,25 +5834,19 @@ const DashboardProjectsEditor = () => {
                               </div>
                               {tagSuggestions.length > 0 ? (
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                  {tagSuggestions.map((tag) => (
+                                  {tagSuggestions.map((option) => (
                                     <Button
-                                      key={`tag-suggestion-${tag}`}
+                                      key={`tag-suggestion-${option.value}`}
                                       type="button"
                                       size="sm"
                                       variant="ghost"
                                       className="h-7 px-2 text-xs"
                                       onClick={() => {
-                                        setTagInput(tag);
-                                        setFormState((prev) => ({
-                                          ...prev,
-                                          tags: prev.tags.includes(tag)
-                                            ? prev.tags
-                                            : [...prev.tags, tag],
-                                        }));
+                                        appendTagValue(option.value);
                                         setTagInput("");
                                       }}
                                     >
-                                      {tag}
+                                      {option.label}
                                     </Button>
                                   ))}
                                 </div>
@@ -5749,25 +5881,19 @@ const DashboardProjectsEditor = () => {
                               </div>
                               {genreSuggestions.length > 0 ? (
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                  {genreSuggestions.map((genre) => (
+                                  {genreSuggestions.map((option) => (
                                     <Button
-                                      key={`genre-suggestion-${genre}`}
+                                      key={`genre-suggestion-${option.value}`}
                                       type="button"
                                       size="sm"
                                       variant="ghost"
                                       className="h-7 px-2 text-xs"
                                       onClick={() => {
-                                        setGenreInput(genre);
-                                        setFormState((prev) => ({
-                                          ...prev,
-                                          genres: prev.genres.includes(genre)
-                                            ? prev.genres
-                                            : [...prev.genres, genre],
-                                        }));
+                                        appendGenreValue(option.value);
                                         setGenreInput("");
                                       }}
                                     >
-                                      {genre}
+                                      {option.label}
                                     </Button>
                                   ))}
                                 </div>
@@ -6014,25 +6140,19 @@ const DashboardProjectsEditor = () => {
                           </div>
                           {tagSuggestions.length > 0 ? (
                             <div className="mt-2 flex flex-wrap gap-2">
-                              {tagSuggestions.map((tag) => (
+                              {tagSuggestions.map((option) => (
                                 <Button
-                                  key={`tag-suggestion-${tag}`}
+                                  key={`tag-suggestion-${option.value}`}
                                   type="button"
                                   size="sm"
                                   variant="ghost"
                                   className="h-7 px-2 text-xs"
                                   onClick={() => {
-                                    setTagInput(tag);
-                                    setFormState((prev) => ({
-                                      ...prev,
-                                      tags: prev.tags.includes(tag)
-                                        ? prev.tags
-                                        : [...prev.tags, tag],
-                                    }));
+                                    appendTagValue(option.value);
                                     setTagInput("");
                                   }}
                                 >
-                                  {tag}
+                                  {option.label}
                                 </Button>
                               ))}
                             </div>
@@ -6067,25 +6187,19 @@ const DashboardProjectsEditor = () => {
                           </div>
                           {genreSuggestions.length > 0 ? (
                             <div className="mt-2 flex flex-wrap gap-2">
-                              {genreSuggestions.map((genre) => (
+                              {genreSuggestions.map((option) => (
                                 <Button
-                                  key={`genre-suggestion-${genre}`}
+                                  key={`genre-suggestion-${option.value}`}
                                   type="button"
                                   size="sm"
                                   variant="ghost"
                                   className="h-7 px-2 text-xs"
                                   onClick={() => {
-                                    setGenreInput(genre);
-                                    setFormState((prev) => ({
-                                      ...prev,
-                                      genres: prev.genres.includes(genre)
-                                        ? prev.genres
-                                        : [...prev.genres, genre],
-                                    }));
+                                    appendGenreValue(option.value);
                                     setGenreInput("");
                                   }}
                                 >
-                                  {genre}
+                                  {option.label}
                                 </Button>
                               ))}
                             </div>
@@ -6133,25 +6247,19 @@ const DashboardProjectsEditor = () => {
                               </div>
                               {tagSuggestions.length > 0 ? (
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                  {tagSuggestions.map((tag) => (
+                                  {tagSuggestions.map((option) => (
                                     <Button
-                                      key={`tag-suggestion-${tag}`}
+                                      key={`tag-suggestion-${option.value}`}
                                       type="button"
                                       size="sm"
                                       variant="ghost"
                                       className="h-7 px-2 text-xs"
                                       onClick={() => {
-                                        setTagInput(tag);
-                                        setFormState((prev) => ({
-                                          ...prev,
-                                          tags: prev.tags.includes(tag)
-                                            ? prev.tags
-                                            : [...prev.tags, tag],
-                                        }));
+                                        appendTagValue(option.value);
                                         setTagInput("");
                                       }}
                                     >
-                                      {tag}
+                                      {option.label}
                                     </Button>
                                   ))}
                                 </div>
@@ -6186,25 +6294,19 @@ const DashboardProjectsEditor = () => {
                               </div>
                               {genreSuggestions.length > 0 ? (
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                  {genreSuggestions.map((genre) => (
+                                  {genreSuggestions.map((option) => (
                                     <Button
-                                      key={`genre-suggestion-${genre}`}
+                                      key={`genre-suggestion-${option.value}`}
                                       type="button"
                                       size="sm"
                                       variant="ghost"
                                       className="h-7 px-2 text-xs"
                                       onClick={() => {
-                                        setGenreInput(genre);
-                                        setFormState((prev) => ({
-                                          ...prev,
-                                          genres: prev.genres.includes(genre)
-                                            ? prev.genres
-                                            : [...prev.genres, genre],
-                                        }));
+                                        appendGenreValue(option.value);
                                         setGenreInput("");
                                       }}
                                     >
-                                      {genre}
+                                      {option.label}
                                     </Button>
                                   ))}
                                 </div>
@@ -6374,25 +6476,19 @@ const DashboardProjectsEditor = () => {
                               </div>
                               {tagSuggestions.length > 0 ? (
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                  {tagSuggestions.map((tag) => (
+                                  {tagSuggestions.map((option) => (
                                     <Button
-                                      key={`tag-suggestion-${tag}`}
+                                      key={`tag-suggestion-${option.value}`}
                                       type="button"
                                       size="sm"
                                       variant="ghost"
                                       className="h-7 px-2 text-xs"
                                       onClick={() => {
-                                        setTagInput(tag);
-                                        setFormState((prev) => ({
-                                          ...prev,
-                                          tags: prev.tags.includes(tag)
-                                            ? prev.tags
-                                            : [...prev.tags, tag],
-                                        }));
+                                        appendTagValue(option.value);
                                         setTagInput("");
                                       }}
                                     >
-                                      {tag}
+                                      {option.label}
                                     </Button>
                                   ))}
                                 </div>
@@ -6427,25 +6523,19 @@ const DashboardProjectsEditor = () => {
                               </div>
                               {genreSuggestions.length > 0 ? (
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                  {genreSuggestions.map((genre) => (
+                                  {genreSuggestions.map((option) => (
                                     <Button
-                                      key={`genre-suggestion-${genre}`}
+                                      key={`genre-suggestion-${option.value}`}
                                       type="button"
                                       size="sm"
                                       variant="ghost"
                                       className="h-7 px-2 text-xs"
                                       onClick={() => {
-                                        setGenreInput(genre);
-                                        setFormState((prev) => ({
-                                          ...prev,
-                                          genres: prev.genres.includes(genre)
-                                            ? prev.genres
-                                            : [...prev.genres, genre],
-                                        }));
+                                        appendGenreValue(option.value);
                                         setGenreInput("");
                                       }}
                                     >
-                                      {genre}
+                                      {option.label}
                                     </Button>
                                   ))}
                                 </div>
