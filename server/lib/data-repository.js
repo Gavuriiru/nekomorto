@@ -171,6 +171,8 @@ export class DbDataRepository {
     this.normalizedSchemaAvailable = false;
     this.normalizedReadState = new Map();
     this.epubImportJobStorageAvailable = true;
+    this.projectImageImportJobStorageAvailable = true;
+    this.projectImageExportJobStorageAvailable = true;
     this.onBackgroundError = options.onBackgroundError;
     this.persistQueue = Promise.resolve();
     this.health = {
@@ -207,6 +209,8 @@ export class DbDataRepository {
       securityEvents: [],
       adminExportJobs: [],
       epubImportJobs: [],
+      projectImageImportJobs: [],
+      projectImageExportJobs: [],
       secretRotations: [],
     };
   }
@@ -341,6 +345,8 @@ export class DbDataRepository {
       securityEvents,
       adminExportJobs,
       epubImportJobs,
+      projectImageImportJobs,
+      projectImageExportJobs,
       secretRotations,
       normalizedUsers,
       normalizedPosts,
@@ -404,6 +410,50 @@ export class DbDataRepository {
             })
         : (() => {
             this.epubImportJobStorageAvailable = false;
+            return Promise.resolve([]);
+          })(),
+      typeof prisma.projectImageImportJobRecord?.findMany === "function"
+        ? prisma.projectImageImportJobRecord
+            .findMany({ orderBy: { createdAt: "desc" } })
+            .catch((error) => {
+              if (
+                isPrismaMissingTableError(error, {
+                  modelName: "ProjectImageImportJobRecord",
+                  tableName: "project_image_import_jobs",
+                })
+              ) {
+                this.projectImageImportJobStorageAvailable = false;
+                console.warn(
+                  "[data-repository:project_image_import_jobs] table missing; async image import disabled until migrations run.",
+                );
+                return [];
+              }
+              throw error;
+            })
+        : (() => {
+            this.projectImageImportJobStorageAvailable = false;
+            return Promise.resolve([]);
+          })(),
+      typeof prisma.projectImageExportJobRecord?.findMany === "function"
+        ? prisma.projectImageExportJobRecord
+            .findMany({ orderBy: { createdAt: "desc" } })
+            .catch((error) => {
+              if (
+                isPrismaMissingTableError(error, {
+                  modelName: "ProjectImageExportJobRecord",
+                  tableName: "project_image_export_jobs",
+                })
+              ) {
+                this.projectImageExportJobStorageAvailable = false;
+                console.warn(
+                  "[data-repository:project_image_export_jobs] table missing; async image export disabled until migrations run.",
+                );
+                return [];
+              }
+              throw error;
+            })
+        : (() => {
+            this.projectImageExportJobStorageAvailable = false;
             return Promise.resolve([]);
           })(),
       typeof prisma.secretRotationRecord?.findMany === "function"
@@ -551,6 +601,34 @@ export class DbDataRepository {
       updatedAt: row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
     }));
     this.snapshot.epubImportJobs = epubImportJobs.map((row) => ({
+      id: String(row?.id || ""),
+      projectId: String(row?.projectId || ""),
+      requestedBy: String(row?.requestedBy || ""),
+      status: String(row?.status || "queued"),
+      summary: cloneValue(row?.summary || {}),
+      resultPath: row?.resultPath ? String(row.resultPath) : null,
+      error: row?.error ? String(row.error) : null,
+      createdAt: row?.createdAt ? new Date(row.createdAt).toISOString() : null,
+      startedAt: row?.startedAt ? new Date(row.startedAt).toISOString() : null,
+      finishedAt: row?.finishedAt ? new Date(row.finishedAt).toISOString() : null,
+      expiresAt: row?.expiresAt ? new Date(row.expiresAt).toISOString() : null,
+      updatedAt: row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+    }));
+    this.snapshot.projectImageImportJobs = projectImageImportJobs.map((row) => ({
+      id: String(row?.id || ""),
+      projectId: String(row?.projectId || ""),
+      requestedBy: String(row?.requestedBy || ""),
+      status: String(row?.status || "queued"),
+      summary: cloneValue(row?.summary || {}),
+      resultPath: row?.resultPath ? String(row.resultPath) : null,
+      error: row?.error ? String(row.error) : null,
+      createdAt: row?.createdAt ? new Date(row.createdAt).toISOString() : null,
+      startedAt: row?.startedAt ? new Date(row.startedAt).toISOString() : null,
+      finishedAt: row?.finishedAt ? new Date(row.finishedAt).toISOString() : null,
+      expiresAt: row?.expiresAt ? new Date(row.expiresAt).toISOString() : null,
+      updatedAt: row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+    }));
+    this.snapshot.projectImageExportJobs = projectImageExportJobs.map((row) => ({
       id: String(row?.id || ""),
       projectId: String(row?.projectId || ""),
       requestedBy: String(row?.requestedBy || ""),
@@ -1600,6 +1678,166 @@ export class DbDataRepository {
     });
     this.enqueuePersist("epub_import_job", async () => {
       await prisma.epubImportJobRecord.upsert({
+        where: { id },
+        create: {
+          id,
+          projectId: normalized.projectId,
+          requestedBy: normalized.requestedBy,
+          status: normalized.status,
+          summary: cloneValue(normalized.summary),
+          resultPath: normalized.resultPath,
+          error: normalized.error,
+          createdAt: toDateOrNull(normalized.createdAt) || new Date(),
+          startedAt: toDateOrNull(normalized.startedAt),
+          finishedAt: toDateOrNull(normalized.finishedAt),
+          expiresAt: toDateOrNull(normalized.expiresAt),
+        },
+        update: {
+          projectId: normalized.projectId,
+          requestedBy: normalized.requestedBy,
+          status: normalized.status,
+          summary: cloneValue(normalized.summary),
+          resultPath: normalized.resultPath,
+          error: normalized.error,
+          startedAt: toDateOrNull(normalized.startedAt),
+          finishedAt: toDateOrNull(normalized.finishedAt),
+          expiresAt: toDateOrNull(normalized.expiresAt),
+        },
+      });
+    });
+    return cloneValue(normalized);
+  }
+
+  loadProjectImageImportJobs() {
+    return cloneValue(this.snapshot.projectImageImportJobs || []);
+  }
+
+  isProjectImageImportJobStorageAvailable() {
+    return this.projectImageImportJobStorageAvailable === true;
+  }
+
+  upsertProjectImageImportJob(job) {
+    if (
+      this.projectImageImportJobStorageAvailable !== true ||
+      typeof prisma.projectImageImportJobRecord?.upsert !== "function"
+    ) {
+      return null;
+    }
+    const id = String(job?.id || "").trim();
+    if (!id) {
+      return null;
+    }
+    const normalized = {
+      id,
+      projectId: String(job?.projectId || "").trim(),
+      requestedBy: String(job?.requestedBy || "").trim(),
+      status: String(job?.status || "queued"),
+      summary:
+        job?.summary && typeof job.summary === "object" && !Array.isArray(job.summary)
+          ? cloneValue(job.summary)
+          : {},
+      resultPath: job?.resultPath ? String(job.resultPath) : null,
+      error: job?.error ? String(job.error) : null,
+      createdAt: String(job?.createdAt || new Date().toISOString()),
+      startedAt: job?.startedAt ? String(job.startedAt) : null,
+      finishedAt: job?.finishedAt ? String(job.finishedAt) : null,
+      expiresAt: job?.expiresAt ? String(job.expiresAt) : null,
+      updatedAt: String(job?.updatedAt || new Date().toISOString()),
+    };
+    const list = ensureArray(this.snapshot.projectImageImportJobs);
+    const index = list.findIndex((item) => String(item?.id || "") === id);
+    if (index >= 0) {
+      list[index] = normalized;
+    } else {
+      list.push(normalized);
+    }
+    this.snapshot.projectImageImportJobs = list.sort((a, b) => {
+      const aTs = new Date(a.createdAt || 0).getTime();
+      const bTs = new Date(b.createdAt || 0).getTime();
+      return bTs - aTs;
+    });
+    this.enqueuePersist("project_image_import_job", async () => {
+      await prisma.projectImageImportJobRecord.upsert({
+        where: { id },
+        create: {
+          id,
+          projectId: normalized.projectId,
+          requestedBy: normalized.requestedBy,
+          status: normalized.status,
+          summary: cloneValue(normalized.summary),
+          resultPath: normalized.resultPath,
+          error: normalized.error,
+          createdAt: toDateOrNull(normalized.createdAt) || new Date(),
+          startedAt: toDateOrNull(normalized.startedAt),
+          finishedAt: toDateOrNull(normalized.finishedAt),
+          expiresAt: toDateOrNull(normalized.expiresAt),
+        },
+        update: {
+          projectId: normalized.projectId,
+          requestedBy: normalized.requestedBy,
+          status: normalized.status,
+          summary: cloneValue(normalized.summary),
+          resultPath: normalized.resultPath,
+          error: normalized.error,
+          startedAt: toDateOrNull(normalized.startedAt),
+          finishedAt: toDateOrNull(normalized.finishedAt),
+          expiresAt: toDateOrNull(normalized.expiresAt),
+        },
+      });
+    });
+    return cloneValue(normalized);
+  }
+
+  loadProjectImageExportJobs() {
+    return cloneValue(this.snapshot.projectImageExportJobs || []);
+  }
+
+  isProjectImageExportJobStorageAvailable() {
+    return this.projectImageExportJobStorageAvailable === true;
+  }
+
+  upsertProjectImageExportJob(job) {
+    if (
+      this.projectImageExportJobStorageAvailable !== true ||
+      typeof prisma.projectImageExportJobRecord?.upsert !== "function"
+    ) {
+      return null;
+    }
+    const id = String(job?.id || "").trim();
+    if (!id) {
+      return null;
+    }
+    const normalized = {
+      id,
+      projectId: String(job?.projectId || "").trim(),
+      requestedBy: String(job?.requestedBy || "").trim(),
+      status: String(job?.status || "queued"),
+      summary:
+        job?.summary && typeof job.summary === "object" && !Array.isArray(job.summary)
+          ? cloneValue(job.summary)
+          : {},
+      resultPath: job?.resultPath ? String(job.resultPath) : null,
+      error: job?.error ? String(job.error) : null,
+      createdAt: String(job?.createdAt || new Date().toISOString()),
+      startedAt: job?.startedAt ? String(job.startedAt) : null,
+      finishedAt: job?.finishedAt ? String(job.finishedAt) : null,
+      expiresAt: job?.expiresAt ? String(job.expiresAt) : null,
+      updatedAt: String(job?.updatedAt || new Date().toISOString()),
+    };
+    const list = ensureArray(this.snapshot.projectImageExportJobs);
+    const index = list.findIndex((item) => String(item?.id || "") === id);
+    if (index >= 0) {
+      list[index] = normalized;
+    } else {
+      list.push(normalized);
+    }
+    this.snapshot.projectImageExportJobs = list.sort((a, b) => {
+      const aTs = new Date(a.createdAt || 0).getTime();
+      const bTs = new Date(b.createdAt || 0).getTime();
+      return bTs - aTs;
+    });
+    this.enqueuePersist("project_image_export_job", async () => {
+      await prisma.projectImageExportJobRecord.upsert({
         where: { id },
         create: {
           id,

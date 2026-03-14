@@ -3,12 +3,14 @@ import { Link, useLocation, useParams, useSearchParams } from "react-router-dom"
 import { ArrowLeft, ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
 
 import CommentsSection from "@/components/CommentsSection";
+import MangaViewerAdapter from "@/components/project-reader/MangaViewerAdapter";
 import UploadPicture from "@/components/UploadPicture";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Project } from "@/data/projects";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useDeferredVisibility } from "@/hooks/use-deferred-visibility";
 import { getApiBase } from "@/lib/api-base";
@@ -28,11 +30,17 @@ import {
   buildEpisodeKey,
   resolveCanonicalEpisodeRouteTarget,
 } from "@/lib/project-episode-key";
-import { isLightNovelType } from "@/lib/project-utils";
+import { isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicBootstrapPayload, PublicBootstrapProject } from "@/types/public-bootstrap";
+import {
+  hasProjectEpisodeReadableContent,
+  normalizeProjectEpisodeContentFormat,
+  normalizeProjectEpisodePages,
+  resolveProjectReaderConfig,
+} from "../../shared/project-reader.js";
 import {
   buildProjectReadingOgImagePath,
   buildProjectReadingOgRevision,
@@ -87,6 +95,7 @@ const ProjectReading = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const apiBase = getApiBase();
+  const { settings } = useSiteSettings();
   const [bootstrapData] = useState<PublicBootstrapPayload | null>(() => readWindowPublicBootstrap());
   const [currentUser] = useState<PublicBootstrapCurrentUser | null>(() =>
     readWindowPublicBootstrapCurrentUser(),
@@ -106,10 +115,16 @@ const ProjectReading = () => {
     displayLabel?: string;
     synopsis?: string;
     content?: string;
-    contentFormat?: "lexical";
+    contentFormat?: "lexical" | "images";
+    pages?: Array<{ position: number; imageUrl: string }>;
+    pageCount?: number;
+    hasPages?: boolean;
     coverImageUrl?: string;
     coverImageAlt?: string;
   } | null>(null);
+  const [chapterReaderConfig, setChapterReaderConfig] = useState<Record<string, unknown> | null>(
+    null,
+  );
   const [hasLoadedProject, setHasLoadedProject] = useState(Boolean(bootstrapProject));
   const [hasLoadedChapter, setHasLoadedChapter] = useState(false);
   const [chapterLoadError, setChapterLoadError] = useState(false);
@@ -179,17 +194,15 @@ const ProjectReading = () => {
   const volumeParam =
     volumeParamRaw !== null && Number.isFinite(parsedVolumeParam) ? parsedVolumeParam : undefined;
   const isLightNovel = isLightNovelType(project?.type || "");
+  const isManga = isMangaType(project?.type || "");
+  const isReaderProject = isLightNovel || isManga;
 
   const sortedChapters = useMemo(() => {
     if (!project) {
       return [];
     }
     return (project.episodeDownloads || [])
-      .filter(
-        (entry) =>
-          (entry as { hasContent?: boolean }).hasContent ||
-          (typeof entry.content === "string" && entry.content.trim().length > 0),
-      )
+      .filter((entry) => hasProjectEpisodeReadableContent(entry))
       .sort((a, b) => {
         const leftReadingOrder = Number(a.readingOrder);
         const rightReadingOrder = Number(b.readingOrder);
@@ -263,6 +276,7 @@ const ProjectReading = () => {
 
   const heroImage = useMemo(
     () =>
+      normalizeProjectEpisodePages(chapterContent?.pages)[0]?.imageUrl ||
       chapterContent?.coverImageUrl ||
       chapterData?.coverImageUrl ||
       volumeEntry?.coverImageUrl ||
@@ -272,6 +286,7 @@ const ProjectReading = () => {
       project?.banner ||
       "/placeholder.svg",
     [
+      chapterContent?.pages,
       chapterContent?.coverImageUrl,
       chapterData?.coverImageUrl,
       project?.banner,
@@ -497,6 +512,7 @@ const ProjectReading = () => {
       setHasLoadedChapter(false);
       setChapterLoadError(false);
       setChapterContent(null);
+      setChapterReaderConfig(null);
 
       if (!project?.id || !Number.isFinite(chapterNumber)) {
         if (isActive) {
@@ -514,6 +530,7 @@ const ProjectReading = () => {
         if (!response.ok) {
           if (isActive) {
             setChapterContent(null);
+            setChapterReaderConfig(null);
             setChapterLoadError(true);
           }
           return;
@@ -521,11 +538,15 @@ const ProjectReading = () => {
         const data = await response.json();
         if (isActive) {
           setChapterContent(data.chapter || null);
+          setChapterReaderConfig(
+            data?.readerConfig && typeof data.readerConfig === "object" ? data.readerConfig : null,
+          );
           setChapterLoadError(false);
         }
       } catch {
         if (isActive) {
           setChapterContent(null);
+          setChapterReaderConfig(null);
           setChapterLoadError(true);
         }
       } finally {
@@ -587,11 +608,26 @@ const ProjectReading = () => {
   if (!project) {
     return null;
   }
-  if (!isLightNovel) {
+  if (!isReaderProject) {
     return <NotFound />;
   }
 
   const chapterLexical = chapterContent?.content || "";
+  const chapterPages = normalizeProjectEpisodePages(chapterContent?.pages || chapterData?.pages);
+  const chapterContentFormat = normalizeProjectEpisodeContentFormat(
+    chapterContent?.contentFormat || chapterData?.contentFormat,
+    chapterPages.length > 0 ? "images" : "lexical",
+  );
+  const chapterReaderConfigResolved = resolveProjectReaderConfig({
+    projectType: project?.type,
+    siteSettings: settings,
+    siteReaderConfig: chapterReaderConfig,
+    projectReaderConfig: project?.readerConfig,
+  });
+  const shareUrl =
+    typeof window !== "undefined"
+      ? window.location.href
+      : `${apiBase}/projeto/${encodeURIComponent(project.id)}/leitura/${encodeURIComponent(String(chapterNumber))}`;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -625,7 +661,7 @@ const ProjectReading = () => {
                     variant="outline"
                     className="project-reading-masthead__badge project-reading-masthead__badge--type text-xs uppercase tracking-wide"
                   >
-                    Light Novel
+                    {project.type || (isLightNovel ? "Light Novel" : "Mangá")}
                   </Badge>
                   <Badge
                     variant="outline"
@@ -704,7 +740,22 @@ const ProjectReading = () => {
             <article className="min-w-0 space-y-6">
               <Card className="project-reading-reader-shell">
                 <CardContent className="project-reading-reader-shell__content min-w-0 space-y-6 p-6">
-                  {chapterContent?.content ? (
+                  {chapterContentFormat === "images" && chapterPages.length > 0 ? (
+                    <MangaViewerAdapter
+                      title={pageTitle}
+                      backUrl={`/projeto/${encodeURIComponent(project.id)}`}
+                      shareUrl={shareUrl}
+                      pages={chapterPages}
+                      direction={chapterReaderConfigResolved.direction || "rtl"}
+                      viewMode={chapterReaderConfigResolved.viewMode || "page"}
+                      firstPageSingle={chapterReaderConfigResolved.firstPageSingle !== false}
+                      allowSpread={chapterReaderConfigResolved.allowSpread !== false}
+                      showFooter={chapterReaderConfigResolved.showFooter !== false}
+                      previewLimit={chapterReaderConfigResolved.previewLimit ?? null}
+                      purchaseUrl={chapterReaderConfigResolved.purchaseUrl || ""}
+                      purchasePrice={chapterReaderConfigResolved.purchasePrice || ""}
+                    />
+                  ) : chapterContent?.content ? (
                     <Suspense fallback={<LexicalViewerFallback />}>
                       <LexicalViewer
                         value={chapterLexical}

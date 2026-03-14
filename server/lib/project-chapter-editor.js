@@ -1,4 +1,9 @@
 import { resolveEpisodeLookup } from "./project-episodes.js";
+import {
+  getProjectEpisodePageCount,
+  normalizeProjectEpisodeContentFormat,
+  normalizeProjectEpisodePages,
+} from "../../shared/project-reader.js";
 
 const hasOwn = (value, key) =>
   Boolean(value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, key));
@@ -79,6 +84,13 @@ const normalizeCompletedStages = (value, fallbackValue) => {
   );
 };
 
+const normalizePages = (value, fallbackValue) => {
+  if (value === undefined) {
+    return normalizeProjectEpisodePages(fallbackValue);
+  }
+  return normalizeProjectEpisodePages(value);
+};
+
 export const applyProjectChapterUpdate = ({
   project,
   targetNumber,
@@ -95,6 +107,24 @@ export const applyProjectChapterUpdate = ({
   const nextNumber =
     normalizeOptionalNumber(nextChapterInput.number) ?? Number(currentChapter.number) ?? 1;
   const nextEntryKind = normalizeEntryKind(nextChapterInput.entryKind, currentChapter.entryKind);
+  const nextPages = normalizePages(nextChapterInput.pages, currentChapter.pages);
+  const nextContentFormat = normalizeProjectEpisodeContentFormat(
+    nextChapterInput.contentFormat,
+    normalizeProjectEpisodeContentFormat(currentChapter.contentFormat, nextPages.length > 0 ? "images" : "lexical"),
+  );
+  const nextPageCount = hasOwn(nextChapterInput, "pageCount")
+    ? Math.max(0, normalizeOptionalNumber(nextChapterInput.pageCount) ?? nextPages.length)
+    : getProjectEpisodePageCount({
+        ...currentChapter,
+        contentFormat: nextContentFormat,
+        pages: nextPages,
+      });
+  const requestedCoverImageUrl = hasOwn(nextChapterInput, "coverImageUrl")
+    ? normalizeOptionalTrimmedString(nextChapterInput.coverImageUrl)
+    : normalizeOptionalTrimmedString(currentChapter.coverImageUrl);
+  const resolvedCoverImageUrl =
+    requestedCoverImageUrl ||
+    (nextContentFormat === "images" ? normalizeOptionalTrimmedString(nextPages[0]?.imageUrl) : "");
 
   const nextChapter = {
     ...currentChapter,
@@ -125,9 +155,7 @@ export const applyProjectChapterUpdate = ({
     duration: hasOwn(nextChapterInput, "duration")
       ? normalizeOptionalTrimmedString(nextChapterInput.duration)
       : currentChapter.duration,
-    coverImageUrl: hasOwn(nextChapterInput, "coverImageUrl")
-      ? normalizeOptionalTrimmedString(nextChapterInput.coverImageUrl)
-      : currentChapter.coverImageUrl,
+    coverImageUrl: resolvedCoverImageUrl || undefined,
     coverImageAlt: hasOwn(nextChapterInput, "coverImageAlt")
       ? normalizeOptionalString(nextChapterInput.coverImageAlt)
       : currentChapter.coverImageAlt,
@@ -149,10 +177,9 @@ export const applyProjectChapterUpdate = ({
     content: hasOwn(nextChapterInput, "content")
       ? normalizeOptionalString(nextChapterInput.content)
       : currentChapter.content,
-    contentFormat:
-      String(nextChapterInput.contentFormat || "").trim().toLowerCase() === "lexical"
-        ? "lexical"
-        : currentChapter.contentFormat || "lexical",
+    contentFormat: nextContentFormat,
+    pages: nextPages,
+    pageCount: nextPageCount,
     publicationStatus: normalizePublicationStatus(
       nextChapterInput.publicationStatus,
       currentChapter.publicationStatus || "draft",

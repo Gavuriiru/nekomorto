@@ -6,6 +6,10 @@ const CONTRACT_CAPABILITIES = Object.freeze({
   project_epub_import: true,
   project_epub_export: true,
   project_epub_import_async: true,
+  project_image_chapters: true,
+  project_manga_import: true,
+  project_manga_import_async: true,
+  project_manga_export: true,
 });
 
 const CONTRACT_BASE = Object.freeze({
@@ -76,7 +80,10 @@ const CONTRACT_BASE = Object.freeze({
       path: "/api/public/projects/:id/chapters/:number",
       auth: "public",
       cache: "public-read",
-      notes: ["Accepts optional ?volume=. Returns 400 volume_required when the chapter number is ambiguous."],
+      notes: [
+        "Accepts optional ?volume=. Returns 400 volume_required when the chapter number is ambiguous.",
+        "Image chapters return pages[] plus project-level readerConfig overrides.",
+      ],
     },
     {
       method: "GET",
@@ -173,8 +180,49 @@ const CONTRACT_BASE = Object.freeze({
       idempotent: "optional_by_header",
       notes: [
         "Accepts chapter payload in body.chapter.",
-        "Supports optional ?volume= to resolve chapters in multivolume light novels.",
+        "Supports optional ?volume= to resolve chapters in multivolume projects.",
+        "Image chapters accept contentFormat='images', pages[] and pageCount.",
       ],
+    },
+    {
+      method: "POST",
+      path: "/api/projects/:id/manga-import/preview",
+      auth: "session",
+      cache: "no-store",
+      idempotent: "optional_by_header",
+    },
+    {
+      method: "POST",
+      path: "/api/projects/:id/manga-import/jobs",
+      auth: "session",
+      cache: "no-store",
+      idempotent: "optional_by_header",
+    },
+    {
+      method: "GET",
+      path: "/api/projects/:id/manga-import/jobs/:jobId",
+      auth: "session",
+      cache: "no-store",
+    },
+    {
+      method: "POST",
+      path: "/api/projects/:id/manga-export/chapter",
+      auth: "session",
+      cache: "no-store",
+      idempotent: "optional_by_header",
+    },
+    {
+      method: "POST",
+      path: "/api/projects/:id/manga-export/jobs",
+      auth: "session",
+      cache: "no-store",
+      idempotent: "optional_by_header",
+    },
+    {
+      method: "GET",
+      path: "/api/projects/:id/manga-export/jobs/:jobId",
+      auth: "session",
+      cache: "no-store",
     },
     {
       method: "PATCH",

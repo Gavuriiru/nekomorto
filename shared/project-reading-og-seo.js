@@ -1,4 +1,8 @@
 import { createStableRevisionToken } from "./stable-revision-token.js";
+import {
+  hasProjectEpisodeReadableContent,
+  normalizeProjectEpisodePages,
+} from "./project-reader.js";
 
 export const PROJECT_READING_OG_SCENE_VERSION = "project-reading-og-v2";
 
@@ -13,7 +17,9 @@ const toFiniteNumber = (value) => {
 const isExtraChapter = (chapter) => normalizeKey(chapter?.entryKind) === "extra";
 
 const hasReadableChapterContent = (chapter) =>
-  Boolean(chapter?.hasContent) || (typeof chapter?.content === "string" && chapter.content.trim().length > 0);
+  Boolean(chapter?.hasContent) ||
+  Boolean(chapter?.hasPages) ||
+  hasProjectEpisodeReadableContent(chapter);
 
 const buildEpisodeKey = (number, volume) => {
   const safeNumber = toFiniteNumber(number);
@@ -156,11 +162,17 @@ const resolveVolumeCoverImage = ({ volumeEntry, volumeCover }) =>
 
 const resolveArtworkReadingImage = ({ chapter, volumeEntry, volumeCover, project }) => {
   const volumeCandidate = resolveVolumeCoverImage({ volumeEntry, volumeCover });
+  const chapterPages = normalizeProjectEpisodePages(chapter?.pages);
   const candidates = [
     {
       source: "chapter-cover",
       url: normalizeText(chapter?.coverImageUrl),
       coverLike: true,
+    },
+    {
+      source: "chapter-page",
+      url: normalizeText(chapterPages[0]?.imageUrl),
+      coverLike: false,
     },
     volumeCandidate,
     {

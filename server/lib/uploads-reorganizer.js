@@ -311,6 +311,16 @@ const parseProjectEpisodeFolderUsageKey = (value) => {
   };
 };
 
+const resolveEpisodePagesFolder = (chapterFolder) => {
+  const normalizedChapterFolder = toPosix(String(chapterFolder || "").trim())
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+  if (!normalizedChapterFolder) {
+    return "";
+  }
+  return `${normalizedChapterFolder}/paginas`;
+};
+
 const getUsageBucket = (usageByUrl, uploadUrl) => {
   if (!usageByUrl.has(uploadUrl)) {
     usageByUrl.set(uploadUrl, {
@@ -334,7 +344,13 @@ const addPostUsage = (usageByUrl, maybeUrl, postRef) => {
   usage.posts.add(postRef);
 };
 
-const addProjectUsage = (usageByUrl, maybeUrl, projectId, kind, { chapterFolder = "" } = {}) => {
+const addProjectUsage = (
+  usageByUrl,
+  maybeUrl,
+  projectId,
+  kind,
+  { chapterFolder = "", targetFolder = "" } = {},
+) => {
   const uploadUrl = normalizeUploadUrl(maybeUrl);
   if (!uploadUrl) {
     return;
@@ -343,7 +359,7 @@ const addProjectUsage = (usageByUrl, maybeUrl, projectId, kind, { chapterFolder 
   usage.projectIds.add(projectId);
   if (kind === "episode") {
     usage.projectEpisodeIds.add(projectId);
-    const normalizedChapterFolder = toPosix(String(chapterFolder || "").trim())
+    const normalizedChapterFolder = toPosix(String(targetFolder || chapterFolder || "").trim())
       .replace(/^\/+/, "")
       .replace(/\/+$/, "");
     if (normalizedChapterFolder) {
@@ -401,6 +417,13 @@ const collectUsage = (posts, projects) => {
       });
       const episodeOptions = chapterFolder ? { chapterFolder } : undefined;
       addProjectUsage(usageByUrl, episode?.coverImageUrl, projectId, "episode", episodeOptions);
+      (Array.isArray(episode?.pages) ? episode.pages : []).forEach((page) => {
+        const pagesFolder = resolveEpisodePagesFolder(chapterFolder);
+        addProjectUsage(usageByUrl, page?.imageUrl, projectId, "episode", {
+          chapterFolder,
+          targetFolder: pagesFolder || chapterFolder,
+        });
+      });
       extractUploadUrlsFromText(episode?.content).forEach((uploadUrl) =>
         addProjectUsage(usageByUrl, uploadUrl, projectId, "episode", episodeOptions),
       );
@@ -444,15 +467,24 @@ export const classifyTargetFolder = (usage, projectFoldersById, sourceRelative =
       projectVolumeCount === 0 &&
       projectEpisodeCount > 0
     ) {
-      if (normalizedSource.startsWith(`${projectFolders.chapters}/`)) {
-        const stickyFolder = path.posix.dirname(normalizedSource);
-        return stickyFolder === "." ? projectFolders.chapters : stickyFolder;
-      }
       const chapterFolders = Array.from(usage?.projectEpisodeChapterFolders || [])
         .map((item) => parseProjectEpisodeFolderUsageKey(item))
         .filter((entry) => entry.projectId === projectId && entry.folder)
         .map((entry) => toPosix(entry.folder).replace(/^\/+/, "").replace(/\/+$/, ""));
       const uniqueChapterFolders = Array.from(new Set(chapterFolders));
+      if (normalizedSource.startsWith(`${projectFolders.chapters}/`)) {
+        const stickyFolder = path.posix.dirname(normalizedSource);
+        const normalizedStickyFolder =
+          stickyFolder === "." ? projectFolders.chapters : stickyFolder;
+        if (
+          uniqueChapterFolders.length === 1 &&
+          uniqueChapterFolders[0] &&
+          uniqueChapterFolders[0] !== normalizedStickyFolder
+        ) {
+          return uniqueChapterFolders[0];
+        }
+        return normalizedStickyFolder;
+      }
       if (uniqueChapterFolders.length === 1) {
         return uniqueChapterFolders[0];
       }

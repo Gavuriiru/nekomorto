@@ -339,6 +339,48 @@ model EpubImportJobRecord {
   @@map("epub_import_jobs")
 }
 
+model ProjectImageImportJobRecord {
+  id          String   @id
+  projectId   String
+  requestedBy String
+  status      String
+  summary     Json
+  resultPath  String?
+  error       String?
+  createdAt   DateTime @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  expiresAt   DateTime?
+  updatedAt   DateTime @updatedAt
+
+  @@index([status], map: "project_image_import_jobs_status_idx")
+  @@index([createdAt], map: "project_image_import_jobs_createdAt_idx")
+  @@index([requestedBy], map: "project_image_import_jobs_requestedBy_idx")
+  @@index([projectId], map: "project_image_import_jobs_projectId_idx")
+  @@map("project_image_import_jobs")
+}
+
+model ProjectImageExportJobRecord {
+  id          String   @id
+  projectId   String
+  requestedBy String
+  status      String
+  summary     Json
+  resultPath  String?
+  error       String?
+  createdAt   DateTime @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  expiresAt   DateTime?
+  updatedAt   DateTime @updatedAt
+
+  @@index([status], map: "project_image_export_jobs_status_idx")
+  @@index([createdAt], map: "project_image_export_jobs_createdAt_idx")
+  @@index([requestedBy], map: "project_image_export_jobs_requestedBy_idx")
+  @@index([projectId], map: "project_image_export_jobs_projectId_idx")
+  @@map("project_image_export_jobs")
+}
+
 model SecretRotationRecord {
   id           String   @id
   secretFamily String
@@ -510,6 +552,7 @@ model ProjectV2Record {
   forceHero     Boolean                @default(false)
   heroImageUrl  String
   heroImageAlt  String
+  readerConfig  Json?
   staff         Json?
   animeStaff    Json?
   views         Int                    @default(0)
@@ -582,17 +625,30 @@ model ProjectEpisodeRecord {
   coverImageAlt     String
   content           String
   contentFormat     String
+  pageCount         Int                        @default(0)
   publicationStatus String
   hash              String?
   sizeBytes         Int?
   chapterUpdatedAt  String
   project           ProjectV2Record           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pages             ProjectEpisodePageRecord[]
   sources           ProjectEpisodeSourceRecord[]
   comments          CommentV2Record[]         @relation("CommentEpisodeTarget")
 
   @@index([projectId, position], map: "project_episodes_projectId_position_idx")
   @@index([projectId, number, volume], map: "project_episodes_projectId_number_volume_idx")
   @@map("project_episodes")
+}
+
+model ProjectEpisodePageRecord {
+  id        String               @id
+  episodeId String
+  position  Int                  @default(0)
+  imageUrl  String
+  episode   ProjectEpisodeRecord @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@index([episodeId, position], map: "project_episode_pages_episodeId_position_idx")
+  @@map("project_episode_pages")
 }
 
 model ProjectEpisodeSourceRecord {

@@ -3,6 +3,8 @@ import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
+import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
+import MangaWorkflowPanel from "@/components/project-reader/MangaWorkflowPanel";
 import {
   Accordion,
   AccordionContent,
@@ -34,6 +36,7 @@ import { toast } from "@/components/ui/use-toast";
 import type { Project, ProjectEpisode, ProjectVolumeCover, ProjectVolumeEntry } from "@/data/projects";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
@@ -87,7 +90,7 @@ import {
   resolveNextMainEpisodeNumber,
 } from "@/lib/project-episode-key";
 import { buildChapterFolder, resolveProjectImageFolders } from "@/lib/project-image-folders";
-import { isLightNovelType } from "@/lib/project-utils";
+import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import type {
@@ -120,6 +123,12 @@ import {
   useState,
 } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  hasProjectEpisodeReadableContent,
+  normalizeProjectEpisodeContentFormat,
+  normalizeProjectEpisodePages,
+  resolveProjectReaderConfig,
+} from "../../shared/project-reader.js";
 import NotFound from "./NotFound";
 
 const loadLexicalEditor = () => import("@/components/lexical/LexicalEditor");
@@ -218,6 +227,7 @@ type ChapterEditorPaneProps = {
   activeChapter: ProjectEpisode | null;
   activeDraft: ProjectEpisode | null;
   onDraftChange: (nextChapter: ProjectEpisode) => void;
+  filteredChapters: ProjectEpisode[];
   volumeEntriesDraft: ProjectVolumeEntry[];
   selectedVolume: number | null;
   availableVolumes: EditableVolumeOption[];
@@ -250,6 +260,20 @@ type ChapterEditorPaneProps = {
   neutralHref: string;
   onNavigateToHref: (href: string) => void;
   onNavigateToUploads: () => boolean | Promise<boolean>;
+  onPersistProjectSnapshot: (
+    snapshot: ProjectRecord,
+    options: {
+      context:
+        | "epub-import"
+        | "volume-editor"
+        | "chapter-create"
+        | "chapter-delete"
+        | "volume-delete"
+        | "manga-import"
+        | "manga-publication";
+    },
+  ) => Promise<ProjectRecord | null>;
+  onProjectChange: (nextProject: ProjectRecord) => void;
   onChapterSaved: (
     project: ProjectRecord,
     chapter: ProjectEpisode,
@@ -294,6 +318,9 @@ const EMPTY_CHAPTER_DRAFT: ProjectEpisode = {
   completedStages: [],
   content: "",
   contentFormat: "lexical",
+  pages: [],
+  pageCount: 0,
+  hasPages: false,
   publicationStatus: "draft",
   coverImageUrl: "",
   coverImageAlt: "",
@@ -323,7 +350,7 @@ const EditorAccordionHeader = ({ title, subtitle }: { title: string; subtitle: s
 );
 
 const chapterHasContent = (episode: ProjectEpisode | null | undefined) =>
-  typeof episode?.content === "string" && episode.content.trim().length > 0;
+  hasProjectEpisodeReadableContent(episode);
 
 const chapterStatusLabel = (episode: ProjectEpisode | null | undefined) =>
   episode?.publicationStatus === "draft" ? "Rascunho" : "Publicado";
@@ -449,6 +476,11 @@ const normalizeChapterForSave = (chapter: ProjectEpisode): ProjectEpisode => {
       .toLowerCase() === "extra"
       ? "extra"
       : "main";
+  const normalizedPages = normalizeProjectEpisodePages(chapter.pages);
+  const contentFormat = normalizeProjectEpisodeContentFormat(
+    chapter.contentFormat,
+    normalizedPages.length > 0 ? "images" : "lexical",
+  );
   return {
     ...chapter,
     number: normalizePositiveInteger(parsedNumber, 1) ?? 1,
@@ -462,7 +494,6 @@ const normalizeChapterForSave = (chapter: ProjectEpisode): ProjectEpisode => {
     synopsis: String(chapter.synopsis || ""),
     releaseDate: String(chapter.releaseDate || "").trim(),
     duration: String(chapter.duration || "").trim(),
-    coverImageUrl: String(chapter.coverImageUrl || "").trim(),
     coverImageAlt: String(chapter.coverImageAlt || ""),
     sourceType:
       chapter.sourceType === "Web" || chapter.sourceType === "Blu-ray" ? chapter.sourceType : "TV",
@@ -483,8 +514,13 @@ const normalizeChapterForSave = (chapter: ProjectEpisode): ProjectEpisode => {
           new Set(chapter.completedStages.map((item) => String(item || "").trim()).filter(Boolean)),
         )
       : [],
-    content: String(chapter.content || ""),
-    contentFormat: "lexical",
+    content: contentFormat === "images" ? "" : String(chapter.content || ""),
+    contentFormat,
+    pages: normalizedPages,
+    pageCount: normalizedPages.length,
+    hasPages: normalizedPages.length > 0,
+    coverImageUrl:
+      String(chapter.coverImageUrl || "").trim() || normalizedPages[0]?.imageUrl || "",
     publicationStatus: chapter.publicationStatus === "draft" ? "draft" : "published",
     chapterUpdatedAt: String(chapter.chapterUpdatedAt || "").trim() || undefined,
   };
@@ -517,6 +553,9 @@ const buildNewChapterDraft = (episodes: ProjectEpisode[], volume?: number) =>
     completedStages: [],
     content: "",
     contentFormat: "lexical",
+    pages: [],
+    pageCount: 0,
+    hasPages: false,
     publicationStatus: "draft",
   });
 
@@ -638,6 +677,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       activeChapter,
       activeDraft,
       onDraftChange,
+      filteredChapters,
       volumeEntriesDraft,
       selectedVolume,
       availableVolumes,
@@ -664,6 +704,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       neutralHref,
       onNavigateToHref,
       onNavigateToUploads,
+      onPersistProjectSnapshot,
+      onProjectChange,
       onChapterSaved,
       isVolumeDirty,
       isSavingVolumes,
@@ -695,6 +737,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     ref,
   ) => {
     const apiBase = getApiBase();
+    const { settings: siteSettings } = useSiteSettings();
     const editorRef = useRef<LexicalEditorHandle | null>(null);
     const [identityError, setIdentityError] = useState<string | null>(null);
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -705,6 +748,25 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     const hasActiveChapter = Boolean(activeChapter && activeChapterKey);
     const draft =
       activeDraft || (activeChapter ? normalizeChapterForSave(activeChapter) : EMPTY_CHAPTER_DRAFT);
+    const supportsEpubTools = isLightNovelType(project.type || "");
+    const isMangaProject = isMangaType(project.type || "");
+    const isImageChapter =
+      normalizeProjectEpisodeContentFormat(
+        draft.contentFormat,
+        normalizeProjectEpisodePages(draft.pages).length > 0 ? "images" : "lexical",
+      ) === "images";
+    const publicPreviewHref = hasActiveChapter
+      ? buildProjectPublicReadingHref(project.id, Number(draft.number) || 1, draft.volume)
+      : null;
+    const chapterReaderConfig = resolveProjectReaderConfig({
+      projectType: project.type,
+      siteSettings,
+      projectReaderConfig: project.readerConfig,
+    });
+    const projectSnapshotForImageExport = useMemo(
+      () => overlayDraftOnProject(project, activeChapterKey, draft),
+      [activeChapterKey, draft, project],
+    );
     const activeChapterSnapshot = useMemo(() => buildChapterSnapshot(activeChapter), [activeChapter]);
     const draftSnapshot = useMemo(
       () => (hasActiveChapter ? buildChapterSnapshot(draft) : ""),
@@ -1030,6 +1092,11 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     const chapterSummaryLabel =
       hasActiveChapter && draft.entryKind === "extra" ? "Extra em edição" : "Capítulo em edição";
     const chapterPositionLabel = `${Math.max(chapterIndex + 1, 1)} de ${Math.max(chapterCount, 1)}`;
+    const editorialScopeDescription = supportsEpubTools
+      ? "EspaÃ§o editorial para organizar capÃ­tulos, volumes e publicaÃ§Ã£o de light novels com foco em leitura e escrita contÃ­nua."
+      : isMangaProject
+        ? "Hub editorial para revisar lotes, organizar pÃ¡ginas, publicar capÃ­tulos e exportar manga/webtoon na mesma rota dedicada."
+        : "EspaÃ§o editorial para organizar capÃ­tulos, volumes e publicaÃ§Ã£o do projeto.";
     const activeStructureGroupKey = useMemo(() => {
       const activeGroup = activeChapterKey
         ? structureGroups.find((group) =>
@@ -1152,7 +1219,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       [onUpdateVolumeEntry, selectedVolumeNumber],
     );
 
-    const epubToolsAccordion = (
+    const epubToolsAccordion = supportsEpubTools ? (
       <Accordion
         type="single"
         collapsible
@@ -1320,7 +1387,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-    );
+    ) : null;
     const structureAccordion = (
       <Accordion
         type="single"
@@ -1746,7 +1813,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   Espaço editorial
                 </Badge>
                 <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
-                  Lexical
+                  {isImageChapter ? "Imagem" : "Lexical"}
                 </Badge>
               </div>
               <div className="space-y-1">
@@ -1754,12 +1821,34 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   Conteúdo
                 </h2>
                 <p className="max-w-2xl text-xs leading-5 text-muted-foreground md:text-sm">
-                  Ambiente principal de escrita para o capítulo atual, com foco em leitura,
-                  continuidade e edição longa.
+                  {isImageChapter
+                    ? "Gerencie paginas, ordem de leitura, capa e preview publico para capitulos em imagem."
+                    : "Ambiente principal de escrita para o capitulo atual, com foco em leitura, continuidade e edicao longa."}
                 </p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground lg:justify-end">
+              <Select
+                value={isImageChapter ? "images" : "lexical"}
+                onValueChange={(value) =>
+                  updateDraft((current) => ({
+                    ...current,
+                    contentFormat: value === "images" ? "images" : "lexical",
+                    content: value === "images" ? "" : current.content,
+                    pages: value === "images" ? current.pages || [] : [],
+                    pageCount: value === "images" ? normalizeProjectEpisodePages(current.pages).length : 0,
+                    hasPages: value === "images" ? normalizeProjectEpisodePages(current.pages).length > 0 : false,
+                  }))
+                }
+              >
+                <SelectTrigger className="h-8 w-[148px] bg-background/65 text-[11px] uppercase tracking-[0.08em]">
+                  <SelectValue placeholder="Formato" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lexical">Texto / Lexical</SelectItem>
+                  <SelectItem value="images">Imagem / Manga</SelectItem>
+                </SelectContent>
+              </Select>
               <span>{chapterHasContent(draft) ? "Com leitura" : "Sem leitura"}</span>
               {draft.sources?.length ? <span>{draft.sources.length} fonte(s)</span> : null}
               <span>{chapterStatusLabel(draft)}</span>
@@ -1784,33 +1873,50 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             >
               <div className="min-h-0 overflow-hidden">
                 <div className="space-y-4 px-5 pb-5 pt-4 md:px-6 md:pb-6">
-          <div
-            className={`chapter-editor-lexical-wrapper min-w-0 rounded-[22px] border border-border/50 bg-background/40 p-2 md:p-3 ${chapterEditorLexicalMinHeightClassName}`}
-            data-testid="chapter-lexical-wrapper"
-          >
-            <Suspense fallback={<LexicalEditorFallback />}>
-              <LexicalEditor
-                ref={editorRef}
-                value={draft.content || ""}
-                onChange={(nextValue) =>
-                  updateDraft((current) => ({
-                    ...current,
-                    content: nextValue,
-                    contentFormat: "lexical",
-                  }))
-                }
-                placeholder="Escreva o capítulo..."
-                className="lexical-playground--modal lexical-playground--stretch lexical-playground--chapter-editor min-w-0 w-full"
-                imageLibraryOptions={chapterImageLibraryOptions}
-                autoFocus={false}
-                followCaretScroll
-              />
-            </Suspense>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-border/50 bg-background/35 px-4 py-3 text-xs text-muted-foreground">
-            <span>O conteúdo usa o snapshot atual da página para EPUB e leitura pública.</span>
-            <span>Escrita contínua com layout ampliado para capítulos longos.</span>
-          </div>
+                  {isImageChapter ? (
+                    <MangaChapterPagesEditor
+                      apiBase={apiBase}
+                      projectSnapshot={projectSnapshotForImageExport}
+                      chapter={draft}
+                      uploadFolder={chapterFolder}
+                      onChange={(nextChapter) => onDraftChange(normalizeChapterForSave(nextChapter))}
+                      previewHref={publicPreviewHref}
+                      readerConfig={chapterReaderConfig}
+                    />
+                  ) : (
+                    <>
+                      <div
+                        className={`chapter-editor-lexical-wrapper min-w-0 rounded-[22px] border border-border/50 bg-background/40 p-2 md:p-3 ${chapterEditorLexicalMinHeightClassName}`}
+                        data-testid="chapter-lexical-wrapper"
+                      >
+                        <Suspense fallback={<LexicalEditorFallback />}>
+                          <LexicalEditor
+                            ref={editorRef}
+                            value={draft.content || ""}
+                            onChange={(nextValue) =>
+                              updateDraft((current) => ({
+                                ...current,
+                                content: nextValue,
+                                contentFormat: "lexical",
+                                pages: [],
+                                pageCount: 0,
+                                hasPages: false,
+                              }))
+                            }
+                            placeholder="Escreva o capítulo..."
+                            className="lexical-playground--modal lexical-playground--stretch lexical-playground--chapter-editor min-w-0 w-full"
+                            imageLibraryOptions={chapterImageLibraryOptions}
+                            autoFocus={false}
+                            followCaretScroll
+                          />
+                        </Suspense>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-border/50 bg-background/35 px-4 py-3 text-xs text-muted-foreground">
+                        <span>O conteudo usa o snapshot atual da pagina para EPUB e leitura publica.</span>
+                        <span>Escrita continua com layout ampliado para capitulos longos.</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -1866,8 +1972,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     Gerenciamento de Conteúdo
                   </h1>
                   <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                    Espaço editorial para organizar capítulos, volumes e publicação de light novels
-                    com foco em leitura e escrita contínua.
+                    {editorialScopeDescription}
                   </p>
                 </div>
               </div>
@@ -2268,6 +2373,28 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               </Accordion>
             ) : null}
             {volumeEditorSection}
+            {isMangaProject && !hasActiveChapter ? (
+              <MangaWorkflowPanel
+                apiBase={apiBase}
+                project={project}
+                projectSnapshot={projectSnapshotForImageExport}
+                selectedVolume={selectedVolumeNumber}
+                filterMode={filterMode}
+                filteredChapters={filteredChapters}
+                readerConfig={chapterReaderConfig}
+                onPersistProjectSnapshot={onPersistProjectSnapshot}
+                onProjectChange={onProjectChange}
+                onNavigateToChapter={(chapter) =>
+                  onNavigateToHref(
+                    buildDashboardProjectChapterEditorHref(
+                      project.id,
+                      chapter.number,
+                      chapter.volume,
+                    ),
+                  )
+                }
+              />
+            ) : null}
             {false ? (
               <Accordion
                 type="multiple"
@@ -2988,7 +3115,7 @@ const DashboardProjectChapterEditor = () => {
     void loadProject();
   }, [loadProject]);
 
-  const isLightNovel = isLightNovelType(project?.type || "");
+  const isChapterBased = isChapterBasedType(project?.type || "");
   const chapters = useMemo(
     () => sortChapters(Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : []),
     [project?.episodeDownloads],
@@ -3398,7 +3525,9 @@ const DashboardProjectChapterEditor = () => {
           | "volume-editor"
           | "chapter-create"
           | "chapter-delete"
-          | "volume-delete";
+          | "volume-delete"
+          | "manga-import"
+          | "manga-publication";
       },
     ) => {
       const { revision: _ignoredRevision, ...payload } = snapshot;
@@ -4441,7 +4570,7 @@ const DashboardProjectChapterEditor = () => {
     );
   }
 
-  if (!project || !isLightNovel) {
+  if (!project || !isChapterBased) {
     return <NotFound />;
   }
 
@@ -4485,6 +4614,7 @@ const DashboardProjectChapterEditor = () => {
           activeChapter={activeChapter}
           activeDraft={activeDraft}
           onDraftChange={setActiveDraft}
+          filteredChapters={filteredChapters}
           volumeEntriesDraft={volumeEntriesDraft}
           selectedVolume={selectedVolume}
           availableVolumes={availableVolumes}
@@ -4513,6 +4643,11 @@ const DashboardProjectChapterEditor = () => {
           neutralHref={neutralHref}
           onNavigateToHref={requestNavigateToHref}
           onNavigateToUploads={requestNavigateToUploads}
+          onPersistProjectSnapshot={persistProjectSnapshot}
+          onProjectChange={(nextProject) => {
+            setProject(nextProject);
+            setVolumeEntriesDraft(normalizeProjectVolumeEntries(nextProject.volumeEntries));
+          }}
           onChapterSaved={handleChapterSaved}
           isVolumeDirty={isVolumeDirty}
           isSavingVolumes={isSavingVolumes}

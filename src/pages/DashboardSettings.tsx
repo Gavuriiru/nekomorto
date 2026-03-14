@@ -85,6 +85,11 @@ import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { DEFAULT_SITE_SHARE_IMAGE_ALT, resolveAssetAltText } from "@/lib/image-alt";
 import { navbarIconOptions } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
+import {
+  PROJECT_READER_DIRECTIONS,
+  PROJECT_READER_VIEW_MODES,
+  normalizeProjectReaderConfig,
+} from "../../shared/project-reader.js";
 
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
@@ -288,6 +293,7 @@ type FooterBrandMode = SiteSettings["branding"]["display"]["footer"];
 
 type SettingsTabKey =
   | "geral"
+  | "leitor"
   | "seo"
   | "downloads"
   | "equipe"
@@ -299,6 +305,7 @@ type SettingsTabKey =
 const DASHBOARD_SETTINGS_DEFAULT_TAB: SettingsTabKey = "geral";
 const dashboardSettingsTabSet = new Set<SettingsTabKey>([
   "geral",
+  "leitor",
   "seo",
   "downloads",
   "equipe",
@@ -319,11 +326,32 @@ const parseDashboardSettingsTabParam = (value: string | null): SettingsTabKey =>
 };
 
 type LinkTypeItem = { id: string; label: string; icon: string };
+type ReaderProjectTypeKey = keyof SiteSettings["reader"]["projectTypes"];
 type TranslationsPayload = {
   tags: Record<string, string>;
   genres: Record<string, string>;
   staffRoles: Record<string, string>;
 };
+
+const readerProjectTypeMeta: Array<{
+  key: ReaderProjectTypeKey;
+  title: string;
+  description: string;
+  projectType: string;
+}> = [
+  {
+    key: "manga",
+    title: "Mangá",
+    description: "Preset global usado por projetos de mangá na leitura pública e nos previews editoriais.",
+    projectType: "manga",
+  },
+  {
+    key: "webtoon",
+    title: "Webtoon",
+    description: "Preset global usado por projetos de webtoon na leitura pública e nos previews editoriais.",
+    projectType: "webtoon",
+  },
+];
 
 const logoEditorFields: Array<{
   target: LogoLibraryTarget;
@@ -574,7 +602,7 @@ const DashboardSettings = () => {
   const requestIdRef = useRef(0);
   const hasLoadedOnceRef = useRef(hasLoadedOnce);
   const rootLibraryFolders = useMemo(() => [""], []);
-  const settingsTabsGridClass = "md:grid-cols-8";
+  const settingsTabsGridClass = "md:grid-cols-9";
 
   useEffect(() => {
     hasLoadedOnceRef.current = hasLoadedOnce;
@@ -1456,6 +1484,38 @@ const DashboardSettings = () => {
           : "Sem símbolo disponível para o footer.",
     },
   };
+  const readerPresets = useMemo(
+    () => ({
+      manga: normalizeProjectReaderConfig(settings.reader?.projectTypes?.manga, {
+        projectType: "manga",
+      }),
+      webtoon: normalizeProjectReaderConfig(settings.reader?.projectTypes?.webtoon, {
+        projectType: "webtoon",
+      }),
+    }),
+    [settings.reader?.projectTypes?.manga, settings.reader?.projectTypes?.webtoon],
+  );
+
+  const updateReaderPreset = useCallback(
+    (
+      key: ReaderProjectTypeKey,
+      updater: (
+        current: SiteSettings["reader"]["projectTypes"][ReaderProjectTypeKey],
+      ) => SiteSettings["reader"]["projectTypes"][ReaderProjectTypeKey],
+    ) => {
+      setSettings((prev) => ({
+        ...prev,
+        reader: {
+          ...prev.reader,
+          projectTypes: {
+            ...prev.reader.projectTypes,
+            [key]: updater(prev.reader.projectTypes[key]),
+          },
+        },
+      }));
+    },
+    [],
+  );
 
   const hasBlockingLoadError = !hasLoadedOnce && hasLoadError;
   const hasRetainedLoadError = hasLoadedOnce && hasLoadError;
@@ -1575,6 +1635,9 @@ const DashboardSettings = () => {
             >
               <TabsTrigger value="geral" className="shrink-0 md:w-full">
                 Geral
+              </TabsTrigger>
+              <TabsTrigger value="leitor" className="shrink-0 md:w-full">
+                Leitor
               </TabsTrigger>
               <TabsTrigger value="seo" className="shrink-0 md:w-full">
                 SEO
@@ -2110,6 +2173,262 @@ const DashboardSettings = () => {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="leitor" className="mt-6 space-y-6">
+              <Card className="border-border/60 bg-card/80">
+                <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
+                  <div className="space-y-1">
+                    <h2 className="text-lg font-semibold">Presets globais do leitor</h2>
+                    <p className="text-xs text-muted-foreground">
+                      Esses presets valem para a leitura pública e para os previews editoriais de mangá e webtoon. Overrides antigos por projeto continuam apenas como fallback legado.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border/60 bg-background/45 p-4 text-sm text-muted-foreground">
+                    Precedência: preset global do tipo do projeto, depois `readerConfig` legado do projeto e por fim o preset interno padrão.
+                  </div>
+                </CardContent>
+              </Card>
+
+              {readerProjectTypeMeta.map((presetMeta) => {
+                const preset = readerPresets[presetMeta.key];
+                return (
+                  <Card
+                    key={presetMeta.key}
+                    className="border-border/60 bg-card/80"
+                    data-testid={`reader-preset-${presetMeta.key}`}
+                  >
+                    <CardContent className="space-y-6 p-4 md:p-6">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <h2 className="text-lg font-semibold">{presetMeta.title}</h2>
+                          <p className="text-xs text-muted-foreground">
+                            {presetMeta.description}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <DashboardPageBadge>
+                            {preset.direction === PROJECT_READER_DIRECTIONS.RTL
+                              ? "RTL"
+                              : "LTR"}
+                          </DashboardPageBadge>
+                          <DashboardPageBadge>
+                            {preset.viewMode === PROJECT_READER_VIEW_MODES.SCROLL
+                              ? "Scroll"
+                              : "Página"}
+                          </DashboardPageBadge>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Direção</Label>
+                          <Select
+                            value={preset.direction}
+                            onValueChange={(value) =>
+                              updateReaderPreset(presetMeta.key, (current) => ({
+                                ...normalizeProjectReaderConfig(current, {
+                                  projectType: presetMeta.projectType,
+                                }),
+                                direction:
+                                  value === PROJECT_READER_DIRECTIONS.LTR
+                                    ? PROJECT_READER_DIRECTIONS.LTR
+                                    : PROJECT_READER_DIRECTIONS.RTL,
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={PROJECT_READER_DIRECTIONS.RTL}>
+                                Direita para esquerda
+                              </SelectItem>
+                              <SelectItem value={PROJECT_READER_DIRECTIONS.LTR}>
+                                Esquerda para direita
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Modo de leitura</Label>
+                          <Select
+                            value={preset.viewMode}
+                            onValueChange={(value) =>
+                              updateReaderPreset(presetMeta.key, (current) => ({
+                                ...normalizeProjectReaderConfig(current, {
+                                  projectType: presetMeta.projectType,
+                                }),
+                                viewMode:
+                                  value === PROJECT_READER_VIEW_MODES.SCROLL
+                                    ? PROJECT_READER_VIEW_MODES.SCROLL
+                                    : PROJECT_READER_VIEW_MODES.PAGE,
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={PROJECT_READER_VIEW_MODES.PAGE}>
+                                Página
+                              </SelectItem>
+                              <SelectItem value={PROJECT_READER_VIEW_MODES.SCROLL}>
+                                Scroll contínuo
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`reader-preview-limit-${presetMeta.key}`}>
+                            Limite de preview
+                          </Label>
+                          <Input
+                            id={`reader-preview-limit-${presetMeta.key}`}
+                            type="number"
+                            min="1"
+                            value={preset.previewLimit ?? ""}
+                            placeholder="Opcional"
+                            onChange={(event) =>
+                              updateReaderPreset(presetMeta.key, (current) => ({
+                                ...normalizeProjectReaderConfig(current, {
+                                  projectType: presetMeta.projectType,
+                                }),
+                                previewLimit: event.target.value.trim()
+                                  ? Math.max(1, Number(event.target.value))
+                                  : null,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`reader-theme-${presetMeta.key}`}>Preset visual</Label>
+                          <Input
+                            id={`reader-theme-${presetMeta.key}`}
+                            value={preset.themePreset || ""}
+                            placeholder="manga, webtoon, custom..."
+                            onChange={(event) =>
+                              updateReaderPreset(presetMeta.key, (current) => ({
+                                ...normalizeProjectReaderConfig(current, {
+                                  projectType: presetMeta.projectType,
+                                }),
+                                themePreset: event.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`reader-purchase-url-${presetMeta.key}`}>
+                            URL de compra
+                          </Label>
+                          <Input
+                            id={`reader-purchase-url-${presetMeta.key}`}
+                            value={preset.purchaseUrl || ""}
+                            placeholder="Opcional"
+                            onChange={(event) =>
+                              updateReaderPreset(presetMeta.key, (current) => ({
+                                ...normalizeProjectReaderConfig(current, {
+                                  projectType: presetMeta.projectType,
+                                }),
+                                purchaseUrl: event.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`reader-purchase-price-${presetMeta.key}`}>Preço</Label>
+                          <Input
+                            id={`reader-purchase-price-${presetMeta.key}`}
+                            value={preset.purchasePrice || ""}
+                            placeholder="Ex.: R$ 12,90"
+                            onChange={(event) =>
+                              updateReaderPreset(presetMeta.key, (current) => ({
+                                ...normalizeProjectReaderConfig(current, {
+                                  projectType: presetMeta.projectType,
+                                }),
+                                purchasePrice: event.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
+                          <span className="space-y-1">
+                            <span className="block font-medium text-foreground">
+                              Primeira página isolada
+                            </span>
+                            <span className="block text-xs text-muted-foreground">
+                              Útil para capas e páginas ímpares.
+                            </span>
+                          </span>
+                          <Switch
+                            checked={preset.firstPageSingle !== false}
+                            onCheckedChange={(checked) =>
+                              updateReaderPreset(presetMeta.key, (current) => ({
+                                ...normalizeProjectReaderConfig(current, {
+                                  projectType: presetMeta.projectType,
+                                }),
+                                firstPageSingle: checked,
+                              }))
+                            }
+                          />
+                        </label>
+
+                        <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
+                          <span className="space-y-1">
+                            <span className="block font-medium text-foreground">
+                              Permitir spread
+                            </span>
+                            <span className="block text-xs text-muted-foreground">
+                              Junta páginas duplas no modo paginado.
+                            </span>
+                          </span>
+                          <Switch
+                            checked={preset.allowSpread !== false}
+                            onCheckedChange={(checked) =>
+                              updateReaderPreset(presetMeta.key, (current) => ({
+                                ...normalizeProjectReaderConfig(current, {
+                                  projectType: presetMeta.projectType,
+                                }),
+                                allowSpread: checked,
+                              }))
+                            }
+                          />
+                        </label>
+
+                        <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
+                          <span className="space-y-1">
+                            <span className="block font-medium text-foreground">
+                              Mostrar rodapé
+                            </span>
+                            <span className="block text-xs text-muted-foreground">
+                              Mantém os controles inferiores do viewer.
+                            </span>
+                          </span>
+                          <Switch
+                            checked={preset.showFooter !== false}
+                            onCheckedChange={(checked) =>
+                              updateReaderPreset(presetMeta.key, (current) => ({
+                                ...normalizeProjectReaderConfig(current, {
+                                  projectType: presetMeta.projectType,
+                                }),
+                                showFooter: checked,
+                              }))
+                            }
+                          />
+                        </label>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </TabsContent>
 
             <TabsContent value="traducoes" className="mt-6 space-y-6">

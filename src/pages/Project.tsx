@@ -52,6 +52,10 @@ import { normalizeAssetUrl } from "@/lib/asset-url";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import { buildProjectPublicReadingHref } from "@/lib/project-editor-routes";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import {
+  hasProjectEpisodePages,
+  hasProjectEpisodeReadableContent,
+} from "../../shared/project-reader.js";
 import NotFound from "./NotFound";
 import type { Project } from "@/data/projects";
 
@@ -364,12 +368,11 @@ const ProjectPage = () => {
     [project?.episodeDownloads],
   );
 
-  const lightNovelChapters = useMemo(
+  const readableChapters = useMemo(
     () =>
       (project?.episodeDownloads || []).filter(
         (episode) =>
-          (episode as { hasContent?: boolean }).hasContent ||
-          (typeof episode.content === "string" && episode.content.trim().length > 0) ||
+          hasProjectEpisodeReadableContent(episode) ||
           (episode.sources || []).length > 0,
       ),
     [project?.episodeDownloads],
@@ -379,17 +382,14 @@ const ProjectPage = () => {
     return [...downloadableEpisodes].sort((a, b) => compareEpisodeOrdering(a, b));
   }, [downloadableEpisodes]);
 
-  const sortedLightNovelChapters = useMemo(() => {
-    return [...lightNovelChapters].sort((a, b) => compareEpisodeOrdering(a, b));
-  }, [lightNovelChapters]);
+  const sortedReadableChapters = useMemo(
+    () => [...readableChapters].sort((a, b) => compareEpisodeOrdering(a, b)),
+    [readableChapters],
+  );
 
-  const filteredLightNovelChapters = sortedLightNovelChapters;
+  const filteredReadableChapters = sortedReadableChapters;
   const firstReadableChapter =
-    filteredLightNovelChapters.find(
-      (episode) =>
-        (episode as { hasContent?: boolean }).hasContent ||
-        (typeof episode.content === "string" && episode.content.trim().length > 0),
-    ) || null;
+    filteredReadableChapters.find((episode) => hasProjectEpisodeReadableContent(episode)) || null;
 
   const visibleRelations = useMemo(() => {
     if (!project?.relations?.length) {
@@ -653,15 +653,19 @@ const ProjectPage = () => {
       ? String(chapter.displayLabel || "Extra").trim() || "Extra"
       : `Cap ${chapter.number}${chapter.volume ? ` • Vol. ${chapter.volume}` : ""}`;
     const chapterTitle = String(chapter.title || "").trim() || (isExtraEntry ? "Extra" : "Capítulo");
-    const hasContent =
-      (chapter as { hasContent?: boolean }).hasContent ||
-      (typeof chapter.content === "string" && chapter.content.trim().length > 0);
+    const hasContent = hasProjectEpisodeReadableContent(chapter);
+    const hasPages = hasProjectEpisodePages(chapter);
     const hasSources = (chapter.sources || []).length > 0;
     const readAction: EpisodeReadAction | null =
       allowReadAction && hasContent
         ? {
             href: buildProjectPublicReadingHref(project.id, chapter.number, chapter.volume),
-            label: isExtraEntry ? "Ler extra" : "Ler capítulo",
+            label:
+              isExtraEntry
+                ? "Ler extra"
+                : hasPages && !hasSources
+                  ? "Abrir leitor"
+                  : "Ler capítulo",
           }
         : null;
     const synopsisText =
@@ -771,7 +775,7 @@ const ProjectPage = () => {
 
   const volumeGroups = useMemo(() => {
     const groups = new Map<string, VolumeGroup>();
-    const allItems = isLightNovel ? sortedLightNovelChapters : sortedDownloadableEpisodes;
+    const allItems = isChapterBased ? sortedReadableChapters : sortedDownloadableEpisodes;
     allItems.forEach((item) => {
       const volumeKey =
         typeof item.volume === "number" && !Number.isNaN(item.volume)
@@ -792,7 +796,7 @@ const ProjectPage = () => {
       return Number(a[0]) - Number(b[0]);
     });
     return entries.map(([, value]) => value);
-  }, [isLightNovel, sortedDownloadableEpisodes, sortedLightNovelChapters]);
+  }, [isChapterBased, sortedDownloadableEpisodes, sortedReadableChapters]);
 
   const normalizedVolumeEntries = useMemo(() => {
     return normalizeProjectVolumeEntries(
@@ -1057,7 +1061,7 @@ const ProjectPage = () => {
                       {isChapterBased ? "Ver capítulos" : "Ver episódios"}
                     </a>
                   </Button>
-                  {isLightNovel && firstReadableChapter ? (
+                  {isChapterBased && firstReadableChapter ? (
                     <Button asChild variant="outline" className="gap-2">
                       <Link
                         to={buildProjectPublicReadingHref(
@@ -1256,23 +1260,21 @@ const ProjectPage = () => {
                   {isChapterBased ? "Capítulos" : "Downloads"}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  {isLightNovel
+                  {isChapterBased
                     ? "Leia no site ou baixe os capitulos disponiveis."
-                    : isManga
-                      ? "Selecione um capítulo disponível para download."
-                      : "Selecione uma fonte de download para cada item disponível."}
+                    : "Selecione uma fonte de download para cada item disponível."}
                 </p>
               </div>
               <Badge variant="secondary" className="text-xs uppercase">
-                {isLightNovel
-                  ? filteredLightNovelChapters.length
+                {isChapterBased
+                  ? filteredReadableChapters.length
                   : filteredDownloadableEpisodes.length}{" "}
                 disponíveis
               </Badge>
             </div>
 
-            {isLightNovel ? (
-              filteredLightNovelChapters.length === 0 ? (
+            {isChapterBased ? (
+              filteredReadableChapters.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground">
                   Nenhum capítulo publicado ainda.
                 </div>

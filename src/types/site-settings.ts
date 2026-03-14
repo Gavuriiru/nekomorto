@@ -1,3 +1,5 @@
+import type { ProjectReaderConfig } from "@/data/projects";
+
 export type SiteSettings = {
   site: {
     name: string;
@@ -87,5 +89,11 @@ export type SiteSettings = {
       to: string;
       enabled: boolean;
     }>;
+  };
+  reader: {
+    projectTypes: {
+      manga: ProjectReaderConfig;
+      webtoon: ProjectReaderConfig;
+    };
   };
 };

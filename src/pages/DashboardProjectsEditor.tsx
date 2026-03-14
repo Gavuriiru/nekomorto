@@ -51,7 +51,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
-import type { ProjectEpisode, ProjectVolumeCover, ProjectVolumeEntry } from "@/data/projects";
+import type {
+  ProjectEpisode,
+  ProjectReaderConfig,
+  ProjectVolumeCover,
+  ProjectVolumeEntry,
+} from "@/data/projects";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
@@ -102,6 +107,11 @@ import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project
 import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import type { ApiContractBuildMetadata, ApiContractCapabilities, ApiContractV1 } from "@/types/api-contract";
+import {
+  normalizeProjectReaderConfig,
+  PROJECT_READER_DIRECTIONS,
+  PROJECT_READER_VIEW_MODES,
+} from "../../shared/project-reader.js";
 import {
   Cloud,
   Copy,
@@ -163,6 +173,10 @@ const DEFAULT_API_CAPABILITIES: ApiContractCapabilities = {
   project_epub_import: false,
   project_epub_export: false,
   project_epub_import_async: false,
+  project_image_chapters: false,
+  project_manga_import: false,
+  project_manga_import_async: false,
+  project_manga_export: false,
 };
 
 const EPUB_CAPABILITY_UNAVAILABLE_MESSAGE =
@@ -200,6 +214,10 @@ const normalizeApiContractCapabilities = (
   project_epub_import: capabilities?.project_epub_import === true,
   project_epub_export: capabilities?.project_epub_export === true,
   project_epub_import_async: capabilities?.project_epub_import_async === true,
+  project_image_chapters: capabilities?.project_image_chapters === true,
+  project_manga_import: capabilities?.project_manga_import === true,
+  project_manga_import_async: capabilities?.project_manga_import_async === true,
+  project_manga_export: capabilities?.project_manga_export === true,
 });
 
 const normalizeApiContractBuildMetadata = (
@@ -288,6 +306,7 @@ type ProjectRecord = {
   forceHero?: boolean;
   heroImageUrl?: string;
   heroImageAlt: string;
+  readerConfig?: ProjectReaderConfig;
   volumeEntries: ProjectVolumeEntry[];
   volumeCovers: ProjectVolumeCover[];
   episodeDownloads: ProjectEpisode[];
@@ -655,6 +674,7 @@ const emptyProject: ProjectForm = {
   forceHero: false,
   heroImageUrl: "",
   heroImageAlt: "",
+  readerConfig: {},
   volumeEntries: [],
   volumeCovers: [],
   episodeDownloads: [],
@@ -1869,6 +1889,10 @@ const DashboardProjectsEditor = () => {
   const isLightNovel = isLightNovelType(formState.type || "");
   const supportsVolumeEntries = isLightNovel || isManga;
   const isChapterBased = isChapterBasedType(formState.type || "");
+  const readerConfigDraft = useMemo(
+    () => normalizeProjectReaderConfig(formState.readerConfig, { projectType: formState.type }),
+    [formState.readerConfig, formState.type],
+  );
   const stageOptions = isChapterBased ? mangaStages : animeStages;
   const {
     projectRootFolder,
@@ -3012,6 +3036,10 @@ const DashboardProjectsEditor = () => {
         heroImageAlt: project.heroImageUrl
           ? resolveAssetAltText(project.heroImageAlt, DEFAULT_PROJECT_HERO_ALT)
           : "",
+        readerConfig:
+          project.readerConfig && typeof project.readerConfig === "object"
+            ? project.readerConfig
+            : {},
         volumeEntries: normalizedVolumeEntries,
         volumeCovers: normalizedVolumeEntries
           .filter((entry) => String(entry.coverImageUrl || "").trim())
@@ -5865,10 +5893,274 @@ const DashboardProjectsEditor = () => {
                               </div>
                             </div>
                           </div>
+                        ) : isManga ? (
+                          <div className="rounded-2xl border border-border/60 bg-background/35 p-4">
+                            <div className="space-y-1">
+                              <h3 className="text-sm font-semibold text-foreground">
+                                Conteúdo dedicado
+                              </h3>
+                              <p className="text-xs text-muted-foreground">
+                                O fluxo de importação, organização, disponibilização e exportação de mangá/webtoon fica na página dedicada de capítulos.
+                              </p>
+                            </div>
+                            <div className="mt-4 flex flex-wrap items-center gap-3">
+                              {editingProject?.id ? (
+                                <Button type="button" variant="outline" asChild>
+                                  <Link to={buildDashboardProjectChaptersEditorHref(editingProject.id)}>
+                                    <FileText className="h-4 w-4" />
+                                    Abrir conteúdo
+                                  </Link>
+                                </Button>
+                              ) : (
+                                <Button type="button" variant="outline" disabled>
+                                  <FileText className="h-4 w-4" />
+                                  Salve o projeto para abrir o conteúdo
+                                </Button>
+                              )}
+                              <span className="text-xs text-muted-foreground">
+                                O editor principal fica só com metadados, equipe, assets e estrutura.
+                              </span>
+                            </div>
+                          </div>
                         ) : null}
                       </div>
                     </AccordionContent>
                   </AccordionItem>
+
+                  {false ? (
+                    <AccordionItem value="leitor" className={editorSectionClassName}>
+                      <AccordionTrigger className={editorSectionTriggerClassName}>
+                        <ProjectEditorAccordionHeader
+                          title="Leitor"
+                          subtitle="Direção, modo, preview comercial e overrides do manga/webtoon"
+                        />
+                      </AccordionTrigger>
+                      <AccordionContent className={editorSectionContentClassName}>
+                        <section className={editorSectionBlockClassName}>
+                          <div className="space-y-1">
+                            <h3 className={editorSectionBlockTitleClassName}>
+                              Configuração do reader
+                            </h3>
+                            <p className="text-xs leading-5 text-muted-foreground">
+                              Os defaults seguem o tipo do projeto, mas você pode sobrescrever aqui.
+                            </p>
+                          </div>
+
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>Direção</Label>
+                              <Select
+                                value={readerConfigDraft.direction}
+                                onValueChange={(value) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    readerConfig: {
+                                      ...(prev.readerConfig || {}),
+                                      direction:
+                                        value === PROJECT_READER_DIRECTIONS.LTR
+                                          ? PROJECT_READER_DIRECTIONS.LTR
+                                          : PROJECT_READER_DIRECTIONS.RTL,
+                                    },
+                                  }))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value={PROJECT_READER_DIRECTIONS.RTL}>
+                                    Direita para esquerda
+                                  </SelectItem>
+                                  <SelectItem value={PROJECT_READER_DIRECTIONS.LTR}>
+                                    Esquerda para direita
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label>Modo de leitura</Label>
+                              <Select
+                                value={readerConfigDraft.viewMode}
+                                onValueChange={(value) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    readerConfig: {
+                                      ...(prev.readerConfig || {}),
+                                      viewMode:
+                                        value === PROJECT_READER_VIEW_MODES.SCROLL
+                                          ? PROJECT_READER_VIEW_MODES.SCROLL
+                                          : PROJECT_READER_VIEW_MODES.PAGE,
+                                    },
+                                  }))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value={PROJECT_READER_VIEW_MODES.PAGE}>
+                                    Página
+                                  </SelectItem>
+                                  <SelectItem value={PROJECT_READER_VIEW_MODES.SCROLL}>
+                                    Scroll contínuo
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="reader-preview-limit">Limite de preview</Label>
+                              <Input
+                                id="reader-preview-limit"
+                                type="number"
+                                min="1"
+                                value={readerConfigDraft.previewLimit ?? ""}
+                                onChange={(event) => {
+                                  const nextValue = event.target.value;
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    readerConfig: {
+                                      ...(prev.readerConfig || {}),
+                                      previewLimit: nextValue.trim()
+                                        ? Math.max(1, Number(nextValue))
+                                        : null,
+                                    },
+                                  }));
+                                }}
+                                placeholder="Opcional"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="reader-theme-preset">Preset visual</Label>
+                              <Input
+                                id="reader-theme-preset"
+                                value={readerConfigDraft.themePreset || ""}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    readerConfig: {
+                                      ...(prev.readerConfig || {}),
+                                      themePreset: event.target.value,
+                                    },
+                                  }))
+                                }
+                                placeholder="manga, webtoon, custom..."
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="reader-purchase-url">URL de compra</Label>
+                              <Input
+                                id="reader-purchase-url"
+                                value={readerConfigDraft.purchaseUrl || ""}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    readerConfig: {
+                                      ...(prev.readerConfig || {}),
+                                      purchaseUrl: event.target.value,
+                                    },
+                                  }))
+                                }
+                                placeholder="Opcional"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="reader-purchase-price">Preço</Label>
+                              <Input
+                                id="reader-purchase-price"
+                                value={readerConfigDraft.purchasePrice || ""}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    readerConfig: {
+                                      ...(prev.readerConfig || {}),
+                                      purchasePrice: event.target.value,
+                                    },
+                                  }))
+                                }
+                                placeholder="Ex.: R$ 12,90"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 md:grid-cols-3">
+                            <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
+                              <span className="space-y-1">
+                                <span className="block font-medium text-foreground">
+                                  Primeira página isolada
+                                </span>
+                                <span className="block text-xs text-muted-foreground">
+                                  Útil para capa ou páginas ímpares.
+                                </span>
+                              </span>
+                              <Switch
+                                checked={readerConfigDraft.firstPageSingle !== false}
+                                onCheckedChange={(checked) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    readerConfig: {
+                                      ...(prev.readerConfig || {}),
+                                      firstPageSingle: checked,
+                                    },
+                                  }))
+                                }
+                              />
+                            </label>
+
+                            <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
+                              <span className="space-y-1">
+                                <span className="block font-medium text-foreground">
+                                  Permitir spread
+                                </span>
+                                <span className="block text-xs text-muted-foreground">
+                                  Junta páginas duplas no modo paginado.
+                                </span>
+                              </span>
+                              <Switch
+                                checked={readerConfigDraft.allowSpread !== false}
+                                onCheckedChange={(checked) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    readerConfig: {
+                                      ...(prev.readerConfig || {}),
+                                      allowSpread: checked,
+                                    },
+                                  }))
+                                }
+                              />
+                            </label>
+
+                            <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
+                              <span className="space-y-1">
+                                <span className="block font-medium text-foreground">
+                                  Mostrar rodapé
+                                </span>
+                                <span className="block text-xs text-muted-foreground">
+                                  Mantém os controles inferiores do pacote.
+                                </span>
+                              </span>
+                              <Switch
+                                checked={readerConfigDraft.showFooter !== false}
+                                onCheckedChange={(checked) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    readerConfig: {
+                                      ...(prev.readerConfig || {}),
+                                      showFooter: checked,
+                                    },
+                                  }))
+                                }
+                              />
+                            </label>
+                          </div>
+                        </section>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ) : null}
 
                   <AccordionItem value="informacoes" className={editorSectionClassName}>
                     <AccordionTrigger className={editorSectionTriggerClassName}>
@@ -8614,7 +8906,7 @@ const DashboardProjectsEditor = () => {
             </div>
             <div className="project-editor-footer flex items-center justify-between gap-3 border-t border-border/60 bg-background/95 px-4 py-1.5 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2 lg:px-8">
               <div className="flex items-center gap-2 md:gap-3">
-                {isLightNovel ? (
+                {isChapterBased ? (
                   lightNovelContentHref ? (
                     <Button
                       type="button"

@@ -163,6 +163,26 @@ describe("uploads reorganizer classification", () => {
     expect(target).toBe("projects/proj-1/capitulos/volume-2/capitulo-8");
   });
 
+  it("migre paginas de capitulo para a subpasta canonica paginas", () => {
+    const folders = resolveProjectFolders({ id: "proj-1", title: "Projeto Um" });
+    const usage = {
+      posts: new Set(),
+      projectIds: new Set(["proj-1"]),
+      projectMainIds: new Set(),
+      projectVolumeIds: new Set(),
+      projectEpisodeIds: new Set(["proj-1"]),
+      projectEpisodeChapterFolders: new Set([
+        "proj-1\u0001projects/proj-1/capitulos/volume-2/capitulo-8/paginas",
+      ]),
+    };
+    const target = classifyTargetFolder(
+      usage,
+      new Map([["proj-1", folders]]),
+      "projects/proj-1/episodes/image.png",
+    );
+    expect(target).toBe("projects/proj-1/capitulos/volume-2/capitulo-8/paginas");
+  });
+
   it("mantem episodios quando a imagem pertence a multiplos capitulos", () => {
     const folders = resolveProjectFolders({ id: "proj-1", title: "Projeto Um" });
     const usage = {
@@ -521,5 +541,61 @@ describe("uploads reorganizer apply", () => {
     expect(fs.existsSync(path.join(uploadsDir, "projects/proj-1/episodes/legacy-shared.png"))).toBe(
       true,
     );
+  });
+
+  it("reorganiza paginas de capitulo para a subpasta canonica paginas", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        projects: [
+          {
+            id: "proj-1",
+            title: "Projeto Um",
+            type: "Mangá",
+            cover: "",
+            banner: "",
+            heroImageUrl: "",
+            relations: [],
+            episodeDownloads: [
+              {
+                number: 8,
+                volume: 2,
+                title: "Capítulo 8",
+                contentFormat: "images",
+                pages: [
+                  {
+                    position: 1,
+                    imageUrl: "/uploads/projects/proj-1/capitulos/volume-2/capitulo-8/page-1.jpg",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      [{ relativePath: "projects/proj-1/capitulos/volume-2/capitulo-8/page-1.jpg" }],
+    );
+
+    const report = runUploadsReorganization({ datasets, uploadsDir, applyChanges: true });
+    const projects = report.rewritten.projects as Array<Record<string, unknown>>;
+    const pages = ((projects[0].episodeDownloads as Array<Record<string, unknown>>)[0].pages ||
+      []) as Array<Record<string, unknown>>;
+
+    expect(report.mappings).toEqual([
+      {
+        oldUrl: "/uploads/projects/proj-1/capitulos/volume-2/capitulo-8/page-1.jpg",
+        newUrl: "/uploads/projects/proj-1/capitulos/volume-2/capitulo-8/paginas/page-1.jpg",
+      },
+    ]);
+    expect(pages[0].imageUrl).toBe(
+      "/uploads/projects/proj-1/capitulos/volume-2/capitulo-8/paginas/page-1.jpg",
+    );
+    expect(
+      fs.existsSync(
+        path.join(
+          uploadsDir,
+          "projects/proj-1/capitulos/volume-2/capitulo-8/paginas/page-1.jpg",
+        ),
+      ),
+    ).toBe(true);
   });
 });

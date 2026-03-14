@@ -19,7 +19,10 @@ export type PublicBootstrapEpisode = {
   progressStage: string;
   completedStages: string[];
   chapterUpdatedAt: string;
+  contentFormat?: "lexical" | "images";
+  pageCount?: number;
   hasContent: boolean;
+  hasPages?: boolean;
 };
 
 export type PublicBootstrapVolumeCover = {
@@ -58,6 +61,17 @@ export type PublicBootstrapProject = {
   animationStudios: string[];
   episodes: string;
   producers: string[];
+  readerConfig?: {
+    direction?: "rtl" | "ltr";
+    viewMode?: "page" | "scroll";
+    firstPageSingle?: boolean;
+    allowSpread?: boolean;
+    showFooter?: boolean;
+    previewLimit?: number | null;
+    purchaseUrl?: string;
+    purchasePrice?: string;
+    themePreset?: string;
+  };
   volumeEntries?: PublicBootstrapVolumeEntry[];
   volumeCovers: PublicBootstrapVolumeCover[];
   episodeDownloads: PublicBootstrapEpisode[];

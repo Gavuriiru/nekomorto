@@ -1,5 +1,6 @@
 import { createContext } from "react";
 import type { SiteSettings } from "@/types/site-settings";
+import { normalizeProjectReaderConfig } from "../../shared/project-reader.js";
 
 export const defaultSettings: SiteSettings = {
   site: {
@@ -129,6 +130,12 @@ export const defaultSettings: SiteSettings = {
   },
   seo: {
     redirects: [],
+  },
+  reader: {
+    projectTypes: {
+      manga: normalizeProjectReaderConfig({}, { projectType: "manga" }),
+      webtoon: normalizeProjectReaderConfig({}, { projectType: "webtoon" }),
+    },
   },
 };
 

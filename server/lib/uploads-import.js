@@ -68,6 +68,15 @@ const sanitizeUploadBaseName = (value) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
+const sanitizeUploadExactFileName = (value, mime) => {
+  const normalizedValue = String(value || "").trim();
+  const normalizedMime = normalizeUploadMime(mime);
+  const expectedExt = getUploadExtFromMime(normalizedMime);
+  const parsed = path.parse(normalizedValue);
+  const baseName = sanitizeUploadBaseName(parsed.name || normalizedValue);
+  return `${baseName || "imagem"}.${expectedExt}`;
+};
+
 const getUploadExtFromMime = (value) =>
   UPLOAD_MIME_TO_EXTENSION[String(value || "").toLowerCase()] || "png";
 
@@ -222,6 +231,8 @@ export const storeUploadImageBuffer = async ({
   filename,
   folder,
   altText = "",
+  exactFileName,
+  dedupeMode = "global",
 } = {}) => {
   const nextUploads = Array.isArray(uploads) ? [...uploads] : [];
   const validation = await validateUploadImageBuffer(buffer, mime);
@@ -238,7 +249,14 @@ export const storeUploadImageBuffer = async ({
       ? Buffer.from(sanitizeSvg(Buffer.from(buffer).toString("utf-8")), "utf-8")
       : Buffer.from(buffer);
   const hashSha256 = computeBufferSha256(sourceBuffer);
-  const dedupeEntry = findUploadByHash(nextUploads, hashSha256);
+  const safeDedupeMode =
+    dedupeMode === "none" || dedupeMode === "folder" ? dedupeMode : "global";
+  const dedupePool =
+    safeDedupeMode === "folder"
+      ? nextUploads.filter((entry) => String(entry?.folder || "") === safeFolder)
+      : nextUploads;
+  const dedupeEntry =
+    safeDedupeMode === "none" ? null : findUploadByHash(dedupePool, hashSha256);
   if (dedupeEntry) {
     const ensuredEntry = await ensureUploadHasRequiredVariants({
       uploadsDir,
@@ -267,7 +285,9 @@ export const storeUploadImageBuffer = async ({
 
   const ext = getUploadExtFromMime(normalizedMime);
   const safeName = sanitizeUploadBaseName(filename || "upload");
-  const fileName = `${safeName || "imagem"}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}.${ext}`;
+  const fileName = exactFileName
+    ? sanitizeUploadExactFileName(exactFileName, normalizedMime)
+    : `${safeName || "imagem"}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}.${ext}`;
   const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
   fs.mkdirSync(targetDir, { recursive: true });
   const filePath = path.join(targetDir, fileName);

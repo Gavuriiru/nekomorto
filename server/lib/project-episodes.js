@@ -1,3 +1,9 @@
+import {
+  hasProjectEpisodePages,
+  hasProjectEpisodeReadableContent,
+  normalizeProjectEpisodeContentFormat,
+} from "../../shared/project-reader.js";
+
 export const getEpisodeNumberValue = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
@@ -44,7 +50,12 @@ export const getEpisodeSourceUrls = (episode) =>
 
 export const hasEpisodeSources = (episode) => getEpisodeSourceUrls(episode).length > 0;
 
-export const hasEpisodeContent = (episode) => typeof episode?.content === "string" && episode.content.trim().length > 0;
+export const getEpisodeContentFormat = (episode) =>
+  normalizeProjectEpisodeContentFormat(episode?.contentFormat);
+
+export const hasEpisodePages = (episode) => hasProjectEpisodePages(episode);
+
+export const hasEpisodeContent = (episode) => hasProjectEpisodeReadableContent(episode);
 
 export const getEpisodePublicationStatus = (episode) =>
   String(episode?.publicationStatus || "").trim().toLowerCase() === "draft"

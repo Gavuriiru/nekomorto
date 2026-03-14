@@ -552,6 +552,10 @@ const projectRowFromEntry = (entry, index) => ({
   forceHero: Boolean(entry?.forceHero),
   heroImageUrl: String(entry?.heroImageUrl || ""),
   heroImageAlt: String(entry?.heroImageAlt || ""),
+  readerConfig:
+    entry?.readerConfig && typeof entry.readerConfig === "object" && !Array.isArray(entry.readerConfig)
+      ? cloneValue(entry.readerConfig)
+      : null,
   staff:
     Array.isArray(entry?.staff) || (entry?.staff && typeof entry.staff === "object")
       ? cloneValue(entry.staff)
@@ -621,7 +625,15 @@ const projectEpisodeRowsFromProject = (projectId, project) =>
     coverImageUrl: String(episode?.coverImageUrl || "").trim() || null,
     coverImageAlt: String(episode?.coverImageAlt || ""),
     content: typeof episode?.content === "string" ? episode.content : "",
-    contentFormat: String(episode?.contentFormat || "lexical") || "lexical",
+    contentFormat:
+      String(episode?.contentFormat || "").trim().toLowerCase() === "images" ? "images" : "lexical",
+    pageCount: Math.max(
+      0,
+      toIntegerOrDefault(
+        episode?.pageCount,
+        ensureArray(episode?.pages).filter((entry) => String(entry?.imageUrl || "").trim()).length,
+      ),
+    ),
     publicationStatus:
       String(episode?.publicationStatus || "").trim().toLowerCase() === "draft"
         ? "draft"
@@ -630,6 +642,29 @@ const projectEpisodeRowsFromProject = (projectId, project) =>
     sizeBytes: toIntegerOrNull(episode?.sizeBytes),
     chapterUpdatedAt: String(episode?.chapterUpdatedAt || ""),
   }));
+
+const projectEpisodePageRowsFromProject = (projectId, project) => {
+  const rows = [];
+  ensureArray(project?.episodeDownloads).forEach((episode) => {
+    const episodeId = buildProjectEpisodeStableId(projectId, episode);
+    ensureArray(episode?.pages)
+      .map((entry, index) => ({
+        position: toIntegerOrDefault(entry?.position, index),
+        imageUrl: String(entry?.imageUrl || "").trim(),
+      }))
+      .filter((entry) => entry.imageUrl)
+      .sort((left, right) => left.position - right.position)
+      .forEach((entry, index) => {
+        rows.push({
+          id: `${episodeId}:page:${index}`,
+          episodeId,
+          position: index,
+          imageUrl: entry.imageUrl,
+        });
+      });
+  });
+  return rows;
+};
 
 const projectEpisodeSourceRowsFromProject = (projectId, project) => {
   const rows = [];
@@ -652,7 +687,7 @@ export const loadProjectsFromNormalized = async (db) => {
   if (!hasModelMethod(db, "projectV2Record", "findMany")) {
     return [];
   }
-  const [projects, relations, volumeEntries, episodes, sources] = await Promise.all([
+  const [projects, relations, volumeEntries, episodes, sources, pages] = await Promise.all([
     db.projectV2Record.findMany({ orderBy: { position: "asc" } }),
     hasModelMethod(db, "projectRelationRecord", "findMany")
       ? db.projectRelationRecord.findMany({ orderBy: [{ projectId: "asc" }, { position: "asc" }] })
@@ -665,6 +700,11 @@ export const loadProjectsFromNormalized = async (db) => {
       : Promise.resolve([]),
     hasModelMethod(db, "projectEpisodeSourceRecord", "findMany")
       ? db.projectEpisodeSourceRecord.findMany({
+          orderBy: [{ episodeId: "asc" }, { position: "asc" }],
+        })
+      : Promise.resolve([]),
+    hasModelMethod(db, "projectEpisodePageRecord", "findMany")
+      ? db.projectEpisodePageRecord.findMany({
           orderBy: [{ episodeId: "asc" }, { position: "asc" }],
         })
       : Promise.resolve([]),
@@ -707,6 +747,16 @@ export const loadProjectsFromNormalized = async (db) => {
     sourcesByEpisodeId.set(String(row.episodeId), bucket);
   });
 
+  const pagesByEpisodeId = new Map();
+  ensureArray(pages).forEach((row) => {
+    const bucket = pagesByEpisodeId.get(String(row.episodeId)) || [];
+    bucket.push({
+      position: Number(row?.position || 0),
+      imageUrl: String(row?.imageUrl || ""),
+    });
+    pagesByEpisodeId.set(String(row.episodeId), bucket);
+  });
+
   const episodesByProjectId = new Map();
   ensureArray(episodes).forEach((row) => {
     const bucket = episodesByProjectId.get(String(row.projectId)) || [];
@@ -723,6 +773,16 @@ export const loadProjectsFromNormalized = async (db) => {
       coverImageUrl: row?.coverImageUrl ? String(row.coverImageUrl) : undefined,
       content: typeof row?.content === "string" ? row.content : "",
       contentFormat: String(row?.contentFormat || "lexical"),
+      pages: cloneValue(pagesByEpisodeId.get(String(row.id)) || []),
+      pageCount: Math.max(
+        0,
+        Number(
+          row?.pageCount ??
+            ensureArray(pagesByEpisodeId.get(String(row.id))).filter((entry) =>
+              String(entry?.imageUrl || "").trim(),
+            ).length,
+        ) || 0,
+      ),
       publicationStatus: String(row?.publicationStatus || "published"),
       sources: cloneValue(sourcesByEpisodeId.get(String(row.id)) || []),
       coverImageAlt: String(row?.coverImageAlt || ""),
@@ -779,6 +839,10 @@ export const loadProjectsFromNormalized = async (db) => {
       forceHero: Boolean(row?.forceHero),
       heroImageUrl: String(row?.heroImageUrl || ""),
       heroImageAlt: String(row?.heroImageAlt || ""),
+      readerConfig:
+        row?.readerConfig && typeof row.readerConfig === "object"
+          ? cloneValue(row.readerConfig)
+          : undefined,
       volumeEntries: volumeEntriesForProject,
       volumeCovers,
       episodeDownloads: cloneValue(episodesByProjectId.get(String(row.id)) || []),
@@ -836,6 +900,13 @@ export const syncProjectsToNormalized = async (db, previousProjects, nextProject
       const episodeRows = projectEpisodeRowsFromProject(projectId, item);
       if (episodeRows.length > 0 && hasModelMethod(db, "projectEpisodeRecord", "createMany")) {
         ops.push(db.projectEpisodeRecord.createMany({ data: episodeRows }));
+      }
+      const pageRows = projectEpisodePageRowsFromProject(projectId, item);
+      if (
+        pageRows.length > 0 &&
+        hasModelMethod(db, "projectEpisodePageRecord", "createMany")
+      ) {
+        ops.push(db.projectEpisodePageRecord.createMany({ data: pageRows }));
       }
       const sourceRows = projectEpisodeSourceRowsFromProject(projectId, item);
       if (

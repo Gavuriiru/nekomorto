@@ -5,12 +5,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardProjectChapterEditor from "@/pages/DashboardProjectChapterEditor";
 
-const { apiFetchMock, asyncStatePropsSpy, toastMock, lexicalEditorPropsSpy, imageLibraryPropsSpy } = vi.hoisted(() => ({
+const {
+  apiFetchMock,
+  asyncStatePropsSpy,
+  toastMock,
+  lexicalEditorPropsSpy,
+  imageLibraryPropsSpy,
+  mangaWorkflowPropsSpy,
+} = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
   asyncStatePropsSpy: vi.fn(),
   toastMock: vi.fn(),
   lexicalEditorPropsSpy: vi.fn(),
   imageLibraryPropsSpy: vi.fn(),
+  mangaWorkflowPropsSpy: vi.fn(),
 }));
 
 vi.mock("@/components/DashboardShell", () => ({
@@ -25,6 +33,13 @@ vi.mock("@/components/ImageLibraryDialog", () => ({
   default: (props: unknown) => {
     imageLibraryPropsSpy(props);
     return <div data-testid="image-library-dialog" />;
+  },
+}));
+
+vi.mock("@/components/project-reader/MangaWorkflowPanel", () => ({
+  default: (props: unknown) => {
+    mangaWorkflowPropsSpy(props);
+    return <div data-testid="manga-workflow-panel" />;
   },
 }));
 
@@ -534,6 +549,7 @@ describe("DashboardProjectChapterEditor", () => {
     toastMock.mockReset();
     lexicalEditorPropsSpy.mockReset();
     imageLibraryPropsSpy.mockReset();
+    mangaWorkflowPropsSpy.mockReset();
     vi.stubGlobal("open", vi.fn());
     vi.stubGlobal("confirm", vi.fn(() => true));
     vi.stubGlobal("scrollBy", vi.fn());
@@ -594,6 +610,80 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.queryByRole("button", { name: /Excluir volume/i })).not.toBeInTheDocument();
     expect(screen.queryByTestId("mock-lexical")).not.toBeInTheDocument();
     expect(screen.queryByTestId("chapter-metadata-accordion")).not.toBeInTheDocument();
+  });
+
+  it("passa filteredChapters para o workflow neutro de manga e atualiza com a busca", async () => {
+    setupApiMock({
+      project: buildProject({
+        type: "Manga",
+        episodeDownloads: [
+          {
+            number: 1,
+            volume: 1,
+            title: "Capítulo publicado",
+            synopsis: "",
+            releaseDate: "",
+            duration: "",
+            sourceType: "TV",
+            sources: [],
+            progressStage: "aguardando-raw",
+            completedStages: [],
+            content: "",
+            contentFormat: "images",
+            pages: [{ position: 0, imageUrl: "/uploads/manga/ch1-01.jpg" }],
+            pageCount: 1,
+            hasPages: true,
+            publicationStatus: "published",
+            coverImageUrl: "/uploads/manga/ch1-01.jpg",
+            coverImageAlt: "",
+          },
+          {
+            number: 2,
+            volume: 1,
+            title: "Capítulo rascunho",
+            synopsis: "",
+            releaseDate: "",
+            duration: "",
+            sourceType: "TV",
+            sources: [],
+            progressStage: "aguardando-raw",
+            completedStages: [],
+            content: "",
+            contentFormat: "images",
+            pages: [{ position: 0, imageUrl: "/uploads/manga/ch2-01.jpg" }],
+            pageCount: 1,
+            hasPages: true,
+            publicationStatus: "draft",
+            coverImageUrl: "/uploads/manga/ch2-01.jpg",
+            coverImageAlt: "",
+          },
+        ],
+      }),
+    });
+
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+
+    await screen.findByTestId("manga-workflow-panel");
+    expect(screen.queryByTestId("chapter-epub-tools")).not.toBeInTheDocument();
+
+    const initialWorkflowProps = mangaWorkflowPropsSpy.mock.calls.at(-1)?.[0] as {
+      filteredChapters?: Array<{ title?: string }>;
+      filterMode?: string;
+    };
+    expect(initialWorkflowProps.filterMode).toBe("all");
+    expect(initialWorkflowProps.filteredChapters).toHaveLength(2);
+
+    fireEvent.change(within(screen.getByTestId("chapter-structure-section")).getByRole("textbox"), {
+      target: { value: "publicado" },
+    });
+
+    await waitFor(() => {
+      const latestWorkflowProps = mangaWorkflowPropsSpy.mock.calls.at(-1)?.[0] as {
+        filteredChapters?: Array<{ title?: string }>;
+      };
+      expect(latestWorkflowProps.filteredChapters).toHaveLength(1);
+      expect(latestWorkflowProps.filteredChapters?.[0]?.title).toBe("Capítulo publicado");
+    });
   });
 
   it("renderiza o editor aberto com layout expandido e sidebar alinhada", async () => {

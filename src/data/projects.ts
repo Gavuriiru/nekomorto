@@ -16,6 +16,23 @@ export type ProjectVolumeEntry = {
   coverImageAlt: string;
 };
 
+export type ProjectEpisodePage = {
+  position: number;
+  imageUrl: string;
+};
+
+export type ProjectReaderConfig = {
+  direction?: "rtl" | "ltr";
+  viewMode?: "page" | "scroll";
+  firstPageSingle?: boolean;
+  allowSpread?: boolean;
+  showFooter?: boolean;
+  previewLimit?: number | null;
+  purchaseUrl?: string;
+  purchasePrice?: string;
+  themePreset?: string;
+};
+
 export type ProjectEpisode = {
   number: number;
   volume?: number;
@@ -36,8 +53,11 @@ export type ProjectEpisode = {
   progressStage?: string;
   completedStages?: string[];
   content?: string;
-  contentFormat?: "lexical";
+  contentFormat?: "lexical" | "images";
+  pages?: ProjectEpisodePage[];
+  pageCount?: number;
   hasContent?: boolean;
+  hasPages?: boolean;
   publicationStatus?: "draft" | "published";
   chapterUpdatedAt?: string;
 };
@@ -99,6 +119,7 @@ export type Project = {
   forceHero?: boolean;
   heroImageUrl?: string;
   heroImageAlt?: string;
+  readerConfig?: ProjectReaderConfig;
   volumeEntries?: ProjectVolumeEntry[];
   volumeCovers?: ProjectVolumeCover[];
 };

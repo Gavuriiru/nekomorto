@@ -1,4 +1,4 @@
-import { hasEpisodeContent, isPublishedEpisode } from "./project-episodes.js";
+import { hasEpisodeContent, hasEpisodePages, isPublishedEpisode } from "./project-episodes.js";
 
 export const getPubliclyVisibleEpisodes = (project) =>
   (Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : []).filter((episode) =>
@@ -6,10 +6,11 @@ export const getPubliclyVisibleEpisodes = (project) =>
   );
 
 export const toPublicEpisode = (episode) => {
-  const { content: _content, ...rest } = episode || {};
+  const { content: _content, pages: _pages, ...rest } = episode || {};
   return {
     ...rest,
     hasContent: hasEpisodeContent(episode),
+    hasPages: hasEpisodePages(episode),
   };
 };
 
