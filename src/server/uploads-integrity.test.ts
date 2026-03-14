@@ -15,6 +15,7 @@ type TempWorkspaceDatasets = {
   comments?: unknown[];
   pages?: Record<string, unknown>;
   siteSettings?: Record<string, unknown>;
+  linkTypes?: unknown[];
   uploads?: unknown[];
 };
 
@@ -45,6 +46,7 @@ const createTempWorkspace = (
       comments: datasets.comments || [],
       pages: datasets.pages || {},
       siteSettings: datasets.siteSettings || {},
+      linkTypes: datasets.linkTypes || [],
       uploads: datasets.uploads || [],
     },
   };
@@ -115,7 +117,9 @@ describe("runUploadsIntegrityCheck", () => {
     });
 
     const result = await runUploadsIntegrityCheck({ datasets, uploadsDir });
-    const missingSourceIssues = result.criticalIssues.filter((item) => item.type === "missing_source_file");
+    const missingSourceIssues = result.criticalIssues.filter(
+      (item) => item.type === "missing_source_file",
+    );
 
     expect(result.ok).toBe(false);
     expect(missingSourceIssues.map((item) => item.url)).toEqual(
@@ -145,7 +149,9 @@ describe("runUploadsIntegrityCheck", () => {
     });
 
     const result = await runUploadsIntegrityCheck({ datasets, uploadsDir });
-    const missingVariantIssues = result.criticalIssues.filter((item) => item.type === "missing_variant_file");
+    const missingVariantIssues = result.criticalIssues.filter(
+      (item) => item.type === "missing_variant_file",
+    );
 
     expect(result.ok).toBe(false);
     expect(missingVariantIssues).toEqual([
@@ -224,6 +230,34 @@ describe("runUploadsIntegrityCheck", () => {
         "/uploads/branding/wordmark.svg",
       ]),
     );
+  });
+
+  it("falha quando linkTypes referencia SVG ausente", async () => {
+    const { uploadsDir, datasets } = createTempWorkspace({
+      linkTypes: [
+        {
+          id: "youtube",
+          label: "YouTube",
+          icon: "/uploads/socials/youtube.svg",
+        },
+      ],
+      uploads: [
+        {
+          id: "u-youtube",
+          url: "/uploads/socials/youtube.svg",
+          fileName: "youtube.svg",
+          folder: "socials",
+        },
+      ],
+    });
+
+    const result = await runUploadsIntegrityCheck({ datasets, uploadsDir });
+    const missingSourceUrls = result.criticalIssues
+      .filter((item) => item.type === "missing_source_file")
+      .map((item) => item.url);
+
+    expect(result.ok).toBe(false);
+    expect(missingSourceUrls).toContain("/uploads/socials/youtube.svg");
   });
 
   it("aceita uploads remotos em modo fast sem fazer head no provider", async () => {

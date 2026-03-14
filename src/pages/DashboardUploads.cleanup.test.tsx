@@ -475,6 +475,79 @@ describe("DashboardUploads cleanup", () => {
     expect(confirmButton).not.toBeDisabled();
   });
 
+  it("nao dispara a limpeza ao pressionar Enter com confirmacao invalida", async () => {
+    setupApi();
+
+    render(<DashboardUploads />);
+
+    fireEvent.click(await screen.findByRole("button", { name: CLEANUP_ACTION_LABEL }));
+
+    const alertDialog = await screen.findByRole("alertdialog");
+    const confirmInput = within(alertDialog).getByPlaceholderText("Digite EXCLUIR");
+
+    fireEvent.change(confirmInput, { target: { value: "excluir" } });
+    fireEvent.keyDown(confirmInput, { key: "Enter", code: "Enter" });
+
+    const cleanupPostCall = apiFetchMock.mock.calls.find((call) => {
+      const path = String(call[1] || "");
+      const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
+      return path === "/api/uploads/storage/cleanup" && method === "POST";
+    });
+
+    expect(cleanupPostCall).toBeUndefined();
+  });
+
+  it("envia a limpeza ao pressionar Enter com EXCLUIR e mostra o mesmo pos-sucesso", async () => {
+    setupApi();
+
+    render(<DashboardUploads />);
+
+    fireEvent.click(await screen.findByRole("button", { name: CLEANUP_ACTION_LABEL }));
+
+    const alertDialog = await screen.findByRole("alertdialog");
+    const confirmInput = within(alertDialog).getByPlaceholderText("Digite EXCLUIR");
+
+    fireEvent.change(confirmInput, {
+      target: { value: "EXCLUIR" },
+    });
+    fireEvent.keyDown(confirmInput, { key: "Enter", code: "Enter" });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Nenhum arquivo eleg.vel para limpeza\./i)).toBeInTheDocument();
+    });
+
+    const cleanupPostCall = apiFetchMock.mock.calls.find((call) => {
+      const path = String(call[1] || "");
+      const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
+      return path === "/api/uploads/storage/cleanup" && method === "POST";
+    });
+
+    expect(cleanupPostCall).toBeDefined();
+    expect(JSON.parse(String((cleanupPostCall?.[2] as RequestInit | undefined)?.body || "{}"))).toEqual({
+      confirm: "EXCLUIR",
+    });
+
+    const summaryGetCalls = apiFetchMock.mock.calls.filter((call) => {
+      const path = String(call[1] || "");
+      const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
+      return path === "/api/uploads/storage/areas" && method === "GET";
+    });
+    const cleanupGetCalls = apiFetchMock.mock.calls.filter((call) => {
+      const path = String(call[1] || "");
+      const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
+      return path === "/api/uploads/storage/cleanup" && method === "GET";
+    });
+
+    expect(summaryGetCalls.length).toBeGreaterThanOrEqual(2);
+    expect(cleanupGetCalls.length).toBeGreaterThanOrEqual(2);
+    expect(toastMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        title: expect.stringContaining("Armazenamento"),
+        description: expect.stringContaining("1 originais enviados para quarentena"),
+      }),
+    );
+  });
+
   it("envia o body correto, recarrega os dados e mostra toast combinado de sucesso", async () => {
     setupApi();
 

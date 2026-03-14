@@ -15187,6 +15187,7 @@ const getUsedUploadUrls = () => {
   collectUploadUrls(loadPages(), urls);
   collectUploadUrls(loadComments(), urls);
   collectUploadUrls(loadUpdates(), urls);
+  collectUploadUrls(loadLinkTypes(), urls);
   return urls;
 };
 
@@ -15198,6 +15199,7 @@ const loadUploadsCleanupDatasets = () => ({
   pages: loadPages(),
   comments: loadComments(),
   updates: loadUpdates(),
+  linkTypes: loadLinkTypes(),
   uploads: loadUploads(),
 });
 
@@ -15384,6 +15386,12 @@ app.put("/api/uploads/rename", requireAuth, async (req, res) => {
       writeUpdates(updatesResult.value);
     }
 
+    const linkTypesResult = replaceUploadReferencesDeep(loadLinkTypes(), normalized, nextUrl);
+    pushResult("link_types", linkTypesResult);
+    if (linkTypesResult.count > 0) {
+      writeLinkTypes(linkTypesResult.value);
+    }
+
     const updatedReferences = [
       settingsResult.count,
       postsResult.count,
@@ -15392,6 +15400,7 @@ app.put("/api/uploads/rename", requireAuth, async (req, res) => {
       pagesResult.count,
       commentsResult.count,
       updatesResult.count,
+      linkTypesResult.count,
     ].reduce((sum, value) => sum + value, 0);
 
     appendAuditLog(req, "uploads.rename", "uploads", {

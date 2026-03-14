@@ -22,6 +22,7 @@ const DATASETS_TO_SCAN = [
   "comments",
   "updates",
   "users",
+  "linkTypes",
 ];
 
 const hasCriticalType = (value) => CRITICAL_ISSUE_TYPES.has(String(value || "").trim());
@@ -93,7 +94,11 @@ const uploadExists = async ({
     if (!uploadEntry) {
       return false;
     }
-    if (String(mode || "fast").trim().toLowerCase() !== "deep") {
+    if (
+      String(mode || "fast")
+        .trim()
+        .toLowerCase() !== "deep"
+    ) {
       return true;
     }
     if (!storageService) {
@@ -212,7 +217,12 @@ export const runUploadsIntegrityCheck = async ({
   mode = "fast",
   storageService,
 } = {}) => {
-  const safeMode = String(mode || "fast").trim().toLowerCase() === "deep" ? "deep" : "fast";
+  const safeMode =
+    String(mode || "fast")
+      .trim()
+      .toLowerCase() === "deep"
+      ? "deep"
+      : "fast";
   const uploads = Array.isArray(datasets?.uploads) ? datasets.uploads : [];
   const hasRemoteUploads = uploads.some((entry) => readUploadStorageProvider(entry) === "s3");
   const reorganizationReport = hasRemoteUploads
@@ -221,7 +231,9 @@ export const runUploadsIntegrityCheck = async ({
         rewritten: datasets || {},
         referencedUrlsCount: (() => {
           const urls = new Set();
-          DATASETS_TO_SCAN.forEach((datasetKey) => collectUploadUrlsDeep(datasets?.[datasetKey], urls));
+          DATASETS_TO_SCAN.forEach((datasetKey) =>
+            collectUploadUrlsDeep(datasets?.[datasetKey], urls),
+          );
           return urls.size;
         })(),
         plannedMovesCount: 0,
@@ -233,26 +245,28 @@ export const runUploadsIntegrityCheck = async ({
         applyChanges: false,
         privateRootFolders,
       });
+  const datasetsForScan = {
+    ...(datasets && typeof datasets === "object" ? datasets : {}),
+    ...(reorganizationReport.rewritten && typeof reorganizationReport.rewritten === "object"
+      ? reorganizationReport.rewritten
+      : {}),
+  };
 
   const criticalFromReorganization = (reorganizationReport.skipped || [])
     .filter((issue) => hasCriticalType(issue?.type))
     .map((issue) => normalizeIssue(issue, "reorganization"));
-  const criticalFromDatasetScan = (await collectMissingUploadRefsFromDatasets(
-    reorganizationReport.rewritten || datasets || {},
-    uploadsDir,
-    {
+  const criticalFromDatasetScan = (
+    await collectMissingUploadRefsFromDatasets(datasetsForScan, uploadsDir, {
       mode: safeMode,
       storageService,
-    },
-  )).map((issue) => normalizeIssue(issue, "dataset-scan"));
-  const criticalFromUploadsMetadata = (await collectMissingVariantRefsFromUploads(
-    reorganizationReport.rewritten || datasets || {},
-    uploadsDir,
-    {
+    })
+  ).map((issue) => normalizeIssue(issue, "dataset-scan"));
+  const criticalFromUploadsMetadata = (
+    await collectMissingVariantRefsFromUploads(datasetsForScan, uploadsDir, {
       mode: safeMode,
       storageService,
-    },
-  )).map((issue) => normalizeIssue(issue, "uploads-metadata"));
+    })
+  ).map((issue) => normalizeIssue(issue, "uploads-metadata"));
 
   const criticalIssues = mergeCriticalIssues([
     ...criticalFromReorganization,

@@ -3,7 +3,11 @@ import path from "path";
 import { buildStorageAreaSummary, deriveUploadArea, normalizeVariants } from "./upload-media.js";
 import { getUploadVariantUrlPrefix, readUploadStorageProvider } from "./upload-storage.js";
 import { extractUploadUrlsFromText, normalizeUploadUrl } from "./uploads-reorganizer.js";
-import { EPUB_IMPORT_TMP_PREFIX, EPUB_IMPORT_TMP_TTL_MS, isEpubImportTempFolder } from "./uploads-import.js";
+import {
+  EPUB_IMPORT_TMP_PREFIX,
+  EPUB_IMPORT_TMP_TTL_MS,
+  isEpubImportTempFolder,
+} from "./uploads-import.js";
 
 const DATASETS_TO_SCAN = [
   "siteSettings",
@@ -13,6 +17,7 @@ const DATASETS_TO_SCAN = [
   "pages",
   "comments",
   "updates",
+  "linkTypes",
 ];
 
 const VARIANTS_ROOT_SEGMENT = "_variants";
@@ -56,8 +61,10 @@ const getUploadFileName = (upload, normalizedUrl) => {
   return path.posix.basename(normalizedUrl.replace(/^\/uploads\//, ""));
 };
 
-const isVariantUploadUrl = (value) => String(value || "").startsWith(`/uploads/${VARIANTS_ROOT_SEGMENT}/`);
-const isQuarantineUploadUrl = (value) => String(value || "").startsWith(`/uploads/${QUARANTINE_ROOT_SEGMENT}/`);
+const isVariantUploadUrl = (value) =>
+  String(value || "").startsWith(`/uploads/${VARIANTS_ROOT_SEGMENT}/`);
+const isQuarantineUploadUrl = (value) =>
+  String(value || "").startsWith(`/uploads/${QUARANTINE_ROOT_SEGMENT}/`);
 
 const resolveUploadPathFromUrl = ({ uploadsDir, uploadUrl }) => {
   const trimmed = String(uploadUrl || "").trim();
@@ -108,7 +115,11 @@ const collectReferencedUploadUrls = (value, urls) => {
 const getManagedUploads = (uploads) =>
   (Array.isArray(uploads) ? uploads : []).filter((upload) => {
     const normalizedUrl = normalizeUploadUrl(upload?.url);
-    return Boolean(normalizedUrl) && !isVariantUploadUrl(normalizedUrl) && !isQuarantineUploadUrl(normalizedUrl);
+    return (
+      Boolean(normalizedUrl) &&
+      !isVariantUploadUrl(normalizedUrl) &&
+      !isQuarantineUploadUrl(normalizedUrl)
+    );
   });
 
 const isStaleEpubImportTempUpload = (upload, nowTs = Date.now()) => {
@@ -148,9 +159,7 @@ const collectUnusedUploadCandidates = (datasets) => {
     referencedUrls,
     unusedUploadCandidates,
     unusedUploadIds: new Set(
-      unusedUploadCandidates
-        .map((upload) => String(upload?.id || "").trim())
-        .filter(Boolean),
+      unusedUploadCandidates.map((upload) => String(upload?.id || "").trim()).filter(Boolean),
     ),
   };
 };
@@ -158,7 +167,10 @@ const collectUnusedUploadCandidates = (datasets) => {
 const resolveVariantUploadPrefixes = (uploadId) => {
   const encoded = encodeURIComponent(String(uploadId || ""));
   const raw = String(uploadId || "");
-  return new Set([`/uploads/${VARIANTS_ROOT_SEGMENT}/${encoded}/`, `/uploads/${VARIANTS_ROOT_SEGMENT}/${raw}/`]);
+  return new Set([
+    `/uploads/${VARIANTS_ROOT_SEGMENT}/${encoded}/`,
+    `/uploads/${VARIANTS_ROOT_SEGMENT}/${raw}/`,
+  ]);
 };
 
 const collectExpectedVariantFilesByUploadId = (uploads, uploadsDir) => {
@@ -181,7 +193,9 @@ const collectExpectedVariantFilesByUploadId = (uploads, uploadsDir) => {
         if (!normalizedUrl) {
           return;
         }
-        const matchesUploadDir = Array.from(validPrefixes).some((prefix) => normalizedUrl.startsWith(prefix));
+        const matchesUploadDir = Array.from(validPrefixes).some((prefix) =>
+          normalizedUrl.startsWith(prefix),
+        );
         if (!matchesUploadDir) {
           return;
         }
@@ -239,7 +253,9 @@ const scanVariantFilesRecursive = ({ absoluteDir, relativeDir, variantDirUploadI
     });
   });
 
-  return files.sort((left, right) => String(left.url || "").localeCompare(String(right.url || ""), "en"));
+  return files.sort((left, right) =>
+    String(left.url || "").localeCompare(String(right.url || ""), "en"),
+  );
 };
 
 const scanVariantDirectoryEntries = (variantsRootDir, uploadsDir) => {
@@ -269,17 +285,22 @@ const scanVariantDirectoryEntries = (variantsRootDir, uploadsDir) => {
       };
     })
     .sort((left, right) =>
-      String(left.variantDirUploadId || "").localeCompare(String(right.variantDirUploadId || ""), "en"),
+      String(left.variantDirUploadId || "").localeCompare(
+        String(right.variantDirUploadId || ""),
+        "en",
+      ),
     );
 };
 
-const collectOrphanedVariantCandidates = ({ uploads, uploadsDir, ignoredUploadIds = new Set() }) => {
+const collectOrphanedVariantCandidates = ({
+  uploads,
+  uploadsDir,
+  ignoredUploadIds = new Set(),
+}) => {
   const variantsRootDir = path.join(uploadsDir, VARIANTS_ROOT_SEGMENT);
   const activeUploads = getManagedUploads(uploads);
   const activeUploadIds = new Set(
-    activeUploads
-      .map((upload) => String(upload?.id || "").trim())
-      .filter(Boolean),
+    activeUploads.map((upload) => String(upload?.id || "").trim()).filter(Boolean),
   );
   const expectedFilesByUploadId = collectExpectedVariantFilesByUploadId(activeUploads, uploadsDir);
   const orphanedVariantCandidates = [];
@@ -352,16 +373,18 @@ const buildOrphanedVariantSummary = (orphanedVariantCandidates) => {
     totalFiles: 0,
   };
 
-  (Array.isArray(orphanedVariantCandidates) ? orphanedVariantCandidates : []).forEach((candidate) => {
-    const bytes = Number(candidate?.bytes || 0);
-    if (!Number.isFinite(bytes) || bytes < 0) {
-      return;
-    }
-    totals.variantBytes += bytes;
-    totals.totalBytes += bytes;
-    totals.variantFiles += 1;
-    totals.totalFiles += 1;
-  });
+  (Array.isArray(orphanedVariantCandidates) ? orphanedVariantCandidates : []).forEach(
+    (candidate) => {
+      const bytes = Number(candidate?.bytes || 0);
+      if (!Number.isFinite(bytes) || bytes < 0) {
+        return;
+      }
+      totals.variantBytes += bytes;
+      totals.totalBytes += bytes;
+      totals.variantFiles += 1;
+      totals.totalFiles += 1;
+    },
+  );
 
   if (totals.variantFiles === 0) {
     return {
@@ -513,8 +536,8 @@ const buildCombinedCleanupExamples = ({
     ...(Array.isArray(unusedUploadCandidates) ? unusedUploadCandidates : []).map((upload) =>
       buildUploadCleanupExample(upload),
     ),
-    ...(Array.isArray(orphanedVariantCandidates) ? orphanedVariantCandidates : []).map((candidate) =>
-      buildVariantCleanupExample(candidate),
+    ...(Array.isArray(orphanedVariantCandidates) ? orphanedVariantCandidates : []).map(
+      (candidate) => buildVariantCleanupExample(candidate),
     ),
     ...(Array.isArray(looseOriginalCandidates) ? looseOriginalCandidates : []).map((candidate) =>
       buildLooseOriginalCleanupExample(candidate),
@@ -547,8 +570,12 @@ const buildCleanupReportBase = ({
     looseOriginalSummary,
     quarantinePendingSummary,
   );
-  const unusedUploadCount = Array.isArray(unusedUploadCandidates) ? unusedUploadCandidates.length : 0;
-  const looseOriginalFilesCount = Array.isArray(looseOriginalCandidates) ? looseOriginalCandidates.length : 0;
+  const unusedUploadCount = Array.isArray(unusedUploadCandidates)
+    ? unusedUploadCandidates.length
+    : 0;
+  const looseOriginalFilesCount = Array.isArray(looseOriginalCandidates)
+    ? looseOriginalCandidates.length
+    : 0;
   const quarantinePendingDeleteCount = Array.isArray(quarantinePendingDeleteCandidates)
     ? quarantinePendingDeleteCandidates.length
     : 0;
@@ -557,14 +584,21 @@ const buildCleanupReportBase = ({
     generatedAt: new Date().toISOString(),
     unusedCount: unusedUploadCount,
     unusedUploadCount,
-    orphanedVariantFilesCount: Array.isArray(orphanedVariantCandidates) ? orphanedVariantCandidates.length : 0,
+    orphanedVariantFilesCount: Array.isArray(orphanedVariantCandidates)
+      ? orphanedVariantCandidates.length
+      : 0,
     orphanedVariantDirsCount: Number(orphanedVariantDirsCount || 0),
     looseOriginalFilesCount,
     looseOriginalTotals: normalizeStorageAreaRow(looseOriginalSummary.totals, "total"),
     quarantinePendingDeleteCount,
-    quarantinePendingDeleteTotals: normalizeStorageAreaRow(quarantinePendingSummary.totals, "total"),
+    quarantinePendingDeleteTotals: normalizeStorageAreaRow(
+      quarantinePendingSummary.totals,
+      "total",
+    ),
     totals: normalizeStorageAreaRow(mergedSummary.totals, "total"),
-    areas: mergedSummary.areas.map((item) => normalizeStorageAreaRow(item, String(item?.area || "root"))),
+    areas: mergedSummary.areas.map((item) =>
+      normalizeStorageAreaRow(item, String(item?.area || "root")),
+    ),
     examples: buildCombinedCleanupExamples({
       unusedUploadCandidates,
       orphanedVariantCandidates,
@@ -691,7 +725,11 @@ const collectLooseOriginalCandidates = ({ uploads, uploadsDir, referencedUrls = 
 
   getManagedUploads(uploads).forEach((upload) => {
     const normalizedUrl = normalizeUploadUrl(upload?.url);
-    if (!normalizedUrl || isVariantUploadUrl(normalizedUrl) || isQuarantineUploadUrl(normalizedUrl)) {
+    if (
+      !normalizedUrl ||
+      isVariantUploadUrl(normalizedUrl) ||
+      isQuarantineUploadUrl(normalizedUrl)
+    ) {
       return;
     }
     const absolutePath = resolveUploadPathFromUrl({ uploadsDir, uploadUrl: normalizedUrl });
@@ -703,7 +741,11 @@ const collectLooseOriginalCandidates = ({ uploads, uploadsDir, referencedUrls = 
 
   (referencedUrls instanceof Set ? referencedUrls : new Set()).forEach((item) => {
     const normalizedUrl = normalizeUploadUrl(item);
-    if (!normalizedUrl || isVariantUploadUrl(normalizedUrl) || isQuarantineUploadUrl(normalizedUrl)) {
+    if (
+      !normalizedUrl ||
+      isVariantUploadUrl(normalizedUrl) ||
+      isQuarantineUploadUrl(normalizedUrl)
+    ) {
       return;
     }
     const absolutePath = resolveUploadPathFromUrl({ uploadsDir, uploadUrl: normalizedUrl });
@@ -740,7 +782,9 @@ const buildLooseOriginalSummary = (looseOriginalCandidates) => {
     if (!Number.isFinite(bytes) || bytes < 0) {
       return;
     }
-    const area = String(candidate?.area || deriveOriginalAreaFromRelativePath(candidate?.relativePath || ""));
+    const area = String(
+      candidate?.area || deriveOriginalAreaFromRelativePath(candidate?.relativePath || ""),
+    );
     mergeStorageAreaRow(
       areasMap,
       {
@@ -785,7 +829,9 @@ const scanQuarantineFilesRecursive = ({ absoluteDir, relativeDir = "" }) => {
     const nextRelative = relativeDir ? toPosix(path.join(relativeDir, entry.name)) : entry.name;
 
     if (entry.isDirectory()) {
-      files.push(...scanQuarantineFilesRecursive({ absoluteDir: nextAbsolute, relativeDir: nextRelative }));
+      files.push(
+        ...scanQuarantineFilesRecursive({ absoluteDir: nextAbsolute, relativeDir: nextRelative }),
+      );
       return;
     }
 
@@ -857,17 +903,18 @@ const collectQuarantinePendingDeleteCandidates = ({ uploadsDir, nowTs = Date.now
 };
 
 const buildQuarantinePendingSummary = (quarantinePendingDeleteCandidates) => {
-  const totalBytes = (Array.isArray(quarantinePendingDeleteCandidates) ? quarantinePendingDeleteCandidates : []).reduce(
-    (sum, candidate) => {
-      const bytes = Number(candidate?.bytes || 0);
-      if (!Number.isFinite(bytes) || bytes < 0) {
-        return sum;
-      }
-      return sum + bytes;
-    },
-    0,
-  );
-  const totalFiles = Array.isArray(quarantinePendingDeleteCandidates) ? quarantinePendingDeleteCandidates.length : 0;
+  const totalBytes = (
+    Array.isArray(quarantinePendingDeleteCandidates) ? quarantinePendingDeleteCandidates : []
+  ).reduce((sum, candidate) => {
+    const bytes = Number(candidate?.bytes || 0);
+    if (!Number.isFinite(bytes) || bytes < 0) {
+      return sum;
+    }
+    return sum + bytes;
+  }, 0);
+  const totalFiles = Array.isArray(quarantinePendingDeleteCandidates)
+    ? quarantinePendingDeleteCandidates.length
+    : 0;
 
   if (totalFiles === 0) {
     return {
@@ -900,9 +947,15 @@ const buildQuarantinePendingSummary = (quarantinePendingDeleteCandidates) => {
   };
 };
 
-const buildQuarantineDateFolder = (nowTs = Date.now()) => new Date(nowTs).toISOString().slice(0, 10);
+const buildQuarantineDateFolder = (nowTs = Date.now()) =>
+  new Date(nowTs).toISOString().slice(0, 10);
 
-const resolveQuarantineTargetPath = ({ uploadsDir, dateFolder, sourceRelativePath, nowTs = Date.now() }) => {
+const resolveQuarantineTargetPath = ({
+  uploadsDir,
+  dateFolder,
+  sourceRelativePath,
+  nowTs = Date.now(),
+}) => {
   const uploadsRootDir = path.resolve(uploadsDir);
   const safeDateFolder = String(dateFolder || "").trim();
   if (!safeDateFolder || !/^\d{4}-\d{2}-\d{2}$/.test(safeDateFolder)) {
@@ -932,7 +985,9 @@ const resolveQuarantineTargetPath = ({ uploadsDir, dateFolder, sourceRelativePat
     const suffix = attempt === 0 ? "" : `__${nowTs}${attempt === 1 ? "" : `-${attempt}`}`;
     const fileName = `${sourceBaseName}${suffix}${sourceExt}`;
     const targetLeafRelative = sourceDir ? path.posix.join(sourceDir, fileName) : fileName;
-    const targetRelativePath = toPosix(path.posix.join(QUARANTINE_ROOT_SEGMENT, safeDateFolder, targetLeafRelative));
+    const targetRelativePath = toPosix(
+      path.posix.join(QUARANTINE_ROOT_SEGMENT, safeDateFolder, targetLeafRelative),
+    );
     const targetAbsolutePath = path.resolve(path.join(uploadsRootDir, targetRelativePath));
 
     if (!isPathInsideRoot(uploadsRootDir, targetAbsolutePath)) {
@@ -1154,25 +1209,24 @@ export const runUploadsCleanup = async ({
   const nowTs = Date.now();
   const uploadsRootDir = path.resolve(uploadsDir);
   const variantsRootDir = path.resolve(path.join(uploadsDir, VARIANTS_ROOT_SEGMENT));
-  const { uploads, unusedUploadCandidates, unusedUploadIds, referencedUrls } = collectUnusedUploadCandidates(datasets);
-  const {
-    orphanedVariantCandidates,
-    orphanedVariantDirectoryGroups,
-    orphanedVariantDirsCount,
-  } = collectOrphanedVariantCandidates({
-    uploads,
-    uploadsDir,
-    ignoredUploadIds: unusedUploadIds,
-  });
+  const { uploads, unusedUploadCandidates, unusedUploadIds, referencedUrls } =
+    collectUnusedUploadCandidates(datasets);
+  const { orphanedVariantCandidates, orphanedVariantDirectoryGroups, orphanedVariantDirsCount } =
+    collectOrphanedVariantCandidates({
+      uploads,
+      uploadsDir,
+      ignoredUploadIds: unusedUploadIds,
+    });
   const { looseOriginalCandidates } = collectLooseOriginalCandidates({
     uploads,
     uploadsDir,
     referencedUrls,
   });
-  const { quarantineRootDir, quarantinePendingDeleteCandidates } = collectQuarantinePendingDeleteCandidates({
-    uploadsDir,
-    nowTs,
-  });
+  const { quarantineRootDir, quarantinePendingDeleteCandidates } =
+    collectQuarantinePendingDeleteCandidates({
+      uploadsDir,
+      nowTs,
+    });
   const reportBase = buildCleanupReportBase({
     unusedUploadCandidates,
     orphanedVariantCandidates,
@@ -1277,7 +1331,9 @@ export const runUploadsCleanup = async ({
     }
   });
 
-  const orphanedActiveVariantCandidates = orphanedVariantCandidates.filter((candidate) => candidate.ownerUploadId);
+  const orphanedActiveVariantCandidates = orphanedVariantCandidates.filter(
+    (candidate) => candidate.ownerUploadId,
+  );
   const touchedVariantDirs = new Map();
 
   orphanedActiveVariantCandidates.forEach((candidate) => {
@@ -1287,7 +1343,9 @@ export const runUploadsCleanup = async ({
       }
       fs.rmSync(candidate.absolutePath, { force: true });
       deletedVariantCandidates.push(candidate);
-      const topLevelDir = path.resolve(path.join(uploadsDir, VARIANTS_ROOT_SEGMENT, candidate.variantDirUploadId));
+      const topLevelDir = path.resolve(
+        path.join(uploadsDir, VARIANTS_ROOT_SEGMENT, candidate.variantDirUploadId),
+      );
       touchedVariantDirs.set(candidate.variantDirUploadId, topLevelDir);
     } catch (error) {
       failures.push({
@@ -1371,7 +1429,9 @@ export const runUploadsCleanup = async ({
     rootDir: quarantineRootDir,
   });
 
-  const deletedUploadEntries = unusedUploadCandidates.filter((upload) => deletedUploads.has(upload));
+  const deletedUploadEntries = unusedUploadCandidates.filter((upload) =>
+    deletedUploads.has(upload),
+  );
   const deletedSummary = mergeStorageSummaries(
     buildStorageAreaSummary(deletedUploadEntries),
     buildOrphanedVariantSummary(deletedVariantCandidates),

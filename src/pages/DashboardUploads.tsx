@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -660,6 +660,18 @@ const DashboardUploads = () => {
     }
   }, [apiBase, cleanupConfirmText, isCleanupRunning, load]);
 
+  const handleCleanupConfirmKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.key !== "Enter") {
+        return;
+      }
+
+      event.preventDefault();
+      void handleConfirmCleanup();
+    },
+    [handleConfirmCleanup],
+  );
+
   return (
     <DashboardShell currentUser={me} isLoadingUser={isLoadingUser}>
       <DashboardPageContainer maxWidth="7xl">
@@ -1012,6 +1024,7 @@ const DashboardUploads = () => {
             <Input
               value={cleanupConfirmText}
               onChange={(event) => setCleanupConfirmText(event.target.value)}
+              onKeyDown={handleCleanupConfirmKeyDown}
               placeholder="Digite EXCLUIR"
               disabled={isCleanupRunning}
             />

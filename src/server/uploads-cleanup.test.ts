@@ -20,6 +20,7 @@ type TempWorkspaceDatasets = {
   comments?: unknown[];
   pages?: Record<string, unknown>;
   siteSettings?: Record<string, unknown>;
+  linkTypes?: unknown[];
   uploads?: unknown[];
 };
 
@@ -50,6 +51,7 @@ const createTempWorkspace = (
       comments: datasets.comments || [],
       pages: datasets.pages || {},
       siteSettings: datasets.siteSettings || {},
+      linkTypes: datasets.linkTypes || [],
       uploads: datasets.uploads || [],
     },
   };
@@ -303,6 +305,42 @@ describe("runUploadsCleanup", () => {
     expect(result.examples).toEqual([]);
   });
 
+  it("preserva SVG referenciado apenas por linkTypes", async () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        linkTypes: [
+          {
+            id: "youtube",
+            label: "YouTube",
+            icon: "/uploads/socials/youtube.svg",
+          },
+        ],
+        uploads: [
+          {
+            id: "u-youtube",
+            url: "/uploads/socials/youtube.svg",
+            fileName: "youtube.svg",
+            folder: "socials",
+            size: 449,
+          },
+        ],
+      },
+      [{ relativePath: "socials/youtube.svg", content: Buffer.from("<svg/>") }],
+    );
+
+    const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+
+    expect(result.unusedUploadCount).toBe(0);
+    expect(result.examples).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          scope: "unused_upload",
+          url: "/uploads/socials/youtube.svg",
+        }),
+      ]),
+    );
+  });
+
   it("detecta originais soltos no disco fora do inventario", async () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
@@ -379,7 +417,10 @@ describe("runUploadsCleanup", () => {
       },
       [
         { relativePath: "_quarantine/2000-01-01/posts/stale.png", content: Buffer.alloc(21) },
-        { relativePath: `_quarantine/${freshDateFolder}/posts/fresh.png`, content: Buffer.alloc(31) },
+        {
+          relativePath: `_quarantine/${freshDateFolder}/posts/fresh.png`,
+          content: Buffer.alloc(31),
+        },
       ],
     );
 
@@ -387,8 +428,12 @@ describe("runUploadsCleanup", () => {
 
     expect(result.quarantinePendingDeleteCount).toBe(1);
     expect(result.deletedQuarantineFilesCount).toBe(1);
-    expect(fs.existsSync(path.join(uploadsDir, "_quarantine", "2000-01-01", "posts", "stale.png"))).toBe(false);
-    expect(fs.existsSync(path.join(uploadsDir, "_quarantine", freshDateFolder, "posts", "fresh.png"))).toBe(true);
+    expect(
+      fs.existsSync(path.join(uploadsDir, "_quarantine", "2000-01-01", "posts", "stale.png")),
+    ).toBe(false);
+    expect(
+      fs.existsSync(path.join(uploadsDir, "_quarantine", freshDateFolder, "posts", "fresh.png")),
+    ).toBe(true);
   });
 
   it("combina uploads sem uso, variantes orfas e originais soltos no mesmo relatorio", async () => {
@@ -426,16 +471,23 @@ describe("runUploadsCleanup", () => {
       },
       [
         { relativePath: "posts/duplicate.png", content: Buffer.alloc(15) },
-        { relativePath: `_quarantine/${todayFolder}/posts/duplicate.png`, content: Buffer.alloc(10) },
+        {
+          relativePath: `_quarantine/${todayFolder}/posts/duplicate.png`,
+          content: Buffer.alloc(10),
+        },
       ],
     );
 
     const result = await runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
-    const targetFiles = listRelativeFiles(path.join(uploadsDir, "_quarantine", todayFolder, "posts"));
+    const targetFiles = listRelativeFiles(
+      path.join(uploadsDir, "_quarantine", todayFolder, "posts"),
+    );
 
     expect(result.quarantinedLooseOriginalFilesCount).toBe(1);
     expect(targetFiles).toContain("duplicate.png");
-    expect(targetFiles.some((item) => /^duplicate__\d+(?:-\d+)?\.png$/.test(path.posix.basename(item)))).toBe(true);
+    expect(
+      targetFiles.some((item) => /^duplicate__\d+(?:-\d+)?\.png$/.test(path.posix.basename(item))),
+    ).toBe(true);
   });
 
   it("inclui diretorio de variantes sem upload correspondente como orfao", async () => {
@@ -507,8 +559,12 @@ describe("runUploadsCleanup", () => {
     expect(result.deletedOrphanedVariantFilesCount).toBe(1);
     expect(result.deletedOrphanedVariantDirsCount).toBe(0);
     expect(result.failedCount).toBe(0);
-    expect(fs.existsSync(path.join(uploadsDir, "_variants", "u-active", "card-v1.webp"))).toBe(true);
-    expect(fs.existsSync(path.join(uploadsDir, "_variants", "u-active", "old-card.webp"))).toBe(false);
+    expect(fs.existsSync(path.join(uploadsDir, "_variants", "u-active", "card-v1.webp"))).toBe(
+      true,
+    );
+    expect(fs.existsSync(path.join(uploadsDir, "_variants", "u-active", "old-card.webp"))).toBe(
+      false,
+    );
   });
 
   it("nao duplica contagem de variantes quando o upload ja sera removido por estar sem uso", async () => {
