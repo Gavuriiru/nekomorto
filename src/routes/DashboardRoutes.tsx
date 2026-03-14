@@ -1,6 +1,8 @@
 import { lazy } from "react";
 import type { ReactNode } from "react";
 import { Route, Routes } from "react-router-dom";
+import { DashboardPreferencesProvider } from "@/hooks/dashboard-preferences-provider";
+import { DashboardSessionProvider } from "@/hooks/dashboard-session-provider";
 
 const RequireAuth = lazy(() => import("@/components/RequireAuth"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
@@ -30,30 +32,34 @@ const withAuth = (page: ReactNode) => (
 );
 
 const DashboardRoutes = () => (
-  <Routes>
-    <Route index element={withAuth(<Dashboard />)} />
-    <Route path="usuarios" element={withAuth(<DashboardUsers />)} />
-    <Route path="posts" element={withAuth(<DashboardPosts />)} />
-    <Route path="projetos" element={withAuth(<DashboardProjectsEditor />)} />
-    <Route
-      path="projetos/:projectId/capitulos"
-      element={withAuth(<DashboardProjectChapterEditor />)}
-    />
-    <Route
-      path="projetos/:projectId/capitulos/:chapterNumber"
-      element={withAuth(<DashboardProjectChapterEditor />)}
-    />
-    <Route path="comentarios" element={withAuth(<DashboardComments />)} />
-    <Route path="uploads" element={withAuth(<DashboardUploads />)} />
-    <Route path="analytics" element={withAuth(<DashboardAnalytics />)} />
-    <Route path="audit-log" element={withAuth(<DashboardAuditLog />)} />
-    <Route path="paginas" element={withAuth(<DashboardPages />)} />
-    <Route path="configuracoes" element={withAuth(<DashboardSettings />)} />
-    <Route path="redirecionamentos" element={withAuth(<DashboardRedirects />)} />
-    <Route path="webhooks" element={withAuth(<DashboardWebhooks />)} />
-    <Route path="seguranca" element={withAuth(<DashboardSecurity />)} />
-    <Route path="*" element={<NotFound />} />
-  </Routes>
+  <DashboardSessionProvider>
+    <DashboardPreferencesProvider>
+      <Routes>
+        <Route index element={withAuth(<Dashboard />)} />
+        <Route path="usuarios" element={withAuth(<DashboardUsers />)} />
+        <Route path="posts" element={withAuth(<DashboardPosts />)} />
+        <Route path="projetos" element={withAuth(<DashboardProjectsEditor />)} />
+        <Route
+          path="projetos/:projectId/capitulos"
+          element={withAuth(<DashboardProjectChapterEditor />)}
+        />
+        <Route
+          path="projetos/:projectId/capitulos/:chapterNumber"
+          element={withAuth(<DashboardProjectChapterEditor />)}
+        />
+        <Route path="comentarios" element={withAuth(<DashboardComments />)} />
+        <Route path="uploads" element={withAuth(<DashboardUploads />)} />
+        <Route path="analytics" element={withAuth(<DashboardAnalytics />)} />
+        <Route path="audit-log" element={withAuth(<DashboardAuditLog />)} />
+        <Route path="paginas" element={withAuth(<DashboardPages />)} />
+        <Route path="configuracoes" element={withAuth(<DashboardSettings />)} />
+        <Route path="redirecionamentos" element={withAuth(<DashboardRedirects />)} />
+        <Route path="webhooks" element={withAuth(<DashboardWebhooks />)} />
+        <Route path="seguranca" element={withAuth(<DashboardSecurity />)} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </DashboardPreferencesProvider>
+  </DashboardSessionProvider>
 );
 
 export default DashboardRoutes;

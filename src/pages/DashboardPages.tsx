@@ -9,11 +9,13 @@ import {
   dashboardAnimationDelay,
   dashboardMotionDelays,
 } from "@/components/dashboard/dashboard-motion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -63,6 +65,8 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { toast } from "@/components/ui/use-toast";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
+import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePixQrCode } from "@/hooks/use-pix-qr-code";
 import { useSiteSettings } from "@/hooks/use-site-settings";
@@ -262,6 +266,34 @@ const emptyPages: PagesConfig = {
 };
 
 const defaultPages: PagesConfig = emptyPages;
+const DASHBOARD_PAGES_CACHE_TTL_MS = 60_000;
+
+type DashboardPagesCacheEntry = {
+  pages: PagesConfig;
+  expiresAt: number;
+};
+
+let dashboardPagesCache: DashboardPagesCacheEntry | null = null;
+
+const clonePagesConfig = (value: PagesConfig) => JSON.parse(JSON.stringify(value)) as PagesConfig;
+
+const readDashboardPagesCache = () => {
+  if (!dashboardPagesCache) {
+    return null;
+  }
+  if (dashboardPagesCache.expiresAt <= Date.now()) {
+    dashboardPagesCache = null;
+    return null;
+  }
+  return clonePagesConfig(dashboardPagesCache.pages);
+};
+
+const writeDashboardPagesCache = (value: PagesConfig) => {
+  dashboardPagesCache = {
+    pages: clonePagesConfig(value),
+    expiresAt: Date.now() + DASHBOARD_PAGES_CACHE_TTL_MS,
+  };
+};
 
 const mergePagesConfig = (value: Partial<PagesConfig> | null | undefined): PagesConfig => {
   const incoming = value || {};
@@ -406,24 +438,23 @@ const DashboardPages = () => {
     autosaveRuntimeConfig.enabledByDefault &&
       readAutosavePreference(autosaveStorageKeys.pages, true),
   );
-  const [pages, setPages] = useState<PagesConfig>(defaultPages);
-  const [isLoading, setIsLoading] = useState(true);
+  const initialCacheRef = useRef(readDashboardPagesCache());
+  const [pages, setPages] = useState<PagesConfig>(initialCacheRef.current ?? defaultPages);
+  const [isInitialLoading, setIsInitialLoading] = useState(!initialCacheRef.current);
+  const [isRefreshing, setIsRefreshing] = useState(Boolean(initialCacheRef.current));
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(Boolean(initialCacheRef.current));
+  const [hasResolvedPages, setHasResolvedPages] = useState(Boolean(initialCacheRef.current));
   const [hasLoadError, setHasLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
   const [activeTab, setActiveTab] = useState<DashboardPagesTabKey>(() =>
     parseDashboardPagesTabParam(searchParams.get("tab")),
   );
   const [dragState, setDragState] = useState<{ list: string; index: number } | null>(null);
-  const [currentUser, setCurrentUser] = useState<{
-    id: string;
-    name: string;
-    username: string;
-    avatarUrl?: string | null;
-    grants?: Partial<Record<string, boolean>>;
-  } | null>(null);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const { currentUser, isLoadingUser } = useDashboardCurrentUser();
   const [isPreviewLibraryOpen, setIsPreviewLibraryOpen] = useState(false);
   const [previewLibraryTarget, setPreviewLibraryTarget] = useState<ShareImagePageKey>("home");
+  const requestIdRef = useRef(0);
+  const hasLoadedOnceRef = useRef(hasLoadedOnce);
 
   const merchantName =
     String(settings.site.name || settings.footer.brandName || "NEKOMATA").trim() || "NEKOMATA";
@@ -460,47 +491,53 @@ const DashboardPages = () => {
   }, [activeTab, searchParams, setSearchParams]);
 
   useEffect(() => {
+    hasLoadedOnceRef.current = hasLoadedOnce;
+  }, [hasLoadedOnce]);
+
+  useEffect(() => {
     const load = async () => {
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
+      const background = hasLoadedOnceRef.current;
       try {
-        setIsLoading(true);
         setHasLoadError(false);
+        if (background) {
+          setIsRefreshing(true);
+        } else {
+          setIsInitialLoading(true);
+          setHasResolvedPages(false);
+        }
         const response = await apiFetch(apiBase, "/api/pages", { auth: true });
+        if (requestIdRef.current !== requestId) {
+          return;
+        }
         if (!response.ok) {
-          setPages(defaultPages);
           setHasLoadError(true);
           return;
         }
         const data = await response.json();
-        setPages(normalizePagesShareImages(mergePagesConfig(data.pages)));
+        const nextPages = normalizePagesShareImages(mergePagesConfig(data.pages));
+        setPages(nextPages);
+        setHasLoadedOnce(true);
+        setHasResolvedPages(true);
+        writeDashboardPagesCache(nextPages);
       } catch {
-        setPages(defaultPages);
-        setHasLoadError(true);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    load();
-  }, [apiBase, loadVersion]);
-
-  useEffect(() => {
-    const loadUser = async () => {
-      setIsLoadingUser(true);
-      try {
-        const response = await apiFetch(apiBase, "/api/me", { auth: true });
-        if (!response.ok) {
-          setCurrentUser(null);
-          return;
+        if (requestIdRef.current === requestId) {
+          if (!hasLoadedOnceRef.current) {
+            setPages(defaultPages);
+            setHasResolvedPages(false);
+          }
+          setHasLoadError(true);
         }
-        const data = await response.json();
-        setCurrentUser(data);
-      } catch {
-        setCurrentUser(null);
       } finally {
-        setIsLoadingUser(false);
+        if (requestIdRef.current === requestId) {
+          setIsInitialLoading(false);
+          setIsRefreshing(false);
+        }
       }
     };
-    void loadUser();
-  }, [apiBase]);
+    void load();
+  }, [apiBase, loadVersion]);
 
   const savePages = useCallback(
     async (nextPages: PagesConfig) => {
@@ -521,6 +558,7 @@ const DashboardPages = () => {
         ),
       );
       setPages(normalizedPages);
+      writeDashboardPagesCache(normalizedPages);
       return normalizedPages;
     },
     [apiBase],
@@ -529,7 +567,7 @@ const DashboardPages = () => {
   const pagesAutosave = useAutosave<PagesConfig>({
     value: pages,
     onSave: savePages,
-    isReady: !isLoading,
+    isReady: hasResolvedPages,
     enabled: initialAutosaveEnabledRef.current,
     debounceMs: autosaveRuntimeConfig.debounceMs,
     retryMax: autosaveRuntimeConfig.retryMax,
@@ -555,7 +593,7 @@ const DashboardPages = () => {
     pagesAutosave.status === "saving";
 
   useEffect(() => {
-    if (isLoading || !hasPendingChanges) {
+    if (!hasResolvedPages || !hasPendingChanges) {
       return;
     }
     const handler = (event: BeforeUnloadEvent) => {
@@ -563,7 +601,7 @@ const DashboardPages = () => {
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [hasPendingChanges, isLoading]);
+  }, [hasPendingChanges, hasResolvedPages]);
 
   const handleSave = useCallback(async () => {
     const ok = await pagesAutosave.flushNow();
@@ -676,7 +714,16 @@ const DashboardPages = () => {
     setDragState(null);
   };
 
-  if (isLoading) {
+  const hasBlockingLoadError = !hasLoadedOnce && hasLoadError;
+  const hasRetainedLoadError = hasLoadedOnce && hasLoadError;
+
+  useDashboardRefreshToast({
+    active: isRefreshing && hasLoadedOnce,
+    title: "Atualizando páginas",
+    description: "Buscando a configuração pública mais recente.",
+  });
+
+  if (false) {
     return (
       <DashboardShell
         currentUser={currentUser}
@@ -696,7 +743,7 @@ const DashboardPages = () => {
     );
   }
 
-  if (hasLoadError) {
+  if (false) {
     return (
       <DashboardShell
         currentUser={currentUser}
@@ -804,7 +851,63 @@ const DashboardPages = () => {
                 </TabsTrigger>
               ))}
             </TabsList>
-
+            {hasBlockingLoadError ? (
+              <div className="mt-6">
+                <AsyncState
+                  kind="error"
+                  title="NÃ£o foi possÃ­vel carregar as pÃ¡ginas"
+                  description="Tente novamente em alguns instantes."
+                  action={
+                    <Button
+                      variant="outline"
+                      onClick={() => setLoadVersion((previous) => previous + 1)}
+                    >
+                      Tentar novamente
+                    </Button>
+                  }
+                />
+              </div>
+            ) : (
+              <>
+                {hasRetainedLoadError ? (
+                  <Alert className="mt-6">
+                    <AlertTitle>Atualização parcial indisponível</AlertTitle>
+                    <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                      <span>Mantendo a última configuração pública carregada.</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLoadVersion((previous) => previous + 1)}
+                      >
+                        Tentar novamente
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+                {isInitialLoading ? (
+                  <Card className="mt-6 border-border/60 bg-card/80" data-testid="dashboard-pages-skeleton-surface">
+                    <CardContent className="space-y-6 p-6">
+                      <div className="space-y-2">
+                        <Skeleton className="h-6 w-48" />
+                        <Skeleton className="h-4 w-72" />
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                          <div
+                            key={`pages-skeleton-${index}`}
+                            className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3"
+                          >
+                            <Skeleton className="h-5 w-32" />
+                            <Skeleton className="h-32 w-full rounded-xl" />
+                            <Skeleton className="h-10 w-full rounded-xl" />
+                            <Skeleton className="h-10 w-full rounded-xl" />
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <>
             <TabsContent value="preview" className="mt-6 space-y-6">
               <Card className="border-border/60 bg-card/80">
                 <CardContent className="space-y-6 p-6">
@@ -2075,6 +2178,10 @@ const DashboardPages = () => {
                 </CardContent>
               </Card>
             </TabsContent>
+                  </>
+                )}
+              </>
+            )}
           </Tabs>
         </section>
       </main>
@@ -2115,6 +2222,12 @@ const DashboardPages = () => {
       </Suspense>
     </DashboardShell>
   );
+};
+
+export const __testing = {
+  clearDashboardPagesCache: () => {
+    dashboardPagesCache = null;
+  },
 };
 
 export default DashboardPages;

@@ -175,6 +175,15 @@ const DashboardCommandPalette = ({
         keywords: ["config", "cfg", "configuracoes", "tab", "traducoes", "idiomas"],
         shortcutHint: "ST",
       },
+      {
+        id: "settings-seo",
+        label: "SEO",
+        href: "/dashboard/configuracoes?tab=seo",
+        icon: settingsIcon,
+        available: settingsEnabled,
+        keywords: ["config", "cfg", "configuracoes", "tab", "seo", "redirect", "redirecionamento"],
+        shortcutHint: "SS",
+      },
     ];
   }, [menuByHref]);
 

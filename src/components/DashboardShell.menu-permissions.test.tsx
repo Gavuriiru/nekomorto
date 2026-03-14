@@ -20,6 +20,9 @@ vi.mock("@/components/ui/sidebar", () => ({
   Sidebar: ({ children }: { children: ReactNode }) => <aside>{children}</aside>,
   SidebarHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SidebarContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  SidebarGroup: ({ children }: { children: ReactNode }) => <section>{children}</section>,
+  SidebarGroupContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  SidebarGroupLabel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SidebarFooter: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SidebarInset: ({
     children,
@@ -98,12 +101,12 @@ describe("DashboardShell menu permissions", () => {
     expect(screen.getByTestId("sidebar-inset")).toHaveAttribute("data-dashboard-motion", "true");
     expect(screen.queryByText("Painel de gestao")).not.toBeInTheDocument();
     expect(screen.queryByText(/Usu[áa]rios/i)).not.toBeInTheDocument();
-    expect(screen.queryByText("Webhooks")).not.toBeInTheDocument();
+    expect(screen.queryByText("Integrações")).not.toBeInTheDocument();
     expect(screen.queryByText(/Configura[çc][õo]es/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Redirecionamentos")).not.toBeInTheDocument();
   });
 
-  it("exibe Redirecionamentos quando grant de configuracoes esta habilitado", async () => {
+  it("exibe Configurações quando grant de configuracoes esta habilitado", async () => {
     const grants = buildGrants();
     grants.configuracoes = true;
     const { default: DashboardShell } = await import("@/components/DashboardShell");
@@ -125,7 +128,8 @@ describe("DashboardShell menu permissions", () => {
 
     const headerText = screen.getByTestId("dashboard-header").textContent || "";
     expect(headerText).toContain("Configurações");
-    expect(headerText).toContain("Redirecionamentos");
+    expect(headerText).not.toContain("Redirecionamentos");
+    expect(screen.getByText("Sistema")).toBeInTheDocument();
   });
 
   it("keeps previous user while loading and clears cache when loading finishes", async () => {

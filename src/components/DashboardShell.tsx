@@ -9,6 +9,9 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -16,7 +19,12 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { dashboardMenuItems, type DashboardMenuItem } from "@/components/dashboard-menu";
+import {
+  dashboardMenuItems,
+  groupDashboardMenuItems,
+  isDashboardMenuItemActive,
+  type DashboardMenuItem,
+} from "@/components/dashboard-menu";
 import {
   buildDashboardMenuFromGrants,
   getFirstAllowedDashboardRoute,
@@ -25,6 +33,7 @@ import {
 } from "@/lib/access-control";
 import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
 import { readWindowPublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
+import { useDashboardSession } from "@/hooks/use-dashboard-session";
 import { uiCopy } from "@/lib/ui-copy";
 
 type DashboardUser = {
@@ -64,15 +73,19 @@ const DashboardShell = ({
   onMenuItemClick,
 }: DashboardShellProps) => {
   const location = useLocation();
+  const dashboardSession = useDashboardSession();
   const effectiveUser = useMemo<DashboardUser | null>(() => {
     if (currentUser) {
       return currentUser;
+    }
+    if (dashboardSession.currentUser) {
+      return dashboardSession.currentUser;
     }
     if (isLoadingUser) {
       return lastResolvedDashboardUser;
     }
     return null;
-  }, [currentUser, isLoadingUser]);
+  }, [currentUser, dashboardSession.currentUser, isLoadingUser]);
 
   useEffect(() => {
     if (currentUser) {
@@ -97,6 +110,10 @@ const DashboardShell = ({
       (item) => item.href !== "/dashboard/seguranca" || isOwner,
     );
   }, [effectiveUser, menuItems]);
+  const resolvedMenuSections = useMemo(
+    () => groupDashboardMenuItems(resolvedMenuItems),
+    [resolvedMenuItems],
+  );
   const dashboardHomeHref = useMemo(
     () =>
       getFirstAllowedDashboardRoute(resolveGrants(effectiveUser || null), {
@@ -194,43 +211,55 @@ const DashboardShell = ({
           </SidebarHeader>
 
           <SidebarContent className="px-2 pb-2">
-            <SidebarMenu className="gap-1.5">
-              {resolvedMenuItems.map((item) => {
-                const isActive =
-                  location.pathname === item.href ||
-                  (item.href !== "/dashboard" && location.pathname.startsWith(`${item.href}/`));
-                const ItemIcon = item.icon;
+            <div className="space-y-4">
+              {resolvedMenuSections.map((section) => (
+                <SidebarGroup key={section.id} className="px-0 py-0">
+                  <SidebarGroupLabel className="px-2 text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/55 group-data-[collapsible=icon]:hidden">
+                    {section.label}
+                  </SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu className="gap-1.5">
+                      {section.items.map((item) => {
+                        const ItemIcon = item.icon;
 
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={item.label}
-                      disabled={!item.enabled}
-                      className="h-10 rounded-xl text-sidebar-foreground/80 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-primary/15 data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-[inset_0_0_0_1px_hsl(var(--sidebar-ring)/0.35)]"
-                    >
-                      {item.enabled ? (
-                        <Link
-                          to={item.href}
-                          onClick={
-                            onMenuItemClick ? (event) => onMenuItemClick(item, event) : undefined
-                          }
-                        >
-                          <ItemIcon />
-                          <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                        </Link>
-                      ) : (
-                        <button type="button" aria-disabled="true" disabled>
-                          <ItemIcon />
-                          <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                        </button>
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
+                        return (
+                          <SidebarMenuItem key={item.href}>
+                            <SidebarMenuButton
+                              asChild
+                              isActive={isDashboardMenuItemActive(item, location.pathname)}
+                              tooltip={item.label}
+                              disabled={!item.enabled}
+                              className="h-10 rounded-xl text-sidebar-foreground/80 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-primary/15 data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-[inset_0_0_0_1px_hsl(var(--sidebar-ring)/0.35)]"
+                            >
+                              {item.enabled ? (
+                                <Link
+                                  to={item.href}
+                                  onClick={
+                                    onMenuItemClick ? (event) => onMenuItemClick(item, event) : undefined
+                                  }
+                                >
+                                  <ItemIcon />
+                                  <span className="group-data-[collapsible=icon]:hidden">
+                                    {item.label}
+                                  </span>
+                                </Link>
+                              ) : (
+                                <button type="button" aria-disabled="true" disabled>
+                                  <ItemIcon />
+                                  <span className="group-data-[collapsible=icon]:hidden">
+                                    {item.label}
+                                  </span>
+                                </button>
+                              )}
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      })}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              ))}
+            </div>
           </SidebarContent>
 
           <SidebarFooter className="px-2 pb-3 pt-1">

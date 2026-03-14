@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dashboardMotionDelays } from "@/components/dashboard/dashboard-motion";
-import DashboardWebhooks from "@/pages/DashboardWebhooks";
+import DashboardWebhooks, { __testing } from "@/pages/DashboardWebhooks";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
+const dismissToastMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -27,6 +28,7 @@ vi.mock("@/lib/api-client", () => ({
 
 vi.mock("@/components/ui/use-toast", () => ({
   toast: (...args: unknown[]) => toastMock(...args),
+  dismissToast: (...args: unknown[]) => dismissToastMock(...args),
 }));
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
@@ -212,8 +214,11 @@ const expectBefore = (a: string | RegExp, b: string | RegExp) => {
 
 describe("DashboardWebhooks layout", () => {
   beforeEach(() => {
+    __testing.clearEditorialSettingsCache();
     apiFetchMock.mockReset();
     toastMock.mockReset();
+    toastMock.mockReturnValue("dashboard-webhooks-refresh-toast");
+    dismissToastMock.mockReset();
     (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = undefined;
   });
 
@@ -244,10 +249,25 @@ describe("DashboardWebhooks layout", () => {
     );
 
     expect(screen.getByRole("heading", { name: /Webhooks editoriais/i })).toBeInTheDocument();
-    expect(screen.getByTestId("dashboard-webhooks-loading-section-types")).toBeInTheDocument();
-    expect(screen.getByTestId("dashboard-webhooks-loading-section-posts")).toBeInTheDocument();
-    expect(screen.getByTestId("dashboard-webhooks-loading-section-projects")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-webhooks-section-types")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-webhooks-section-posts")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-webhooks-section-projects")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-webhooks-placeholder-types")).toBeInTheDocument();
+    expect(classTokens(screen.getByTestId("dashboard-webhooks-general-role-placeholder-field"))).toContain(
+      "space-y-2.5",
+    );
+    expect(
+      classTokens(
+        within(screen.getByTestId("dashboard-webhooks-general-role-placeholder-field")).getByText(
+          /Role geral de lan/i,
+        ),
+      ),
+    ).toContain("leading-tight");
+    expect(screen.getByTestId("dashboard-webhooks-placeholder-posts")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-webhooks-placeholder-projects")).toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-webhooks-refresh-status")).not.toBeInTheDocument();
     expect(screen.queryByText(/Carregando webhooks/i)).not.toBeInTheDocument();
+    expect(toastMock).not.toHaveBeenCalled();
     expect(
       apiFetchMock.mock.calls.some(
         (call) =>
@@ -263,7 +283,78 @@ describe("DashboardWebhooks layout", () => {
       }),
     );
 
-    expect(await screen.findByText(/Role geral de lan/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId("dashboard-webhooks-placeholder-types")).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("dashboard-webhooks-section-content-types")).toBeInTheDocument();
+    expect(classTokens(screen.getByTestId("dashboard-webhooks-general-role-field"))).toContain(
+      "space-y-2.5",
+    );
+    expect(
+      classTokens(
+        within(screen.getByTestId("dashboard-webhooks-general-role-field")).getByText(
+          /Role geral de lan/i,
+        ),
+      ),
+    ).toContain("leading-tight");
+  });
+
+  it("reabre com cache quente e preserva o editor quando o refresh falha", async () => {
+    setupApiMock();
+    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = {
+      id: "user-1",
+      name: "Admin",
+      username: "admin",
+      avatarUrl: null,
+      permissions: ["integracoes"],
+      grants: { integracoes: true },
+    };
+
+    const firstRender = render(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText(/Role geral de lan/i);
+    firstRender.unmount();
+
+    const refreshDeferred = createDeferredResponse();
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (path === "/api/integrations/webhooks/editorial" && method === "GET") {
+        return refreshDeferred.promise;
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(/Role geral de lan/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-webhooks-placeholder-types")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-webhooks-refresh-status")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Atualizando webhooks editoriais",
+          intent: "info",
+        }),
+      );
+    });
+
+    refreshDeferred.resolve(mockJsonResponse(false, { error: "load_failed" }, 500));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Mantendo os ultimos dados carregados/i)).toBeInTheDocument();
+    });
+    expect(dismissToastMock).toHaveBeenCalledWith("dashboard-webhooks-refresh-toast");
+    expect(screen.getByText(/Role geral de lan/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Falha ao carregar/i)).not.toBeInTheDocument();
   });
 
   it("inicia com accordion principal aberto, internos colapsados e organiza o editor na ordem esperada", async () => {
@@ -391,7 +482,7 @@ describe("DashboardWebhooks layout", () => {
     expect(classTokens(postsSection)).toContain("opacity-0");
   });
 
-  it("aplica motion aos accordions principais e aos blocos internos", async () => {
+  it("aplica motion ao shell principal sem reanimar blocos internos em refresh de dados", async () => {
     setupApiMock();
 
     render(
@@ -412,17 +503,13 @@ describe("DashboardWebhooks layout", () => {
     expect(classTokens(typesSection)).toContain("animate-slide-up");
     expect(classTokens(typesSection)).toContain("opacity-0");
     expect(classTokens(postsSection)).toContain("animate-slide-up");
-    expect(classTokens(typesContent)).toContain("animate-slide-up");
-    expect(classTokens(postsContent)).toContain("animate-slide-up");
-    expect(classTokens(eventItem)).toContain("animate-slide-up");
+    expect(classTokens(typesContent)).not.toContain("animate-slide-up");
+    expect(classTokens(postsContent)).not.toContain("animate-slide-up");
+    expect(classTokens(eventItem)).not.toContain("animate-slide-up");
     expect(typesSection).toHaveStyle({ animationDelay: "0ms" });
     expect(postsSection).toHaveStyle({
       animationDelay: `${dashboardMotionDelays.sectionStepMs}ms`,
     });
-    expect(typesContent).toHaveStyle({
-      animationDelay: `${dashboardMotionDelays.sectionStepMs}ms`,
-    });
-    expect(eventItem).toHaveStyle({ animationDelay: "0ms" });
 
     fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
 
@@ -434,7 +521,7 @@ describe("DashboardWebhooks layout", () => {
 
     expect(
       classTokens(screen.getByTestId("dashboard-webhooks-event-content-posts-post_create")),
-    ).toContain("animate-slide-up");
+    ).not.toContain("animate-slide-up");
   });
 
   it("salva apenas a secao de posts e mantem rascunhos das outras secoes", async () => {

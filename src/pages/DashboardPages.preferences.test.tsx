@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import DashboardPages from "@/pages/DashboardPages";
+import DashboardPages, { __testing } from "@/pages/DashboardPages";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const qrCodeToDataUrlMock = vi.hoisted(() =>
@@ -90,6 +90,7 @@ describe("DashboardPages query sync", () => {
   beforeEach(() => {
     window.localStorage.clear();
     apiFetchMock.mockReset();
+    __testing.clearDashboardPagesCache();
   });
 
   it("aplica aba vinda de ?tab=", async () => {

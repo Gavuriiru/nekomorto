@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -18,11 +18,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
+import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -136,6 +139,38 @@ const emptyCleanupPreview: CleanupPreviewPayload = {
   totals: emptyTotals,
   areas: [],
   examples: [],
+};
+
+const UPLOADS_CACHE_TTL_MS = 60_000;
+
+type UploadsCacheEntry<TValue> = {
+  value: TValue;
+  expiresAt: number;
+};
+
+let uploadsSummaryCache: UploadsCacheEntry<StorageSummaryPayload> | null = null;
+let uploadsCleanupPreviewCache: UploadsCacheEntry<CleanupPreviewPayload> | null = null;
+
+const readUploadsCache = <TValue,>(entry: UploadsCacheEntry<TValue> | null) => {
+  if (!entry) {
+    return null;
+  }
+  if (entry.expiresAt <= Date.now()) {
+    return null;
+  }
+  return entry.value;
+};
+
+const writeUploadsCache = <TValue,>(value: TValue): UploadsCacheEntry<TValue> => ({
+  value,
+  expiresAt: Date.now() + UPLOADS_CACHE_TTL_MS,
+});
+
+export const __testing = {
+  clearUploadsCaches: () => {
+    uploadsSummaryCache = null;
+    uploadsCleanupPreviewCache = null;
+  },
 };
 
 const normalizeStorageAreaRow = (
@@ -308,85 +343,196 @@ const formatCleanupDescription = ({
 }) =>
   `${deletedUnusedUploadsCount} uploads removidos, ${deletedOrphanedVariantFilesCount} variantes órfãs removidas, ${deletedOrphanedVariantDirsCount} diretórios de variantes órfãos removidos, ${quarantinedLooseOriginalFilesCount} originais enviados para quarentena, ${deletedQuarantineFilesCount} arquivos de quarentena removidos e ${deletedQuarantineDirsCount} diretórios de quarentena removidos. ${formatBytes(deletedBytes)} liberados agora, ${formatBytes(quarantinedBytes)} em quarentena e ${formatBytes(purgedQuarantineBytes)} purgados da quarentena.`;
 
+const UploadsMetricCard = ({
+  label,
+  value,
+  files,
+  loading,
+  delayMs,
+}: {
+  label: string;
+  value: string;
+  files: number;
+  loading: boolean;
+  delayMs: number;
+}) => (
+  <article
+    className="min-h-[8.5rem] rounded-2xl border border-border/60 bg-card/60 p-5 animate-slide-up opacity-0"
+    style={dashboardAnimationDelay(delayMs)}
+  >
+    <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">{label}</p>
+    {loading ? (
+      <>
+        <Skeleton className="mt-3 h-8 w-28" />
+        <Skeleton className="mt-2 h-3 w-20" />
+      </>
+    ) : (
+      <>
+        <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{files} arquivos</p>
+      </>
+    )}
+  </article>
+);
+
 const DashboardUploads = () => {
   usePageMeta({ title: "Uploads", noIndex: true });
   const apiBase = getApiBase();
-  const [me, setMe] = useState<MeUser | null>(null);
-  const [summary, setSummary] = useState<StorageSummaryPayload>(emptySummary);
-  const [cleanupPreview, setCleanupPreview] = useState<CleanupPreviewPayload>(emptyCleanupPreview);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const [isCleanupLoading, setIsCleanupLoading] = useState(true);
-  const [hasCleanupError, setHasCleanupError] = useState(false);
+  const initialSummaryCacheRef = useRef(readUploadsCache(uploadsSummaryCache));
+  const initialCleanupCacheRef = useRef(readUploadsCache(uploadsCleanupPreviewCache));
+  const { currentUser: me, isLoadingUser } = useDashboardCurrentUser<MeUser>();
+  const [summary, setSummary] = useState<StorageSummaryPayload>(
+    initialSummaryCacheRef.current ?? emptySummary,
+  );
+  const [cleanupPreview, setCleanupPreview] = useState<CleanupPreviewPayload>(
+    initialCleanupCacheRef.current ?? emptyCleanupPreview,
+  );
+  const [isSummaryInitialLoading, setIsSummaryInitialLoading] = useState(
+    !initialSummaryCacheRef.current,
+  );
+  const [isSummaryRefreshing, setIsSummaryRefreshing] = useState(
+    Boolean(initialSummaryCacheRef.current),
+  );
+  const [summaryError, setSummaryError] = useState("");
+  const [hasSummaryLoadedOnce, setHasSummaryLoadedOnce] = useState(
+    Boolean(initialSummaryCacheRef.current),
+  );
+  const [isCleanupInitialLoading, setIsCleanupInitialLoading] = useState(
+    !initialCleanupCacheRef.current,
+  );
+  const [isCleanupRefreshing, setIsCleanupRefreshing] = useState(
+    Boolean(initialCleanupCacheRef.current),
+  );
+  const [cleanupError, setCleanupError] = useState("");
+  const [hasCleanupLoadedOnce, setHasCleanupLoadedOnce] = useState(
+    Boolean(initialCleanupCacheRef.current),
+  );
   const [isForbidden, setIsForbidden] = useState(false);
   const [isCleanupConfirmOpen, setIsCleanupConfirmOpen] = useState(false);
   const [cleanupConfirmText, setCleanupConfirmText] = useState("");
   const [isCleanupRunning, setIsCleanupRunning] = useState(false);
-
-  const load = useCallback(async () => {
-    setIsLoading(true);
-    setHasError(false);
-    setIsCleanupLoading(true);
-    setHasCleanupError(false);
-    setIsForbidden(false);
-
-    try {
-      const [meResponse, summaryResponse, cleanupResponse] = await Promise.all([
-        apiFetch(apiBase, "/api/me", { auth: true }),
-        apiFetch(apiBase, "/api/uploads/storage/areas", { auth: true }),
-        apiFetch(apiBase, "/api/uploads/storage/cleanup", { auth: true }),
-      ]);
-
-      if (meResponse.ok) {
-        setMe(await meResponse.json());
-      } else {
-        setMe(null);
-      }
-
-      if (summaryResponse.status === 403 || cleanupResponse.status === 403) {
-        setIsForbidden(true);
-        setSummary(emptySummary);
-        setCleanupPreview(emptyCleanupPreview);
-        return;
-      }
-
-      if (summaryResponse.ok) {
-        try {
-          setSummary(normalizeStorageSummaryPayload(await summaryResponse.json()));
-        } catch {
-          setHasError(true);
-          setSummary(emptySummary);
-        }
-      } else {
-        setHasError(true);
-        setSummary(emptySummary);
-      }
-
-      if (cleanupResponse.ok) {
-        try {
-          setCleanupPreview(normalizeCleanupPreviewPayload(await cleanupResponse.json()));
-        } catch {
-          setHasCleanupError(true);
-          setCleanupPreview(emptyCleanupPreview);
-        }
-      } else {
-        setHasCleanupError(true);
-        setCleanupPreview(emptyCleanupPreview);
-      }
-    } catch {
-      setHasError(true);
-      setHasCleanupError(true);
-      setSummary(emptySummary);
-      setCleanupPreview(emptyCleanupPreview);
-    } finally {
-      setIsLoading(false);
-      setIsCleanupLoading(false);
-    }
-  }, [apiBase]);
+  const summaryRequestIdRef = useRef(0);
+  const cleanupRequestIdRef = useRef(0);
+  const hasSummaryLoadedOnceRef = useRef(hasSummaryLoadedOnce);
+  const hasCleanupLoadedOnceRef = useRef(hasCleanupLoadedOnce);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    hasSummaryLoadedOnceRef.current = hasSummaryLoadedOnce;
+  }, [hasSummaryLoadedOnce]);
+
+  useEffect(() => {
+    hasCleanupLoadedOnceRef.current = hasCleanupLoadedOnce;
+  }, [hasCleanupLoadedOnce]);
+
+  const applyForbiddenState = useCallback(() => {
+    uploadsSummaryCache = null;
+    uploadsCleanupPreviewCache = null;
+    setIsForbidden(true);
+    setSummary(emptySummary);
+    setCleanupPreview(emptyCleanupPreview);
+    setHasSummaryLoadedOnce(false);
+    setHasCleanupLoadedOnce(false);
+    setSummaryError("");
+    setCleanupError("");
+    setIsSummaryInitialLoading(false);
+    setIsCleanupInitialLoading(false);
+    setIsSummaryRefreshing(false);
+    setIsCleanupRefreshing(false);
+  }, []);
+
+  const loadSummary = useCallback(async (options?: { background?: boolean }) => {
+    const background = options?.background ?? hasSummaryLoadedOnceRef.current;
+    const requestId = summaryRequestIdRef.current + 1;
+    summaryRequestIdRef.current = requestId;
+    if (background) {
+      setIsSummaryRefreshing(true);
+    } else {
+      setIsSummaryInitialLoading(true);
+    }
+    setSummaryError("");
+    try {
+      const response = await apiFetch(apiBase, "/api/uploads/storage/areas", { auth: true });
+      if (summaryRequestIdRef.current !== requestId) {
+        return;
+      }
+      if (response.status === 403) {
+        applyForbiddenState();
+        return;
+      }
+      if (!response.ok) {
+        throw new Error("summary_load_failed");
+      }
+      const nextSummary = normalizeStorageSummaryPayload(await response.json());
+      uploadsSummaryCache = writeUploadsCache(nextSummary);
+      setIsForbidden(false);
+      setSummary(nextSummary);
+      setHasSummaryLoadedOnce(true);
+    } catch {
+      if (summaryRequestIdRef.current !== requestId) {
+        return;
+      }
+      setSummaryError("Nao foi possivel carregar os dados de storage.");
+    } finally {
+      if (summaryRequestIdRef.current !== requestId) {
+        return;
+      }
+      setIsSummaryInitialLoading(false);
+      setIsSummaryRefreshing(false);
+    }
+  }, [apiBase, applyForbiddenState]);
+
+  const loadCleanupPreview = useCallback(async (options?: { background?: boolean }) => {
+    const background = options?.background ?? hasCleanupLoadedOnceRef.current;
+    const requestId = cleanupRequestIdRef.current + 1;
+    cleanupRequestIdRef.current = requestId;
+    if (background) {
+      setIsCleanupRefreshing(true);
+    } else {
+      setIsCleanupInitialLoading(true);
+    }
+    setCleanupError("");
+    try {
+      const response = await apiFetch(apiBase, "/api/uploads/storage/cleanup", { auth: true });
+      if (cleanupRequestIdRef.current !== requestId) {
+        return;
+      }
+      if (response.status === 403) {
+        applyForbiddenState();
+        return;
+      }
+      if (!response.ok) {
+        throw new Error("cleanup_preview_load_failed");
+      }
+      const nextCleanupPreview = normalizeCleanupPreviewPayload(await response.json());
+      uploadsCleanupPreviewCache = writeUploadsCache(nextCleanupPreview);
+      setIsForbidden(false);
+      setCleanupPreview(nextCleanupPreview);
+      setHasCleanupLoadedOnce(true);
+    } catch {
+      if (cleanupRequestIdRef.current !== requestId) {
+        return;
+      }
+      setCleanupError("Nao foi possivel analisar o armazenamento nao utilizado.");
+    } finally {
+      if (cleanupRequestIdRef.current !== requestId) {
+        return;
+      }
+      setIsCleanupInitialLoading(false);
+      setIsCleanupRefreshing(false);
+    }
+  }, [apiBase, applyForbiddenState]);
+
+  const load = useCallback(
+    async (options?: { background?: boolean }) => {
+      await Promise.all([loadSummary(options), loadCleanupPreview(options)]);
+    },
+    [loadCleanupPreview, loadSummary],
+  );
+
+  useEffect(() => {
+    void loadSummary({ background: Boolean(initialSummaryCacheRef.current) });
+    void loadCleanupPreview({ background: Boolean(initialCleanupCacheRef.current) });
+  }, [loadCleanupPreview, loadSummary]);
 
   const cards = useMemo(
     () => [
@@ -424,6 +570,21 @@ const DashboardUploads = () => {
       cleanupPreview.unusedUploadCount,
     ],
   );
+  const isAnyRefreshing = isSummaryRefreshing || isCleanupRefreshing;
+  const hasSummaryBlockingError = !hasSummaryLoadedOnce && Boolean(summaryError);
+  const hasCleanupBlockingError = !hasCleanupLoadedOnce && Boolean(cleanupError);
+  const hasSummaryRetainedError = hasSummaryLoadedOnce && Boolean(summaryError);
+  const hasCleanupRetainedError = hasCleanupLoadedOnce && Boolean(cleanupError);
+  const showSummaryShell = isSummaryInitialLoading && !hasSummaryLoadedOnce;
+  const showCleanupShell = isCleanupInitialLoading && !hasCleanupLoadedOnce;
+  const summaryTimestampLabel = hasSummaryLoadedOnce ? formatDateTime(summary.generatedAt) : "aguardando dados";
+  const cleanupTimestampLabel = hasCleanupLoadedOnce ? formatDateTime(cleanupPreview.generatedAt) : "aguardando dados";
+
+  useDashboardRefreshToast({
+    active: isAnyRefreshing && (hasSummaryLoadedOnce || hasCleanupLoadedOnce),
+    title: "Atualizando Armazenamento",
+    description: "Buscando o resumo e a analise mais recente do armazenamento.",
+  });
 
   const handleConfirmCleanup = useCallback(async () => {
     if (cleanupConfirmText !== CLEANUP_CONFIRM_TEXT || isCleanupRunning) {
@@ -454,7 +615,7 @@ const DashboardUploads = () => {
       const payload = normalizeCleanupRunPayload(await response.json());
       setIsCleanupConfirmOpen(false);
       setCleanupConfirmText("");
-      await load();
+      await load({ background: true });
 
       if (payload.failedCount > 0) {
         toast({
@@ -500,29 +661,22 @@ const DashboardUploads = () => {
   }, [apiBase, cleanupConfirmText, isCleanupRunning, load]);
 
   return (
-    <DashboardShell currentUser={me} isLoadingUser={isLoading}>
+    <DashboardShell currentUser={me} isLoadingUser={isLoadingUser}>
       <DashboardPageContainer maxWidth="7xl">
         <DashboardPageHeader
           badge="Midia"
-          title="Uploads e Storage"
+          title="Armazenamento"
           description="Consumo real por área com base nos arquivos presentes em disco."
           actions={
             <div className="flex items-center gap-2">
-              {isLoading ? (
-                <Skeleton
-                  className="h-6 w-36 rounded-full"
-                  data-testid="dashboard-uploads-summary-timestamp-loading"
-                />
-              ) : (
-                <Badge className="bg-card/80 text-muted-foreground">
-                  Atualizado: {formatDateTime(summary.generatedAt)}
-                </Badge>
-              )}
+              <Badge className="bg-card/80 text-muted-foreground">
+                Atualizado: {summaryTimestampLabel}
+              </Badge>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => void load()}
-                disabled={isLoading || isCleanupLoading || isCleanupRunning}
+                onClick={() => void load({ background: hasSummaryLoadedOnce || hasCleanupLoadedOnce })}
+                disabled={isAnyRefreshing || isCleanupRunning}
               >
                 Atualizar
               </Button>
@@ -538,97 +692,49 @@ const DashboardUploads = () => {
           ) : null}
 
           {!isForbidden ? (
-            isLoading ? (
-              <div
-                className="grid gap-4 md:grid-cols-3"
-                data-testid="dashboard-uploads-summary-loading"
-                role="status"
-                aria-live="polite"
-                aria-busy="true"
-              >
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <article
-                    key={`dashboard-uploads-summary-loading-${index}`}
-                    className="rounded-2xl border border-border/60 bg-card/60 p-5 animate-slide-up opacity-0"
-                    style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
-                  >
-                    <Skeleton className="h-3 w-16" />
-                    <Skeleton className="mt-3 h-8 w-28" />
-                    <Skeleton className="mt-2 h-3 w-20" />
-                  </article>
-                ))}
-                <span className="sr-only">Carregando resumo de storage...</span>
-              </div>
-            ) : (
+            <div className="space-y-3">
+              {summaryError ? (
+                <Alert className="border-border/60 bg-card/60 text-muted-foreground">
+                  <AlertDescription>
+                    {hasSummaryRetainedError
+                      ? "Nao foi possivel atualizar o resumo agora. Mantendo os ultimos dados visiveis."
+                      : "Nao foi possivel carregar o resumo de storage."}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
               <div
                 className="grid gap-4 md:grid-cols-3"
                 data-testid="dashboard-uploads-summary-grid"
+                aria-busy={showSummaryShell || isSummaryRefreshing ? "true" : "false"}
               >
                 {cards.map((card, index) => (
-                  <article
+                  <UploadsMetricCard
                     key={card.label}
-                    className="rounded-2xl border border-border/60 bg-card/60 p-5 animate-slide-up opacity-0"
-                    style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
-                  >
-                    <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">{card.label}</p>
-                    <p className="mt-3 text-2xl font-semibold text-foreground">{card.value}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{card.files} arquivos</p>
-                  </article>
+                    label={card.label}
+                    value={hasSummaryLoadedOnce ? card.value : "--"}
+                    files={hasSummaryLoadedOnce ? card.files : 0}
+                    loading={showSummaryShell}
+                    delayMs={dashboardClampedStaggerMs(index)}
+                  />
                 ))}
               </div>
-            )
+            </div>
           ) : null}
 
           {!isForbidden ? (
             <article
-              className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 animate-slide-up opacity-0"
+              className="min-h-[22rem] overflow-hidden rounded-2xl border border-border/60 bg-card/60 animate-slide-up opacity-0"
               style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               data-testid="dashboard-uploads-storage-card"
             >
               <div className="border-b border-border/60 px-5 py-4">
-                <h2 className="text-sm font-semibold text-foreground">Consumo por área</h2>
+                <h2 className="text-sm font-semibold text-foreground">Consumo por area</h2>
               </div>
-              {isLoading ? (
-                <div
-                  className="space-y-3 px-5 py-4 animate-slide-up opacity-0"
-                  style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
-                  data-testid="dashboard-uploads-storage-loading"
-                  role="status"
-                  aria-live="polite"
-                  aria-busy="true"
-                >
-                  <Skeleton className="h-4 w-40" />
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <div key={`dashboard-uploads-storage-loading-${index}`} className="grid grid-cols-5 gap-3">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-full" />
-                    </div>
-                  ))}
-                  <span className="sr-only">Carregando dados de storage...</span>
-                </div>
-              ) : hasError ? (
-                <p
-                  className="px-5 py-4 text-sm text-amber-300 animate-slide-up opacity-0"
-                  style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
-                >
-                  Não foi possível carregar os dados de storage.
-                </p>
-              ) : summary.areas.length === 0 ? (
-                <p
-                  className="px-5 py-4 text-sm text-muted-foreground animate-slide-up opacity-0"
-                  style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
-                >
-                  Nenhuma área encontrada no inventário.
-                </p>
-              ) : (
-                <div className="overflow-x-auto">
+              <div className="min-h-[18rem] overflow-x-auto" aria-busy={showSummaryShell || isSummaryRefreshing ? "true" : "false"}>
                   <table className="w-full min-w-[760px] text-sm">
                     <thead className="bg-background/60 text-xs uppercase tracking-[0.12em] text-muted-foreground">
                       <tr>
-                        <th className="px-4 py-3 text-left">Área</th>
+                        <th className="px-4 py-3 text-left">Area</th>
                         <th className="px-4 py-3 text-right">Originais</th>
                         <th className="px-4 py-3 text-right">Variantes</th>
                         <th className="px-4 py-3 text-right">Total</th>
@@ -636,41 +742,54 @@ const DashboardUploads = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {summary.areas.map((area, index) => (
-                        <tr
-                          key={area.area}
-                          className="border-t border-border/50 animate-slide-up opacity-0"
-                          style={dashboardAnimationDelay(
-                            dashboardClampedStaggerMs(
-                              index,
-                              dashboardMotionDelays.sectionLeadMs +
-                                dashboardMotionDelays.sectionStepMs,
-                            ),
-                          )}
-                        >
-                          <td className="px-4 py-3 font-medium text-foreground">{area.area}</td>
-                          <td className="px-4 py-3 text-right text-muted-foreground">
-                            {formatBytes(area.originalBytes)}
+                      {showSummaryShell ? (
+                        Array.from({ length: 4 }).map((_, index) => (
+                          <tr key={`dashboard-uploads-storage-placeholder-${index}`} className="border-t border-border/50">
+                            <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
+                            <td className="px-4 py-3"><Skeleton className="ml-auto h-4 w-20" /></td>
+                            <td className="px-4 py-3"><Skeleton className="ml-auto h-4 w-20" /></td>
+                            <td className="px-4 py-3"><Skeleton className="ml-auto h-4 w-20" /></td>
+                            <td className="px-4 py-3"><Skeleton className="ml-auto h-4 w-12" /></td>
+                          </tr>
+                        ))
+                      ) : hasSummaryBlockingError ? (
+                        <tr className="border-t border-border/50">
+                          <td colSpan={5} className="px-4 py-10 text-sm text-muted-foreground">
+                            Nao foi possivel carregar os dados de storage.
                           </td>
-                          <td className="px-4 py-3 text-right text-muted-foreground">
-                            {formatBytes(area.variantBytes)}
-                          </td>
-                          <td className="px-4 py-3 text-right text-foreground">
-                            {formatBytes(area.totalBytes)}
-                          </td>
-                          <td className="px-4 py-3 text-right text-muted-foreground">{area.totalFiles}</td>
                         </tr>
-                      ))}
+                      ) : summary.areas.length === 0 ? (
+                        <tr className="border-t border-border/50">
+                          <td colSpan={5} className="px-4 py-10 text-sm text-muted-foreground">
+                            Nenhuma area encontrada no inventario.
+                          </td>
+                        </tr>
+                      ) : (
+                        summary.areas.map((area) => (
+                          <tr key={area.area} className="border-t border-border/50">
+                            <td className="px-4 py-3 font-medium text-foreground">{area.area}</td>
+                            <td className="px-4 py-3 text-right text-muted-foreground">
+                              {formatBytes(area.originalBytes)}
+                            </td>
+                            <td className="px-4 py-3 text-right text-muted-foreground">
+                              {formatBytes(area.variantBytes)}
+                            </td>
+                            <td className="px-4 py-3 text-right text-foreground">
+                              {formatBytes(area.totalBytes)}
+                            </td>
+                            <td className="px-4 py-3 text-right text-muted-foreground">{area.totalFiles}</td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
-                </div>
-              )}
+              </div>
             </article>
           ) : null}
 
           {!isForbidden ? (
             <article
-              className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 animate-slide-up opacity-0"
+              className="min-h-[34rem] overflow-hidden rounded-2xl border border-border/60 bg-card/60 animate-slide-up opacity-0"
               style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
               data-testid="dashboard-uploads-cleanup-card"
             >
@@ -683,80 +802,71 @@ const DashboardUploads = () => {
                     Remove uploads sem referência, variantes órfãs e envia originais soltos para _quarantine.
                   </p>
                 </div>
-                {isCleanupLoading ? (
-                  <Skeleton
-                    className="h-6 w-32 rounded-full"
-                    data-testid="dashboard-uploads-cleanup-timestamp-loading"
-                  />
-                ) : (
-                  <Badge className="bg-card/80 text-muted-foreground">
-                    Análise: {formatDateTime(cleanupPreview.generatedAt)}
-                  </Badge>
-                )}
+                <Badge className="bg-card/80 text-muted-foreground">
+                  Analise: {cleanupTimestampLabel}
+                </Badge>
               </div>
 
-              {isCleanupLoading ? (
+              {cleanupError ? (
+                <Alert className="rounded-none border-x-0 border-t-0 border-b border-border/60 bg-background/50 text-muted-foreground">
+                  <AlertDescription>
+                    {hasCleanupRetainedError
+                      ? "Nao foi possivel atualizar a analise agora. Mantendo os ultimos dados visiveis."
+                      : "Nao foi possivel analisar o armazenamento nao utilizado."}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              {showCleanupShell ? (
                 <div
-                  className="space-y-4 px-5 py-4 animate-slide-up opacity-0"
-                  style={dashboardAnimationDelay(
-                    dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
-                  )}
-                  data-testid="dashboard-uploads-cleanup-loading"
-                  role="status"
-                  aria-live="polite"
+                  className="space-y-4 px-5 py-4"
+                  data-testid="dashboard-uploads-cleanup-pending"
                   aria-busy="true"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-36" />
-                      <Skeleton className="h-4 w-44" />
-                      <Skeleton className="h-4 w-40" />
-                      <Skeleton className="h-4 w-32" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-foreground">Analise de limpeza em andamento</p>
+                      <p className="text-sm text-muted-foreground">-- arquivos de variante orfaos</p>
+                      <p className="text-sm text-muted-foreground">-- diretorios de variantes orfaos</p>
+                      <p className="text-sm text-muted-foreground">-- originais soltos (quarentena)</p>
+                      <p className="text-sm text-muted-foreground">-- arquivos de quarentena vencidos para purga</p>
+                      <p className="text-sm text-muted-foreground">-- recuperaveis no total</p>
+                      <p className="text-xs text-muted-foreground">-- em originais e -- em variantes.</p>
+                      <p className="text-xs text-muted-foreground">
+                        -- em originais soltos e -- em purga pendente da quarentena.
+                      </p>
                     </div>
-                    <Skeleton className="h-9 w-56" />
+                    <Button size="sm" variant="destructive" disabled>
+                      {CLEANUP_ACTION_LABEL}
+                    </Button>
                   </div>
-                  <div className="space-y-3">
-                    {Array.from({ length: 3 }).map((_, index) => (
-                      <div
-                        key={`dashboard-uploads-cleanup-loading-${index}`}
-                        className="grid grid-cols-[1fr_1.6fr_1fr_1fr_1fr] gap-3"
-                      >
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-full" />
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[820px] text-sm">
+                      <thead className="bg-background/60 text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                        <tr>
+                          <th className="px-4 py-3 text-left">Tipo</th>
+                          <th className="px-4 py-3 text-left">Arquivo</th>
+                          <th className="px-4 py-3 text-left">Area</th>
+                          <th className="px-4 py-3 text-left">Criado em</th>
+                          <th className="px-4 py-3 text-right">Recuperavel</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Array.from({ length: 3 }).map((_, index) => (
+                          <tr key={`dashboard-uploads-cleanup-placeholder-${index}`} className="border-t border-border/50">
+                            <td className="px-4 py-3 text-muted-foreground">Aguardando analise</td>
+                            <td className="px-4 py-3"><Skeleton className="h-4 w-40" /></td>
+                            <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                            <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+                            <td className="px-4 py-3"><Skeleton className="ml-auto h-4 w-20" /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  <span className="sr-only">Analisando armazenamento não utilizado...</span>
                 </div>
-              ) : hasCleanupError ? (
-                <p
-                  className="px-5 py-4 text-sm text-amber-300 animate-slide-up opacity-0"
-                  style={dashboardAnimationDelay(
-                    dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
-                  )}
-                >
-                  Não foi possível analisar o armazenamento não utilizado.
-                </p>
-              ) : !hasCleanupCandidates ? (
-                <p
-                  className="px-5 py-4 text-sm text-muted-foreground animate-slide-up opacity-0"
-                  style={dashboardAnimationDelay(
-                    dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
-                  )}
-                >
-                  Nenhum arquivo elegível para limpeza.
-                </p>
               ) : (
                 <div className="space-y-4 px-5 py-4">
-                  <div
-                    className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0"
-                    style={dashboardAnimationDelay(
-                      dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
-                    )}
-                  >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-foreground">
                         {cleanupPreview.unusedUploadCount} uploads sem uso
@@ -789,7 +899,7 @@ const DashboardUploads = () => {
                     <Button
                       size="sm"
                       variant="destructive"
-                      disabled={isCleanupRunning}
+                      disabled={isCleanupRunning || hasCleanupBlockingError || !hasCleanupCandidates}
                       onClick={() => setIsCleanupConfirmOpen(true)}
                     >
                       {isCleanupRunning ? "Limpando..." : CLEANUP_ACTION_LABEL}
@@ -803,23 +913,16 @@ const DashboardUploads = () => {
                           <tr>
                             <th className="px-4 py-3 text-left">Tipo</th>
                             <th className="px-4 py-3 text-left">Arquivo</th>
-                            <th className="px-4 py-3 text-left">Área</th>
+                            <th className="px-4 py-3 text-left">Area</th>
                             <th className="px-4 py-3 text-left">Criado em</th>
-                            <th className="px-4 py-3 text-right">Recuperável</th>
+                            <th className="px-4 py-3 text-right">Recuperavel</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {cleanupPreview.examples.map((item, index) => (
+                          {cleanupPreview.examples.map((item) => (
                             <tr
                               key={`${item.kind}:${item.id || item.url}`}
-                              className="border-t border-border/50 animate-slide-up opacity-0"
-                              style={dashboardAnimationDelay(
-                                dashboardClampedStaggerMs(
-                                  index,
-                                  dashboardMotionDelays.sectionLeadMs +
-                                    dashboardMotionDelays.sectionStepMs * 2,
-                                ),
-                              )}
+                              className="border-t border-border/50"
                             >
                               <td className="px-4 py-3 text-muted-foreground">
                                 {item.scope === "loose_original"
@@ -842,7 +945,13 @@ const DashboardUploads = () => {
                         </tbody>
                       </table>
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-6 text-sm text-muted-foreground">
+                      {hasCleanupBlockingError
+                        ? "A analise de limpeza ainda nao esta disponivel."
+                        : "Nenhum arquivo elegivel para limpeza."}
+                    </div>
+                  )}
                 </div>
               )}
             </article>

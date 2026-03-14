@@ -190,7 +190,7 @@ describe("DashboardProjectsEditor image library context", () => {
     expect(projectCardButtons[0]).not.toHaveAttribute("tabindex", "-1");
   });
 
-  it("passa contexto por projeto para biblioteca e editor de episodio", async () => {
+  it("passa contexto por projeto e leva light novel ao editor dedicado", async () => {
     setupApiMock();
 
     render(
@@ -234,52 +234,12 @@ describe("DashboardProjectsEditor image library context", () => {
     expect(imageLibraryProps.includeProjectImages).toBe(true);
     expect(imageLibraryProps.projectImageProjectIds).toEqual(["project-1"]);
     expect(imageLibraryProps.projectImagesView).toBe("by-project");
-
-    const episodesSectionTrigger = await screen.findByText(/Conte.do/i);
-    fireEvent.click(episodesSectionTrigger);
-    const volumeGroup = await screen.findByTestId("volume-group-none");
-    const volumeGroupTrigger = volumeGroup.querySelector("button");
-    expect(volumeGroupTrigger).toBeTruthy();
-    fireEvent.click(volumeGroupTrigger as HTMLButtonElement);
-
-    const episodeCard = await screen.findByTestId("episode-card-0");
-    const episodeToggleButton = episodeCard.querySelector("button");
-    expect(episodeToggleButton).toBeTruthy();
-    fireEvent.click(episodeToggleButton as HTMLButtonElement);
-
-    await waitFor(() => {
-      expect(lexicalPropsSpy).toHaveBeenCalled();
-    });
-
-    const lexicalWithEpisodeContext = lexicalPropsSpy.mock.calls
-      .map(
-        (call) =>
-          call[0] as {
-            autoFocus?: boolean;
-            imageLibraryOptions?: { uploadFolder?: string; listFolders?: string[]; listAll?: boolean };
-          },
-      )
-      .find(
-        (props) =>
-          props.imageLibraryOptions?.uploadFolder ===
-          "projects/project-1/capitulos/volume-sem-volume/capitulo-1",
-      );
-
-    expect(lexicalWithEpisodeContext).toBeTruthy();
-    expect(lexicalWithEpisodeContext?.autoFocus).toBe(false);
-    expect(lexicalWithEpisodeContext?.imageLibraryOptions).toEqual({
-      uploadFolder: "projects/project-1/capitulos/volume-sem-volume/capitulo-1",
-      listFolders: [
-        "projects/project-1/capitulos/volume-sem-volume/capitulo-1",
-        "projects/project-1/capitulos",
-        "projects/project-1/episodes",
-        "projects/project-1",
-      ],
-      listAll: false,
-      includeProjectImages: true,
-      projectImageProjectIds: ["project-1"],
-      projectImagesView: "by-project",
-    });
+    expect(screen.queryByTestId("volume-group-none")).not.toBeInTheDocument();
+    expect(lexicalPropsSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: /Conte.do/i })).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/project-1/capitulos",
+    );
   });
 
   it("aplica pasta de capitulo tambem para manga na biblioteca da capa", async () => {

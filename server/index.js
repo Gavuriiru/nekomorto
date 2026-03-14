@@ -220,6 +220,10 @@ import {
   resolveUploadVariantPresetKeysForArea,
 } from "./lib/upload-media.js";
 import { buildDiskStorageAreaSummary, runUploadsCleanup } from "./lib/uploads-cleanup.js";
+import {
+  invalidateUploadsCleanupPreviewCache,
+  loadCachedUploadsCleanupPreview,
+} from "./lib/uploads-cleanup-preview-cache.js";
 import { createUploadsDeliveryMiddleware } from "./lib/uploads-delivery.js";
 import {
   createUploadStorageService,
@@ -8255,7 +8259,7 @@ app.get("/api/audit-log", requireAuth, (req, res) => {
   const dateFromTs = dateFromRaw ? parseAuditTs(dateFromRaw) : null;
   const dateToTs = dateToRaw ? parseAuditTs(dateToRaw) : null;
 
-  let entries = loadAuditLog().map(normalizeAuditEntry);
+  let entries = loadAuditLog();
   entries = entries.filter((entry) => isAuditActionEnabled(entry.action));
   if (action) {
     entries = entries.filter((entry) => entry.action === action);
@@ -8452,7 +8456,7 @@ const buildExportRowsByDataset = ({ dataset, filters }) => {
   const normalizedFilters = normalizeExportFilters(filters);
 
   if (normalizedDataset === "audit_log") {
-    let rows = loadAuditLog().map((entry) => normalizeAuditEntry(entry));
+    let rows = loadAuditLog();
     rows = filterByDateRange(rows, {
       dateFrom: normalizedFilters.dateFrom,
       dateTo: normalizedFilters.dateTo,
@@ -14646,13 +14650,15 @@ app.get("/api/uploads/storage/cleanup", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "forbidden" });
   }
 
-  const report = await runUploadsCleanup({
-    datasets: loadUploadsCleanupDatasets(),
-    uploadsDir: path.join(__dirname, "..", "public", "uploads"),
-    applyChanges: false,
-    exampleLimit: 8,
-    storageService: uploadStorageService,
-  });
+  const report = await loadCachedUploadsCleanupPreview(async () =>
+    runUploadsCleanup({
+      datasets: loadUploadsCleanupDatasets(),
+      uploadsDir: path.join(__dirname, "..", "public", "uploads"),
+      applyChanges: false,
+      exampleLimit: 8,
+      storageService: uploadStorageService,
+    }),
+  );
 
   return res.json({
     generatedAt: report.generatedAt,
@@ -14681,6 +14687,7 @@ app.post("/api/uploads/storage/cleanup", requireAuth, async (req, res) => {
   }
 
   try {
+    invalidateUploadsCleanupPreviewCache();
     const report = await runUploadsCleanup({
       datasets: loadUploadsCleanupDatasets(),
       uploadsDir: path.join(__dirname, "..", "public", "uploads"),
@@ -14707,6 +14714,7 @@ app.post("/api/uploads/storage/cleanup", requireAuth, async (req, res) => {
       purgedQuarantineBytes: Number(report.purgedQuarantineTotals?.totalBytes || 0),
       failures: report.failures,
     });
+    invalidateUploadsCleanupPreviewCache();
 
     return res.json({
       ok: report.failedCount === 0,

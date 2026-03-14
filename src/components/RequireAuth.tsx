@@ -9,6 +9,7 @@ import {
   resolveAccessRole,
   resolveGrants,
 } from "@/lib/access-control";
+import { useDashboardSession } from "@/hooks/use-dashboard-session";
 import { toast } from "@/components/ui/use-toast";
 
 type RequireAuthProps = {
@@ -20,8 +21,52 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
   const location = useLocation();
   const [isChecking, setIsChecking] = useState(true);
   const apiBase = getApiBase();
+  const dashboardSession = useDashboardSession();
 
   useEffect(() => {
+    if (dashboardSession.hasProvider) {
+      if (!dashboardSession.hasResolved) {
+        setIsChecking(true);
+        return;
+      }
+
+      const user = dashboardSession.currentUser;
+      if (!user) {
+        const next = encodeURIComponent(`${location.pathname}${location.search || ""}`);
+        navigate(`/login?next=${next}`);
+        return;
+      }
+
+      const grants = resolveGrants(user || null);
+      const accessRole = resolveAccessRole(user || null);
+      const isOwner =
+        accessRole === "owner_primary" || accessRole === "owner_secondary";
+      if (location.pathname.startsWith("/dashboard/seguranca") && !isOwner) {
+        const target = getFirstAllowedDashboardRoute(grants);
+        toast({
+          title: "Acesso negado",
+          description: "A area de seguranca e restrita aos donos.",
+        });
+        navigate(target, { replace: true });
+        return;
+      }
+      if (
+        isFrontendRbacV2Enabled &&
+        location.pathname.startsWith("/dashboard") &&
+        !isDashboardPathAllowed(location.pathname, grants)
+      ) {
+        const target = getFirstAllowedDashboardRoute(grants);
+        toast({
+          title: "Acesso negado",
+          description: "VocÃª foi redirecionado para uma Ã¡rea permitida do painel.",
+        });
+        navigate(target, { replace: true });
+        return;
+      }
+      setIsChecking(false);
+      return;
+    }
+
     let isActive = true;
     const checkAuth = async () => {
       try {
@@ -71,7 +116,15 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, location.pathname, location.search, navigate]);
+  }, [
+    apiBase,
+    dashboardSession.currentUser,
+    dashboardSession.hasProvider,
+    dashboardSession.hasResolved,
+    location.pathname,
+    location.search,
+    navigate,
+  ]);
 
   if (isChecking) {
     return (

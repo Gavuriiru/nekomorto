@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
@@ -6,6 +6,7 @@ import {
   dashboardAnimationDelay,
   dashboardMotionDelays,
 } from "@/components/dashboard/dashboard-motion";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,8 @@ import {
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
+import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { toast } from "@/components/ui/use-toast";
 
@@ -253,25 +256,92 @@ const formatMetaValue = (value: unknown) => {
   }
 };
 
+const AUDIT_CACHE_TTL_MS = 60_000;
+const AUDIT_CACHE_MAX_ENTRIES = 10;
+
+type AuditCacheEntry = {
+  entries: AuditEntry[];
+  total: number;
+  expiresAt: number;
+};
+
+const auditResultsCache = new Map<string, AuditCacheEntry>();
+
+const buildAuditQueryKey = (searchParams: URLSearchParams) => {
+  const params = new URLSearchParams();
+  const page = String(parsePage(searchParams.get("page")));
+  const limit = String(parseLimit(searchParams.get("limit")));
+  params.set("page", page);
+  params.set("limit", limit);
+  const keysInOrder = ["q", "action", "resource", "actorId", "status", "dateFrom", "dateTo"];
+  for (const key of keysInOrder) {
+    const value = String(searchParams.get(key) || "").trim();
+    if (!value) {
+      continue;
+    }
+    params.set(key, value);
+  }
+  return params.toString();
+};
+
+const readAuditCache = (key: string) => {
+  const cached = auditResultsCache.get(key);
+  if (!cached) {
+    return null;
+  }
+  if (cached.expiresAt <= Date.now()) {
+    auditResultsCache.delete(key);
+    return null;
+  }
+  auditResultsCache.delete(key);
+  auditResultsCache.set(key, cached);
+  return {
+    entries: [...cached.entries],
+    total: cached.total,
+  };
+};
+
+const writeAuditCache = (key: string, value: { entries: AuditEntry[]; total: number }) => {
+  auditResultsCache.delete(key);
+  auditResultsCache.set(key, {
+    entries: [...value.entries],
+    total: value.total,
+    expiresAt: Date.now() + AUDIT_CACHE_TTL_MS,
+  });
+  while (auditResultsCache.size > AUDIT_CACHE_MAX_ENTRIES) {
+    const firstKey = auditResultsCache.keys().next().value;
+    if (!firstKey) {
+      break;
+    }
+    auditResultsCache.delete(firstKey);
+  }
+};
+
+export const __testing = {
+  clearAuditResultsCache: () => {
+    auditResultsCache.clear();
+  },
+};
+
 const DashboardAuditLog = () => {
   usePageMeta({ title: "Auditoria", noIndex: true });
   const navigate = useNavigate();
   const apiBase = getApiBase();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [entries, setEntries] = useState<AuditEntry[]>([]);
-  const [total, setTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const initialQueryKeyRef = useRef(buildAuditQueryKey(new URLSearchParams(searchParams)));
+  const initialCacheRef = useRef(readAuditCache(initialQueryKeyRef.current));
+  const [entries, setEntries] = useState<AuditEntry[]>(initialCacheRef.current?.entries ?? []);
+  const [total, setTotal] = useState(initialCacheRef.current?.total ?? 0);
+  const [isInitialLoading, setIsInitialLoading] = useState(!initialCacheRef.current);
+  const [isRefreshing, setIsRefreshing] = useState(Boolean(initialCacheRef.current));
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(Boolean(initialCacheRef.current));
   const [error, setError] = useState("");
   const [forbidden, setForbidden] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null);
-  const [currentUser, setCurrentUser] = useState<{
-    id: string;
-    name: string;
-    username: string;
-    avatarUrl?: string | null;
-  } | null>(null);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const { currentUser, isLoadingUser } = useDashboardCurrentUser();
+  const requestIdRef = useRef(0);
+  const hasLoadedOnceRef = useRef(hasLoadedOnce);
 
   const [form, setForm] = useState<FilterForm>({
     q: "",
@@ -286,6 +356,10 @@ const DashboardAuditLog = () => {
 
   const page = parsePage(searchParams.get("page"));
   const limit = parseLimit(searchParams.get("limit"));
+  const queryKey = useMemo(
+    () => buildAuditQueryKey(new URLSearchParams(searchParams)),
+    [searchParams],
+  );
   const totalPages = Math.max(1, Math.ceil(total / Math.max(limit, 1)));
   const dateFromParts = parseLocalDateTimeValue(form.dateFrom);
   const dateToParts = parseLocalDateTimeValue(form.dateTo);
@@ -324,6 +398,10 @@ const DashboardAuditLog = () => {
   };
 
   useEffect(() => {
+    hasLoadedOnceRef.current = hasLoadedOnce;
+  }, [hasLoadedOnce]);
+
+  useEffect(() => {
     setForm({
       q: searchParams.get("q") || "",
       action: searchParams.get("action") || "",
@@ -337,31 +415,23 @@ const DashboardAuditLog = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/me", { auth: true });
-        if (!response.ok) {
-          setCurrentUser(null);
-          return;
-        }
-        const data = await response.json();
-        setCurrentUser(data);
-      } catch {
-        setCurrentUser(null);
-      } finally {
-        setIsLoadingUser(false);
-      }
-    };
-
-    loadUser();
-  }, [apiBase]);
-
-  useEffect(() => {
-    let isMounted = true;
+    const cached = readAuditCache(queryKey);
+    if (cached) {
+      setEntries(cached.entries);
+      setTotal(cached.total);
+      setHasLoadedOnce(true);
+      setIsInitialLoading(false);
+    }
     const load = async () => {
-      setIsLoading(true);
+      const background = hasLoadedOnceRef.current || Boolean(cached);
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
+      if (background) {
+        setIsRefreshing(true);
+      } else {
+        setIsInitialLoading(true);
+      }
       setError("");
-      setForbidden(false);
       try {
         const params = new URLSearchParams(searchParams);
         if (!params.get("page")) {
@@ -373,42 +443,42 @@ const DashboardAuditLog = () => {
         const response = await apiFetch(apiBase, `/api/audit-log?${params.toString()}`, {
           auth: true,
         });
-        if (!isMounted) {
+        if (requestIdRef.current !== requestId) {
           return;
         }
         if (response.status === 403) {
           setForbidden(true);
-          setEntries([]);
-          setTotal(0);
           return;
         }
         if (!response.ok) {
           setError("Não foi possível carregar o audit log.");
-          setEntries([]);
-          setTotal(0);
           return;
         }
         const data = (await response.json()) as AuditListResponse;
-        setEntries(Array.isArray(data.entries) ? data.entries : []);
-        setTotal(Number.isFinite(data.total) ? Number(data.total) : 0);
+        const nextEntries = Array.isArray(data.entries) ? data.entries : [];
+        const nextTotal = Number.isFinite(data.total) ? Number(data.total) : 0;
+        setForbidden(false);
+        setEntries(nextEntries);
+        setTotal(nextTotal);
+        setHasLoadedOnce(true);
+        writeAuditCache(queryKey, {
+          entries: nextEntries,
+          total: nextTotal,
+        });
       } catch {
-        if (!isMounted) {
+        if (requestIdRef.current !== requestId) {
           return;
         }
         setError("Erro de conexão ao carregar o audit log.");
-        setEntries([]);
-        setTotal(0);
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
+        if (requestIdRef.current === requestId) {
+          setIsInitialLoading(false);
+          setIsRefreshing(false);
         }
       }
     };
     void load();
-    return () => {
-      isMounted = false;
-    };
-  }, [apiBase, refreshTick, searchParams]);
+  }, [apiBase, queryKey, refreshTick, searchParams]);
 
   const statusBadgeVariant = (status: AuditStatus) => {
     if (status === "failed") {
@@ -527,6 +597,14 @@ const DashboardAuditLog = () => {
       setIsExporting(false);
     }
   };
+  const hasBlockingError = !hasLoadedOnce && Boolean(error);
+  const hasRetainedError = hasLoadedOnce && Boolean(error);
+
+  useDashboardRefreshToast({
+    active: isRefreshing && hasLoadedOnce,
+    title: "Atualizando resultados",
+    description: "Buscando os eventos mais recentes do audit log.",
+  });
 
   return (
     <>
@@ -564,7 +642,11 @@ const DashboardAuditLog = () => {
                 >
                   {isExporting ? "Exportando..." : "Exportar CSV"}
                 </Button>
-                <Button variant="outline" onClick={() => setRefreshTick((value) => value + 1)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setRefreshTick((value) => value + 1)}
+                  disabled={isRefreshing}
+                >
                   Atualizar
                 </Button>
               </div>
@@ -702,19 +784,24 @@ const DashboardAuditLog = () => {
                 dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
               )}
             >
+              {hasRetainedError ? (
+                <Alert className="mb-3 border-border/60 bg-background/50 text-muted-foreground">
+                  <AlertDescription>Mantendo os ultimos resultados carregados.</AlertDescription>
+                </Alert>
+              ) : null}
               {forbidden ? (
                 <AsyncState
                   kind="error"
                   title="Acesso negado"
                   description="Apenas o dono pode visualizar o audit log."
                 />
-              ) : isLoading ? (
+              ) : isInitialLoading ? (
                 <AsyncState
                   kind="loading"
                   title="Carregando auditoria"
                   description="Buscando eventos mais recentes."
                 />
-              ) : error ? (
+              ) : hasBlockingError ? (
                 <AsyncState
                   kind="error"
                   title="Não foi possível carregar o audit log"
@@ -794,7 +881,7 @@ const DashboardAuditLog = () => {
               )}
             </div>
 
-            {!forbidden && !error && !isLoading ? (
+            {!forbidden && !hasBlockingError && !isInitialLoading ? (
               <div
                 className="mt-4 flex items-center justify-between gap-3 animate-slide-up opacity-0"
                 style={dashboardAnimationDelay(
@@ -809,7 +896,7 @@ const DashboardAuditLog = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => goToPage(page - 1)}
-                    disabled={page <= 1 || isLoading}
+                    disabled={page <= 1 || isRefreshing}
                   >
                     Anterior
                   </Button>
@@ -817,7 +904,7 @@ const DashboardAuditLog = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => goToPage(page + 1)}
-                    disabled={page >= totalPages || isLoading}
+                    disabled={page >= totalPages || isRefreshing}
                   >
                     Próxima
                   </Button>

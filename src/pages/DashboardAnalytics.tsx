@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
-import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import DashboardShell from "@/components/DashboardShell";
 import {
   dashboardAnimationDelay,
@@ -31,6 +31,7 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { uiCopy } from "@/lib/ui-copy";
 
@@ -173,34 +174,7 @@ const DashboardAnalytics = () => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [reloadTick, setReloadTick] = useState(0);
-
-  const [currentUser, setCurrentUser] = useState<{
-    id: string;
-    name: string;
-    username: string;
-    avatarUrl?: string | null;
-  } | null>(null);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
-
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/me", { auth: true });
-        if (!response.ok) {
-          setCurrentUser(null);
-          return;
-        }
-        const data = await response.json();
-        setCurrentUser(data);
-      } catch {
-        setCurrentUser(null);
-      } finally {
-        setIsLoadingUser(false);
-      }
-    };
-
-    void loadUser();
-  }, [apiBase]);
+  const { currentUser, isLoadingUser } = useDashboardCurrentUser();
 
   useEffect(() => {
     let isActive = true;
@@ -348,68 +322,58 @@ const DashboardAnalytics = () => {
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
       <DashboardPageContainer>
-        <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <DashboardPageBadge>{uiCopy.navigation.analytics}</DashboardPageBadge>
-            <h1 className="mt-3 animate-slide-up text-3xl font-semibold lg:text-4xl">
-              Performance e aquisição
-            </h1>
-            <p
-              className="mt-2 animate-slide-up text-sm text-muted-foreground opacity-0"
-              style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
-            >
-              Foco em consumo de conteúdo, retenção e tendências de audiência.
-            </p>
-          </div>
-          <div
-            className="flex flex-col gap-3 animate-slide-up opacity-0 lg:flex-row lg:items-center"
-            style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
-          >
-            <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
-              <Select value={range} onValueChange={(value) => setRangeFilter(value as RangeValue)}>
-                <SelectTrigger className="w-[130px]">
-                  <SelectValue placeholder="Período" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7d">7 dias</SelectItem>
-                  <SelectItem value="30d">30 dias</SelectItem>
-                  <SelectItem value="90d">90 dias</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={type} onValueChange={(value) => setTypeFilter(value as TypeValue)}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="post">Posts</SelectItem>
-                  <SelectItem value="project">Projetos</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select
-                value={metric}
-                onValueChange={(value) => setMetricFilter(value as MetricValue)}
+        <DashboardPageHeader
+          badge={uiCopy.navigation.analytics}
+          title="Performance e aquisição"
+          description="Foco em consumo de conteúdo, retenção e tendências de audiência."
+          actions={
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
+                <Select value={range} onValueChange={(value) => setRangeFilter(value as RangeValue)}>
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue placeholder="Período" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7d">7 dias</SelectItem>
+                    <SelectItem value="30d">30 dias</SelectItem>
+                    <SelectItem value="90d">90 dias</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={type} onValueChange={(value) => setTypeFilter(value as TypeValue)}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="post">Posts</SelectItem>
+                    <SelectItem value="project">Projetos</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={metric}
+                  onValueChange={(value) => setMetricFilter(value as MetricValue)}
+                >
+                  <SelectTrigger className="w-[210px]">
+                    <SelectValue placeholder="Métrica do gráfico" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="views">Views</SelectItem>
+                    <SelectItem value="unique_views">Views únicas</SelectItem>
+                    <SelectItem value="chapter_views">Leituras de capítulos</SelectItem>
+                    <SelectItem value="download_clicks">Cliques em downloads</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                className="self-start lg:ml-auto lg:self-auto"
+                variant="outline"
+                onClick={exportCsv}
               >
-                <SelectTrigger className="w-[210px]">
-                  <SelectValue placeholder="Métrica do gráfico" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="views">Views</SelectItem>
-                  <SelectItem value="unique_views">Views únicas</SelectItem>
-                  <SelectItem value="chapter_views">Leituras de capítulos</SelectItem>
-                  <SelectItem value="download_clicks">Cliques em downloads</SelectItem>
-                </SelectContent>
-              </Select>
+                Exportar
+              </Button>
             </div>
-            <Button
-              className="self-start lg:ml-auto lg:self-auto"
-              variant="outline"
-              onClick={exportCsv}
-            >
-              Exportar
-            </Button>
-          </div>
-        </header>
+          }
+        />
 
         {isLoading ? (
           <AsyncState

@@ -56,11 +56,13 @@ const toast = (payload: ToastPayload) => {
   return sonnerToast(message, options);
 };
 
+const dismissToast = (toastId?: string | number) => sonnerToast.dismiss(toastId);
+
 const useToast = () => ({
   toast,
-  dismiss: (toastId?: string | number) => sonnerToast.dismiss(toastId),
+  dismiss: dismissToast,
   toasts: [],
 });
 
-export { useToast, toast };
+export { useToast, toast, dismissToast };
 export type { ToastIntent, ToastPayload, ToastVariant };

@@ -32,6 +32,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import type { Project, ProjectEpisode, ProjectVolumeCover, ProjectVolumeEntry } from "@/data/projects";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -2747,8 +2748,8 @@ const DashboardProjectChapterEditor = () => {
   const navigate = useNavigate();
   const { projectId, chapterNumber } = useParams<{ projectId: string; chapterNumber?: string }>();
   const [searchParams] = useSearchParams();
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [hasLoadedCurrentUser, setHasLoadedCurrentUser] = useState(false);
+  const { currentUser, isLoadingUser } = useDashboardCurrentUser<CurrentUser>();
+  const hasLoadedCurrentUser = !isLoadingUser;
   const [project, setProject] = useState<ProjectRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadError, setHasLoadError] = useState(false);
@@ -2886,41 +2887,6 @@ const DashboardProjectChapterEditor = () => {
   const parsedVolume = Number(volumeParam);
   const resolvedVolume =
     volumeParam !== null && Number.isFinite(parsedVolume) ? parsedVolume : undefined;
-
-  useEffect(() => {
-    let isMounted = true;
-    const loadCurrentUser = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/me", { auth: true });
-        if (!response.ok) {
-          if (isMounted) {
-            setCurrentUser(null);
-          }
-          return;
-        }
-        const data = await response.json();
-        const nextUser =
-          data && typeof data === "object" && "user" in data
-            ? (data.user as CurrentUser | null | undefined)
-            : (data as CurrentUser | null | undefined);
-        if (isMounted) {
-          setCurrentUser(nextUser ?? null);
-        }
-      } catch {
-        if (isMounted) {
-          setCurrentUser(null);
-        }
-      } finally {
-        if (isMounted) {
-          setHasLoadedCurrentUser(true);
-        }
-      }
-    };
-    void loadCurrentUser();
-    return () => {
-      isMounted = false;
-    };
-  }, [apiBase]);
 
   useEffect(() => {
     let isActive = true;

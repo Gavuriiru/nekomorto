@@ -63,6 +63,7 @@ import {
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
@@ -412,7 +413,7 @@ const DashboardUsers = () => {
   );
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [ownerIds, setOwnerIds] = useState<string[]>([]);
-  const [currentUser, setCurrentUser] = useState<{
+  const { currentUser, isLoadingUser, setCurrentUser } = useDashboardCurrentUser<{
     id: string;
     name: string;
     username: string;
@@ -423,7 +424,7 @@ const DashboardUsers = () => {
     permissions?: string[];
     ownerIds?: string[];
     primaryOwnerId?: string | null;
-  } | null>(null);
+  }>();
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadError, setHasLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
@@ -667,9 +668,8 @@ const DashboardUsers = () => {
       try {
         setIsLoading(true);
         setHasLoadError(false);
-        const [usersRes, meRes, linkTypesRes] = await Promise.all([
+        const [usersRes, linkTypesRes] = await Promise.all([
           apiFetch(apiBase, "/api/users", { auth: true }),
-          apiFetch(apiBase, "/api/me", { auth: true }),
           apiFetch(apiBase, "/api/link-types"),
         ]);
 
@@ -679,13 +679,6 @@ const DashboardUsers = () => {
         const data = await usersRes.json();
         setUsers(data.users || []);
         setOwnerIds(Array.isArray(data.ownerIds) ? data.ownerIds : []);
-
-        if (meRes.ok) {
-          const me = await meRes.json();
-          setCurrentUser(me);
-        } else {
-          setCurrentUser(null);
-        }
 
         if (linkTypesRes.ok) {
           const linkTypePayload = await linkTypesRes.json();
@@ -1406,7 +1399,7 @@ const DashboardUsers = () => {
     <>
       <DashboardShell
         currentUser={currentUser}
-        isLoadingUser={isLoading}
+        isLoadingUser={isLoadingUser}
         onUserCardClick={
           currentUserRecord ? () => handleUserCardClick(currentUserRecord) : undefined
         }

@@ -2,10 +2,11 @@ import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import DashboardUploads from "@/pages/DashboardUploads";
+import DashboardUploads, { __testing } from "@/pages/DashboardUploads";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
+const dismissToastMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -25,6 +26,7 @@ vi.mock("@/lib/api-client", () => ({
 
 vi.mock("@/components/ui/use-toast", () => ({
   toast: (...args: unknown[]) => toastMock(...args),
+  dismissToast: (...args: unknown[]) => dismissToastMock(...args),
 }));
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
@@ -33,6 +35,19 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     status,
     json: async () => payload,
   }) as Response;
+
+const createDeferredResponse = () => {
+  let resolve: ((value: Response) => void) | null = null;
+  const promise = new Promise<Response>((res) => {
+    resolve = res;
+  });
+  return {
+    promise,
+    resolve: (value: Response) => {
+      resolve?.(value);
+    },
+  };
+};
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
@@ -275,31 +290,122 @@ const setupApi = (options?: {
 
 describe("DashboardUploads cleanup", () => {
   beforeEach(() => {
+    __testing.clearUploadsCaches();
     apiFetchMock.mockReset();
     toastMock.mockReset();
+    toastMock.mockReturnValue("dashboard-uploads-refresh-toast");
+    dismissToastMock.mockReset();
   });
 
-  it("mostra skeletons e esconde contadores derivados do estado vazio enquanto carrega", () => {
+  it("mantem o shell final visivel enquanto carrega as secoes", () => {
     apiFetchMock.mockImplementation(async () => new Promise<Response>(() => undefined));
 
     render(<DashboardUploads />);
 
-    expect(screen.getByTestId("dashboard-uploads-summary-loading")).toBeInTheDocument();
-    expect(screen.getByTestId("dashboard-uploads-storage-loading")).toBeInTheDocument();
-    expect(screen.getByTestId("dashboard-uploads-cleanup-loading")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-uploads-summary-grid")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-uploads-storage-card")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-uploads-cleanup-card")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-uploads-cleanup-pending")).toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-uploads-status-bar")).not.toBeInTheDocument();
     const summaryLoadingCards = screen
-      .getByTestId("dashboard-uploads-summary-loading")
+      .getByTestId("dashboard-uploads-summary-grid")
       .querySelectorAll("article");
     expect(summaryLoadingCards.length).toBeGreaterThan(0);
     expect(classTokens(summaryLoadingCards[0] as HTMLElement)).toContain("animate-slide-up");
-    expect(classTokens(screen.getByTestId("dashboard-uploads-storage-loading"))).toContain(
+    expect(classTokens(screen.getByTestId("dashboard-uploads-storage-card"))).toContain(
       "animate-slide-up",
     );
-    expect(classTokens(screen.getByTestId("dashboard-uploads-cleanup-loading"))).toContain(
+    expect(classTokens(screen.getByTestId("dashboard-uploads-cleanup-card"))).toContain(
       "animate-slide-up",
     );
-    expect(screen.queryByText(/Atualizado:/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Análise:/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: CLEANUP_ACTION_LABEL })).toBeDisabled();
+    expect(screen.getByText(/Atualizado:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Analise:/i)).toBeInTheDocument();
+    expect(toastMock).not.toHaveBeenCalled();
+  });
+
+  it("libera o resumo assim que ele resolve sem esperar o preview de limpeza", async () => {
+    const summaryDeferred = createDeferredResponse();
+    const cleanupDeferred = createDeferredResponse();
+
+    apiFetchMock.mockImplementation(async (_base: string, endpoint: string, request?: RequestInit) => {
+      const method = String(request?.method || "GET").toUpperCase();
+      if (endpoint === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, { id: "u-admin", name: "Admin", username: "admin" });
+      }
+      if (endpoint === "/api/uploads/storage/areas" && method === "GET") {
+        return summaryDeferred.promise;
+      }
+      if (endpoint === "/api/uploads/storage/cleanup" && method === "GET") {
+        return cleanupDeferred.promise;
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(<DashboardUploads />);
+
+    summaryDeferred.resolve(mockJsonResponse(true, baseSummary));
+
+    await waitFor(() => {
+      expect(
+        within(screen.getByTestId("dashboard-uploads-summary-grid")).getByText("2.44 KB"),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("dashboard-uploads-storage-card")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-uploads-cleanup-pending")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: CLEANUP_ACTION_LABEL })).toBeDisabled();
+
+    cleanupDeferred.resolve(mockJsonResponse(true, cleanupPreviewWithItems));
+    expect(await screen.findByText("2 uploads sem uso")).toBeInTheDocument();
+  });
+
+  it("reabre com cache quente e usa toast no refresh sem recolocar a faixa global", async () => {
+    setupApi();
+
+    const firstRender = render(<DashboardUploads />);
+    await screen.findByText("2 uploads sem uso");
+    firstRender.unmount();
+
+    const summaryDeferred = createDeferredResponse();
+    const cleanupDeferred = createDeferredResponse();
+
+    apiFetchMock.mockReset();
+    toastMock.mockReset();
+    toastMock.mockReturnValue("dashboard-uploads-refresh-toast");
+    dismissToastMock.mockReset();
+    apiFetchMock.mockImplementation(async (_base: string, endpoint: string, request?: RequestInit) => {
+      const method = String(request?.method || "GET").toUpperCase();
+      if (endpoint === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, { id: "u-admin", name: "Admin", username: "admin" });
+      }
+      if (endpoint === "/api/uploads/storage/areas" && method === "GET") {
+        return summaryDeferred.promise;
+      }
+      if (endpoint === "/api/uploads/storage/cleanup" && method === "GET") {
+        return cleanupDeferred.promise;
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(<DashboardUploads />);
+
+    expect(screen.getByText("2 uploads sem uso")).toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-uploads-status-bar")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Atualizando Armazenamento",
+          intent: "info",
+        }),
+      );
+    });
+
+    summaryDeferred.resolve(mockJsonResponse(true, baseSummary));
+    cleanupDeferred.resolve(mockJsonResponse(true, cleanupPreviewWithItems));
+
+    await waitFor(() => {
+      expect(dismissToastMock).toHaveBeenCalledWith("dashboard-uploads-refresh-toast");
+    });
   });
 
   it("renderiza a seção de armazenamento não utilizado com contagens separadas e linhas mistas", async () => {
@@ -307,7 +413,8 @@ describe("DashboardUploads cleanup", () => {
 
     render(<DashboardUploads />);
 
-    await screen.findByText("Limpeza"
+    expect(await screen.findByText("Limpeza")).toBeInTheDocument();
+    expect(
       screen.getByText("Consumo real por área com base nos arquivos presentes em disco."),
     ).toBeInTheDocument();
     expect(screen.getByText("2 uploads sem uso")).toBeInTheDocument();
@@ -343,8 +450,8 @@ describe("DashboardUploads cleanup", () => {
 
     render(<DashboardUploads />);
 
-    await screen.findByText("Nenhum arquivo elegível para limpeza.");
-    expect(screen.queryByRole("button", { name: CLEANUP_ACTION_LABEL })).not.toBeInTheDocument();
+    await screen.findByText(/Nenhum arquivo eleg.vel para limpeza\./i);
+    expect(screen.getByRole("button", { name: CLEANUP_ACTION_LABEL })).toBeDisabled();
   });
 
   it("abre o modal, menciona variantes órfãs e exige EXCLUIR antes de habilitar a confirmação", async () => {
@@ -382,7 +489,7 @@ describe("DashboardUploads cleanup", () => {
     fireEvent.click(within(alertDialog).getByRole("button", { name: CLEANUP_ACTION_LABEL }));
 
     await waitFor(() => {
-      expect(screen.getByText("Nenhum arquivo elegível para limpeza.")).toBeInTheDocument();
+      expect(screen.getByText(/Nenhum arquivo eleg.vel para limpeza\./i)).toBeInTheDocument();
     });
 
     const cleanupPostCall = apiFetchMock.mock.calls.find((call) => {

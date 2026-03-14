@@ -22,8 +22,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
+import { useDashboardPreferences } from "@/hooks/use-dashboard-preferences";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { readWindowPublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
 import type { OperationalAlertsResponse } from "@/types/operational-alerts";
 import { ArrowDown, ArrowUp, SlidersHorizontal } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
@@ -96,13 +97,12 @@ const DASHBOARD_WIDGET_IDS: DashboardWidgetId[] = [
 ];
 
 const DASHBOARD_ROLE_PRESETS: Record<DashboardHomeRole, DashboardWidgetId[]> = {
-  editor: ["analytics_summary", "recent_posts", "projects_rank", "projects_quick", "ops_status"],
-  moderador: ["comments_queue", "ops_status", "recent_posts", "analytics_summary"],
+  editor: ["recent_posts", "analytics_summary", "projects_quick"],
+  moderador: ["comments_queue", "ops_status", "recent_posts"],
   admin: [
     "ops_status",
-    "analytics_summary",
     "comments_queue",
-    "projects_rank",
+    "analytics_summary",
     "recent_posts",
     "metrics_overview",
   ],
@@ -359,38 +359,13 @@ const Dashboard = () => {
   usePageMeta({ title: "Dashboard", noIndex: true });
 
   const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState<{
-    id: string;
-    name: string;
-    username: string;
-    email?: string | null;
-    avatarUrl?: string | null;
-    grants?: Partial<Record<string, boolean>>;
-    permissions?: string[];
-  } | null>(() => {
-    const bootstrapUser = readWindowPublicBootstrapCurrentUser();
-    return bootstrapUser
-      ? {
-          id: bootstrapUser.id,
-          name: bootstrapUser.name,
-          username: bootstrapUser.username,
-          avatarUrl: bootstrapUser.avatarUrl,
-          grants: bootstrapUser.grants,
-          permissions: bootstrapUser.permissions,
-        }
-      : null;
-  });
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const { currentUser, isLoadingUser } = useDashboardCurrentUser();
+  const dashboardPreferences = useDashboardPreferences();
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
-  const [homePreferences, setHomePreferences] = useState<
-    Partial<Record<DashboardHomeRole, DashboardWidgetId[]>>
-  >({});
-  const [allPreferences, setAllPreferences] = useState<Record<string, unknown>>({});
   const [customDraftWidgets, setCustomDraftWidgets] = useState<DashboardWidgetId[]>([]);
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
   const [overview, setOverview] = useState(() => EMPTY_DASHBOARD_OVERVIEW);
   const [isLoadingOverview, setIsLoadingOverview] = useState(true);
-  const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
   const [hasOverviewError, setHasOverviewError] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
@@ -405,87 +380,6 @@ const Dashboard = () => {
     () => inferDashboardRole((currentUser as Record<string, unknown> | null) || null),
     [currentUser],
   );
-
-  useEffect(() => {
-    const loadUser = async () => {
-      setIsLoadingUser(true);
-      try {
-        const response = await apiFetch(apiBase, "/api/me", { auth: true });
-        if (!response.ok) {
-          setCurrentUser(null);
-          return;
-        }
-        const data = await response.json();
-        setCurrentUser(data);
-      } catch {
-        setCurrentUser(null);
-      } finally {
-        setIsLoadingUser(false);
-      }
-    };
-    void loadUser();
-  }, [apiBase]);
-
-  useEffect(() => {
-    let isActive = true;
-    const loadPreferences = async () => {
-      setIsLoadingPreferences(true);
-      try {
-        const response = await apiFetch(apiBase, "/api/me/preferences", {
-          auth: true,
-          cache: "no-store",
-        });
-        if (!response.ok) {
-          if (isActive) {
-            setHomePreferences({});
-            setAllPreferences({});
-          }
-          return;
-        }
-        const payload = (await response.json()) as { preferences?: Record<string, unknown> };
-        const preferences =
-          payload?.preferences && typeof payload.preferences === "object"
-            ? payload.preferences
-            : {};
-        const dashboard =
-          preferences.dashboard && typeof preferences.dashboard === "object"
-            ? (preferences.dashboard as Record<string, unknown>)
-            : {};
-        const homeByRole =
-          dashboard.homeByRole && typeof dashboard.homeByRole === "object"
-            ? (dashboard.homeByRole as Record<string, unknown>)
-            : {};
-        const nextHomePrefs: Partial<Record<DashboardHomeRole, DashboardWidgetId[]>> = {
-          editor: normalizeDashboardWidgets(
-            (homeByRole.editor as { widgets?: unknown } | undefined)?.widgets,
-          ),
-          moderador: normalizeDashboardWidgets(
-            (homeByRole.moderador as { widgets?: unknown } | undefined)?.widgets,
-          ),
-          admin: normalizeDashboardWidgets(
-            (homeByRole.admin as { widgets?: unknown } | undefined)?.widgets,
-          ),
-        };
-        if (isActive) {
-          setAllPreferences(preferences);
-          setHomePreferences(nextHomePrefs);
-        }
-      } catch {
-        if (isActive) {
-          setHomePreferences({});
-          setAllPreferences({});
-        }
-      } finally {
-        if (isActive) {
-          setIsLoadingPreferences(false);
-        }
-      }
-    };
-    void loadPreferences();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
 
   useEffect(() => {
     let isActive = true;
@@ -594,6 +488,21 @@ const Dashboard = () => {
   const rankedProjects = overview.rankedProjects;
   const hasProjectViewData = rankedProjects.length > 0;
   const hasAnalyticsData = totalViewsLast7 > 0;
+  const homeByRole = dashboardPreferences.dashboardPreferences.homeByRole || {};
+  const homePreferences: Partial<Record<DashboardHomeRole, DashboardWidgetId[]>> = {
+    editor: normalizeDashboardWidgets(
+      (homeByRole.editor as { widgets?: unknown } | undefined)?.widgets,
+    ),
+    moderador: normalizeDashboardWidgets(
+      (homeByRole.moderador as { widgets?: unknown } | undefined)?.widgets,
+    ),
+    admin: normalizeDashboardWidgets(
+      (homeByRole.admin as { widgets?: unknown } | undefined)?.widgets,
+    ),
+  };
+  const isLoadingPreferences =
+    dashboardPreferences.hasProvider &&
+    (!dashboardPreferences.hasResolved || dashboardPreferences.isLoading);
   const isDashboardReady = !isLoadingOverview && !isLoadingUser && !isLoadingPreferences;
 
   const dailyTotals = useMemo(
@@ -674,40 +583,18 @@ const Dashboard = () => {
   const persistHomeWidgetsByRole = useCallback(
     async (role: DashboardHomeRole, widgets: DashboardWidgetId[]) => {
       const normalizedWidgets = normalizeDashboardWidgets(widgets);
-      const dashboard =
-        allPreferences.dashboard && typeof allPreferences.dashboard === "object"
-          ? (allPreferences.dashboard as Record<string, unknown>)
-          : {};
-      const homeByRole =
-        dashboard.homeByRole && typeof dashboard.homeByRole === "object"
-          ? (dashboard.homeByRole as Record<string, unknown>)
-          : {};
-      const nextPreferences = {
-        ...allPreferences,
-        dashboard: {
-          ...dashboard,
+      setIsSavingPreferences(true);
+      try {
+        await dashboardPreferences.patchDashboardPreferences((previousDashboard) => ({
           homeByRole: {
-            ...homeByRole,
+            ...(previousDashboard.homeByRole &&
+            typeof previousDashboard.homeByRole === "object"
+              ? previousDashboard.homeByRole
+              : {}),
             [role]: {
               widgets: normalizedWidgets,
             },
           },
-        },
-      };
-      setIsSavingPreferences(true);
-      try {
-        const response = await apiFetch(apiBase, "/api/me/preferences", {
-          method: "PUT",
-          auth: true,
-          json: { preferences: nextPreferences },
-        });
-        if (!response.ok) {
-          throw new Error("preferences_save_failed");
-        }
-        setAllPreferences(nextPreferences);
-        setHomePreferences((previous) => ({
-          ...previous,
-          [role]: normalizedWidgets,
         }));
         toast({
           title: "Painel personalizado",
@@ -724,7 +611,7 @@ const Dashboard = () => {
         setIsSavingPreferences(false);
       }
     },
-    [allPreferences, apiBase],
+    [dashboardPreferences],
   );
 
   const toggleDraftWidget = useCallback((widgetId: DashboardWidgetId) => {

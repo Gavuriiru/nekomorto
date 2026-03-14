@@ -17,6 +17,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,8 @@ import { toast } from "@/components/ui/use-toast";
 import type { ProjectEpisode, ProjectVolumeCover, ProjectVolumeEntry } from "@/data/projects";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
+import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { parseAniListMediaId } from "@/lib/anilist";
@@ -295,6 +298,47 @@ type ProjectRecord = {
   updatedAt?: string;
   deletedAt?: string | null;
   deletedBy?: string | null;
+};
+
+const PROJECTS_PAGE_CACHE_TTL_MS = 60_000;
+
+type ProjectsPageCacheEntry = {
+  projects: ProjectRecord[];
+  projectTypeOptions: string[];
+  memberDirectory: string[];
+  tagTranslations: Record<string, string>;
+  genreTranslations: Record<string, string>;
+  staffRoleTranslations: Record<string, string>;
+  expiresAt: number;
+};
+
+let projectsPageCache: ProjectsPageCacheEntry | null = null;
+
+const cloneProjectsPageCache = (value: Omit<ProjectsPageCacheEntry, "expiresAt">) => ({
+  projects: JSON.parse(JSON.stringify(value.projects)) as ProjectRecord[],
+  projectTypeOptions: [...value.projectTypeOptions],
+  memberDirectory: [...value.memberDirectory],
+  tagTranslations: { ...value.tagTranslations },
+  genreTranslations: { ...value.genreTranslations },
+  staffRoleTranslations: { ...value.staffRoleTranslations },
+});
+
+const readProjectsPageCache = () => {
+  if (!projectsPageCache) {
+    return null;
+  }
+  if (projectsPageCache.expiresAt <= Date.now()) {
+    projectsPageCache = null;
+    return null;
+  }
+  return cloneProjectsPageCache(projectsPageCache);
+};
+
+const writeProjectsPageCache = (value: Omit<ProjectsPageCacheEntry, "expiresAt">) => {
+  projectsPageCache = {
+    ...cloneProjectsPageCache(value),
+    expiresAt: Date.now() + PROJECTS_PAGE_CACHE_TTL_MS,
+  };
 };
 
 const appendUniqueValue = (values: string[], nextValue: string) =>
@@ -1166,17 +1210,26 @@ const DashboardProjectsEditor = () => {
   const apiBase = getApiBase();
   const { settings: publicSettings } = useSiteSettings();
   const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
-  const [currentUser, setCurrentUser] = useState<{
-    id: string;
-    name: string;
-    username: string;
-    avatarUrl?: string | null;
-    permissions?: string[];
-  } | null>(null);
-  const [hasLoadedCurrentUser, setHasLoadedCurrentUser] = useState(false);
-  const [projects, setProjects] = useState<ProjectRecord[]>([]);
-  const [projectTypeOptions, setProjectTypeOptions] = useState<string[]>(defaultFormatOptions);
-  const [isLoading, setIsLoading] = useState(true);
+  const { currentUser, isLoadingUser } = useDashboardCurrentUser();
+  const hasLoadedCurrentUser = !isLoadingUser;
+  const initialCacheRef = useRef(readProjectsPageCache());
+  const [projects, setProjects] = useState<ProjectRecord[]>(initialCacheRef.current?.projects ?? []);
+  const [projectTypeOptions, setProjectTypeOptions] = useState<string[]>(
+    initialCacheRef.current?.projectTypeOptions ?? defaultFormatOptions,
+  );
+  const [isInitialLoading, setIsInitialLoading] = useState(!initialCacheRef.current);
+  const [isRefreshing, setIsRefreshing] = useState(Boolean(initialCacheRef.current));
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(Boolean(initialCacheRef.current));
+  const [hasResolvedProjects, setHasResolvedProjects] = useState(Boolean(initialCacheRef.current));
+  const [hasResolvedProjectTypes, setHasResolvedProjectTypes] = useState(
+    Boolean(initialCacheRef.current),
+  );
+  const [hasResolvedMemberDirectory, setHasResolvedMemberDirectory] = useState(
+    Boolean(initialCacheRef.current),
+  );
+  const [hasResolvedTranslations, setHasResolvedTranslations] = useState(
+    Boolean(initialCacheRef.current),
+  );
   const [hasLoadError, setHasLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1284,9 +1337,15 @@ const DashboardProjectsEditor = () => {
   const [genreInput, setGenreInput] = useState("");
   const [animationStudioInput, setAnimationStudioInput] = useState("");
   const [producerInput, setProducerInput] = useState("");
-  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
-  const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
-  const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>({});
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
+    initialCacheRef.current?.tagTranslations ?? {},
+  );
+  const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>(
+    initialCacheRef.current?.genreTranslations ?? {},
+  );
+  const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>(
+    initialCacheRef.current?.staffRoleTranslations ?? {},
+  );
   const [episodeDragId, setEpisodeDragId] = useState<number | null>(null);
   const [relationDragIndex, setRelationDragIndex] = useState<number | null>(null);
   const [staffDragIndex, setStaffDragIndex] = useState<number | null>(null);
@@ -1297,7 +1356,9 @@ const DashboardProjectsEditor = () => {
   const [episodeTimeDraft, setEpisodeTimeDraft] = useState<Record<number, string>>({});
   const [episodeSizeDrafts, setEpisodeSizeDrafts] = useState<Record<number, string>>({});
   const [episodeSizeErrors, setEpisodeSizeErrors] = useState<Record<number, string>>({});
-  const [memberDirectory, setMemberDirectory] = useState<string[]>([]);
+  const [memberDirectory, setMemberDirectory] = useState<string[]>(
+    initialCacheRef.current?.memberDirectory ?? [],
+  );
   const [collapsedEpisodes, setCollapsedEpisodes] = useState<Record<number, boolean>>({});
   const [collapsedVolumeGroups, setCollapsedVolumeGroups] = useState<Record<string, boolean>>({});
   const [editorAccordionValue, setEditorAccordionValue] = useState<string[]>(["informacoes"]);
@@ -1422,6 +1483,8 @@ const DashboardProjectsEditor = () => {
   const confirmCancelRef = useRef<(() => void) | null>(null);
   const autoEditHandledRef = useRef<string | null>(null);
   const isApplyingSearchParamsRef = useRef(false);
+  const requestIdRef = useRef(0);
+  const hasLoadedOnceRef = useRef(hasLoadedOnce);
   const queryStateRef = useRef({
     sortMode,
     currentPage,
@@ -1667,26 +1730,6 @@ const DashboardProjectsEditor = () => {
   const genreSuggestions = useMemo(() => {
     return filterTaxonomySuggestions(genreSuggestionOptions, genreInput, formState.genres);
   }, [formState.genres, genreInput, genreSuggestionOptions]);
-
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/me", { auth: true });
-        if (!response.ok) {
-          setCurrentUser(null);
-          return;
-        }
-        const data = await response.json();
-        setCurrentUser(data);
-      } catch {
-        setCurrentUser(null);
-      } finally {
-        setHasLoadedCurrentUser(true);
-      }
-    };
-
-    loadUser();
-  }, [apiBase]);
 
   useEffect(() => {
     let isActive = true;
@@ -2478,8 +2521,21 @@ const DashboardProjectsEditor = () => {
       throw new Error("projects_load_failed");
     }
     const data = await response.json();
-    setProjects(Array.isArray(data.projects) ? data.projects : []);
-  }, [apiBase]);
+    const nextProjects = Array.isArray(data.projects) ? data.projects : [];
+    setProjects(nextProjects);
+    setHasResolvedProjects(true);
+    setHasLoadedOnce(true);
+    setHasLoadError(false);
+    writeProjectsPageCache({
+      projects: nextProjects,
+      projectTypeOptions,
+      memberDirectory,
+      tagTranslations,
+      genreTranslations,
+      staffRoleTranslations,
+    });
+    return nextProjects;
+  }, [apiBase, genreTranslations, memberDirectory, projectTypeOptions, staffRoleTranslations, tagTranslations]);
 
   const loadProjectTypes = useCallback(async () => {
     const response = await apiFetch(apiBase, "/api/project-types", {
@@ -2494,90 +2550,147 @@ const DashboardProjectsEditor = () => {
       ? data.types.map((item: unknown) => String(item || "").trim()).filter(Boolean)
       : [];
     const uniqueTypes = Array.from(new Set([...remoteTypes, ...defaultFormatOptions]));
-    setProjectTypeOptions(uniqueTypes.length > 0 ? uniqueTypes : defaultFormatOptions);
+    const nextProjectTypeOptions = uniqueTypes.length > 0 ? uniqueTypes : defaultFormatOptions;
+    setProjectTypeOptions(nextProjectTypeOptions);
+    setHasResolvedProjectTypes(true);
+    return nextProjectTypeOptions;
   }, [apiBase]);
+
+  useEffect(() => {
+    hasLoadedOnceRef.current = hasLoadedOnce;
+  }, [hasLoadedOnce]);
 
   useEffect(() => {
     let isActive = true;
     const load = async () => {
-      if (isActive) {
-        setIsLoading(true);
-        setHasLoadError(false);
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
+      const background = hasLoadedOnceRef.current;
+      const cached = initialCacheRef.current;
+
+      setHasLoadError(false);
+      if (background) {
+        setIsRefreshing(true);
+      } else {
+        setIsInitialLoading(true);
+        setHasResolvedProjects(false);
       }
+      if (!cached) {
+        setHasResolvedProjectTypes(false);
+        setHasResolvedMemberDirectory(false);
+        setHasResolvedTranslations(false);
+      }
+
       try {
-        const [projectsResult, projectTypesResult, usersResult, translationsResult] =
-          await Promise.allSettled([
-            loadProjects(),
-            loadProjectTypes(),
-            apiFetch(apiBase, "/api/users", { auth: true }),
-            apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
-          ]);
-        if (usersResult.status === "fulfilled") {
-          const response = usersResult.value;
-          if (response.ok) {
-            const data = (await response.json()) as {
-              users?: Array<{ name?: string; status?: string }>;
-            };
-            const names = Array.isArray(data.users)
-              ? data.users
-                  .filter((user) => user.status === "active")
-                  .map((user) => user.name)
-                  .filter((name): name is string => Boolean(name))
-              : [];
-            if (isActive) {
-              setMemberDirectory(
-                Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR")),
-              );
-            }
-          }
-        } else if (isActive) {
-          setMemberDirectory([]);
+        const projectsPromise = loadProjects();
+        const projectTypesPromise = loadProjectTypes();
+        const usersPromise = apiFetch(apiBase, "/api/users", { auth: true });
+        const translationsPromise = apiFetch(apiBase, "/api/public/tag-translations", {
+          cache: "no-store",
+        });
+
+        const nextProjects = await projectsPromise;
+        if (!isActive || requestIdRef.current !== requestId) {
+          return;
         }
-        if (projectsResult.status === "rejected") {
-          throw projectsResult.reason;
+
+        setIsInitialLoading(false);
+
+        let nextProjectTypeOptions = projectTypeOptions;
+        let nextMemberDirectory = memberDirectory;
+        let nextTagTranslations = tagTranslations;
+        let nextGenreTranslations = genreTranslations;
+        let nextStaffRoleTranslations = staffRoleTranslations;
+
+        const [projectTypesResult, usersResult, translationsResult] = await Promise.allSettled([
+          projectTypesPromise,
+          usersPromise,
+          translationsPromise,
+        ]);
+        if (!isActive || requestIdRef.current !== requestId) {
+          return;
         }
-        if (projectTypesResult.status === "rejected" && isActive) {
+
+        if (projectTypesResult.status === "rejected") {
+          nextProjectTypeOptions = defaultFormatOptions;
           setProjectTypeOptions(defaultFormatOptions);
+        } else {
+          nextProjectTypeOptions = projectTypesResult.value;
         }
-        if (translationsResult.status === "fulfilled") {
-          const response = translationsResult.value;
-          if (response.ok) {
-            const data = await response.json();
-            if (isActive) {
-              setTagTranslations(data?.tags || {});
-              setGenreTranslations(data?.genres || {});
-              setStaffRoleTranslations(data?.staffRoles || {});
-            }
-          }
-        } else if (isActive) {
-          setTagTranslations({});
-          setGenreTranslations({});
-          setStaffRoleTranslations({});
+        setHasResolvedProjectTypes(true);
+
+        if (usersResult.status === "fulfilled" && usersResult.value.ok) {
+          const data = (await usersResult.value.json()) as {
+            users?: Array<{ name?: string; status?: string }>;
+          };
+          const names = Array.isArray(data.users)
+            ? data.users
+                .filter((user) => user.status === "active")
+                .map((user) => user.name)
+                .filter((name): name is string => Boolean(name))
+            : [];
+          nextMemberDirectory = Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR"));
+        } else {
+          nextMemberDirectory = [];
         }
-        if (isActive) {
-          setHasLoadError(false);
+        setMemberDirectory(nextMemberDirectory);
+        setHasResolvedMemberDirectory(true);
+
+        if (translationsResult.status === "fulfilled" && translationsResult.value.ok) {
+          const data = await translationsResult.value.json();
+          nextTagTranslations = data?.tags || {};
+          nextGenreTranslations = data?.genres || {};
+          nextStaffRoleTranslations = data?.staffRoles || {};
+        } else {
+          nextTagTranslations = {};
+          nextGenreTranslations = {};
+          nextStaffRoleTranslations = {};
         }
+        setTagTranslations(nextTagTranslations);
+        setGenreTranslations(nextGenreTranslations);
+        setStaffRoleTranslations(nextStaffRoleTranslations);
+        setHasResolvedTranslations(true);
+
+        writeProjectsPageCache({
+          projects: nextProjects,
+          projectTypeOptions: nextProjectTypeOptions,
+          memberDirectory: nextMemberDirectory,
+          tagTranslations: nextTagTranslations,
+          genreTranslations: nextGenreTranslations,
+          staffRoleTranslations: nextStaffRoleTranslations,
+        });
       } catch {
-        if (isActive) {
-          setProjects([]);
-          setProjectTypeOptions(defaultFormatOptions);
-          setMemberDirectory([]);
-          setTagTranslations({});
-          setGenreTranslations({});
-          setStaffRoleTranslations({});
+        if (isActive && requestIdRef.current === requestId) {
+          if (!hasLoadedOnceRef.current) {
+            setProjects([]);
+            setProjectTypeOptions(defaultFormatOptions);
+            setMemberDirectory([]);
+            setTagTranslations({});
+            setGenreTranslations({});
+            setStaffRoleTranslations({});
+            setHasResolvedProjectTypes(false);
+            setHasResolvedMemberDirectory(false);
+            setHasResolvedTranslations(false);
+          }
           setHasLoadError(true);
         }
       } finally {
-        if (isActive) {
-          setIsLoading(false);
+        if (isActive && requestIdRef.current === requestId) {
+          setIsInitialLoading(false);
+          setIsRefreshing(false);
+          if (cached) {
+            setHasResolvedProjectTypes(true);
+            setHasResolvedMemberDirectory(true);
+            setHasResolvedTranslations(true);
+          }
         }
       }
     };
-    load();
+    void load();
     return () => {
       isActive = false;
     };
-  }, [apiBase, loadProjectTypes, loadProjects, loadVersion]);
+  }, [apiBase, loadVersion]);
 
   useEffect(() => {
     if (!isLibraryOpen) {
@@ -2643,7 +2756,7 @@ const DashboardProjectsEditor = () => {
   }, [formState.type, projectTypeOptions]);
 
   useEffect(() => {
-    if (isLoading || hasLoadError) {
+    if (!hasResolvedProjects || !hasResolvedProjectTypes || hasLoadError) {
       return;
     }
     if (selectedType === "Todos") {
@@ -2653,7 +2766,7 @@ const DashboardProjectsEditor = () => {
       return;
     }
     setSelectedType("Todos");
-  }, [hasLoadError, isLoading, selectedType, typeOptions]);
+  }, [hasLoadError, hasResolvedProjectTypes, hasResolvedProjects, selectedType, typeOptions]);
 
   const filteredProjects = useMemo(() => {
     const projectsByType =
@@ -2753,11 +2866,11 @@ const DashboardProjectsEditor = () => {
   const paginatedProjects = sortedProjects.slice(pageStart, pageStart + projectsPerPage);
 
   useEffect(() => {
-    if (isLoading) {
+    if (!hasResolvedProjects) {
       return;
     }
     setCurrentPage((page) => Math.min(page, totalPages));
-  }, [isLoading, totalPages]);
+  }, [hasResolvedProjects, totalPages]);
 
   const openCreate = () => {
     const nextForm = { ...emptyProject };
@@ -2961,7 +3074,7 @@ const DashboardProjectsEditor = () => {
     if (autoEditHandledRef.current === autoEditToken) {
       return;
     }
-    if (isLoading || !hasLoadedCurrentUser) {
+    if (!hasResolvedProjects || !hasLoadedCurrentUser) {
       return;
     }
     autoEditHandledRef.current = autoEditToken;
@@ -3020,7 +3133,7 @@ const DashboardProjectsEditor = () => {
   }, [
     canManageProjects,
     hasLoadedCurrentUser,
-    isLoading,
+    hasResolvedProjects,
     openCreate,
     openEdit,
     projects,
@@ -5055,6 +5168,15 @@ const DashboardProjectsEditor = () => {
     ? buildDashboardProjectChaptersEditorHref(editingProject.id)
     : "";
   const publicProjectHref = editingProject?.id ? buildProjectPublicHref(editingProject.id) : "";
+  const hasBlockingLoadError = !hasLoadedOnce && hasLoadError;
+  const hasRetainedLoadError = hasLoadedOnce && hasLoadError;
+  const showProjectsSurfaceSkeleton = !hasResolvedProjects && !hasBlockingLoadError;
+
+  useDashboardRefreshToast({
+    active: isRefreshing && hasLoadedOnce,
+    title: "Atualizando projetos",
+    description: "Buscando a lista mais recente de projetos.",
+  });
 
   return (
     <>
@@ -5101,7 +5223,11 @@ const DashboardProjectsEditor = () => {
                     <SelectItem value="comments">Comentários</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={selectedType} onValueChange={setSelectedType}>
+                <Select
+                  value={selectedType}
+                  onValueChange={setSelectedType}
+                  disabled={!hasResolvedProjectTypes}
+                >
                   <SelectTrigger className="w-[210px]" aria-label="Filtrar por formato">
                     <SelectValue placeholder="Todos os formatos" />
                   </SelectTrigger>
@@ -5119,14 +5245,21 @@ const DashboardProjectsEditor = () => {
               </Badge>
             </div>
 
-            {isLoading ? (
-              <AsyncState
-                kind="loading"
-                title="Carregando projetos"
-                description="Buscando os projetos no banco de dados."
-                className={dashboardPageLayoutTokens.surfaceDefault}
-              />
-            ) : hasLoadError ? (
+            {hasRetainedLoadError ? (
+              <Alert className={dashboardPageLayoutTokens.surfaceDefault}>
+                <AlertTitle>Atualização parcial indisponível</AlertTitle>
+                <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                  <span>Mantendo a última lista de projetos carregada.</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLoadVersion((previous) => previous + 1)}
+                  >
+                    Tentar novamente
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : hasBlockingLoadError ? (
               <AsyncState
                 kind="error"
                 title="Não foi possível carregar os projetos"
@@ -5141,6 +5274,34 @@ const DashboardProjectsEditor = () => {
                   </Button>
                 }
               />
+            ) : showProjectsSurfaceSkeleton ? (
+              <div className="grid gap-6" data-testid="dashboard-projects-skeleton-surface">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <Card
+                    key={`project-skeleton-${index}`}
+                    className={`${dashboardPageLayoutTokens.listCard} overflow-hidden`}
+                  >
+                    <CardContent className="grid gap-2 p-0 md:gap-6 md:grid-cols-[220px_1fr]">
+                      <Skeleton className="aspect-2/3 w-full rounded-none md:min-h-[260px]" />
+                      <div className="space-y-4 p-6">
+                        <div className="flex gap-2">
+                          <Skeleton className="h-5 w-20" />
+                          <Skeleton className="h-5 w-24" />
+                        </div>
+                        <Skeleton className="h-7 w-2/5" />
+                        <Skeleton className="h-4 w-1/5" />
+                        <Skeleton className="h-4 w-4/5" />
+                        <Skeleton className="h-4 w-3/5" />
+                        <div className="grid gap-2 md:grid-cols-3">
+                          <Skeleton className="h-16 w-full rounded-xl" />
+                          <Skeleton className="h-16 w-full rounded-xl" />
+                          <Skeleton className="h-16 w-full rounded-xl" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             ) : sortedProjects.length === 0 ? (
               <AsyncState
                 kind="empty"
@@ -8590,6 +8751,12 @@ const DashboardProjectsEditor = () => {
       </Suspense>
     </>
   );
+};
+
+export const __testing = {
+  clearProjectsPageCache: () => {
+    projectsPageCache = null;
+  },
 };
 
 export default DashboardProjectsEditor;

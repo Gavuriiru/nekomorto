@@ -4,7 +4,7 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { defaultSettings } from "@/hooks/site-settings-context";
-import DashboardSettings from "@/pages/DashboardSettings";
+import DashboardSettings, { __testing } from "@/pages/DashboardSettings";
 
 const { apiFetchMock, refreshMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
@@ -115,6 +115,7 @@ describe("DashboardSettings query sync", () => {
     window.localStorage.clear();
     apiFetchMock.mockReset();
     refreshMock.mockClear();
+    __testing.clearDashboardSettingsCache();
   });
 
   it("aplica aba vinda de ?tab=", async () => {
@@ -135,7 +136,7 @@ describe("DashboardSettings query sync", () => {
     expect(getPreferenceCalls()).toHaveLength(0);
   });
 
-  it("redireciona legado ?tab=seo para /dashboard/redirecionamentos", async () => {
+  it("abre a aba SEO diretamente em /dashboard/configuracoes?tab=seo", async () => {
     setupApiMock();
 
     render(
@@ -147,8 +148,9 @@ describe("DashboardSettings query sync", () => {
 
     await screen.findByRole("heading", { name: /Painel de ajustes/i });
     await waitFor(() => {
-      expect(screen.getByTestId("location-path").textContent).toBe("/dashboard/redirecionamentos");
-      expect(screen.getByTestId("location-search").textContent).toBe("");
+      expect(screen.getByRole("tab", { name: /SEO/i })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByTestId("location-path").textContent).toBe("/dashboard/configuracoes");
+      expect(screen.getByTestId("location-search").textContent).toBe("?tab=seo");
     });
     expect(getPreferenceCalls()).toHaveLength(0);
   });

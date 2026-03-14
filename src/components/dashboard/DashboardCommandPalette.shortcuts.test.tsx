@@ -33,37 +33,48 @@ type MenuFlags = {
 };
 
 const createMenuItems = (flags: MenuFlags = {}): DashboardMenuItem[] => [
-  { label: "In\u00edcio", href: "/dashboard", icon: LayoutGrid, enabled: true },
+  { label: "Início", href: "/dashboard", icon: LayoutGrid, enabled: true, section: "home" },
   {
     label: "Análises",
     href: "/dashboard/analytics",
     icon: LayoutGrid,
     enabled: flags.analytics ?? true,
+    section: "system",
   },
-  { label: "Postagens", href: "/dashboard/posts", icon: LayoutGrid, enabled: flags.posts ?? true },
+  {
+    label: "Postagens",
+    href: "/dashboard/posts",
+    icon: LayoutGrid,
+    enabled: flags.posts ?? true,
+    section: "content",
+  },
   {
     label: "Projetos",
     href: "/dashboard/projetos",
     icon: LayoutGrid,
     enabled: flags.projects ?? true,
+    section: "content",
   },
   {
-    label: "Usu\u00e1rios",
+    label: "Usuários",
     href: "/dashboard/usuarios",
     icon: LayoutGrid,
     enabled: flags.users ?? true,
+    section: "team",
   },
   {
-    label: "P\u00e1ginas",
+    label: "Páginas",
     href: "/dashboard/paginas",
     icon: LayoutGrid,
     enabled: flags.pages ?? true,
+    section: "content",
   },
   {
-    label: "Configura\u00e7\u00f5es",
+    label: "Configurações",
     href: "/dashboard/configuracoes",
     icon: LayoutGrid,
     enabled: flags.settings ?? true,
+    section: "system",
   },
 ];
 
@@ -101,8 +112,8 @@ describe("DashboardCommandPalette shortcuts", () => {
       />,
     );
 
-    expect(screen.queryByText("Abas - Configura\u00e7\u00f5es")).not.toBeInTheDocument();
-    expect(screen.queryByText("Abas - P\u00e1ginas")).not.toBeInTheDocument();
+    expect(screen.queryByText("Abas - Configurações")).not.toBeInTheDocument();
+    expect(screen.queryByText("Abas - Páginas")).not.toBeInTheDocument();
 
     rerender(
       <DashboardCommandPalette
@@ -114,8 +125,8 @@ describe("DashboardCommandPalette shortcuts", () => {
       />,
     );
 
-    expect(screen.getByText("Abas - Configura\u00e7\u00f5es")).toBeInTheDocument();
-    expect(screen.getByText("Abas - P\u00e1ginas")).toBeInTheDocument();
+    expect(screen.getByText("Abas - Configurações")).toBeInTheDocument();
+    expect(screen.getByText("Abas - Páginas")).toBeInTheDocument();
   });
 
   it("seleciona uma aba de configuracoes, fecha a palette e navega para a URL correta", () => {
@@ -127,10 +138,19 @@ describe("DashboardCommandPalette shortcuts", () => {
     expect(onNavigate).toHaveBeenCalledWith("/dashboard/configuracoes?tab=downloads");
   });
 
+  it("inclui a aba de SEO nas acoes de configuracoes", () => {
+    const { onOpenChange, onNavigate } = renderPalette();
+
+    fireEvent.click(screen.getByText("SEO"));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onNavigate).toHaveBeenCalledWith("/dashboard/configuracoes?tab=seo");
+  });
+
   it("abre notificacoes e fecha a palette sem navegar", () => {
     const { onOpenChange, onNavigate, onOpenNotifications } = renderPalette();
 
-    fireEvent.click(screen.getByText("Abrir notifica\u00e7\u00f5es"));
+    fireEvent.click(screen.getByText("Abrir notificações"));
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(onOpenNotifications).toHaveBeenCalledTimes(1);
@@ -142,12 +162,14 @@ describe("DashboardCommandPalette shortcuts", () => {
 
     const input = screen.getByRole("combobox");
     const generalItem = screen.getByText("Geral").closest("[cmdk-item]");
-    const donationsItem = screen.getByText("Doa\u00e7\u00f5es").closest("[cmdk-item]");
+    const donationsItem = screen.getByText("Doações").closest("[cmdk-item]");
     const newPostItem = screen.getByText("Novo post").closest("[cmdk-item]");
+    const seoItem = screen.getByText("SEO").closest("[cmdk-item]");
 
     expect(generalItem?.getAttribute("data-value")?.split(" ")).toContain("sg");
     expect(donationsItem?.getAttribute("data-value")?.split(" ")).toContain("pd");
     expect(newPostItem?.getAttribute("data-value")?.split(" ")).toContain("np");
+    expect(seoItem?.getAttribute("data-value")?.split(" ")).toContain("ss");
 
     fireEvent.change(input, { target: { value: "sg" } });
 
@@ -157,7 +179,7 @@ describe("DashboardCommandPalette shortcuts", () => {
   it("oculta acoes de usuario quando a rota de usuarios nao esta habilitada", () => {
     renderPalette(createMenuItems({ users: false }));
 
-    expect(screen.queryByText("Novo usu\u00e1rio")).not.toBeInTheDocument();
+    expect(screen.queryByText("Novo usuário")).not.toBeInTheDocument();
     expect(screen.queryByText("Editar meu perfil")).not.toBeInTheDocument();
   });
 

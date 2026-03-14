@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ComponentPropsWithoutRef, CSSProperties, ReactNode } from "react";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import {
   dashboardAnimationDelay,
@@ -15,6 +15,7 @@ type DashboardPageHeaderProps = {
   className?: string;
   descriptionDelayMs?: number;
   actionsDelayMs?: number;
+  badgeProps?: ComponentPropsWithoutRef<typeof DashboardPageBadge>;
 };
 
 const DashboardPageHeader = ({
@@ -25,11 +26,12 @@ const DashboardPageHeader = ({
   className,
   descriptionDelayMs = dashboardMotionDelays.headerDescriptionMs,
   actionsDelayMs = dashboardMotionDelays.headerActionsMs,
+  badgeProps,
 }: DashboardPageHeaderProps) => {
   return (
     <header className={cn(dashboardPageLayoutTokens.header, className)}>
       <div>
-        <DashboardPageBadge>{badge}</DashboardPageBadge>
+        <DashboardPageBadge {...badgeProps}>{badge}</DashboardPageBadge>
         <h1 className={dashboardPageLayoutTokens.headerTitle}>{title}</h1>
         {description ? (
           <p

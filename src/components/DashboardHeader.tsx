@@ -4,6 +4,7 @@ import { LogOut, Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
 import {
+  isDashboardMenuItemActive,
   dashboardMenuItems as defaultMenuItems,
   type DashboardMenuItem,
 } from "@/components/dashboard-menu";
@@ -79,14 +80,11 @@ const DashboardHeader = ({
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const activeMenuItem = useMemo(() => {
-    const exactMatch = menuItems.find((item) => item.href === location.pathname);
-    if (exactMatch) {
-      return exactMatch;
-    }
-    const prefixedMatch = menuItems.find(
-      (item) => item.href !== "/dashboard" && location.pathname.startsWith(`${item.href}/`),
+    return (
+      menuItems.find((item) => isDashboardMenuItemActive(item, location.pathname)) ??
+      menuItems.find((item) => item.href === "/dashboard") ??
+      null
     );
-    return prefixedMatch ?? menuItems.find((item) => item.href === "/dashboard") ?? null;
   }, [location.pathname, menuItems]);
 
   const siteName = (settings.site.name || "Nekomata").toUpperCase();

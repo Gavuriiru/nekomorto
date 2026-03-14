@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDashboardPreferences } from "@/hooks/use-dashboard-preferences";
 import { apiFetch } from "@/lib/api-client";
 
 type DashboardNotificationItem = {
@@ -41,6 +42,9 @@ type DashboardNotificationsPopoverProps = {
 
 const POLL_MS = 15_000;
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
 const getNotificationIcon = (item: DashboardNotificationItem) => {
   if (item.kind === "error") {
     return AlertTriangle;
@@ -59,6 +63,10 @@ const DashboardNotificationsPopover = ({
   const [isLoading, setIsLoading] = useState(() => open);
   const [items, setItems] = useState<DashboardNotificationItem[]>([]);
   const [summaryTotal, setSummaryTotal] = useState(0);
+  const dashboardPreferences = useDashboardPreferences();
+  const hasPreferencesProvider = dashboardPreferences.hasProvider;
+  const hasResolvedPreferences = dashboardPreferences.hasResolved;
+  const patchDashboardPreferences = dashboardPreferences.patchDashboardPreferences;
   const preferencesRef = useRef<Record<string, unknown>>({});
   const preferencesLoadedRef = useRef(false);
   const preferencesLoadPromiseRef = useRef<Promise<void> | null>(null);
@@ -136,6 +144,19 @@ const DashboardNotificationsPopover = ({
 
   const persistLastSeen = useCallback(async () => {
     const nowIso = new Date().toISOString();
+    if (hasPreferencesProvider) {
+      try {
+        await patchDashboardPreferences((previousDashboard) => ({
+          notifications: {
+            ...(isRecord(previousDashboard.notifications) ? previousDashboard.notifications : {}),
+            lastSeenAt: nowIso,
+          },
+        }));
+      } catch {
+        // ignore transient preference write failures
+      }
+      return;
+    }
     const prefs = preferencesRef.current;
     const dashboard =
       prefs?.dashboard && typeof prefs.dashboard === "object"
@@ -165,7 +186,7 @@ const DashboardNotificationsPopover = ({
     } catch {
       // ignore transient preference write failures
     }
-  }, [apiBase]);
+  }, [apiBase, hasPreferencesProvider, patchDashboardPreferences]);
 
   useEffect(() => {
     if (!open) {
@@ -177,9 +198,15 @@ const DashboardNotificationsPopover = ({
     const loadOnOpen = async () => {
       setIsLoading(true);
       try {
-        await ensurePreferencesLoaded();
-        if (cancelled) {
-          return;
+        if (hasPreferencesProvider) {
+          if (!hasResolvedPreferences) {
+            return;
+          }
+        } else {
+          await ensurePreferencesLoaded();
+          if (cancelled) {
+            return;
+          }
         }
         await loadNotifications();
         if (cancelled) {
@@ -196,7 +223,14 @@ const DashboardNotificationsPopover = ({
     return () => {
       cancelled = true;
     };
-  }, [ensurePreferencesLoaded, loadNotifications, open, persistLastSeen]);
+  }, [
+    ensurePreferencesLoaded,
+    hasPreferencesProvider,
+    hasResolvedPreferences,
+    loadNotifications,
+    open,
+    persistLastSeen,
+  ]);
 
   useEffect(() => {
     if (!open) {

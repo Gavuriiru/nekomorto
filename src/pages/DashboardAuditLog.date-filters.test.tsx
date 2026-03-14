@@ -6,6 +6,7 @@ import DashboardAuditLog from "@/pages/DashboardAuditLog";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
+const dismissToastMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -25,6 +26,7 @@ vi.mock("@/lib/api-client", () => ({
 
 vi.mock("@/components/ui/use-toast", () => ({
   toast: (...args: unknown[]) => toastMock(...args),
+  dismissToast: (...args: unknown[]) => dismissToastMock(...args),
 }));
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
@@ -40,6 +42,8 @@ describe("DashboardAuditLog date/time filters", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
     toastMock.mockReset();
+    toastMock.mockReturnValue("dashboard-audit-refresh-toast");
+    dismissToastMock.mockReset();
     apiFetchMock.mockImplementation(async (_base, path, options) => {
       const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
 

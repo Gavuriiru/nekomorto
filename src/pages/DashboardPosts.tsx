@@ -21,6 +21,7 @@ import {
 import UploadPicture from "@/components/UploadPicture";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,8 @@ import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { formatDateTimeShort } from "@/lib/date";
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
+import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
@@ -324,6 +327,55 @@ type UserRecord = {
   permissions: string[];
 };
 
+const POSTS_CACHE_TTL_MS = 60_000;
+
+type PostsCacheEntry = {
+  posts: PostRecord[];
+  mediaVariants: UploadMediaVariantsMap;
+  users: UserRecord[];
+  ownerIds: string[];
+  projects: Project[];
+  tagTranslations: Record<string, string>;
+  expiresAt: number;
+};
+
+let postsPageCache: PostsCacheEntry | null = null;
+
+const clonePostsCacheEntry = (value: Omit<PostsCacheEntry, "expiresAt">) => ({
+  posts: value.posts.map((post) => ({
+    ...post,
+    tags: Array.isArray(post.tags) ? [...post.tags] : [],
+  })),
+  mediaVariants: { ...value.mediaVariants },
+  users: value.users.map((user) => ({
+    ...user,
+    permissions: Array.isArray(user.permissions) ? [...user.permissions] : [],
+  })),
+  ownerIds: [...value.ownerIds],
+  projects: value.projects.map((project) => ({
+    ...project,
+  })),
+  tagTranslations: { ...value.tagTranslations },
+});
+
+const readPostsPageCache = () => {
+  if (!postsPageCache) {
+    return null;
+  }
+  if (postsPageCache.expiresAt <= Date.now()) {
+    postsPageCache = null;
+    return null;
+  }
+  return clonePostsCacheEntry(postsPageCache);
+};
+
+const writePostsPageCache = (value: Omit<PostsCacheEntry, "expiresAt">) => {
+  postsPageCache = {
+    ...clonePostsCacheEntry(value),
+    expiresAt: Date.now() + POSTS_CACHE_TTL_MS,
+  };
+};
+
 const LexicalEditor = lazy(() => import("@/components/lexical/LexicalEditor"));
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
@@ -491,18 +543,24 @@ const DashboardPosts = () => {
   const { announce } = useAccessibilityAnnouncer();
   const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const [posts, setPosts] = useState<PostRecord[]>([]);
-  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [users, setUsers] = useState<UserRecord[]>([]);
-  const [ownerIds, setOwnerIds] = useState<string[]>([]);
-  const [currentUser, setCurrentUser] = useState<{
-    id: string;
-    name: string;
-    username: string;
-    avatarUrl?: string | null;
-  } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const initialCacheRef = useRef(readPostsPageCache());
+  const [posts, setPosts] = useState<PostRecord[]>(initialCacheRef.current?.posts ?? []);
+  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>(
+    initialCacheRef.current?.mediaVariants ?? {},
+  );
+  const [projects, setProjects] = useState<Project[]>(initialCacheRef.current?.projects ?? []);
+  const [users, setUsers] = useState<UserRecord[]>(initialCacheRef.current?.users ?? []);
+  const [ownerIds, setOwnerIds] = useState<string[]>(initialCacheRef.current?.ownerIds ?? []);
+  const { currentUser, isLoadingUser } = useDashboardCurrentUser();
+  const [isInitialLoading, setIsInitialLoading] = useState(!initialCacheRef.current);
+  const [isRefreshing, setIsRefreshing] = useState(Boolean(initialCacheRef.current));
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(Boolean(initialCacheRef.current));
+  const [hasResolvedPosts, setHasResolvedPosts] = useState(Boolean(initialCacheRef.current));
+  const [hasResolvedProjects, setHasResolvedProjects] = useState(Boolean(initialCacheRef.current));
+  const [hasResolvedUsers, setHasResolvedUsers] = useState(Boolean(initialCacheRef.current));
+  const [hasResolvedTagTranslations, setHasResolvedTagTranslations] = useState(
+    Boolean(initialCacheRef.current),
+  );
   const [hasLoadError, setHasLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -532,7 +590,9 @@ const DashboardPosts = () => {
   const [projectFilterQuery, setProjectFilterQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<PostRecord | null>(null);
   const [tagInput, setTagInput] = useState("");
-  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
+    initialCacheRef.current?.tagTranslations ?? {},
+  );
   const tagInputRef = useRef<HTMLInputElement | null>(null);
   const [tagOrder, setTagOrder] = useState<string[]>([]);
   const [draggedTag, setDraggedTag] = useState<string | null>(null);
@@ -559,6 +619,8 @@ const DashboardPosts = () => {
   const editorInitialSnapshotRef = useRef<string>(buildPostEditorSnapshot(emptyForm));
   const autoEditHandledRef = useRef<string | null>(null);
   const isApplyingSearchParamsRef = useRef(false);
+  const requestIdRef = useRef(0);
+  const hasLoadedOnceRef = useRef(hasLoadedOnce);
   const queryStateRef = useRef({
     sortMode,
     searchQuery,
@@ -608,6 +670,10 @@ const DashboardPosts = () => {
   );
   const allowPopRef = useRef(false);
   const hasPushedBlockRef = useRef(false);
+
+  useEffect(() => {
+    hasLoadedOnceRef.current = hasLoadedOnce;
+  }, [hasLoadedOnce]);
 
   useEffect(() => {
     if (!isSlugCustom) {
@@ -665,10 +731,21 @@ const DashboardPosts = () => {
     }
     const data = await response.json();
     const nextPosts = Array.isArray(data.posts) ? data.posts : [];
-    setMediaVariants(
-      data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
-    );
+    const nextMediaVariants =
+      data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {};
+    setMediaVariants(nextMediaVariants);
     setPosts(nextPosts);
+    setHasResolvedPosts(true);
+    setHasLoadedOnce(true);
+    setHasLoadError(false);
+    writePostsPageCache({
+      posts: nextPosts,
+      mediaVariants: nextMediaVariants,
+      users,
+      ownerIds,
+      projects,
+      tagTranslations,
+    });
   };
 
   const loadEditorialCalendar = useCallback(
@@ -767,104 +844,130 @@ const DashboardPosts = () => {
   useEffect(() => {
     let isActive = true;
     const load = async () => {
-      if (isActive) {
-        setIsLoading(true);
-        setHasLoadError(false);
-      }
-      try {
-        let failed = false;
-        const [postsRes, usersRes, meRes, projectsRes, tagsRes] = await Promise.all([
-          apiFetch(apiBase, "/api/posts", { auth: true }),
-          apiFetch(apiBase, "/api/users", { auth: true }),
-          apiFetch(apiBase, "/api/me", { auth: true }),
-          apiFetch(apiBase, "/api/projects", { auth: true }),
-          apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
-        ]);
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
+      const background = hasLoadedOnceRef.current;
+      const cached = initialCacheRef.current;
 
-        if (postsRes.ok) {
-          const data = await postsRes.json();
-          if (isActive) {
-            const nextPosts = Array.isArray(data.posts) ? data.posts : [];
-            setMediaVariants(
-              data?.mediaVariants && typeof data.mediaVariants === "object"
-                ? data.mediaVariants
-                : {},
-            );
-            setPosts(nextPosts);
-          }
+      setHasLoadError(false);
+      if (background) {
+        setIsRefreshing(true);
+      } else {
+        setIsInitialLoading(true);
+        setHasResolvedPosts(false);
+      }
+      if (!cached) {
+        setHasResolvedUsers(false);
+        setHasResolvedProjects(false);
+        setHasResolvedTagTranslations(false);
+      }
+
+      const postsPromise = apiFetch(apiBase, "/api/posts", { auth: true });
+      const usersPromise = apiFetch(apiBase, "/api/users", { auth: true });
+      const projectsPromise = apiFetch(apiBase, "/api/projects", { auth: true });
+      const tagsPromise = apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" });
+
+      try {
+        const postsRes = await postsPromise;
+        if (!isActive || requestIdRef.current !== requestId) {
+          return;
+        }
+        if (!postsRes.ok) {
+          throw new Error("posts_load_failed");
+        }
+        const postsData = await postsRes.json();
+        const nextPosts = Array.isArray(postsData.posts) ? postsData.posts : [];
+        const nextMediaVariants =
+          postsData?.mediaVariants && typeof postsData.mediaVariants === "object"
+            ? postsData.mediaVariants
+            : {};
+        setPosts(nextPosts);
+        setMediaVariants(nextMediaVariants);
+        setHasResolvedPosts(true);
+        setHasLoadedOnce(true);
+        setIsInitialLoading(false);
+
+        let nextUsers = users;
+        let nextOwnerIds = ownerIds;
+        let nextProjects = projects;
+        let nextTagTranslations = tagTranslations;
+
+        const [usersResult, projectsResult, tagsResult] = await Promise.allSettled([
+          usersPromise,
+          projectsPromise,
+          tagsPromise,
+        ]);
+        if (!isActive || requestIdRef.current !== requestId) {
+          return;
+        }
+
+        if (usersResult.status === "fulfilled" && usersResult.value.ok) {
+          const usersData = await usersResult.value.json();
+          nextUsers = Array.isArray(usersData.users) ? usersData.users : [];
+          nextOwnerIds = Array.isArray(usersData.ownerIds) ? usersData.ownerIds : [];
         } else {
-          failed = true;
-          if (isActive) {
+          nextUsers = [];
+          nextOwnerIds = [];
+        }
+        setUsers(nextUsers);
+        setOwnerIds(nextOwnerIds);
+        setHasResolvedUsers(true);
+
+        if (projectsResult.status === "fulfilled" && projectsResult.value.ok) {
+          const projectsData = await projectsResult.value.json();
+          nextProjects = Array.isArray(projectsData.projects) ? projectsData.projects : [];
+        } else {
+          nextProjects = [];
+        }
+        setProjects(nextProjects);
+        setHasResolvedProjects(true);
+
+        if (tagsResult.status === "fulfilled" && tagsResult.value.ok) {
+          const tagsData = await tagsResult.value.json();
+          nextTagTranslations = tagsData.tags || {};
+        } else {
+          nextTagTranslations = {};
+        }
+        setTagTranslations(nextTagTranslations);
+        setHasResolvedTagTranslations(true);
+
+        writePostsPageCache({
+          posts: nextPosts,
+          mediaVariants: nextMediaVariants,
+          users: nextUsers,
+          ownerIds: nextOwnerIds,
+          projects: nextProjects,
+          tagTranslations: nextTagTranslations,
+        });
+      } catch {
+        if (isActive && requestIdRef.current === requestId) {
+          if (!hasLoadedOnceRef.current) {
             setMediaVariants({});
             setPosts([]);
-          }
-        }
-
-        if (usersRes.ok) {
-          const data = await usersRes.json();
-          if (isActive) {
-            setUsers(Array.isArray(data.users) ? data.users : []);
-            setOwnerIds(Array.isArray(data.ownerIds) ? data.ownerIds : []);
-          }
-        } else {
-          failed = true;
-          if (isActive) {
             setUsers([]);
             setOwnerIds([]);
+            setProjects([]);
+            setTagTranslations({});
+            setHasResolvedUsers(false);
+            setHasResolvedProjects(false);
+            setHasResolvedTagTranslations(false);
           }
-        }
-
-        if (meRes.ok) {
-          const data = await meRes.json();
-          if (isActive) {
-            setCurrentUser(data);
-          }
-        } else {
-          failed = true;
-          if (isActive) {
-            setCurrentUser(null);
-          }
-        }
-
-        if (projectsRes.ok) {
-          const data = await projectsRes.json();
-          if (isActive) {
-            setProjects(Array.isArray(data.projects) ? data.projects : []);
-          }
-        } else if (isActive) {
-          setProjects([]);
-        }
-
-        if (tagsRes.ok) {
-          const data = await tagsRes.json();
-          if (isActive) {
-            setTagTranslations(data.tags || {});
-          }
-        } else if (isActive) {
-          setTagTranslations({});
-        }
-        if (isActive) {
-          setHasLoadError(failed);
-        }
-      } catch {
-        if (isActive) {
-          setMediaVariants({});
-          setPosts([]);
-          setUsers([]);
-          setOwnerIds([]);
-          setCurrentUser(null);
-          setProjects([]);
-          setTagTranslations({});
           setHasLoadError(true);
         }
       } finally {
-        if (isActive) {
-          setIsLoading(false);
+        if (isActive && requestIdRef.current === requestId) {
+          setIsInitialLoading(false);
+          setIsRefreshing(false);
+          if (cached) {
+            setHasResolvedUsers(true);
+            setHasResolvedProjects(true);
+            setHasResolvedTagTranslations(true);
+          }
         }
       }
     };
 
-    load();
+    void load();
     return () => {
       isActive = false;
     };
@@ -1093,7 +1196,7 @@ const DashboardPosts = () => {
     if (autoEditHandledRef.current === editTarget) {
       return;
     }
-    if (isLoading) {
+    if (!hasResolvedPosts || !hasResolvedUsers) {
       return;
     }
     autoEditHandledRef.current = editTarget;
@@ -1113,7 +1216,7 @@ const DashboardPosts = () => {
     if (nextParams.toString() !== searchParams.toString()) {
       setSearchParams(nextParams, { replace: true });
     }
-  }, [canManagePosts, isLoading, openCreate, openEdit, posts, searchParams, setSearchParams]);
+  }, [canManagePosts, hasResolvedPosts, hasResolvedUsers, openCreate, openEdit, posts, searchParams, setSearchParams]);
 
   const closeEditor = () => {
     setIsEditorOpen(false);
@@ -1403,11 +1506,11 @@ const DashboardPosts = () => {
   const paginatedPosts = sortedPosts.slice(pageStart, pageStart + postsPerPage);
 
   useEffect(() => {
-    if (isLoading) {
+    if (!hasResolvedPosts) {
       return;
     }
     setCurrentPage((page) => Math.min(page, totalPages));
-  }, [isLoading, totalPages]);
+  }, [hasResolvedPosts, totalPages]);
 
   useEffect(() => {
     queryStateRef.current = {
@@ -1908,12 +2011,21 @@ const DashboardPosts = () => {
     ? projectMap.get(formState.projectId)?.title || `ID ${formState.projectId}`
     : "Sem projeto";
   const editorTagCount = mergedTags.length;
+  const hasBlockingLoadError = !hasLoadedOnce && hasLoadError;
+  const hasRetainedLoadError = hasLoadedOnce && hasLoadError;
+  const showPostsSurfaceSkeleton = !hasResolvedPosts && !hasBlockingLoadError;
+
+  useDashboardRefreshToast({
+    active: isRefreshing && hasLoadedOnce,
+    title: "Atualizando postagens",
+    description: "Buscando a lista mais recente do painel editorial.",
+  });
 
   return (
     <>
       <DashboardShell
         currentUser={currentUser}
-        isLoadingUser={isLoading}
+        isLoadingUser={isLoadingUser}
         onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
         onMenuItemClick={(item, event) => {
           if (!item.enabled || !isEditorOpen || !isDirty) {
@@ -2465,6 +2577,7 @@ const DashboardPosts = () => {
                 {sortMode === "projects" ? (
                   <Select
                     value={projectFilterId}
+                    disabled={!hasResolvedProjects}
                     onValueChange={(value) => {
                       setCurrentPage(1);
                       setProjectFilterId(value);
@@ -2523,14 +2636,21 @@ const DashboardPosts = () => {
                 </Badge>
               </div>
             </div>
-            {isLoading ? (
-              <AsyncState
-                kind="loading"
-                title="Carregando postagens"
-                description="Buscando os dados mais recentes do painel."
-                className={dashboardPageLayoutTokens.surfaceDefault}
-              />
-            ) : hasLoadError ? (
+            {hasRetainedLoadError ? (
+              <Alert className={dashboardPageLayoutTokens.surfaceDefault}>
+                <AlertTitle>Atualização parcial indisponível</AlertTitle>
+                <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                  <span>Mantendo a última lista de posts carregada.</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLoadVersion((previous) => previous + 1)}
+                  >
+                    Tentar novamente
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : hasBlockingLoadError ? (
               <AsyncState
                 kind="error"
                 title="Não foi possível carregar as postagens"
@@ -2545,6 +2665,42 @@ const DashboardPosts = () => {
                   </Button>
                 }
               />
+            ) : showPostsSurfaceSkeleton ? (
+              <Card
+                className={dashboardPageLayoutTokens.surfaceDefault}
+                data-testid="dashboard-posts-skeleton-surface"
+              >
+                <CardContent className="space-y-4 p-4 md:p-6">
+                  <div className="space-y-2">
+                    <Skeleton className="h-5 w-40" />
+                    <Skeleton className="h-4 w-72" />
+                  </div>
+                  <div className="space-y-3">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <div
+                        key={`post-skeleton-${index}`}
+                        className="rounded-2xl border border-border/60 bg-background/40 p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <div className="flex gap-2">
+                              <Skeleton className="h-5 w-20" />
+                              <Skeleton className="h-5 w-24" />
+                            </div>
+                            <Skeleton className="h-6 w-2/5" />
+                            <Skeleton className="h-4 w-4/5" />
+                            <Skeleton className="h-4 w-3/5" />
+                          </div>
+                          <div className="flex gap-2">
+                            <Skeleton className="h-9 w-9 rounded-md" />
+                            <Skeleton className="h-9 w-9 rounded-md" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             ) : sortedPosts.length === 0 ? (
               <AsyncState
                 kind="empty"
@@ -3370,6 +3526,12 @@ const DashboardPosts = () => {
       </Dialog>
     </>
   );
+};
+
+export const __testing = {
+  clearPostsPageCache: () => {
+    postsPageCache = null;
+  },
 };
 
 export default DashboardPosts;

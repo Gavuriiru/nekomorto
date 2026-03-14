@@ -7,6 +7,7 @@ import DashboardAuditLog from "@/pages/DashboardAuditLog";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
+const dismissToastMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -26,6 +27,7 @@ vi.mock("@/lib/api-client", () => ({
 
 vi.mock("@/components/ui/use-toast", () => ({
   toast: (...args: unknown[]) => toastMock(...args),
+  dismissToast: (...args: unknown[]) => dismissToastMock(...args),
 }));
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
@@ -46,6 +48,8 @@ describe("DashboardAuditLog semantic badges", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
     toastMock.mockReset();
+    toastMock.mockReturnValue("dashboard-audit-refresh-toast");
+    dismissToastMock.mockReset();
     apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
       const method = String(options?.method || "GET").toUpperCase();
       if (path === "/api/me" && method === "GET") {

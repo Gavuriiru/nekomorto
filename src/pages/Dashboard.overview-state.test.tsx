@@ -173,6 +173,13 @@ const installDashboardApiMock = (options?: {
   });
 };
 
+const countApiCalls = (path: string, method = "GET") =>
+  apiFetchMock.mock.calls.filter((call) => {
+    const requestPath = String(call[1] || "");
+    const requestOptions = (call[2] || {}) as RequestInit;
+    return requestPath === path && String(requestOptions.method || "GET").toUpperCase() === method;
+  }).length;
+
 describe("Dashboard overview async states", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
@@ -214,6 +221,48 @@ describe("Dashboard overview async states", () => {
     expect(await screen.findByRole("button", { name: "Exportar relatorio" })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByTestId("dashboard-loading-skeleton")).not.toBeInTheDocument();
+    });
+  });
+
+  it("revalida o bootstrap uma vez no fallback e nao recoloca o skeleton apos rerender", async () => {
+    installDashboardApiMock({
+      userResponse: mockJsonResponse(true, dashboardUser),
+      overviewResponse: mockJsonResponse(true, buildOverviewPayload()),
+      operationalAlertsResponse: mockJsonResponse(true, buildOperationalAlertsPayload()),
+    });
+    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = {
+      id: "u-1",
+      name: "Admin",
+      username: "admin",
+      avatarUrl: null,
+      permissions: ["*"],
+    };
+
+    const { rerender } = render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("button", { name: "Exportar relatorio" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId("dashboard-loading-skeleton")).not.toBeInTheDocument();
+    });
+
+    expect(countApiCalls("/api/me")).toBe(1);
+    expect(screen.getByTestId("dashboard-shell")).toHaveAttribute("data-loading-user", "false");
+
+    rerender(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByTestId("dashboard-loading-skeleton")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(countApiCalls("/api/me")).toBe(1);
+      expect(screen.getByTestId("dashboard-shell")).toHaveAttribute("data-loading-user", "false");
     });
   });
 

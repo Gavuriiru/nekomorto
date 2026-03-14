@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import DashboardProjectsEditor from "@/pages/DashboardProjectsEditor";
+import DashboardProjectsEditor, { __testing } from "@/pages/DashboardProjectsEditor";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 
@@ -164,6 +164,10 @@ const NavigateCleanQuery = () => {
 };
 
 describe("DashboardProjectsEditor query sync", () => {
+  beforeEach(() => {
+    __testing.clearProjectsPageCache();
+  });
+
   it("avanca para pagina 2 ao clicar em proxima", async () => {
     setupApiMock();
 

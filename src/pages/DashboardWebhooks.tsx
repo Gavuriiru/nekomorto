@@ -1,5 +1,5 @@
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -13,9 +13,9 @@ import DashboardPageContainer from "@/components/dashboard/DashboardPageContaine
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import {
   dashboardAnimationDelay,
-  dashboardClampedStaggerMs,
   dashboardMotionDelays,
 } from "@/components/dashboard/dashboard-motion";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,13 +26,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
+import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import {
-  readWindowPublicBootstrapCurrentUser,
-  type PublicBootstrapCurrentUser,
-} from "@/lib/public-bootstrap-global";
 import { Plus, Save, Send, Trash2 } from "lucide-react";
 
 type ChannelKey = "posts" | "projects";
@@ -319,6 +317,54 @@ const isValidWebhookUrl = (value: string) => {
 const cloneSettings = (value: EditorialSettings): EditorialSettings =>
   JSON.parse(JSON.stringify(value)) as EditorialSettings;
 
+const WEBHOOKS_CACHE_TTL_MS = 60_000;
+
+type EditorialSettingsCacheEntry = {
+  projectTypes: string[];
+  settings: EditorialSettings;
+  savedSettings: EditorialSettings;
+  expiresAt: number;
+};
+
+let editorialSettingsCache: EditorialSettingsCacheEntry | null = null;
+
+const readEditorialSettingsCache = () => {
+  if (!editorialSettingsCache) {
+    return null;
+  }
+  if (editorialSettingsCache.expiresAt <= Date.now()) {
+    editorialSettingsCache = null;
+    return null;
+  }
+  return {
+    projectTypes: [...editorialSettingsCache.projectTypes],
+    settings: cloneSettings(editorialSettingsCache.settings),
+    savedSettings: cloneSettings(editorialSettingsCache.savedSettings),
+  };
+};
+
+const writeEditorialSettingsCache = (value: {
+  projectTypes: string[];
+  settings: EditorialSettings;
+  savedSettings: EditorialSettings;
+}) => {
+  editorialSettingsCache = {
+    projectTypes: [...value.projectTypes],
+    settings: cloneSettings(value.settings),
+    savedSettings: cloneSettings(value.savedSettings),
+    expiresAt: Date.now() + WEBHOOKS_CACHE_TTL_MS,
+  };
+};
+
+const settingsMatch = (left: EditorialSettings, right: EditorialSettings) =>
+  JSON.stringify(left) === JSON.stringify(right);
+
+export const __testing = {
+  clearEditorialSettingsCache: () => {
+    editorialSettingsCache = null;
+  },
+};
+
 const normalizeHexColor = (value: string, fallback: string) => {
   const raw = String(value || "").trim();
   if (!raw) {
@@ -331,76 +377,115 @@ const normalizeHexColor = (value: string, fallback: string) => {
   return fallback;
 };
 
-const asDashboardCurrentUser = (
-  value: PublicBootstrapCurrentUser | null,
-): DashboardCurrentUser | null => {
-  if (!value) {
-    return null;
-  }
-  return {
-    id: value.id,
-    name: value.name,
-    username: value.username,
-    avatarUrl: value.avatarUrl,
-    permissions: value.permissions,
-    grants: value.grants,
-  };
-};
-
-const WebhookSectionSkeleton = ({
-  title,
-  description,
-  testId,
-  delayMs,
+const WebhookPlaceholderField = ({
+  label,
+  wide = false,
 }: {
-  title: string;
-  description: string;
-  testId: string;
-  delayMs: number;
+  label: string;
+  wide?: boolean;
 }) => (
-  <section
-    className="rounded-xl border border-border/60 bg-card/80 px-4 py-4 animate-slide-up opacity-0"
-    style={dashboardAnimationDelay(delayMs)}
-    data-testid={testId}
-  >
-    <div className="space-y-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-sm font-semibold">{title}</h2>
-          <p className="text-xs text-muted-foreground">{description}</p>
-        </div>
-        <Skeleton className="h-9 w-24 shrink-0" />
-      </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        <Skeleton className="h-10 md:col-span-2" />
-        <Skeleton className="h-10" />
-        <Skeleton className="h-10" />
-      </div>
-      <Skeleton className="h-12 w-full" />
-      <div className="space-y-3">
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </div>
+  <div className={wide ? "space-y-2 md:col-span-2" : "space-y-2"}>
+    <Label>{label}</Label>
+    <Skeleton className="h-10 w-full" />
+  </div>
+);
+
+const WebhookTypesPlaceholder = () => (
+  <div className="space-y-4 min-h-[19rem]" data-testid="dashboard-webhooks-placeholder-types">
+    <div className="space-y-2.5" data-testid="dashboard-webhooks-general-role-placeholder-field">
+      <Label className="leading-tight">Role geral de lancamentos (ID)</Label>
+      <Skeleton className="h-10 w-full" />
     </div>
-  </section>
+    <div className="space-y-3">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div
+          key={`dashboard-webhooks-placeholder-type-${index}`}
+          className="grid gap-3 rounded-xl border border-border/60 bg-background/40 p-3 md:grid-cols-[1fr_280px]"
+        >
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-3 w-44" />
+          </div>
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const WebhookChannelPlaceholder = ({
+  channelKey,
+  testId,
+}: {
+  channelKey: ChannelKey;
+  testId: string;
+}) => (
+  <div className="space-y-4 min-h-[39rem]" data-testid={testId}>
+    <div className="grid gap-3 md:grid-cols-3">
+      <WebhookPlaceholderField label="Webhook URL" wide />
+      <WebhookPlaceholderField label="Timeout (ms)" />
+      <WebhookPlaceholderField label="Tentativas" />
+    </div>
+    <div className="flex w-fit items-center gap-2 rounded-md border border-border/60 px-3 py-2">
+      <Skeleton className="h-5 w-10 rounded-full" />
+      <span className="text-xs text-muted-foreground">Canal ativo</span>
+    </div>
+    <div className="space-y-3">
+      {CHANNEL_EVENTS[channelKey].map((eventKey) => (
+        <section
+          key={`dashboard-webhooks-placeholder-${channelKey}-${eventKey}`}
+          className="rounded-xl border border-border/60 bg-background/40 px-3 py-4"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">{EVENT_LABELS[eventKey]}</span>
+            <Badge variant="outline">{eventKey}</Badge>
+          </div>
+          <div className="mt-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">Evento ativo</span>
+              <Skeleton className="h-5 w-10 rounded-full" />
+              <Skeleton className="h-9 w-28" />
+            </div>
+            <Skeleton className="h-20 w-full" />
+            <div className="grid gap-2 md:grid-cols-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <div className="flex flex-wrap gap-2">
+              <Skeleton className="h-6 w-24 rounded-full" />
+              <Skeleton className="h-6 w-28 rounded-full" />
+              <Skeleton className="h-6 w-32 rounded-full" />
+            </div>
+          </div>
+        </section>
+      ))}
+    </div>
+  </div>
 );
 
 const DashboardWebhooks = () => {
   usePageMeta({ title: "Webhooks", noIndex: true });
   const navigate = useNavigate();
   const apiBase = getApiBase();
-  const bootstrapCurrentUser = useMemo(() => readWindowPublicBootstrapCurrentUser(), []);
-
-  const [currentUser, setCurrentUser] = useState<DashboardCurrentUser | null>(() =>
-    asDashboardCurrentUser(bootstrapCurrentUser),
+  const initialCacheRef = useRef(readEditorialSettingsCache());
+  const { currentUser, isLoadingUser } = useDashboardCurrentUser<DashboardCurrentUser>({
+    revalidateBootstrap: false,
+  });
+  const [isInitialLoading, setIsInitialLoading] = useState(!initialCacheRef.current);
+  const [isRefreshing, setIsRefreshing] = useState(Boolean(initialCacheRef.current));
+  const [loadError, setLoadError] = useState("");
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(Boolean(initialCacheRef.current));
+  const [projectTypes, setProjectTypes] = useState<string[]>(
+    initialCacheRef.current?.projectTypes ?? DEFAULT_PROJECT_TYPES,
   );
-  const [isLoadingUser, setIsLoadingUser] = useState(() => !bootstrapCurrentUser);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasLoadError, setHasLoadError] = useState(false);
-  const [projectTypes, setProjectTypes] = useState<string[]>(DEFAULT_PROJECT_TYPES);
-  const [settings, setSettings] = useState<EditorialSettings>(makeDefaultSettings(DEFAULT_PROJECT_TYPES));
+  const [settings, setSettings] = useState<EditorialSettings>(
+    initialCacheRef.current?.settings ?? makeDefaultSettings(DEFAULT_PROJECT_TYPES),
+  );
   const [savedSettings, setSavedSettings] = useState<EditorialSettings>(
-    makeDefaultSettings(DEFAULT_PROJECT_TYPES),
+    initialCacheRef.current?.savedSettings ?? makeDefaultSettings(DEFAULT_PROJECT_TYPES),
   );
   const [openSections, setOpenSections] = useState<string[]>(["types", "posts", "projects"]);
   const [savingBySection, setSavingBySection] = useState<Record<SaveSectionKey, boolean>>({
@@ -415,6 +500,22 @@ const DashboardWebhooks = () => {
     project_release: false,
     project_adjust: false,
   });
+  const loadRequestIdRef = useRef(0);
+  const hasLoadedOnceRef = useRef(hasLoadedOnce);
+  const settingsRef = useRef(settings);
+  const savedSettingsRef = useRef(savedSettings);
+
+  useEffect(() => {
+    hasLoadedOnceRef.current = hasLoadedOnce;
+  }, [hasLoadedOnce]);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  useEffect(() => {
+    savedSettingsRef.current = savedSettings;
+  }, [savedSettings]);
 
   const canManageIntegrations = useMemo(() => {
     const grants =
@@ -437,21 +538,16 @@ const DashboardWebhooks = () => {
     [openSections],
   );
 
-  const loadCurrentUser = useCallback(async () => {
-    setIsLoadingUser(true);
-    try {
-      const response = await apiFetch(apiBase, "/api/me", { auth: true });
-      setCurrentUser(response.ok ? await response.json() : null);
-    } catch {
-      setCurrentUser(null);
-    } finally {
-      setIsLoadingUser(false);
+  const loadSettings = useCallback(async (options?: { background?: boolean }) => {
+    const background = options?.background ?? hasLoadedOnceRef.current;
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
+    if (background) {
+      setIsRefreshing(true);
+    } else {
+      setIsInitialLoading(true);
     }
-  }, [apiBase]);
-
-  const loadSettings = useCallback(async () => {
-    setIsLoading(true);
-    setHasLoadError(false);
+    setLoadError("");
     try {
       const response = await apiFetch(apiBase, "/api/integrations/webhooks/editorial", {
         auth: true,
@@ -461,33 +557,43 @@ const DashboardWebhooks = () => {
         throw new Error("load_failed");
       }
       const payload = await response.json();
+      if (loadRequestIdRef.current !== requestId) {
+        return;
+      }
       const remoteTypes = Array.isArray(payload?.projectTypes)
         ? payload.projectTypes.map((item: unknown) => String(item || "").trim()).filter(Boolean)
         : DEFAULT_PROJECT_TYPES;
       const nextSettings = asSettings(payload?.settings, remoteTypes);
+      const currentSettings = settingsRef.current;
+      const currentSavedSettings = savedSettingsRef.current;
+      const shouldPreserveDrafts =
+        background && settingsMatch(currentSettings, currentSavedSettings) === false;
+      const nextDraftSettings = shouldPreserveDrafts ? currentSettings : nextSettings;
       setProjectTypes(remoteTypes);
-      setSettings(nextSettings);
       setSavedSettings(nextSettings);
+      setSettings(nextDraftSettings);
+      writeEditorialSettingsCache({
+        projectTypes: remoteTypes,
+        settings: nextDraftSettings,
+        savedSettings: nextSettings,
+      });
+      setHasLoadedOnce(true);
     } catch {
-      setHasLoadError(true);
-      setProjectTypes(DEFAULT_PROJECT_TYPES);
-      const fallback = makeDefaultSettings(DEFAULT_PROJECT_TYPES);
-      setSettings(fallback);
-      setSavedSettings(fallback);
+      if (loadRequestIdRef.current !== requestId) {
+        return;
+      }
+      setLoadError("Nao foi possivel atualizar os webhooks editoriais.");
     } finally {
-      setIsLoading(false);
+      if (loadRequestIdRef.current !== requestId) {
+        return;
+      }
+      setIsInitialLoading(false);
+      setIsRefreshing(false);
     }
   }, [apiBase]);
 
   useEffect(() => {
-    if (bootstrapCurrentUser) {
-      return;
-    }
-    void loadCurrentUser();
-  }, [bootstrapCurrentUser, loadCurrentUser]);
-
-  useEffect(() => {
-    void loadSettings();
+    void loadSettings({ background: Boolean(initialCacheRef.current) });
   }, [loadSettings]);
 
   const patchChannel = useCallback((channelKey: ChannelKey, updater: (value: EditorialSettings["channels"][ChannelKey]) => EditorialSettings["channels"][ChannelKey]) => {
@@ -655,6 +761,11 @@ const DashboardWebhooks = () => {
         setProjectTypes(remoteTypes);
         setSavedSettings(serverSettings);
         setSettings(nextDraft);
+        writeEditorialSettingsCache({
+          projectTypes: remoteTypes,
+          settings: nextDraft,
+          savedSettings: serverSettings,
+        });
         toast({
           title: "Seção salva",
           description:
@@ -730,6 +841,11 @@ const DashboardWebhooks = () => {
       setProjectTypes(remoteTypes);
       setSavedSettings(serverSettings);
       setSettings(serverSettings);
+      writeEditorialSettingsCache({
+        projectTypes: remoteTypes,
+        settings: serverSettings,
+        savedSettings: serverSettings,
+      });
       toast({
         title: "Configurações salvas",
         description: "Webhooks editoriais atualizados com sucesso.",
@@ -771,6 +887,15 @@ const DashboardWebhooks = () => {
     }
   }, [apiBase]);
 
+  const hasBlockingLoadError = !hasLoadedOnce && Boolean(loadError);
+  const showStableShell = isInitialLoading && !hasLoadedOnce;
+
+  useDashboardRefreshToast({
+    active: isRefreshing && hasLoadedOnce,
+    title: "Atualizando webhooks editoriais",
+    description: "Buscando a configuracao mais recente dos webhooks editoriais.",
+  });
+
   if (!isLoadingUser && !canManageIntegrations) {
     return (
       <DashboardShell currentUser={currentUser} isLoadingUser={isLoadingUser} onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}>
@@ -798,41 +923,30 @@ const DashboardWebhooks = () => {
               type="button"
               className="gap-2"
               onClick={() => void handleSaveAll()}
-              disabled={isSavingAll || isLoading || hasLoadError}
+              disabled={isSavingAll || showStableShell || hasBlockingLoadError}
             >
               <Save className="h-4 w-4" />
               {isSavingAll ? "Salvando..." : "Salvar"}
             </Button>
           }
         />
-        {hasLoadError ? (
+        {loadError && !hasBlockingLoadError ? (
+          <Alert className="mb-4 border-border/60 bg-background/50 text-muted-foreground">
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+              <span>Mantendo os ultimos dados carregados.</span>
+              <Button size="sm" variant="outline" onClick={() => void loadSettings({ background: true })}>
+                Tentar novamente
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {hasBlockingLoadError ? (
           <AsyncState
             kind="error"
             title="Falha ao carregar"
             description="Não foi possível buscar os webhooks editoriais."
-            action={<Button onClick={() => void loadSettings()}>Tentar novamente</Button>}
+            action={<Button onClick={() => void loadSettings({ background: false })}>Tentar novamente</Button>}
           />
-        ) : isLoading ? (
-          <div className="space-y-4">
-            <WebhookSectionSkeleton
-              title="Tipos e menções"
-              description="Carregando roles e mapeamentos por tipo."
-              testId="dashboard-webhooks-loading-section-types"
-              delayMs={SECTION_REVEAL_DELAYS.types}
-            />
-            <WebhookSectionSkeleton
-              title="Posts"
-              description="Carregando eventos e templates de posts."
-              testId="dashboard-webhooks-loading-section-posts"
-              delayMs={SECTION_REVEAL_DELAYS.posts}
-            />
-            <WebhookSectionSkeleton
-              title="Projetos"
-              description="Carregando eventos e templates de projetos."
-              testId="dashboard-webhooks-loading-section-projects"
-              delayMs={SECTION_REVEAL_DELAYS.projects}
-            />
-          </div>
         ) : (
         <Accordion
           type="multiple"
@@ -856,7 +970,7 @@ const DashboardWebhooks = () => {
                   className="absolute right-10 top-1/2 -translate-y-1/2 gap-2"
                   aria-label="Salvar tipos e menções"
                   onClick={() => void handleSaveSection("types")}
-                  disabled={savingBySection.types}
+                  disabled={savingBySection.types || showStableShell}
                 >
                   <Save className="h-4 w-4" />
                   {savingBySection.types ? "Salvando..." : "Salvar"}
@@ -864,15 +978,12 @@ const DashboardWebhooks = () => {
               ) : null}
             </div>
             <AccordionContent className="space-y-4">
-              <div
-                className="space-y-4 animate-slide-up opacity-0"
-                style={dashboardAnimationDelay(
-                  SECTION_REVEAL_DELAYS.types + dashboardMotionDelays.sectionStepMs,
-                )}
-                data-testid="dashboard-webhooks-section-content-types"
-              >
-                <div className="space-y-2">
-                  <Label>Role geral de lançamentos (ID)</Label>
+              {showStableShell ? (
+                <WebhookTypesPlaceholder />
+              ) : (
+                <div className="space-y-4" data-testid="dashboard-webhooks-section-content-types">
+                <div className="space-y-2.5" data-testid="dashboard-webhooks-general-role-field">
+                  <Label className="leading-tight">Role geral de lançamentos (ID)</Label>
                   <Input
                     value={settings.generalReleaseRoleId}
                     onChange={(event) =>
@@ -912,7 +1023,8 @@ const DashboardWebhooks = () => {
                     </div>
                   ))}
                 </div>
-              </div>
+                </div>
+              )}
             </AccordionContent>
           </AccordionItem>
 
@@ -937,7 +1049,7 @@ const DashboardWebhooks = () => {
                       className="absolute right-10 top-1/2 -translate-y-1/2 gap-2"
                       aria-label={sectionKey === "posts" ? "Salvar posts" : "Salvar projetos"}
                       onClick={() => void handleSaveSection(sectionKey)}
-                      disabled={savingBySection[sectionKey]}
+                      disabled={savingBySection[sectionKey] || showStableShell}
                     >
                       <Save className="h-4 w-4" />
                       {savingBySection[sectionKey] ? "Salvando..." : "Salvar"}
@@ -945,13 +1057,13 @@ const DashboardWebhooks = () => {
                   ) : null}
                 </div>
                 <AccordionContent className="space-y-4">
-                  <div
-                    className="space-y-4 animate-slide-up opacity-0"
-                    style={dashboardAnimationDelay(
-                      SECTION_REVEAL_DELAYS[sectionKey] + dashboardMotionDelays.sectionStepMs,
-                    )}
-                    data-testid={`dashboard-webhooks-section-content-${sectionKey}`}
-                  >
+                  {showStableShell ? (
+                    <WebhookChannelPlaceholder
+                      channelKey={channelKey}
+                      testId={`dashboard-webhooks-placeholder-${sectionKey}`}
+                    />
+                  ) : (
+                    <div className="space-y-4" data-testid={`dashboard-webhooks-section-content-${sectionKey}`}>
                   <div className="grid gap-3 md:grid-cols-3">
                     <div className="space-y-2 md:col-span-2">
                       <Label>Webhook URL</Label>
@@ -1012,7 +1124,7 @@ const DashboardWebhooks = () => {
                   </div>
 
                   <Accordion type="multiple" className="space-y-3">
-                    {CHANNEL_EVENTS[channelKey].map((eventKey, eventIndex) => {
+                    {CHANNEL_EVENTS[channelKey].map((eventKey) => {
                       const template = channel.templates[eventKey];
                       const displayEmbedColor = normalizeHexColor(
                         template.embed.color,
@@ -1022,8 +1134,7 @@ const DashboardWebhooks = () => {
                         <AccordionItem
                           key={eventKey}
                           value={`${channelKey}-${eventKey}`}
-                          className="rounded-xl border border-border/60 bg-background/40 px-3 animate-slide-up opacity-0"
-                          style={dashboardAnimationDelay(dashboardClampedStaggerMs(eventIndex))}
+                          className="rounded-xl border border-border/60 bg-background/40 px-3"
                           data-testid={`dashboard-webhooks-event-${channelKey}-${eventKey}`}
                         >
                           <AccordionTrigger className="hover:no-underline">
@@ -1034,16 +1145,7 @@ const DashboardWebhooks = () => {
                           </AccordionTrigger>
 
                           <AccordionContent className="space-y-4">
-                            <div
-                              className="space-y-4 animate-slide-up opacity-0"
-                              style={dashboardAnimationDelay(
-                                dashboardClampedStaggerMs(
-                                  eventIndex,
-                                  dashboardMotionDelays.sectionStepMs,
-                                ),
-                              )}
-                              data-testid={`dashboard-webhooks-event-content-${channelKey}-${eventKey}`}
-                            >
+                            <div className="space-y-4" data-testid={`dashboard-webhooks-event-content-${channelKey}-${eventKey}`}>
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-xs text-muted-foreground">Evento ativo</span>
                               <Switch
@@ -1264,7 +1366,8 @@ const DashboardWebhooks = () => {
                       );
                     })}
                   </Accordion>
-                  </div>
+                    </div>
+                  )}
                 </AccordionContent>
               </AccordionItem>
             );

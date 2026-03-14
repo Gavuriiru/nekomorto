@@ -3,10 +3,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import DashboardAuditLog from "@/pages/DashboardAuditLog";
+import DashboardAuditLog, { __testing } from "@/pages/DashboardAuditLog";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
+const dismissToastMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -26,6 +27,7 @@ vi.mock("@/lib/api-client", () => ({
 
 vi.mock("@/components/ui/use-toast", () => ({
   toast: (...args: unknown[]) => toastMock(...args),
+  dismissToast: (...args: unknown[]) => dismissToastMock(...args),
 }));
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
@@ -36,6 +38,19 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
     blob: async () => new Blob([""], { type: "text/csv" }),
   }) as Response;
+
+const createDeferredResponse = () => {
+  let resolve: ((value: Response) => void) | null = null;
+  const promise = new Promise<Response>((res) => {
+    resolve = res;
+  });
+  return {
+    promise,
+    resolve: (value: Response) => {
+      resolve?.(value);
+    },
+  };
+};
 
 const setupApiMock = () => {
   apiFetchMock.mockReset();
@@ -85,8 +100,11 @@ const NavigateCleanQuery = () => {
 
 describe("DashboardAuditLog query sync", () => {
   beforeEach(() => {
+    __testing.clearAuditResultsCache();
     apiFetchMock.mockReset();
     toastMock.mockReset();
+    toastMock.mockReturnValue("dashboard-audit-refresh-toast");
+    dismissToastMock.mockReset();
   });
 
   it("usa defaults quando URL inicial esta limpa", async () => {
@@ -109,6 +127,7 @@ describe("DashboardAuditLog query sync", () => {
       expect(params.get("limit")).toBe("50");
       expect(params.get("status")).toBeNull();
     });
+    expect(toastMock).not.toHaveBeenCalled();
     expect(getPreferenceCalls()).toHaveLength(0);
   });
 
@@ -129,6 +148,92 @@ describe("DashboardAuditLog query sync", () => {
       expect(params.get("status")).toBe("denied");
     });
     expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
+  it("mantem a tabela visivel enquanto atualiza os resultados manualmente", async () => {
+    const refreshDeferred = createDeferredResponse();
+    let auditCalls = 0;
+
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (path === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
+      }
+      if (String(path).startsWith("/api/audit-log?") && method === "GET") {
+        auditCalls += 1;
+        if (auditCalls === 1) {
+          return mockJsonResponse(true, {
+            entries: [
+              {
+                id: "audit-1",
+                ts: "2026-03-01T12:00:00.000Z",
+                actorId: "1",
+                actorName: "Admin",
+                ip: "127.0.0.1",
+                action: "posts.update",
+                resource: "posts",
+                resourceId: "post-1",
+                status: "success",
+                requestId: null,
+                meta: {},
+              },
+            ],
+            page: 1,
+            limit: 50,
+            total: 1,
+          });
+        }
+        return refreshDeferred.promise;
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/audit-log"]}>
+        <DashboardAuditLog />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Admin")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
+
+    expect(screen.getByText("Admin")).toBeInTheDocument();
+    expect(screen.queryByText(/Atualizando resultados/i)).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Atualizando resultados",
+          intent: "info",
+        }),
+      );
+    });
+
+    refreshDeferred.resolve(
+      mockJsonResponse(true, {
+        entries: [
+          {
+            id: "audit-2",
+            ts: "2026-03-01T12:05:00.000Z",
+            actorId: "2",
+            actorName: "Moderator",
+            ip: "127.0.0.2",
+            action: "comments.delete",
+            resource: "comments",
+            resourceId: "comment-1",
+            status: "failed",
+            requestId: null,
+            meta: {},
+          },
+        ],
+        page: 1,
+        limit: 50,
+        total: 1,
+      }),
+    );
+
+    expect(await screen.findByText("Moderator")).toBeInTheDocument();
+    expect(dismissToastMock).toHaveBeenCalledWith("dashboard-audit-refresh-toast");
   });
 
   it("limpa query e volta para defaults", async () => {

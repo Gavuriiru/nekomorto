@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LogOut } from "lucide-react";
 
 import DashboardShell from "@/components/DashboardShell";
@@ -8,6 +8,7 @@ import {
   dashboardClampedStaggerMs,
   dashboardMotionDelays,
 } from "@/components/dashboard/dashboard-motion";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +24,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
+import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 
@@ -68,19 +71,85 @@ const userInitials = (name: string) =>
     .join("")
     .toUpperCase() || "??";
 
+const SECURITY_CACHE_TTL_MS = 60_000;
+const SECURITY_CACHE_MAX_ENTRIES = 5;
+
+type SecuritySessionsCacheEntry = {
+  sessions: ActiveSessionRow[];
+  total: number;
+  expiresAt: number;
+};
+
+const securitySessionsCache = new Map<string, SecuritySessionsCacheEntry>();
+
+const buildSecurityCacheKey = (page: number, limit: number) => `${page}:${limit}`;
+
+const readSecurityCache = (key: string) => {
+  const cached = securitySessionsCache.get(key);
+  if (!cached) {
+    return null;
+  }
+  if (cached.expiresAt <= Date.now()) {
+    securitySessionsCache.delete(key);
+    return null;
+  }
+  securitySessionsCache.delete(key);
+  securitySessionsCache.set(key, cached);
+  return {
+    sessions: [...cached.sessions],
+    total: cached.total,
+  };
+};
+
+const writeSecurityCache = (key: string, value: { sessions: ActiveSessionRow[]; total: number }) => {
+  securitySessionsCache.delete(key);
+  securitySessionsCache.set(key, {
+    sessions: [...value.sessions],
+    total: value.total,
+    expiresAt: Date.now() + SECURITY_CACHE_TTL_MS,
+  });
+  while (securitySessionsCache.size > SECURITY_CACHE_MAX_ENTRIES) {
+    const firstKey = securitySessionsCache.keys().next().value;
+    if (!firstKey) {
+      break;
+    }
+    securitySessionsCache.delete(firstKey);
+  }
+};
+
+const clearSecurityCache = () => {
+  securitySessionsCache.clear();
+};
+
+export const __testing = {
+  clearSecurityCache,
+};
+
 const DashboardSecurity = () => {
   usePageMeta({ title: "Segurança", noIndex: true });
 
   const apiBase = getApiBase();
-  const [me, setMe] = useState<MeUser | null>(null);
-  const [sessions, setSessions] = useState<ActiveSessionRow[]>([]);
-  const [total, setTotal] = useState(0);
+  const initialCacheKeyRef = useRef(buildSecurityCacheKey(1, 100));
+  const initialCacheRef = useRef(readSecurityCache(initialCacheKeyRef.current));
+  const { currentUser: me, isLoadingUser } = useDashboardCurrentUser<MeUser>();
+  const [sessions, setSessions] = useState<ActiveSessionRow[]>(
+    initialCacheRef.current?.sessions ?? [],
+  );
+  const [total, setTotal] = useState(initialCacheRef.current?.total ?? 0);
   const [page, setPage] = useState(1);
   const [limit] = useState(100);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasLoadError, setHasLoadError] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(!initialCacheRef.current);
+  const [isRefreshing, setIsRefreshing] = useState(Boolean(initialCacheRef.current));
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(Boolean(initialCacheRef.current));
+  const [loadError, setLoadError] = useState("");
   const [revokingSid, setRevokingSid] = useState<string | null>(null);
   const [pendingRevokeSession, setPendingRevokeSession] = useState<ActiveSessionRow | null>(null);
+  const requestIdRef = useRef(0);
+  const hasLoadedOnceRef = useRef(hasLoadedOnce);
+
+  useEffect(() => {
+    hasLoadedOnceRef.current = hasLoadedOnce;
+  }, [hasLoadedOnce]);
 
   const pageCount = useMemo(() => {
     if (!total) {
@@ -89,42 +158,60 @@ const DashboardSecurity = () => {
     return Math.max(1, Math.ceil(total / limit));
   }, [limit, total]);
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
+  const load = useCallback(async (options?: { background?: boolean }) => {
+    const cacheKey = buildSecurityCacheKey(page, limit);
+    const cached = readSecurityCache(cacheKey);
+    if (cached) {
+      setSessions(cached.sessions);
+      setTotal(cached.total);
+      setHasLoadedOnce(true);
+      setIsInitialLoading(false);
+    }
+    const background = options?.background ?? (hasLoadedOnceRef.current || Boolean(cached));
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    if (background) {
+      setIsRefreshing(true);
+    } else {
+      setIsInitialLoading(true);
+    }
+    setLoadError("");
     try {
-      const [meRes, sessionsRes] = await Promise.all([
-        apiFetch(apiBase, "/api/me", { auth: true }),
-        apiFetch(apiBase, "/api/admin/sessions/active?page=" + page + "&limit=" + limit, {
+      const sessionsRes = await apiFetch(
+        apiBase,
+        "/api/admin/sessions/active?page=" + page + "&limit=" + limit,
+        {
           auth: true,
-        }),
-      ]);
+        },
+      );
 
-      if (!meRes.ok) {
-        setMe(null);
-        setSessions([]);
-        setTotal(0);
-        setHasLoadError(true);
+      if (requestIdRef.current !== requestId) {
         return;
       }
-      setMe(await meRes.json());
-
       if (!sessionsRes.ok) {
-        setSessions([]);
-        setTotal(0);
-        setHasLoadError(true);
+        setLoadError("Nao foi possivel carregar a lista de sessoes ativas.");
         return;
       }
       const payload = await sessionsRes.json();
       const nextSessions = Array.isArray(payload.sessions) ? payload.sessions : [];
+      const nextTotal = Number(payload.total || 0);
       setSessions(nextSessions);
-      setTotal(Number(payload.total || 0));
-      setHasLoadError(false);
+      setTotal(nextTotal);
+      setHasLoadedOnce(true);
+      writeSecurityCache(cacheKey, {
+        sessions: nextSessions,
+        total: nextTotal,
+      });
     } catch {
-      setSessions([]);
-      setTotal(0);
-      setHasLoadError(true);
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
+      setLoadError("Nao foi possivel carregar a lista de sessoes ativas.");
     } finally {
-      setIsLoading(false);
+      if (requestIdRef.current === requestId) {
+        setIsInitialLoading(false);
+        setIsRefreshing(false);
+      }
     }
   }, [apiBase, limit, page]);
 
@@ -133,11 +220,14 @@ const DashboardSecurity = () => {
   }, [load]);
 
   useEffect(() => {
+    if (isInitialLoading || isRefreshing) {
+      return;
+    }
     if (page <= pageCount) {
       return;
     }
     setPage(pageCount);
-  }, [page, pageCount]);
+  }, [isInitialLoading, isRefreshing, page, pageCount]);
 
   const hasPrevious = page > 1;
   const hasNext = page < pageCount;
@@ -194,7 +284,8 @@ const DashboardSecurity = () => {
         return;
       }
       toast({ title: "Sessão encerrada" });
-      await load();
+      clearSecurityCache();
+      await load({ background: true });
     } catch {
       toast({ title: "Falha ao encerrar sessão", variant: "destructive" });
     } finally {
@@ -206,9 +297,17 @@ const DashboardSecurity = () => {
   const pendingDeviceSnippet = String(pendingRevokeSession?.userAgent || "")
     .trim()
     .slice(0, 120);
+  const hasBlockingLoadError = !hasLoadedOnce && Boolean(loadError);
+  const hasRetainedLoadError = hasLoadedOnce && Boolean(loadError);
+
+  useDashboardRefreshToast({
+    active: isRefreshing && hasLoadedOnce,
+    title: "Atualizando sessoes",
+    description: "Buscando a lista mais recente de sessoes ativas.",
+  });
 
   return (
-    <DashboardShell currentUser={me} isLoadingUser={isLoading}>
+    <DashboardShell currentUser={me} isLoadingUser={isLoadingUser}>
       <main className="pt-24">
         <section className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-20 md:px-10 reveal" data-reveal>
           <header className="space-y-2">
@@ -236,7 +335,7 @@ const DashboardSecurity = () => {
               )}
             >
               <div className="flex flex-wrap items-center gap-2">
-                {isLoading ? (
+                {isInitialLoading ? (
                   <>
                     <Skeleton className="h-6 w-24 rounded-full" />
                     <Skeleton className="h-6 w-20 rounded-full" />
@@ -256,8 +355,8 @@ const DashboardSecurity = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => void load()}
-                  disabled={isLoading}
+                  onClick={() => void load({ background: true })}
+                  disabled={isRefreshing}
                 >
                   Atualizar
                 </Button>
@@ -266,7 +365,7 @@ const DashboardSecurity = () => {
                     size="sm"
                     variant="outline"
                     onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                    disabled={isLoading}
+                    disabled={isRefreshing}
                   >
                     Anterior
                   </Button>
@@ -276,7 +375,7 @@ const DashboardSecurity = () => {
                     size="sm"
                     variant="outline"
                     onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
-                    disabled={isLoading}
+                    disabled={isRefreshing}
                   >
                     Próxima
                   </Button>
@@ -284,7 +383,13 @@ const DashboardSecurity = () => {
               </div>
             </div>
 
-            {isLoading ? (
+            {hasRetainedLoadError ? (
+              <Alert className="border-border/60 bg-background/50 text-muted-foreground">
+                <AlertDescription>Mantendo as ultimas sessoes carregadas.</AlertDescription>
+              </Alert>
+            ) : null}
+
+            {isInitialLoading ? (
               <div
                 className="space-y-3 animate-slide-up opacity-0"
                 style={dashboardAnimationDelay(
@@ -323,7 +428,7 @@ const DashboardSecurity = () => {
                 ))}
                 <span className="sr-only">Carregando sessões...</span>
               </div>
-            ) : hasLoadError ? (
+            ) : hasBlockingLoadError ? (
                 <p
                   className="text-sm text-amber-300 animate-slide-up opacity-0"
                   style={dashboardAnimationDelay(

@@ -28,6 +28,7 @@ import { toast } from "@/components/ui/use-toast";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { cn } from "@/lib/utils";
 
@@ -79,13 +80,7 @@ const DashboardComments = () => {
   const [comments, setComments] = useState<PendingComment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadError, setHasLoadError] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{
-    id: string;
-    name: string;
-    username: string;
-    avatarUrl?: string | null;
-  } | null>(null);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const { currentUser, isLoadingUser } = useDashboardCurrentUser();
   const [deleteTarget, setDeleteTarget] = useState<PendingComment | null>(null);
   const [pendingActionById, setPendingActionById] = useState<Record<string, "approve" | "delete">>(
     {},
@@ -120,27 +115,6 @@ const DashboardComments = () => {
   useEffect(() => {
     void loadComments();
   }, [loadComments]);
-
-  useEffect(() => {
-    const loadUser = async () => {
-      setIsLoadingUser(true);
-      try {
-        const response = await apiFetch(apiBase, "/api/me", { auth: true });
-        if (!response.ok) {
-          setCurrentUser(null);
-          return;
-        }
-        const data = await response.json();
-        setCurrentUser(data);
-      } catch {
-        setCurrentUser(null);
-      } finally {
-        setIsLoadingUser(false);
-      }
-    };
-
-    void loadUser();
-  }, [apiBase]);
 
   const handleApprove = async (id: string) => {
     if (pendingActionById[id] || isBulkActionLoading) {
