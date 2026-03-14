@@ -148,7 +148,7 @@ const DashboardShell = ({
   const userCardBaseClass =
     "relative flex items-center gap-3 rounded-xl border border-sidebar-border/80 bg-sidebar-accent/20 p-3 transition hover:border-sidebar-ring/40 hover:bg-sidebar-accent/35 group-data-[collapsible=icon]:hidden";
   const userCardCompactClass =
-    "relative hidden items-center justify-center rounded-xl border border-sidebar-border/80 bg-sidebar-accent/20 p-2 transition hover:border-sidebar-ring/40 hover:bg-sidebar-accent/35 group-data-[collapsible=icon]:flex";
+    "relative hidden items-center justify-center rounded-xl border border-transparent p-2 transition hover:border-sidebar-ring/40 group-data-[collapsible=icon]:flex";
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
