@@ -36,12 +36,60 @@ vi.mock("@/components/ImageLibraryDialog", () => ({
   },
 }));
 
-vi.mock("@/components/project-reader/MangaWorkflowPanel", () => ({
-  default: (props: unknown) => {
-    mangaWorkflowPropsSpy(props);
-    return <div data-testid="manga-workflow-panel" />;
-  },
-}));
+vi.mock("@/components/project-reader/MangaWorkflowPanel", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/project-reader/MangaWorkflowPanel")>();
+  return {
+    ...actual,
+    default: (props: {
+      stagedChapters?: Array<{
+        id: string;
+        title?: string;
+      }>;
+      selectedStageChapterId?: string | null;
+      setStagedChapters?: (value: unknown) => void;
+      setSelectedStageChapterId?: (value: string | null) => void;
+    }) => {
+      mangaWorkflowPropsSpy(props);
+      const pendingChapter = {
+        id: "stage-1",
+        number: 7,
+        volume: 1,
+        title: "Capítulo pendente",
+        titleDetected: "",
+        sourceLabel: "Capítulo manual",
+        pages: [
+          {
+            id: "stage-page-1",
+            file: new File(["image"], "001.jpg", { type: "image/jpeg" }),
+            previewUrl: "blob:stage-1",
+            relativePath: "Volume 1/Capitulo 7/001.jpg",
+            name: "001.jpg",
+          },
+        ],
+        coverPageId: "stage-page-1",
+        publicationStatus: "draft",
+        operation: "create",
+        warnings: [],
+      };
+      return (
+        <div data-testid="manga-workflow-panel">
+          <button
+            type="button"
+            data-testid="mock-stage-add"
+            onClick={() => {
+              props.setStagedChapters?.([pendingChapter]);
+              props.setSelectedStageChapterId?.("stage-1");
+            }}
+          >
+            Adicionar pendente
+          </button>
+          <div data-testid="mock-stage-count">{props.stagedChapters?.length || 0}</div>
+          <div data-testid="mock-stage-selected">{props.selectedStageChapterId || ""}</div>
+        </div>
+      );
+    },
+  };
+});
 
 vi.mock("@/components/ui/async-state", () => ({
   default: ({
@@ -312,6 +360,12 @@ const openVolumeAccordion = () => {
   }
 };
 
+const getTopActions = () => within(screen.getByTestId("chapter-editor-top-actions"));
+
+const getFooterActions = () => within(screen.getByTestId("chapter-editor-footer-actions"));
+
+const findLeaveDialog = () => screen.findByTestId("chapter-unsaved-leave-dialog");
+
 const setupApiMock = ({
   permissions = ["projetos"],
   project = buildProject(),
@@ -569,18 +623,21 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByTestId("chapter-epub-tools");
     const headerShell = screen.getByTestId("chapter-editor-header-shell");
     const mainColumn = screen.getByTestId("chapter-editor-main-column");
+    const workspace = screen.getByTestId("chapter-editor-workspace");
     const sidebar = screen.getByTestId("chapter-editor-sidebar");
     const upperLayout = screen.getByTestId("chapter-editor-upper-layout");
     const structureSection = screen.getByTestId("chapter-structure-section");
     const structureAccordion = structureSection.parentElement;
     const epubTools = screen.getByTestId("chapter-epub-tools");
+    const selectionState = screen.getByTestId("chapter-selection-state");
     const epubTrigger = within(epubTools).getByRole("button", { name: /Ferramentas EPUB/i });
     expect(structureAccordion).not.toBeNull();
     expect(headerShell).toContainElement(screen.getByTestId("chapter-editor-masthead"));
     expect(headerShell).toContainElement(screen.getByTestId("chapter-editor-command-bar"));
     expect(Array.from(upperLayout.children)).toEqual([mainColumn, sidebar]);
-    expect(Array.from(mainColumn.children)).toEqual([epubTools]);
-    expect(mainColumn).toContainElement(epubTools);
+    expect(Array.from(mainColumn.children)).toEqual([workspace]);
+    expect(Array.from(workspace.children)).toEqual([selectionState, epubTools]);
+    expect(mainColumn).toContainElement(workspace);
     expect(sidebar).toContainElement(structureSection);
     expect(sidebar).not.toContainElement(epubTools);
     expect(Array.from(sidebar.children)[0]).toBe(structureAccordion);
@@ -603,7 +660,7 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.getByTestId("chapter-structure-group-toggle-none")).toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-select-2")).not.toHaveClass("rounded-xl", "border");
     expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-neutral-state")).not.toBeInTheDocument();
+    expect(selectionState).toBeInTheDocument();
     expect(screen.queryByTestId("chapter-content-accordion")).not.toBeInTheDocument();
     expect(screen.queryByTestId("chapter-content-section")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Excluir capítulo/i })).not.toBeInTheDocument();
@@ -686,14 +743,57 @@ describe("DashboardProjectChapterEditor", () => {
     });
   });
 
+  it("integra capitulos pendentes na sidebar sem navegar de rota", async () => {
+    setupApiMock({
+      project: buildProject({
+        type: "Manga",
+        episodeDownloads: [
+          {
+            number: 1,
+            volume: 1,
+            title: "Capítulo publicado",
+            synopsis: "",
+            releaseDate: "",
+            duration: "",
+            sourceType: "Web",
+            sources: [],
+            content: "",
+            contentFormat: "images",
+            pages: [{ position: 1, imageUrl: "/uploads/manga/ch1-01.jpg" }],
+            pageCount: 1,
+            hasPages: true,
+            publicationStatus: "published",
+            coverImageUrl: "/uploads/manga/ch1-01.jpg",
+            coverImageAlt: "",
+          },
+        ],
+      }),
+    });
+
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+
+    await screen.findByTestId("manga-workflow-panel");
+    fireEvent.click(screen.getByTestId("mock-stage-add"));
+
+    const pendingEntry = await screen.findByTestId("chapter-structure-stage-select-stage-1");
+    expect(pendingEntry).toHaveTextContent("Capítulo pendente");
+
+    const previousPath = screen.getByTestId("location-pathname").textContent;
+    fireEvent.click(pendingEntry);
+
+    expect(screen.getByTestId("location-pathname").textContent).toBe(previousPath);
+    expect(screen.getByTestId("mock-stage-selected")).toHaveTextContent("stage-1");
+  });
+
   it("renderiza o editor aberto com layout expandido e sidebar alinhada", async () => {
     setupApiMock();
     renderEditor();
-    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+    await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
     const masthead = screen.getByTestId("chapter-editor-masthead");
     const commandBar = screen.getByTestId("chapter-editor-command-bar");
     const upperLayout = screen.getByTestId("chapter-editor-upper-layout");
     const mainColumn = screen.getByTestId("chapter-editor-main-column");
+    const workspace = screen.getByTestId("chapter-editor-workspace");
     const lexicalEditor = await screen.findByTestId("mock-lexical");
     const lexicalWrapper = screen.getByTestId("chapter-lexical-wrapper");
     const contentAccordion = screen.getByTestId("chapter-content-accordion");
@@ -701,12 +801,11 @@ describe("DashboardProjectChapterEditor", () => {
     const contentViewport = screen.getByTestId("chapter-content-viewport");
     const contentSection = screen.getByTestId("chapter-content-section");
     const contentTrigger = screen.getByTestId("chapter-content-trigger");
-    const identityAccordion = screen.getByTestId("chapter-identity-accordion");
     const identitySection = screen.getByTestId("chapter-identity-section");
     const identityTrigger = screen.getByTestId("chapter-identity-trigger");
-    const volumeAccordion = screen.getByTestId("chapter-volume-accordion");
-    const volumeEditor = screen.getByTestId("chapter-volume-editor");
-    const volumeTrigger = screen.getByTestId("chapter-volume-trigger");
+    const topRow = screen.getByTestId("chapter-workspace-top-row");
+    const footerActions = screen.getByTestId("chapter-editor-footer-actions");
+    const supportRow = screen.getByTestId("chapter-workspace-support-row");
     const sidebar = screen.getByTestId("chapter-editor-sidebar");
     const actionRail = screen.getByTestId("chapter-editor-action-rail");
     const topStatusGroup = screen.getByTestId("chapter-editor-top-status-group");
@@ -714,55 +813,57 @@ describe("DashboardProjectChapterEditor", () => {
     const statusBar = screen.getByTestId("chapter-editor-status-bar");
     const structureSection = screen.getByTestId("chapter-structure-section");
     const structureAccordion = structureSection.parentElement;
-    const metadataAccordion = screen.getByTestId("chapter-metadata-accordion");
     const structureTrigger = within(screen.getByTestId("chapter-structure-section")).getByRole(
       "button",
       { name: /Estrutura/i },
     );
+
     expect(screen.getByTestId("chapter-editor-upper-layout")).not.toHaveClass("px-4");
     expect(screen.getByTestId("chapter-editor-upper-layout")).not.toHaveClass("md:px-6");
     expect(screen.getByTestId("chapter-editor-upper-layout")).not.toHaveClass("lg:px-8");
-    expect(screen.getByTestId("chapter-editor-main-column")).not.toHaveClass("2xl:max-w-6xl");
     expect(commandBar).toHaveClass("sticky", "top-3");
     expect(Array.from(upperLayout.children)).toEqual([mainColumn, sidebar]);
-    expect(Array.from(mainColumn.children)).toEqual([identityAccordion, volumeAccordion, contentAccordion]);
-    expect(masthead).toHaveTextContent("Gerenciamento de Conteúdo");
-    expect(screen.getByTestId("chapter-editor-sidebar")).toHaveClass("2xl:col-start-2");
-    expect(sidebar).toContainElement(metadataAccordion);
+    expect(Array.from(mainColumn.children)).toEqual([workspace]);
+    expect(Array.from(workspace.children)).toEqual([topRow, contentAccordion, footerActions, supportRow]);
+    expect(masthead).toHaveTextContent(/Gerenciamento de Conte/i);
     expect(sidebar).toContainElement(structureSection);
     expect(structureAccordion).not.toBeNull();
-    expect(Array.from(sidebar.children)[0]).toBe(metadataAccordion);
-    expect(Array.from(sidebar.children)[1]).toBe(structureAccordion);
+    expect(Array.from(sidebar.children)[0]).toBe(structureAccordion);
     expect(screen.getByTestId("chapter-structure-group-header-2")).toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-group-actions-2")).toContainElement(
       screen.getByTestId("chapter-structure-add-chapter-2"),
     );
     expect(screen.queryByTestId("chapter-epub-tools")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Autosave do capítulo/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Salvar capítulo/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Mover para rascunho/i })).toBeInTheDocument();
+    expect(screen.queryByText(/Autosave do cap/i)).not.toBeInTheDocument();
+    expect(getTopActions().getByRole("button", { name: /Salvar altera/i })).toBeInTheDocument();
+    expect(getTopActions().getByRole("button", { name: /Mover para rascunho/i })).toBeInTheDocument();
+    expect(getFooterActions().getByRole("button", { name: /Salvar altera/i })).toBeInTheDocument();
+    expect(getFooterActions().getByRole("button", { name: /Mover para rascunho/i })).toBeInTheDocument();
     expect(actionRail).toHaveClass("lg:flex-row", "lg:justify-between");
-    expect(topStatusGroup).toContainElement(screen.getByText(/Sem alterações pendentes/i));
-    expect(topActions).toContainElement(screen.getByRole("button", { name: /Salvar capítulo/i }));
-    expect(topActions).toContainElement(screen.getByRole("button", { name: /Mover para rascunho/i }));
-    expect(topActions).toContainElement(screen.getByRole("button", { name: /Excluir capítulo/i }));
-    expect(within(statusBar).queryByRole("button", { name: /Salvar capítulo/i })).not.toBeInTheDocument();
-    expect(within(statusBar).queryByRole("button", { name: /Excluir capítulo/i })).not.toBeInTheDocument();
+    expect(topStatusGroup).toContainElement(screen.getByText(/Sem alter/i));
+    expect(topActions).toContainElement(getTopActions().getByRole("button", { name: /Salvar altera/i }));
+    expect(topActions).toContainElement(getTopActions().getByRole("button", { name: /Mover para rascunho/i }));
+    expect(topActions).toContainElement(screen.getByRole("button", { name: /Excluir cap/i }));
+    expect(within(statusBar).queryByRole("button", { name: /Salvar altera/i })).not.toBeInTheDocument();
+    expect(within(statusBar).queryByRole("button", { name: /Excluir cap/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
-    expect(screen.getByText("Status atual")).toBeInTheDocument();
-    expect(screen.getByText(/Use as ações do topo para publicar este capítulo/i)).toBeInTheDocument();
+    expect(within(screen.getByTestId("chapter-publication-section")).getByText(/^Status atual$/i)).toBeInTheDocument();
+    expect(screen.getByText(/topo ou do rodap/i)).toBeInTheDocument();
     expect(structureTrigger).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
     expect(screen.getByText("Estrutura")).toBeInTheDocument();
-    expect(screen.getByText("Volumes, filtros, navegação e criação de capítulos")).toBeInTheDocument();
-    expect(screen.getByText("Identidade do capítulo")).toBeInTheDocument();
-    expect(screen.getByText("Título, numeração, tipo e resumo")).toBeInTheDocument();
+    expect(screen.getByText(/Volumes, filtros, navega/i)).toBeInTheDocument();
+    expect(screen.getByText(/Identidade do cap/i)).toBeInTheDocument();
+    expect(screen.getByText(/numera/i)).toBeInTheDocument();
     expect(identityTrigger).toHaveAttribute("aria-expanded", "false");
-    expect(identitySection).toHaveAttribute("data-state", "closed");
-    expect(volumeTrigger).toHaveAttribute("aria-expanded", "false");
-    expect(volumeEditor).toHaveAttribute("data-state", "closed");
+    expect(identitySection).toHaveAttribute("data-state", "open");
+    expect(screen.queryByTestId("chapter-volume-accordion")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-volume-trigger")).not.toBeInTheDocument();
     expect(contentTrigger).toHaveAttribute("aria-expanded", "true");
-    expect(within(contentSection).getByText("Espaço editorial")).toBeInTheDocument();
+    expect(within(contentSection).getByText(/Espa/i)).toBeInTheDocument();
     expect(within(contentSection).getByText(/Ambiente principal de escrita/i)).toBeInTheDocument();
+    expect(screen.queryByText("Texto / Lexical")).not.toBeInTheDocument();
+    expect(screen.queryByText("Imagem / Manga")).not.toBeInTheDocument();
     expect(contentBody).toHaveAttribute("aria-hidden", "false");
     expect(contentViewport).toHaveAttribute("data-state", "open");
     expect(contentViewport).toHaveClass("grid-rows-[1fr]", "opacity-100");
@@ -771,6 +872,7 @@ describe("DashboardProjectChapterEditor", () => {
       "data-[state=closed]:animate-accordion-up",
       "data-[state=open]:animate-accordion-down",
     );
+    expect(screen.queryByTestId("chapter-metadata-accordion")).not.toBeInTheDocument();
     expect(lexicalEditor).toHaveClass(
       "lexical-playground--stretch",
       "lexical-playground--chapter-editor",
@@ -788,12 +890,133 @@ describe("DashboardProjectChapterEditor", () => {
       ),
     ).toBe(true);
     expect(lexicalWrapper).toHaveClass("min-h-[420px]", "lg:min-h-[620px]");
+    expect(screen.getByTestId("chapter-standard-compact-fields")).toHaveClass("flex", "flex-wrap", "gap-3");
+    expect(document.getElementById("chapter-title-standard") as HTMLInputElement).toHaveClass("w-full");
+    expect(document.getElementById("chapter-number-standard") as HTMLInputElement).toHaveClass("w-full", "sm:w-[132px]");
+    expect(document.getElementById("chapter-volume-standard") as HTMLInputElement).toHaveClass("w-full", "sm:w-[132px]");
+    expect(document.getElementById("chapter-synopsis-standard") as HTMLTextAreaElement).toHaveClass("w-full");
+  });
+  it("simplifica o workspace para capitulos em imagem", async () => {
+    const imageProject = buildProject({
+      type: "Manga",
+      title: "Projeto Manga",
+      episodeDownloads: [
+        {
+          number: 3,
+          volume: 1,
+          title: "Capitulo em imagem",
+          synopsis: "",
+          releaseDate: "2026-03-10",
+          duration: "",
+          sourceType: "Web",
+          sources: [],
+          progressStage: "aguardando-raw",
+          completedStages: [],
+          content: "",
+          contentFormat: "images",
+          publicationStatus: "draft",
+          coverImageUrl: "https://cdn.test/page-1.jpg",
+          coverImageAlt: "Capa do capitulo em imagem",
+          pages: [
+            { position: 1, imageUrl: "https://cdn.test/page-1.jpg" },
+            { position: 2, imageUrl: "https://cdn.test/page-2.jpg" },
+          ],
+          pageCount: 2,
+          hasPages: true,
+        },
+      ],
+    });
+
+    setupApiMock({ project: imageProject });
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/3?volume=1");
+
+    await screen.findByTestId("manga-chapter-pages-editor");
+
+    const workspace = screen.getByTestId("chapter-editor-workspace");
+    const topRow = screen.getByTestId("chapter-workspace-top-row");
+    const identityCard = screen.getByTestId("chapter-identity-accordion");
+    const contentCard = screen.getByTestId("chapter-content-accordion");
+    const footerActions = screen.getByTestId("chapter-editor-footer-actions");
+
+    expect(Array.from(workspace.children)).toEqual([topRow, contentCard, footerActions]);
+    expect(Array.from(topRow.children)).toEqual([identityCard]);
+    expect(screen.queryByTestId("chapter-publication-section")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-workspace-support-row")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-cover-section")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-sources-section")).not.toBeInTheDocument();
+    expect(within(identityCard).getByText(/Dados do cap/i)).toBeInTheDocument();
+    expect(within(contentCard).getByRole("heading", { name: /Pag/i })).toBeInTheDocument();
+    expect(document.getElementById("chapter-volume-image") as HTMLInputElement).toHaveClass("w-full", "sm:w-[132px]");
+    expect(document.getElementById("chapter-number-image") as HTMLInputElement).toHaveClass("w-full", "sm:w-[132px]");
+    expect(document.getElementById("chapter-title-image") as HTMLInputElement).toHaveClass("w-full");
+    expect(screen.getByTestId("chapter-image-compact-fields")).toHaveClass("flex", "flex-wrap", "gap-3");
+    expect(screen.queryByText("Texto / Lexical")).not.toBeInTheDocument();
+    expect(screen.queryByText("Imagem / Manga")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Ordem de leitura/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Sinopse/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("manga-pages-advanced-trigger")).toHaveAttribute("aria-expanded", "false");
+    expect(getFooterActions().getByRole("button", { name: /Salvar como rascunho/i })).toBeInTheDocument();
+    expect(getFooterActions().getByRole("button", { name: /Publicar/i })).toBeInTheDocument();
+  });
+  it("cria novo capitulo de manga ja em modo imagem por padrao", async () => {
+    setupApiMock({
+      project: buildProject({
+        type: "Manga",
+        title: "Projeto Manga",
+        episodeDownloads: [
+          {
+            number: 1,
+            volume: 1,
+            title: "Capítulo 1",
+            synopsis: "",
+            releaseDate: "",
+            duration: "",
+            sourceType: "Web",
+            sources: [],
+            content: "",
+            contentFormat: "images",
+            pages: [{ position: 1, imageUrl: "/uploads/manga/ch1-01.jpg" }],
+            pageCount: 1,
+            hasPages: true,
+            publicationStatus: "draft",
+            coverImageUrl: "/uploads/manga/ch1-01.jpg",
+            coverImageAlt: "",
+          },
+        ],
+      }),
+    });
+
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("chapter-structure-section");
+
+    fireEvent.click(screen.getByTestId("chapter-structure-add-chapter-1"));
+
+    await waitFor(() => {
+      const saveCall = apiFetchMock.mock.calls.find(
+        ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+      );
+      expect(saveCall).toBeDefined();
+      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      expect(payload?.episodeDownloads).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            number: 2,
+            volume: 1,
+            contentFormat: "images",
+            publicationStatus: "draft",
+          }),
+        ]),
+      );
+    });
+
+    await screen.findByTestId("manga-chapter-pages-editor");
+    expect(screen.queryByTestId("mock-lexical")).not.toBeInTheDocument();
   });
 
-  it("propaga a navegação para uploads e reaproveita o guard de alterações não salvas", async () => {
+  it("usa o modal de alteracoes nao salvas antes de navegar para uploads", async () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/1?volume=2");
-    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+    await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
 
     const lexicalProps = lexicalEditorPropsSpy.mock.calls.at(-1)?.[0] as {
       imageLibraryOptions?: {
@@ -803,7 +1026,7 @@ describe("DashboardProjectChapterEditor", () => {
     expect(lexicalProps.imageLibraryOptions?.onRequestNavigateToUploads).toEqual(expect.any(Function));
 
     fireEvent.change(screen.getByTestId("mock-lexical"), {
-      target: { value: "Conteúdo alterado" },
+      target: { value: "Conteudo alterado" },
     });
 
     fireEvent.click((await screen.findAllByRole("button", { name: "Biblioteca" }))[0]);
@@ -814,25 +1037,26 @@ describe("DashboardProjectChapterEditor", () => {
     };
     expect(dialogProps.onRequestNavigateToUploads).toEqual(expect.any(Function));
 
-    await dialogProps.onRequestNavigateToUploads?.();
+    const navigateToUploadsPromise = dialogProps.onRequestNavigateToUploads?.();
 
-    expect(window.confirm).toHaveBeenCalledWith(
-      "Você tem alterações não salvas neste editor. Deseja sair mesmo assim?",
-    );
-    expect(await screen.findByTestId("uploads-page")).toBeInTheDocument();
+    const leaveDialog = await findLeaveDialog();
+    expect(within(leaveDialog).getByRole("button", { name: /Descartar e continuar/i })).toBeInTheDocument();
+    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Descartar e continuar/i }));
+
+    await navigateToUploadsPromise;
     expect(screen.getByTestId("location-pathname")).toHaveTextContent("/dashboard/uploads");
   });
-
-  it("mostra ações contextuais de rascunho no topo para capítulos em draft", async () => {
+  it("mostra acoes contextuais de rascunho no topo e no rodape para capitulos draft", async () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
-    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+    await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
 
-    expect(screen.getByRole("button", { name: /Salvar como rascunho/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Publicar rascunho/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Mover para rascunho/i })).not.toBeInTheDocument();
+    expect(getTopActions().getByRole("button", { name: /Salvar como rascunho/i })).toBeInTheDocument();
+    expect(getTopActions().getByRole("button", { name: /Publicar/i })).toBeInTheDocument();
+    expect(getTopActions().queryByRole("button", { name: /Mover para rascunho/i })).not.toBeInTheDocument();
+    expect(getFooterActions().getByRole("button", { name: /Salvar como rascunho/i })).toBeInTheDocument();
+    expect(getFooterActions().getByRole("button", { name: /Publicar/i })).toBeInTheDocument();
   });
-
   it("simplifica a identidade do capítulo e remove o subtipo manual", async () => {
     setupApiMock();
     renderEditor();
@@ -851,7 +1075,7 @@ describe("DashboardProjectChapterEditor", () => {
 
     fireEvent.change(screen.getByLabelText("Capítulo"), { target: { value: "-3" } });
     fireEvent.change(screen.getByLabelText("Volume"), { target: { value: "-1" } });
-    fireEvent.click(screen.getByRole("button", { name: /Salvar capítulo/i }));
+    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar altera/i }));
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
@@ -930,11 +1154,11 @@ describe("DashboardProjectChapterEditor", () => {
     expect(contentSection).toHaveAttribute("data-state", "open");
 
     fireEvent.click(contentTrigger);
-    expect(contentTrigger).toHaveAttribute("aria-expanded", "false");
-    expect(contentSection).toHaveAttribute("data-state", "closed");
-    expect(contentBody).toHaveAttribute("aria-hidden", "true");
-    expect(contentViewport).toHaveAttribute("data-state", "closed");
-    expect(contentViewport).toHaveClass("grid-rows-[0fr]", "opacity-0");
+    expect(contentTrigger).toHaveAttribute("aria-expanded", "true");
+    expect(contentSection).toHaveAttribute("data-state", "open");
+    expect(contentBody).toHaveAttribute("aria-hidden", "false");
+    expect(contentViewport).toHaveAttribute("data-state", "open");
+    expect(contentViewport).toHaveClass("grid-rows-[1fr]", "opacity-100");
     expect(screen.getByTestId("mock-lexical")).toBeInTheDocument();
     expect(screen.getByTestId("mock-lexical")).toHaveValue("Novo trecho do capítulo");
 
@@ -1032,9 +1256,11 @@ describe("DashboardProjectChapterEditor", () => {
       }),
     );
     expect(screen.getByTestId("chapter-structure-group-1")).toBeInTheDocument();
+    const workspace = screen.getByTestId("chapter-editor-workspace");
     expect(screen.getByTestId("chapter-volume-accordion")).toBeInTheDocument();
     expect(within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 1")).toBeInTheDocument();
-    expect(Array.from(screen.getByTestId("chapter-editor-main-column").children)).toEqual([
+    expect(Array.from(screen.getByTestId("chapter-editor-main-column").children)).toEqual([workspace]);
+    expect(Array.from(workspace.children)).toEqual([
       screen.getByTestId("chapter-volume-accordion"),
       screen.getByTestId("chapter-epub-tools"),
     ]);
@@ -1095,30 +1321,52 @@ describe("DashboardProjectChapterEditor", () => {
     });
   });
 
-  it("confirma antes de navegar quando há alterações não salvas em volumes", async () => {
+  it("usa o modal ao navegar entre volume e capitulo com alteracoes pendentes", async () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-structure-section");
-    const confirmMock = vi.mocked(window.confirm);
-    confirmMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
     fireEvent.click(screen.getByTestId("chapter-structure-select-2"));
     await screen.findByTestId("chapter-volume-editor");
     openVolumeAccordion();
-    fireEvent.change(screen.getByLabelText("Sinopse do volume"), {
+    fireEvent.change(screen.getByLabelText(/Sinopse do volume/i), {
       target: { value: "Volume pendente" },
     });
+
     fireEvent.click(screen.getByTestId("chapter-structure-group-toggle-2"));
-    fireEvent.click(screen.getByRole("button", { name: /Capítulo 1/i }));
-    expect(confirmMock).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /Cap.*1/i }));
+    let leaveDialog = await findLeaveDialog();
+    expect(within(leaveDialog).getByRole("button", { name: /Salvar volume e continuar/i })).toBeInTheDocument();
+    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Cancelar/i }));
+    await waitFor(() => {
+      expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+    });
     expect(screen.getByTestId("location-pathname").textContent).toBe(
       "/dashboard/projetos/project-ln-1/capitulos",
     );
-    fireEvent.click(screen.getByRole("button", { name: /Capítulo 1/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Cap.*1/i }));
+    leaveDialog = await findLeaveDialog();
+    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Salvar volume e continuar/i }));
+
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
         "/dashboard/projetos/project-ln-1/capitulos/1",
       );
     });
+
+    const saveCall = apiFetchMock.mock.calls.find(
+      ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+    );
+    expect(saveCall).toBeDefined();
+    const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+    expect(payload?.volumeEntries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          volume: 2,
+          synopsis: "Volume pendente",
+        }),
+      ]),
+    );
   });
 
   it("exclui o volume e os capítulos vinculados após confirmar no modal", async () => {
@@ -1182,23 +1430,29 @@ describe("DashboardProjectChapterEditor", () => {
     });
   });
 
-  it("respeita o guard ao fechar o volume com alterações pendentes", async () => {
+  it("respeita o modal ao fechar o volume com alteracoes pendentes", async () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-structure-section");
-    const confirmMock = vi.mocked(window.confirm);
-    confirmMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
     fireEvent.click(screen.getByTestId("chapter-structure-select-2"));
     await screen.findByTestId("chapter-volume-editor");
     openVolumeAccordion();
-    fireEvent.change(screen.getByLabelText("Sinopse do volume"), {
+    fireEvent.change(screen.getByLabelText(/Sinopse do volume/i), {
       target: { value: "Volume pendente para fechar" },
     });
+
     fireEvent.click(screen.getByTestId("chapter-close-volume-button"));
-    expect(confirmMock).toHaveBeenCalled();
+    let leaveDialog = await findLeaveDialog();
+    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Cancelar/i }));
+    await waitFor(() => {
+      expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+    });
     expect(screen.getByTestId("chapter-volume-editor")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("chapter-close-volume-button"));
+    leaveDialog = await findLeaveDialog();
+    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Descartar e continuar/i }));
+
     await waitFor(() => {
       expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
     });
@@ -1215,7 +1469,8 @@ describe("DashboardProjectChapterEditor", () => {
       );
     });
     expect(screen.getByTestId("location-search").textContent).toBe("?volume=2");
-    expect(within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 2")).toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Volume 2").length).toBeGreaterThan(0);
   });
 
   it("seleciona um volume sem abrir capítulo e sincroniza a seleção ao abrir um capítulo", async () => {
@@ -1268,11 +1523,11 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/3");
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
 
+    const workspace = screen.getByTestId("chapter-editor-workspace");
     expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
-    expect(Array.from(screen.getByTestId("chapter-editor-main-column").children)).toEqual([
-      screen.getByTestId("chapter-identity-accordion"),
-      screen.getByTestId("chapter-content-accordion"),
-    ]);
+    expect(Array.from(screen.getByTestId("chapter-editor-main-column").children)).toEqual([workspace]);
+    expect(workspace).toContainElement(screen.getByTestId("chapter-identity-accordion"));
+    expect(workspace).toContainElement(screen.getByTestId("chapter-content-accordion"));
   });
 
   it("leva ao neutro e preserva o volume selecionado ao trocar de volume com outro capítulo aberto", async () => {
@@ -1355,7 +1610,7 @@ describe("DashboardProjectChapterEditor", () => {
     expect(within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 2")).toBeInTheDocument();
   });
 
-  it("pede confirmação ao abrir somente o volume quando há alterações não salvas no capítulo", async () => {
+  it("abre o volume pelo modal de alteracoes nao salvas do capitulo", async () => {
     setupApiMock({
       project: buildProject({
         episodeDownloads: [
@@ -1364,27 +1619,31 @@ describe("DashboardProjectChapterEditor", () => {
             ...baseProject.episodeDownloads[0],
             number: 1,
             volume: 4,
-            title: "Capítulo 1 V4",
+            title: "Capitulo 1 V4",
           },
         ],
       }),
     });
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/1?volume=2");
-    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
-
-    const confirmMock = vi.mocked(window.confirm);
-    confirmMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
+    await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
     openIdentityAccordion();
-    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Capítulo pendente" } });
+    fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, { target: { value: "Capitulo pendente" } });
 
     fireEvent.click(screen.getByTestId("chapter-structure-select-4"));
-    expect(confirmMock).toHaveBeenCalled();
+    let leaveDialog = await findLeaveDialog();
+    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Cancelar/i }));
+    await waitFor(() => {
+      expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+    });
     expect(screen.getByTestId("location-pathname").textContent).toBe(
       "/dashboard/projetos/project-ln-1/capitulos/1",
     );
     expect(screen.getByTestId("location-search").textContent).toBe("?volume=2");
 
     fireEvent.click(screen.getByTestId("chapter-structure-select-4"));
+    leaveDialog = await findLeaveDialog();
+    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Publicar e continuar/i }));
+
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
         "/dashboard/projetos/project-ln-1/capitulos",
@@ -1392,8 +1651,67 @@ describe("DashboardProjectChapterEditor", () => {
     });
     expect(screen.getByTestId("location-search").textContent).toBe("");
     expect(within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 4")).toBeInTheDocument();
-  });
 
+    const saveCall = apiFetchMock.mock.calls.find(
+      ([, path, options]) =>
+        path === "/api/projects/project-ln-1/chapters/1?volume=2" && options?.method === "PUT",
+    );
+    expect(saveCall).toBeDefined();
+    const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+    expect(payload?.chapter).toEqual(
+      expect.objectContaining({
+        publicationStatus: "published",
+        title: "Capitulo pendente",
+      }),
+    );
+  });
+  it("mostra o modal ao criar novo capitulo com alteracoes pendentes e preserva o capitulo salvo", async () => {
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
+    await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
+    openIdentityAccordion();
+    fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, {
+      target: { value: "Capitulo 2 revisado antes do novo" },
+    });
+
+    fireEvent.click(screen.getByTestId("chapter-structure-add-chapter-2"));
+    const leaveDialog = await findLeaveDialog();
+    fireEvent.click(
+      within(leaveDialog).getByRole("button", { name: /Salvar como rascunho e continuar/i }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos/3",
+      );
+    });
+
+    const chapterSaveCall = apiFetchMock.mock.calls.find(
+      ([, path, options]) =>
+        path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+    );
+    expect(chapterSaveCall).toBeDefined();
+
+    const createCall = apiFetchMock.mock.calls.find(
+      ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+    );
+    expect(createCall).toBeDefined();
+    const createPayload = (createCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+    expect(createPayload?.episodeDownloads).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          number: 2,
+          volume: 2,
+          title: "Capitulo 2 revisado antes do novo",
+        }),
+        expect.objectContaining({
+          number: 3,
+          volume: 2,
+          publicationStatus: "draft",
+        }),
+      ]),
+    );
+  });
   it("cria um capítulo em volume e navega para ele como rascunho", async () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
@@ -1472,7 +1790,7 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Capítulo 3" } });
     fireEvent.change(screen.getByLabelText("Capítulo"), { target: { value: "3" } });
     fireEvent.change(screen.getByLabelText("Volume"), { target: { value: "5" } });
-    fireEvent.click(screen.getByRole("button", { name: /Salvar capítulo/i }));
+    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar altera/i }));
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
         "/dashboard/projetos/project-ln-1/capitulos/3",
@@ -1524,7 +1842,7 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.change(screen.getByLabelText("Título"), {
       target: { value: "Capítulo 1 revisado" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Salvar capítulo/i }));
+    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar altera/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
@@ -1577,7 +1895,7 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.change(screen.getByLabelText("Título"), {
       target: { value: "Capítulo 1 - legado revisado" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Salvar capítulo/i }));
+    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar altera/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
@@ -1617,7 +1935,7 @@ describe("DashboardProjectChapterEditor", () => {
     openIdentityAccordion();
     fireEvent.change(screen.getByLabelText("Capítulo"), { target: { value: "3" } });
     fireEvent.change(screen.getByLabelText("Volume"), { target: { value: "5" } });
-    fireEvent.click(screen.getByRole("button", { name: /Salvar capítulo/i }));
+    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar altera/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
@@ -1634,7 +1952,7 @@ describe("DashboardProjectChapterEditor", () => {
 
     openIdentityAccordion();
     fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Capítulo 2 revisado" } });
-    fireEvent.click(screen.getByRole("button", { name: /Salvar como rascunho/i }));
+    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar como rascunho/i }));
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
@@ -1656,7 +1974,7 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
 
-    fireEvent.click(screen.getByRole("button", { name: /Publicar rascunho/i }));
+    fireEvent.click(getTopActions().getByRole("button", { name: /Publicar/i }));
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
@@ -1713,7 +2031,7 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/1?volume=2");
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
 
-    fireEvent.click(screen.getByRole("button", { name: /Mover para rascunho/i }));
+    fireEvent.click(getTopActions().getByRole("button", { name: /Mover para rascunho/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
@@ -1764,7 +2082,7 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/1?volume=0");
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
 
-    fireEvent.click(screen.getByRole("button", { name: /Mover para rascunho/i }));
+    fireEvent.click(getTopActions().getByRole("button", { name: /Mover para rascunho/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
@@ -1779,7 +2097,7 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor();
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
 
-    fireEvent.click(screen.getByRole("button", { name: /Mover para rascunho/i }));
+    fireEvent.click(getTopActions().getByRole("button", { name: /Mover para rascunho/i }));
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
@@ -1817,20 +2135,27 @@ describe("DashboardProjectChapterEditor", () => {
     });
   });
 
-  it("confirma antes de sair quando há alterações não salvas", async () => {
+  it("abre um modal ao fechar capitulo com alteracoes nao salvas", async () => {
     setupApiMock();
     renderEditor();
-    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
-    const confirmMock = vi.mocked(window.confirm);
-    confirmMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
+    await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
     openIdentityAccordion();
-    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Capítulo pendente" } });
-    fireEvent.click(screen.getByRole("button", { name: /Fechar capítulo/i }));
-    expect(confirmMock).toHaveBeenCalled();
+    fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, { target: { value: "Capitulo pendente" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /Fechar cap/i }));
+    let leaveDialog = await findLeaveDialog();
+    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Cancelar/i }));
+    await waitFor(() => {
+      expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+    });
     expect(screen.getByTestId("location-pathname").textContent).toBe(
       "/dashboard/projetos/project-ln-1/capitulos/1",
     );
-    fireEvent.click(screen.getByRole("button", { name: /Fechar capítulo/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Fechar cap/i }));
+    leaveDialog = await findLeaveDialog();
+    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Descartar e continuar/i }));
+
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
         "/dashboard/projetos/project-ln-1/capitulos",
@@ -2135,3 +2460,6 @@ describe("DashboardProjectChapterEditor", () => {
     rectSpy.mockRestore();
   });
 });
+
+
+

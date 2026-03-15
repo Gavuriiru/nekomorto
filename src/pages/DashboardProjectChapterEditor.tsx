@@ -4,7 +4,12 @@ import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDial
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
-import MangaWorkflowPanel from "@/components/project-reader/MangaWorkflowPanel";
+import MangaWorkflowPanel, {
+  buildStageChapterLabel,
+  reconcileStageChapters,
+  revokeStagePages,
+  type StageChapter,
+} from "@/components/project-reader/MangaWorkflowPanel";
 import {
   Accordion,
   AccordionContent,
@@ -36,7 +41,6 @@ import { toast } from "@/components/ui/use-toast";
 import type { Project, ProjectEpisode, ProjectVolumeCover, ProjectVolumeEntry } from "@/data/projects";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { useSiteSettings } from "@/hooks/use-site-settings";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
@@ -48,6 +52,7 @@ import {
 } from "@/lib/image-alt";
 import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 import { createSlug } from "@/lib/post-content";
+import { cn } from "@/lib/utils";
 import {
   DEFAULT_API_CAPABILITIES,
   EPUB_CAPABILITY_UNKNOWN_MESSAGE,
@@ -109,7 +114,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import type { ChangeEvent, RefObject } from "react";
+import type { ChangeEvent, Dispatch, ReactNode, RefObject, SetStateAction } from "react";
 import {
   Suspense,
   forwardRef,
@@ -127,7 +132,6 @@ import {
   hasProjectEpisodeReadableContent,
   normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,
-  resolveProjectReaderConfig,
 } from "../../shared/project-reader.js";
 import NotFound from "./NotFound";
 
@@ -170,6 +174,8 @@ type ChapterStructureGroup = {
   chapterCount: number;
   allItems: ProjectEpisode[];
   visibleItems: ProjectEpisode[];
+  pendingItems: StageChapter[];
+  visiblePendingItems: StageChapter[];
 };
 
 type EditableVolumeOption = {
@@ -196,6 +202,11 @@ type DeleteDialogState =
       description: string;
       volume: number;
     };
+
+type LeaveGuardDialogState = {
+  chapterDirty: boolean;
+  volumeDirty: boolean;
+};
 
 type VolumeSelectionOptions = {
   preserveScrollAnchor?: StructureScrollAnchor | null;
@@ -228,6 +239,10 @@ type ChapterEditorPaneProps = {
   activeDraft: ProjectEpisode | null;
   onDraftChange: (nextChapter: ProjectEpisode) => void;
   filteredChapters: ProjectEpisode[];
+  stagedChapters: StageChapter[];
+  selectedStageChapterId: string | null;
+  setStagedChapters: Dispatch<SetStateAction<StageChapter[]>>;
+  setSelectedStageChapterId: Dispatch<SetStateAction<string | null>>;
   volumeEntriesDraft: ProjectVolumeEntry[];
   selectedVolume: number | null;
   availableVolumes: EditableVolumeOption[];
@@ -327,9 +342,9 @@ const EMPTY_CHAPTER_DRAFT: ProjectEpisode = {
 };
 
 const primaryEditorSectionClassName =
-  "overflow-hidden rounded-[26px] border border-border/50 bg-card/80 shadow-[0_22px_70px_-50px_rgba(0,0,0,0.82)]";
+  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_54px_-42px_rgba(0,0,0,0.72)]";
 const editorSectionClassName =
-  "project-editor-section overflow-hidden rounded-[24px] border border-border/50 bg-card/68 shadow-[0_16px_50px_-42px_rgba(0,0,0,0.76)]";
+  "project-editor-section overflow-hidden rounded-2xl border border-border/60 bg-card/65 shadow-[0_16px_44px_-38px_rgba(0,0,0,0.68)]";
 const editorAccordionTriggerClassName =
   "project-editor-section-trigger flex w-full items-start gap-4 px-5 py-3.5 text-left hover:no-underline md:py-4";
 const editorSectionContentClassName = "project-editor-section-content px-5 pb-5";
@@ -338,15 +353,59 @@ const editorAccordionTitleClassName =
   "block text-[15px] font-semibold leading-tight md:text-base";
 const editorAccordionSubtitleClassName = "block text-xs leading-5 text-muted-foreground";
 const editorialMastheadClassName =
-  "overflow-hidden rounded-[26px] border border-border/50 bg-gradient-to-br from-background via-background/95 to-card/75 shadow-[0_24px_80px_-56px_rgba(0,0,0,0.84)]";
+  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
 const editorialCommandBarClassName =
-  "sticky top-3 z-20 overflow-hidden rounded-[24px] border border-border/50 bg-background/92 shadow-[0_24px_70px_-54px_rgba(0,0,0,0.82)] backdrop-blur supports-backdrop-filter:bg-background/78";
+  "sticky top-3 z-20 overflow-hidden rounded-2xl border border-border/60 bg-background/92 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.72)] backdrop-blur supports-backdrop-filter:bg-background/78";
+const workspaceSectionClassName =
+  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
+const workspaceSectionMutedClassName = "overflow-hidden rounded-2xl border border-border/60 bg-card/65";
+const workspaceSectionHeaderClassName =
+  "flex flex-col gap-3 border-b border-border/60 px-5 py-4 md:flex-row md:items-start md:justify-between";
+const workspaceSectionBodyClassName = "space-y-5 px-5 py-5";
+const workspaceSectionTitleClassName = "text-base font-semibold tracking-tight text-foreground";
+const workspaceSectionSubtitleClassName = "text-sm leading-6 text-muted-foreground";
 
 const EditorAccordionHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
   <div className={editorAccordionHeaderTextClassName}>
     <span className={editorAccordionTitleClassName}>{title}</span>
     <span className={editorAccordionSubtitleClassName}>{subtitle}</span>
   </div>
+);
+
+const WorkspaceSectionCard = ({
+  title,
+  subtitle,
+  eyebrow,
+  actions,
+  className,
+  bodyClassName,
+  testId,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  eyebrow?: string;
+  actions?: ReactNode;
+  className?: string;
+  bodyClassName?: string;
+  testId?: string;
+  children: ReactNode;
+}) => (
+  <section className={cn(workspaceSectionClassName, className)} data-testid={testId}>
+    <div className={workspaceSectionHeaderClassName}>
+      <div className="space-y-1">
+        {eyebrow ? (
+          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            {eyebrow}
+          </p>
+        ) : null}
+        <h2 className={workspaceSectionTitleClassName}>{title}</h2>
+        {subtitle ? <p className={workspaceSectionSubtitleClassName}>{subtitle}</p> : null}
+      </div>
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+    </div>
+    <div className={cn(workspaceSectionBodyClassName, bodyClassName)}>{children}</div>
+  </section>
 );
 
 const chapterHasContent = (episode: ProjectEpisode | null | undefined) =>
@@ -408,6 +467,18 @@ const groupChaptersByStructureKey = (episodes: ProjectEpisode[]) => {
   return groups;
 };
 
+const groupStageChaptersByStructureKey = (chapters: StageChapter[]) => {
+  const groups = new Map<string, StageChapter[]>();
+  (Array.isArray(chapters) ? chapters : []).forEach((chapter) => {
+    const key = buildChapterStructureGroupKey(chapter.volume);
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key)?.push(chapter);
+  });
+  return groups;
+};
+
 const matchesFilter = (episode: ProjectEpisode, mode: ChapterFilterMode) => {
   if (mode === "draft") {
     return episode.publicationStatus === "draft";
@@ -437,6 +508,41 @@ const matchesChapterSearch = (episode: ProjectEpisode, query: string) => {
     episode.title,
     episode.displayLabel,
     episode.synopsis,
+  ]
+    .map((value) => String(value || "").toLowerCase())
+    .join(" ");
+  return haystack.includes(normalizedQuery);
+};
+
+const matchesStageChapterFilter = (chapter: StageChapter, mode: ChapterFilterMode) => {
+  if (mode === "draft") {
+    return chapter.publicationStatus === "draft";
+  }
+  if (mode === "published") {
+    return chapter.publicationStatus !== "draft";
+  }
+  if (mode === "with-content") {
+    return chapter.pages.length > 0;
+  }
+  if (mode === "without-content") {
+    return chapter.pages.length === 0;
+  }
+  return true;
+};
+
+const matchesStageChapterSearch = (chapter: StageChapter, query: string) => {
+  const normalizedQuery = String(query || "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedQuery) {
+    return true;
+  }
+  const haystack = [
+    chapter.number,
+    chapter.volume,
+    chapter.title,
+    chapter.sourceLabel,
+    chapter.titleDetected,
   ]
     .map((value) => String(value || "").toLowerCase())
     .join(" ");
@@ -526,19 +632,22 @@ const normalizeChapterForSave = (chapter: ProjectEpisode): ProjectEpisode => {
   };
 };
 
-const buildNewChapterDraft = (episodes: ProjectEpisode[], volume?: number) =>
+const buildNewChapterDraft = (
+  episodes: ProjectEpisode[],
+  options: { volume?: number; projectType?: string | null } = {},
+) =>
   normalizeChapterForSave({
     ...EMPTY_CHAPTER_DRAFT,
     number: resolveNextMainEpisodeNumber(
-      volume === undefined
+      options.volume === undefined
         ? episodes.map((episode) => ({
             ...episode,
             volume: undefined,
           }))
         : episodes,
-      { volume },
+      { volume: options.volume },
     ),
-    volume,
+    volume: options.volume,
     title: "",
     synopsis: "",
     entryKind: "main",
@@ -552,7 +661,7 @@ const buildNewChapterDraft = (episodes: ProjectEpisode[], volume?: number) =>
     progressStage: "aguardando-raw",
     completedStages: [],
     content: "",
-    contentFormat: "lexical",
+    contentFormat: isMangaType(options.projectType || "") ? "images" : "lexical",
     pages: [],
     pageCount: 0,
     hasPages: false,
@@ -678,6 +787,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       activeDraft,
       onDraftChange,
       filteredChapters,
+      stagedChapters,
+      selectedStageChapterId,
+      setStagedChapters,
+      setSelectedStageChapterId,
       volumeEntriesDraft,
       selectedVolume,
       availableVolumes,
@@ -737,14 +850,16 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     ref,
   ) => {
     const apiBase = getApiBase();
-    const { settings: siteSettings } = useSiteSettings();
     const editorRef = useRef<LexicalEditorHandle | null>(null);
+    const bypassNextLeaveGuardRef = useRef(false);
+    const leaveDialogResolversRef = useRef<Array<(value: boolean) => void>>([]);
     const [identityError, setIdentityError] = useState<string | null>(null);
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
     const [libraryTarget, setLibraryTarget] = useState<"chapter-cover" | "volume-cover" | null>(
       null,
     );
     const [isSavingChapter, setIsSavingChapter] = useState(false);
+    const [leaveDialogState, setLeaveDialogState] = useState<LeaveGuardDialogState | null>(null);
     const hasActiveChapter = Boolean(activeChapter && activeChapterKey);
     const draft =
       activeDraft || (activeChapter ? normalizeChapterForSave(activeChapter) : EMPTY_CHAPTER_DRAFT);
@@ -755,14 +870,6 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         draft.contentFormat,
         normalizeProjectEpisodePages(draft.pages).length > 0 ? "images" : "lexical",
       ) === "images";
-    const publicPreviewHref = hasActiveChapter
-      ? buildProjectPublicReadingHref(project.id, Number(draft.number) || 1, draft.volume)
-      : null;
-    const chapterReaderConfig = resolveProjectReaderConfig({
-      projectType: project.type,
-      siteSettings,
-      projectReaderConfig: project.readerConfig,
-    });
     const projectSnapshotForImageExport = useMemo(
       () => overlayDraftOnProject(project, activeChapterKey, draft),
       [activeChapterKey, draft, project],
@@ -860,10 +967,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       selectedVolume !== null && Number.isFinite(Number(selectedVolume))
         ? Number(selectedVolume)
         : null;
-    const activeChapterVolumeNumber =
-      hasActiveChapter && Number.isFinite(Number(draft.volume)) ? Number(draft.volume) : null;
-    const showVolumeEditor =
-      selectedVolumeNumber !== null && (!hasActiveChapter || activeChapterVolumeNumber !== null);
+    const showVolumeEditor = selectedVolumeNumber !== null && !hasActiveChapter;
     const selectedVolumeLabel =
       selectedVolumeNumber !== null ? buildChapterVolumeLabel(selectedVolumeNumber) : "Volumes";
     const showVolumeSaveControls = isVolumeDirty || isSavingVolumes;
@@ -990,14 +1094,64 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       return handleChapterSave(draft.publicationStatus);
     }, [draft.publicationStatus, handleChapterSave, hasActiveChapter]);
 
+    const resolveLeaveDialog = useCallback((nextValue: boolean) => {
+      const resolvers = [...leaveDialogResolversRef.current];
+      leaveDialogResolversRef.current = [];
+      setLeaveDialogState(null);
+      resolvers.forEach((resolve) => resolve(nextValue));
+    }, []);
+
     const requestLeave = useCallback(async () => {
-      if (!isVolumeDirty && (!hasActiveChapter || !isDirty)) {
+      if (bypassNextLeaveGuardRef.current) {
+        bypassNextLeaveGuardRef.current = false;
         return true;
       }
-      return window.confirm(
-        "Você tem alterações não salvas neste editor. Deseja sair mesmo assim?",
-      );
+      const chapterDirty = hasActiveChapter && isDirty;
+      const volumeDirty = isVolumeDirty;
+      if (!chapterDirty && !volumeDirty) {
+        return true;
+      }
+      return await new Promise<boolean>((resolve) => {
+        leaveDialogResolversRef.current.push(resolve);
+        setLeaveDialogState({ chapterDirty, volumeDirty });
+      });
     }, [hasActiveChapter, isDirty, isVolumeDirty]);
+
+    const handleLeaveDialogSaveAndContinue = useCallback(
+      async (publicationStatus: "draft" | "published") => {
+        const shouldPersistChapter = Boolean(leaveDialogState?.chapterDirty && hasActiveChapter);
+        const shouldPersistVolumes = Boolean(leaveDialogState?.volumeDirty);
+        if (shouldPersistChapter) {
+          const didSaveChapter = await handleChapterSave(publicationStatus);
+          if (!didSaveChapter) {
+            return;
+          }
+        }
+        if (shouldPersistVolumes) {
+          const didSaveVolumes = await onSaveVolumes();
+          if (!didSaveVolumes) {
+            return;
+          }
+        }
+        resolveLeaveDialog(true);
+      },
+      [
+        handleChapterSave,
+        hasActiveChapter,
+        leaveDialogState?.chapterDirty,
+        leaveDialogState?.volumeDirty,
+        onSaveVolumes,
+        resolveLeaveDialog,
+      ],
+    );
+
+    const handleLeaveDialogDiscardAndContinue = useCallback(() => {
+      resolveLeaveDialog(true);
+    }, [resolveLeaveDialog]);
+
+    const handleLeaveDialogCancel = useCallback(() => {
+      resolveLeaveDialog(false);
+    }, [resolveLeaveDialog]);
 
     const handleCloseSelectedVolume = useCallback(async () => {
       if (selectedVolumeNumber === null || hasActiveChapter) {
@@ -1016,6 +1170,17 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         requestLeave,
       }),
       [requestLeave],
+    );
+
+    useEffect(
+      () => () => {
+        if (leaveDialogResolversRef.current.length > 0) {
+          const resolvers = [...leaveDialogResolversRef.current];
+          leaveDialogResolversRef.current = [];
+          resolvers.forEach((resolve) => resolve(false));
+        }
+      },
+      [],
     );
 
     useEffect(() => {
@@ -1092,6 +1257,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     const chapterSummaryLabel =
       hasActiveChapter && draft.entryKind === "extra" ? "Extra em edição" : "Capítulo em edição";
     const chapterPositionLabel = `${Math.max(chapterIndex + 1, 1)} de ${Math.max(chapterCount, 1)}`;
+    const primaryChapterActionLabel = isChapterDraft ? "Salvar como rascunho" : "Salvar alterações";
+    const secondaryChapterActionLabel = isChapterDraft ? "Publicar" : "Mover para rascunho";
     const editorialScopeDescription = supportsEpubTools
       ? "EspaÃ§o editorial para organizar capÃ­tulos, volumes e publicaÃ§Ã£o de light novels com foco em leitura e escrita contÃ­nua."
       : isMangaProject
@@ -1108,6 +1275,14 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       if (activeGroup?.key) {
         return activeGroup.key;
       }
+      if (!hasActiveChapter && selectedStageChapterId) {
+        const pendingGroup = structureGroups.find((group) =>
+          group.pendingItems.some((chapter) => chapter.id === selectedStageChapterId),
+        );
+        if (pendingGroup?.key) {
+          return pendingGroup.key;
+        }
+      }
       if (selectedVolumeNumber !== null) {
         return (
           structureGroups.find((group) => group.volume === selectedVolumeNumber)?.key ||
@@ -1116,7 +1291,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         );
       }
       return structureGroups[0]?.key || "";
-    }, [activeChapterKey, selectedVolumeNumber, structureGroups]);
+    }, [activeChapterKey, hasActiveChapter, selectedStageChapterId, selectedVolumeNumber, structureGroups]);
     const [openStructureGroupKeys, setOpenStructureGroupKeys] = useState<string[]>(() => {
       const initialKeys = normalizeStructureGroupKeys(initialOpenStructureGroupKeys, structureGroups);
       if (initialKeys.length > 0) {
@@ -1124,9 +1299,6 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       }
       return activeStructureGroupKey ? [activeStructureGroupKey] : [];
     });
-    const [contentAccordionValue, setContentAccordionValue] = useState<string>(
-      hasActiveChapter ? "content" : "",
-    );
     const lastAutoSyncedStructureGroupKeyRef = useRef(activeStructureGroupKey);
 
     useEffect(() => {
@@ -1159,10 +1331,6 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       onStructureGroupKeysChange(openStructureGroupKeys);
     }, [onStructureGroupKeysChange, openStructureGroupKeys]);
 
-    useEffect(() => {
-      setContentAccordionValue(hasActiveChapter ? "content" : "");
-    }, [activeChapterKey, hasActiveChapter]);
-
     const toggleStructureGroup = useCallback((groupKey: string) => {
       setOpenStructureGroupKeys((currentKeys) => {
         const normalizedCurrentKeys = normalizeStructureGroupKeys(currentKeys, structureGroups);
@@ -1187,6 +1355,14 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           : [...previousOpenGroupKeys, groupKey];
         setOpenStructureGroupKeys(nextOpenGroupKeys);
 
+        if (!hasActiveChapter && isVolumeDirty && selectedVolumeNumber !== normalizedVolume) {
+          const canLeave = await requestLeave();
+          if (!canLeave) {
+            setOpenStructureGroupKeys(previousOpenGroupKeys);
+            return;
+          }
+        }
+
         const didSelectVolume = await onSelectedVolumeChange(normalizedVolume, {
           preserveScrollAnchor:
             Number.isFinite(scrollAnchorTop) && typeof scrollAnchorTop === "number"
@@ -1197,7 +1373,42 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           setOpenStructureGroupKeys(previousOpenGroupKeys);
         }
       },
-      [onSelectedVolumeChange, openStructureGroupKeys],
+      [hasActiveChapter, isVolumeDirty, onSelectedVolumeChange, openStructureGroupKeys, requestLeave, selectedVolumeNumber],
+    );
+
+    const handleSelectPendingStageChapter = useCallback(
+      async (chapterId: string) => {
+        if (!chapterId || selectedStageChapterId === chapterId) {
+          return;
+        }
+        if (hasActiveChapter) {
+          const didNavigate = await onNavigateToHref(neutralHref);
+          if (!didNavigate) {
+            return;
+          }
+          setSelectedStageChapterId(chapterId);
+          return;
+        }
+        if (isVolumeDirty) {
+          const canLeave = await requestLeave();
+          if (!canLeave) {
+            return;
+          }
+        }
+        setSelectedStageChapterId(chapterId);
+      },
+      [hasActiveChapter, isVolumeDirty, neutralHref, onNavigateToHref, requestLeave, selectedStageChapterId, setSelectedStageChapterId],
+    );
+
+    const handleAddChapterRequest = useCallback(
+      async (targetVolume: number | null) => {
+        const canLeave = await requestLeave();
+        if (!canLeave) {
+          return;
+        }
+        await onAddChapter(targetVolume);
+      },
+      [onAddChapter, requestLeave],
     );
 
     const updateDraft = useCallback(
@@ -1449,11 +1660,18 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
 
               <div className="space-y-2.5">
                 {structureGroups.map((group) => {
+                  const hasSelectedPendingChapter = group.pendingItems.some(
+                    (chapter) => chapter.id === selectedStageChapterId,
+                  );
                   const isSelected =
-                    group.volume !== null && selectedVolumeNumber === Number(group.volume);
+                    (group.volume !== null && selectedVolumeNumber === Number(group.volume)) ||
+                    hasSelectedPendingChapter;
                   const isOpen = openStructureGroupKeys.includes(group.key);
+                  const hasVisibleItems =
+                    group.visiblePendingItems.length > 0 || group.visibleItems.length > 0;
+                  const pendingCount = group.pendingItems.length;
                   const emptyMessage =
-                    group.chapterCount > 0
+                    group.chapterCount > 0 || pendingCount > 0
                       ? "Nenhum capítulo corresponde ao filtro atual neste grupo."
                       : group.volume !== null
                         ? "Nenhum capítulo vinculado a este volume ainda."
@@ -1491,8 +1709,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                   {group.label}
                                 </p>
                                 <p className="text-xs leading-5 text-muted-foreground">
-                                  {group.chapterCount > 0
-                                    ? `${group.chapterCount} capítulo(s) vinculado(s)`
+                                  {group.chapterCount > 0 || pendingCount > 0
+                                    ? `${group.chapterCount} salvo(s)${
+                                        pendingCount > 0 ? ` + ${pendingCount} no lote` : ""
+                                      }`
                                     : "Nenhum capítulo vinculado"}
                                 </p>
                               </div>
@@ -1500,6 +1720,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                 <Badge variant={group.hasMetadata ? "secondary" : "outline"}>
                                   {group.hasMetadata ? "Metadados" : "Sem metadados"}
                                 </Badge>
+                                {pendingCount > 0 ? (
+                                  <Badge variant="outline">Importação {pendingCount}</Badge>
+                                ) : null}
                               </div>
                             </div>
                           </button>
@@ -1512,8 +1735,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                           >
                             <p className="text-sm font-semibold text-foreground">{group.label}</p>
                             <p className="text-xs leading-5 text-muted-foreground">
-                              {group.chapterCount > 0
-                                ? `${group.chapterCount} capítulo(s) sem volume`
+                              {group.chapterCount > 0 || pendingCount > 0
+                                ? `${group.chapterCount} salvo(s)${
+                                    pendingCount > 0 ? ` + ${pendingCount} no lote` : ""
+                                  }`
                                 : "Agrupe aqui capítulos fora de volume"}
                             </p>
                           </button>
@@ -1552,7 +1777,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                             variant="outline"
                             data-testid={`chapter-structure-add-chapter-${group.key}`}
                             onClick={() => {
-                              void onAddChapter(group.volume);
+                              void handleAddChapterRequest(group.volume);
                             }}
                             className="w-full justify-center rounded-xl"
                           >
@@ -1563,8 +1788,62 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                       </div>
                       {isOpen ? (
                         <div className="space-y-2.5 p-3.5">
-                          {group.visibleItems.length > 0 ? (
-                            group.visibleItems.map((episode) => {
+                          {hasVisibleItems ? (
+                            <>
+                              {group.visiblePendingItems.map((chapter) => {
+                                const isActivePending = chapter.id === selectedStageChapterId;
+                                return (
+                                  <button
+                                    key={chapter.id}
+                                    type="button"
+                                    data-testid={`chapter-structure-stage-select-${chapter.id}`}
+                                    onClick={() => {
+                                      void handleSelectPendingStageChapter(chapter.id);
+                                    }}
+                                    className={`w-full rounded-[18px] border px-3.5 py-3 text-left transition ${
+                                      isActivePending
+                                        ? "border-primary/50 bg-primary/[0.07] shadow-sm"
+                                        : "border-border/50 bg-background/55 hover:bg-background/78"
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                                          {chapter.operation === "update" ? "Atualizar" : "Importar"}
+                                        </p>
+                                        <p className="line-clamp-2 text-sm font-semibold text-foreground">
+                                          {buildStageChapterLabel(chapter)}
+                                        </p>
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <Badge variant="outline">Importação</Badge>
+                                        <Badge
+                                          variant={
+                                            chapter.publicationStatus === "draft"
+                                              ? "outline"
+                                              : "secondary"
+                                          }
+                                        >
+                                          {chapter.publicationStatus === "draft"
+                                            ? "Rascunho"
+                                            : "Publicado"}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                      <span>
+                                        {chapter.pages.length > 0
+                                          ? `${chapter.pages.length} página(s)`
+                                          : "Sem páginas"}
+                                      </span>
+                                      {chapter.warnings.length > 0 ? (
+                                        <span>- {chapter.warnings.length} aviso(s)</span>
+                                      ) : null}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                              {group.visibleItems.map((episode) => {
                               const episodeKey = buildEpisodeKey(episode.number, episode.volume);
                               const href = buildDashboardProjectChapterEditorHref(
                                 project.id,
@@ -1613,7 +1892,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                   </div>
                                 </button>
                               );
-                            })
+                            })}
+                            </>
                           ) : (
                             <div className="rounded-[18px] border border-dashed border-border/60 bg-background/30 px-4 py-4 text-sm text-muted-foreground">
                               {emptyMessage}
@@ -1630,24 +1910,398 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         </AccordionItem>
       </Accordion>
     );
-    const volumeEditorSection = showVolumeEditor ? (
-      <Accordion
-        key={`volume-${activeChapterKey ?? "neutral"}-${selectedVolumeNumber ?? "none"}`}
-        type="single"
-        collapsible
-        defaultValue=""
-        className="project-editor-accordion space-y-2.5"
-        data-testid="chapter-volume-accordion"
+    const identitySection = hasActiveChapter ? (
+      <WorkspaceSectionCard
+        title="Identidade do capítulo"
+        subtitle="Título, numeração, tipo e resumo"
+        eyebrow="Ficha editorial"
+        testId="chapter-identity-accordion"
+        actions={
+          <>
+            <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+              {draft.entryKind === "extra" ? "Extra" : "Capitulo"}
+            </Badge>
+            <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+              {buildChapterVolumeLabel(draft.volume)}
+            </Badge>
+          </>
+        }
       >
-        <AccordionItem
-          value="volume"
-          className={editorSectionClassName}
-          data-testid="chapter-volume-editor"
-        >
-          <AccordionTrigger
-            className={editorAccordionTriggerClassName}
-            data-testid="chapter-volume-trigger"
+        <div className="space-y-5" data-testid="chapter-identity-section" data-state="open">
+          <button
+            type="button"
+            className="sr-only"
+            data-testid="chapter-identity-trigger"
+            aria-expanded="false"
           >
+            Alternar identidade
+          </button>
+          {identityError ? (
+            <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              {identityError}
+            </div>
+          ) : null}
+
+          <div className="space-y-2">
+            <Label htmlFor="chapter-title">Título</Label>
+            <Input
+              id="chapter-title"
+              value={draft.title || ""}
+              onChange={(event) =>
+                updateDraft((current) => ({ ...current, title: event.target.value }))
+              }
+            />
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="space-y-2">
+              <Label htmlFor="chapter-number">Capítulo</Label>
+              <Input
+                id="chapter-number"
+                type="number"
+                min={1}
+                step={1}
+                value={draft.number}
+                onChange={(event) =>
+                  updateDraft((current) => ({
+                    ...current,
+                    number:
+                      normalizePositiveInteger(Number(event.target.value), 1) ?? current.number,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="chapter-volume">Volume</Label>
+              <Input
+                id="chapter-volume"
+                type="number"
+                min={1}
+                step={1}
+                value={draft.volume ?? ""}
+                onChange={(event) =>
+                  updateDraft((current) => ({
+                    ...current,
+                    volume:
+                      event.target.value.trim() === ""
+                        ? undefined
+                        : normalizePositiveInteger(Number(event.target.value)),
+                  }))
+                }
+                placeholder="Sem volume"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo de entrada</Label>
+              <Select
+                value={draft.entryKind === "extra" ? "extra" : "main"}
+                onValueChange={(value) =>
+                  updateDraft((current) => {
+                    const nextEntryKind = value === "extra" ? "extra" : "main";
+                    return {
+                      ...current,
+                      entryKind: nextEntryKind,
+                      entrySubtype: resolveChapterEntrySubtype(nextEntryKind),
+                      displayLabel:
+                        nextEntryKind === "extra" ? current.displayLabel || "Extra" : undefined,
+                    };
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="main">Capitulo</SelectItem>
+                  <SelectItem value="extra">Extra</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {!isImageChapter ? (
+              <div className="space-y-2">
+                <Label htmlFor="chapter-reading-order">Ordem de leitura</Label>
+                <Input
+                  id="chapter-reading-order"
+                  type="number"
+                  value={draft.readingOrder ?? ""}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      readingOrder:
+                        event.target.value.trim() === "" ? undefined : Number(event.target.value),
+                    }))
+                  }
+                />
+              </div>
+            ) : null}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="chapter-title">{isImageChapter ? "Titulo" : "TÃ­tulo"}</Label>
+            <Input
+              id="chapter-title"
+              value={draft.title || ""}
+              onChange={(event) =>
+                updateDraft((current) => ({ ...current, title: event.target.value }))
+              }
+            />
+          </div>
+          {draft.entryKind === "extra" ? (
+            <div className="grid gap-3 lg:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="chapter-display-label">Rótulo do extra</Label>
+                <Input
+                  id="chapter-display-label"
+                  value={draft.displayLabel || ""}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      displayLabel: event.target.value,
+                    }))
+                  }
+                  placeholder="Ex.: Side Story"
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {!isImageChapter ? (
+            <div className="space-y-2">
+              <Label htmlFor="chapter-synopsis">Sinopse</Label>
+              <Textarea
+                id="chapter-synopsis"
+                value={draft.synopsis || ""}
+                onChange={(event) =>
+                  updateDraft((current) => ({ ...current, synopsis: event.target.value }))
+                }
+                rows={5}
+              />
+            </div>
+          ) : null}
+        </div>
+      </WorkspaceSectionCard>
+    ) : null;
+    const publicationSection = hasActiveChapter ? (
+      <WorkspaceSectionCard
+        title="Publicação"
+        subtitle="Release, status atual e visibilidade do capitulo"
+        eyebrow="Operacao"
+        testId="chapter-publication-section"
+        actions={
+          <Badge
+            variant={draft.publicationStatus === "draft" ? "outline" : "default"}
+            className="text-[10px] uppercase tracking-[0.12em]"
+          >
+            {chapterStatusLabel(draft)}
+          </Badge>
+        }
+      >
+        <div className="grid gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="chapter-release-date">Data de release</Label>
+            <Input
+              id="chapter-release-date"
+              type="date"
+              value={draft.releaseDate || ""}
+              onChange={(event) =>
+                updateDraft((current) => ({ ...current, releaseDate: event.target.value }))
+              }
+            />
+          </div>
+          <div className="rounded-2xl border border-border/60 bg-background/40 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <Label className="text-sm">Status atual</Label>
+                <p className="text-xs text-muted-foreground">
+                  Use as ações do topo ou do rodapé para publicar este capítulo ou voltar para rascunho.
+                </p>
+              </div>
+              <Badge
+                variant={draft.publicationStatus === "draft" ? "outline" : "default"}
+                className="text-[10px] uppercase tracking-[0.12em]"
+              >
+                {chapterStatusLabel(draft)}
+              </Badge>
+            </div>
+          </div>
+        </div>
+      </WorkspaceSectionCard>
+    ) : null;
+    const coverSection =
+      hasActiveChapter && !isImageChapter ? (
+        <WorkspaceSectionCard
+          title="Capa do capítulo"
+          subtitle="Biblioteca dedicada e texto alternativo"
+          eyebrow="Imagem"
+          testId="chapter-cover-section"
+          actions={
+            <Button type="button" variant="outline" size="sm" onClick={openChapterCoverLibrary}>
+              <ImagePlus className="h-4 w-4" />
+              <span>Biblioteca</span>
+            </Button>
+          }
+        >
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-border/60 bg-background/40 p-4">
+              <Label className="text-sm">Imagem de capa</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Usa a pasta dedicada do capitulo na biblioteca.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-[112px_minmax(0,1fr)]">
+              {draft.coverImageUrl ? (
+                <img
+                  src={draft.coverImageUrl}
+                  alt={draft.coverImageAlt || DEFAULT_PROJECT_COVER_ALT}
+                  className="h-40 w-28 rounded-xl object-cover"
+                />
+              ) : (
+                <div className="flex h-40 w-28 items-center justify-center rounded-xl border border-dashed border-border/60 text-center text-xs text-muted-foreground">
+                  Sem capa
+                </div>
+              )}
+              <div className="space-y-3">
+                <Input
+                  value={draft.coverImageUrl || ""}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      coverImageUrl: event.target.value,
+                    }))
+                  }
+                  placeholder="URL da capa"
+                />
+                <Input
+                  value={draft.coverImageAlt || ""}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      coverImageAlt: event.target.value,
+                    }))
+                  }
+                  placeholder="Texto alternativo da capa"
+                />
+              </div>
+            </div>
+          </div>
+        </WorkspaceSectionCard>
+      ) : null;
+    const sourcesSection = hasActiveChapter ? (
+      <WorkspaceSectionCard
+        title="Fontes de download"
+        subtitle="Links opcionais para capitulos hibridos"
+        eyebrow="Distribuicao"
+        testId="chapter-sources-section"
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              updateDraft((current) => ({
+                ...current,
+                sources: [...(current.sources || []), { label: "", url: "" }],
+              }))
+            }
+          >
+            <Plus className="h-4 w-4" />
+            <span>Adicionar</span>
+          </Button>
+        }
+      >
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-border/60 bg-background/40 p-4">
+            <Label className="text-sm">Fontes</Label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Opcional para capitulos com leitura e download.
+            </p>
+          </div>
+          <div className="space-y-3">
+            {(draft.sources || []).map((source, sourceIndex) => (
+              <div
+                key={`chapter-source-${sourceIndex}`}
+                className="grid gap-2 rounded-xl border border-border/60 bg-card/70 p-3"
+              >
+                <Input
+                  value={source.label}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      sources: (current.sources || []).map((item, index) =>
+                        index === sourceIndex ? { ...item, label: event.target.value } : item,
+                      ),
+                    }))
+                  }
+                  placeholder="Fonte"
+                />
+                <Input
+                  value={source.url}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      sources: (current.sources || []).map((item, index) =>
+                        index === sourceIndex ? { ...item, url: event.target.value } : item,
+                      ),
+                    }))
+                  }
+                  placeholder="URL"
+                />
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      updateDraft((current) => ({
+                        ...current,
+                        sources: (current.sources || []).filter((_, index) => index !== sourceIndex),
+                      }))
+                    }
+                  >
+                    Remover
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {(draft.sources || []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma fonte cadastrada.</p>
+            ) : null}
+          </div>
+        </div>
+      </WorkspaceSectionCard>
+    ) : null;
+    const volumeEditorSection = showVolumeEditor ? (
+      <WorkspaceSectionCard
+        title={selectedVolumeNumber !== null ? selectedVolumeLabel : "Editor de volume"}
+        subtitle={
+          selectedVolumeNumber !== null
+            ? "Capa, texto alternativo e sinopse do volume selecionado"
+            : "Selecione um volume na coluna lateral ou crie um novo para editar seus metadados."
+        }
+        eyebrow="Volume"
+        testId="chapter-volume-accordion"
+        actions={
+          selectedVolumeNumber !== null ? (
+            <>
+              <Badge variant="outline" className="shrink-0">
+                {selectedVolumeChapterCount} capitulo(s)
+              </Badge>
+              <Button type="button" variant="outline" size="sm" onClick={openVolumeCoverLibrary}>
+                <ImagePlus className="h-4 w-4" />
+                <span>Biblioteca</span>
+              </Button>
+            </>
+          ) : null
+        }
+      >
+        <div data-testid="chapter-volume-editor" data-state="open">
+          <button
+            type="button"
+            className="sr-only"
+            data-testid="chapter-volume-trigger"
+            aria-expanded="false"
+          >
+            Alternar volume
+          </button>
             <div className="flex w-full items-start justify-between gap-4 text-left">
               <div className={editorAccordionHeaderTextClassName}>
                 <span className={editorAccordionTitleClassName}>
@@ -1665,8 +2319,6 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               </Badge>
               ) : null}
             </div>
-          </AccordionTrigger>
-          <div className={editorSectionContentClassName}>
           {selectedVolumeNumber !== null ? (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-border/50 bg-background/45 p-4">
@@ -1784,28 +2436,30 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               />
             </div>
             )}
-          </div>
-        </AccordionItem>
-      </Accordion>
+        </div>
+        </WorkspaceSectionCard>
     ) : null;
-    const isContentExpanded = contentAccordionValue === "content";
     const contentSection = hasActiveChapter ? (
-      <Accordion
-        type="single"
-        collapsible
-        value={contentAccordionValue}
-        onValueChange={setContentAccordionValue}
-        data-testid="chapter-content-accordion"
+      <WorkspaceSectionCard
+        title="Conteúdo"
+        subtitle={
+          isImageChapter
+            ? "Gerencie páginas, ordem de leitura e capa para capítulos em imagem."
+            : "Ambiente principal de escrita para o capitulo atual, com foco em leitura, continuidade e edicao longa."
+        }
+        eyebrow="Espaco editorial"
+        testId="chapter-content-accordion"
+        className="chapter-editor-content-shell min-w-0"
       >
-        <AccordionItem
-          value="content"
-          className={`${primaryEditorSectionClassName} chapter-editor-content-shell min-w-0`}
-          data-testid="chapter-content-section"
-        >
-          <AccordionTrigger
-            className="w-full bg-gradient-to-r from-background/85 via-background/70 to-background/35 px-5 py-4 text-left hover:no-underline data-[state=open]:border-b data-[state=open]:border-border/50 md:px-6 md:py-5"
-            data-testid="chapter-content-trigger"
-          >
+            <div data-testid="chapter-content-section" className="space-y-4" data-state="open">
+            <button
+              type="button"
+              className="sr-only"
+              data-testid="chapter-content-trigger"
+              aria-expanded="true"
+            >
+              Alternar conteudo
+            </button>
             <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
@@ -1822,57 +2476,28 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 </h2>
                 <p className="max-w-2xl text-xs leading-5 text-muted-foreground md:text-sm">
                   {isImageChapter
-                    ? "Gerencie paginas, ordem de leitura, capa e preview publico para capitulos em imagem."
+                    ? "Gerencie páginas, ordem de leitura e capa para capítulos em imagem."
                     : "Ambiente principal de escrita para o capitulo atual, com foco em leitura, continuidade e edicao longa."}
                 </p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground lg:justify-end">
-              <Select
-                value={isImageChapter ? "images" : "lexical"}
-                onValueChange={(value) =>
-                  updateDraft((current) => ({
-                    ...current,
-                    contentFormat: value === "images" ? "images" : "lexical",
-                    content: value === "images" ? "" : current.content,
-                    pages: value === "images" ? current.pages || [] : [],
-                    pageCount: value === "images" ? normalizeProjectEpisodePages(current.pages).length : 0,
-                    hasPages: value === "images" ? normalizeProjectEpisodePages(current.pages).length > 0 : false,
-                  }))
-                }
-              >
-                <SelectTrigger className="h-8 w-[148px] bg-background/65 text-[11px] uppercase tracking-[0.08em]">
-                  <SelectValue placeholder="Formato" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="lexical">Texto / Lexical</SelectItem>
-                  <SelectItem value="images">Imagem / Manga</SelectItem>
-                </SelectContent>
-              </Select>
               <span>{chapterHasContent(draft) ? "Com leitura" : "Sem leitura"}</span>
               {draft.sources?.length ? <span>{draft.sources.length} fonte(s)</span> : null}
               <span>{chapterStatusLabel(draft)}</span>
             </div>
             </div>
-          </AccordionTrigger>
-          <AccordionContent
-            forceMount
-            className="p-0"
-            contentClassName="overflow-hidden data-[state=closed]:animate-none data-[state=open]:animate-none"
-            data-testid="chapter-content-body"
-            aria-hidden={isContentExpanded ? "false" : "true"}
-          >
             <div
-              className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
-                isContentExpanded
-                  ? "grid-rows-[1fr] opacity-100"
-                  : "pointer-events-none grid-rows-[0fr] opacity-0"
-              }`}
-              data-state={isContentExpanded ? "open" : "closed"}
               data-testid="chapter-content-viewport"
+              data-state="open"
+              className="grid grid-rows-[1fr] opacity-100"
             >
-              <div className="min-h-0 overflow-hidden">
-                <div className="space-y-4 px-5 pb-5 pt-4 md:px-6 md:pb-6">
+            <div
+              className="space-y-4 transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
+              data-testid="chapter-content-body"
+              data-state="open"
+              aria-hidden="false"
+            >
                   {isImageChapter ? (
                     <MangaChapterPagesEditor
                       apiBase={apiBase}
@@ -1880,8 +2505,6 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                       chapter={draft}
                       uploadFolder={chapterFolder}
                       onChange={(nextChapter) => onDraftChange(normalizeChapterForSave(nextChapter))}
-                      previewHref={publicPreviewHref}
-                      readerConfig={chapterReaderConfig}
                     />
                   ) : (
                     <>
@@ -1917,12 +2540,409 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                       </div>
                     </>
                   )}
-                </div>
+            </div>
+            </div>
+            </div>
+      </WorkspaceSectionCard>
+    ) : null;
+    const imageIdentitySection =
+      hasActiveChapter && isImageChapter ? (
+        <WorkspaceSectionCard
+          title="Dados do capitulo"
+          subtitle="Volume, capitulo, tipo de entrada e titulo."
+          eyebrow="Ficha editorial"
+          testId="chapter-identity-accordion"
+          actions={
+            <>
+              <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                {draft.entryKind === "extra" ? "Extra" : "Capitulo"}
+              </Badge>
+              <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                {buildChapterVolumeLabel(draft.volume)}
+              </Badge>
+            </>
+          }
+        >
+          <div className="space-y-5" data-testid="chapter-identity-section" data-state="open">
+            <button
+              type="button"
+              className="sr-only"
+              data-testid="chapter-identity-trigger"
+              aria-expanded="false"
+            >
+              Alternar identidade
+            </button>
+            {identityError ? (
+              <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                {identityError}
+              </div>
+            ) : null}
+
+            <div className="space-y-2">
+              <Label htmlFor="chapter-title-image">Titulo</Label>
+              <Input
+                id="chapter-title-image"
+                value={draft.title || ""}
+                onChange={(event) =>
+                  updateDraft((current) => ({ ...current, title: event.target.value }))
+                }
+                className="w-full"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-3" data-testid="chapter-image-compact-fields">
+              <div className="space-y-2">
+                <Label htmlFor="chapter-volume-image">Volume</Label>
+                <Input
+                  id="chapter-volume-image"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={draft.volume ?? ""}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      volume:
+                        event.target.value.trim() === ""
+                          ? undefined
+                          : normalizePositiveInteger(Number(event.target.value)),
+                    }))
+                  }
+                  placeholder="Sem volume"
+                  className="w-full sm:w-[132px]"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="chapter-number-image">Capitulo</Label>
+                <Input
+                  id="chapter-number-image"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={draft.number}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      number:
+                        normalizePositiveInteger(Number(event.target.value), 1) ?? current.number,
+                    }))
+                  }
+                  className="w-full sm:w-[132px]"
+                />
+              </div>
+              <div className="space-y-2 sm:min-w-[180px]">
+                <Label>Tipo de entrada</Label>
+                <Select
+                  value={draft.entryKind === "extra" ? "extra" : "main"}
+                  onValueChange={(value) =>
+                    updateDraft((current) => {
+                      const nextEntryKind = value === "extra" ? "extra" : "main";
+                      return {
+                        ...current,
+                        entryKind: nextEntryKind,
+                        entrySubtype: resolveChapterEntrySubtype(nextEntryKind),
+                        displayLabel:
+                          nextEntryKind === "extra" ? current.displayLabel || "Extra" : undefined,
+                      };
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="main">Capitulo</SelectItem>
+                    <SelectItem value="extra">Extra</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+
+            {draft.entryKind === "extra" ? (
+              <div className="grid gap-3 lg:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="chapter-display-label-image">Rotulo do extra</Label>
+                  <Input
+                    id="chapter-display-label-image"
+                    value={draft.displayLabel || ""}
+                    onChange={(event) =>
+                      updateDraft((current) => ({
+                        ...current,
+                        displayLabel: event.target.value,
+                      }))
+                    }
+                    placeholder="Ex.: Side Story"
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </WorkspaceSectionCard>
+      ) : null;
+    const standardIdentitySection =
+      hasActiveChapter && !isImageChapter ? (
+        <WorkspaceSectionCard
+          title="Identidade do capítulo"
+          subtitle="Título, numeração, tipo e resumo"
+          eyebrow="Ficha editorial"
+          testId="chapter-identity-accordion"
+          actions={
+            <>
+              <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                {draft.entryKind === "extra" ? "Extra" : "Capitulo"}
+              </Badge>
+              <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                {buildChapterVolumeLabel(draft.volume)}
+              </Badge>
+            </>
+          }
+        >
+          <div className="space-y-5" data-testid="chapter-identity-section" data-state="open">
+            <button
+              type="button"
+              className="sr-only"
+              data-testid="chapter-identity-trigger"
+              aria-expanded="false"
+            >
+              Alternar identidade
+            </button>
+            {identityError ? (
+              <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                {identityError}
+              </div>
+            ) : null}
+
+            <div className="space-y-2">
+              <Label htmlFor="chapter-title-standard">Título</Label>
+              <Input
+                id="chapter-title-standard"
+                value={draft.title || ""}
+                onChange={(event) =>
+                  updateDraft((current) => ({ ...current, title: event.target.value }))
+                }
+                className="w-full"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-3" data-testid="chapter-standard-compact-fields">
+              <div className="space-y-2">
+                <Label htmlFor="chapter-number-standard">Capítulo</Label>
+                <Input
+                  id="chapter-number-standard"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={draft.number}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      number:
+                        normalizePositiveInteger(Number(event.target.value), 1) ?? current.number,
+                    }))
+                  }
+                  className="w-full sm:w-[132px]"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="chapter-volume-standard">Volume</Label>
+                <Input
+                  id="chapter-volume-standard"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={draft.volume ?? ""}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      volume:
+                        event.target.value.trim() === ""
+                          ? undefined
+                          : normalizePositiveInteger(Number(event.target.value)),
+                    }))
+                  }
+                  placeholder="Sem volume"
+                  className="w-full sm:w-[132px]"
+                />
+              </div>
+              <div className="space-y-2 sm:min-w-[180px]">
+                <Label>Tipo de entrada</Label>
+                <Select
+                  value={draft.entryKind === "extra" ? "extra" : "main"}
+                  onValueChange={(value) =>
+                    updateDraft((current) => {
+                      const nextEntryKind = value === "extra" ? "extra" : "main";
+                      return {
+                        ...current,
+                        entryKind: nextEntryKind,
+                        entrySubtype: resolveChapterEntrySubtype(nextEntryKind),
+                        displayLabel:
+                          nextEntryKind === "extra" ? current.displayLabel || "Extra" : undefined,
+                      };
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="main">Capitulo</SelectItem>
+                    <SelectItem value="extra">Extra</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="chapter-reading-order-standard">Ordem de leitura</Label>
+                <Input
+                  id="chapter-reading-order-standard"
+                  type="number"
+                  value={draft.readingOrder ?? ""}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      readingOrder:
+                        event.target.value.trim() === "" ? undefined : Number(event.target.value),
+                    }))
+                  }
+                  className="w-full sm:w-[148px]"
+                />
+              </div>
+            </div>
+
+            {draft.entryKind === "extra" ? (
+              <div className="grid gap-3 lg:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="chapter-display-label-standard">Rotulo do extra</Label>
+                  <Input
+                    id="chapter-display-label-standard"
+                    value={draft.displayLabel || ""}
+                    onChange={(event) =>
+                      updateDraft((current) => ({
+                        ...current,
+                        displayLabel: event.target.value,
+                      }))
+                    }
+                    placeholder="Ex.: Side Story"
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            <div className="space-y-2">
+              <Label htmlFor="chapter-synopsis-standard">Sinopse</Label>
+              <Textarea
+                id="chapter-synopsis-standard"
+                value={draft.synopsis || ""}
+                onChange={(event) =>
+                  updateDraft((current) => ({ ...current, synopsis: event.target.value }))
+                }
+                rows={5}
+                className="w-full"
+              />
+            </div>
+          </div>
+        </WorkspaceSectionCard>
+      ) : null;
+    const imageContentSection =
+      hasActiveChapter && isImageChapter ? (
+        <WorkspaceSectionCard
+          title="Paginas"
+          subtitle="Upload, ordem de leitura e capa em um fluxo simples para capitulos em imagem."
+          eyebrow="Leitura em imagem"
+          testId="chapter-content-accordion"
+          className="chapter-editor-content-shell min-w-0"
+        >
+          <div data-testid="chapter-content-section" className="space-y-4" data-state="open">
+            <button
+              type="button"
+              className="sr-only"
+              data-testid="chapter-content-trigger"
+              aria-expanded="true"
+            >
+              Alternar conteudo
+            </button>
+            <div
+              data-testid="chapter-content-viewport"
+              data-state="open"
+              className="grid grid-rows-[1fr] opacity-100"
+            >
+              <div
+                className="space-y-4 transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
+                data-testid="chapter-content-body"
+                data-state="open"
+                aria-hidden="false"
+              >
+                <MangaChapterPagesEditor
+                  apiBase={apiBase}
+                  projectSnapshot={projectSnapshotForImageExport}
+                  chapter={draft}
+                  uploadFolder={chapterFolder}
+                  onChange={(nextChapter) => onDraftChange(normalizeChapterForSave(nextChapter))}
+                />
+              </div>
+            </div>
+          </div>
+        </WorkspaceSectionCard>
+      ) : null;
+    const selectionStateSection = !hasActiveChapter && !showVolumeEditor ? (
+      <section
+        className={cn(workspaceSectionMutedClassName, "px-5 py-6")}
+        data-testid="chapter-selection-state"
+      >
+        <AsyncState
+          kind="empty"
+          title="Selecao editorial"
+          description="Use a coluna lateral para abrir um capitulo, selecione um volume para editar seus metadados ou inicie um novo fluxo de importacao."
+          action={
+            <Button type="button" variant="outline" onClick={onAddVolume}>
+              Adicionar volume
+            </Button>
+          }
+        />
+      </section>
+    ) : null;
+    const chapterFooterActions = hasActiveChapter ? (
+      <section
+        className="sticky bottom-3 z-10 rounded-[22px] border border-border/60 bg-background/95 px-4 py-3 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.9)] backdrop-blur"
+        data-testid="chapter-editor-footer-actions"
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold tracking-tight text-foreground">
+              Ações do capítulo
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Salve como rascunho, publique ou ajuste o status sem voltar ao topo.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 md:justify-end">
+            <Button
+              type="button"
+              size="sm"
+              variant={isChapterDraft ? "outline" : "default"}
+              onClick={() => {
+                void handleManualSave();
+              }}
+              disabled={isSavingChapter || !isDirty}
+              className="gap-2"
+            >
+              {isSavingChapter ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {primaryChapterActionLabel}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={isChapterDraft ? "default" : "outline"}
+              onClick={() => {
+                void handleChapterSave(isChapterDraft ? "published" : "draft");
+              }}
+              disabled={isSavingChapter}
+              className="gap-2"
+            >
+              {secondaryChapterActionLabel}
+            </Button>
+          </div>
+        </div>
+      </section>
     ) : null;
 
     return (
@@ -2039,6 +3059,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                       <Button
                         type="button"
                         size="sm"
+                        variant={isChapterDraft ? "outline" : "default"}
                         onClick={() => {
                           void handleManualSave();
                         }}
@@ -2046,19 +3067,19 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                         className="gap-2"
                       >
                         {isSavingChapter ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                        {isChapterDraft ? "Salvar como rascunho" : "Salvar capítulo"}
+                        {primaryChapterActionLabel}
                       </Button>
                       <Button
                         type="button"
                         size="sm"
-                        variant="outline"
+                        variant={isChapterDraft ? "default" : "outline"}
                         onClick={() => {
                           void handleChapterSave(isChapterDraft ? "published" : "draft");
                         }}
                         disabled={isSavingChapter}
                         className="gap-2"
                       >
-                        {isChapterDraft ? "Publicar rascunho" : "Mover para rascunho"}
+                        {secondaryChapterActionLabel}
                       </Button>
                     </>
                   ) : null}
@@ -2203,15 +3224,75 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           </div>
 
         <div
-          className="project-editor-layout mx-auto grid w-full gap-5 pb-8 pt-4 md:pb-10 2xl:grid-cols-[minmax(0,1fr)_340px] 2xl:items-start"
+          className="project-editor-layout mx-auto grid w-full gap-5 pb-8 pt-4 md:pb-10 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start"
           data-testid="chapter-editor-upper-layout"
         >
           <div
-            className="order-1 min-w-0 w-full space-y-4 2xl:col-start-1 2xl:row-start-1"
+            className="min-w-0 w-full"
             data-testid="chapter-editor-main-column"
           >
+            <div className="space-y-4" data-testid="chapter-editor-workspace">
+              {hasActiveChapter ? (
+                <>
+                  <div
+                    className={cn(
+                      "grid gap-4",
+                      isImageChapter
+                        ? "xl:grid-cols-1"
+                        : "xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]",
+                    )}
+                    data-testid="chapter-workspace-top-row"
+                  >
+                    {isImageChapter ? imageIdentitySection : standardIdentitySection}
+                    {!isImageChapter ? publicationSection : null}
+                  </div>
+                  {isImageChapter ? imageContentSection : contentSection}
+                  {chapterFooterActions}
+                  {!isImageChapter ? (
+                    <div
+                      className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.95fr)]"
+                      data-testid="chapter-workspace-support-row"
+                    >
+                      {coverSection}
+                      {sourcesSection}
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  {volumeEditorSection}
+                  {selectionStateSection}
+                  {isMangaProject ? (
+                    <MangaWorkflowPanel
+                      apiBase={apiBase}
+                      project={project}
+                      projectSnapshot={projectSnapshotForImageExport}
+                      selectedVolume={selectedVolumeNumber}
+                      filterMode={filterMode}
+                      filteredChapters={filteredChapters}
+                      stagedChapters={stagedChapters}
+                      setStagedChapters={setStagedChapters}
+                      selectedStageChapterId={selectedStageChapterId}
+                      setSelectedStageChapterId={setSelectedStageChapterId}
+                      onPersistProjectSnapshot={onPersistProjectSnapshot}
+                      onProjectChange={onProjectChange}
+                      onNavigateToChapter={(chapter) =>
+                        onNavigateToHref(
+                          buildDashboardProjectChapterEditorHref(
+                            project.id,
+                            chapter.number,
+                            chapter.volume,
+                          ),
+                        )
+                      }
+                    />
+                  ) : null}
+                  {epubToolsAccordion}
+                </>
+              )}
+            </div>
             {null}
-            {hasActiveChapter ? (
+            {false ? (
               <Accordion
                 key={`identity-${activeChapterKey ?? "none"}`}
                 type="multiple"
@@ -2372,8 +3453,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 </AccordionItem>
               </Accordion>
             ) : null}
-            {volumeEditorSection}
-            {isMangaProject && !hasActiveChapter ? (
+            {null}
+            {false ? (
               <MangaWorkflowPanel
                 apiBase={apiBase}
                 project={project}
@@ -2381,7 +3462,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 selectedVolume={selectedVolumeNumber}
                 filterMode={filterMode}
                 filteredChapters={filteredChapters}
-                readerConfig={chapterReaderConfig}
+                stagedChapters={stagedChapters}
+                setStagedChapters={setStagedChapters}
+                selectedStageChapterId={selectedStageChapterId}
+                setSelectedStageChapterId={setSelectedStageChapterId}
                 onPersistProjectSnapshot={onPersistProjectSnapshot}
                 onProjectChange={onProjectChange}
                 onNavigateToChapter={(chapter) =>
@@ -2412,8 +3496,12 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     data-testid="chapter-identity-trigger"
                   >
                     <EditorAccordionHeader
-                      title="Identidade do capÃ­tulo"
-                      subtitle="TÃ­tulo, numeraÃ§Ã£o, tipo e resumo"
+        title={isImageChapter ? "Dados do capitulo" : "Identidade do capÃ­tulo"}
+        subtitle={
+          isImageChapter
+            ? "Volume, capitulo, tipo de entrada e titulo."
+            : "TÃ­tulo, numeraÃ§Ã£o, tipo e resumo"
+        }
                     />
                   </AccordionTrigger>
                   <AccordionContent className={editorSectionContentClassName}>
@@ -2424,18 +3512,12 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                         </div>
                       ) : null}
 
-                      <div className="space-y-2">
-                        <Label htmlFor="chapter-title">TÃ­tulo</Label>
-                        <Input
-                          id="chapter-title"
-                          value={draft.title || ""}
-                          onChange={(event) =>
-                            updateDraft((current) => ({ ...current, title: event.target.value }))
-                          }
-                        />
-                      </div>
-
-                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div
+            className={cn(
+              "grid gap-3",
+              isImageChapter ? "md:grid-cols-3" : "md:grid-cols-2 xl:grid-cols-4",
+            )}
+          >
                         <div className="space-y-2">
                           <Label htmlFor="chapter-number">CapÃ­tulo</Label>
                           <Input
@@ -2555,15 +3637,15 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 </AccordionItem>
               </Accordion>
             ) : null}
-            {contentSection}
-            {!hasActiveChapter ? epubToolsAccordion : null}
+            {null}
+            {null}
           </div>
 
           <aside
-            className="order-2 min-w-0 space-y-4 2xl:col-start-2 2xl:row-span-2 2xl:w-[340px] 2xl:shrink-0"
+            className="min-w-0 xl:sticky xl:top-24"
             data-testid="chapter-editor-sidebar"
           >
-            {hasActiveChapter ? (
+            {false ? (
               <Accordion
                 type="multiple"
                 defaultValue={["publication", "cover", "sources"]}
@@ -2767,6 +3849,72 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
 
         </div>
 
+        <Dialog
+          open={Boolean(leaveDialogState)}
+          onOpenChange={(open) => {
+            if (!open) {
+              handleLeaveDialogCancel();
+            }
+          }}
+        >
+          <DialogContent className="max-w-lg" data-testid="chapter-unsaved-leave-dialog">
+            <DialogHeader>
+              <DialogTitle>
+                {leaveDialogState?.chapterDirty
+                  ? "Há alterações não salvas"
+                  : "Salvar alterações do volume antes de continuar?"}
+              </DialogTitle>
+              <DialogDescription>
+                {leaveDialogState?.chapterDirty
+                  ? "Escolha se deseja salvar como rascunho, publicar ou descartar antes de trocar de contexto."
+                  : "Você pode salvar o volume agora, descartar as mudanças ou cancelar e continuar editando."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+              <Button type="button" variant="ghost" onClick={handleLeaveDialogCancel}>
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleLeaveDialogDiscardAndContinue}
+              >
+                Descartar e continuar
+              </Button>
+              {leaveDialogState?.chapterDirty ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      void handleLeaveDialogSaveAndContinue("draft");
+                    }}
+                  >
+                    Salvar como rascunho e continuar
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      void handleLeaveDialogSaveAndContinue("published");
+                    }}
+                  >
+                    Publicar e continuar
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    void handleLeaveDialogSaveAndContinue("draft");
+                  }}
+                >
+                  Salvar volume e continuar
+                </Button>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {libraryTarget ? (
           <Suspense
             fallback={
@@ -2885,11 +4033,17 @@ const DashboardProjectChapterEditor = () => {
   const [activeDraft, setActiveDraft] = useState<ProjectEpisode | null>(null);
   const [volumeEntriesDraft, setVolumeEntriesDraft] = useState<ProjectVolumeEntry[]>([]);
   const [selectedVolume, setSelectedVolume] = useState<number | null>(null);
+  const [stagedMangaChapters, setStagedMangaChapters] = useState<StageChapter[]>([]);
+  const [selectedStageChapterId, setSelectedStageChapterId] = useState<string | null>(null);
   const [persistedStructureGroupKeys, setPersistedStructureGroupKeys] = useState<string[]>([]);
   const [isSavingVolumes, setIsSavingVolumes] = useState(false);
   const [deleteDialogState, setDeleteDialogState] = useState<DeleteDialogState | null>(null);
   const [isDeletingEntity, setIsDeletingEntity] = useState(false);
   const editorPaneRef = useRef<ChapterEditorPaneHandle | null>(null);
+  const projectRef = useRef<ProjectRecord | null>(null);
+  const projectSnapshotRef = useRef<ProjectRecord | null>(null);
+  const stagedMangaChaptersRef = useRef<StageChapter[]>([]);
+  const previousProjectIdRef = useRef<string | undefined>(projectId);
   const [backendCapabilities, setBackendCapabilities] = useState<ApiContractCapabilities | null>(
     null,
   );
@@ -2916,6 +4070,31 @@ const DashboardProjectChapterEditor = () => {
     }
     void loadLexicalEditor();
   }, []);
+
+  useEffect(() => {
+    stagedMangaChaptersRef.current = stagedMangaChapters;
+  }, [stagedMangaChapters]);
+
+  useEffect(() => {
+    projectRef.current = project;
+  }, [project]);
+
+  useEffect(
+    () => () => {
+      revokeStagePages(stagedMangaChaptersRef.current);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (previousProjectIdRef.current && previousProjectIdRef.current !== projectId) {
+      revokeStagePages(stagedMangaChaptersRef.current);
+      stagedMangaChaptersRef.current = [];
+      setStagedMangaChapters([]);
+      setSelectedStageChapterId(null);
+    }
+    previousProjectIdRef.current = projectId;
+  }, [projectId]);
 
   const canManageProjects = useMemo(() => {
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
@@ -3186,6 +4365,10 @@ const DashboardProjectChapterEditor = () => {
     return overlayDraftOnProject(projectWithVolumeDraft, activeChapterKey, activeDraft);
   }, [activeChapterKey, activeDraft, projectWithVolumeDraft]);
 
+  useEffect(() => {
+    projectSnapshotRef.current = projectSnapshot;
+  }, [projectSnapshot]);
+
   const availableVolumes = useMemo<EditableVolumeOption[]>(() => {
     return buildEditableVolumeOptions(projectSnapshot, volumeEntriesDraft);
   }, [projectSnapshot, volumeEntriesDraft]);
@@ -3333,10 +4516,32 @@ const DashboardProjectChapterEditor = () => {
     [chapterSearchQuery, chapters, filterMode],
   );
 
+  const reconciledStagedMangaChapters = useMemo(
+    () => (project ? reconcileStageChapters(project, stagedMangaChapters) : []),
+    [project, stagedMangaChapters],
+  );
+  const visibleStagedMangaChapters = useMemo(
+    () =>
+      reconciledStagedMangaChapters.filter(
+        (chapter) =>
+          matchesStageChapterFilter(chapter, filterMode) &&
+          matchesStageChapterSearch(chapter, chapterSearchQuery),
+      ),
+    [chapterSearchQuery, filterMode, reconciledStagedMangaChapters],
+  );
+
   const chaptersByStructureGroup = useMemo(() => groupChaptersByStructureKey(chapters), [chapters]);
   const filteredChaptersByStructureGroup = useMemo(
     () => groupChaptersByStructureKey(filteredChapters),
     [filteredChapters],
+  );
+  const stagedChaptersByStructureGroup = useMemo(
+    () => groupStageChaptersByStructureKey(reconciledStagedMangaChapters),
+    [reconciledStagedMangaChapters],
+  );
+  const visibleStagedChaptersByStructureGroup = useMemo(
+    () => groupStageChaptersByStructureKey(visibleStagedMangaChapters),
+    [visibleStagedMangaChapters],
   );
 
   const structureGroups = useMemo<ChapterStructureGroup[]>(() => {
@@ -3350,6 +4555,8 @@ const DashboardProjectChapterEditor = () => {
         chapterCount: volumeOption.chapterCount,
         allItems: chaptersByStructureGroup.get(key) || [],
         visibleItems: filteredChaptersByStructureGroup.get(key) || [],
+        pendingItems: stagedChaptersByStructureGroup.get(key) || [],
+        visiblePendingItems: visibleStagedChaptersByStructureGroup.get(key) || [],
       };
     });
     const semVolumeItems = chaptersByStructureGroup.get("none") || [];
@@ -3361,9 +4568,17 @@ const DashboardProjectChapterEditor = () => {
       chapterCount: semVolumeItems.length,
       allItems: semVolumeItems,
       visibleItems: filteredChaptersByStructureGroup.get("none") || [],
+      pendingItems: stagedChaptersByStructureGroup.get("none") || [],
+      visiblePendingItems: visibleStagedChaptersByStructureGroup.get("none") || [],
     });
     return numericGroups;
-  }, [availableVolumes, chaptersByStructureGroup, filteredChaptersByStructureGroup]);
+  }, [
+    availableVolumes,
+    chaptersByStructureGroup,
+    filteredChaptersByStructureGroup,
+    stagedChaptersByStructureGroup,
+    visibleStagedChaptersByStructureGroup,
+  ]);
 
   const navigableChapters = useMemo(() => {
     if (
@@ -3502,6 +4717,12 @@ const DashboardProjectChapterEditor = () => {
                 activeChapter?.volume,
             },
       );
+      projectRef.current = nextProject;
+      projectSnapshotRef.current = overlayDraftOnProject(
+        nextProject,
+        buildEpisodeKey(resolvedChapter.number, resolvedChapter.volume),
+        resolvedChapter,
+      );
       setProject(nextProject);
       setActiveDraft(resolvedChapter);
       navigate(
@@ -3536,7 +4757,7 @@ const DashboardProjectChapterEditor = () => {
         auth: true,
         json: {
           ...payload,
-          ifRevision: project?.revision || "",
+          ifRevision: projectRef.current?.revision || "",
         },
       });
       if (!response.ok) {
@@ -3609,7 +4830,7 @@ const DashboardProjectChapterEditor = () => {
       const data = (await response.json()) as { project?: ProjectRecord };
       return data?.project || null;
     },
-    [apiBase, project?.revision],
+    [apiBase],
   );
 
   const handleSaveVolumes = useCallback(async () => {
@@ -3635,6 +4856,8 @@ const DashboardProjectChapterEditor = () => {
       if (!persistedProject) {
         return false;
       }
+      projectRef.current = persistedProject;
+      projectSnapshotRef.current = persistedProject;
       setProject(persistedProject);
       setVolumeEntriesDraft(normalizeProjectVolumeEntries(persistedProject.volumeEntries));
       toast({
@@ -3785,7 +5008,9 @@ const DashboardProjectChapterEditor = () => {
 
   const handleAddChapter = useCallback(
     async (targetVolume: number | null) => {
-      if (!projectSnapshot || !project) {
+      const currentProjectSnapshot = projectSnapshotRef.current;
+      const currentProject = projectRef.current;
+      if (!currentProjectSnapshot || !currentProject) {
         return;
       }
       const normalizedVolume =
@@ -3793,13 +5018,20 @@ const DashboardProjectChapterEditor = () => {
           ? Number(targetVolume)
           : undefined;
       const nextChapter = buildNewChapterDraft(
-        Array.isArray(projectSnapshot.episodeDownloads) ? projectSnapshot.episodeDownloads : [],
-        normalizedVolume,
+        Array.isArray(currentProjectSnapshot.episodeDownloads)
+          ? currentProjectSnapshot.episodeDownloads
+          : [],
+        {
+          volume: normalizedVolume,
+          projectType: currentProjectSnapshot.type,
+        },
       );
       const nextSnapshot = {
-        ...projectSnapshot,
+        ...currentProjectSnapshot,
         episodeDownloads: sortChapters([
-          ...(Array.isArray(projectSnapshot.episodeDownloads) ? projectSnapshot.episodeDownloads : []),
+          ...(Array.isArray(currentProjectSnapshot.episodeDownloads)
+            ? currentProjectSnapshot.episodeDownloads
+            : []),
           nextChapter,
         ]),
       };
@@ -3812,6 +5044,8 @@ const DashboardProjectChapterEditor = () => {
       if (!persistedProject) {
         return;
       }
+      projectRef.current = persistedProject;
+      projectSnapshotRef.current = persistedProject;
       setProject(persistedProject);
       setVolumeEntriesDraft(normalizeProjectVolumeEntries(persistedProject.volumeEntries));
       setSelectedVolume(normalizedVolume ?? null);
@@ -3845,8 +5079,6 @@ const DashboardProjectChapterEditor = () => {
       filterMode,
       navigate,
       persistProjectSnapshot,
-      project,
-      projectSnapshot,
     ],
   );
 
@@ -4615,6 +5847,10 @@ const DashboardProjectChapterEditor = () => {
           activeDraft={activeDraft}
           onDraftChange={setActiveDraft}
           filteredChapters={filteredChapters}
+          stagedChapters={stagedMangaChapters}
+          selectedStageChapterId={selectedStageChapterId}
+          setStagedChapters={setStagedMangaChapters}
+          setSelectedStageChapterId={setSelectedStageChapterId}
           volumeEntriesDraft={volumeEntriesDraft}
           selectedVolume={selectedVolume}
           availableVolumes={availableVolumes}

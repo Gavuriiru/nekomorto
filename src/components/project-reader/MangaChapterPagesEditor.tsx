@@ -1,21 +1,33 @@
 import { unzipSync } from "fflate";
-import { ArrowDown, ArrowUp, ExternalLink, FileArchive, FolderOpen, ImagePlus, Loader2, Trash2 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import {
+  ChevronDown,
+  FileArchive,
+  FolderOpen,
+  ImagePlus,
+  Loader2,
+  Plus,
+  Star,
+  Trash2,
+} from "lucide-react";
+import { useMemo, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent } from "react";
+
 import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
-import type { Project, ProjectEpisode, ProjectEpisodePage, ProjectReaderConfig } from "@/data/projects";
+import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
+import type { Project, ProjectEpisode, ProjectEpisodePage } from "@/data/projects";
 import { apiFetch } from "@/lib/api-client";
-import MangaViewerAdapter from "@/components/project-reader/MangaViewerAdapter";
 import { downloadBinaryResponse } from "@/lib/project-epub";
 import { buildProjectSnapshotForMangaExport } from "@/lib/project-manga";
 import {
-  normalizeProjectEpisodePages,
-  normalizeProjectReaderConfig,
-} from "../../../shared/project-reader.js";
+  buildReorderAnnouncement,
+  handleAltArrowReorder,
+  reorderList,
+} from "@/components/project-reader/page-reorder";
+import { normalizeProjectEpisodePages } from "../../../shared/project-reader.js";
 
 type MangaChapterPagesEditorProps = {
   apiBase: string;
@@ -23,12 +35,6 @@ type MangaChapterPagesEditorProps = {
   chapter: ProjectEpisode;
   uploadFolder: string;
   onChange: (nextChapter: ProjectEpisode) => void;
-  previewHref?: string | null;
-  readerConfig?: ProjectReaderConfig | null;
-};
-
-type PendingReplaceState = {
-  index: number;
 };
 
 const NATURAL_COLLATOR = new Intl.Collator("pt-BR", {
@@ -52,18 +58,13 @@ const normalizePagesForEditor = (pages: ProjectEpisodePage[]) =>
     imageUrl: page.imageUrl,
   }));
 
-const buildChapterLabel = (chapter: ProjectEpisode) => {
-  if (chapter.entryKind === "extra") {
-    return String(chapter.displayLabel || "Extra").trim() || "Extra";
-  }
-  return `Capitulo ${Number(chapter.number) || 1}`;
-};
-
-const buildPreviewTitle = (chapter: ProjectEpisode) => {
-  const label = buildChapterLabel(chapter);
-  const title = String(chapter.title || "").trim();
-  return title ? `${label} - ${title}` : label;
-};
+const serializePagesForChange = (pages: ProjectEpisodePage[]) =>
+  (Array.isArray(pages) ? pages : [])
+    .map((page, index) => ({
+      position: index + 1,
+      imageUrl: String(page.imageUrl || "").trim(),
+    }))
+    .filter((page) => page.imageUrl);
 
 const archiveEntriesToFiles = async (file: File) => {
   const archiveBuffer = new Uint8Array(await file.arrayBuffer());
@@ -88,43 +89,51 @@ const MangaChapterPagesEditor = ({
   chapter,
   uploadFolder,
   onChange,
-  previewHref,
-  readerConfig,
 }: MangaChapterPagesEditorProps) => {
   const pages = useMemo(() => normalizePagesForEditor(chapter.pages || []), [chapter.pages]);
-  const resolvedReaderConfig = useMemo(
-    () =>
-      normalizeProjectReaderConfig(readerConfig, {
-        projectType: "Manga",
-      }),
-    [readerConfig],
-  );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
   const archiveInputRef = useRef<HTMLInputElement | null>(null);
-  const replaceInputRef = useRef<HTMLInputElement | null>(null);
+  const { announce } = useAccessibilityAnnouncer();
   const [isUploading, setIsUploading] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<"zip" | "cbz" | null>(null);
-  const [pendingReplace, setPendingReplace] = useState<PendingReplaceState | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
-  const setNextChapter = (nextPages: ProjectEpisodePage[], options?: { coverImageUrl?: string }) => {
-    const normalizedPages = normalizePagesForEditor(nextPages);
+  const setChapterState = (
+    overrides: Partial<ProjectEpisode>,
+    nextPagesInput: ProjectEpisodePage[] = pages,
+  ) => {
+    const normalizedPages = serializePagesForChange(nextPagesInput);
     const fallbackCoverImageUrl = normalizedPages[0]?.imageUrl || "";
+    const coverImageUrl =
+      overrides.coverImageUrl !== undefined ? overrides.coverImageUrl : chapter.coverImageUrl;
+    const coverImageAlt =
+      overrides.coverImageAlt !== undefined ? overrides.coverImageAlt : chapter.coverImageAlt;
     onChange({
       ...chapter,
+      ...overrides,
       content: "",
       contentFormat: normalizedPages.length > 0 ? "images" : chapter.contentFormat || "images",
       pages: normalizedPages,
       pageCount: normalizedPages.length,
       hasPages: normalizedPages.length > 0,
-      coverImageUrl:
-        String(options?.coverImageUrl || "").trim() ||
-        String(chapter.coverImageUrl || "").trim() ||
-        fallbackCoverImageUrl,
+      coverImageUrl: String(coverImageUrl || "").trim() || fallbackCoverImageUrl,
       coverImageAlt:
-        String(chapter.coverImageAlt || "").trim() ||
+        String(coverImageAlt || "").trim() ||
         (fallbackCoverImageUrl ? `Capa do capitulo ${Number(chapter.number) || 1}` : ""),
     });
+  };
+
+  const setNextChapter = (nextPages: ProjectEpisodePage[], options?: { coverImageUrl?: string }) => {
+    const normalizedPages = serializePagesForChange(nextPages);
+    setChapterState(
+      {
+        coverImageUrl: options?.coverImageUrl,
+      },
+      normalizedPages,
+    );
   };
 
   const uploadBlob = async (blob: Blob, filename: string) => {
@@ -152,29 +161,24 @@ const MangaChapterPagesEditor = ({
     return url;
   };
 
-  const appendUploadedUrls = (uploadedUrls: string[], replaceIndex?: number | null) => {
+  const appendUploadedUrls = (uploadedUrls: string[]) => {
     if (!uploadedUrls.length) {
       return;
     }
     const currentPages = normalizePagesForEditor(chapter.pages || []);
-    const nextPages =
-      Number.isFinite(Number(replaceIndex)) && replaceIndex !== null
-        ? currentPages.map((page, index) =>
-            index === replaceIndex ? { ...page, imageUrl: uploadedUrls[0] } : page,
-          )
-        : [
-            ...currentPages,
-            ...uploadedUrls.map((imageUrl, index) => ({
-              position: currentPages.length + index + 1,
-              imageUrl,
-            })),
-          ];
+    const nextPages = [
+      ...currentPages,
+      ...uploadedUrls.map((imageUrl, index) => ({
+        position: currentPages.length + index + 1,
+        imageUrl,
+      })),
+    ];
     setNextChapter(nextPages, {
       coverImageUrl: currentPages.length === 0 ? uploadedUrls[0] : undefined,
     });
   };
 
-  const handleFiles = async (files: File[], options?: { replaceIndex?: number | null }) => {
+  const handleFiles = async (files: File[]) => {
     if (!files.length) {
       return;
     }
@@ -190,7 +194,7 @@ const MangaChapterPagesEditor = ({
       for (const file of sortedFiles) {
         uploadedUrls.push(await uploadBlob(file, file.name));
       }
-      appendUploadedUrls(uploadedUrls, options?.replaceIndex ?? null);
+      appendUploadedUrls(uploadedUrls);
       toast({
         title: uploadedUrls.length === 1 ? "Pagina enviada" : `${uploadedUrls.length} paginas enviadas`,
         intent: "success",
@@ -202,10 +206,6 @@ const MangaChapterPagesEditor = ({
       });
     } finally {
       setIsUploading(false);
-      setPendingReplace(null);
-      if (replaceInputRef.current) {
-        replaceInputRef.current.value = "";
-      }
     }
   };
 
@@ -224,7 +224,7 @@ const MangaChapterPagesEditor = ({
       for (const entry of entries) {
         uploadedUrls.push(await uploadBlob(entry.blob, entry.relativePath.split("/").pop() || "pagina"));
       }
-      appendUploadedUrls(uploadedUrls, null);
+      appendUploadedUrls(uploadedUrls);
       toast({
         title: "Arquivo importado",
         description: `${uploadedUrls.length} pagina(s) adicionada(s).`,
@@ -243,18 +243,79 @@ const MangaChapterPagesEditor = ({
     }
   };
 
-  const movePage = (index: number, direction: -1 | 1) => {
-    const nextIndex = index + direction;
-    if (nextIndex < 0 || nextIndex >= pages.length) {
-      return;
-    }
-    const nextPages = [...pages];
-    const [movedPage] = nextPages.splice(index, 1);
-    nextPages.splice(nextIndex, 0, movedPage);
-    setNextChapter(nextPages);
+  const clearDragState = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
   };
 
-  const removePage = (index: number) => {
+  const movePage = (fromIndex: number, toIndex: number) => {
+    const nextPages = reorderList(pages, fromIndex, toIndex);
+    if (nextPages === pages) {
+      return;
+    }
+    setNextChapter(nextPages);
+    announce(buildReorderAnnouncement(`Pagina ${fromIndex + 1}`, toIndex));
+  };
+
+  const handlePageDragStart = (event: DragEvent<HTMLDivElement>, index: number) => {
+    if (isUploading) {
+      event.preventDefault();
+      return;
+    }
+    setDragIndex(index);
+    setDragOverIndex(index);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      try {
+        event.dataTransfer.setData("text/plain", String(index));
+      } catch {
+        // Ignore browser/test environments that block custom drag payloads.
+      }
+    }
+  };
+
+  const handlePageDragOver = (event: DragEvent<HTMLElement>, index: number) => {
+    if (isUploading || dragIndex === null) {
+      return;
+    }
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "move";
+    }
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handlePageDrop = (event: DragEvent<HTMLElement>, index: number) => {
+    event.preventDefault();
+    const fromIndex = dragIndex;
+    clearDragState();
+    if (isUploading || fromIndex === null || fromIndex === index) {
+      return;
+    }
+    movePage(fromIndex, index);
+  };
+
+  const handlePageKeyDown = (event: KeyboardEvent<HTMLDivElement>, index: number) => {
+    handleAltArrowReorder({
+      event,
+      index,
+      total: pages.length,
+      label: `Pagina ${index + 1}`,
+      disabled: isUploading,
+      onMove: (targetIndex) => {
+        const nextPages = reorderList(pages, index, targetIndex);
+        if (nextPages !== pages) {
+          setNextChapter(nextPages);
+        }
+      },
+      onAnnounce: announce,
+    });
+  };
+
+  const removePage = (event: MouseEvent<HTMLButtonElement>, index: number) => {
+    event.stopPropagation();
     const nextPages = pages.filter((_, pageIndex) => pageIndex !== index);
     setNextChapter(nextPages, {
       coverImageUrl:
@@ -262,17 +323,13 @@ const MangaChapterPagesEditor = ({
     });
   };
 
-  const setPageAsCover = (imageUrl: string) => {
+  const setPageAsCover = (event: MouseEvent<HTMLButtonElement>, imageUrl: string) => {
+    event.stopPropagation();
     setNextChapter(pages, { coverImageUrl: imageUrl });
     toast({
       title: "Capa atualizada",
       intent: "success",
     });
-  };
-
-  const replacePage = (index: number) => {
-    setPendingReplace({ index });
-    replaceInputRef.current?.click();
   };
 
   const handleExport = async (format: "zip" | "cbz") => {
@@ -314,234 +371,309 @@ const MangaChapterPagesEditor = ({
   };
 
   return (
-    <div className="space-y-5" data-testid="manga-chapter-pages-editor">
-      <div className="flex flex-wrap items-start justify-between gap-3 rounded-[18px] border border-border/50 bg-background/35 px-4 py-3">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-              Leitura em imagem
-            </Badge>
-            <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
-              {pages.length} pagina(s)
-            </Badge>
+    <div className="space-y-4" data-testid="manga-chapter-pages-editor">
+      <div className="flex flex-wrap items-center gap-2" data-testid="manga-pages-actions">
+        <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+          {pages.length} pagina(s)
+        </Badge>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+        >
+          <ImagePlus className="h-4 w-4" />
+          <span>Imagens</span>
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => folderInputRef.current?.click()}
+          disabled={isUploading}
+        >
+          <FolderOpen className="h-4 w-4" />
+          <span>Pasta</span>
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => archiveInputRef.current?.click()}
+          disabled={isUploading}
+        >
+          <FileArchive className="h-4 w-4" />
+          <span>ZIP / CBZ</span>
+        </Button>
+        {isUploading ? (
+          <div className="inline-flex items-center gap-2 rounded-full border border-border/60 px-3 py-1 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span>Enviando paginas...</span>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Importe imagens soltas, uma pasta inteira ou um arquivo ZIP/CBZ. A ordem pode ser ajustada aqui.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-            <ImagePlus className="h-4 w-4" />
-            <span>Imagens</span>
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => folderInputRef.current?.click()} disabled={isUploading}>
-            <FolderOpen className="h-4 w-4" />
-            <span>Pasta</span>
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => archiveInputRef.current?.click()} disabled={isUploading}>
-            <FileArchive className="h-4 w-4" />
-            <span>ZIP / CBZ</span>
-          </Button>
-        </div>
+        ) : null}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-4">
-          <div className="hidden">
-            <Input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={(event) => handleFiles(Array.from(event.target.files || []))}
-            />
-            <input
-              ref={folderInputRef}
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={(event) => handleFiles(Array.from(event.target.files || []))}
-              {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
-            />
-            <Input
-              ref={archiveInputRef}
-              type="file"
-              accept=".zip,.cbz,application/zip,application/x-cbz"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) {
-                  void handleArchive(file);
-                }
-              }}
-            />
-            <Input
-              ref={replaceInputRef}
-              type="file"
-              accept="image/*"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) {
-                  void handleFiles([file], { replaceIndex: pendingReplace?.index ?? null });
-                }
-              }}
-            />
-          </div>
+      <div className="hidden">
+        <Input
+          ref={fileInputRef}
+          data-testid="manga-pages-file-input"
+          type="file"
+          multiple
+          accept="image/*"
+          onChange={(event) => void handleFiles(Array.from(event.target.files || []))}
+        />
+        <input
+          ref={folderInputRef}
+          data-testid="manga-pages-folder-input"
+          type="file"
+          multiple
+          accept="image/*"
+          onChange={(event) => void handleFiles(Array.from(event.target.files || []))}
+          {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
+        />
+        <Input
+          ref={archiveInputRef}
+          data-testid="manga-pages-archive-input"
+          type="file"
+          accept=".zip,.cbz,application/zip,application/x-cbz"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) {
+              void handleArchive(file);
+            }
+          }}
+        />
+      </div>
 
-          {pages.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {pages.map((page, index) => (
-                <article
-                  key={`${page.imageUrl}-${page.position}`}
-                  className="overflow-hidden rounded-[20px] border border-border/50 bg-card/70"
+      {pages.length > 0 ? (
+        <div
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          data-testid="manga-pages-grid"
+        >
+          {pages.map((page, index) => {
+            const isCover = chapter.coverImageUrl === page.imageUrl;
+            return (
+              <article
+                key={`${page.imageUrl}-${page.position}`}
+                className="group"
+                data-testid={`manga-page-card-${index}`}
+              >
+                <div
+                  role="button"
+                  tabIndex={0}
+                  draggable={!isUploading}
+                  onDragStart={(event) => handlePageDragStart(event, index)}
+                  onDragEnd={clearDragState}
+                  onDragOver={(event) => handlePageDragOver(event, index)}
+                  onDrop={(event) => handlePageDrop(event, index)}
+                  onKeyDown={(event) => handlePageKeyDown(event, index)}
+                  aria-label={`Arrastar pagina ${index + 1} para reordenar. Use Alt+Seta para mover pelo teclado.`}
+                  title={`Arrastar pagina ${index + 1} para reordenar. Use Alt+Seta para mover pelo teclado.`}
+                  data-testid={`manga-page-surface-${index}`}
+                  className={`relative aspect-[3/4] overflow-hidden rounded-[22px] border bg-card/75 transition ${
+                    dragIndex === index
+                      ? "cursor-grabbing border-primary/50 opacity-70"
+                      : dragOverIndex === index && dragIndex !== null
+                        ? "cursor-grab border-primary/60 ring-2 ring-primary/15"
+                        : "cursor-grab border-border/50"
+                  } focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30`}
                 >
-                  <div className="relative aspect-[3/4] overflow-hidden bg-background/60">
-                    <UploadPicture
-                      src={page.imageUrl}
-                      alt={`Pagina ${index + 1}`}
-                      preset="poster"
-                      className="h-full w-full"
-                      imgClassName="h-full w-full object-cover object-top"
-                    />
-                    <div className="absolute left-3 top-3 rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm">
-                      Pagina {index + 1}
+                  <UploadPicture
+                    src={page.imageUrl}
+                    alt={`Pagina ${index + 1}`}
+                    preset="poster"
+                    className="h-full w-full"
+                    imgClassName="h-full w-full object-cover object-top"
+                  />
+                  <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
+                    <span className="rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <div className="pointer-events-auto flex items-center gap-2 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+                      {isCover ? (
+                        <Badge className="rounded-full px-2.5 py-1 text-[10px] uppercase tracking-[0.12em]">
+                          Capa
+                        </Badge>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="icon"
+                          onClick={(event) => setPageAsCover(event, page.imageUrl)}
+                          disabled={isUploading}
+                          className="h-9 w-9 rounded-full border border-border/60 bg-background/90 shadow-sm"
+                        >
+                          <Star className="h-4 w-4" />
+                          <span className="sr-only">Usar capa</span>
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        onClick={(event) => removePage(event, index)}
+                        disabled={isUploading}
+                        className="h-9 w-9 rounded-full border border-border/60 bg-background/90 text-destructive shadow-sm hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Remover</span>
+                      </Button>
                     </div>
                   </div>
-                  <div className="space-y-3 p-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => movePage(index, -1)}
-                        disabled={isUploading || index === 0}
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                        <span>Subir</span>
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => movePage(index, 1)}
-                        disabled={isUploading || index === pages.length - 1}
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                        <span>Descer</span>
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => replacePage(index)}
-                        disabled={isUploading}
-                      >
-                        <ImagePlus className="h-4 w-4" />
-                        <span>Trocar</span>
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPageAsCover(page.imageUrl)}
-                        disabled={isUploading}
-                      >
-                        <span>Usar capa</span>
-                      </Button>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removePage(index)}
-                      disabled={isUploading}
-                      className="w-full justify-center text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span>Remover</span>
-                    </Button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-[20px] border border-dashed border-border/60 bg-background/35 px-4 py-8 text-center text-sm text-muted-foreground">
-              Nenhuma pagina adicionada. Use os botoes acima para importar o capitulo em imagem.
-            </div>
-          )}
+                </div>
+              </article>
+            );
+          })}
         </div>
+      ) : (
+        <div
+          className="rounded-[20px] border border-dashed border-border/60 bg-background/35 px-4 py-8 text-center text-sm text-muted-foreground"
+          data-testid="manga-pages-empty-state"
+        >
+          <p>Nenhuma pagina adicionada ainda.</p>
+        </div>
+      )}
 
-        <aside className="space-y-4">
-          <div className="rounded-[22px] border border-border/50 bg-card/65 p-4">
-            <div className="space-y-2">
-              <Label className="text-sm">Preview do leitor</Label>
-              <p className="text-xs text-muted-foreground">
-                O preview usa o mesmo viewer publico configurado para manga/webtoon.
-              </p>
-            </div>
-            <div className="mt-4">
-              {pages.length > 0 ? (
-                <MangaViewerAdapter
-                  title={buildPreviewTitle(chapter)}
-                  backUrl={previewHref || "#"}
-                  shareUrl={previewHref || ""}
-                  pages={pages}
-                  direction={resolvedReaderConfig.direction || "rtl"}
-                  viewMode={resolvedReaderConfig.viewMode || "page"}
-                  firstPageSingle={resolvedReaderConfig.firstPageSingle !== false}
-                  allowSpread={resolvedReaderConfig.allowSpread !== false}
-                  showFooter={resolvedReaderConfig.showFooter !== false}
-                  previewLimit={resolvedReaderConfig.previewLimit ?? null}
-                  purchaseUrl={resolvedReaderConfig.purchaseUrl || ""}
-                  purchasePrice={resolvedReaderConfig.purchasePrice || ""}
-                  className="min-h-[520px]"
-                />
-              ) : (
-                <div className="rounded-[18px] border border-dashed border-border/60 bg-background/35 px-4 py-10 text-center text-sm text-muted-foreground">
-                  O preview aparece assim que a primeira pagina for adicionada.
+      <section
+        className="overflow-hidden rounded-[22px] border border-border/50 bg-card/65"
+        data-testid="manga-pages-advanced"
+      >
+        <button
+          type="button"
+          data-testid="manga-pages-advanced-trigger"
+          aria-expanded={isAdvancedOpen ? "true" : "false"}
+          onClick={() => setIsAdvancedOpen((current) => !current)}
+          className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition hover:bg-background/25"
+        >
+          <div className="space-y-1">
+            <p className="text-sm font-semibold tracking-tight text-foreground">Avancado</p>
+            <p className="text-xs text-muted-foreground">Exportacao e links opcionais.</p>
+          </div>
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+              isAdvancedOpen ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {isAdvancedOpen ? (
+          <div
+            className="space-y-4 border-t border-border/50 px-4 py-4"
+            data-testid="manga-pages-advanced-panel"
+          >
+            <div className="rounded-[20px] border border-border/50 bg-background/35 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <Label className="text-sm">Exportacao</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Gere um ZIP ou CBZ com as paginas do capitulo atual.
+                  </p>
                 </div>
-              )}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void handleExport("zip")}
+                    disabled={pages.length === 0 || exportingFormat !== null}
+                  >
+                    {exportingFormat === "zip" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    <span>Exportar ZIP</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void handleExport("cbz")}
+                    disabled={pages.length === 0 || exportingFormat !== null}
+                  >
+                    {exportingFormat === "cbz" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    <span>Exportar CBZ</span>
+                  </Button>
+                </div>
+              </div>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {previewHref ? (
-                <Button asChild type="button" size="sm" variant="outline">
-                  <a href={previewHref} target="_blank" rel="noreferrer">
-                    <ExternalLink className="h-4 w-4" />
-                    <span>Abrir preview publico</span>
-                  </a>
+
+            <div
+              className="rounded-[20px] border border-border/50 bg-background/35 p-4"
+              data-testid="manga-pages-sources"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <Label className="text-sm">Fontes de download</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Links opcionais para leitura externa ou downloads adicionais.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setChapterState({
+                      sources: [...(chapter.sources || []), { label: "", url: "" }],
+                    })
+                  }
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Adicionar</span>
                 </Button>
-              ) : null}
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => void handleExport("zip")}
-                disabled={pages.length === 0 || exportingFormat !== null}
-              >
-                {exportingFormat === "zip" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                <span>Exportar ZIP</span>
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => void handleExport("cbz")}
-                disabled={pages.length === 0 || exportingFormat !== null}
-              >
-                {exportingFormat === "cbz" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                <span>Exportar CBZ</span>
-              </Button>
-              {isUploading ? (
-                <div className="inline-flex items-center gap-2 rounded-full border border-border/60 px-3 py-1 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Enviando paginas...</span>
-                </div>
-              ) : null}
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {(chapter.sources || []).map((source, sourceIndex) => (
+                  <div
+                    key={`chapter-source-${sourceIndex}`}
+                    className="grid gap-2 rounded-xl border border-border/60 bg-card/70 p-3"
+                  >
+                    <Input
+                      value={source.label}
+                      onChange={(event) =>
+                        setChapterState({
+                          sources: (chapter.sources || []).map((item, index) =>
+                            index === sourceIndex ? { ...item, label: event.target.value } : item,
+                          ),
+                        })
+                      }
+                      placeholder="Fonte"
+                    />
+                    <Input
+                      value={source.url}
+                      onChange={(event) =>
+                        setChapterState({
+                          sources: (chapter.sources || []).map((item, index) =>
+                            index === sourceIndex ? { ...item, url: event.target.value } : item,
+                          ),
+                        })
+                      }
+                      placeholder="URL"
+                    />
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setChapterState({
+                            sources: (chapter.sources || []).filter((_, index) => index !== sourceIndex),
+                          })
+                        }
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+
+                {(chapter.sources || []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhuma fonte cadastrada.</p>
+                ) : null}
+              </div>
             </div>
           </div>
-        </aside>
-      </div>
+        ) : null}
+      </section>
     </div>
   );
 };
