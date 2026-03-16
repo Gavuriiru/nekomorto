@@ -4,6 +4,8 @@ import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDial
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
+import { exportMangaCollectionZip } from "@/components/project-reader/manga-collection-export";
+import { exportMangaChapter } from "@/components/project-reader/manga-chapter-export";
 import MangaWorkflowPanel, {
   buildStageChapterLabel,
   reconcileStageChapters,
@@ -105,6 +107,7 @@ import type {
 } from "@/types/api-contract";
 import {
   ArrowLeft,
+  FileArchive,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -289,6 +292,11 @@ type ChapterEditorPaneProps = {
     },
   ) => Promise<ProjectRecord | null>;
   onProjectChange: (nextProject: ProjectRecord) => void;
+  onSelectedStageChapterChange?: (chapter: StageChapter | null) => void;
+  onOpenImportedChapter?: (
+    nextProject: ProjectRecord,
+    importedChapters: ProjectEpisode[],
+  ) => void;
   onChapterSaved: (
     project: ProjectRecord,
     chapter: ProjectEpisode,
@@ -819,6 +827,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       onNavigateToUploads,
       onPersistProjectSnapshot,
       onProjectChange,
+      onSelectedStageChapterChange,
+      onOpenImportedChapter,
       onChapterSaved,
       isVolumeDirty,
       isSavingVolumes,
@@ -859,6 +869,11 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       null,
     );
     const [isSavingChapter, setIsSavingChapter] = useState(false);
+    const [structureChapterExportState, setStructureChapterExportState] = useState<{
+      key: string;
+      format: "zip" | "cbz";
+    } | null>(null);
+    const [structureVolumeExportKey, setStructureVolumeExportKey] = useState<string | null>(null);
     const [leaveDialogState, setLeaveDialogState] = useState<LeaveGuardDialogState | null>(null);
     const hasActiveChapter = Boolean(activeChapter && activeChapterKey);
     const draft =
@@ -1292,6 +1307,33 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       }
       return structureGroups[0]?.key || "";
     }, [activeChapterKey, hasActiveChapter, selectedStageChapterId, selectedVolumeNumber, structureGroups]);
+    const selectedStructureGroupKey = useMemo(() => {
+      const activeGroup = activeChapterKey
+        ? structureGroups.find((group) =>
+            group.allItems.some(
+              (episode) => buildEpisodeKey(episode.number, episode.volume) === activeChapterKey,
+            ),
+          )
+        : null;
+      if (activeGroup?.key) {
+        return activeGroup.key;
+      }
+      if (!hasActiveChapter && selectedStageChapterId) {
+        const pendingGroup = structureGroups.find((group) =>
+          group.pendingItems.some((chapter) => chapter.id === selectedStageChapterId),
+        );
+        if (pendingGroup?.key) {
+          return pendingGroup.key;
+        }
+      }
+      if (selectedVolumeNumber !== null) {
+        return (
+          structureGroups.find((group) => group.volume === selectedVolumeNumber)?.key ||
+          ""
+        );
+      }
+      return "";
+    }, [activeChapterKey, hasActiveChapter, selectedStageChapterId, selectedVolumeNumber, structureGroups]);
     const [openStructureGroupKeys, setOpenStructureGroupKeys] = useState<string[]>(() => {
       const initialKeys = normalizeStructureGroupKeys(initialOpenStructureGroupKeys, structureGroups);
       if (initialKeys.length > 0) {
@@ -1400,6 +1442,31 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       [hasActiveChapter, isVolumeDirty, neutralHref, onNavigateToHref, requestLeave, selectedStageChapterId, setSelectedStageChapterId],
     );
 
+    const handleStructureChapterExport = useCallback(
+      async (episode: ProjectEpisode, format: "zip" | "cbz") => {
+        const chapterKey = buildEpisodeKey(episode.number, episode.volume);
+        setStructureChapterExportState({ key: chapterKey, format });
+        try {
+          await exportMangaChapter({
+            apiBase,
+            projectId: String(project.id || ""),
+            projectSnapshot: projectSnapshotForImageExport,
+            chapter: episode,
+            format,
+          });
+          toast({
+            title: format === "cbz" ? "CBZ exportado" : "ZIP exportado",
+            intent: "success",
+          });
+        } catch {
+          toast({ title: "Nao foi possivel exportar o capitulo", variant: "destructive" });
+        } finally {
+          setStructureChapterExportState(null);
+        }
+      },
+      [apiBase, project.id, projectSnapshotForImageExport],
+    );
+
     const handleAddChapterRequest = useCallback(
       async (targetVolume: number | null) => {
         const canLeave = await requestLeave();
@@ -1409,6 +1476,31 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         await onAddChapter(targetVolume);
       },
       [onAddChapter, requestLeave],
+    );
+
+    const handleStructureVolumeExport = useCallback(
+      async (volume: number, groupKey: string) => {
+        setStructureVolumeExportKey(groupKey);
+        try {
+          await exportMangaCollectionZip({
+            apiBase,
+            projectId: String(project.id || ""),
+            projectSnapshot: projectSnapshotForImageExport,
+            volume,
+            includeDrafts: false,
+            fallbackName: `${String(project.id || "projeto")}-volume-${volume}.zip`,
+          });
+          toast({
+            title: `ZIP do volume ${volume} exportado`,
+            intent: "success",
+          });
+        } catch {
+          toast({ title: "Nao foi possivel exportar o volume", variant: "destructive" });
+        } finally {
+          setStructureVolumeExportKey(null);
+        }
+      },
+      [apiBase, project.id, projectSnapshotForImageExport],
     );
 
     const updateDraft = useCallback(
@@ -1646,12 +1738,24 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-xs leading-5 text-muted-foreground">
+                <div
+                  className="space-y-3"
+                  data-testid="chapter-structure-intro-row"
+                >
+                  <p
+                    className="text-xs leading-5 text-muted-foreground"
+                    data-testid="chapter-structure-intro-copy"
+                  >
                     Selecione volumes, navegue por capítulos e organize a estrutura editorial do
                     projeto.
                   </p>
-                  <Button type="button" size="sm" variant="outline" onClick={onAddVolume}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={onAddVolume}
+                    className="w-full justify-center"
+                  >
                     <Plus className="h-4 w-4" />
                     <span>Adicionar volume</span>
                   </Button>
@@ -1660,16 +1764,27 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
 
               <div className="space-y-2.5">
                 {structureGroups.map((group) => {
-                  const hasSelectedPendingChapter = group.pendingItems.some(
-                    (chapter) => chapter.id === selectedStageChapterId,
-                  );
-                  const isSelected =
-                    (group.volume !== null && selectedVolumeNumber === Number(group.volume)) ||
-                    hasSelectedPendingChapter;
+                  const isSelected = group.key === selectedStructureGroupKey;
                   const isOpen = openStructureGroupKeys.includes(group.key);
                   const hasVisibleItems =
                     group.visiblePendingItems.length > 0 || group.visibleItems.length > 0;
                   const pendingCount = group.pendingItems.length;
+                  const hasExportablePublishedVolumeChapter =
+                    group.volume !== null &&
+                    group.allItems.some((episode) => {
+                      const episodePages = normalizeProjectEpisodePages(episode.pages || []);
+                      const isImageEpisode =
+                        normalizeProjectEpisodeContentFormat(
+                          episode.contentFormat,
+                          episodePages.length > 0 ? "images" : "lexical",
+                        ) === "images";
+                      return (
+                        episode.publicationStatus === "published" &&
+                        isImageEpisode &&
+                        (episodePages.length > 0 || episode.hasPages === true)
+                      );
+                    });
+                  const isExportingVolume = structureVolumeExportKey === group.key;
                   const emptyMessage =
                     group.chapterCount > 0 || pendingCount > 0
                       ? "Nenhum capítulo corresponde ao filtro atual neste grupo."
@@ -1750,14 +1865,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                             data-testid={`chapter-structure-group-toggle-${group.key}`}
                             aria-label={`Alternar ${group.label}`}
                             aria-expanded={isOpen}
-                            onClick={() =>
-                              group.volume !== null
-                                ? void handleStructureVolumeInteraction(
-                                    group.key,
-                                    group.volume as number,
-                                  )
-                                : toggleStructureGroup(group.key)
-                            }
+                            onClick={() => toggleStructureGroup(group.key)}
                             className="mt-0.5 shrink-0 self-start"
                           >
                             <ChevronRight
@@ -1768,7 +1876,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                           </Button>
                         </div>
                         <div
-                          className="flex"
+                          className="flex gap-2"
                           data-testid={`chapter-structure-group-actions-${group.key}`}
                         >
                           <Button
@@ -1779,11 +1887,31 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                             onClick={() => {
                               void handleAddChapterRequest(group.volume);
                             }}
-                            className="w-full justify-center rounded-xl"
+                            className="flex-1 justify-center rounded-xl"
                           >
                             <Plus className="h-4 w-4" />
                             <span>Adicionar capítulo</span>
                           </Button>
+                          {hasExportablePublishedVolumeChapter && group.volume !== null ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              data-testid={`chapter-structure-export-volume-${group.key}`}
+                              onClick={() => {
+                                void handleStructureVolumeExport(group.volume as number, group.key);
+                              }}
+                              disabled={isExportingVolume}
+                              className="shrink-0 justify-center rounded-xl px-3"
+                            >
+                              {isExportingVolume ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <FileArchive className="h-4 w-4" />
+                              )}
+                              <span>ZIP</span>
+                            </Button>
+                          ) : null}
                         </div>
                       </div>
                       {isOpen ? (
@@ -1844,54 +1972,149 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                 );
                               })}
                               {group.visibleItems.map((episode) => {
-                              const episodeKey = buildEpisodeKey(episode.number, episode.volume);
-                              const href = buildDashboardProjectChapterEditorHref(
-                                project.id,
-                                episode.number,
-                                episode.volume,
-                              );
-                              const isActive = episodeKey === activeChapterKey;
-                              return (
-                                <button
-                                  key={episodeKey}
-                                  type="button"
-                                  onClick={() => void onNavigateToHref(href)}
-                                  className={`w-full rounded-[18px] border px-3.5 py-3 text-left transition ${
-                                    isActive
-                                      ? "border-primary/50 bg-primary/[0.07] shadow-sm"
-                                      : "border-border/50 bg-background/55 hover:bg-background/78"
-                                  }`}
-                                >
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                        Capítulo {episode.number}
-                                      </p>
-                                      <p className="line-clamp-2 text-sm font-semibold text-foreground">
-                                        {String(episode.title || "").trim() ||
-                                          `Capítulo ${episode.number}`}
-                                      </p>
+                                const episodeKey = buildEpisodeKey(episode.number, episode.volume);
+                                const href = buildDashboardProjectChapterEditorHref(
+                                  project.id,
+                                  episode.number,
+                                  episode.volume,
+                                );
+                                const isActive = episodeKey === activeChapterKey;
+                                const episodePages = normalizeProjectEpisodePages(episode.pages || []);
+                                const isImageEpisode =
+                                  normalizeProjectEpisodeContentFormat(
+                                    episode.contentFormat,
+                                    episodePages.length > 0 ? "images" : "lexical",
+                                  ) === "images";
+                                const isExportable =
+                                  isImageEpisode &&
+                                  (episodePages.length > 0 || episode.hasPages === true);
+                                const isExportingEpisode =
+                                  structureChapterExportState?.key === episodeKey;
+                                const handleOpenEpisode = () => void onNavigateToHref(href);
+                                return (
+                                  <div
+                                    key={episodeKey}
+                                    data-testid={`chapter-structure-episode-card-${episodeKey}`}
+                                    data-state={isActive ? "active" : "idle"}
+                                    className={`w-full rounded-[18px] border px-3.5 py-3 transition ${
+                                      isActive
+                                        ? "border-primary/50 bg-primary/[0.07] shadow-sm"
+                                        : "border-border/50 bg-background/55 hover:bg-background/78"
+                                    }`}
+                                  >
+                                    <div className="space-y-3">
+                                      <button
+                                        type="button"
+                                        onClick={handleOpenEpisode}
+                                        data-testid={`chapter-structure-episode-open-${episodeKey}`}
+                                        className="w-full min-w-0 text-left"
+                                      >
+                                        <div
+                                          className="space-y-3"
+                                          data-testid={`chapter-structure-episode-content-${episodeKey}`}
+                                        >
+                                          <div
+                                            className="flex items-start justify-between gap-3"
+                                            data-testid={`chapter-structure-episode-header-${episodeKey}`}
+                                          >
+                                            <div className="min-w-0 space-y-1">
+                                              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                                                Capítulo {episode.number}
+                                              </p>
+                                              <p className="line-clamp-2 text-sm font-semibold text-foreground">
+                                                {String(episode.title || "").trim() ||
+                                                  `Capítulo ${episode.number}`}
+                                              </p>
+                                            </div>
+                                            <Badge
+                                              variant={
+                                                episode.publicationStatus === "draft"
+                                                  ? "outline"
+                                                  : "secondary"
+                                              }
+                                              className="shrink-0 self-start"
+                                            >
+                                              {chapterStatusLabel(episode)}
+                                            </Badge>
+                                          </div>
+                                        </div>
+                                      </button>
+                                      <div
+                                        className="flex items-end justify-between gap-3"
+                                        data-testid={`chapter-structure-episode-footer-${episodeKey}`}
+                                      >
+                                        <div
+                                          className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground"
+                                          data-testid={`chapter-structure-episode-meta-${episodeKey}`}
+                                        >
+                                          <span>
+                                            {chapterHasContent(episode) ? "Com leitura" : "Sem leitura"}
+                                          </span>
+                                          {episode.sources?.length ? (
+                                            <span>- {episode.sources.length} fonte(s)</span>
+                                          ) : null}
+                                        </div>
+                                        {isExportable ? (
+                                          <div
+                                            className="flex shrink-0 items-center gap-2"
+                                            data-testid={`chapter-structure-episode-actions-${episodeKey}`}
+                                          >
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              variant="outline"
+                                              data-testid={`chapter-structure-episode-export-zip-${episodeKey}`}
+                                              className="h-9 rounded-xl bg-background/92 px-3 font-semibold"
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                void handleStructureChapterExport(episode, "zip");
+                                              }}
+                                              disabled={Boolean(isExportingEpisode)}
+                                            >
+                                              {isExportingEpisode &&
+                                              structureChapterExportState?.format === "zip" ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                              ) : null}
+                                              <span>ZIP</span>
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              variant="outline"
+                                              data-testid={`chapter-structure-episode-export-cbz-${episodeKey}`}
+                                              className="h-9 rounded-xl bg-background/92 px-3 font-semibold"
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                void handleStructureChapterExport(episode, "cbz");
+                                              }}
+                                              disabled={Boolean(isExportingEpisode)}
+                                            >
+                                              {isExportingEpisode &&
+                                              structureChapterExportState?.format === "cbz" ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                              ) : null}
+                                              <span>CBZ</span>
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              size="icon"
+                                              variant="outline"
+                                              data-testid={`chapter-structure-episode-open-icon-${episodeKey}`}
+                                              aria-label={`Abrir capítulo ${episode.number}`}
+                                              className="h-9 w-9 rounded-xl bg-background/92"
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                handleOpenEpisode();
+                                              }}
+                                            >
+                                              <ExternalLink className="h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                        ) : null}
+                                      </div>
                                     </div>
-                                    <Badge
-                                      variant={
-                                        episode.publicationStatus === "draft"
-                                          ? "outline"
-                                          : "secondary"
-                                      }
-                                    >
-                                      {chapterStatusLabel(episode)}
-                                    </Badge>
                                   </div>
-                                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                    <span>
-                                      {chapterHasContent(episode) ? "Com leitura" : "Sem leitura"}
-                                    </span>
-                                    {episode.sources?.length ? (
-                                      <span>- {episode.sources.length} fonte(s)</span>
-                                    ) : null}
-                                  </div>
-                                </button>
-                              );
+                                );
                             })}
                             </>
                           ) : (
@@ -2112,7 +2335,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               <div>
                 <Label className="text-sm">Status atual</Label>
                 <p className="text-xs text-muted-foreground">
-                  Use as ações do topo ou do rodapé para publicar este capítulo ou voltar para rascunho.
+                  Use as ações do topo para publicar este capítulo ou voltar para rascunho.
                 </p>
               </div>
               <Badge
@@ -2356,16 +2579,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   </div>
                 )}
                 <div className="space-y-3">
-                  <Input
-                    value={selectedVolumeEntry?.coverImageUrl || ""}
-                    onChange={(event) =>
-                      updateSelectedVolumeEntry((entry) => ({
-                        ...entry,
-                        coverImageUrl: event.target.value,
-                      }))
-                    }
-                    placeholder="URL da capa do volume"
-                  />
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    Selecione a capa do volume pela biblioteca para manter a pasta dedicada organizada.
+                  </p>
                   <div className="space-y-2">
                     <Label htmlFor="chapter-volume-cover-alt">Texto alternativo</Label>
                     <Input
@@ -2883,68 +3099,6 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           </div>
         </WorkspaceSectionCard>
       ) : null;
-    const selectionStateSection = !hasActiveChapter && !showVolumeEditor ? (
-      <section
-        className={cn(workspaceSectionMutedClassName, "px-5 py-6")}
-        data-testid="chapter-selection-state"
-      >
-        <AsyncState
-          kind="empty"
-          title="Selecao editorial"
-          description="Use a coluna lateral para abrir um capitulo, selecione um volume para editar seus metadados ou inicie um novo fluxo de importacao."
-          action={
-            <Button type="button" variant="outline" onClick={onAddVolume}>
-              Adicionar volume
-            </Button>
-          }
-        />
-      </section>
-    ) : null;
-    const chapterFooterActions = hasActiveChapter ? (
-      <section
-        className="sticky bottom-3 z-10 rounded-[22px] border border-border/60 bg-background/95 px-4 py-3 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.9)] backdrop-blur"
-        data-testid="chapter-editor-footer-actions"
-      >
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-1">
-            <p className="text-sm font-semibold tracking-tight text-foreground">
-              Ações do capítulo
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Salve como rascunho, publique ou ajuste o status sem voltar ao topo.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 md:justify-end">
-            <Button
-              type="button"
-              size="sm"
-              variant={isChapterDraft ? "outline" : "default"}
-              onClick={() => {
-                void handleManualSave();
-              }}
-              disabled={isSavingChapter || !isDirty}
-              className="gap-2"
-            >
-              {isSavingChapter ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {primaryChapterActionLabel}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={isChapterDraft ? "default" : "outline"}
-              onClick={() => {
-                void handleChapterSave(isChapterDraft ? "published" : "draft");
-              }}
-              disabled={isSavingChapter}
-              className="gap-2"
-            >
-              {secondaryChapterActionLabel}
-            </Button>
-          </div>
-        </div>
-      </section>
-    ) : null;
-
     return (
       <>
         <div className="space-y-3" data-testid="chapter-editor-header-shell">
@@ -2981,11 +3135,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                         {selectedVolumeLabel}
                       </Badge>
                     </>
-                  ) : (
-                    <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-                      Seleção editorial
-                    </Badge>
-                  )}
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <h1 className="text-2xl font-semibold tracking-tight md:text-[2rem]">
@@ -3247,7 +3397,6 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     {!isImageChapter ? publicationSection : null}
                   </div>
                   {isImageChapter ? imageContentSection : contentSection}
-                  {chapterFooterActions}
                   {!isImageChapter ? (
                     <div
                       className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.95fr)]"
@@ -3261,7 +3410,6 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               ) : (
                 <>
                   {volumeEditorSection}
-                  {selectionStateSection}
                   {isMangaProject ? (
                     <MangaWorkflowPanel
                       apiBase={apiBase}
@@ -3276,6 +3424,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                       setSelectedStageChapterId={setSelectedStageChapterId}
                       onPersistProjectSnapshot={onPersistProjectSnapshot}
                       onProjectChange={onProjectChange}
+                      onSelectedStageChapterChange={onSelectedStageChapterChange}
+                      onOpenImportedChapter={onOpenImportedChapter}
                       onNavigateToChapter={(chapter) =>
                         onNavigateToHref(
                           buildDashboardProjectChapterEditorHref(
@@ -3468,6 +3618,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 setSelectedStageChapterId={setSelectedStageChapterId}
                 onPersistProjectSnapshot={onPersistProjectSnapshot}
                 onProjectChange={onProjectChange}
+                onSelectedStageChapterChange={onSelectedStageChapterChange}
+                onOpenImportedChapter={onOpenImportedChapter}
                 onNavigateToChapter={(chapter) =>
                   onNavigateToHref(
                     buildDashboardProjectChapterEditorHref(
@@ -4487,6 +4639,35 @@ const DashboardProjectChapterEditor = () => {
     [],
   );
 
+  const ensureVolumeDraftSelection = useCallback((volume: number | null) => {
+    const normalizedVolume =
+      Number.isFinite(Number(volume)) && Number(volume) > 0 ? Math.floor(Number(volume)) : null;
+    if (normalizedVolume === null) {
+      setSelectedVolume(null);
+      return;
+    }
+    setVolumeEntriesDraft((currentEntries) => {
+      const nextEntries = normalizeProjectVolumeEntries(currentEntries);
+      if (
+        nextEntries.some(
+          (entry) => buildVolumeCoverKey(entry.volume) === buildVolumeCoverKey(normalizedVolume),
+        )
+      ) {
+        return nextEntries;
+      }
+      return normalizeProjectVolumeEntries([
+        ...nextEntries,
+        {
+          volume: normalizedVolume,
+          synopsis: "",
+          coverImageUrl: "",
+          coverImageAlt: "",
+        },
+      ]);
+    });
+    setSelectedVolume(normalizedVolume);
+  }, []);
+
   const addVolumeEntry = useCallback(() => {
     const nextVolume =
       normalizeProjectVolumeEntries(volumeEntriesDraft).reduce(
@@ -4545,7 +4726,33 @@ const DashboardProjectChapterEditor = () => {
   );
 
   const structureGroups = useMemo<ChapterStructureGroup[]>(() => {
-    const numericGroups = availableVolumes.map((volumeOption) => {
+    const numericVolumeMap = new Map<number, EditableVolumeOption>();
+    availableVolumes.forEach((volumeOption) => {
+      numericVolumeMap.set(volumeOption.volume, volumeOption);
+    });
+    Array.from(chaptersByStructureGroup.keys()).forEach((key) => {
+      const parsedVolume = Number(key);
+      if (key !== "none" && Number.isFinite(parsedVolume) && parsedVolume > 0) {
+        numericVolumeMap.set(parsedVolume, numericVolumeMap.get(parsedVolume) || {
+          volume: parsedVolume,
+          chapterCount: (chaptersByStructureGroup.get(key) || []).length,
+          hasMetadata: false,
+        });
+      }
+    });
+    Array.from(stagedChaptersByStructureGroup.keys()).forEach((key) => {
+      const parsedVolume = Number(key);
+      if (key !== "none" && Number.isFinite(parsedVolume) && parsedVolume > 0) {
+        numericVolumeMap.set(parsedVolume, numericVolumeMap.get(parsedVolume) || {
+          volume: parsedVolume,
+          chapterCount: (chaptersByStructureGroup.get(key) || []).length,
+          hasMetadata: false,
+        });
+      }
+    });
+    const numericGroups = Array.from(numericVolumeMap.values())
+      .sort((left, right) => left.volume - right.volume)
+      .map((volumeOption) => {
       const key = String(volumeOption.volume);
       return {
         key,
@@ -4724,6 +4931,13 @@ const DashboardProjectChapterEditor = () => {
         resolvedChapter,
       );
       setProject(nextProject);
+      setVolumeEntriesDraft(normalizeProjectVolumeEntries(nextProject.volumeEntries));
+      setSelectedStageChapterId(null);
+      setSelectedVolume(
+        Number.isFinite(Number(resolvedChapter.volume)) && Number(resolvedChapter.volume) > 0
+          ? Number(resolvedChapter.volume)
+          : null,
+      );
       setActiveDraft(resolvedChapter);
       navigate(
         buildDashboardProjectChapterEditorHref(
@@ -4735,6 +4949,47 @@ const DashboardProjectChapterEditor = () => {
       );
     },
     [activeChapter?.volume, activeDraft?.volume, navigate, resolvedVolume],
+  );
+
+  const handleSelectedStageChapterChange = useCallback(
+    (chapter: StageChapter | null) => {
+      if (activeChapterKey || chapterNumber) {
+        return;
+      }
+      if (!chapter) {
+        return;
+      }
+      ensureVolumeDraftSelection(chapter.volume);
+    },
+    [activeChapterKey, chapterNumber, ensureVolumeDraftSelection],
+  );
+
+  const handleOpenImportedChapter = useCallback(
+    (nextProject: ProjectRecord, importedChapters: ProjectEpisode[]) => {
+      const importedChapterKeys = new Set(
+        importedChapters.map((chapter) => buildEpisodeKey(chapter.number, chapter.volume)),
+      );
+      const firstImportedChapter = sortChapters(
+        Array.isArray(nextProject.episodeDownloads) ? nextProject.episodeDownloads : [],
+      ).find((chapter) => importedChapterKeys.has(buildEpisodeKey(chapter.number, chapter.volume)));
+
+      if (firstImportedChapter) {
+        handleChapterSaved(nextProject, firstImportedChapter, {
+          number: firstImportedChapter.number,
+          volume: firstImportedChapter.volume,
+        });
+        return;
+      }
+
+      projectRef.current = nextProject;
+      projectSnapshotRef.current = nextProject;
+      setProject(nextProject);
+      setVolumeEntriesDraft(normalizeProjectVolumeEntries(nextProject.volumeEntries));
+      setSelectedStageChapterId(null);
+      setSelectedVolume(null);
+      setActiveDraft(null);
+    },
+    [handleChapterSaved],
   );
 
   const persistProjectSnapshot = useCallback(
@@ -5881,9 +6136,13 @@ const DashboardProjectChapterEditor = () => {
           onNavigateToUploads={requestNavigateToUploads}
           onPersistProjectSnapshot={persistProjectSnapshot}
           onProjectChange={(nextProject) => {
+            projectRef.current = nextProject;
+            projectSnapshotRef.current = nextProject;
             setProject(nextProject);
             setVolumeEntriesDraft(normalizeProjectVolumeEntries(nextProject.volumeEntries));
           }}
+          onSelectedStageChapterChange={handleSelectedStageChapterChange}
+          onOpenImportedChapter={handleOpenImportedChapter}
           onChapterSaved={handleChapterSaved}
           isVolumeDirty={isVolumeDirty}
           isSavingVolumes={isSavingVolumes}

@@ -128,10 +128,42 @@ describe("MangaChapterPagesEditor", () => {
       "https://cdn.test/page-1.jpg",
       "https://cdn.test/page-2.jpg",
     ]);
+    expect(screen.getByTestId("manga-page-filename-0")).toHaveTextContent("page-1.jpg");
+    expect(screen.getByTestId("manga-page-filename-1")).toHaveTextContent("page-2.jpg");
 
     const dataTransfer = createDataTransfer();
     fireEvent.dragStart(screen.getByTestId("manga-page-surface-1"), { dataTransfer });
+    expect(screen.getByTestId("manga-page-surface-1")).toHaveAttribute(
+      "data-reorder-state",
+      "dragging",
+    );
+    expect(screen.getByTestId("manga-page-surface-1")).toHaveAttribute(
+      "data-reorder-motion",
+      "spring",
+    );
+    expect(screen.getByTestId("manga-page-card-1")).toHaveAttribute(
+      "data-reorder-layout",
+      "static",
+    );
     fireEvent.dragOver(screen.getByTestId("manga-page-surface-0"), { dataTransfer });
+
+    await waitFor(() => {
+      expect(getPageOrder()).toEqual([
+        "https://cdn.test/page-2.jpg",
+        "https://cdn.test/page-1.jpg",
+      ]);
+    });
+    expect(screen.getByTestId("manga-page-card-0")).toHaveAttribute(
+      "data-reorder-layout",
+      "static",
+    );
+    expect(screen.getByTestId("manga-page-card-1")).toHaveAttribute(
+      "data-reorder-layout",
+      "animated",
+    );
+    expect(screen.getByTestId("manga-page-filename-0")).toHaveTextContent("page-2.jpg");
+    expect(screen.getByTestId("manga-page-surface-0")).toHaveAttribute("title", "page-2.jpg");
+
     fireEvent.drop(screen.getByTestId("manga-page-surface-0"), { dataTransfer });
     fireEvent.dragEnd(screen.getByTestId("manga-page-surface-1"), { dataTransfer });
 
@@ -176,19 +208,20 @@ describe("MangaChapterPagesEditor", () => {
     expect(lastCall?.pageCount).toBe(1);
   });
 
-  it("mantem exportacao e fontes no bloco avancado sem preview publico", () => {
+  it("mantem exportacao e fontes no bloco utilitario sem preview publico", () => {
     renderEditor();
 
-    expect(screen.getByTestId("manga-pages-advanced-trigger")).toHaveAttribute(
+    expect(screen.getByTestId("manga-pages-utilities-trigger")).toHaveAttribute(
       "aria-expanded",
       "false",
     );
-    expect(screen.queryByTestId("manga-pages-advanced-panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("manga-pages-utilities-panel")).not.toBeInTheDocument();
     expect(screen.queryByText(/Preview/i)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId("manga-pages-advanced-trigger"));
+    fireEvent.click(screen.getByTestId("manga-pages-utilities-trigger"));
 
-    expect(screen.getByTestId("manga-pages-advanced-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("manga-pages-utilities-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("manga-pages-export")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Exportar ZIP/i })).toBeInTheDocument();
     expect(screen.getByTestId("manga-pages-sources")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Galeria")).toBeInTheDocument();
