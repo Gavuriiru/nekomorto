@@ -98,8 +98,7 @@ export const buildOriginConfig = ({
   const allowedOrigins = Array.from(new Set([...appOrigins, ...adminOrigins]));
 
   const primaryAppOrigin =
-    appOrigins[0] ||
-    toOrigin(devPrimaryOriginFallback || DEFAULT_DEV_PRIMARY_ORIGIN, "APP_ORIGIN");
+    appOrigins[0] || toOrigin(devPrimaryOriginFallback || DEFAULT_DEV_PRIMARY_ORIGIN, "APP_ORIGIN");
   const primaryAppHost = (() => {
     try {
       return new URL(primaryAppOrigin).host.toLowerCase();
@@ -124,11 +123,7 @@ export const buildOriginConfig = ({
   };
 };
 
-export const isAllowedOrigin = ({
-  origin,
-  allowedOrigins,
-  isProduction,
-}) => {
+export const isAllowedOrigin = ({ origin, allowedOrigins, isProduction }) => {
   if (!origin) {
     return !isProduction;
   }
@@ -183,7 +178,10 @@ export const resolveAuthAppOrigin = ({
     return sessionCandidate;
   }
 
-  const requestCandidate = resolveAllowedOriginCandidate(resolveRequestOrigin(req), isAllowedOriginFn);
+  const requestCandidate = resolveAllowedOriginCandidate(
+    resolveRequestOrigin(req),
+    isAllowedOriginFn,
+  );
   if (requestCandidate) {
     return requestCandidate;
   }
@@ -204,7 +202,10 @@ export const resolveDiscordRedirectUri = ({
   if (hostCandidate) {
     return `${hostCandidate}/login`;
   }
-  const requestCandidate = resolveAllowedOriginCandidate(resolveRequestOrigin(req), isAllowedOriginFn);
+  const requestCandidate = resolveAllowedOriginCandidate(
+    resolveRequestOrigin(req),
+    isAllowedOriginFn,
+  );
   if (requestCandidate) {
     return `${requestCandidate}/login`;
   }

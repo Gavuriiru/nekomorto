@@ -106,6 +106,8 @@ describe("ProjectReading bootstrap-first", () => {
               number: 1,
               volume: 2,
               title: "Capítulo Bootstrap",
+              content: "<p>Conteudo bootstrap</p>",
+              contentFormat: "lexical",
               releaseDate: "2026-02-10",
               duration: "Leitura",
               coverImageUrl: "/uploads/chapter-1.jpg",

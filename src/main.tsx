@@ -6,6 +6,7 @@ import { primePublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
 import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
 import { shouldRegisterPwaImmediately } from "@/lib/pwa-navigation";
+import "./styles/fonts.css";
 import "./index.css";
 
 const HOME_HERO_READY_EVENT = "nekomata:hero-ready";
@@ -81,9 +82,7 @@ const armHomeHeroShellCleanup = () => {
 
 const bootstrap = async () => {
   const registerPwa = () => {
-    void import("@/lib/pwa-register")
-      .then(({ registerPwa }) => registerPwa())
-      .catch(() => null);
+    void import("@/lib/pwa-register").then(({ registerPwa }) => registerPwa()).catch(() => null);
   };
 
   if (
@@ -143,7 +142,10 @@ const bootstrap = async () => {
   const siteName =
     (settings.site?.name || "").trim() || (document.title || "NEKOMATA").trim() || "NEKOMATA";
   const separator = settings.site?.titleSeparator || " | ";
-  if (!String(document.title || "").trim() || String(document.title || "").trim() === "Carregando...") {
+  if (
+    !String(document.title || "").trim() ||
+    String(document.title || "").trim() === "Carregando..."
+  ) {
     setBootstrapTitle(siteName, separator);
   }
 

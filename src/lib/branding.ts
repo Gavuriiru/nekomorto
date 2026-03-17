@@ -4,7 +4,12 @@ type NavbarBrandMode = SiteSettings["branding"]["display"]["navbar"];
 type FooterBrandMode = SiteSettings["branding"]["display"]["footer"];
 type LegacyWordmarkPlacement = SiteSettings["branding"]["wordmarkPlacement"];
 
-const NAVBAR_BRAND_MODES: readonly NavbarBrandMode[] = ["wordmark", "symbol-text", "symbol", "text"];
+const NAVBAR_BRAND_MODES: readonly NavbarBrandMode[] = [
+  "wordmark",
+  "symbol-text",
+  "symbol",
+  "text",
+];
 const FOOTER_BRAND_MODES: readonly FooterBrandMode[] = ["wordmark", "symbol-text", "text"];
 const LEGACY_WORDMARK_PLACEMENTS: readonly LegacyWordmarkPlacement[] = ["navbar", "footer", "both"];
 
@@ -74,7 +79,9 @@ export const resolveBranding = (settings: SiteSettings): BrandingResolution => {
   const legacyNavbarWordmark = trimValue(settings.branding.wordmarkUrlNavbar);
   const legacyFooterWordmark = trimValue(settings.branding.wordmarkUrlFooter);
   const legacyWordmarkEnabled = Boolean(settings.branding.wordmarkEnabled);
-  const legacyWordmarkPlacement = normalizeLegacyPlacement(trimValue(settings.branding.wordmarkPlacement));
+  const legacyWordmarkPlacement = normalizeLegacyPlacement(
+    trimValue(settings.branding.wordmarkPlacement),
+  );
 
   const symbolAssetDirect = trimValue(settings.branding.assets?.symbolUrl);
   const wordmarkAssetDirect = trimValue(settings.branding.assets?.wordmarkUrl);
@@ -95,18 +102,26 @@ export const resolveBranding = (settings: SiteSettings): BrandingResolution => {
       !footerWordmarkOverrideDirect &&
       !isNavbarBrandMode(navbarModeCandidate) &&
       !isFooterBrandMode(footerModeCandidate) &&
-      (legacySiteSymbol || legacyFooterSymbol || legacyWordmarkUrl || legacyNavbarWordmark || legacyFooterWordmark),
+      (legacySiteSymbol ||
+        legacyFooterSymbol ||
+        legacyWordmarkUrl ||
+        legacyNavbarWordmark ||
+        legacyFooterWordmark),
   );
 
   const symbolAssetUrl = symbolAssetDirect || (hasLegacyOnlyBranding ? legacySiteSymbol : "");
   const wordmarkAssetUrl =
     wordmarkAssetDirect ||
-    (hasLegacyOnlyBranding ? legacyWordmarkUrl || legacyNavbarWordmark || legacyFooterWordmark : "") ||
+    (hasLegacyOnlyBranding
+      ? legacyWordmarkUrl || legacyNavbarWordmark || legacyFooterWordmark
+      : "") ||
     "";
 
   const navbarSymbolUrl = navbarSymbolOverrideDirect || symbolAssetUrl;
   const footerSymbolUrl =
-    footerSymbolOverrideDirect || symbolAssetUrl || (hasLegacyOnlyBranding ? legacyFooterSymbol : "");
+    footerSymbolOverrideDirect ||
+    symbolAssetUrl ||
+    (hasLegacyOnlyBranding ? legacyFooterSymbol : "");
 
   const navbarWordmarkUrl =
     navbarWordmarkOverrideDirect ||
@@ -125,18 +140,24 @@ export const resolveBranding = (settings: SiteSettings): BrandingResolution => {
     "";
 
   const legacyNavbarMode: NavbarBrandMode =
-    hasLegacyOnlyBranding && legacyWordmarkEnabled &&
+    hasLegacyOnlyBranding &&
+    legacyWordmarkEnabled &&
     (legacyWordmarkPlacement === "navbar" || legacyWordmarkPlacement === "both")
       ? "wordmark"
       : "symbol-text";
   const legacyFooterMode: FooterBrandMode =
-    hasLegacyOnlyBranding && legacyWordmarkEnabled &&
+    hasLegacyOnlyBranding &&
+    legacyWordmarkEnabled &&
     (legacyWordmarkPlacement === "footer" || legacyWordmarkPlacement === "both")
       ? "wordmark"
       : "symbol-text";
 
-  const navbarMode = isNavbarBrandMode(navbarModeCandidate) ? navbarModeCandidate : legacyNavbarMode;
-  const footerMode = isFooterBrandMode(footerModeCandidate) ? footerModeCandidate : legacyFooterMode;
+  const navbarMode = isNavbarBrandMode(navbarModeCandidate)
+    ? navbarModeCandidate
+    : legacyNavbarMode;
+  const footerMode = isFooterBrandMode(footerModeCandidate)
+    ? footerModeCandidate
+    : legacyFooterMode;
 
   return {
     direct: {

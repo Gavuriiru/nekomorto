@@ -27,8 +27,7 @@ export const dashboardAnimationDelay = (delayMs: number): CSSProperties => ({
 });
 
 export const dashboardClampedStaggerMs = (index: number, baseMs = 0) =>
-  baseMs +
-  Math.min(index * dashboardMotionDelays.itemStepMs, dashboardMotionDelays.itemMaxExtraMs);
+  baseMs + Math.min(index * dashboardMotionDelays.itemStepMs, dashboardMotionDelays.itemMaxExtraMs);
 
 export const dashboardStaggerDelay = (
   index: number,

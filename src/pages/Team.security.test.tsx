@@ -41,36 +41,38 @@ describe("Team security hardening", () => {
   beforeEach(() => {
     delete (window as BootstrapWindow).__BOOTSTRAP_PUBLIC__;
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (endpoint === "/api/public/users" && method === "GET") {
-        return mockJsonResponse(true, {
-          users: [
-            {
-              id: "member-1",
-              name: "Integrante",
-              phrase: "",
-              bio: "",
-              status: "active",
-              roles: ["Membro"],
-              socials: [
-                {
-                  label: "data:image/svg+xml,<svg><script>alert(1)</script></svg>",
-                  href: "https://safe.example/profile",
-                },
-              ],
-            },
-          ],
-        });
-      }
-      if (endpoint === "/api/link-types" && method === "GET") {
-        return mockJsonResponse(true, { items: [] });
-      }
-      if (endpoint === "/api/public/pages" && method === "GET") {
-        return mockJsonResponse(true, { pages: { team: {} } });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (endpoint === "/api/public/users" && method === "GET") {
+          return mockJsonResponse(true, {
+            users: [
+              {
+                id: "member-1",
+                name: "Integrante",
+                phrase: "",
+                bio: "",
+                status: "active",
+                roles: ["Membro"],
+                socials: [
+                  {
+                    label: "data:image/svg+xml,<svg><script>alert(1)</script></svg>",
+                    href: "https://safe.example/profile",
+                  },
+                ],
+              },
+            ],
+          });
+        }
+        if (endpoint === "/api/link-types" && method === "GET") {
+          return mockJsonResponse(true, { items: [] });
+        }
+        if (endpoint === "/api/public/pages" && method === "GET") {
+          return mockJsonResponse(true, { pages: { team: {} } });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
   });
 
   it("does not treat social label as custom icon URL", async () => {
@@ -88,7 +90,7 @@ describe("Team security hardening", () => {
     expect(link).toHaveAttribute("href", "https://safe.example/profile");
     expect(link.querySelector("img")).toBeNull();
 
-    const dataImage = container.querySelector("img[src^=\"data:\"]");
+    const dataImage = container.querySelector('img[src^="data:"]');
     expect(dataImage).toBeNull();
   });
 });

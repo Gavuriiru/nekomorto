@@ -17,10 +17,7 @@ import { scheduleOnBrowserIdle } from "@/lib/browser-idle";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
-import type {
-  PublicBootstrapProject,
-  PublicBootstrapUpdate,
-} from "@/types/public-bootstrap";
+import type { PublicBootstrapProject, PublicBootstrapUpdate } from "@/types/public-bootstrap";
 
 type HeroSlide = {
   id: string;
@@ -123,10 +120,7 @@ const sortLaunchUpdates = (updates: PublicBootstrapUpdate[]) =>
       const kind = String(update.kind || "").toLowerCase();
       return kind === "lançamento" || kind === "lancamento";
     })
-    .sort(
-      (a, b) =>
-        new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
-    );
+    .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
 
 const buildHeroSlides = (
   projects: PublicBootstrapProject[],
@@ -269,7 +263,7 @@ const HeroSlideFrame = ({
   const shouldLoadImage = loadedSlideIds.has(slide.id) || isPrioritySlide;
   const loading = isPrioritySlide ? "eager" : "lazy";
   const imagePriorityProps = {
-    fetchpriority: isPrioritySlide ? "high" : "auto",
+    fetchPriority: isPrioritySlide ? "high" : "auto",
   } as const;
 
   return (
@@ -411,9 +405,7 @@ const HeroSection = () => {
   const resumeTimeoutRef = React.useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = React.useState(0);
   const [isCarouselEnhanced, setIsCarouselEnhanced] = React.useState(false);
-  const [loadedSlideIds, setLoadedSlideIds] = React.useState<Set<string>>(
-    () => new Set(),
-  );
+  const [loadedSlideIds, setLoadedSlideIds] = React.useState<Set<string>>(() => new Set());
   const { data: bootstrapData, isFetched } = usePublicBootstrap();
   const { effectiveMode } = useThemeMode();
   const mediaVariants = bootstrapData?.mediaVariants || {};
@@ -567,7 +559,9 @@ const HeroSection = () => {
   ]);
 
   const clampSynopsis = React.useCallback((text: string, limit = 100) => {
-    const cleaned = String(text || "").replace(/\s+/g, " ").trim();
+    const cleaned = String(text || "")
+      .replace(/\s+/g, " ")
+      .trim();
     if (cleaned.length <= limit) {
       return cleaned;
     }
@@ -601,7 +595,7 @@ const HeroSection = () => {
               const shouldLoadImage = loadedSlideIds.has(slide.id) || isPrioritySlide;
               const loading = isPrioritySlide ? "eager" : "lazy";
               const imagePriorityProps = {
-                fetchpriority: isPrioritySlide ? "high" : "auto",
+                fetchPriority: isPrioritySlide ? "high" : "auto",
               } as const;
               return (
                 <CarouselItem key={slide.id} className="pl-0">

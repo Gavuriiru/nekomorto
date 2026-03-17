@@ -8,7 +8,11 @@ import {
 } from "lexical";
 import { HeadingNode } from "@lexical/rich-text";
 
-import { applyEditorialStyleToElement, extractBlockEditorialStyle, hasEditorialBlockStyle } from "./epub-style";
+import {
+  applyEditorialStyleToElement,
+  extractBlockEditorialStyle,
+  hasEditorialBlockStyle,
+} from "./epub-style";
 
 type HeadingTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
 
@@ -46,10 +50,14 @@ export class EpubHeadingNode extends HeadingNode {
         if (!(node instanceof HTMLElement)) {
           return null;
         }
-        const hintedTag = String(node.getAttribute("data-epub-heading") || "").toLowerCase() as HeadingTag;
-        const explicitTag =
-          ["h1", "h2", "h3", "h4", "h5", "h6"].includes(hintedTag) ? hintedTag : undefined;
-        const tag = explicitTag || fallbackTag || (String(node.tagName || "").toLowerCase() as HeadingTag);
+        const hintedTag = String(
+          node.getAttribute("data-epub-heading") || "",
+        ).toLowerCase() as HeadingTag;
+        const explicitTag = ["h1", "h2", "h3", "h4", "h5", "h6"].includes(hintedTag)
+          ? hintedTag
+          : undefined;
+        const tag =
+          explicitTag || fallbackTag || (String(node.tagName || "").toLowerCase() as HeadingTag);
         if (!["h1", "h2", "h3", "h4", "h5", "h6"].includes(tag)) {
           return null;
         }
@@ -109,7 +117,11 @@ export class EpubHeadingNode extends HeadingNode {
     return dom;
   }
 
-  updateDOM(prevNode: EpubHeadingNode, dom: HTMLElement, config: Parameters<HeadingNode["createDOM"]>[0]) {
+  updateDOM(
+    prevNode: EpubHeadingNode,
+    dom: HTMLElement,
+    config: Parameters<HeadingNode["createDOM"]>[0],
+  ) {
     const needsRemount = super.updateDOM(prevNode, dom, config);
     if (!needsRemount) {
       applyEditorialStyleToElement(dom, this.getEditorialStyle());
@@ -147,12 +159,13 @@ export class EpubHeadingNode extends HeadingNode {
       (selection &&
         selection.anchor.key === lastDesc.getKey() &&
         anchorOffset === lastDesc.getTextContentSize());
-    const newElement = isAtEnd || !selection
-      ? $createParagraphNode()
-      : $createEpubHeadingNode({
-          tag: this.getTag() as HeadingTag,
-          editorialStyle: this.getEditorialStyle(),
-        });
+    const newElement =
+      isAtEnd || !selection
+        ? $createParagraphNode()
+        : $createEpubHeadingNode({
+            tag: this.getTag() as HeadingTag,
+            editorialStyle: this.getEditorialStyle(),
+          });
     newElement.setDirection(this.getDirection());
     this.insertAfter(newElement, restoreSelection);
     if (anchorOffset === 0 && !this.isEmpty() && selection) {

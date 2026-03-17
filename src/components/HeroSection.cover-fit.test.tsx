@@ -15,12 +15,10 @@ const browserIdleState = vi.hoisted(() => ({
   callbacks: [] as Array<(deadline: IdleDeadline) => void>,
 }));
 const carouselState = vi.hoisted(() => ({
-  api: null as
-    | null
-    | {
-        scrollNext: () => void;
-        scrollPrev: () => void;
-      },
+  api: null as null | {
+    scrollNext: () => void;
+    scrollPrev: () => void;
+  },
   scrollNext: vi.fn(),
   selectedIndex: 0,
   slideCount: 0,
@@ -91,8 +89,7 @@ vi.mock("@/components/ui/carousel", () => {
         },
         scrollPrev: () => {
           const slideCount = Math.max(carouselState.slideCount, 1);
-          carouselState.selectedIndex =
-            (carouselState.selectedIndex - 1 + slideCount) % slideCount;
+          carouselState.selectedIndex = (carouselState.selectedIndex - 1 + slideCount) % slideCount;
           notify("select");
         },
         on: (event: string, callback: () => void) => {
@@ -128,13 +125,9 @@ vi.mock("@/components/ui/carousel", () => {
     return <div className={className}>{children}</div>;
   };
 
-  const CarouselItem = ({
-    children,
-    className,
-  }: {
-    children: ReactNode;
-    className?: string;
-  }) => <div className={className}>{children}</div>;
+  const CarouselItem = ({ children, className }: { children: ReactNode; className?: string }) => (
+    <div className={className}>{children}</div>
+  );
 
   const CarouselPrevious = ({
     className,
@@ -175,12 +168,7 @@ vi.mock("@/components/ui/carousel", () => {
     };
 
     return (
-      <button
-        type="button"
-        aria-label="next slide"
-        className={className}
-        onClick={handleClick}
-      />
+      <button type="button" aria-label="next slide" className={className} onClick={handleClick} />
     );
   };
 
@@ -195,7 +183,9 @@ vi.mock("@/components/ui/carousel", () => {
 
 const setupBootstrapMock = ({
   includeSecondProject = false,
-}: { includeSecondProject?: boolean } = {}) => {
+}: {
+  includeSecondProject?: boolean;
+} = {}) => {
   const projects = [
     {
       id: "project-1",
@@ -303,12 +293,7 @@ describe("HeroSection cover fit", () => {
       "img[aria-hidden='true']",
     ) as HTMLImageElement | null;
     expect(backgroundImage).not.toBeNull();
-    expect(backgroundImage).toHaveClass(
-      "h-full",
-      "w-full",
-      "object-cover",
-      "object-center",
-    );
+    expect(backgroundImage).toHaveClass("h-full", "w-full", "object-cover", "object-center");
     expect(backgroundImage?.getAttribute("src")).toContain(
       "/uploads/_variants/project-1/hero-v1.jpeg",
     );

@@ -20,13 +20,7 @@ vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
 }));
 
 vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({
-    title,
-    actions,
-  }: {
-    title: string;
-    actions?: ReactNode;
-  }) => (
+  default: ({ title, actions }: { title: string; actions?: ReactNode }) => (
     <div>
       <h1>{title}</h1>
       {actions}
@@ -353,10 +347,12 @@ const setupApiMock = (
       );
     }
     if (path === "/api/projects/epub/import/cleanup" && method === "POST") {
-      const importIds =
-        Array.isArray((options as { json?: { importIds?: unknown[] } } | undefined)?.json?.importIds)
-          ? (((options as { json?: { importIds?: unknown[] } } | undefined)?.json?.importIds || []) as unknown[])
-          : [];
+      const importIds = Array.isArray(
+        (options as { json?: { importIds?: unknown[] } } | undefined)?.json?.importIds,
+      )
+        ? (((options as { json?: { importIds?: unknown[] } } | undefined)?.json?.importIds ||
+            []) as unknown[])
+        : [];
       return mockJsonResponse(true, {
         requestedImportIds: importIds,
         matchedUploads: 0,
@@ -657,11 +653,11 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(within(chapterHeader).queryByText(/^Leitura$/i)).not.toBeInTheDocument();
     expect(within(chapterCard).getByPlaceholderText("Volume")).toBeInTheDocument();
     expect(within(chapterCard).getByText("Fontes de download")).toBeInTheDocument();
-    expect(within(chapterCard).getByRole("button", { name: /Adicionar fonte/i })).toBeInTheDocument();
-    expect(within(chapterCard).getAllByRole("combobox").length).toBeGreaterThan(0);
     expect(
-      screen.getByRole("button", { name: /Conte.do.*cap.tulos/i }),
+      within(chapterCard).getByRole("button", { name: /Adicionar fonte/i }),
     ).toBeInTheDocument();
+    expect(within(chapterCard).getAllByRole("combobox").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /Conte.do.*cap.tulos/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Adicionar volume/i })).toBeInTheDocument();
     expect(screen.getByTestId("volume-group-none")).toBeInTheDocument();
   });
@@ -675,7 +671,9 @@ describe("DashboardProjectsEditor episode accordion", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
-    fireEvent.click(await screen.findByRole("button", { name: "Abrir projeto Projeto Light Novel" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Abrir projeto Projeto Light Novel" }),
+    );
     await screen.findByRole("heading", { name: "Editar projeto" });
 
     expect(screen.queryByRole("button", { name: /Conte.do.*cap.tulos/i })).not.toBeInTheDocument();
@@ -705,7 +703,9 @@ describe("DashboardProjectsEditor episode accordion", () => {
       editorDialog.querySelectorAll(".project-editor-section-trigger"),
     ) as HTMLElement[];
     const sectionTitles = sectionTriggers.map((trigger) =>
-      String(trigger.textContent || "").replace(/\s+/g, " ").trim(),
+      String(trigger.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim(),
     );
 
     expect(sectionTitles[0]).toContain("Importação");
@@ -742,116 +742,118 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(chapterPanelContentRoot.className).toContain(chapterOpenOverflowClass);
   });
 
-  it.skip(
-    "permite alternar entre principal e extra com numeracao tecnica automatica e persiste no save",
-    { timeout: 15_000 },
-    async () => {
-      setupApiMock([lightNovelProjectFixture]);
-      const baseImplementation = apiFetchMock.getMockImplementation();
-      const savedPayloads: Array<Record<string, unknown>> = [];
+  it.skip("permite alternar entre principal e extra com numeracao tecnica automatica e persiste no save", {
+    timeout: 15_000,
+  }, async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    const baseImplementation = apiFetchMock.getMockImplementation();
+    const savedPayloads: Array<Record<string, unknown>> = [];
 
-      apiFetchMock.mockImplementation(async (base, path, options) => {
-        const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
-        if (path === `/api/projects/${lightNovelProjectFixture.id}` && method === "PUT") {
-          const payload = (((options as { json?: unknown } | undefined)?.json || {}) ??
-            {}) as Record<string, unknown>;
-          savedPayloads.push(payload);
-          return mockJsonResponse(true, {
-            project: {
-              ...lightNovelProjectFixture,
-              ...payload,
-            },
-          });
-        }
-        return baseImplementation
-          ? (baseImplementation(base, path, options) as Promise<Response>)
-          : mockJsonResponse(false, { error: "not_found" }, 404);
-      });
+    apiFetchMock.mockImplementation(async (base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === `/api/projects/${lightNovelProjectFixture.id}` && method === "PUT") {
+        const payload = (((options as { json?: unknown } | undefined)?.json || {}) ?? {}) as Record<
+          string,
+          unknown
+        >;
+        savedPayloads.push(payload);
+        return mockJsonResponse(true, {
+          project: {
+            ...lightNovelProjectFixture,
+            ...payload,
+          },
+        });
+      }
+      return baseImplementation
+        ? (baseImplementation(base, path, options) as Promise<Response>)
+        : mockJsonResponse(false, { error: "not_found" }, 404);
+    });
 
-      await openEpisodeEditor({
-        projectTitle: "Projeto Light Novel",
-        sectionNamePattern: /Cap/i,
-        removeButtonPattern: /Remover cap/i,
-      });
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
 
-      fireEvent.click(getEpisodeTrigger(chapter1TriggerPattern));
-      const chapterCard = await screen.findByTestId("episode-card-0");
-      const entryTypeCombobox = within(chapterCard).getByRole("combobox", {
+    fireEvent.click(getEpisodeTrigger(chapter1TriggerPattern));
+    const chapterCard = await screen.findByTestId("episode-card-0");
+    const entryTypeCombobox = within(chapterCard).getByRole("combobox", {
+      name: /Tipo da entrada/i,
+    });
+    fireEvent.click(entryTypeCombobox);
+    fireEvent.click(await screen.findByRole("option", { name: "Extra" }));
+
+    await waitFor(() => {
+      const numberInput = within(chapterCard).getAllByRole("spinbutton")[0] as HTMLInputElement;
+      expect(numberInput).toBeDisabled();
+      expect(Number(numberInput.value)).toBeGreaterThanOrEqual(100000);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
+    await waitFor(() => {
+      expect(savedPayloads.length).toBe(1);
+    });
+    const savedAsExtra =
+      (savedPayloads[0]?.episodeDownloads as Array<Record<string, unknown>>) || [];
+    expect(savedAsExtra[0]).toEqual(
+      expect.objectContaining({
+        entryKind: "extra",
+        entrySubtype: "extra",
+      }),
+    );
+    expect(Number(savedAsExtra[0]?.number)).toBeGreaterThanOrEqual(100000);
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Editar projeto" })).not.toBeInTheDocument();
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Abrir projeto Projeto Light Novel" }),
+    );
+    const editorDialog = await screen.findByRole("dialog");
+    fireEvent.click(
+      within(editorDialog).getByRole("button", {
+        name: /Conte.do.*cap.tulos/i,
+      }),
+    );
+    const volumeGroups = within(editorDialog).getAllByTestId(/volume-group-/i);
+    volumeGroups.forEach((group) => {
+      const trigger = getVolumeGroupTrigger(group);
+      if (trigger.getAttribute("aria-expanded") !== "true") {
+        fireEvent.click(trigger);
+      }
+    });
+    fireEvent.click(within(editorDialog).getByRole("button", { name: chapter1TriggerPattern }));
+    const reopenedChapterCard = within(editorDialog).getByTestId("episode-card-0");
+
+    fireEvent.click(
+      within(reopenedChapterCard).getByRole("combobox", {
         name: /Tipo da entrada/i,
-      });
-      fireEvent.click(entryTypeCombobox);
-      fireEvent.click(await screen.findByRole("option", { name: "Extra" }));
+      }),
+    );
+    fireEvent.click(await screen.findByRole("option", { name: "Principal" }));
 
-      await waitFor(() => {
-        const numberInput = within(chapterCard).getAllByRole("spinbutton")[0] as HTMLInputElement;
-        expect(numberInput).toBeDisabled();
-        expect(Number(numberInput.value)).toBeGreaterThanOrEqual(100000);
-      });
+    await waitFor(() => {
+      const numberInput = within(reopenedChapterCard).getAllByRole(
+        "spinbutton",
+      )[0] as HTMLInputElement;
+      expect(numberInput).not.toBeDisabled();
+      expect(Number(numberInput.value)).toBeLessThan(100000);
+    });
 
-      fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
-      await waitFor(() => {
-        expect(savedPayloads.length).toBe(1);
-      });
-      const savedAsExtra =
-        (savedPayloads[0]?.episodeDownloads as Array<Record<string, unknown>>) || [];
-      expect(savedAsExtra[0]).toEqual(
-        expect.objectContaining({
-          entryKind: "extra",
-          entrySubtype: "extra",
-        }),
-      );
-      expect(Number(savedAsExtra[0]?.number)).toBeGreaterThanOrEqual(100000);
-      await waitFor(() => {
-        expect(screen.queryByRole("heading", { name: "Editar projeto" })).not.toBeInTheDocument();
-      });
-      fireEvent.click(await screen.findByRole("button", { name: "Abrir projeto Projeto Light Novel" }));
-      const editorDialog = await screen.findByRole("dialog");
-      fireEvent.click(
-        within(editorDialog).getByRole("button", {
-          name: /Conte.do.*cap.tulos/i,
-        }),
-      );
-      const volumeGroups = within(editorDialog).getAllByTestId(/volume-group-/i);
-      volumeGroups.forEach((group) => {
-        const trigger = getVolumeGroupTrigger(group);
-        if (trigger.getAttribute("aria-expanded") !== "true") {
-          fireEvent.click(trigger);
-        }
-      });
-      fireEvent.click(within(editorDialog).getByRole("button", { name: chapter1TriggerPattern }));
-      const reopenedChapterCard = within(editorDialog).getByTestId("episode-card-0");
-
-      fireEvent.click(
-        within(reopenedChapterCard).getByRole("combobox", {
-          name: /Tipo da entrada/i,
-        }),
-      );
-      fireEvent.click(await screen.findByRole("option", { name: "Principal" }));
-
-      await waitFor(() => {
-        const numberInput = within(reopenedChapterCard).getAllByRole(
-          "spinbutton",
-        )[0] as HTMLInputElement;
-        expect(numberInput).not.toBeDisabled();
-        expect(Number(numberInput.value)).toBeLessThan(100000);
-      });
-
-      fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
-      await waitFor(() => {
-        expect(savedPayloads.length).toBe(2);
-      });
-      const savedAsMain =
-        (savedPayloads[1]?.episodeDownloads as Array<Record<string, unknown>>) || [];
-      expect(savedAsMain[0]).toEqual(
-        expect.objectContaining({
-          entryKind: "main",
-          entrySubtype: "chapter",
-        }),
-      );
-      expect(Number(savedAsMain[0]?.number)).toBeGreaterThan(0);
-      expect(Number(savedAsMain[0]?.number)).toBeLessThan(100000);
-    },
-  );
+    fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
+    await waitFor(() => {
+      expect(savedPayloads.length).toBe(2);
+    });
+    const savedAsMain =
+      (savedPayloads[1]?.episodeDownloads as Array<Record<string, unknown>>) || [];
+    expect(savedAsMain[0]).toEqual(
+      expect.objectContaining({
+        entryKind: "main",
+        entrySubtype: "chapter",
+      }),
+    );
+    expect(Number(savedAsMain[0]?.number)).toBeGreaterThan(0);
+    expect(Number(savedAsMain[0]?.number)).toBeLessThan(100000);
+  });
 
   it("oculta controles de volume fora de manga/light novel", async () => {
     await openEpisodeEditor();
@@ -911,68 +913,66 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(savedPayload.volumeCovers).toEqual([]);
   });
 
-  it.skip(
-    "abre a secao de capitulos ao detectar volume duplicado no save",
-    { timeout: 15_000 },
-    async () => {
-      const lightNovelWithDuplicateVolumesFixture = {
-        ...lightNovelProjectFixture,
-        id: "project-ln-duplicated-volumes",
-        title: "Projeto LN Duplicado",
-        volumeEntries: [
-          {
-            volume: 2,
-            synopsis: "Sinopse A",
-            coverImageUrl: "/uploads/volume-2-a.jpg",
-            coverImageAlt: "Capa do volume 2 A",
-          },
-          {
-            volume: 2,
-            synopsis: "Sinopse B",
-            coverImageUrl: "/uploads/volume-2-b.jpg",
-            coverImageAlt: "Capa do volume 2 B",
-          },
-        ],
-        volumeCovers: [
-          {
-            volume: 2,
-            coverImageUrl: "/uploads/volume-2-a.jpg",
-            coverImageAlt: "Capa do volume 2 A",
-          },
-        ],
-      };
-      setupApiMock([lightNovelWithDuplicateVolumesFixture]);
+  it.skip("abre a secao de capitulos ao detectar volume duplicado no save", {
+    timeout: 15_000,
+  }, async () => {
+    const lightNovelWithDuplicateVolumesFixture = {
+      ...lightNovelProjectFixture,
+      id: "project-ln-duplicated-volumes",
+      title: "Projeto LN Duplicado",
+      volumeEntries: [
+        {
+          volume: 2,
+          synopsis: "Sinopse A",
+          coverImageUrl: "/uploads/volume-2-a.jpg",
+          coverImageAlt: "Capa do volume 2 A",
+        },
+        {
+          volume: 2,
+          synopsis: "Sinopse B",
+          coverImageUrl: "/uploads/volume-2-b.jpg",
+          coverImageAlt: "Capa do volume 2 B",
+        },
+      ],
+      volumeCovers: [
+        {
+          volume: 2,
+          coverImageUrl: "/uploads/volume-2-a.jpg",
+          coverImageAlt: "Capa do volume 2 A",
+        },
+      ],
+    };
+    setupApiMock([lightNovelWithDuplicateVolumesFixture]);
 
-      await openEpisodeEditor({
-        projectTitle: "Projeto LN Duplicado",
-        sectionNamePattern: /Cap/i,
-        removeButtonPattern: /Remover cap/i,
-      });
+    await openEpisodeEditor({
+      projectTitle: "Projeto LN Duplicado",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
 
-      const chaptersTrigger = screen.getByRole("button", { name: /Conte.do.*cap.tulos/i });
-      fireEvent.click(chaptersTrigger);
-      expect(chaptersTrigger).toHaveAttribute("aria-expanded", "false");
+    const chaptersTrigger = screen.getByRole("button", { name: /Conte.do.*cap.tulos/i });
+    fireEvent.click(chaptersTrigger);
+    expect(chaptersTrigger).toHaveAttribute("aria-expanded", "false");
 
-      fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
 
-      await waitFor(() => {
-        expect(toastMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            title: "Volumes duplicados",
-            description: "Cada volume pode aparecer apenas uma vez.",
-            variant: "destructive",
-          }),
-        );
-      });
-      expect(screen.getByRole("button", { name: /Conte.do.*cap.tulos/i })).toHaveAttribute(
-        "aria-expanded",
-        "true",
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Volumes duplicados",
+          description: "Cada volume pode aparecer apenas uma vez.",
+          variant: "destructive",
+        }),
       );
-      expect(
-        apiFetchMock.mock.calls.some((call) => String(call[1] || "").startsWith("/api/projects/"))
-      ).toBe(false);
-    },
-  );
+    });
+    expect(screen.getByRole("button", { name: /Conte.do.*cap.tulos/i })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(
+      apiFetchMock.mock.calls.some((call) => String(call[1] || "").startsWith("/api/projects/")),
+    ).toBe(false);
+  });
 
   it.skip("permite criar volume sem capitulo e exibe grupo vazio", async () => {
     setupApiMock([lightNovelProjectFixture]);
@@ -986,7 +986,9 @@ describe("DashboardProjectsEditor episode accordion", () => {
 
     const volumeGroup = await screen.findByTestId("volume-group-1");
     expect(volumeGroup).toBeInTheDocument();
-    expect(within(volumeGroup).getByText(/Nenhum cap.tulo vinculado a este volume/i)).toBeInTheDocument();
+    expect(
+      within(volumeGroup).getByText(/Nenhum cap.tulo vinculado a este volume/i),
+    ).toBeInTheDocument();
   });
 
   it.skip("inicia volumes colapsados e permite alternar abertura do grupo", async () => {
@@ -1153,9 +1155,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
 
-    expect(
-      screen.getByText(/backend desatualizado e ainda não suporta EPUB/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/backend desatualizado e ainda não suporta EPUB/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Importar EPUB/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Exportar volume em EPUB/i })).toBeDisabled();
   });
@@ -1187,9 +1187,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Importar EPUB/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Exportar volume em EPUB/i })).toBeDisabled();
-    },
-    10_000,
-  );
+  }, 10_000);
 
   it.skip("exibe metadata de build do backend e do frontend na secao EPUB", async () => {
     setupApiMock([lightNovelProjectFixture], {
@@ -1207,8 +1205,12 @@ describe("DashboardProjectsEditor episode accordion", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
 
-    expect(screen.getByText(/Contrato da API: commit abcdef123456 \| build 2026-03-02T16:00:00Z/i)).toBeInTheDocument();
-    expect(screen.getByText(/Frontend: commit frontend1234 \| build 2026-03-02T17:00:00Z/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Contrato da API: commit abcdef123456 \| build 2026-03-02T16:00:00Z/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Frontend: commit frontend1234 \| build 2026-03-02T17:00:00Z/i),
+    ).toBeInTheDocument();
   });
 
   it.skip("seleciona EPUB manualmente sem autoimportar e permite trocar pelo nome do arquivo", async () => {
@@ -1220,7 +1222,9 @@ describe("DashboardProjectsEditor episode accordion", () => {
       </MemoryRouter>,
     );
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
-    fireEvent.click(await screen.findByRole("button", { name: "Abrir projeto Projeto Light Novel" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Abrir projeto Projeto Light Novel" }),
+    );
     await screen.findByRole("heading", { name: "Editar projeto" });
     fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
 
@@ -1237,7 +1241,11 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(screen.queryByRole("button", { name: /Escolher arquivo/i })).not.toBeInTheDocument();
     const selectedFileButton = screen.getByRole("button", { name: /manual\.epub/i });
     expect(selectedFileButton).toBeInTheDocument();
-    expect(apiFetchMock.mock.calls.some((call) => String(call[1]).startsWith("/api/projects/epub/import"))).toBe(false);
+    expect(
+      apiFetchMock.mock.calls.some((call) =>
+        String(call[1]).startsWith("/api/projects/epub/import"),
+      ),
+    ).toBe(false);
 
     fireEvent.click(selectedFileButton);
     expect(inputClickSpy).toHaveBeenCalledTimes(2);
@@ -1778,11 +1786,13 @@ describe("DashboardProjectsEditor episode accordion", () => {
       }),
     );
 
-    fireEvent.click(within(importedVolumeGroup).getByRole("button", { name: /Cap.tulo importado/i }));
+    fireEvent.click(
+      within(importedVolumeGroup).getByRole("button", { name: /Cap.tulo importado/i }),
+    );
     await screen.findByDisplayValue("Capitulo importado");
 
-    const importCall = apiFetchMock.mock.calls.find((call) =>
-      call[1] === "/api/projects/epub/import",
+    const importCall = apiFetchMock.mock.calls.find(
+      (call) => call[1] === "/api/projects/epub/import",
     );
     expect(importCall).toBeDefined();
     const importOptions = ((importCall?.[2] || {}) as RequestInit) || {};
@@ -1820,7 +1830,9 @@ describe("DashboardProjectsEditor episode accordion", () => {
       expect(revokeObjectUrlMock).toHaveBeenCalledTimes(1);
     });
 
-    const exportCall = apiFetchMock.mock.calls.find((call) => call[1] === "/api/projects/epub/export");
+    const exportCall = apiFetchMock.mock.calls.find(
+      (call) => call[1] === "/api/projects/epub/export",
+    );
     expect(exportCall).toBeDefined();
     const exportPayload = JSON.parse(String(((exportCall?.[2] || {}) as RequestInit).body || "{}"));
     expect(exportPayload.volume).toBe(2);
@@ -1930,7 +1942,9 @@ describe("DashboardProjectsEditor episode accordion", () => {
       </MemoryRouter>,
     );
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
-    fireEvent.click(await screen.findByRole("button", { name: "Abrir projeto Projeto Light Novel" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Abrir projeto Projeto Light Novel" }),
+    );
     await screen.findByRole("heading", { name: "Editar projeto" });
     fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
     const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
@@ -1948,15 +1962,17 @@ describe("DashboardProjectsEditor episode accordion", () => {
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: "EPUB importado" }));
     });
-    expect(apiFetchMock.mock.calls.some((call) => call[1] === "/api/projects/epub/import/jobs")).toBe(
-      true,
-    );
+    expect(
+      apiFetchMock.mock.calls.some((call) => call[1] === "/api/projects/epub/import/jobs"),
+    ).toBe(true);
     expect(
       apiFetchMock.mock.calls.some((call) =>
         String(call[1]).startsWith("/api/projects/epub/import/jobs/"),
       ),
     ).toBe(true);
-    expect(apiFetchMock.mock.calls.some((call) => call[1] === "/api/projects/epub/import")).toBe(false);
+    expect(apiFetchMock.mock.calls.some((call) => call[1] === "/api/projects/epub/import")).toBe(
+      false,
+    );
   });
 
   it("faz fallback para a rota síncrona quando a criação do job retorna 404", async () => {
@@ -2012,7 +2028,9 @@ describe("DashboardProjectsEditor episode accordion", () => {
       </MemoryRouter>,
     );
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
-    fireEvent.click(await screen.findByRole("button", { name: "Abrir projeto Projeto Light Novel" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Abrir projeto Projeto Light Novel" }),
+    );
     await screen.findByRole("heading", { name: "Editar projeto" });
     fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
     const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
@@ -2030,10 +2048,12 @@ describe("DashboardProjectsEditor episode accordion", () => {
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: "EPUB importado" }));
     });
-    expect(apiFetchMock.mock.calls.some((call) => call[1] === "/api/projects/epub/import/jobs")).toBe(
+    expect(
+      apiFetchMock.mock.calls.some((call) => call[1] === "/api/projects/epub/import/jobs"),
+    ).toBe(true);
+    expect(apiFetchMock.mock.calls.some((call) => call[1] === "/api/projects/epub/import")).toBe(
       true,
     );
-    expect(apiFetchMock.mock.calls.some((call) => call[1] === "/api/projects/epub/import")).toBe(true);
   });
 
   it.skip("dispara cleanup de importacoes EPUB temporarias ao sair sem salvar", async () => {
@@ -2043,8 +2063,10 @@ describe("DashboardProjectsEditor episode accordion", () => {
     apiFetchMock.mockImplementation(async (base, path, options) => {
       const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
       if (path === `/api/projects/${lightNovelProjectFixture.id}` && method === "PUT") {
-        const payload = (((options as { json?: unknown } | undefined)?.json || {}) ??
-          {}) as Record<string, unknown>;
+        const payload = (((options as { json?: unknown } | undefined)?.json || {}) ?? {}) as Record<
+          string,
+          unknown
+        >;
         return mockJsonResponse(true, {
           project: {
             ...lightNovelProjectFixture,
@@ -2074,7 +2096,8 @@ describe("DashboardProjectsEditor episode accordion", () => {
           volumeCovers: [
             {
               volume: 2,
-              coverImageUrl: "/uploads/tmp/epub-imports/test-user/import-cleanup-1/volume-cover.jpg",
+              coverImageUrl:
+                "/uploads/tmp/epub-imports/test-user/import-cleanup-1/volume-cover.jpg",
               coverImageAlt: "Capa do volume 2",
               mergeMode: "create",
             },
@@ -2132,7 +2155,9 @@ describe("DashboardProjectsEditor episode accordion", () => {
       expect(screen.queryByRole("heading", { name: "Editar projeto" })).not.toBeInTheDocument();
     });
 
-    const cleanupCall = apiFetchMock.mock.calls.find((call) => call[1] === "/api/projects/epub/import/cleanup");
+    const cleanupCall = apiFetchMock.mock.calls.find(
+      (call) => call[1] === "/api/projects/epub/import/cleanup",
+    );
     expect(cleanupCall).toBeDefined();
     const cleanupOptions = (cleanupCall?.[2] || {}) as {
       method?: string;
@@ -2153,8 +2178,10 @@ describe("DashboardProjectsEditor episode accordion", () => {
     apiFetchMock.mockImplementation(async (base, path, options) => {
       const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
       if (path === `/api/projects/${lightNovelProjectFixture.id}` && method === "PUT") {
-        const payload = (((options as { json?: unknown } | undefined)?.json || {}) ??
-          {}) as Record<string, unknown>;
+        const payload = (((options as { json?: unknown } | undefined)?.json || {}) ?? {}) as Record<
+          string,
+          unknown
+        >;
         return mockJsonResponse(true, {
           project: {
             ...lightNovelProjectFixture,
@@ -2265,7 +2292,8 @@ describe("DashboardProjectsEditor episode accordion", () => {
           volumeCovers: [
             {
               volume: 2,
-              coverImageUrl: "/uploads/tmp/epub-imports/test-user/import-cleanup-2/volume-cover.jpg",
+              coverImageUrl:
+                "/uploads/tmp/epub-imports/test-user/import-cleanup-2/volume-cover.jpg",
               coverImageAlt: "Capa do volume 2",
               mergeMode: "create",
             },
@@ -2308,7 +2336,9 @@ describe("DashboardProjectsEditor episode accordion", () => {
     });
     const fileInput = screen.getByLabelText(/Arquivo \.epub/i);
     fireEvent.change(fileInput, {
-      target: { files: [new File(["epub"], "cleanup-error.epub", { type: "application/epub+zip" })] },
+      target: {
+        files: [new File(["epub"], "cleanup-error.epub", { type: "application/epub+zip" })],
+      },
     });
     fireEvent.click(importButton);
     await waitFor(() => {

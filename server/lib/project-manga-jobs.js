@@ -120,12 +120,7 @@ export const toProjectImageImportJobApiResponse = (job, { result } = {}) => ({
   ...(result !== undefined ? { result } : {}),
 });
 
-export const toProjectImageExportJobApiResponse = (
-  job,
-  {
-    downloadPath,
-  } = {},
-) => ({
+export const toProjectImageExportJobApiResponse = (job, { downloadPath } = {}) => ({
   id: normalizeText(job?.id),
   projectId: normalizeText(job?.projectId),
   requestedBy: normalizeText(job?.requestedBy),

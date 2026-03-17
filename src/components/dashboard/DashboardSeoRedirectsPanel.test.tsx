@@ -62,8 +62,8 @@ describe("DashboardSeoRedirectsPanel", () => {
       if (path === "/api/settings" && method === "PUT") {
         return mockJsonResponse(true, {
           settings:
-            ((options as { body?: string; json?: unknown })?.json as { settings?: unknown })?.settings ||
-            defaultSettings,
+            ((options as { body?: string; json?: unknown })?.json as { settings?: unknown })
+              ?.settings || defaultSettings,
         });
       }
       return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -73,7 +73,9 @@ describe("DashboardSeoRedirectsPanel", () => {
   it("renderiza o painel de SEO e redirecionamentos", async () => {
     render(<DashboardSeoRedirectsPanel />);
 
-    expect(await screen.findByRole("heading", { name: /SEO e redirecionamentos/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: /SEO e redirecionamentos/i }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Nova regra/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Salvar SEO/i })).toBeDisabled();
   });
@@ -102,7 +104,9 @@ describe("DashboardSeoRedirectsPanel", () => {
 
     const putCall = getPutCalls()[0];
     expect(putCall[1]).toBe("/api/settings");
-    const payload = ((putCall[2] || {}) as { json?: { settings?: { seo?: { redirects?: SeoRedirectLike[] } } } }).json;
+    const payload = (
+      (putCall[2] || {}) as { json?: { settings?: { seo?: { redirects?: SeoRedirectLike[] } } } }
+    ).json;
     expect(payload?.settings?.seo?.redirects?.[0]?.from).toBe("/legado");
     expect(payload?.settings?.seo?.redirects?.[0]?.to).toBe("https://example.com/novo");
     expect(refreshMock).toHaveBeenCalledTimes(1);
@@ -122,7 +126,9 @@ describe("DashboardSeoRedirectsPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Salvar SEO/i }));
     await waitFor(() => {
-      expect(screen.getByText(/A origem precisa ser um caminho interno iniciado por/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/A origem precisa ser um caminho interno iniciado por/i),
+      ).toBeInTheDocument();
       expect(screen.getByText(/Destino absoluto precisa usar http ou https/i)).toBeInTheDocument();
     });
     expect(getPutCalls()).toHaveLength(0);

@@ -34,10 +34,12 @@ vi.mock("@/components/ProjectEmbedCard", () => ({
 
 vi.mock("@/components/lexical/LexicalEditor", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
-  const MockEditor = React.forwardRef((_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
-    React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
-    return <div data-testid="lexical-editor" />;
-  });
+  const MockEditor = React.forwardRef(
+    (_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
+      React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
+      return <div data-testid="lexical-editor" />;
+    },
+  );
   MockEditor.displayName = "MockLexicalEditor";
   return { default: MockEditor };
 });
@@ -176,7 +178,11 @@ const setupApiMock = () => {
     if (path === "/api/public/tag-translations" && method === "GET") {
       return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
     }
-    if (path.startsWith("/api/admin/content/post/") && path.includes("/versions") && method === "GET") {
+    if (
+      path.startsWith("/api/admin/content/post/") &&
+      path.includes("/versions") &&
+      method === "GET"
+    ) {
       return mockJsonResponse(true, {
         postId: postFixture.id,
         versions: versionsPayload,
@@ -235,7 +241,9 @@ describe("DashboardPosts version history", () => {
     const oldVersionSlug = within(historyDialog).getByText(/\/titulo-antigo/i);
     const oldVersionRow = oldVersionSlug.closest(".rounded-lg");
     expect(oldVersionRow).toBeTruthy();
-    const restoreButton = within(oldVersionRow as HTMLElement).getByRole("button", { name: /Restaurar/i });
+    const restoreButton = within(oldVersionRow as HTMLElement).getByRole("button", {
+      name: /Restaurar/i,
+    });
     fireEvent.click(restoreButton);
 
     const rollbackDialog = await screen.findByRole("dialog", { name: /Restaurar/i });
@@ -263,7 +271,9 @@ describe("DashboardPosts version history", () => {
     const oldVersionSlug = within(historyDialog).getByText(/\/titulo-antigo/i);
     const oldVersionRow = oldVersionSlug.closest(".rounded-lg");
     expect(oldVersionRow).toBeTruthy();
-    fireEvent.click(within(oldVersionRow as HTMLElement).getByRole("button", { name: /Restaurar/i }));
+    fireEvent.click(
+      within(oldVersionRow as HTMLElement).getByRole("button", { name: /Restaurar/i }),
+    );
     fireEvent.click(await screen.findByRole("button", { name: /Confirmar rollback/i }));
 
     await waitFor(() => {

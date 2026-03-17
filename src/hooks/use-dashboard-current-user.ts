@@ -16,9 +16,7 @@ const resolveDashboardCurrentUser = <TUser extends DashboardSessionUser>(
     return null;
   }
   const candidate =
-    "user" in (value as Record<string, unknown>)
-      ? (value as { user?: unknown }).user
-      : value;
+    "user" in (value as Record<string, unknown>) ? (value as { user?: unknown }).user : value;
   if (!candidate || typeof candidate !== "object") {
     return null;
   }
@@ -50,7 +48,9 @@ export const useDashboardCurrentUser = <TUser extends DashboardSessionUser = Das
     (nextUser: TUser | null | ((previous: TUser | null) => TUser | null)) => {
       if (dashboardSession.hasProvider) {
         const resolvedUser =
-          typeof nextUser === "function" ? nextUser(dashboardSession.currentUser as TUser | null) : nextUser;
+          typeof nextUser === "function"
+            ? nextUser(dashboardSession.currentUser as TUser | null)
+            : nextUser;
         dashboardSession.setCurrentUser(resolvedUser);
         return;
       }

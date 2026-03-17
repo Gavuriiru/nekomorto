@@ -15,13 +15,7 @@ vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
 }));
 
 vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({
-    title,
-    actions,
-  }: {
-    title: string;
-    actions?: ReactNode;
-  }) => (
+  default: ({ title, actions }: { title: string; actions?: ReactNode }) => (
     <div>
       <h1>{title}</h1>
       {actions}
@@ -39,10 +33,12 @@ vi.mock("@/components/ProjectEmbedCard", () => ({
 
 vi.mock("@/components/lexical/LexicalEditor", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
-  const MockEditor = React.forwardRef((_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
-    React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
-    return <div data-testid="lexical-editor" />;
-  });
+  const MockEditor = React.forwardRef(
+    (_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
+      React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
+      return <div data-testid="lexical-editor" />;
+    },
+  );
   MockEditor.displayName = "MockLexicalEditor";
   return { default: MockEditor };
 });
@@ -154,10 +150,24 @@ describe("DashboardPosts tags translation", () => {
     await screen.findByRole("heading", { name: "Gerenciar posts" });
     const card = await screen.findByTestId("post-card-post-1");
     const coverImage = within(card).getByRole("img", { name: "Post de Teste" });
-    expect(coverImage).toHaveClass("absolute", "inset-0", "block", "h-full", "w-full", "object-cover", "object-center");
+    expect(coverImage).toHaveClass(
+      "absolute",
+      "inset-0",
+      "block",
+      "h-full",
+      "w-full",
+      "object-cover",
+      "object-center",
+    );
     const coverContainer = coverImage.parentElement?.parentElement;
     expect(coverContainer).not.toBeNull();
-    expect(coverContainer).toHaveClass("relative", "h-52", "w-full", "overflow-hidden", "lg:h-full");
+    expect(coverContainer).toHaveClass(
+      "relative",
+      "h-52",
+      "w-full",
+      "overflow-hidden",
+      "lg:h-full",
+    );
     const cardLayoutContainer = Array.from(card.querySelectorAll("div")).find((element) =>
       element.className.includes("lg:h-[280px]"),
     );
@@ -189,20 +199,22 @@ describe("DashboardPosts tags translation", () => {
     expect(metaTokens).toContain("lg:flex-nowrap");
     expect(metaTokens).not.toContain("flex-nowrap");
     const slugElement = within(card).getByText("/post-de-teste");
-    const slugTokens = String(slugElement.className)
-      .split(/\s+/)
-      .filter(Boolean);
+    const slugTokens = String(slugElement.className).split(/\s+/).filter(Boolean);
     expect(slugTokens).toContain("hidden");
     expect(slugTokens).toContain("lg:block");
     const translatedTag = within(card).getByText("AAA");
-    expect(`${translatedTag.className} ${translatedTag.parentElement?.className || ""}`).toContain("bg-secondary");
+    expect(`${translatedTag.className} ${translatedTag.parentElement?.className || ""}`).toContain(
+      "bg-secondary",
+    );
     expect(translatedTag.className).toContain("truncate");
     const translatedTagBadge = translatedTag.parentElement as HTMLDivElement | null;
     expect(translatedTagBadge).not.toBeNull();
     expect(translatedTagBadge?.className).toContain("max-w-34");
     expect(translatedTagBadge?.className).toContain("overflow-hidden");
     const extraTag = within(card).getByText("+1");
-    expect(`${extraTag.className} ${extraTag.parentElement?.className || ""}`).toContain("bg-secondary");
+    expect(`${extraTag.className} ${extraTag.parentElement?.className || ""}`).toContain(
+      "bg-secondary",
+    );
 
     fireEvent.click(await screen.findByText("Post de Teste"));
 
@@ -219,13 +231,13 @@ describe("DashboardPosts tags translation", () => {
 
     expect(getChipLabels()).toEqual(["ZZZ", "AAA", "BBB", "MMM"]);
 
-    const optionValues = Array.from(dialog.querySelectorAll("#post-tag-options option")).map((option) =>
-      option.getAttribute("value"),
+    const optionValues = Array.from(dialog.querySelectorAll("#post-tag-options option")).map(
+      (option) => option.getAttribute("value"),
     );
     expect(optionValues).toEqual(["Mystery", "Comedy", "Adventure", "Action"]);
 
-    const mysteryButton = Array.from(dialog.querySelectorAll('button[draggable="true"]')).find((button) =>
-      button.textContent?.includes("AAA"),
+    const mysteryButton = Array.from(dialog.querySelectorAll('button[draggable="true"]')).find(
+      (button) => button.textContent?.includes("AAA"),
     );
     expect(mysteryButton).not.toBeUndefined();
     fireEvent.click(mysteryButton as HTMLButtonElement);
@@ -246,8 +258,9 @@ describe("DashboardPosts tags translation", () => {
               id: "post-long",
               title: "Post com resumo longo",
               slug: "post-longo-sem-tags",
-              excerpt:
-                "Resumo muito longo para validar clamp e fixacao do rodape. ".repeat(14).trim(),
+              excerpt: "Resumo muito longo para validar clamp e fixacao do rodape. "
+                .repeat(14)
+                .trim(),
               content: "",
               coverImageUrl: "/uploads/posts/capa-longa.jpg",
               author: "Admin",
@@ -322,4 +335,3 @@ describe("DashboardPosts tags translation", () => {
     expect(footerWrapperTokens).toContain("shrink-0");
   });
 });
-

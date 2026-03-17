@@ -34,9 +34,7 @@ const HexField = ({ className }: { className: string }) => {
   const isEditingRef = React.useRef(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = React.useState(false);
-  const [inputValue, setInputValue] = React.useState(
-    () => state?.color?.toString("hex") ?? "",
-  );
+  const [inputValue, setInputValue] = React.useState(() => state?.color?.toString("hex") ?? "");
 
   React.useEffect(() => {
     if (!state || isEditingRef.current) {
@@ -53,8 +51,7 @@ const HexField = ({ className }: { className: string }) => {
     return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
   };
 
-  const isValidHex = (value: string) =>
-    /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value);
+  const isValidHex = (value: string) => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const raw = event.target.value;
@@ -121,10 +118,7 @@ const HexField = ({ className }: { className: string }) => {
 
   return (
     <div className="flex flex-col gap-1">
-      <Label
-        htmlFor={hexId}
-        className="text-[11px] uppercase tracking-wide text-muted-foreground"
-      >
+      <Label htmlFor={hexId} className="text-[11px] uppercase tracking-wide text-muted-foreground">
         Hex
       </Label>
       <Input
@@ -153,13 +147,11 @@ export const ColorPicker = ({
   popoverClassName,
   ...props
 }: ColorPickerProps) => {
-
   const panelClasses = panelClassName
     ? `rainbow-color-picker-panel flex flex-col ${panelClassName}`
     : "rainbow-color-picker-panel flex flex-col";
   const popoverClasses =
-    popoverClassName ??
-    "z-50 rounded-xl border border-border/60 bg-card/95 p-0 shadow-xl";
+    popoverClassName ?? "z-50 rounded-xl border border-border/60 bg-card/95 p-0 shadow-xl";
   const panelContent = (
     <>
       <ColorArea
@@ -210,4 +202,3 @@ export const ColorPicker = ({
     </AriaColorPicker>
   );
 };
-

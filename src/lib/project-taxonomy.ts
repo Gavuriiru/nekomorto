@@ -132,5 +132,4 @@ export const sortByTranslatedLabel = <T>(
   items: T[],
   translator: (item: T) => string,
   locale = "pt-BR",
-) =>
-  [...items].sort((a, b) => translator(a).localeCompare(translator(b), locale));
+) => [...items].sort((a, b) => translator(a).localeCompare(translator(b), locale));

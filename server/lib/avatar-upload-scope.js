@@ -52,7 +52,9 @@ const buildAllowedUploadRoots = ({
   const normalizedScopeUserId = normalizeScopeUserId(scopeUserId);
   if (
     canManageUsersBasic ||
-    (normalizedSessionUserId && normalizedScopeUserId && normalizedSessionUserId === normalizedScopeUserId)
+    (normalizedSessionUserId &&
+      normalizedScopeUserId &&
+      normalizedSessionUserId === normalizedScopeUserId)
   ) {
     allowedRoots.add("users");
   }
@@ -118,7 +120,10 @@ export const resolveUploadScopeAccess = ({
   };
 };
 
-export const isUploadFolderAllowedInScope = (folder, { hasFullAccess = false, allowedRoots = [] } = {}) => {
+export const isUploadFolderAllowedInScope = (
+  folder,
+  { hasFullAccess = false, allowedRoots = [] } = {},
+) => {
   if (hasFullAccess) {
     return true;
   }

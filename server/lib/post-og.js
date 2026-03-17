@@ -120,9 +120,16 @@ const pickPostOgImageCandidate = (candidates) => {
   };
 };
 
-const resolvePostOgArtworkSelection = ({ post, resolvedCover, firstPostImage, relatedProject } = {}) => {
+const resolvePostOgArtworkSelection = ({
+  post,
+  resolvedCover,
+  firstPostImage,
+  relatedProject,
+} = {}) => {
   const manualPostCoverUrl =
-    normalizeText(resolvedCover?.source) === "manual" ? normalizeText(resolvedCover?.coverImageUrl) : "";
+    normalizeText(resolvedCover?.source) === "manual"
+      ? normalizeText(resolvedCover?.coverImageUrl)
+      : "";
   return pickPostOgImageCandidate([
     {
       source: "post-cover",
@@ -149,7 +156,9 @@ const resolvePostOgBackdropSelection = ({
   defaultBackdropUrl,
 } = {}) => {
   const manualPostCoverUrl =
-    normalizeText(resolvedCover?.source) === "manual" ? normalizeText(resolvedCover?.coverImageUrl) : "";
+    normalizeText(resolvedCover?.source) === "manual"
+      ? normalizeText(resolvedCover?.coverImageUrl)
+      : "";
   return pickPostOgImageCandidate([
     {
       source: "post-first-image",
@@ -296,8 +305,7 @@ export const buildPostOgCardModel = ({
     subtitleHeight: subtitleLayout.subtitleHeight,
     subtitleBottom: baseModel.subtitleTop + subtitleLayout.subtitleHeight,
     chips: baseModel.chips,
-    imageAlt:
-      `Card de compartilhamento da postagem ${normalizeText(safePost.title) || "Postagem"}`,
+    imageAlt: `Card de compartilhamento da postagem ${normalizeText(safePost.title) || "Postagem"}`,
     artworkUrl,
     artworkSource: artworkSelection.source,
     artworkCoverLike: artworkSelection.coverLike,

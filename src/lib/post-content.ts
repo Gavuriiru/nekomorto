@@ -62,7 +62,9 @@ const formatDateTimeText = (value: unknown) => {
 };
 
 const getLeafNodeText = (node: LexicalJsonRecord) => {
-  const type = String(node.type || "").trim().toLowerCase();
+  const type = String(node.type || "")
+    .trim()
+    .toLowerCase();
   if (NEWLINE_LEAF_TYPES.has(type)) {
     return "\n";
   }
@@ -87,7 +89,9 @@ const getLeafNodeText = (node: LexicalJsonRecord) => {
 };
 
 const renderLexicalNodeText = (node: LexicalJsonRecord): string => {
-  const type = String(node.type || "").trim().toLowerCase();
+  const type = String(node.type || "")
+    .trim()
+    .toLowerCase();
   const leafText = getLeafNodeText(node);
   const childSeparator = BLOCK_CHILD_SEPARATOR_PARENTS.has(type) ? "\n" : "";
   const childText = getNodeChildren(node)
@@ -113,7 +117,11 @@ const resolveLexicalRootNode = (value: LexicalJsonRecord) => {
   if (isRecord(value.root)) {
     return value.root;
   }
-  return String(value.type || "").trim().toLowerCase() === "root" ? value : null;
+  return String(value.type || "")
+    .trim()
+    .toLowerCase() === "root"
+    ? value
+    : null;
 };
 
 export const createSlug = (value: string) =>

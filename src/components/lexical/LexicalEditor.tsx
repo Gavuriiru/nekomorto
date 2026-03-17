@@ -63,15 +63,10 @@ const EditorBridge = React.forwardRef<LexicalEditorHandle>((_props, ref) => {
 
 EditorBridge.displayName = "EditorBridge";
 
-const getNormalizedEditorState = (value: string) => normalizeLexicalJson(value) ?? EMPTY_LEXICAL_JSON;
+const getNormalizedEditorState = (value: string) =>
+  normalizeLexicalJson(value) ?? EMPTY_LEXICAL_JSON;
 
-const ValuePlugin = ({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) => {
+const ValuePlugin = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => {
   const [editor] = useLexicalComposerContext();
   const isSettingRef = React.useRef(false);
   const lastValueRef = React.useRef<string | null>(null);

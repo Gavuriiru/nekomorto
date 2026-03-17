@@ -49,7 +49,9 @@ export const createUploadsDeliveryMiddleware = ({
   storageService,
   defaultCacheControl = "public, max-age=0, must-revalidate",
 } = {}) => {
-  const uploadsRoot = path.resolve(String(uploadsDir || path.join(process.cwd(), "public", "uploads")));
+  const uploadsRoot = path.resolve(
+    String(uploadsDir || path.join(process.cwd(), "public", "uploads")),
+  );
 
   return async (req, res, next) => {
     if (req.method !== "GET" && req.method !== "HEAD") {
@@ -94,7 +96,10 @@ export const createUploadsDeliveryMiddleware = ({
       if (String(response?.contentType || "").trim()) {
         res.setHeader("Content-Type", response.contentType);
       }
-      if (Number.isFinite(Number(response?.contentLength)) && Number(response?.contentLength) >= 0) {
+      if (
+        Number.isFinite(Number(response?.contentLength)) &&
+        Number(response?.contentLength) >= 0
+      ) {
         res.setHeader("Content-Length", String(Number(response.contentLength)));
       }
       res.setHeader(

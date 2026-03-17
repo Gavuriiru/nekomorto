@@ -121,31 +121,33 @@ const setupApiMock = (users: unknown[]) => {
       __BOOTSTRAP_PUBLIC_ME__?: unknown;
     }
   ).__BOOTSTRAP_PUBLIC_ME__ = null;
-  apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-    const method = String(options?.method || "GET").toUpperCase();
+  apiFetchMock.mockImplementation(
+    async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
 
-    if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
-      return mockJsonResponse(true, {
-        post: postFixture,
-        mediaVariants: {
-          "/uploads/capa-post.jpg": {
-            variantsVersion: 1,
-            variants: {
-              card: {
-                formats: {
-                  fallback: { url: "/uploads/_variants/post-1/card-v1.jpeg" },
+      if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
+        return mockJsonResponse(true, {
+          post: postFixture,
+          mediaVariants: {
+            "/uploads/capa-post.jpg": {
+              variantsVersion: 1,
+              variants: {
+                card: {
+                  formats: {
+                    fallback: { url: "/uploads/_variants/post-1/card-v1.jpeg" },
+                  },
                 },
               },
             },
           },
-        },
-      });
-    }
-    if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
-      return mockJsonResponse(true, { views: 11 });
-    }
-    return mockJsonResponse(false, { error: "not_found" }, 404);
-  });
+        });
+      }
+      if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
+        return mockJsonResponse(true, { views: 11 });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    },
+  );
 };
 
 describe("Post author card", () => {
@@ -174,19 +176,29 @@ describe("Post author card", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Post de Teste" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { level: 2, name: "Sobre o autor" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Post de Teste" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Sobre o autor" }),
+    ).toBeInTheDocument();
     const authorCard = await screen.findByTestId("post-author-card");
 
-    expect(within(authorCard).getByRole("heading", { level: 3, name: "Admin" })).toBeInTheDocument();
+    expect(
+      within(authorCard).getByRole("heading", { level: 3, name: "Admin" }),
+    ).toBeInTheDocument();
     expect(within(authorCard).getByText('"Frase do admin"')).toBeInTheDocument();
     expect(within(authorCard).getByText("Bio do admin")).toBeInTheDocument();
 
     const embedCard = screen.getByTestId("project-embed-card");
     const comments = screen.getByTestId("comments-section");
 
-    expect(embedCard.compareDocumentPosition(authorCard) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(authorCard.compareDocumentPosition(comments) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(
+      embedCard.compareDocumentPosition(authorCard) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      authorCard.compareDocumentPosition(comments) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
   });
 
   it("oculta o card do autor quando nao encontra correspondencia unica", async () => {

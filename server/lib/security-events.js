@@ -35,7 +35,9 @@ export const normalizeSecurityEventStatus = (value) => {
 };
 
 export const normalizeSecurityEventType = (value) => {
-  const normalized = normalizeText(value).toLowerCase().replace(/[^a-z0-9._:-]/g, "_");
+  const normalized = normalizeText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9._:-]/g, "_");
   return normalized || "security_event";
 };
 

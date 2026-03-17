@@ -110,7 +110,12 @@ describe("ProjectEmbedCard", () => {
     expect(title).toHaveClass("line-clamp-2");
     expect(title).not.toHaveClass("sm:line-clamp-none");
     expect(row).toHaveClass("group", "flex", "items-stretch", "gap-4");
-    expect(synopsis).toHaveClass("mt-2", "break-normal", "[overflow-wrap:normal]", "[word-break:normal]");
+    expect(synopsis).toHaveClass(
+      "mt-2",
+      "break-normal",
+      "[overflow-wrap:normal]",
+      "[word-break:normal]",
+    );
     const synopsisLines = Number(synopsis.getAttribute("data-synopsis-lines"));
     expect(Number.isFinite(synopsisLines)).toBe(true);
     expect(synopsisLines).toBeGreaterThanOrEqual(1);
@@ -130,8 +135,12 @@ describe("ProjectEmbedCard", () => {
       throw new Error("Estrutura de synopsis/title/badges nao encontrada");
     }
     expect(synopsisTitle).not.toContainElement(synopsisText);
-    expect(synopsisTitle.compareDocumentPosition(synopsisText) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(synopsisText.compareDocumentPosition(synopsisBadges) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(
+      synopsisTitle.compareDocumentPosition(synopsisText) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      synopsisText.compareDocumentPosition(synopsisBadges) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
   });
 
   it("mantem thumbnail lateral fixa no mobile sem ocupar largura total", async () => {
@@ -196,7 +205,11 @@ describe("ProjectEmbedCard", () => {
     expect(coverWrapper).toHaveClass("h-full", "shrink-0", "self-start");
     expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
     expect(coverWrapper).not.toHaveClass("w-full");
-    expect(coverWrapper).not.toHaveClass("border", "border-border", "group-hover:border-primary/40");
+    expect(coverWrapper).not.toHaveClass(
+      "border",
+      "border-border",
+      "group-hover:border-primary/40",
+    );
     expect(String(coverImage.getAttribute("style") || "")).not.toMatch(/aspect-ratio/i);
   });
 

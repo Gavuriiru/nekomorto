@@ -119,9 +119,7 @@ const resolveUrlEndpoint = (url) => {
   const parsed = new URL(url);
   return {
     host: parsed.hostname || "127.0.0.1",
-    port:
-      Number.parseInt(parsed.port, 10) ||
-      (parsed.protocol === "https:" ? 443 : 80),
+    port: Number.parseInt(parsed.port, 10) || (parsed.protocol === "https:" ? 443 : 80),
   };
 };
 
@@ -270,14 +268,7 @@ const writeSummary = ({ url, runs, strict, summary }) => {
 
 const startPreviewServer = ({ host, port }) => {
   const cmd = commandFor("npm");
-  const args = [
-    "run",
-    "preview",
-    "--",
-    `--host=${host}`,
-    `--port=${port}`,
-    "--strictPort",
-  ];
+  const args = ["run", "preview", "--", `--host=${host}`, `--port=${port}`, "--strictPort"];
   return spawn(cmd, args, {
     cwd: workspaceRoot,
     stdio: "inherit",
@@ -295,10 +286,7 @@ const terminateProcess = async (child) => {
   } catch {
     // Ignore terminate errors on platform-specific process handling.
   }
-  await Promise.race([
-    new Promise((resolve) => child.once("close", resolve)),
-    sleep(5000),
-  ]);
+  await Promise.race([new Promise((resolve) => child.once("close", resolve)), sleep(5000)]);
   if (child.exitCode === null) {
     try {
       child.kill("SIGKILL");
@@ -349,7 +337,9 @@ const main = async () => {
     console.log(`[lighthouse-home-mobile] summary written to ${summaryPath}`);
     console.log(
       `[lighthouse-home-mobile] median categories: ${categoryIds
-        .map((categoryId) => `${categoryId}=${Math.round(summary.medianCategories[categoryId] * 100)}`)
+        .map(
+          (categoryId) => `${categoryId}=${Math.round(summary.medianCategories[categoryId] * 100)}`,
+        )
         .join(", ")}`,
     );
 

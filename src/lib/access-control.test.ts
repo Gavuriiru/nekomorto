@@ -14,9 +14,7 @@ afterEach(() => {
 describe("access-control RBAC V2", () => {
   it("hides restricted dashboard routes when V2 is enabled", async () => {
     const access = await loadAccessControl(true);
-    const grants = Object.fromEntries(
-      access.permissionIds.map((id) => [id, false]),
-    ) as GrantMap;
+    const grants = Object.fromEntries(access.permissionIds.map((id) => [id, false])) as GrantMap;
     grants.posts = true;
 
     expect(access.isDashboardHrefAllowed("/dashboard/posts", grants)).toBe(true);

@@ -372,8 +372,7 @@ const ProjectPage = () => {
     () =>
       (project?.episodeDownloads || []).filter(
         (episode) =>
-          hasProjectEpisodeReadableContent(episode) ||
-          (episode.sources || []).length > 0,
+          hasProjectEpisodeReadableContent(episode) || (episode.sources || []).length > 0,
       ),
     [project?.episodeDownloads],
   );
@@ -563,7 +562,10 @@ const ProjectPage = () => {
                   </span>
                 ) : null}
                 {sizeLabel ? (
-                  <span className="inline-flex min-w-0 max-w-full items-center gap-1" title={sizeLabel}>
+                  <span
+                    className="inline-flex min-w-0 max-w-full items-center gap-1"
+                    title={sizeLabel}
+                  >
                     <HardDrive className="h-3.5 w-3.5 text-primary/70" />
                     <span className="font-medium text-foreground/90">Tamanho:</span>
                     <span className="truncate">{sizeLabel}</span>
@@ -587,7 +589,9 @@ const ProjectPage = () => {
             <div className="mt-2 flex flex-wrap items-center justify-end gap-2 md:absolute md:bottom-0 md:left-0 md:right-0 md:mt-0 md:justify-end">
               {hasReadAction ? (
                 <Button asChild size="sm">
-                  <Link to={String(readAction?.href || "#")}>{String(readAction?.label || "")}</Link>
+                  <Link to={String(readAction?.href || "#")}>
+                    {String(readAction?.label || "")}
+                  </Link>
                 </Button>
               ) : null}
               {hasSources
@@ -652,7 +656,8 @@ const ProjectPage = () => {
     const chapterLabel = isExtraEntry
       ? String(chapter.displayLabel || "Extra").trim() || "Extra"
       : `Cap ${chapter.number}${chapter.volume ? ` • Vol. ${chapter.volume}` : ""}`;
-    const chapterTitle = String(chapter.title || "").trim() || (isExtraEntry ? "Extra" : "Capítulo");
+    const chapterTitle =
+      String(chapter.title || "").trim() || (isExtraEntry ? "Extra" : "Capítulo");
     const hasContent = hasProjectEpisodeReadableContent(chapter);
     const hasPages = hasProjectEpisodePages(chapter);
     const hasSources = (chapter.sources || []).length > 0;
@@ -660,18 +665,21 @@ const ProjectPage = () => {
       allowReadAction && hasContent
         ? {
             href: buildProjectPublicReadingHref(project.id, chapter.number, chapter.volume),
-            label:
-              isExtraEntry
-                ? "Ler extra"
-                : hasPages && !hasSources
-                  ? "Abrir leitor"
-                  : "Ler capítulo",
+            label: isExtraEntry
+              ? "Ler extra"
+              : hasPages && !hasSources
+                ? "Abrir leitor"
+                : "Ler capítulo",
           }
         : null;
     const synopsisText =
       String(chapter.synopsis || "").trim() || String(groupMeta.synopsis || "").trim();
     const thumbSrc =
-      chapter.coverImageUrl || groupMeta.src || project.cover || project.banner || "/placeholder.svg";
+      chapter.coverImageUrl ||
+      groupMeta.src ||
+      project.cover ||
+      project.banner ||
+      "/placeholder.svg";
     const thumbAlt =
       String(chapter.coverImageAlt || "").trim() ||
       String(groupMeta.alt || "").trim() ||
@@ -811,8 +819,8 @@ const ProjectPage = () => {
   const resolveVolumeGroupMeta = (group: VolumeGroup): VolumeGroupMeta => {
     const volumeEntry = findVolumeCoverByVolume(normalizedVolumeEntries, group.volume);
     const volumeCover = findVolumeCoverByVolume(project?.volumeCovers, group.volume);
-    const firstEpisodeWithCover = group.items.find((item) =>
-      String(item.coverImageUrl || "").trim().length > 0,
+    const firstEpisodeWithCover = group.items.find(
+      (item) => String(item.coverImageUrl || "").trim().length > 0,
     );
     const hasNumericVolume = Number.isFinite(Number(group.volume));
     return {
@@ -830,7 +838,8 @@ const ProjectPage = () => {
         (hasNumericVolume
           ? `Capa do volume ${Number(group.volume)} de ${project?.title || ""}`
           : `Capa do projeto ${project?.title || ""}`),
-      synopsis: String(volumeEntry?.synopsis || "").trim() || String(project?.synopsis || "").trim(),
+      synopsis:
+        String(volumeEntry?.synopsis || "").trim() || String(project?.synopsis || "").trim(),
     };
   };
 
@@ -890,10 +899,14 @@ const ProjectPage = () => {
           <AccordionContent className="px-5 pt-0 pb-6">
             <div className="grid gap-4">
               {group.items.map((chapter) =>
-                renderChapterDownloadCard(chapter, buildEpisodeKey(chapter.number, chapter.volume), {
-                  groupMeta,
-                  allowReadAction,
-                }),
+                renderChapterDownloadCard(
+                  chapter,
+                  buildEpisodeKey(chapter.number, chapter.volume),
+                  {
+                    groupMeta,
+                    allowReadAction,
+                  },
+                ),
               )}
             </div>
           </AccordionContent>
@@ -980,7 +993,7 @@ const ProjectPage = () => {
             imgClassName="h-full w-full object-cover object-center"
             loading="eager"
             decoding="async"
-            {...({ fetchpriority: "high" } as Record<string, string>)}
+            fetchPriority="high"
           />
           <div className="absolute inset-0 bg-background/20 backdrop-blur-[1.5px]" />
           <div className="absolute inset-0 bg-linear-to-r from-background/76 via-background/48 to-background/74 md:from-background/66 md:via-background/44 md:to-background/80" />
@@ -1010,7 +1023,7 @@ const ProjectPage = () => {
                     className="block h-full w-full object-cover object-center"
                     loading="eager"
                     decoding="async"
-                    {...({ fetchpriority: "high" } as Record<string, string>)}
+                    fetchPriority="high"
                   />
                 </div>
               </div>

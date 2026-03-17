@@ -136,7 +136,9 @@ describe("CommentsSection auto-refresh", () => {
     );
 
     await screen.findByText(/passam por aprova/i);
-    expect(screen.getByPlaceholderText("Seu e-mail (opcional, usado para o Gravatar)")).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Seu e-mail (opcional, usado para o Gravatar)"),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Publicar/i }));
     expect(await screen.findByText(/Preencha nome e coment/i)).toBeInTheDocument();

@@ -93,7 +93,9 @@ const compactAuditLogEntries = (
   const filtered = ensureArray(entries)
     .filter((entry) => toAuditTimestamp(entry?.ts) !== null)
     .filter((entry) => Number(toAuditTimestamp(entry?.ts)) >= cutoff)
-    .sort((left, right) => Number(toAuditTimestamp(left?.ts)) - Number(toAuditTimestamp(right?.ts)));
+    .sort(
+      (left, right) => Number(toAuditTimestamp(left?.ts)) - Number(toAuditTimestamp(right?.ts)),
+    );
   if (safeMaxEntries === 0) {
     return [];
   }
@@ -391,23 +393,21 @@ export class DbDataRepository {
         ? prisma.adminExportJobRecord.findMany({ orderBy: { createdAt: "desc" } })
         : Promise.resolve([]),
       typeof prisma.epubImportJobRecord?.findMany === "function"
-        ? prisma.epubImportJobRecord
-            .findMany({ orderBy: { createdAt: "desc" } })
-            .catch((error) => {
-              if (
-                isPrismaMissingTableError(error, {
-                  modelName: "EpubImportJobRecord",
-                  tableName: "epub_import_jobs",
-                })
-              ) {
-                this.epubImportJobStorageAvailable = false;
-                console.warn(
-                  "[data-repository:epub_import_jobs] table missing; async EPUB import disabled until migrations run.",
-                );
-                return [];
-              }
-              throw error;
-            })
+        ? prisma.epubImportJobRecord.findMany({ orderBy: { createdAt: "desc" } }).catch((error) => {
+            if (
+              isPrismaMissingTableError(error, {
+                modelName: "EpubImportJobRecord",
+                tableName: "epub_import_jobs",
+              })
+            ) {
+              this.epubImportJobStorageAvailable = false;
+              console.warn(
+                "[data-repository:epub_import_jobs] table missing; async EPUB import disabled until migrations run.",
+              );
+              return [];
+            }
+            throw error;
+          })
         : (() => {
             this.epubImportJobStorageAvailable = false;
             return Promise.resolve([]);
@@ -459,8 +459,12 @@ export class DbDataRepository {
       typeof prisma.secretRotationRecord?.findMany === "function"
         ? prisma.secretRotationRecord.findMany({ orderBy: { rotatedAt: "desc" } })
         : Promise.resolve([]),
-      useNormalizedUsers ? loadUsersFromNormalized(prisma).catch(() => null) : Promise.resolve(null),
-      useNormalizedPosts ? loadPostsFromNormalized(prisma).catch(() => null) : Promise.resolve(null),
+      useNormalizedUsers
+        ? loadUsersFromNormalized(prisma).catch(() => null)
+        : Promise.resolve(null),
+      useNormalizedPosts
+        ? loadPostsFromNormalized(prisma).catch(() => null)
+        : Promise.resolve(null),
       useNormalizedPostVersions
         ? loadPostVersionsFromNormalized(prisma).catch(() => null)
         : Promise.resolve(null),
@@ -803,7 +807,10 @@ export class DbDataRepository {
       isAuthenticated: Boolean(baseEvent?.isAuthenticated),
     };
     const position = this.analyticsEventNextPosition;
-    this.snapshot.analyticsEvents = [...ensureArray(this.snapshot.analyticsEvents), normalizedEvent];
+    this.snapshot.analyticsEvents = [
+      ...ensureArray(this.snapshot.analyticsEvents),
+      normalizedEvent,
+    ];
     this.analyticsEventNextPosition += 1;
     this.enqueuePersist("analytics_event_append", async () => {
       await prisma.analyticsEventRecord.create({
@@ -1437,9 +1444,9 @@ export class DbDataRepository {
     if (!key) {
       return;
     }
-    this.snapshot.userSessionIndexRecords = ensureArray(this.snapshot.userSessionIndexRecords).filter(
-      (item) => String(item?.sid || "") !== key,
-    );
+    this.snapshot.userSessionIndexRecords = ensureArray(
+      this.snapshot.userSessionIndexRecords,
+    ).filter((item) => String(item?.sid || "") !== key);
     this.enqueuePersist("user_session_index_delete", async () => {
       await prisma.userSessionIndexRecord.deleteMany({ where: { sid: key } });
     });
@@ -1457,7 +1464,9 @@ export class DbDataRepository {
         ts: toDateOrNull(event?.ts) || new Date(),
         type: String(event?.type || ""),
         severity: String(event?.severity || "info"),
-        riskScore: Number.isFinite(Number(event?.riskScore)) ? Math.floor(Number(event.riskScore)) : 0,
+        riskScore: Number.isFinite(Number(event?.riskScore))
+          ? Math.floor(Number(event.riskScore))
+          : 0,
         status: String(event?.status || "open"),
         actorUserId: event?.actorUserId ? String(event.actorUserId) : null,
         targetUserId: event?.targetUserId ? String(event.targetUserId) : null,
@@ -1498,7 +1507,9 @@ export class DbDataRepository {
       ts: String(event?.ts || new Date().toISOString()),
       type: String(event?.type || ""),
       severity: String(event?.severity || "info"),
-      riskScore: Number.isFinite(Number(event?.riskScore)) ? Math.floor(Number(event.riskScore)) : 0,
+      riskScore: Number.isFinite(Number(event?.riskScore))
+        ? Math.floor(Number(event.riskScore))
+        : 0,
       status: String(event?.status || "open"),
       actorUserId: event?.actorUserId ? String(event.actorUserId) : null,
       targetUserId: event?.targetUserId ? String(event.targetUserId) : null,

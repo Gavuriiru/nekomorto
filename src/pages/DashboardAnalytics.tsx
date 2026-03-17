@@ -329,7 +329,10 @@ const DashboardAnalytics = () => {
           actions={
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
               <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
-                <Select value={range} onValueChange={(value) => setRangeFilter(value as RangeValue)}>
+                <Select
+                  value={range}
+                  onValueChange={(value) => setRangeFilter(value as RangeValue)}
+                >
                   <SelectTrigger className="w-[130px]">
                     <SelectValue placeholder="Período" />
                   </SelectTrigger>
@@ -636,7 +639,9 @@ const DashboardAnalytics = () => {
                               <>
                                 <TableCell>{formatResourceType(entry.resourceType)}</TableCell>
                                 <TableCell>{entry.title}</TableCell>
-                                <TableCell className="text-right">{formatInt(entry.views)}</TableCell>
+                                <TableCell className="text-right">
+                                  {formatInt(entry.views)}
+                                </TableCell>
                                 <TableCell className="text-right">
                                   {formatInt(entry.uniqueViews)}
                                 </TableCell>

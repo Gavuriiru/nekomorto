@@ -1,7 +1,10 @@
 import { createEditor } from "lexical";
 import { describe, expect, it } from "vitest";
 
-import { ViewerPollNode, createViewerPollOption } from "@/components/lexical/viewer-nodes/ViewerPollNode";
+import {
+  ViewerPollNode,
+  createViewerPollOption,
+} from "@/components/lexical/viewer-nodes/ViewerPollNode";
 
 describe("ViewerPollNode", () => {
   it("cria host block-level com largura previsivel no viewer publico", () => {

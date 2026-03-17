@@ -6,7 +6,9 @@ const prismaMock = vi.hoisted(() => ({
     createMany: vi.fn(async (args: unknown) => args),
     deleteMany: vi.fn(async (args: unknown) => args),
   },
-  $transaction: vi.fn(async (operations: unknown[]) => Promise.all(operations as Promise<unknown>[])),
+  $transaction: vi.fn(async (operations: unknown[]) =>
+    Promise.all(operations as Promise<unknown>[]),
+  ),
 }));
 
 vi.mock("../../server/lib/prisma-client.js", () => ({
@@ -99,7 +101,10 @@ describe("DbDataRepository audit log append", () => {
 
     await repo.persistQueue;
 
-    expect(repo.loadAuditLog().map((entry: { id: string }) => entry.id)).toEqual(["keep-b", "fresh"]);
+    expect(repo.loadAuditLog().map((entry: { id: string }) => entry.id)).toEqual([
+      "keep-b",
+      "fresh",
+    ]);
     expect(prismaMock.auditLogRecord.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

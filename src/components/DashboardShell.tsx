@@ -173,9 +173,7 @@ const DashboardShell = ({
                 </button>
               ) : null}
               <Avatar className="h-11 w-11 border border-sidebar-border">
-                {userAvatarUrl ? (
-                  <AvatarImage src={userAvatarUrl} alt={userName} />
-                ) : null}
+                {userAvatarUrl ? <AvatarImage src={userAvatarUrl} alt={userName} /> : null}
                 <AvatarFallback className="bg-sidebar-primary/10 text-xs text-sidebar-foreground">
                   {initials}
                 </AvatarFallback>
@@ -200,9 +198,7 @@ const DashboardShell = ({
                 </button>
               ) : null}
               <Avatar className="h-8 w-8 border border-sidebar-border shadow-xs">
-                {userAvatarUrl ? (
-                  <AvatarImage src={userAvatarUrl} alt={userName} />
-                ) : null}
+                {userAvatarUrl ? <AvatarImage src={userAvatarUrl} alt={userName} /> : null}
                 <AvatarFallback className="bg-sidebar-primary/10 text-[10px] text-sidebar-foreground">
                   {initials}
                 </AvatarFallback>
@@ -235,7 +231,9 @@ const DashboardShell = ({
                                 <Link
                                   to={item.href}
                                   onClick={
-                                    onMenuItemClick ? (event) => onMenuItemClick(item, event) : undefined
+                                    onMenuItemClick
+                                      ? (event) => onMenuItemClick(item, event)
+                                      : undefined
                                   }
                                 >
                                   <ItemIcon />

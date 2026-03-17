@@ -96,7 +96,9 @@ describe("DashboardPages image library context", () => {
 
     await screen.findByRole("heading", { name: /Gerenciar/i });
     fireEvent.mouseDown(screen.getByRole("tab", { name: /Pr.via/i }));
-    fireEvent.click(await screen.findAllByRole("button", { name: "Biblioteca" }).then((items) => items[0]));
+    fireEvent.click(
+      await screen.findAllByRole("button", { name: "Biblioteca" }).then((items) => items[0]),
+    );
 
     await waitFor(() => {
       expect(imageLibraryPropsSpy).toHaveBeenCalled();
@@ -138,7 +140,9 @@ describe("DashboardPages image library context", () => {
 
     await screen.findByRole("heading", { name: /Gerenciar/i });
     fireEvent.mouseDown(screen.getByRole("tab", { name: /Pr.via/i }));
-    fireEvent.click(await screen.findAllByRole("button", { name: "Biblioteca" }).then((items) => items[0]));
+    fireEvent.click(
+      await screen.findAllByRole("button", { name: "Biblioteca" }).then((items) => items[0]),
+    );
 
     await waitFor(() => {
       expect(imageLibraryPropsSpy).toHaveBeenCalled();

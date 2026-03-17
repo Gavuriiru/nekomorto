@@ -18,11 +18,7 @@ describe("ThemedSvgLogo", () => {
 
   it("renders allowed /uploads icons as img", () => {
     render(
-      <ThemedSvgLogo
-        url="/uploads/social/icon.svg"
-        label="Icone local"
-        className="h-4 w-4"
-      />,
+      <ThemedSvgLogo url="/uploads/social/icon.svg" label="Icone local" className="h-4 w-4" />,
     );
 
     const image = screen.getByRole("img", { name: "Icone local" });
@@ -41,12 +37,7 @@ describe("ThemedSvgLogo", () => {
   });
 
   it("does not render icon keys as image URL", () => {
-    const { queryByRole } = render(
-      <ThemedSvgLogo
-        url="instagram"
-        label="Icone por chave"
-      />,
-    );
+    const { queryByRole } = render(<ThemedSvgLogo url="instagram" label="Icone por chave" />);
 
     expect(queryByRole("img", { name: "Icone por chave" })).not.toBeInTheDocument();
   });

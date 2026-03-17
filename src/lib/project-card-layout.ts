@@ -23,7 +23,10 @@ type PrepareProjectBadgesParams = {
   gapPx?: number;
 };
 
-const normalizeLabel = (value: string) => String(value || "").replace(/\s+/g, " ").trim();
+const normalizeLabel = (value: string) =>
+  String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const isEligible = (label: string, maxChars: number) => {
   if (!label) {
@@ -103,7 +106,10 @@ export const prepareProjectBadges = ({
   const maxFitCount = cappedItems.length;
   const getWidthForCount = (count: number) => {
     const visible = cappedItems.slice(0, count);
-    const visibleWidth = visible.reduce((sum, item) => sum + Math.max(0, badgeWidths[item.key] || 0), 0);
+    const visibleWidth = visible.reduce(
+      (sum, item) => sum + Math.max(0, badgeWidths[item.key] || 0),
+      0,
+    );
     const visibleGap = count > 1 ? gapPx * (count - 1) : 0;
     const extra = Math.max(0, allItems.length - count);
     const overflowWidth = extra > 0 ? overflowBadgeWidth : 0;

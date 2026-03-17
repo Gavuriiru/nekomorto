@@ -10,7 +10,14 @@ import {
   Star,
   Trash2,
 } from "lucide-react";
-import { useMemo, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 
 import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
@@ -144,7 +151,10 @@ const MangaChapterPagesEditor = ({
     });
   };
 
-  const setNextChapter = (nextPages: ProjectEpisodePage[], options?: { coverImageUrl?: string }) => {
+  const setNextChapter = (
+    nextPages: ProjectEpisodePage[],
+    options?: { coverImageUrl?: string },
+  ) => {
     const normalizedPages = serializePagesForChange(nextPages);
     setChapterState(
       {
@@ -206,7 +216,9 @@ const MangaChapterPagesEditor = ({
       const sortedFiles = [...files].sort((left, right) =>
         compareNatural(
           String((left as File & { webkitRelativePath?: string }).webkitRelativePath || left.name),
-          String((right as File & { webkitRelativePath?: string }).webkitRelativePath || right.name),
+          String(
+            (right as File & { webkitRelativePath?: string }).webkitRelativePath || right.name,
+          ),
         ),
       );
       for (const file of sortedFiles) {
@@ -214,7 +226,8 @@ const MangaChapterPagesEditor = ({
       }
       appendUploadedUrls(uploadedUrls);
       toast({
-        title: uploadedUrls.length === 1 ? "Pagina enviada" : `${uploadedUrls.length} paginas enviadas`,
+        title:
+          uploadedUrls.length === 1 ? "Pagina enviada" : `${uploadedUrls.length} paginas enviadas`,
         intent: "success",
       });
     } catch {
@@ -240,7 +253,9 @@ const MangaChapterPagesEditor = ({
       }
       const uploadedUrls: string[] = [];
       for (const entry of entries) {
-        uploadedUrls.push(await uploadBlob(entry.blob, entry.relativePath.split("/").pop() || "pagina"));
+        uploadedUrls.push(
+          await uploadBlob(entry.blob, entry.relativePath.split("/").pop() || "pagina"),
+        );
       }
       appendUploadedUrls(uploadedUrls);
       toast({
@@ -452,7 +467,9 @@ const MangaChapterPagesEditor = ({
       </div>
 
       {pages.length > 0 ? (
-        <LayoutGroup id={`manga-pages-${projectSnapshot.id}-${chapter.number}-${chapter.volume ?? "none"}`}>
+        <LayoutGroup
+          id={`manga-pages-${projectSnapshot.id}-${chapter.number}-${chapter.volume ?? "none"}`}
+        >
           <div
             className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
             data-testid="manga-pages-grid"
@@ -610,7 +627,9 @@ const MangaChapterPagesEditor = ({
                     onClick={() => void handleExport("zip")}
                     disabled={pages.length === 0 || exportingFormat !== null}
                   >
-                    {exportingFormat === "zip" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {exportingFormat === "zip" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : null}
                     <span>Exportar ZIP</span>
                   </Button>
                   <Button
@@ -620,7 +639,9 @@ const MangaChapterPagesEditor = ({
                     onClick={() => void handleExport("cbz")}
                     disabled={pages.length === 0 || exportingFormat !== null}
                   >
-                    {exportingFormat === "cbz" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {exportingFormat === "cbz" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : null}
                     <span>Exportar CBZ</span>
                   </Button>
                 </div>
@@ -688,7 +709,9 @@ const MangaChapterPagesEditor = ({
                         size="sm"
                         onClick={() =>
                           setChapterState({
-                            sources: (chapter.sources || []).filter((_, index) => index !== sourceIndex),
+                            sources: (chapter.sources || []).filter(
+                              (_, index) => index !== sourceIndex,
+                            ),
                           })
                         }
                       >

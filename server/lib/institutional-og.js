@@ -215,10 +215,7 @@ export const buildInstitutionalOgCardModel = ({
   };
 };
 
-export const loadInstitutionalOgBackgroundDataUrl = async ({
-  backgroundUrl,
-  origin,
-} = {}) => {
+export const loadInstitutionalOgBackgroundDataUrl = async ({ backgroundUrl, origin } = {}) => {
   const normalizedBackgroundUrl = normalizeText(backgroundUrl);
   const rawDataUrl = await loadProjectOgArtworkDataUrl({
     artworkUrl: normalizedBackgroundUrl,
@@ -252,7 +249,8 @@ export const loadInstitutionalOgBackgroundDataUrl = async ({
 };
 
 export const buildInstitutionalOgScene = (model = {}) => {
-  const backgroundSrc = normalizeText(model.backgroundDataUrl) || normalizeText(model.backgroundUrl);
+  const backgroundSrc =
+    normalizeText(model.backgroundDataUrl) || normalizeText(model.backgroundUrl);
   const supportText = normalizeText(model.subtitle);
 
   return createElement(
@@ -288,8 +286,7 @@ export const buildInstitutionalOgScene = (model = {}) => {
       style: {
         position: "absolute",
         inset: 0,
-        background:
-          "linear-gradient(90deg, rgba(2, 5, 11, 0.28) 0%, rgba(2, 5, 11, 0.18) 100%)",
+        background: "linear-gradient(90deg, rgba(2, 5, 11, 0.28) 0%, rgba(2, 5, 11, 0.18) 100%)",
       },
     }),
     createElement("div", {

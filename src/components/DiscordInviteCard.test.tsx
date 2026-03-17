@@ -53,7 +53,9 @@ describe("DiscordInviteCard", () => {
     expect(cardRoot).not.toHaveClass("lift-hover");
     expect(screen.getByText("Fale com a equipe em tempo real.")).toBeInTheDocument();
     expect(screen.getByText("Servidor oficial")).toBeInTheDocument();
-    expect(screen.getByText("Atualizacoes, avisos e bate-papo com os membros.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Atualizacoes, avisos e bate-papo com os membros."),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Entrar agora" })).toBeInTheDocument();
     const panelDescription = screen.getByText("Atualizacoes, avisos e bate-papo com os membros.");
     const panel = panelDescription.closest("div.group\\/panel");

@@ -51,7 +51,8 @@ const sortReadableChapters = (chapters) =>
         }
       }
 
-      const numberDelta = (toFiniteNumber(left?.number) || 0) - (toFiniteNumber(right?.number) || 0);
+      const numberDelta =
+        (toFiniteNumber(left?.number) || 0) - (toFiniteNumber(right?.number) || 0);
       if (numberDelta !== 0) {
         return numberDelta;
       }
@@ -87,8 +88,9 @@ const findVolumeByNumber = (entries, volume) => {
     return null;
   }
   return (
-    (Array.isArray(entries) ? entries : []).find((entry) => toFiniteNumber(entry?.volume) === safeVolume) ||
-    null
+    (Array.isArray(entries) ? entries : []).find(
+      (entry) => toFiniteNumber(entry?.volume) === safeVolume,
+    ) || null
   );
 };
 
@@ -120,8 +122,12 @@ const buildReadingChips = ({ project, tagTranslations, genreTranslations }) => {
   const genreMap = toTranslationMap(genreTranslations);
   const tagMap = toTranslationMap(tagTranslations);
   const sourceValues = [
-    ...(Array.isArray(project?.genres) ? project.genres.map((value) => translateValue(value, genreMap)) : []),
-    ...(Array.isArray(project?.tags) ? project.tags.map((value) => translateValue(value, tagMap)) : []),
+    ...(Array.isArray(project?.genres)
+      ? project.genres.map((value) => translateValue(value, genreMap))
+      : []),
+    ...(Array.isArray(project?.tags)
+      ? project.tags.map((value) => translateValue(value, tagMap))
+      : []),
   ];
 
   const seen = new Set();
@@ -244,7 +250,9 @@ export const resolveProjectReadingOgSnapshot = ({
     normalizeText(safeProject?.synopsis) ||
     normalizeText(safeProject?.description);
   const titleFragment =
-    chapterTitle && chapterTitle !== chapterLabel ? `${chapterLabel} - ${chapterTitle}` : chapterLabel;
+    chapterTitle && chapterTitle !== chapterLabel
+      ? `${chapterLabel} - ${chapterTitle}`
+      : chapterLabel;
   const artworkImage = resolveArtworkReadingImage({
     chapter,
     volumeEntry,

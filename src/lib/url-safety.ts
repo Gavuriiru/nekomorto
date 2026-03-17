@@ -37,7 +37,12 @@ export const sanitizePublicHref = (value: unknown): string | null => {
     return null;
   }
   const protocol = String(parsed.protocol || "").toLowerCase();
-  if (protocol === "http:" || protocol === "https:" || protocol === "mailto:" || protocol === "tel:") {
+  if (
+    protocol === "http:" ||
+    protocol === "https:" ||
+    protocol === "mailto:" ||
+    protocol === "tel:"
+  ) {
     return parsed.toString();
   }
   return null;

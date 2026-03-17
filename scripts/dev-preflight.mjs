@@ -9,8 +9,7 @@ const SIGTERM_GRACE_MS = 1_500;
 const SIGKILL_GRACE_MS = 500;
 
 const thisFilePath = fileURLToPath(import.meta.url);
-const isDirectRun =
-  Boolean(process.argv[1]) && path.resolve(process.argv[1]) === thisFilePath;
+const isDirectRun = Boolean(process.argv[1]) && path.resolve(process.argv[1]) === thisFilePath;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -100,12 +99,7 @@ const getListeningPidsByPortWindows = (ports) => {
 const getListeningPidsByPortUnixViaLsof = (ports) => {
   const pidsByPort = buildEmptyPidMap(ports);
   for (const port of ports) {
-    const result = runCommand("lsof", [
-      "-nP",
-      `-iTCP:${port}`,
-      "-sTCP:LISTEN",
-      "-t",
-    ]);
+    const result = runCommand("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"]);
     if (result.error && result.error.code === "ENOENT") {
       return null;
     }
@@ -249,17 +243,14 @@ const readNodeProcessesWindows = () => {
 };
 
 const readNodeProcesses = () =>
-  process.platform === "win32"
-    ? readNodeProcessesWindows()
-    : readNodeProcessesUnix();
+  process.platform === "win32" ? readNodeProcessesWindows() : readNodeProcessesUnix();
 
 const normalizeCommand = (value) =>
   String(value || "")
     .replace(/\\/g, "/")
     .toLowerCase();
 
-const isTargetAppCommand = (command) =>
-  normalizeCommand(command).includes(TARGET_COMMAND_FRAGMENT);
+const isTargetAppCommand = (command) => normalizeCommand(command).includes(TARGET_COMMAND_FRAGMENT);
 
 const sendSignal = (pid, signal) => {
   try {
@@ -333,9 +324,7 @@ const formatConflictError = (states) => {
   const lines = ["Port conflict detected before dev server startup."];
   for (const state of occupied) {
     if (!state.ownerPids.length) {
-      lines.push(
-        `- Port ${state.port}: occupied (PID owner could not be resolved automatically).`,
-      );
+      lines.push(`- Port ${state.port}: occupied (PID owner could not be resolved automatically).`);
       continue;
     }
     lines.push(`- Port ${state.port}: PID(s) ${state.ownerPids.join(", ")}`);
@@ -356,9 +345,7 @@ export const runDevPreflight = async () => {
     return;
   }
 
-  const ownersOnTargetPorts = new Set(
-    initiallyOccupied.flatMap((state) => state.ownerPids),
-  );
+  const ownersOnTargetPorts = new Set(initiallyOccupied.flatMap((state) => state.ownerPids));
   const nodeProcesses = readNodeProcesses().filter((processInfo) => {
     if (processInfo.pid === process.pid) {
       return false;
@@ -366,9 +353,7 @@ export const runDevPreflight = async () => {
     return isTargetAppCommand(processInfo.command);
   });
   const appNodePidSet = new Set(nodeProcesses.map((processInfo) => processInfo.pid));
-  const targetPids = Array.from(ownersOnTargetPorts).filter((pid) =>
-    appNodePidSet.has(pid),
-  );
+  const targetPids = Array.from(ownersOnTargetPorts).filter((pid) => appNodePidSet.has(pid));
 
   if (targetPids.length) {
     console.log(

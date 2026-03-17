@@ -12,9 +12,9 @@ describe("build chunking classifier", () => {
   });
 
   it("classifica arquivo local do lexical playground como lexical-editor", () => {
-    expect(classifyManualChunk("/repo/src/lexical-playground/plugins/ToolbarPlugin/index.tsx")).toBe(
-      "lexical-editor",
-    );
+    expect(
+      classifyManualChunk("/repo/src/lexical-playground/plugins/ToolbarPlugin/index.tsx"),
+    ).toBe("lexical-editor");
   });
 
   it("classifica @lexical/react como lexical", () => {
@@ -107,19 +107,21 @@ describe("build chunking classifier", () => {
 
   it("normaliza caminhos Windows", () => {
     expect(
-      classifyManualChunk("D:\\dev\\nekomorto\\src\\lexical-playground\\plugins\\ToolbarPlugin\\index.tsx"),
+      classifyManualChunk(
+        "D:\\dev\\nekomorto\\src\\lexical-playground\\plugins\\ToolbarPlugin\\index.tsx",
+      ),
     ).toBe("lexical-editor");
     expect(
       classifyManualChunk("D:\\dev\\nekomorto\\src\\lexical-playground\\nodes\\PlaygroundNodes.ts"),
     ).toBe("lexical-editor");
-    expect(classifyManualChunk("D:\\dev\\nekomorto\\src\\components\\lexical\\LexicalViewerNodes.ts")).toBe(
-      "lexical-viewer",
-    );
+    expect(
+      classifyManualChunk("D:\\dev\\nekomorto\\src\\components\\lexical\\LexicalViewerNodes.ts"),
+    ).toBe("lexical-viewer");
     expect(classifyManualChunk("D:\\dev\\nekomorto\\src\\lib\\lexical\\serialize.ts")).toBe(
       "lexical-editor",
     );
-    expect(classifyManualChunk("D:\\dev\\nekomorto\\node_modules\\@mui\\x-date-pickers\\index.js")).toBe(
-      "mui-date-time-fields",
-    );
+    expect(
+      classifyManualChunk("D:\\dev\\nekomorto\\node_modules\\@mui\\x-date-pickers\\index.js"),
+    ).toBe("mui-date-time-fields");
   });
 });

@@ -32,13 +32,7 @@ const isInteractive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
 const isWindows = process.platform === "win32";
 let promptInterface = null;
 
-const composeBaseArgs = [
-  "compose",
-  "--env-file",
-  POSTGRES_ENV_PATH,
-  "-f",
-  POSTGRES_COMPOSE_PATH,
-];
+const composeBaseArgs = ["compose", "--env-file", POSTGRES_ENV_PATH, "-f", POSTGRES_COMPOSE_PATH];
 
 const usage = () => {
   console.log(`Usage: npm run setup:dev
@@ -107,7 +101,8 @@ const runCheck = (command, commandArgs, { label, tip }) => {
     return;
   }
   const output = `${result.stdout || ""}\n${result.stderr || ""}`.trim();
-  const details = result.error?.message || output || `exit code ${String(result.status ?? "unknown")}`;
+  const details =
+    result.error?.message || output || `exit code ${String(result.status ?? "unknown")}`;
   throw new Error(
     `${label} is not available.\n${tip}\nCommand: ${formatCommand(resolvedCommand, commandArgs)}\nDetails: ${details}`,
   );
@@ -141,7 +136,9 @@ const runCommand = (command, commandArgs, options = {}) =>
       }
       if (code !== 0) {
         reject(
-          new Error(`Command failed (exit ${code}): ${formatCommand(resolvedCommand, commandArgs)}`),
+          new Error(
+            `Command failed (exit ${code}): ${formatCommand(resolvedCommand, commandArgs)}`,
+          ),
         );
         return;
       }
@@ -180,7 +177,9 @@ const ask = (question, fallback = "") =>
 const randomSecret = () => crypto.randomBytes(32).toString("hex");
 
 const isPlaceholderPassword = (value) => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (!normalized) {
     return true;
   }
@@ -216,11 +215,11 @@ const checkPrerequisites = () => {
   });
   runCheck("node", ["-v"], {
     label: "Node.js",
-    tip: "Install Node.js 24.13.x before running setup:dev.",
+    tip: "Install Node.js 24.14.x before running setup:dev.",
   });
   runCheck("npm", ["-v"], {
     label: "npm",
-    tip: "Install npm 11.x (bundled with Node.js 24.13.x).",
+    tip: "Install npm 11.x (bundled with Node.js 24.14.x).",
   });
 };
 
@@ -243,16 +242,16 @@ const ensurePostgresEnv = async () => {
   const existing = readEnvFile(POSTGRES_ENV_PATH);
   const hasFile = fs.existsSync(POSTGRES_ENV_PATH);
   const currentPassword = String(existing.POSTGRES_PASSWORD || "").trim();
-  const bindIp = String(existing.POSTGRES_BIND_IP || DEFAULT_POSTGRES_BIND_IP).trim() || DEFAULT_POSTGRES_BIND_IP;
+  const bindIp =
+    String(existing.POSTGRES_BIND_IP || DEFAULT_POSTGRES_BIND_IP).trim() ||
+    DEFAULT_POSTGRES_BIND_IP;
   const port = parsePositivePort(existing.POSTGRES_PORT || DEFAULT_POSTGRES_PORT);
   if (hasFile && !isPlaceholderPassword(currentPassword)) {
     console.log("[setup:dev] Using existing ops/postgres/.env.staging.");
     return { password: currentPassword, bindIp, port };
   }
 
-  ensureInteractive(
-    "ops/postgres/.env.staging is missing or has placeholder POSTGRES_PASSWORD.",
-  );
+  ensureInteractive("ops/postgres/.env.staging is missing or has placeholder POSTGRES_PASSWORD.");
   const password = await askForPostgresPassword();
   writeEnvFile(POSTGRES_ENV_PATH, {
     POSTGRES_PASSWORD: password,

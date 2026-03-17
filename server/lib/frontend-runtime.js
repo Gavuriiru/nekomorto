@@ -65,8 +65,7 @@ export const createViteDevServer = async ({
   if (!isViteMiddlewareEnabled(isProduction)) {
     return null;
   }
-  const createViteServer =
-    createServer || (await import("vite")).createServer;
+  const createViteServer = createServer || (await import("vite")).createServer;
   const allowedHosts = resolveViteAllowedHostsFromOrigins(appOriginEnv);
   const serverConfig = {
     middlewareMode: true,

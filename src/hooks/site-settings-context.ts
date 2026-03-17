@@ -62,7 +62,13 @@ export const defaultSettings: SiteSettings = {
   },
   downloads: {
     sources: [
-      { id: "google-drive", label: "Google Drive", color: "#34A853", icon: "google-drive", tintIcon: true },
+      {
+        id: "google-drive",
+        label: "Google Drive",
+        color: "#34A853",
+        icon: "google-drive",
+        tintIcon: true,
+      },
       { id: "mega", label: "MEGA", color: "#D9272E", icon: "mega", tintIcon: true },
       { id: "torrent", label: "Torrent", color: "#7C3AED", icon: "torrent", tintIcon: true },
       { id: "mediafire", label: "Mediafire", color: "#2563EB", icon: "mediafire", tintIcon: true },
@@ -139,7 +145,7 @@ export const defaultSettings: SiteSettings = {
   },
 };
 
-export const mergeSettings = <T,>(base: T, override: Partial<T> | undefined): T => {
+export const mergeSettings = <T>(base: T, override: Partial<T> | undefined): T => {
   if (Array.isArray(base)) {
     return (Array.isArray(override) ? override : base) as T;
   }

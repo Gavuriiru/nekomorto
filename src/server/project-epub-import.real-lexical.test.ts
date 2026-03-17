@@ -36,8 +36,7 @@ vi.mock("../../server/lib/uploads-import.js", () => ({
   EPUB_IMPORT_TMP_TTL_MS: 72 * 60 * 60 * 1000,
   buildEpubImportTempFolder: ({ userId, importId }: Record<string, unknown>) =>
     `tmp/epub-imports/${String(userId || "anonymous")}/${String(importId || "import")}`,
-  isEpubImportTempFolder: (folder: unknown) =>
-    String(folder || "").startsWith("tmp/epub-imports/"),
+  isEpubImportTempFolder: (folder: unknown) => String(folder || "").startsWith("tmp/epub-imports/"),
   storeUploadImageBuffer: storeUploadImageBufferMock,
 }));
 
@@ -186,7 +185,9 @@ describe("project EPUB import with real lexical bridge", () => {
     const parsedExtra = JSON.parse(String(result.chapters[0]?.content || ""));
     expect(JSON.stringify(parsedExtra)).toContain('"type":"epub-image"');
     expect(JSON.stringify(parsedExtra)).toContain("Title Page");
-    expect(JSON.stringify(parsedExtra)).toContain("/uploads/tmp/epub-imports/test/import/image-1.jpg");
+    expect(JSON.stringify(parsedExtra)).toContain(
+      "/uploads/tmp/epub-imports/test/import/image-1.jpg",
+    );
   });
 
   it("importa imagem interna dentro do intervalo narrativo do TOC", async () => {

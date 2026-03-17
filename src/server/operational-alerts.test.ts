@@ -91,7 +91,9 @@ describe("operational-alerts", () => {
           description: "Ping acima do limite.",
         },
       ],
-      checks: [{ name: "database", status: "warning", message: "Banco respondeu acima do limite." }],
+      checks: [
+        { name: "database", status: "warning", message: "Banco respondeu acima do limite." },
+      ],
     });
 
     expect(response.status).toBe("degraded");

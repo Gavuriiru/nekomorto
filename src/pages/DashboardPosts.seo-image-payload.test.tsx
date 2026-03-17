@@ -18,13 +18,7 @@ vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
 }));
 
 vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({
-    title,
-    actions,
-  }: {
-    title: string;
-    actions?: ReactNode;
-  }) => (
+  default: ({ title, actions }: { title: string; actions?: ReactNode }) => (
     <div>
       <h1>{title}</h1>
       {actions}
@@ -62,10 +56,12 @@ vi.mock("@/components/ProjectEmbedCard", () => ({
 
 vi.mock("@/components/lexical/LexicalEditor", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
-  const MockEditor = React.forwardRef((_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
-    React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
-    return <div data-testid="lexical-editor" />;
-  });
+  const MockEditor = React.forwardRef(
+    (_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
+      React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
+      return <div data-testid="lexical-editor" />;
+    },
+  );
   MockEditor.displayName = "MockLexicalEditor";
   return { default: MockEditor };
 });
@@ -164,7 +160,7 @@ describe("DashboardPosts cover image payload", () => {
     await waitFor(() => {
       const createCall = getCreateCall();
       expect(createCall).toBeTruthy();
-      const payload = JSON.parse(String((((createCall?.[2] || {}) as RequestInit).body || "{}")));
+      const payload = JSON.parse(String(((createCall?.[2] || {}) as RequestInit).body || "{}"));
       expect(payload.coverImageUrl).toBe("/uploads/seo-selected.jpg");
     });
   });

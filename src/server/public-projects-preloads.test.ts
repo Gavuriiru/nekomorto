@@ -61,10 +61,40 @@ describe("public projects list preloads", () => {
     );
     expect(preloads[0]).not.toHaveProperty("media");
     expect(preloads[0]?.imagesrcset).toContain("/uploads/_variants/alpha/poster-v3.avif 920w");
-    expect(preloads[1]).toEqual(expect.objectContaining({ href: "/uploads/_variants/beta/poster-thumb-v3.jpeg", fetchpriority: "high", media: DESKTOP_PROJECTS_PRELOAD_MEDIA }));
-    expect(preloads[2]).toEqual(expect.objectContaining({ href: "/uploads/_variants/delta/poster-thumb-v3.jpeg", fetchpriority: "high", media: DESKTOP_PROJECTS_PRELOAD_MEDIA }));
-    expect(preloads[3]).toEqual(expect.objectContaining({ href: "/uploads/_variants/epsilon/poster-thumb-v3.jpeg", fetchpriority: "high", media: DESKTOP_PROJECTS_PRELOAD_MEDIA }));
-    expect(preloads[4]).toEqual(expect.objectContaining({ href: "/uploads/_variants/eta/poster-thumb-v3.jpeg", fetchpriority: "high", media: DESKTOP_PROJECTS_PRELOAD_MEDIA }));
-    expect(preloads[5]).toEqual(expect.objectContaining({ href: "/uploads/_variants/gamma/poster-thumb-v3.jpeg", fetchpriority: "high", media: DESKTOP_PROJECTS_PRELOAD_MEDIA }));
+    expect(preloads[1]).toEqual(
+      expect.objectContaining({
+        href: "/uploads/_variants/beta/poster-thumb-v3.jpeg",
+        fetchpriority: "high",
+        media: DESKTOP_PROJECTS_PRELOAD_MEDIA,
+      }),
+    );
+    expect(preloads[2]).toEqual(
+      expect.objectContaining({
+        href: "/uploads/_variants/delta/poster-thumb-v3.jpeg",
+        fetchpriority: "high",
+        media: DESKTOP_PROJECTS_PRELOAD_MEDIA,
+      }),
+    );
+    expect(preloads[3]).toEqual(
+      expect.objectContaining({
+        href: "/uploads/_variants/epsilon/poster-thumb-v3.jpeg",
+        fetchpriority: "high",
+        media: DESKTOP_PROJECTS_PRELOAD_MEDIA,
+      }),
+    );
+    expect(preloads[4]).toEqual(
+      expect.objectContaining({
+        href: "/uploads/_variants/eta/poster-thumb-v3.jpeg",
+        fetchpriority: "high",
+        media: DESKTOP_PROJECTS_PRELOAD_MEDIA,
+      }),
+    );
+    expect(preloads[5]).toEqual(
+      expect.objectContaining({
+        href: "/uploads/_variants/gamma/poster-thumb-v3.jpeg",
+        fetchpriority: "high",
+        media: DESKTOP_PROJECTS_PRELOAD_MEDIA,
+      }),
+    );
   });
 });

@@ -269,6 +269,5 @@ export const $createViewerImageNode = ({
     new ViewerImageNode(src, altText, captionText, maxWidth, width, height, Boolean(showCaption)),
   );
 
-export const $isViewerImageNode = (
-  node: LexicalNode | null | undefined,
-): node is ViewerImageNode => node instanceof ViewerImageNode;
+export const $isViewerImageNode = (node: LexicalNode | null | undefined): node is ViewerImageNode =>
+  node instanceof ViewerImageNode;

@@ -61,11 +61,7 @@ export const normalizeLegacyUpdateRecord = (update) => {
 
   const nextKind = kindLookup.startsWith("lan") ? "Lançamento" : currentKind;
   const nextUnit =
-    unitLookup === "capitulo"
-      ? "Capítulo"
-      : unitLookup === "episodio"
-        ? "Episódio"
-        : currentUnit;
+    unitLookup === "capitulo" ? "Capítulo" : unitLookup === "episodio" ? "Episódio" : currentUnit;
   const nextReason = normalizeLegacyReasonText(currentReason);
 
   if (nextKind === currentKind && nextUnit === currentUnit && nextReason === currentReason) {
@@ -98,4 +94,3 @@ export const normalizeLegacyInviteCardText = (value) => {
   const normalized = String(value || "").trim();
   return LEGACY_INVITE_CARD_TEXT_MAP.get(normalized) || value;
 };
-

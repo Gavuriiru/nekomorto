@@ -632,9 +632,7 @@ const DashboardAuditLog = () => {
                 className="flex items-center gap-3 animate-slide-up opacity-0"
                 style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               >
-                <Badge className="bg-card/80 text-muted-foreground">
-                  {formattedTotal} eventos
-                </Badge>
+                <Badge className="bg-card/80 text-muted-foreground">{formattedTotal} eventos</Badge>
                 <Button
                   variant="outline"
                   onClick={() => void handleExportCsv()}

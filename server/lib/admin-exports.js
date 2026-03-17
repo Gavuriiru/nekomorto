@@ -87,7 +87,8 @@ export const filterByDateRange = (entries, { dateFrom, dateTo, tsAccessor } = {}
   const fromTs = parseTs(dateFrom);
   const toTs = parseTs(dateTo);
   return (Array.isArray(entries) ? entries : []).filter((entry) => {
-    const raw = typeof tsAccessor === "function" ? tsAccessor(entry) : entry?.ts || entry?.createdAt;
+    const raw =
+      typeof tsAccessor === "function" ? tsAccessor(entry) : entry?.ts || entry?.createdAt;
     const ts = parseTs(raw);
     if (ts === null) {
       return false;
@@ -115,13 +116,21 @@ export const filterExportEntries = (entries, filters, { fieldAccessors = {} } = 
         ? fieldAccessors.targetUserId(entry)
         : entry?.targetUserId || entry?.resourceId) || "";
     const status =
-      (typeof fieldAccessors.status === "function" ? fieldAccessors.status(entry) : entry?.status) || "";
+      (typeof fieldAccessors.status === "function"
+        ? fieldAccessors.status(entry)
+        : entry?.status) || "";
     const severity =
-      (typeof fieldAccessors.severity === "function" ? fieldAccessors.severity(entry) : entry?.severity) || "";
+      (typeof fieldAccessors.severity === "function"
+        ? fieldAccessors.severity(entry)
+        : entry?.severity) || "";
     const action =
-      (typeof fieldAccessors.action === "function" ? fieldAccessors.action(entry) : entry?.action) || "";
+      (typeof fieldAccessors.action === "function"
+        ? fieldAccessors.action(entry)
+        : entry?.action) || "";
     const resource =
-      (typeof fieldAccessors.resource === "function" ? fieldAccessors.resource(entry) : entry?.resource) || "";
+      (typeof fieldAccessors.resource === "function"
+        ? fieldAccessors.resource(entry)
+        : entry?.resource) || "";
 
     if (safeFilters.actorUserId && String(actorUserId) !== safeFilters.actorUserId) {
       return false;

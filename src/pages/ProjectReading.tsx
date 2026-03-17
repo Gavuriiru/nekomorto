@@ -26,10 +26,7 @@ import {
   buildDashboardProjectChapterEditorHref,
   buildProjectPublicReadingHref,
 } from "@/lib/project-editor-routes";
-import {
-  buildEpisodeKey,
-  resolveCanonicalEpisodeRouteTarget,
-} from "@/lib/project-episode-key";
+import { buildEpisodeKey, resolveCanonicalEpisodeRouteTarget } from "@/lib/project-episode-key";
 import { isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
@@ -41,6 +38,7 @@ import {
   normalizeProjectEpisodePages,
   resolveProjectReaderConfig,
 } from "../../shared/project-reader.js";
+import "@/styles/project-reading.css";
 import {
   buildProjectReadingOgImagePath,
   buildProjectReadingOgRevision,
@@ -59,7 +57,9 @@ const LexicalViewerFallback = () => (
 type ReadingProject = Project | PublicBootstrapProject;
 
 const normalizeProjectRouteKey = (value: unknown) =>
-  String(createSlug(String(value || "").trim()) || "").trim().toLowerCase();
+  String(createSlug(String(value || "").trim()) || "")
+    .trim()
+    .toLowerCase();
 
 const resolveBootstrapProject = (
   bootstrapData: PublicBootstrapPayload | null,
@@ -82,10 +82,7 @@ const resolveBootstrapProject = (
   );
 };
 
-const mergeMediaVariants = (
-  base: UploadMediaVariantsMap,
-  nextValue: unknown,
-) => ({
+const mergeMediaVariants = (base: UploadMediaVariantsMap, nextValue: unknown) => ({
   ...base,
   ...(nextValue && typeof nextValue === "object" ? (nextValue as UploadMediaVariantsMap) : {}),
 });
@@ -96,7 +93,9 @@ const ProjectReading = () => {
   const [searchParams] = useSearchParams();
   const apiBase = getApiBase();
   const { settings } = useSiteSettings();
-  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() => readWindowPublicBootstrap());
+  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() =>
+    readWindowPublicBootstrap(),
+  );
   const [currentUser] = useState<PublicBootstrapCurrentUser | null>(() =>
     readWindowPublicBootstrapCurrentUser(),
   );
@@ -132,11 +131,10 @@ const ProjectReading = () => {
     () => bootstrapData?.mediaVariants || {},
   );
   const trackedChapterViewsRef = useRef<Set<string>>(new Set());
-  const { isVisible: isCommentsVisible, sentinelRef: commentsSentinelRef } =
-    useDeferredVisibility({
-      initialVisible: location.hash.startsWith("#comment-"),
-      rootMargin: "400px 0px",
-    });
+  const { isVisible: isCommentsVisible, sentinelRef: commentsSentinelRef } = useDeferredVisibility({
+    initialVisible: location.hash.startsWith("#comment-"),
+    rootMargin: "400px 0px",
+  });
 
   useEffect(() => {
     setProject(bootstrapProject);
@@ -318,7 +316,9 @@ const ProjectReading = () => {
   );
 
   const resolvedChapterSynopsis = useMemo(() => {
-    const explicitChapterSynopsis = String(chapterContent?.synopsis || chapterData?.synopsis || "").trim();
+    const explicitChapterSynopsis = String(
+      chapterContent?.synopsis || chapterData?.synopsis || "",
+    ).trim();
     if (explicitChapterSynopsis) {
       return explicitChapterSynopsis;
     }
@@ -426,7 +426,11 @@ const ProjectReading = () => {
     title: pageTitle,
     description: resolvedChapterSynopsis,
     image: readingOgImage || projectOgImage || heroImage,
-    imageAlt: readingOgImage ? readingOgImageAlt : projectOgImage ? `Card de compartilhamento do projeto ${project?.title || ""}` : heroImageAlt,
+    imageAlt: readingOgImage
+      ? readingOgImageAlt
+      : projectOgImage
+        ? `Card de compartilhamento do projeto ${project?.title || ""}`
+        : heroImageAlt,
     mediaVariants,
     type: "article",
   });

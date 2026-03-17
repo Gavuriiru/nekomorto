@@ -115,7 +115,8 @@ const clearBootstrapPayload = () => {
   delete (window as BootstrapWindow).__BOOTSTRAP_PUBLIC__;
 };
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const getMemberLayoutByName = (memberName: string) => {
   const heading = screen.getByRole("heading", { name: memberName });
@@ -195,7 +196,9 @@ const assertResponsiveSideLayout = (
   expect(avatarStageTokens).not.toContain("absolute");
 
   expect(layoutStack.firstElementChild).toBe(avatarSlot);
-  expect(avatarSlot.compareDocumentPosition(contentPanel) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  expect(
+    avatarSlot.compareDocumentPosition(contentPanel) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).not.toBe(0);
 };
 
 const assertSocialFlow = (socialContainer: HTMLElement) => {
@@ -223,23 +226,25 @@ const assertMemberFrameClasses = (contentPanel: HTMLElement, options?: { retired
 
 const setupApiMock = (users = usersFixture) => {
   apiFetchMock.mockReset();
-  apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-    const method = String(options?.method || "GET").toUpperCase();
+  apiFetchMock.mockImplementation(
+    async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
 
-    if (endpoint === "/api/public/users" && method === "GET") {
-      return mockJsonResponse(true, {
-        users,
-        mediaVariants: usersMediaVariantsFixture,
-      });
-    }
-    if (endpoint === "/api/link-types" && method === "GET") {
-      return mockJsonResponse(true, { items: linkTypesFixture });
-    }
-    if (endpoint === "/api/public/pages" && method === "GET") {
-      return mockJsonResponse(true, { pages: { team: {} } });
-    }
-    return mockJsonResponse(false, { error: "not_found" }, 404);
-  });
+      if (endpoint === "/api/public/users" && method === "GET") {
+        return mockJsonResponse(true, {
+          users,
+          mediaVariants: usersMediaVariantsFixture,
+        });
+      }
+      if (endpoint === "/api/link-types" && method === "GET") {
+        return mockJsonResponse(true, { items: linkTypesFixture });
+      }
+      if (endpoint === "/api/public/pages" && method === "GET") {
+        return mockJsonResponse(true, { pages: { team: {} } });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    },
+  );
 };
 
 describe("Team mobile social layout", () => {
@@ -263,12 +268,24 @@ describe("Team mobile social layout", () => {
         name: /faz o projeto acontecer/i,
       }),
     ).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { level: 2, name: "Membros ativos" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { level: 2, name: "Membros aposentados" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Membros ativos" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Membros aposentados" }),
+    ).toBeInTheDocument();
 
     await screen.findByRole("heading", { level: 3, name: activeMemberName });
-    const { heading, headingRow, layoutStack, avatarSlot, avatarStage, contentPanel, card, socialContainer } =
-      getMemberLayoutByName(activeMemberName);
+    const {
+      heading,
+      headingRow,
+      layoutStack,
+      avatarSlot,
+      avatarStage,
+      contentPanel,
+      card,
+      socialContainer,
+    } = getMemberLayoutByName(activeMemberName);
 
     assertResponsiveSideLayout(layoutStack, avatarSlot, avatarStage, contentPanel);
 
@@ -279,7 +296,9 @@ describe("Team mobile social layout", () => {
 
     assertSocialFlow(socialContainer);
 
-    expect(heading.compareDocumentPosition(socialContainer) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(
+      heading.compareDocumentPosition(socialContainer) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
   });
 
   it("aplica a mesma regra responsiva para redes no card aposentado", async () => {
@@ -290,8 +309,16 @@ describe("Team mobile social layout", () => {
     );
 
     await screen.findByRole("heading", { name: retiredMemberName });
-    const { heading, headingRow, layoutStack, avatarSlot, avatarStage, contentPanel, card, socialContainer } =
-      getMemberLayoutByName(retiredMemberName);
+    const {
+      heading,
+      headingRow,
+      layoutStack,
+      avatarSlot,
+      avatarStage,
+      contentPanel,
+      card,
+      socialContainer,
+    } = getMemberLayoutByName(retiredMemberName);
 
     assertResponsiveSideLayout(layoutStack, avatarSlot, avatarStage, contentPanel);
 
@@ -304,7 +331,9 @@ describe("Team mobile social layout", () => {
 
     assertSocialFlow(socialContainer);
 
-    expect(heading.compareDocumentPosition(socialContainer) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(
+      heading.compareDocumentPosition(socialContainer) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
   });
 
   it("usa classes semanticas no frame interno dos cards ativo e aposentado", async () => {
@@ -401,8 +430,12 @@ describe("Team mobile social layout", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("heading", { level: 2, name: "Membros aposentados" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { level: 2, name: "Membros ativos" })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Membros aposentados" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Membros ativos" }),
+    ).not.toBeInTheDocument();
 
     await screen.findByRole("heading", { level: 3, name: retiredMemberName });
     const { layoutStack, avatarSlot, avatarStage, contentPanel, card, socialContainer } =

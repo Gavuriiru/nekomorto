@@ -172,9 +172,10 @@ describe("Public pages share image meta", () => {
     apiFetchMock.mockReset();
     usePageMetaMock.mockReset();
     (
-      window as Window & typeof globalThis & {
-        __BOOTSTRAP_PUBLIC__?: unknown;
-      }
+      window as Window &
+        typeof globalThis & {
+          __BOOTSTRAP_PUBLIC__?: unknown;
+        }
     ).__BOOTSTRAP_PUBLIC__ = bootstrapPayload;
     apiFetchMock.mockImplementation(async (_base: string, path: string) => {
       if (path === "/api/public/projects") {
@@ -195,9 +196,10 @@ describe("Public pages share image meta", () => {
 
   afterEach(() => {
     delete (
-      window as Window & typeof globalThis & {
-        __BOOTSTRAP_PUBLIC__?: unknown;
-      }
+      window as Window &
+        typeof globalThis & {
+          __BOOTSTRAP_PUBLIC__?: unknown;
+        }
     ).__BOOTSTRAP_PUBLIC__;
   });
 
@@ -211,7 +213,8 @@ describe("Public pages share image meta", () => {
     await waitFor(() => {
       expect(
         hasMetaCall(
-          (arg) => arg.image === "/uploads/home-og.jpg" && arg.imageAlt === "Capa da pagina inicial",
+          (arg) =>
+            arg.image === "/uploads/home-og.jpg" && arg.imageAlt === "Capa da pagina inicial",
         ),
       ).toBe(true);
     });
@@ -235,9 +238,7 @@ describe("Public pages share image meta", () => {
       ).toBe(true);
     });
 
-    expect(
-      apiFetchMock.mock.calls.some((call) => call[1] === "/api/public/pages"),
-    ).toBe(false);
+    expect(apiFetchMock.mock.calls.some((call) => call[1] === "/api/public/pages")).toBe(false);
   });
 
   it("About publica o card OG institucional versionado", async () => {

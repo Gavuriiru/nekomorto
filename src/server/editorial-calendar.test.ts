@@ -85,4 +85,3 @@ describe("editorial calendar helper", () => {
     expect(items.map((item) => item.id)).toEqual(["pub-in"]);
   });
 });
-

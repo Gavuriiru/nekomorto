@@ -218,7 +218,9 @@ describe("ImageLibraryDialog focal point editor", () => {
     expect(within(sidebar).getByRole("button", { name: /hero/i })).toBeInTheDocument();
     expect(within(sidebar).getByText("1280x853")).toBeInTheDocument();
     expect(within(sidebar).getByText("1600x900")).toBeInTheDocument();
-    expect(within(focalDialog).getByRole("button", { name: "Salvar ponto focal" })).toBeInTheDocument();
+    expect(
+      within(focalDialog).getByRole("button", { name: "Salvar ponto focal" }),
+    ).toBeInTheDocument();
     expect(cardPreviewImage.style.left).toBe("0%");
     expect(Number.parseFloat(cardPreviewImage.style.top)).toBeCloseTo(-189.552239, 5);
 

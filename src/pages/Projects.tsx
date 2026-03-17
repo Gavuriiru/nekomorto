@@ -983,7 +983,9 @@ const Projects = () => {
               </span>
               <Input
                 value={searchInputValue}
-                onChange={(event) => setSearchInputValue(event.target.value.slice(0, MAX_QUERY_LENGTH))}
+                onChange={(event) =>
+                  setSearchInputValue(event.target.value.slice(0, MAX_QUERY_LENGTH))
+                }
                 placeholder="Buscar por título, sinopse, tag ou gênero"
                 className="bg-background/60"
                 aria-label="Buscar projetos"
@@ -1004,7 +1006,9 @@ const Projects = () => {
                         Filtros
                       </span>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                        <span className="font-semibold text-foreground">{filteredProjects.length}</span>
+                        <span className="font-semibold text-foreground">
+                          {filteredProjects.length}
+                        </span>
                         <span>projetos encontrados</span>
                       </div>
                     </div>
@@ -1026,107 +1030,107 @@ const Projects = () => {
             ) : null}
             {!isMobile ? (
               <>
-            <div className="hidden md:flex md:flex-col gap-2">
-              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                A-Z
-              </span>
-              <Select
-                value={selectedLetter}
-                onValueChange={(value) => {
-                  setSelectedLetter(value);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="bg-background/60" aria-label="Filtrar por letra">
-                  <SelectValue placeholder="Todas as letras" />
-                </SelectTrigger>
-                <SelectContent>
-                  {alphabetOptions.map((letter) => (
-                    <SelectItem key={letter} value={letter}>
-                      {letter}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="hidden md:flex md:flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    A-Z
+                  </span>
+                  <Select
+                    value={selectedLetter}
+                    onValueChange={(value) => {
+                      setSelectedLetter(value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="bg-background/60" aria-label="Filtrar por letra">
+                      <SelectValue placeholder="Todas as letras" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {alphabetOptions.map((letter) => (
+                        <SelectItem key={letter} value={letter}>
+                          {letter}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="hidden md:flex md:flex-col gap-2">
-              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Tags
-              </span>
-              <Select
-                value={selectedTag}
-                onValueChange={(value) => updateFilterQuery(value, selectedGenre)}
-              >
-                <SelectTrigger className="bg-background/60" aria-label="Filtrar por tag">
-                  <SelectValue placeholder="Todas as tags" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tagOptions.map((tag) => (
-                    <SelectItem key={tag} value={tag}>
-                      {tagTranslations[tag] || tag}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="hidden md:flex md:flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Tags
+                  </span>
+                  <Select
+                    value={selectedTag}
+                    onValueChange={(value) => updateFilterQuery(value, selectedGenre)}
+                  >
+                    <SelectTrigger className="bg-background/60" aria-label="Filtrar por tag">
+                      <SelectValue placeholder="Todas as tags" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tagOptions.map((tag) => (
+                        <SelectItem key={tag} value={tag}>
+                          {tagTranslations[tag] || tag}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Gêneros
-              </span>
-              <Select
-                value={selectedGenre}
-                onValueChange={(value) => updateFilterQuery(selectedTag, value)}
-              >
-                <SelectTrigger className="bg-background/60" aria-label="Filtrar por genero">
-                  <SelectValue placeholder="Todos os generos" />
-                </SelectTrigger>
-                <SelectContent>
-                  {genreOptions.map((genre) => (
-                    <SelectItem key={genre} value={genre}>
-                      {genreTranslations[genre] || genre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Gêneros
+                  </span>
+                  <Select
+                    value={selectedGenre}
+                    onValueChange={(value) => updateFilterQuery(selectedTag, value)}
+                  >
+                    <SelectTrigger className="bg-background/60" aria-label="Filtrar por genero">
+                      <SelectValue placeholder="Todos os generos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {genreOptions.map((genre) => (
+                        <SelectItem key={genre} value={genre}>
+                          {genreTranslations[genre] || genre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="hidden md:flex md:flex-col gap-2">
-              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Formato
-              </span>
-              <Select
-                value={selectedType}
-                onValueChange={(value) => {
-                  setSelectedType(value);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="bg-background/60" aria-label="Filtrar por formato">
-                  <SelectValue placeholder="Todos os formatos" />
-                </SelectTrigger>
-                <SelectContent>
-                  {typeOptions.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="hidden md:flex md:flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Formato
+                  </span>
+                  <Select
+                    value={selectedType}
+                    onValueChange={(value) => {
+                      setSelectedType(value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="bg-background/60" aria-label="Filtrar por formato">
+                      <SelectValue placeholder="Todos os formatos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {typeOptions.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="md:col-span-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background/40 px-4 py-3 text-sm text-muted-foreground">
-              <div className="flex flex-wrap gap-2">
-                <span className="font-semibold text-foreground">{filteredProjects.length}</span>
-                <span>projetos encontrados</span>
-                <span className="hidden text-muted-foreground md:inline">&bull;</span>
-                <span className="hidden md:inline">Atualizado semanalmente</span>
-              </div>
-              <Button variant="ghost" onClick={resetFilters} className="text-xs uppercase">
-                Limpar filtros
-              </Button>
-            </div>
+                <div className="md:col-span-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="font-semibold text-foreground">{filteredProjects.length}</span>
+                    <span>projetos encontrados</span>
+                    <span className="hidden text-muted-foreground md:inline">&bull;</span>
+                    <span className="hidden md:inline">Atualizado semanalmente</span>
+                  </div>
+                  <Button variant="ghost" onClick={resetFilters} className="text-xs uppercase">
+                    Limpar filtros
+                  </Button>
+                </div>
               </>
             ) : null}
           </div>

@@ -15,7 +15,8 @@ const normalizeText = (value) => String(value || "").trim();
 
 const pickModelFingerprint = (model) => {
   const safeModel = model && typeof model === "object" ? model : {};
-  const palette = safeModel.palette && typeof safeModel.palette === "object" ? safeModel.palette : {};
+  const palette =
+    safeModel.palette && typeof safeModel.palette === "object" ? safeModel.palette : {};
   const layout = safeModel.layout && typeof safeModel.layout === "object" ? safeModel.layout : {};
   return {
     eyebrow: normalizeText(safeModel.eyebrow),

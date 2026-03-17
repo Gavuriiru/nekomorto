@@ -37,11 +37,12 @@ afterEach(() => {
 describe("importRemoteImageFile", () => {
   it("baixa imagem valida e salva em /uploads com metadados", async () => {
     const uploadsDir = createTempUploadsDir();
-    const fetchMock = vi.fn(async () =>
-      new Response(new Uint8Array(ONE_BY_ONE_PNG), {
-        status: 200,
-        headers: { "Content-Type": "image/png" },
-      }),
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(new Uint8Array(ONE_BY_ONE_PNG), {
+          status: 200,
+          headers: { "Content-Type": "image/png" },
+        }),
     );
 
     const result = await importRemoteImageFile({
@@ -66,11 +67,12 @@ describe("importRemoteImageFile", () => {
 
   it("modo deterministico reutiliza arquivo existente sem duplicar", async () => {
     const uploadsDir = createTempUploadsDir();
-    const fetchMock = vi.fn(async () =>
-      new Response(new Uint8Array(ONE_BY_ONE_PNG), {
-        status: 200,
-        headers: { "Content-Type": "image/png" },
-      }),
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(new Uint8Array(ONE_BY_ONE_PNG), {
+          status: 200,
+          headers: { "Content-Type": "image/png" },
+        }),
     );
 
     const first = await importRemoteImageFile({
@@ -155,13 +157,14 @@ describe("importRemoteImageFile", () => {
 
   it("bloqueia redirecionamento para host interno", async () => {
     const uploadsDir = createTempUploadsDir();
-    const fetchMock = vi.fn(async () =>
-      new Response(null, {
-        status: 302,
-        headers: {
-          Location: "http://127.0.0.1/private.png",
-        },
-      }),
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(null, {
+          status: 302,
+          headers: {
+            Location: "http://127.0.0.1/private.png",
+          },
+        }),
     );
 
     const result = await importRemoteImageFile({
@@ -180,11 +183,12 @@ describe("importRemoteImageFile", () => {
 
   it("retorna erro tipado para payload nao suportado", async () => {
     const uploadsDir = createTempUploadsDir();
-    const fetchMock = vi.fn(async () =>
-      new Response("not-an-image", {
-        status: 200,
-        headers: { "Content-Type": "text/plain" },
-      }),
+    const fetchMock = vi.fn(
+      async () =>
+        new Response("not-an-image", {
+          status: 200,
+          headers: { "Content-Type": "text/plain" },
+        }),
     );
 
     const result = await importRemoteImageFile({

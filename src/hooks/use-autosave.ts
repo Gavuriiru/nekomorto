@@ -29,7 +29,7 @@ export type UseAutosaveResult = {
   flushNow: () => Promise<boolean>;
 };
 
-const defaultSerialize = <T,>(value: T) => {
+const defaultSerialize = <T>(value: T) => {
   if (value === undefined) {
     return "undefined";
   }
@@ -45,7 +45,7 @@ const wait = (delayMs: number) =>
     window.setTimeout(resolve, Math.max(0, delayMs));
   });
 
-export const useAutosave = <T,>({
+export const useAutosave = <T>({
   value,
   onSave,
   isReady = true,
@@ -234,9 +234,12 @@ export const useAutosave = <T,>({
     }
 
     setStatus("pending");
-    timerRef.current = window.setTimeout(() => {
-      void performSave("auto");
-    }, Math.max(0, debounceMs));
+    timerRef.current = window.setTimeout(
+      () => {
+        void performSave("auto");
+      },
+      Math.max(0, debounceMs),
+    );
 
     return () => {
       clearTimer();

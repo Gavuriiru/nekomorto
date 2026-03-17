@@ -38,7 +38,9 @@ export type EpubImagePayload = {
 };
 
 const normalizeImageAlignment = (value: unknown): EpubImageAlignment | undefined => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (normalized === "left" || normalized === "center" || normalized === "right") {
     return normalized;
   }
@@ -57,8 +59,12 @@ const inferImageAlignment = ({
     return explicitAlign;
   }
   const record = parseStyleDeclaration(editorialStyle);
-  const marginLeft = String(record["margin-left"] || "").trim().toLowerCase();
-  const marginRight = String(record["margin-right"] || "").trim().toLowerCase();
+  const marginLeft = String(record["margin-left"] || "")
+    .trim()
+    .toLowerCase();
+  const marginRight = String(record["margin-right"] || "")
+    .trim()
+    .toLowerCase();
   if (marginLeft === "auto" && marginRight === "auto") {
     return "center";
   }
@@ -243,7 +249,8 @@ export const $createEpubImageNode = ({
   altText = "",
   editorialStyle = "",
   align,
-}: EpubImagePayload) => $applyNodeReplacement(new EpubImageNode(src, altText, editorialStyle, align));
+}: EpubImagePayload) =>
+  $applyNodeReplacement(new EpubImageNode(src, altText, editorialStyle, align));
 
 export const $isEpubImageNode = (node: LexicalNode | null | undefined): node is EpubImageNode =>
   node instanceof EpubImageNode;

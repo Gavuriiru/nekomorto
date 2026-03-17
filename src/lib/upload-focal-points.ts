@@ -317,7 +317,9 @@ export const normalizeUploadFocalPoints = (
     const cropSource = resolvePresetFocalCropSource({ value, fallback: fallbackValue, preset });
     next[preset] = cropSource
       ? deriveUploadFocalPointFromCropRect(cropSource)
-      : normalizeUploadFocalPoint(resolvePresetFocalSource({ value, fallback: fallbackValue, preset }));
+      : normalizeUploadFocalPoint(
+          resolvePresetFocalSource({ value, fallback: fallbackValue, preset }),
+        );
   });
   return next;
 };
@@ -325,11 +327,12 @@ export const normalizeUploadFocalPoints = (
 export const deriveLegacyUploadFocalPoint = (
   value?: unknown,
   fallbackValue?: unknown,
-): UploadFocalPoint =>
-  normalizeUploadFocalPoints(value, fallbackValue).card;
+): UploadFocalPoint => normalizeUploadFocalPoints(value, fallbackValue).card;
 
-export const deriveUploadFocalPointsFromCrops = (value?: unknown, fallbackValue?: unknown): UploadFocalPoints =>
-  normalizeUploadFocalPoints(value, fallbackValue);
+export const deriveUploadFocalPointsFromCrops = (
+  value?: unknown,
+  fallbackValue?: unknown,
+): UploadFocalPoints => normalizeUploadFocalPoints(value, fallbackValue);
 
 export const deriveUploadViewportCoverRect = ({
   rect,

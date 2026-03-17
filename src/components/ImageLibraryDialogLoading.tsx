@@ -1,4 +1,10 @@
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -112,7 +118,12 @@ const ImageLibraryDialogLoadingFallback = ({
       className="z-200 flex h-[92vh] w-[96vw] max-w-5xl flex-col overflow-hidden p-3 data-[state=open]:animate-none data-[state=closed]:animate-none sm:h-[90vh] sm:w-[92vw] sm:p-6 [&>button]:hidden"
       overlayClassName="z-190 data-[state=open]:animate-none data-[state=closed]:animate-none"
     >
-      <div role="status" aria-live="polite" aria-busy="true" className="min-h-0 flex flex-1 flex-col">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+        className="min-h-0 flex flex-1 flex-col"
+      >
         <DialogHeader className="space-y-1">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="text-xs leading-snug sm:text-sm">

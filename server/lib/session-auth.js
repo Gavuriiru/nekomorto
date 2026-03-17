@@ -13,7 +13,10 @@ const regenerateSession = (session) =>
     });
   });
 
-const normalizeAppOrigin = (value) => String(value || "").trim().replace(/\/+$/, "");
+const normalizeAppOrigin = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/\/+$/, "");
 const normalizeAppPath = (value, fallback = "/") => {
   const normalizedValue = String(value || "").trim();
   if (!normalizedValue || !normalizedValue.startsWith("/")) {
@@ -37,11 +40,7 @@ export const saveSessionState = (req) =>
     });
   });
 
-export const buildAuthRedirectUrl = ({
-  appOrigin,
-  path = "/",
-  searchParams = null,
-} = {}) => {
+export const buildAuthRedirectUrl = ({ appOrigin, path = "/", searchParams = null } = {}) => {
   const normalizedOrigin = normalizeAppOrigin(appOrigin);
   const normalizedPath = normalizeAppPath(path);
   const url = new URL(normalizedPath, `${normalizedOrigin || "http://localhost"}/`);
@@ -58,11 +57,7 @@ export const buildAuthRedirectUrl = ({
   return normalizedOrigin ? url.toString() : `${url.pathname}${url.search}`;
 };
 
-export const establishAuthenticatedSession = async ({
-  req,
-  user,
-  preserved = {},
-} = {}) => {
+export const establishAuthenticatedSession = async ({ req, user, preserved = {} } = {}) => {
   if (!req || !req.session) {
     throw new Error("session_unavailable");
   }

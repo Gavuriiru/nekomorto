@@ -15,7 +15,11 @@ const formatTimestamp = (value = new Date()) => {
 const runNpmOutdated = () =>
   new Promise((resolve, reject) => {
     const npmExecPath = process.env.npm_execpath;
-    const command = npmExecPath ? process.execPath : process.platform === "win32" ? "npm.cmd" : "npm";
+    const command = npmExecPath
+      ? process.execPath
+      : process.platform === "win32"
+        ? "npm.cmd"
+        : "npm";
     const args = npmExecPath ? [npmExecPath, "outdated", "--json"] : ["outdated", "--json"];
     const child = spawn(command, args, {
       stdio: ["ignore", "pipe", "pipe"],

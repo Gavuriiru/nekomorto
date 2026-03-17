@@ -68,7 +68,9 @@ export const buildProjectOgRevision = ({
   });
   return createRevisionToken({
     model: baseModel,
-    sceneVersion: normalizeRevision(sceneVersion || baseModel.sceneVersion || PROJECT_OG_SCENE_VERSION),
+    sceneVersion: normalizeRevision(
+      sceneVersion || baseModel.sceneVersion || PROJECT_OG_SCENE_VERSION,
+    ),
   });
 };
 
@@ -83,7 +85,9 @@ export const buildVersionedProjectOgImagePath = ({ projectId, revision } = {}) =
 };
 
 export const buildProjectOgDeliveryHeaders = ({ cacheHit, timings } = {}) => {
-  const serverTiming = PROJECT_OG_TIMING_ORDER.filter((key) => Number.isFinite(Number(timings?.[key])))
+  const serverTiming = PROJECT_OG_TIMING_ORDER.filter((key) =>
+    Number.isFinite(Number(timings?.[key])),
+  )
     .map((key) => `${key};dur=${roundTimingMs(timings[key])}`)
     .join(", ");
 
@@ -93,10 +97,7 @@ export const buildProjectOgDeliveryHeaders = ({ cacheHit, timings } = {}) => {
   };
 };
 
-const renderProjectOgBuffer = async ({
-  baseModel,
-  origin,
-} = {}) => {
+const renderProjectOgBuffer = async ({ baseModel, origin } = {}) => {
   const timings = {};
   const imageEncodingConfig = resolveOgPublicImageEncodingConfig();
   const [artworkDataUrl, backdropDataUrl] = await Promise.all([
@@ -165,8 +166,10 @@ export const getProjectOgCachedRender = async ({
     id: String(project?.id || "").trim(),
     model,
   });
-  const cached = await measureTiming(timings, "cache_read", async () =>
-    ogRenderCache?.read?.(cacheKey) || null,
+  const cached = await measureTiming(
+    timings,
+    "cache_read",
+    async () => ogRenderCache?.read?.(cacheKey) || null,
   );
 
   if (cached) {

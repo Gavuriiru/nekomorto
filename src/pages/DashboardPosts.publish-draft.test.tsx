@@ -17,13 +17,7 @@ vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
 }));
 
 vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({
-    title,
-    actions,
-  }: {
-    title: string;
-    actions?: ReactNode;
-  }) => (
+  default: ({ title, actions }: { title: string; actions?: ReactNode }) => (
     <div>
       <h1>{title}</h1>
       {actions}
@@ -41,10 +35,12 @@ vi.mock("@/components/ProjectEmbedCard", () => ({
 
 vi.mock("@/components/lexical/LexicalEditor", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
-  const MockEditor = React.forwardRef((_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
-    React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
-    return <div data-testid="lexical-editor" />;
-  });
+  const MockEditor = React.forwardRef(
+    (_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
+      React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
+      return <div data-testid="lexical-editor" />;
+    },
+  );
   MockEditor.displayName = "MockLexicalEditor";
   return { default: MockEditor };
 });
@@ -161,7 +157,9 @@ describe("DashboardPosts publish draft", () => {
       const putCall = apiFetchMock.mock.calls.find((call) => {
         const path = call[1];
         const options = (call[2] || {}) as RequestInit;
-        return path === "/api/posts/post-1" && String(options.method || "GET").toUpperCase() === "PUT";
+        return (
+          path === "/api/posts/post-1" && String(options.method || "GET").toUpperCase() === "PUT"
+        );
       });
       expect(putCall).toBeDefined();
       const payload = JSON.parse(String(((putCall as unknown[])[2] as RequestInit).body || "{}"));
@@ -170,24 +168,26 @@ describe("DashboardPosts publish draft", () => {
     });
   });
 
-  it.each(["published", "scheduled"] as const)(
-    "nao exibe botao de publicar agora para post %s",
-    async (status) => {
-      setupApiMock(status);
+  it.each([
+    "published",
+    "scheduled",
+  ] as const)("nao exibe botao de publicar agora para post %s", async (status) => {
+    setupApiMock(status);
 
-      render(
-        <MemoryRouter>
-          <DashboardPosts />
-        </MemoryRouter>,
-      );
+    render(
+      <MemoryRouter>
+        <DashboardPosts />
+      </MemoryRouter>,
+    );
 
-      await screen.findByRole("heading", { name: "Gerenciar posts" });
-      fireEvent.click(screen.getByText(`Post ${status}`));
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    fireEvent.click(screen.getByText(`Post ${status}`));
 
-      const dialog = await screen.findByRole("dialog");
-      expect(within(dialog).queryByRole("button", { name: "Publicar agora" })).not.toBeInTheDocument();
-    },
-  );
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).queryByRole("button", { name: "Publicar agora" }),
+    ).not.toBeInTheDocument();
+  });
 
   it("mantem publishedAt original ao salvar post publicado sem alterar a data", async () => {
     setupApiMock("published");
@@ -208,7 +208,9 @@ describe("DashboardPosts publish draft", () => {
       const putCall = apiFetchMock.mock.calls.find((call) => {
         const path = call[1];
         const options = (call[2] || {}) as RequestInit;
-        return path === "/api/posts/post-1" && String(options.method || "GET").toUpperCase() === "PUT";
+        return (
+          path === "/api/posts/post-1" && String(options.method || "GET").toUpperCase() === "PUT"
+        );
       });
       expect(putCall).toBeDefined();
       const payload = JSON.parse(String(((putCall as unknown[])[2] as RequestInit).body || "{}"));

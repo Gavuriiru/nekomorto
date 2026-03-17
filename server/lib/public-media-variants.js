@@ -3,12 +3,7 @@ import path from "path";
 
 const PUBLIC_UPLOAD_URL_FALLBACK_ORIGIN = "https://nekomata.local";
 const VARIANT_FORMAT_KEYS = Object.freeze(["avif", "webp", "fallback"]);
-const HERO_PRELOAD_RESPONSIVE_PRESET_ORDER = Object.freeze([
-  "heroXs",
-  "heroSm",
-  "heroMd",
-  "hero",
-]);
+const HERO_PRELOAD_RESPONSIVE_PRESET_ORDER = Object.freeze(["heroXs", "heroSm", "heroMd", "hero"]);
 const POSTER_PRELOAD_RESPONSIVE_PRESET_ORDER = Object.freeze([
   "posterThumbSm",
   "posterThumb",
@@ -69,7 +64,9 @@ export const shouldExposePublicUploadInMediaVariants = ({
   if (!normalizedUploadUrl) {
     return false;
   }
-  const normalizedFolder = String(folder || "").trim().toLowerCase();
+  const normalizedFolder = String(folder || "")
+    .trim()
+    .toLowerCase();
   if (
     normalizedFolder !== "users" &&
     normalizedFolder !== "downloads" &&
@@ -411,7 +408,9 @@ export const resolveHomeHeroPreloadFromSlide = ({
       : null;
   }
 
-  const imagesrcset = responsiveCandidates.map((entry) => `${entry.url} ${entry.width}w`).join(", ");
+  const imagesrcset = responsiveCandidates
+    .map((entry) => `${entry.url} ${entry.width}w`)
+    .join(", ");
   const fallbackCandidate = responsiveCandidates[responsiveCandidates.length - 1];
   return {
     href: fallbackHref || fallbackCandidate.url,
@@ -476,9 +475,14 @@ export const resolveProjectPosterPreload = ({
   const variants = mediaVariants?.[normalizedCoverUrl]?.variants;
   const fallbackHref =
     (normalizedCoverUrl
-      ? readPublicVariantAssetUrl(mediaVariants?.[normalizedCoverUrl]?.variants?.posterThumb?.formats, "")
+      ? readPublicVariantAssetUrl(
+          mediaVariants?.[normalizedCoverUrl]?.variants?.posterThumb?.formats,
+          "",
+        )
       : "") ||
-    (typeof resolveVariantUrl === "function" ? resolveVariantUrl(sourceCoverUrl, "posterThumb") : "") ||
+    (typeof resolveVariantUrl === "function"
+      ? resolveVariantUrl(sourceCoverUrl, "posterThumb")
+      : "") ||
     sourceCoverUrl;
 
   if (!variants || typeof variants !== "object") {
@@ -539,7 +543,10 @@ export const resolveTeamAvatarPreload = ({
   const variants = mediaVariants?.[normalizedAvatarUrl]?.variants;
   const fallbackHref =
     (normalizedAvatarUrl
-      ? readPublicVariantAssetUrl(mediaVariants?.[normalizedAvatarUrl]?.variants?.square?.formats, "")
+      ? readPublicVariantAssetUrl(
+          mediaVariants?.[normalizedAvatarUrl]?.variants?.square?.formats,
+          "",
+        )
       : "") ||
     (typeof resolveVariantUrl === "function" ? resolveVariantUrl(sourceAvatarUrl, "square") : "") ||
     sourceAvatarUrl;
@@ -586,7 +593,9 @@ export const resolveTeamAvatarPreload = ({
     as: "image",
     type: fallbackCandidate.type,
     imagesrcset: srcset,
-    imagesizes: String(imagesizes || "").trim() || "(max-width: 639px) 224px, (max-width: 767px) 240px, 256px",
+    imagesizes:
+      String(imagesizes || "").trim() ||
+      "(max-width: 639px) 224px, (max-width: 767px) 240px, 256px",
     fetchpriority: "high",
   };
 };

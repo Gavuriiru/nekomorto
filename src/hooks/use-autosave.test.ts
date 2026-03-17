@@ -6,7 +6,7 @@ const flushMicrotasks = async () => {
   await Promise.resolve();
 };
 
-const createDeferred = <T,>() => {
+const createDeferred = <T>() => {
   let resolve!: (value: T | PromiseLike<T>) => void;
   const promise = new Promise<T>((resolver) => {
     resolve = resolver;

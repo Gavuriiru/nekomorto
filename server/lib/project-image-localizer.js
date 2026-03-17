@@ -53,12 +53,7 @@ const resolveVolumeFolderSegment = (value) => {
   return `volume-${Math.floor(numeric)}`;
 };
 
-const resolveEpisodeCoverFolder = ({
-  project,
-  episode,
-  episodeFolder,
-  chaptersFolder,
-}) => {
+const resolveEpisodeCoverFolder = ({ project, episode, episodeFolder, chaptersFolder }) => {
   if (!isChapterBasedType(project?.type || "")) {
     return episodeFolder;
   }
@@ -110,7 +105,9 @@ const normalizeRemoteHttpUrl = (value) => {
 
 const cloneProjectForLocalization = (project) => ({
   ...project,
-  relations: Array.isArray(project?.relations) ? project.relations.map((item) => ({ ...item })) : [],
+  relations: Array.isArray(project?.relations)
+    ? project.relations.map((item) => ({ ...item }))
+    : [],
   volumeEntries: Array.isArray(project?.volumeEntries)
     ? project.volumeEntries.map((item) => ({ ...item }))
     : [],
@@ -124,9 +121,10 @@ const cloneProjectForLocalization = (project) => ({
 
 const runWithConcurrency = async (items, maxConcurrent, worker) => {
   const queue = Array.isArray(items) ? items : [];
-  const concurrency = Number.isFinite(maxConcurrent) && maxConcurrent > 0
-    ? Math.floor(maxConcurrent)
-    : DEFAULT_MAX_CONCURRENT;
+  const concurrency =
+    Number.isFinite(maxConcurrent) && maxConcurrent > 0
+      ? Math.floor(maxConcurrent)
+      : DEFAULT_MAX_CONCURRENT;
   let cursor = 0;
   const runners = Array.from({ length: Math.min(concurrency, queue.length || 1) }, async () => {
     while (true) {
@@ -226,21 +224,34 @@ export const localizeProjectImageFields = async ({
       remoteUrl: normalizedRemote,
       setValue,
       importOptions:
-        typeof buildImportOptions === "function"
-          ? buildImportOptions(normalizedRemote) || {}
-          : {},
+        typeof buildImportOptions === "function" ? buildImportOptions(normalizedRemote) || {} : {},
     });
   };
 
-  enqueue("cover", nextProject.cover, (nextValue) => {
-    nextProject.cover = nextValue;
-  }, { folder: projectFolder });
-  enqueue("banner", nextProject.banner, (nextValue) => {
-    nextProject.banner = nextValue;
-  }, { folder: projectFolder });
-  enqueue("heroImageUrl", nextProject.heroImageUrl, (nextValue) => {
-    nextProject.heroImageUrl = nextValue;
-  }, { folder: projectFolder });
+  enqueue(
+    "cover",
+    nextProject.cover,
+    (nextValue) => {
+      nextProject.cover = nextValue;
+    },
+    { folder: projectFolder },
+  );
+  enqueue(
+    "banner",
+    nextProject.banner,
+    (nextValue) => {
+      nextProject.banner = nextValue;
+    },
+    { folder: projectFolder },
+  );
+  enqueue(
+    "heroImageUrl",
+    nextProject.heroImageUrl,
+    (nextValue) => {
+      nextProject.heroImageUrl = nextValue;
+    },
+    { folder: projectFolder },
+  );
 
   nextProject.relations.forEach((relation, index) => {
     enqueue(
@@ -283,33 +294,37 @@ export const localizeProjectImageFields = async ({
     );
   });
 
-  (Array.isArray(nextProject.volumeCovers) ? nextProject.volumeCovers : []).forEach((cover, index) => {
-    enqueue(
-      `volumeCovers[${index}].coverImageUrl`,
-      cover?.coverImageUrl,
-      (nextValue) => {
-        nextProject.volumeCovers[index] = {
-          ...nextProject.volumeCovers[index],
-          coverImageUrl: nextValue,
-        };
-      },
-      { folder: volumeFolder },
-    );
-  });
+  (Array.isArray(nextProject.volumeCovers) ? nextProject.volumeCovers : []).forEach(
+    (cover, index) => {
+      enqueue(
+        `volumeCovers[${index}].coverImageUrl`,
+        cover?.coverImageUrl,
+        (nextValue) => {
+          nextProject.volumeCovers[index] = {
+            ...nextProject.volumeCovers[index],
+            coverImageUrl: nextValue,
+          };
+        },
+        { folder: volumeFolder },
+      );
+    },
+  );
 
-  (Array.isArray(nextProject.volumeEntries) ? nextProject.volumeEntries : []).forEach((entry, index) => {
-    enqueue(
-      `volumeEntries[${index}].coverImageUrl`,
-      entry?.coverImageUrl,
-      (nextValue) => {
-        nextProject.volumeEntries[index] = {
-          ...nextProject.volumeEntries[index],
-          coverImageUrl: nextValue,
-        };
-      },
-      { folder: volumeFolder },
-    );
-  });
+  (Array.isArray(nextProject.volumeEntries) ? nextProject.volumeEntries : []).forEach(
+    (entry, index) => {
+      enqueue(
+        `volumeEntries[${index}].coverImageUrl`,
+        entry?.coverImageUrl,
+        (nextValue) => {
+          nextProject.volumeEntries[index] = {
+            ...nextProject.volumeEntries[index],
+            coverImageUrl: nextValue,
+          };
+        },
+        { folder: volumeFolder },
+      );
+    },
+  );
 
   if (tasks.length === 0) {
     return {

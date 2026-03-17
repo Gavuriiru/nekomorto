@@ -54,7 +54,10 @@ const ZERO_LIKE_VALUES = new Set([
   "inherit",
 ]);
 
-const normalizeStyleValue = (value) => String(value || "").trim().replace(/\s+/g, " ");
+const normalizeStyleValue = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/\s+/g, " ");
 
 const parseStyleDeclaration = (cssText) =>
   String(cssText || "")
@@ -92,13 +95,13 @@ const getStyleRecord = (style) => {
 
 const buildStyleDeclaration = (entries) =>
   entries
-    .map(([property, value]) => [String(property).trim().toLowerCase(), normalizeStyleValue(value)]).filter(
-      ([property, value]) => property && value,
-    )
+    .map(([property, value]) => [String(property).trim().toLowerCase(), normalizeStyleValue(value)])
+    .filter(([property, value]) => property && value)
     .map(([property, value]) => `${property}: ${value}`)
     .join("; ");
 
-const isMeaningfulValue = (value) => !ZERO_LIKE_VALUES.has(normalizeStyleValue(value).toLowerCase());
+const isMeaningfulValue = (value) =>
+  !ZERO_LIKE_VALUES.has(normalizeStyleValue(value).toLowerCase());
 
 const normalizeFontFamilyBucket = (value) => {
   const normalized = normalizeStyleValue(value).toLowerCase();
@@ -170,7 +173,9 @@ const extractBlockEditorialStyle = (style) => {
       ["line-height", isMeaningfulValue(record["line-height"]) ? record["line-height"] : ""],
       [
         "font-family",
-        isMeaningfulValue(record["font-family"]) ? normalizeFontFamilyBucket(record["font-family"]) : "",
+        isMeaningfulValue(record["font-family"])
+          ? normalizeFontFamilyBucket(record["font-family"])
+          : "",
       ],
     ]),
   };
@@ -179,7 +184,10 @@ const extractBlockEditorialStyle = (style) => {
 const extractImageEditorialStyle = (style) => {
   const record = getStyleRecord(style);
   return buildStyleDeclaration(
-    IMAGE_STYLE_KEYS.map((property) => [property, isMeaningfulValue(record[property]) ? record[property] : ""]),
+    IMAGE_STYLE_KEYS.map((property) => [
+      property,
+      isMeaningfulValue(record[property]) ? record[property] : "",
+    ]),
   );
 };
 
@@ -215,8 +223,12 @@ const applyInlineEditorialStyleToTextNode = (lexicalNode, editorialStyle, implie
       lexicalNode.setStyle(mergedStyle);
     }
   }
-  const fontWeight = String(styleRecord["font-weight"] || "").trim().toLowerCase();
-  const fontStyle = String(styleRecord["font-style"] || "").trim().toLowerCase();
+  const fontWeight = String(styleRecord["font-weight"] || "")
+    .trim()
+    .toLowerCase();
+  const fontStyle = String(styleRecord["font-style"] || "")
+    .trim()
+    .toLowerCase();
   if ((fontWeight === "bold" || Number(fontWeight) >= 600) && !lexicalNode.hasFormat("bold")) {
     lexicalNode.toggleFormat("bold");
   }
@@ -260,7 +272,8 @@ const applyEditorialStyleToElement = (element, editorialStyle) => {
   element.style.cssText = editorialStyle;
 };
 
-const isBlockImageStyle = (editorialStyle) => parseStyleDeclaration(editorialStyle).display === "block";
+const isBlockImageStyle = (editorialStyle) =>
+  parseStyleDeclaration(editorialStyle).display === "block";
 
 class ServerImageNode extends DecoratorNode {
   static getType() {
@@ -507,7 +520,7 @@ class ServerInlineEditorialStyleBridgeNode extends TextNode {
       a: createInlineEditorialTextConversion({
         createNode: (node) => {
           const href = node.getAttribute?.("href") || "";
-          if (((node.textContent || "") !== "" || node.children.length > 0)) {
+          if ((node.textContent || "") !== "" || node.children.length > 0) {
             return $createLinkNode(href, {
               rel: node.getAttribute?.("rel"),
               target: node.getAttribute?.("target"),
@@ -636,7 +649,7 @@ class ServerEpubParagraphNode extends ParagraphNode {
         }
         return { node: paragraph };
       },
-        priority: 3,
+      priority: 3,
     });
 
     return {
@@ -657,7 +670,9 @@ class ServerEpubParagraphNode extends ParagraphNode {
   }
 
   updateFromJSON(serializedNode) {
-    return super.updateFromJSON(serializedNode).setEditorialStyle(serializedNode.editorialStyle || "");
+    return super
+      .updateFromJSON(serializedNode)
+      .setEditorialStyle(serializedNode.editorialStyle || "");
   }
 
   createDOM(config) {
@@ -745,7 +760,7 @@ class ServerEpubHeadingNode extends HeadingNode {
         }
         return { node: heading };
       },
-        priority: 3,
+      priority: 3,
     });
     return {
       h1: () => createConversion(),
@@ -1021,5 +1036,7 @@ export const htmlToLexicalJson = (html) =>
       },
       { discrete: true },
     );
-    return normalizeLexicalJson(JSON.stringify(editor.getEditorState().toJSON())) || EMPTY_LEXICAL_JSON;
+    return (
+      normalizeLexicalJson(JSON.stringify(editor.getEditorState().toJSON())) || EMPTY_LEXICAL_JSON
+    );
   });

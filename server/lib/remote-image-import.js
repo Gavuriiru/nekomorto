@@ -32,10 +32,7 @@ const UPLOAD_MIME_TO_EXTENSION = {
   "image/svg+xml": "svg",
 };
 const SUPPORTED_UPLOAD_EXTENSIONS = Array.from(
-  new Set([
-    ...Object.keys(UPLOAD_EXTENSION_TO_MIME),
-    ...Object.values(UPLOAD_MIME_TO_EXTENSION),
-  ]),
+  new Set([...Object.keys(UPLOAD_EXTENSION_TO_MIME), ...Object.values(UPLOAD_MIME_TO_EXTENSION)]),
 );
 const DEFAULT_UPLOAD_FILE_BASE = "imagem";
 const MAX_REDIRECTS = 5;
@@ -47,7 +44,10 @@ const isPrivateIpv4 = (value) => {
     return false;
   }
   const octets = normalized.split(".").map((chunk) => Number(chunk));
-  if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) {
+  if (
+    octets.length !== 4 ||
+    octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)
+  ) {
     return false;
   }
   const [a, b] = octets;
@@ -59,7 +59,10 @@ const isPrivateIpv4 = (value) => {
 };
 
 const isPrivateIpv6 = (value) => {
-  const normalized = String(value || "").trim().toLowerCase().replace(/%.+$/, "");
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/%.+$/, "");
   if (!net.isIP(normalized) || net.isIP(normalized) !== 6) {
     return false;
   }
@@ -84,7 +87,9 @@ const isPrivateIpv6 = (value) => {
 };
 
 const isPrivateHost = (host) => {
-  const normalized = String(host || "").trim().toLowerCase();
+  const normalized = String(host || "")
+    .trim()
+    .toLowerCase();
   if (!normalized) {
     return true;
   }
@@ -118,7 +123,9 @@ const validateRemoteTarget = async (target) => {
   if (target.username || target.password) {
     return toFailureResult("invalid_url_credentials", "URL credentials are not allowed.");
   }
-  const host = String(target.hostname || "").trim().toLowerCase();
+  const host = String(target.hostname || "")
+    .trim()
+    .toLowerCase();
   if (isPrivateHost(host)) {
     return toFailureResult("host_not_allowed", "Remote host is not allowed.");
   }
@@ -257,7 +264,12 @@ const getJpegDimensions = (buffer) => {
       continue;
     }
     const marker = buffer[offset + 1];
-    if (marker === 0xd8 || marker === 0xd9 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+    if (
+      marker === 0xd8 ||
+      marker === 0xd9 ||
+      marker === 0x01 ||
+      (marker >= 0xd0 && marker <= 0xd7)
+    ) {
       offset += 2;
       continue;
     }
@@ -439,7 +451,10 @@ const fetchWithSafeRedirects = async ({ fetchImpl, initialUrl, timeoutMs }) => {
     }
 
     const controller = new AbortController();
-    const timeoutHandle = setTimeout(() => controller.abort(), Math.max(1, Number(timeoutMs) || 20_000));
+    const timeoutHandle = setTimeout(
+      () => controller.abort(),
+      Math.max(1, Number(timeoutMs) || 20_000),
+    );
     let response;
     try {
       response = await fetchImpl(parsedCurrent.toString(), {
@@ -492,7 +507,9 @@ const resolveOnExistingPolicy = (deterministic, onExisting) => {
   if (!deterministic) {
     return "overwrite";
   }
-  const normalized = String(onExisting || "reuse").trim().toLowerCase();
+  const normalized = String(onExisting || "reuse")
+    .trim()
+    .toLowerCase();
   return normalized === "overwrite" ? "overwrite" : "reuse";
 };
 
@@ -516,7 +533,10 @@ const buildEntryFromDiskFile = ({ filePath, fileName, folder, createdAt }) => {
   const fallbackMime = getUploadMimeFromExtension(extFromFile);
   const validation = validateUploadImageBuffer(buffer, fallbackMime);
   if (!validation.valid) {
-    return toFailureResult(validation.error, `Remote image validation failed: ${validation.error}.`);
+    return toFailureResult(
+      validation.error,
+      `Remote image validation failed: ${validation.error}.`,
+    );
   }
   const mime = validation.mime;
   if (mime === "image/svg+xml" && buffer.length > MAX_SVG_SIZE_BYTES) {
@@ -620,7 +640,9 @@ export const importRemoteImageFile = async ({
     const deterministicMode = Boolean(deterministic);
     const onExistingPolicy = resolveOnExistingPolicy(deterministicMode, onExisting);
     const parsedName = resolveUrlBaseName(parsedRemote);
-    const preferredBase = deterministicMode ? String(fileBaseOverride || parsedName || "upload") : parsedName;
+    const preferredBase = deterministicMode
+      ? String(fileBaseOverride || parsedName || "upload")
+      : parsedName;
     const safeBase = sanitizeUploadBaseName(preferredBase) || DEFAULT_UPLOAD_FILE_BASE;
 
     if (deterministicMode) {
@@ -662,8 +684,13 @@ export const importRemoteImageFile = async ({
 
     const contentTypeHeader = String(response.headers?.get?.("content-type") || "");
     const headerMime = normalizeUploadMime(contentTypeHeader.split(";")[0].trim().toLowerCase());
-    const extFromUrl = path.extname(finalRemote.pathname || "").replace(".", "").toLowerCase();
-    let mime = isSupportedUploadImageMime(headerMime) ? headerMime : getUploadMimeFromExtension(extFromUrl);
+    const extFromUrl = path
+      .extname(finalRemote.pathname || "")
+      .replace(".", "")
+      .toLowerCase();
+    let mime = isSupportedUploadImageMime(headerMime)
+      ? headerMime
+      : getUploadMimeFromExtension(extFromUrl);
 
     const buffer = Buffer.from(await response.arrayBuffer());
     if (!buffer.length) {
@@ -675,7 +702,10 @@ export const importRemoteImageFile = async ({
 
     const validation = validateUploadImageBuffer(buffer, mime);
     if (!validation.valid) {
-      return toFailureResult(validation.error, `Remote image validation failed: ${validation.error}.`);
+      return toFailureResult(
+        validation.error,
+        `Remote image validation failed: ${validation.error}.`,
+      );
     }
     mime = validation.mime;
     if (mime === "image/svg+xml" && buffer.length > MAX_SVG_SIZE_BYTES) {

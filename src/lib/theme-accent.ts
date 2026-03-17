@@ -8,7 +8,12 @@ export const hexToHsl = (hex: string) => {
     return null;
   }
   const expanded =
-    cleaned.length === 3 ? cleaned.split("").map((char) => char + char).join("") : cleaned;
+    cleaned.length === 3
+      ? cleaned
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : cleaned;
   const r = parseInt(expanded.slice(0, 2), 16) / 255;
   const g = parseInt(expanded.slice(2, 4), 16) / 255;
   const b = parseInt(expanded.slice(4, 6), 16) / 255;

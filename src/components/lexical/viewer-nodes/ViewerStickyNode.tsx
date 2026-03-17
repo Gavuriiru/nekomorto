@@ -107,7 +107,18 @@ export class ViewerStickyNode extends DecoratorNode<JSX.Element> {
               },
             },
           }
-        : { editorState: { root: { children: [], direction: null, format: "", indent: 0, type: "root", version: 1 } } },
+        : {
+            editorState: {
+              root: {
+                children: [],
+                direction: null,
+                format: "",
+                indent: 0,
+                type: "root",
+                version: 1,
+              },
+            },
+          },
       color: this.__color,
       xOffset: this.__x,
       yOffset: this.__y,

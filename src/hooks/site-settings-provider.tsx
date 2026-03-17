@@ -39,14 +39,18 @@ const applyDocumentSettings = (settings: SiteSettings) => {
 
     const ogTitle = ensureMeta('meta[property="og:title"]', { property: "og:title" });
     ogTitle?.setAttribute("content", siteName);
-    const ogDescription = ensureMeta('meta[property="og:description"]', { property: "og:description" });
+    const ogDescription = ensureMeta('meta[property="og:description"]', {
+      property: "og:description",
+    });
     ogDescription?.setAttribute("content", description);
     const ogImage = ensureMeta('meta[property="og:image"]', { property: "og:image" });
     ogImage?.setAttribute("content", shareImage);
 
     const twitterTitle = ensureMeta('meta[name="twitter:title"]', { name: "twitter:title" });
     twitterTitle?.setAttribute("content", siteName);
-    const twitterDescription = ensureMeta('meta[name="twitter:description"]', { name: "twitter:description" });
+    const twitterDescription = ensureMeta('meta[name="twitter:description"]', {
+      name: "twitter:description",
+    });
     twitterDescription?.setAttribute("content", description);
     const twitterImage = ensureMeta('meta[name="twitter:image"]', { name: "twitter:image" });
     twitterImage?.setAttribute("content", shareImage);
@@ -103,25 +107,28 @@ export const SiteSettingsProvider = ({
   );
   const [isLoading, setIsLoading] = useState(!initiallyLoaded);
 
-  const refresh = useCallback(async (showLoading = true) => {
-    if (showLoading) {
-      setIsLoading(true);
-    }
-    try {
-      const response = await apiFetch(apiBase, "/api/public/settings");
-      if (!response.ok) {
-        return;
-      }
-      const data = await response.json();
-      setSettings(mergeSettings(defaultSettings, data.settings || {}));
-    } catch {
-      setSettings(defaultSettings);
-    } finally {
+  const refresh = useCallback(
+    async (showLoading = true) => {
       if (showLoading) {
-        setIsLoading(false);
+        setIsLoading(true);
       }
-    }
-  }, [apiBase]);
+      try {
+        const response = await apiFetch(apiBase, "/api/public/settings");
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        setSettings(mergeSettings(defaultSettings, data.settings || {}));
+      } catch {
+        setSettings(defaultSettings);
+      } finally {
+        if (showLoading) {
+          setIsLoading(false);
+        }
+      }
+    },
+    [apiBase],
+  );
 
   useEffect(() => {
     if (initiallyLoaded) {

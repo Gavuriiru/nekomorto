@@ -14,12 +14,7 @@ export const permissionIds = [
 
 export type PermissionId = (typeof permissionIds)[number];
 
-export const accessRoles = [
-  "normal",
-  "admin",
-  "owner_secondary",
-  "owner_primary",
-] as const;
+export const accessRoles = ["normal", "admin", "owner_secondary", "owner_primary"] as const;
 
 export type AccessRole = (typeof accessRoles)[number];
 export type GrantMap = Record<PermissionId, boolean>;
@@ -34,7 +29,9 @@ export type AccessUserLike = {
 };
 
 export const isFrontendRbacV2Enabled = (() => {
-  const raw = String(import.meta.env.VITE_RBAC_V2_ENABLED || "").trim().toLowerCase();
+  const raw = String(import.meta.env.VITE_RBAC_V2_ENABLED || "")
+    .trim()
+    .toLowerCase();
   if (!raw) {
     return false;
   }
@@ -44,7 +41,9 @@ export const isFrontendRbacV2Enabled = (() => {
 const toPermissionSet = (permissions: string[] | undefined | null) => {
   const set = new Set<string>();
   (Array.isArray(permissions) ? permissions : []).forEach((permission) => {
-    const normalized = String(permission || "").trim().toLowerCase();
+    const normalized = String(permission || "")
+      .trim()
+      .toLowerCase();
     if (!normalized) {
       return;
     }
@@ -66,7 +65,9 @@ const emptyGrantMap = (): GrantMap =>
   Object.fromEntries(permissionIds.map((permission) => [permission, false])) as GrantMap;
 
 const coerceAccessRole = (value: string | undefined): AccessRole => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if ((accessRoles as readonly string[]).includes(normalized)) {
     return normalized as AccessRole;
   }
@@ -119,7 +120,9 @@ export const resolveAccessRole = (user: AccessUserLike | null | undefined): Acce
   }
   const userId = String(user.id || "");
   const ownerIds = Array.isArray(user.ownerIds) ? user.ownerIds.map((id) => String(id)) : [];
-  const primaryOwnerId = user.primaryOwnerId ? String(user.primaryOwnerId) : String(ownerIds[0] || "");
+  const primaryOwnerId = user.primaryOwnerId
+    ? String(user.primaryOwnerId)
+    : String(ownerIds[0] || "");
   if (primaryOwnerId && userId === primaryOwnerId) {
     return "owner_primary";
   }
@@ -253,7 +256,9 @@ export const getFirstAllowedDashboardRoute = (
   }
   const allowed =
     dashboardRouteOrder.find((href) =>
-      isDashboardHrefAllowed(href, grants, { allowUsersForSelf: options?.allowUsersForSelf ?? false }),
+      isDashboardHrefAllowed(href, grants, {
+        allowUsersForSelf: options?.allowUsersForSelf ?? false,
+      }),
     ) || "/dashboard";
   return allowed;
 };

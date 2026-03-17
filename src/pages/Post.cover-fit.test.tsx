@@ -107,26 +107,28 @@ const setupApiMock = (postOverrides: Partial<typeof postFixture> = {}) => {
     },
   };
   apiFetchMock.mockReset();
-  apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-    const method = String(options?.method || "GET").toUpperCase();
+  apiFetchMock.mockImplementation(
+    async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
 
-    if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
-      return mockJsonResponse(true, { post, mediaVariants });
-    }
-    if (endpoint === "/api/public/users" && method === "GET") {
-      return mockJsonResponse(true, { users: [], mediaVariants: {} });
-    }
-    if (endpoint === "/api/link-types" && method === "GET") {
-      return mockJsonResponse(true, { items: [] });
-    }
-    if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
-      return mockJsonResponse(true, { views: 11 });
-    }
-    if (endpoint === "/api/public/me" && method === "GET") {
-      return mockJsonResponse(true, { user: null });
-    }
-    return mockJsonResponse(false, { error: "not_found" }, 404);
-  });
+      if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
+        return mockJsonResponse(true, { post, mediaVariants });
+      }
+      if (endpoint === "/api/public/users" && method === "GET") {
+        return mockJsonResponse(true, { users: [], mediaVariants: {} });
+      }
+      if (endpoint === "/api/link-types" && method === "GET") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
+        return mockJsonResponse(true, { views: 11 });
+      }
+      if (endpoint === "/api/public/me" && method === "GET") {
+        return mockJsonResponse(true, { user: null });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    },
+  );
 };
 
 describe("Post cover fit", () => {
@@ -190,4 +192,3 @@ describe("Post cover fit", () => {
     expect(main).not.toHaveClass("pt-20");
   });
 });
-

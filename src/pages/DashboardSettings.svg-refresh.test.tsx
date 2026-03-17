@@ -73,9 +73,7 @@ const settingsWithUploadIcons = {
   downloads: {
     ...defaultSettings.downloads,
     sources: defaultSettings.downloads.sources.map((source, index) =>
-      index === 0
-        ? { ...source, icon: "/uploads/downloads/google-drive.svg" }
-        : source,
+      index === 0 ? { ...source, icon: "/uploads/downloads/google-drive.svg" } : source,
     ),
   },
 };
@@ -233,6 +231,3 @@ describe("DashboardSettings svg refresh", () => {
     });
   });
 });
-
-
-

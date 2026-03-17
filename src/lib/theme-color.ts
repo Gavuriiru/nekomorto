@@ -8,6 +8,12 @@ export const resolveThemeColor = (value: unknown) => {
     return DEFAULT_THEME_COLOR;
   }
   const raw = normalized.slice(1);
-  const expanded = raw.length === 3 ? raw.split("").map((part) => `${part}${part}`).join("") : raw;
+  const expanded =
+    raw.length === 3
+      ? raw
+          .split("")
+          .map((part) => `${part}${part}`)
+          .join("")
+      : raw;
   return `#${expanded.toLowerCase()}`;
 };

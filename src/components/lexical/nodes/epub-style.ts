@@ -38,7 +38,10 @@ const ZERO_LIKE_VALUES = new Set([
 const toCamelCase = (value: string) =>
   value.replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase());
 
-const normalizeValue = (value: string) => String(value || "").trim().replace(/\s+/g, " ");
+const normalizeValue = (value: string) =>
+  String(value || "")
+    .trim()
+    .replace(/\s+/g, " ");
 
 const getStyleRecord = (style: CSSStyleDeclaration | string) => {
   if (typeof style === "string") {
@@ -80,12 +83,16 @@ export const buildStyleDeclaration = (
   entries: Array<readonly [StyleKey | string, string | null | undefined]>,
 ) =>
   entries
-    .map(([property, value]) => [String(property).trim().toLowerCase(), normalizeValue(String(value || ""))] as const)
+    .map(
+      ([property, value]) =>
+        [String(property).trim().toLowerCase(), normalizeValue(String(value || ""))] as const,
+    )
     .filter(([property, value]) => property && value)
     .map(([property, value]) => `${property}: ${value}`)
     .join("; ");
 
-const isMeaningfulValue = (value: string) => !ZERO_LIKE_VALUES.has(normalizeValue(value).toLowerCase());
+const isMeaningfulValue = (value: string) =>
+  !ZERO_LIKE_VALUES.has(normalizeValue(value).toLowerCase());
 
 export const normalizeFontFamilyBucket = (value: string) => {
   const normalized = normalizeValue(value).toLowerCase();

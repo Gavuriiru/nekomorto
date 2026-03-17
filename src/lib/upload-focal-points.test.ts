@@ -12,12 +12,10 @@ import {
 
 describe("upload-focal-points", () => {
   it("normaliza mapa parcial usando fallbacks legados por preset", () => {
-    const focalPoints = normalizeUploadFocalPoints(
-      {
-        og: { x: 0.2, y: 0.8 },
-        hero: { x: 0.9, y: 0.1 },
-      },
-    );
+    const focalPoints = normalizeUploadFocalPoints({
+      og: { x: 0.2, y: 0.8 },
+      hero: { x: 0.9, y: 0.1 },
+    });
 
     expect(focalPoints.card).toEqual({ x: 0.2, y: 0.8 });
     expect(focalPoints.hero).toEqual({ x: 0.9, y: 0.1 });

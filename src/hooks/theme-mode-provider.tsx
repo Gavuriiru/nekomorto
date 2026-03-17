@@ -103,7 +103,9 @@ const disableThemeTransitionsTemporarily = () => {
 
 export const ThemeModeProvider = ({ children }: { children: ReactNode }) => {
   const { settings } = useSiteSettings();
-  const [preference, setPreferenceState] = useState<ThemeModePreference>(() => readInitialPreference());
+  const [preference, setPreferenceState] = useState<ThemeModePreference>(() =>
+    readInitialPreference(),
+  );
   const previousModeRef = useRef<ThemeMode | null>(null);
   const transitionCleanupRef = useRef<(() => void) | null>(null);
 

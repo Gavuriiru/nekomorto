@@ -63,7 +63,11 @@ const countApiCalls = (path: string, method = "GET") =>
 const renderPopover = (open: boolean) =>
   render(
     <MemoryRouter>
-      <DashboardNotificationsPopover apiBase="http://api.local" open={open} onOpenChange={() => undefined} />
+      <DashboardNotificationsPopover
+        apiBase="http://api.local"
+        open={open}
+        onOpenChange={() => undefined}
+      />
     </MemoryRouter>,
   );
 
@@ -146,7 +150,11 @@ describe("DashboardNotificationsPopover loading state", () => {
 
     rerender(
       <MemoryRouter>
-        <DashboardNotificationsPopover apiBase="http://api.local" open onOpenChange={() => undefined} />
+        <DashboardNotificationsPopover
+          apiBase="http://api.local"
+          open
+          onOpenChange={() => undefined}
+        />
       </MemoryRouter>,
     );
 
@@ -234,7 +242,11 @@ describe("DashboardNotificationsPopover loading state", () => {
 
     rerender(
       <MemoryRouter>
-        <DashboardNotificationsPopover apiBase="http://api.local" open={false} onOpenChange={() => undefined} />
+        <DashboardNotificationsPopover
+          apiBase="http://api.local"
+          open={false}
+          onOpenChange={() => undefined}
+        />
       </MemoryRouter>,
     );
 
@@ -246,7 +258,11 @@ describe("DashboardNotificationsPopover loading state", () => {
 
     rerender(
       <MemoryRouter>
-        <DashboardNotificationsPopover apiBase="http://api.local" open onOpenChange={() => undefined} />
+        <DashboardNotificationsPopover
+          apiBase="http://api.local"
+          open
+          onOpenChange={() => undefined}
+        />
       </MemoryRouter>,
     );
 

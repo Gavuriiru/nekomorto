@@ -20,7 +20,9 @@ describe("server url-safety", () => {
   });
 
   it("sanitizeAssetUrl blocks scriptable protocols", () => {
-    expect(sanitizeAssetUrl("https://cdn.exemplo.com/logo.svg")).toBe("https://cdn.exemplo.com/logo.svg");
+    expect(sanitizeAssetUrl("https://cdn.exemplo.com/logo.svg")).toBe(
+      "https://cdn.exemplo.com/logo.svg",
+    );
     expect(sanitizeAssetUrl("/uploads/branding/logo.svg")).toBe("/uploads/branding/logo.svg");
     expect(sanitizeAssetUrl("//cdn.exemplo.com/logo.svg")).toBeNull();
     expect(sanitizeAssetUrl("mailto:admin@example.com")).toBeNull();
@@ -30,7 +32,9 @@ describe("server url-safety", () => {
   it("sanitizeIconSource accepts only icon key, https or /uploads", () => {
     expect(sanitizeIconSource("instagram")).toBe("instagram");
     expect(sanitizeIconSource("InStaGram")).toBe("instagram");
-    expect(sanitizeIconSource("https://cdn.exemplo.com/icon.svg")).toBe("https://cdn.exemplo.com/icon.svg");
+    expect(sanitizeIconSource("https://cdn.exemplo.com/icon.svg")).toBe(
+      "https://cdn.exemplo.com/icon.svg",
+    );
     expect(sanitizeIconSource("/uploads/socials/icon.svg")).toBe("/uploads/socials/icon.svg");
     expect(sanitizeIconSource("http://cdn.exemplo.com/icon.svg")).toBeNull();
     expect(sanitizeIconSource("data:image/svg+xml,<svg/>")).toBeNull();
@@ -54,13 +58,7 @@ describe("server url-safety", () => {
   it("sanitizeFavoriteWorksByCategory normalizes lists and ignores legacy format", () => {
     const longTitle = "A".repeat(120);
     const favoriteWorks = sanitizeFavoriteWorksByCategory({
-      manga: [
-        "  Naruto  ",
-        "naruto",
-        "",
-        longTitle,
-        "Bleach",
-      ],
+      manga: ["  Naruto  ", "naruto", "", longTitle, "Bleach"],
       anime: ["One Piece", "ONE PIECE", "Frieren", "Haikyuu"],
     });
 

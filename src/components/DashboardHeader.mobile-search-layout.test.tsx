@@ -58,13 +58,7 @@ vi.mock("@/components/dashboard/DashboardNotificationsPopover", () => ({
 }));
 
 vi.mock("@/components/dashboard/DashboardCommandPalette", () => ({
-  default: ({
-    open,
-    onOpenChange,
-  }: {
-    open: boolean;
-    onOpenChange: (value: boolean) => void;
-  }) =>
+  default: ({ open, onOpenChange }: { open: boolean; onOpenChange: (value: boolean) => void }) =>
     open ? (
       <div>
         <input
@@ -120,11 +114,9 @@ const getSearchSuggestCalls = () =>
 
 const getOldEagerPublicCalls = () =>
   apiFetchMock.mock.calls.filter((call) =>
-    [
-      "/api/public/projects",
-      "/api/public/posts",
-      "/api/public/tag-translations",
-    ].includes(String(call[1] || "")),
+    ["/api/public/projects", "/api/public/posts", "/api/public/tag-translations"].includes(
+      String(call[1] || ""),
+    ),
   );
 
 describe("DashboardHeader mobile search layout", () => {
@@ -223,9 +215,9 @@ describe("DashboardHeader mobile search layout", () => {
     expect(classTokens(coverWrapper as HTMLElement)).toContain("h-28");
     expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
 
-    const coverColumn = screen.getByText("Projeto Dashboard").closest(
-      '[data-synopsis-role="column"]',
-    ) as HTMLElement | null;
+    const coverColumn = screen
+      .getByText("Projeto Dashboard")
+      .closest('[data-synopsis-role="column"]') as HTMLElement | null;
     expect(coverColumn).not.toBeNull();
     expect(classTokens(coverColumn as HTMLElement)).toContain("flex-1");
     expect(classTokens(coverColumn as HTMLElement)).toContain("self-stretch");

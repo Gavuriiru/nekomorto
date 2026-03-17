@@ -137,8 +137,7 @@ const buildReadingSubtitleLayout = ({ text, layout, subtitleTop }) => {
   const safeLayout = layout && typeof layout === "object" ? layout : {};
   const subtitleFontSize = Number(safeLayout.subtitleFontSize) || 0;
   const subtitleLineHeight = subtitleFontSize * 1.2;
-  const subtitleBottomLimit =
-    Number(safeLayout.tagsTop) - Number(safeLayout.subtitleLimitGap);
+  const subtitleBottomLimit = Number(safeLayout.tagsTop) - Number(safeLayout.subtitleLimitGap);
 
   if (!normalizedText || subtitleFontSize <= 0) {
     return {

@@ -34,7 +34,11 @@ const ZERO_LIKE_VALUES = new Set([
 ]);
 
 const isMeaningfulStyleValue = (value: string) =>
-  !ZERO_LIKE_VALUES.has(String(value || "").trim().toLowerCase());
+  !ZERO_LIKE_VALUES.has(
+    String(value || "")
+      .trim()
+      .toLowerCase(),
+  );
 
 const extractInlineEditorialTextStyle = (style: CSSStyleDeclaration | string) => {
   const record = parseStyleDeclaration(typeof style === "string" ? style : style.cssText);
@@ -72,8 +76,12 @@ const applyInlineEditorialStyleToTextNode = (
       lexicalNode.setStyle(mergedStyle);
     }
   }
-  const fontWeight = String(styleRecord["font-weight"] || "").trim().toLowerCase();
-  const fontStyle = String(styleRecord["font-style"] || "").trim().toLowerCase();
+  const fontWeight = String(styleRecord["font-weight"] || "")
+    .trim()
+    .toLowerCase();
+  const fontStyle = String(styleRecord["font-style"] || "")
+    .trim()
+    .toLowerCase();
   if ((fontWeight === "bold" || Number(fontWeight) >= 600) && !lexicalNode.hasFormat("bold")) {
     lexicalNode.toggleFormat("bold");
   }
@@ -92,13 +100,7 @@ const createInlineEditorialTextConversion =
     impliedFormat,
   }: {
     createNode?: ((node: Element) => unknown) | undefined;
-    impliedFormat?:
-      | "bold"
-      | "italic"
-      | "underline"
-      | "strikethrough"
-      | "subscript"
-      | "superscript";
+    impliedFormat?: "bold" | "italic" | "underline" | "strikethrough" | "subscript" | "superscript";
   } = {}) =>
   () => ({
     conversion: (node: Node) => {
@@ -149,7 +151,7 @@ class InlineEditorialStyleBridgeNode extends TextNode {
       a: createInlineEditorialTextConversion({
         createNode: (node) => {
           const href = node.getAttribute("href") || "";
-          if (((node.textContent || "") !== "" || node.children.length > 0)) {
+          if ((node.textContent || "") !== "" || node.children.length > 0) {
             return $createLinkNode(href, {
               rel: node.getAttribute("rel"),
               target: node.getAttribute("target"),
@@ -271,7 +273,11 @@ export const normalizeLexicalJson = (value: string) => {
 
 export const safeParseLexicalJson = normalizeLexicalJson;
 
-export { EMPTY_LEXICAL_JSON, EMPTY_LEXICAL_STATE, createEmptyLexicalState } from "@/lib/lexical/empty-state";
+export {
+  EMPTY_LEXICAL_JSON,
+  EMPTY_LEXICAL_STATE,
+  createEmptyLexicalState,
+} from "@/lib/lexical/empty-state";
 
 export const renderLexicalJsonToHtml = (serialized: string) => {
   const editor = createPlaygroundLexicalEditor();
@@ -304,5 +310,7 @@ export const htmlToLexicalJson = (html: string) => {
     },
     { discrete: true },
   );
-  return normalizeLexicalJson(JSON.stringify(editor.getEditorState().toJSON())) || EMPTY_LEXICAL_JSON;
+  return (
+    normalizeLexicalJson(JSON.stringify(editor.getEditorState().toJSON())) || EMPTY_LEXICAL_JSON
+  );
 };

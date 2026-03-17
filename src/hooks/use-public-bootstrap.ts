@@ -1,17 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import {
-  emptyPublicBootstrapPayload,
-  type PublicBootstrapPayload,
-} from "@/types/public-bootstrap";
+import { emptyPublicBootstrapPayload, type PublicBootstrapPayload } from "@/types/public-bootstrap";
 import { normalizePublicPagesConfig } from "@/lib/public-pages";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
-import {
-  asPublicBootstrapPayload,
-  readWindowPublicBootstrap,
-} from "@/lib/public-bootstrap-global";
+import { asPublicBootstrapPayload, readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 
 const PUBLIC_BOOTSTRAP_STALE_TIME_MS = 60_000;
 
@@ -81,9 +75,7 @@ const normalizePublicBootstrapPayload = (value: unknown): PublicBootstrapPayload
     projects: Array.isArray(data?.projects) ? data.projects : [],
     posts: Array.isArray(data?.posts) ? data.posts : [],
     updates: Array.isArray(data?.updates) ? data.updates : [],
-    teamMembers: Array.isArray(data?.teamMembers)
-      ? (data.teamMembers as PublicTeamMember[])
-      : [],
+    teamMembers: Array.isArray(data?.teamMembers) ? (data.teamMembers as PublicTeamMember[]) : [],
     teamLinkTypes: Array.isArray(data?.teamLinkTypes)
       ? (data.teamLinkTypes as PublicTeamLinkType[])
       : [],
@@ -125,10 +117,7 @@ const shouldFetchPublicBootstrap = (force = false) => {
   return Date.now() - publicBootstrapCache.lastFetchedAt > PUBLIC_BOOTSTRAP_STALE_TIME_MS;
 };
 
-const requestPublicBootstrap = async (
-  apiBase: string,
-  options: { force?: boolean } = {},
-) => {
+const requestPublicBootstrap = async (apiBase: string, options: { force?: boolean } = {}) => {
   const force = options.force === true;
   if (publicBootstrapCache.inFlightPromise) {
     return publicBootstrapCache.inFlightPromise;
@@ -194,10 +183,7 @@ export const usePublicBootstrap = () => {
     void requestPublicBootstrap(apiBase).catch(() => undefined);
   }, [apiBase]);
 
-  const refetch = useCallback(
-    () => requestPublicBootstrap(apiBase, { force: true }),
-    [apiBase],
-  );
+  const refetch = useCallback(() => requestPublicBootstrap(apiBase, { force: true }), [apiBase]);
 
   return {
     ...snapshot,

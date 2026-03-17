@@ -124,10 +124,7 @@ describe("MangaChapterPagesEditor", () => {
     expect(screen.queryByTestId("manga-pages-toolbar")).not.toBeInTheDocument();
     expect(screen.queryByTestId("manga-pages-add-tile")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Trocar/i })).not.toBeInTheDocument();
-    expect(getPageOrder()).toEqual([
-      "https://cdn.test/page-1.jpg",
-      "https://cdn.test/page-2.jpg",
-    ]);
+    expect(getPageOrder()).toEqual(["https://cdn.test/page-1.jpg", "https://cdn.test/page-2.jpg"]);
     expect(screen.getByTestId("manga-page-filename-0")).toHaveTextContent("page-1.jpg");
     expect(screen.getByTestId("manga-page-filename-1")).toHaveTextContent("page-2.jpg");
 

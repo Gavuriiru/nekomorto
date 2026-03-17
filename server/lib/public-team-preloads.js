@@ -10,7 +10,9 @@ export const resolveFirstPublicTeamMember = (teamMembers) => {
   }
   return (
     members.find((member) => {
-      const normalizedStatus = String(member?.status || "").trim().toLowerCase();
+      const normalizedStatus = String(member?.status || "")
+        .trim()
+        .toLowerCase();
       return normalizedStatus !== "retired" && normalizedStatus !== "aposentado";
     }) || members[0]
   );

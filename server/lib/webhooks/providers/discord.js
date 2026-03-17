@@ -35,7 +35,9 @@ const normalizeRoleIds = (value) => {
 };
 
 const severityToColor = (severity) => {
-  const normalized = String(severity || "").trim().toLowerCase();
+  const normalized = String(severity || "")
+    .trim()
+    .toLowerCase();
   if (normalized === "critical") {
     return 0xef4444;
   }

@@ -1,7 +1,7 @@
 import { axe } from "jest-axe";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Post from "@/pages/Post";
 
@@ -85,55 +85,100 @@ const authorFixture = {
 
 describe("Post accessibility", () => {
   beforeEach(() => {
+    (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC__ = {
+      settings: {},
+      pages: {},
+      projects: [],
+      posts: [],
+      updates: [],
+      teamMembers: [authorFixture],
+      teamLinkTypes: [{ id: "site", label: "Site", icon: "globe" }],
+      mediaVariants: {},
+      tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+      generatedAt: "2026-03-10T00:00:00.000Z",
+      payloadMode: "full",
+    };
+    (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC_ME__ = null;
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
 
-      if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
-        return mockJsonResponse(true, {
-          post: postFixture,
-          mediaVariants: {
-            "/uploads/capa-post.jpg": {
-              variantsVersion: 1,
-              variants: {
-                card: {
-                  formats: {
-                    fallback: { url: "/uploads/_variants/post-1/card-v1.jpeg" },
+        if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
+          return mockJsonResponse(true, {
+            post: postFixture,
+            mediaVariants: {
+              "/uploads/capa-post.jpg": {
+                variantsVersion: 1,
+                variants: {
+                  card: {
+                    formats: {
+                      fallback: { url: "/uploads/_variants/post-1/card-v1.jpeg" },
+                    },
                   },
                 },
               },
             },
-          },
-        });
-      }
-      if (endpoint === "/api/public/users" && method === "GET") {
-        return mockJsonResponse(true, { users: [authorFixture], mediaVariants: {} });
-      }
-      if (endpoint === "/api/link-types" && method === "GET") {
-        return mockJsonResponse(true, {
-          items: [{ id: "site", label: "Site", icon: "globe" }],
-        });
-      }
-      if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
-        return mockJsonResponse(true, { views: 11 });
-      }
-      if (endpoint === "/api/public/me" && method === "GET") {
-        return mockJsonResponse(true, { user: null });
-      }
+          });
+        }
+        if (endpoint === "/api/public/users" && method === "GET") {
+          return mockJsonResponse(true, { users: [authorFixture], mediaVariants: {} });
+        }
+        if (endpoint === "/api/link-types" && method === "GET") {
+          return mockJsonResponse(true, {
+            items: [{ id: "site", label: "Site", icon: "globe" }],
+          });
+        }
+        if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
+          return mockJsonResponse(true, { views: 11 });
+        }
+        if (endpoint === "/api/public/me" && method === "GET") {
+          return mockJsonResponse(true, { user: null });
+        }
 
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
+  });
+
+  afterEach(() => {
+    delete (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC__;
+    delete (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC_ME__;
   });
 
   it("mantem a ordem semantica dos headings com o card do autor sem violacoes axe", async () => {
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={["/postagem/post-teste#comment-1"]}>
         <Post />
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Post de Teste" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { level: 2, name: "Sobre o autor" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Post de Teste" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Sobre o autor" }),
+    ).toBeInTheDocument();
     expect(await screen.findByRole("heading", { level: 3, name: "Admin" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });

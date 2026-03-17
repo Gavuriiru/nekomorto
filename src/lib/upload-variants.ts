@@ -135,11 +135,7 @@ const toFinitePresetWidth = (
   return UPLOAD_VARIANT_PRESET_WIDTHS[presetKey];
 };
 
-const appendSrcSetCandidate = (
-  map: Map<string, number>,
-  url: string,
-  width: number,
-) => {
+const appendSrcSetCandidate = (map: Map<string, number>, url: string, width: number) => {
   if (!url || !Number.isFinite(width) || width <= 0) {
     return;
   }

@@ -444,5 +444,3 @@ export const buildApiContractV1 = ({ capabilities } = {}) => ({
   build: getBuildMetadata(),
   generatedAt: new Date().toISOString(),
 });
-
-

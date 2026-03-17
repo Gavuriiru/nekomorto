@@ -59,5 +59,7 @@ export const DashboardSessionProvider = ({ children }: { children: ReactNode }) 
     [currentUser, hasResolved, isLoading, refresh],
   );
 
-  return <DashboardSessionContext.Provider value={value}>{children}</DashboardSessionContext.Provider>;
+  return (
+    <DashboardSessionContext.Provider value={value}>{children}</DashboardSessionContext.Provider>
+  );
 };

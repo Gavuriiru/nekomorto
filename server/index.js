@@ -156,9 +156,7 @@ import {
   getProjectOgCachedRender,
   prewarmProjectOgCache,
 } from "./lib/project-og-delivery.js";
-import {
-  buildProjectReadingOgCardModel,
-} from "./lib/project-reading-og.js";
+import { buildProjectReadingOgCardModel } from "./lib/project-reading-og.js";
 import {
   buildProjectReadingOgDeliveryHeaders,
   buildProjectReadingOgRevisionValue,
@@ -2174,10 +2172,7 @@ const buildSiteMeta = () => buildSiteMetaWithSettings(loadSiteSettings());
 
 const buildInstitutionalPageMeta = (
   pageKey,
-  {
-    settings = loadSiteSettings(),
-    pages = loadPages(),
-  } = {},
+  { settings = loadSiteSettings(), pages = loadPages() } = {},
 ) => {
   const resolvedPageKey = String(pageKey || "").trim();
   const titleText = resolveInstitutionalOgPageTitle(resolvedPageKey);
@@ -2278,10 +2273,7 @@ const getPageTitleFromPath = (value) => {
 
 const buildProjectMeta = (
   project,
-  {
-    settings = loadSiteSettings(),
-    translations = loadTagTranslations(),
-  } = {},
+  { settings = loadSiteSettings(), translations = loadTagTranslations() } = {},
 ) => {
   const siteName = settings.site?.name || "Nekomata";
   const title = project?.title ? `${project.title} | ${siteName}` : siteName;
@@ -5087,7 +5079,10 @@ const upsertUploadEntries = (incomingEntries) => {
       url: nextUrl,
       fileName: String(entry?.fileName || current?.fileName || ""),
       folder: String(entry?.folder || current?.folder || ""),
-      storageProvider: readUploadStorageProvider(entry, readUploadStorageProvider(current, "local")),
+      storageProvider: readUploadStorageProvider(
+        entry,
+        readUploadStorageProvider(current, "local"),
+      ),
       size: Number.isFinite(entry?.size) ? Number(entry.size) : (current?.size ?? null),
       mime: String(entry?.mime || current?.mime || ""),
       width: Number.isFinite(entry?.width) ? Number(entry.width) : (current?.width ?? null),
@@ -5420,10 +5415,7 @@ const buildPublicMediaVariants = (sourcesInput, options = {}) => {
       },
       {
         uploadsDir: PUBLIC_UPLOADS_DIR,
-        assetExists:
-          readUploadStorageProvider(entry, "local") === "s3"
-            ? () => true
-            : undefined,
+        assetExists: readUploadStorageProvider(entry, "local") === "s3" ? () => true : undefined,
       },
     );
     if (!sanitizedEntry) {
@@ -5440,10 +5432,7 @@ const resolveUploadVariantUrlFromEntry = ({ entry, preset, fallbackUrl }) =>
     preset,
     fallbackUrl,
     uploadsDir: PUBLIC_UPLOADS_DIR,
-    assetExists:
-      readUploadStorageProvider(entry, "local") === "s3"
-        ? () => true
-        : undefined,
+    assetExists: readUploadStorageProvider(entry, "local") === "s3" ? () => true : undefined,
   });
 
 const resolveMetaImageVariantUrl = (value, preset = "og") => {
@@ -5472,9 +5461,7 @@ const MAX_PROJECT_OG_LOG_USER_AGENT_LENGTH = 200;
 const selectVisibleProjectsForOgPrewarm = (projectIds) => {
   const visibleProjects = getPublicVisibleProjects();
   const normalizedIds = Array.isArray(projectIds)
-    ? projectIds
-        .map((value) => String(value || "").trim())
-        .filter(Boolean)
+    ? projectIds.map((value) => String(value || "").trim()).filter(Boolean)
     : [];
   if (normalizedIds.length === 0) {
     return visibleProjects;
@@ -5529,7 +5516,10 @@ const logProjectOgDelivery = ({ projectId, cacheHit, timings, userAgent } = {}) 
               .map(([key, value]) => [key, Number(value)]),
           )
         : {},
-    userAgent: String(userAgent || "").trim().slice(0, MAX_PROJECT_OG_LOG_USER_AGENT_LENGTH) || null,
+    userAgent:
+      String(userAgent || "")
+        .trim()
+        .slice(0, MAX_PROJECT_OG_LOG_USER_AGENT_LENGTH) || null,
   });
 };
 
@@ -8841,9 +8831,7 @@ const findEpubImportJobForUser = (jobId, actorId) =>
 
 const expireEpubImportJob = (
   job,
-  {
-    error = "O resultado da importacao EPUB expirou. Envie o arquivo novamente.",
-  } = {},
+  { error = "O resultado da importacao EPUB expirou. Envie o arquivo novamente." } = {},
 ) => {
   if (!job) {
     return null;
@@ -8861,13 +8849,7 @@ const expireEpubImportJob = (
 
 const runEpubImportJob = async (
   jobId,
-  {
-    buffer,
-    project,
-    targetVolume,
-    defaultStatus,
-    uploadUserId,
-  } = {},
+  { buffer, project, targetVolume, defaultStatus, uploadUserId } = {},
 ) => {
   const current = loadEpubImportJobs().find(
     (entry) => String(entry?.id || "") === String(jobId || ""),
@@ -8938,7 +8920,9 @@ const enqueueEpubImportJob = (jobId, payload) =>
   });
 
 loadEpubImportJobs().forEach((job) => {
-  const normalizedStatus = String(job?.status || "").trim().toLowerCase();
+  const normalizedStatus = String(job?.status || "")
+    .trim()
+    .toLowerCase();
   if (normalizedStatus === "completed") {
     const expiresAtTs = new Date(job?.expiresAt || 0).getTime();
     if (Number.isFinite(expiresAtTs) && expiresAtTs <= Date.now()) {
@@ -8967,9 +8951,7 @@ const findProjectImageImportJobForUser = (jobId, actorId) =>
 
 const expireProjectImageImportJob = (
   job,
-  {
-    error = "O resultado da importacao de imagens expirou. Envie o lote novamente.",
-  } = {},
+  { error = "O resultado da importacao de imagens expirou. Envie o lote novamente." } = {},
 ) => {
   if (!job) {
     return null;
@@ -9086,9 +9068,7 @@ const findProjectImageExportJobForUser = (jobId, actorId) =>
 
 const expireProjectImageExportJob = (
   job,
-  {
-    error = "O arquivo exportado expirou. Gere a exportacao novamente.",
-  } = {},
+  { error = "O arquivo exportado expirou. Gere a exportacao novamente." } = {},
 ) => {
   if (!job) {
     return null;
@@ -9113,14 +9093,7 @@ const writeProjectImageExportResultFile = ({ jobId, fileName, buffer } = {}) => 
   return filePath;
 };
 
-const runProjectImageExportJob = async (
-  jobId,
-  {
-    project,
-    volume,
-    includeDrafts,
-  } = {},
-) => {
+const runProjectImageExportJob = async (jobId, { project, volume, includeDrafts } = {}) => {
   const current = loadProjectImageExportJobs().find(
     (entry) => String(entry?.id || "") === String(jobId || ""),
   );
@@ -9191,7 +9164,9 @@ const enqueueProjectImageExportJob = (jobId, payload) =>
   });
 
 loadProjectImageImportJobs().forEach((job) => {
-  const normalizedStatus = String(job?.status || "").trim().toLowerCase();
+  const normalizedStatus = String(job?.status || "")
+    .trim()
+    .toLowerCase();
   if (normalizedStatus === "completed") {
     const expiresAtTs = new Date(job?.expiresAt || 0).getTime();
     if (Number.isFinite(expiresAtTs) && expiresAtTs <= Date.now()) {
@@ -9207,12 +9182,15 @@ loadProjectImageImportJobs().forEach((job) => {
     status: "failed",
     resultPath: null,
     finishedAt: new Date().toISOString(),
-    error: "A importacao de imagens foi interrompida porque o servidor reiniciou antes da conclusao.",
+    error:
+      "A importacao de imagens foi interrompida porque o servidor reiniciou antes da conclusao.",
   });
 });
 
 loadProjectImageExportJobs().forEach((job) => {
-  const normalizedStatus = String(job?.status || "").trim().toLowerCase();
+  const normalizedStatus = String(job?.status || "")
+    .trim()
+    .toLowerCase();
   if (normalizedStatus === "completed") {
     const expiresAtTs = new Date(job?.expiresAt || 0).getTime();
     if (Number.isFinite(expiresAtTs) && expiresAtTs <= Date.now()) {
@@ -9228,7 +9206,8 @@ loadProjectImageExportJobs().forEach((job) => {
     status: "failed",
     resultPath: null,
     finishedAt: new Date().toISOString(),
-    error: "A exportacao de imagens foi interrompida porque o servidor reiniciou antes da conclusao.",
+    error:
+      "A exportacao de imagens foi interrompida porque o servidor reiniciou antes da conclusao.",
   });
 });
 
@@ -11999,75 +11978,80 @@ app.get("/api/project-types", requireAuth, (req, res) => {
   return res.json({ types });
 });
 
-app.post("/api/projects/epub/import/jobs", requireAuth, parseEpubImportRequestBody, async (req, res) => {
-  const sessionUser = req.session.user;
-  if (!canManageProjects(sessionUser?.id)) {
-    return res.status(403).json({ error: "forbidden" });
-  }
-  if (!isEpubImportJobStorageAvailable()) {
-    return res.status(404).json({ error: "not_found" });
-  }
-
-  let requestInput;
-  try {
-    requestInput = resolveEpubImportRequestInput(req);
-  } catch (error) {
-    if (error?.code === "duplicate_episode_key") {
-      return res.status(400).json({ error: "duplicate_episode_key", key: error.key });
+app.post(
+  "/api/projects/epub/import/jobs",
+  requireAuth,
+  parseEpubImportRequestBody,
+  async (req, res) => {
+    const sessionUser = req.session.user;
+    if (!canManageProjects(sessionUser?.id)) {
+      return res.status(403).json({ error: "forbidden" });
     }
-    if (error?.code === "duplicate_volume_cover_key") {
-      return res.status(400).json({ error: "duplicate_volume_cover_key", key: error.key });
+    if (!isEpubImportJobStorageAvailable()) {
+      return res.status(404).json({ error: "not_found" });
     }
-    return res.status(400).json({ error: "invalid_project_snapshot" });
-  }
 
-  if (requestInput.isMultipartRequest && !req.file) {
-    return res.status(400).json({ error: "file_required" });
-  }
-
-  if (!requestInput.buffer.length) {
-    return res.status(400).json({ error: "empty_epub_upload" });
-  }
-
-  let project = requestInput.project;
-  const rawProjectId = requestInput.rawProjectId;
-  if (!project && rawProjectId) {
-    project =
-      normalizeProjects(loadProjects()).find(
-        (item) => item.id === rawProjectId && !item.deletedAt,
-      ) || null;
-    if (!project) {
-      return res.status(404).json({ error: "project_not_found" });
+    let requestInput;
+    try {
+      requestInput = resolveEpubImportRequestInput(req);
+    } catch (error) {
+      if (error?.code === "duplicate_episode_key") {
+        return res.status(400).json({ error: "duplicate_episode_key", key: error.key });
+      }
+      if (error?.code === "duplicate_volume_cover_key") {
+        return res.status(400).json({ error: "duplicate_volume_cover_key", key: error.key });
+      }
+      return res.status(400).json({ error: "invalid_project_snapshot" });
     }
-  }
 
-  const job = upsertEpubImportJob({
-    id: crypto.randomUUID(),
-    projectId: String(project?.id || rawProjectId || "").trim(),
-    requestedBy: String(sessionUser?.id || ""),
-    status: "queued",
-    summary: {},
-    resultPath: null,
-    error: null,
-    createdAt: new Date().toISOString(),
-  });
-  if (!job) {
-    return res.status(500).json({ error: "job_create_failed" });
-  }
-  void enqueueEpubImportJob(job.id, {
-    buffer: requestInput.buffer,
-    project,
-    rawProjectId,
-    targetVolume: requestInput.targetVolume,
-    defaultStatus: requestInput.defaultStatus,
-    uploadUserId: sessionUser?.id,
-  }).catch((error) => {
-    console.error(
-      `[epub-import-job] failed to enqueue job ${job.id}: ${String(error?.message || error)}`,
-    );
-  });
-  return res.status(202).json({ job: toEpubImportJobApiResponse(job) });
-});
+    if (requestInput.isMultipartRequest && !req.file) {
+      return res.status(400).json({ error: "file_required" });
+    }
+
+    if (!requestInput.buffer.length) {
+      return res.status(400).json({ error: "empty_epub_upload" });
+    }
+
+    let project = requestInput.project;
+    const rawProjectId = requestInput.rawProjectId;
+    if (!project && rawProjectId) {
+      project =
+        normalizeProjects(loadProjects()).find(
+          (item) => item.id === rawProjectId && !item.deletedAt,
+        ) || null;
+      if (!project) {
+        return res.status(404).json({ error: "project_not_found" });
+      }
+    }
+
+    const job = upsertEpubImportJob({
+      id: crypto.randomUUID(),
+      projectId: String(project?.id || rawProjectId || "").trim(),
+      requestedBy: String(sessionUser?.id || ""),
+      status: "queued",
+      summary: {},
+      resultPath: null,
+      error: null,
+      createdAt: new Date().toISOString(),
+    });
+    if (!job) {
+      return res.status(500).json({ error: "job_create_failed" });
+    }
+    void enqueueEpubImportJob(job.id, {
+      buffer: requestInput.buffer,
+      project,
+      rawProjectId,
+      targetVolume: requestInput.targetVolume,
+      defaultStatus: requestInput.defaultStatus,
+      uploadUserId: sessionUser?.id,
+    }).catch((error) => {
+      console.error(
+        `[epub-import-job] failed to enqueue job ${job.id}: ${String(error?.message || error)}`,
+      );
+    });
+    return res.status(202).json({ job: toEpubImportJobApiResponse(job) });
+  },
+);
 
 app.get("/api/projects/epub/import/jobs/:id", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
@@ -12083,7 +12067,11 @@ app.get("/api/projects/epub/import/jobs/:id", requireAuth, (req, res) => {
     return res.status(404).json({ error: "not_found" });
   }
 
-  if (String(job.status || "").trim().toLowerCase() === "completed") {
+  if (
+    String(job.status || "")
+      .trim()
+      .toLowerCase() === "completed"
+  ) {
     const expiresAtTs = new Date(job.expiresAt || 0).getTime();
     if (Number.isFinite(expiresAtTs) && Date.now() > expiresAtTs) {
       job = expireEpubImportJob(job) || job;
@@ -12398,7 +12386,11 @@ app.get("/api/projects/:id/manga-import/jobs/:jobId", requireAuth, (req, res) =>
     return res.status(404).json({ error: "not_found" });
   }
 
-  if (String(job.status || "").trim().toLowerCase() === "completed") {
+  if (
+    String(job.status || "")
+      .trim()
+      .toLowerCase() === "completed"
+  ) {
     const expiresAtTs = new Date(job.expiresAt || 0).getTime();
     if (Number.isFinite(expiresAtTs) && Date.now() > expiresAtTs) {
       job = expireProjectImageImportJob(job) || job;
@@ -12435,7 +12427,12 @@ app.post("/api/projects/:id/manga-export/chapter", requireAuth, async (req, res)
     Number.isFinite(Number(volumeRaw))
       ? Number(volumeRaw)
       : undefined;
-  const format = String(req.body?.format || "zip").trim().toLowerCase() === "cbz" ? "cbz" : "zip";
+  const format =
+    String(req.body?.format || "zip")
+      .trim()
+      .toLowerCase() === "cbz"
+      ? "cbz"
+      : "zip";
 
   if (!Number.isFinite(chapterNumber) || chapterNumber <= 0) {
     return res.status(400).json({ error: "invalid_chapter" });
@@ -12570,7 +12567,11 @@ app.get("/api/projects/:id/manga-export/jobs/:jobId", requireAuth, (req, res) =>
     return res.status(404).json({ error: "not_found" });
   }
 
-  if (String(job.status || "").trim().toLowerCase() === "completed") {
+  if (
+    String(job.status || "")
+      .trim()
+      .toLowerCase() === "completed"
+  ) {
     const expiresAtTs = new Date(job.expiresAt || 0).getTime();
     if (Number.isFinite(expiresAtTs) && Date.now() > expiresAtTs) {
       job = expireProjectImageExportJob(job) || job;
@@ -12599,7 +12600,11 @@ app.get("/api/projects/:id/manga-export/jobs/:jobId/download", requireAuth, (req
   if (!job || String(job.projectId || "") !== String(req.params.id || "").trim()) {
     return res.status(404).json({ error: "not_found" });
   }
-  if (String(job.status || "").trim().toLowerCase() !== "completed") {
+  if (
+    String(job.status || "")
+      .trim()
+      .toLowerCase() !== "completed"
+  ) {
     return res.status(409).json({ error: "job_not_completed" });
   }
 
@@ -13695,11 +13700,7 @@ const findBootstrapProjectByRouteSlug = (projects, routeSlug) => {
   );
 };
 
-const resolveBootstrapReadingHeroImageUrl = ({
-  project,
-  chapterNumber,
-  volume,
-}) => {
+const resolveBootstrapReadingHeroImageUrl = ({ project, chapterNumber, volume }) => {
   if (!project || !Number.isFinite(chapterNumber)) {
     return "";
   }
@@ -13847,7 +13848,10 @@ const injectPublicBootstrapHtml = ({
     const routeProjectId = String(req?.params?.id || "").trim();
     const chapterNumber = Number(req?.params?.chapter);
     const routeVolume = Number(req?.query?.volume);
-    const bootstrapProject = findBootstrapProjectByRouteSlug(publicBootstrap?.projects, routeProjectId);
+    const bootstrapProject = findBootstrapProjectByRouteSlug(
+      publicBootstrap?.projects,
+      routeProjectId,
+    );
     const readingHeroImageUrl = resolveBootstrapReadingHeroImageUrl({
       project: bootstrapProject,
       chapterNumber,
@@ -14524,7 +14528,10 @@ app.post("/api/integrations/webhooks/editorial/test", requireAuth, async (req, r
       updatedAt: String(chapterSource?.chapterUpdatedAt || chapterSource?.updatedAt || now),
       coverImageUrl: String(chapterSource?.coverImageUrl || ""),
     };
-    const sampleUpdateUnit = resolveProjectUpdateUnitLabel(sampleProject?.type || "", chapterSource);
+    const sampleUpdateUnit = resolveProjectUpdateUnitLabel(
+      sampleProject?.type || "",
+      chapterSource,
+    );
     const sampleUpdate = {
       kind: eventKey === "project_adjust" ? "Ajuste" : "Lançamento",
       reason:
@@ -15200,7 +15207,10 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
         const relative = normalizedUrl.replace(/^\/uploads\//, "");
         const resolvedFolder =
           meta?.folder ?? path.dirname(relative).replace(/\\/g, "/").replace(/^\.$/, "");
-        if (!matchesFolder(resolvedFolder) || !isUploadFolderAllowedInScope(resolvedFolder, uploadAccessScope)) {
+        if (
+          !matchesFolder(resolvedFolder) ||
+          !isUploadFolderAllowedInScope(resolvedFolder, uploadAccessScope)
+        ) {
           return null;
         }
         const inUse = usedUrls.has(normalizedUrl);
@@ -15213,7 +15223,8 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
           folder: resolvedFolder,
           fileName: meta?.fileName || path.basename(relative),
           mime:
-            meta?.mime || getUploadMimeFromExtension(path.extname(path.basename(relative)).replace(".", "")),
+            meta?.mime ||
+            getUploadMimeFromExtension(path.extname(path.basename(relative)).replace(".", "")),
           size: typeof meta?.size === "number" ? meta.size : null,
           createdAt: meta?.createdAt || null,
           width: typeof meta?.width === "number" ? meta.width : null,
@@ -15268,7 +15279,10 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
           return [];
         }
         const resolvedFolder = path.dirname(relative).replace(/\\/g, "/").replace(/^\.$/, "");
-        if (!matchesFolder(resolvedFolder) || !isUploadFolderAllowedInScope(resolvedFolder, uploadAccessScope)) {
+        if (
+          !matchesFolder(resolvedFolder) ||
+          !isUploadFolderAllowedInScope(resolvedFolder, uploadAccessScope)
+        ) {
           return [];
         }
         const stat = fs.statSync(fullPath);
@@ -17218,7 +17232,9 @@ app.get("/api/og/post/:slug", async (req, res) => {
     const firstPostImage = extractFirstImageFromPostContent(post.content, post.contentFormat);
     const relatedProjectId = String(post.projectId || "").trim();
     const relatedProject = relatedProjectId
-      ? getPublicVisibleProjects().find((item) => String(item?.id || "").trim() === relatedProjectId) || null
+      ? getPublicVisibleProjects().find(
+          (item) => String(item?.id || "").trim() === relatedProjectId,
+        ) || null
       : null;
     const resolvedAuthor = resolveEditorialAuthorFromPost(post);
     const rendered = await getPostOgCachedRender({
@@ -17384,7 +17400,7 @@ app.get(
   },
 );
 
-app.get("*", async (req, res) => {
+app.get("/{*path}", async (req, res) => {
   if (req.path.startsWith("/api") || req.path.startsWith("/auth")) {
     return res.status(404).json({ error: "not_found" });
   }

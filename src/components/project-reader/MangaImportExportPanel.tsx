@@ -45,7 +45,9 @@ const MangaImportExportPanel = ({
     files?: File[];
     label: string;
   } | null>(null);
-  const [previewPayload, setPreviewPayload] = useState<ProjectImageImportPreviewPayload | null>(null);
+  const [previewPayload, setPreviewPayload] = useState<ProjectImageImportPreviewPayload | null>(
+    null,
+  );
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -61,7 +63,11 @@ const MangaImportExportPanel = ({
     [importSource, project.id],
   );
 
-  const submitPreview = async (source: { archiveFile?: File | null; files?: File[]; label: string }) => {
+  const submitPreview = async (source: {
+    archiveFile?: File | null;
+    files?: File[];
+    label: string;
+  }) => {
     setIsPreviewing(true);
     try {
       const formData = buildProjectImageImportFormData({
@@ -342,7 +348,11 @@ const MangaImportExportPanel = ({
               disabled={isPreviewing || !backendSupportsMangaImport}
               className="gap-2"
             >
-              {isPreviewing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileArchive className="h-4 w-4" />}
+              {isPreviewing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileArchive className="h-4 w-4" />
+              )}
               <span>Selecionar ZIP/CBZ</span>
             </Button>
             <Button
@@ -352,7 +362,11 @@ const MangaImportExportPanel = ({
               disabled={isPreviewing || !backendSupportsMangaImport}
               className="gap-2"
             >
-              {isPreviewing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FolderOpen className="h-4 w-4" />}
+              {isPreviewing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FolderOpen className="h-4 w-4" />
+              )}
               <span>Selecionar pasta</span>
             </Button>
           </div>
@@ -438,7 +452,11 @@ const MangaImportExportPanel = ({
             disabled={!canSubmit || isImporting || !backendSupportsMangaImport}
             className="gap-2"
           >
-            {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {isImporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4" />
+            )}
             <span>Confirmar importação</span>
           </Button>
         </section>
@@ -482,7 +500,11 @@ const MangaImportExportPanel = ({
             disabled={isExporting || !backendSupportsMangaExport}
             className="gap-2"
           >
-            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4" />
+            )}
             <span>Exportar lote</span>
           </Button>
         </section>

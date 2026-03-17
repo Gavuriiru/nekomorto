@@ -18,7 +18,11 @@ const createTempWorkspace = () => {
   };
 };
 
-const writeUploadFile = (uploadsDir: string, relativePath: string, content: string | Buffer = "img") => {
+const writeUploadFile = (
+  uploadsDir: string,
+  relativePath: string,
+  content: string | Buffer = "img",
+) => {
   const targetPath = path.join(uploadsDir, relativePath);
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
   fs.writeFileSync(targetPath, content);
@@ -89,11 +93,17 @@ describe("cleanupProjectEpubImportTempUploads", () => {
     );
     expect(result.uploadsNext).toHaveLength(2);
 
-    expect(fs.existsSync(path.join(uploadsDir, "tmp/epub-imports/user-1/import-1/ch-1.jpg"))).toBe(false);
+    expect(fs.existsSync(path.join(uploadsDir, "tmp/epub-imports/user-1/import-1/ch-1.jpg"))).toBe(
+      false,
+    );
     expect(fs.existsSync(path.join(uploadsDir, "_variants/u-own-1"))).toBe(false);
-    expect(fs.existsSync(path.join(uploadsDir, "tmp/epub-imports/user-2/import-1/ch-2.jpg"))).toBe(true);
+    expect(fs.existsSync(path.join(uploadsDir, "tmp/epub-imports/user-2/import-1/ch-2.jpg"))).toBe(
+      true,
+    );
     expect(fs.existsSync(path.join(uploadsDir, "_variants/u-other-1/card.webp"))).toBe(true);
-    expect(fs.existsSync(path.join(uploadsDir, "tmp/epub-imports/user-1/import-2/ch-3.jpg"))).toBe(true);
+    expect(fs.existsSync(path.join(uploadsDir, "tmp/epub-imports/user-1/import-2/ch-3.jpg"))).toBe(
+      true,
+    );
   });
 
   it("nao deleta upload temporario ainda referenciado em datasets persistidos", () => {
@@ -126,7 +136,9 @@ describe("cleanupProjectEpubImportTempUploads", () => {
       }),
     );
     expect(result.uploadsNext).toHaveLength(1);
-    expect(fs.existsSync(path.join(uploadsDir, "tmp/epub-imports/user-1/import-1/ch-1.jpg"))).toBe(true);
+    expect(fs.existsSync(path.join(uploadsDir, "tmp/epub-imports/user-1/import-1/ch-1.jpg"))).toBe(
+      true,
+    );
   });
 
   it("retorna falha para entrada temporaria com url invalida sem remover o registro", () => {
@@ -169,6 +181,8 @@ describe("cleanupProjectEpubImportTempUploads", () => {
       },
     ]);
     expect(result.uploadsNext).toHaveLength(2);
-    expect(fs.existsSync(path.join(uploadsDir, "tmp/epub-imports/user-1/import-1/ch-1.jpg"))).toBe(true);
+    expect(fs.existsSync(path.join(uploadsDir, "tmp/epub-imports/user-1/import-1/ch-1.jpg"))).toBe(
+      true,
+    );
   });
 });

@@ -108,11 +108,15 @@ describe("DashboardAuditLog date/time filters", () => {
   it("exibe toast de sucesso em exportacao CSV sem truncamento", async () => {
     const originalCreateObjectURL = window.URL.createObjectURL;
     const originalRevokeObjectURL = window.URL.revokeObjectURL;
-    window.URL.createObjectURL = vi.fn(() => "blob:http://localhost/fake") as typeof window.URL.createObjectURL;
+    window.URL.createObjectURL = vi.fn(
+      () => "blob:http://localhost/fake",
+    ) as typeof window.URL.createObjectURL;
     window.URL.revokeObjectURL = vi.fn() as typeof window.URL.revokeObjectURL;
     const appendChildSpy = vi.spyOn(document.body, "appendChild");
     const removeChildSpy = vi.spyOn(document.body, "removeChild");
-    const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const anchorClickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
 
     try {
       apiFetchMock.mockImplementation(async (_base, path, options) => {
@@ -124,12 +128,12 @@ describe("DashboardAuditLog date/time filters", () => {
           const query = String(path).split("?")[1] || "";
           const params = new URLSearchParams(query);
           if (params.get("format") === "csv") {
-            return ({
+            return {
               ok: true,
               status: 200,
               headers: new Headers(),
               blob: async () => new Blob(["event"], { type: "text/csv" }),
-            }) as Response;
+            } as Response;
           }
           return mockJsonResponse(true, { entries: [], page: 1, limit: 50, total: 0 });
         }
@@ -165,11 +169,15 @@ describe("DashboardAuditLog date/time filters", () => {
   it("exibe toast de truncamento quando exportacao CSV vem limitada", async () => {
     const originalCreateObjectURL = window.URL.createObjectURL;
     const originalRevokeObjectURL = window.URL.revokeObjectURL;
-    window.URL.createObjectURL = vi.fn(() => "blob:http://localhost/fake") as typeof window.URL.createObjectURL;
+    window.URL.createObjectURL = vi.fn(
+      () => "blob:http://localhost/fake",
+    ) as typeof window.URL.createObjectURL;
     window.URL.revokeObjectURL = vi.fn() as typeof window.URL.revokeObjectURL;
     const appendChildSpy = vi.spyOn(document.body, "appendChild");
     const removeChildSpy = vi.spyOn(document.body, "removeChild");
-    const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const anchorClickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
 
     try {
       apiFetchMock.mockImplementation(async (_base, path, options) => {
@@ -186,12 +194,12 @@ describe("DashboardAuditLog date/time filters", () => {
               "X-Audit-Export-Count": "10000",
               "X-Audit-Export-Total": "15234",
             });
-            return ({
+            return {
               ok: true,
               status: 200,
               headers,
               blob: async () => new Blob(["event"], { type: "text/csv" }),
-            }) as Response;
+            } as Response;
           }
           return mockJsonResponse(true, { entries: [], page: 1, limit: 50, total: 0 });
         }

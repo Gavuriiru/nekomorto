@@ -1,7 +1,4 @@
-import {
-  emptyPublicPagesConfig,
-  type PublicPagesConfig,
-} from "@/types/public-pages";
+import { emptyPublicPagesConfig, type PublicPagesConfig } from "@/types/public-pages";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);

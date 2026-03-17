@@ -15,7 +15,11 @@ const resolveSecrets = ({ sessionSecret, sessionSecrets }) => {
   return single ? [single] : [];
 };
 
-export const isDefaultSessionSecretInProduction = ({ isProduction, sessionSecret, sessionSecrets }) => {
+export const isDefaultSessionSecretInProduction = ({
+  isProduction,
+  sessionSecret,
+  sessionSecrets,
+}) => {
   if (!isProduction) {
     return false;
   }
@@ -36,7 +40,8 @@ export const buildSessionCookieConfig = ({
     sessionSecret,
     sessionSecrets,
   });
-  const effectiveSecrets = resolvedSecrets.length > 0 ? resolvedSecrets : [DEV_SESSION_SECRET_FALLBACK];
+  const effectiveSecrets =
+    resolvedSecrets.length > 0 ? resolvedSecrets : [DEV_SESSION_SECRET_FALLBACK];
   const cookieName = isProduction ? `__Host-${safeBaseName}` : safeBaseName;
 
   return {

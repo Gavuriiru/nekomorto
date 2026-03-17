@@ -99,7 +99,9 @@ const setupApiMock = () => {
 };
 
 const getLastTimeseriesParams = () => {
-  const calls = apiFetchMock.mock.calls.filter((call) => String(call[1] || "").startsWith("/api/analytics/timeseries?"));
+  const calls = apiFetchMock.mock.calls.filter((call) =>
+    String(call[1] || "").startsWith("/api/analytics/timeseries?"),
+  );
   const last = String(calls[calls.length - 1]?.[1] || "");
   return new URLSearchParams(last.split("?")[1] || "");
 };
@@ -164,7 +166,9 @@ describe("DashboardAnalytics query sync", () => {
     );
 
     await screen.findByRole("heading", { name: /Performance e aquisi/i });
-    expect(screen.getByTestId("location-search").textContent).toBe("?range=7d&type=post&metric=views");
+    expect(screen.getByTestId("location-search").textContent).toBe(
+      "?range=7d&type=post&metric=views",
+    );
 
     await waitFor(() => {
       const params = getLastTimeseriesParams();

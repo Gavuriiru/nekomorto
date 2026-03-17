@@ -72,9 +72,11 @@ describe("LexicalViewer fidelity", () => {
       return container;
     });
 
-    (window as typeof window & {
-      twttr?: { widgets: { createTweet: typeof createTweetMock } };
-    }).twttr = {
+    (
+      window as typeof window & {
+        twttr?: { widgets: { createTweet: typeof createTweetMock } };
+      }
+    ).twttr = {
       widgets: {
         createTweet: createTweetMock,
       },
@@ -138,7 +140,9 @@ describe("LexicalViewer fidelity", () => {
           "font-size: 19px; line-height: 1.95; font-family: serif; margin-top: 10px; margin-bottom: 14px; text-indent: 2em;",
       });
       const styledText = $createTextNode("Texto EPUB estilizado");
-      styledText.setStyle("font-size: 21px; font-family: serif; font-style: italic; font-weight: 700;");
+      styledText.setStyle(
+        "font-size: 21px; font-family: serif; font-style: italic; font-weight: 700;",
+      );
       paragraph.append(styledText);
 
       const image = $createEpubImageNode({

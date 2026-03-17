@@ -1,5 +1,7 @@
 export const normalizeApiBase = (value: unknown) => {
-  const normalized = String(value || "").trim().replace(/\/+$/, "");
+  const normalized = String(value || "")
+    .trim()
+    .replace(/\/+$/, "");
   return normalized;
 };
 
@@ -12,7 +14,9 @@ const parseUrl = (value: string) => {
 };
 
 const isLocalOrPrivateHost = (hostname: string) => {
-  const normalized = String(hostname || "").trim().toLowerCase();
+  const normalized = String(hostname || "")
+    .trim()
+    .toLowerCase();
   if (!normalized) {
     return false;
   }
@@ -50,8 +54,7 @@ const shouldIgnoreEnvBaseForPublicOrigin = ({
     return false;
   }
   const envUsesHttp = envUrl.protocol === "http:" || envUrl.protocol === "https:";
-  const locationUsesHttp =
-    locationUrl.protocol === "http:" || locationUrl.protocol === "https:";
+  const locationUsesHttp = locationUrl.protocol === "http:" || locationUrl.protocol === "https:";
   if (!envUsesHttp || !locationUsesHttp) {
     return false;
   }
@@ -89,6 +92,5 @@ export const resolveApiBase = ({
 export const getApiBase = () =>
   resolveApiBase({
     envBase: import.meta.env.VITE_API_BASE,
-    locationOrigin:
-      typeof window !== "undefined" && window.location ? window.location.origin : "",
+    locationOrigin: typeof window !== "undefined" && window.location ? window.location.origin : "",
   });

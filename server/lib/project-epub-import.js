@@ -50,9 +50,9 @@ const IMPORT_ALLOWED_ATTRIBUTES = {
   td: ["colspan", "rowspan"],
   th: ["colspan", "rowspan"],
   span: ["style"],
-    p: ["style", "data-epub-heading"],
-    "epub-p": ["style"],
-    blockquote: ["style", "data-epub-heading"],
+  p: ["style", "data-epub-heading"],
+  "epub-p": ["style"],
+  blockquote: ["style", "data-epub-heading"],
   h1: ["style", "data-epub-heading"],
   h2: ["style", "data-epub-heading"],
   h3: ["style", "data-epub-heading"],
@@ -272,7 +272,9 @@ const normalizeEpubHref = (value) => {
 
 const resolveRelativeEpubHref = (baseHref, targetHref) => {
   const normalizedBaseHref = normalizeEpubHref(baseHref);
-  const normalizedTargetHref = String(targetHref || "").trim().replace(/\\/g, "/");
+  const normalizedTargetHref = String(targetHref || "")
+    .trim()
+    .replace(/\\/g, "/");
   if (!normalizedTargetHref) {
     return "";
   }
@@ -315,7 +317,8 @@ const normalizeHintText = (value) =>
 const getDocumentHint = ({ title, href, id }) =>
   normalizeHintText([title, href, id, getPathBasename(href || id)].filter(Boolean).join(" "));
 
-const hasBoilerplateHint = (value) => BOILERPLATE_HINT_PATTERNS.some((pattern) => pattern.test(value));
+const hasBoilerplateHint = (value) =>
+  BOILERPLATE_HINT_PATTERNS.some((pattern) => pattern.test(value));
 const hasHardDiscardBoilerplateHint = (value) =>
   HARD_DISCARD_BOILERPLATE_HINT_PATTERNS.some((pattern) => pattern.test(value));
 const hasFrontMatterConsolidationHint = (value) =>
@@ -382,7 +385,9 @@ const resolveDocumentSubtypeFromHint = (hint) => {
 };
 
 const resolveDisplayLabelForSubtype = (subtype, fallbackTitle) => {
-  const normalized = String(subtype || "").trim().toLowerCase();
+  const normalized = String(subtype || "")
+    .trim()
+    .toLowerCase();
   if (normalized === "dedication") {
     return "Dedicacao";
   }
@@ -539,10 +544,7 @@ const extractChapterNumber = (title) => {
   if (!source) {
     return null;
   }
-  const patterns = [
-    /(?:cap(?:i|\u00ed)tulo|chapter|ch)\s*#?\s*(\d+)/i,
-    /\b(\d+)\b/,
-  ];
+  const patterns = [/(?:cap(?:i|\u00ed)tulo|chapter|ch)\s*#?\s*(\d+)/i, /\b(\d+)\b/];
   for (const pattern of patterns) {
     const match = source.match(pattern);
     if (match?.[1]) {
@@ -574,7 +576,11 @@ const resolveFallbackExtraTechnicalNumber = (targetVolume, reservedKeys) => {
 };
 
 const normalizeImportStatus = (value) =>
-  String(value || "").trim().toLowerCase() === "published" ? "published" : "draft";
+  String(value || "")
+    .trim()
+    .toLowerCase() === "published"
+    ? "published"
+    : "draft";
 
 const buildExistingEpisodeMap = (project) =>
   new Map(
@@ -590,7 +596,9 @@ const buildExistingExtraLookup = (project, targetVolume) => {
   const byTitle = new Map();
   const targetVolumeValue = Number.isFinite(Number(targetVolume)) ? Number(targetVolume) : 0;
   list.forEach((episode) => {
-    const kind = String(episode?.entryKind || "").trim().toLowerCase();
+    const kind = String(episode?.entryKind || "")
+      .trim()
+      .toLowerCase();
     if (kind !== "extra") {
       return;
     }
@@ -656,13 +664,20 @@ const buildManifestIndexes = (epub) => {
 };
 
 const hasManifestProperty = (item, property) => {
-  const target = String(property || "").trim().toLowerCase();
+  const target = String(property || "")
+    .trim()
+    .toLowerCase();
   if (!target) {
     return false;
   }
   const rawProperties = item?.properties;
   if (Array.isArray(rawProperties)) {
-    return rawProperties.some((entry) => String(entry || "").trim().toLowerCase() === target);
+    return rawProperties.some(
+      (entry) =>
+        String(entry || "")
+          .trim()
+          .toLowerCase() === target,
+    );
   }
   return String(rawProperties || "")
     .trim()
@@ -1031,7 +1046,8 @@ const buildFrontMatterBundleFromFlow = async ({
 
   const firstPart = selectedParts[0];
   const bundleTitle =
-    String(selectedParts.find((part) => String(part?.title || "").trim())?.title || "").trim() || "Extra";
+    String(selectedParts.find((part) => String(part?.title || "").trim())?.title || "").trim() ||
+    "Extra";
 
   return {
     chapter: {
@@ -1050,7 +1066,9 @@ const buildFrontMatterBundleFromFlow = async ({
 };
 
 const getNarrativeGroupStem = (item) => {
-  const basename = normalizeHintText(getPathBasename(item?.href || item?.id).replace(/\.[^.]+$/, ""));
+  const basename = normalizeHintText(
+    getPathBasename(item?.href || item?.id).replace(/\.[^.]+$/, ""),
+  );
   const chapterStemMatch = basename.match(/^(chapter\d+)(?:[_-].+)?$/i);
   if (chapterStemMatch?.[1]) {
     return chapterStemMatch[1].toLowerCase();
@@ -1064,7 +1082,12 @@ const getNarrativeGroupStem = (item) => {
   return null;
 };
 
-const buildDiscardWarnings = ({ boilerplate, boilerplatePromoted, imageOnly, unresolvedTocEntry }) => {
+const buildDiscardWarnings = ({
+  boilerplate,
+  boilerplatePromoted,
+  imageOnly,
+  unresolvedTocEntry,
+}) => {
   const warnings = [];
   if (boilerplatePromoted > 0) {
     warnings.push(`Itens de boilerplate promovidos para extras: ${boilerplatePromoted}.`);
@@ -1123,7 +1146,9 @@ const materializeCandidate = async (epub, item, { manifestByHref } = {}) => {
 };
 
 const getManifestMediaType = (item) =>
-  String(item?.["media-type"] || item?.mediaType || item?.media_type || "").trim().toLowerCase();
+  String(item?.["media-type"] || item?.mediaType || item?.media_type || "")
+    .trim()
+    .toLowerCase();
 
 const isImageManifestItem = (item) => getManifestMediaType(item).startsWith("image/");
 
@@ -1195,16 +1220,27 @@ const loadManifestBinary = async (epub, manifestItem, { cache } = {}) => {
 
 const buildStyleDeclaration = (entries) =>
   entries
-    .map(([property, value]) => [String(property || "").trim().toLowerCase(), String(value || "").trim()])
+    .map(([property, value]) => [
+      String(property || "")
+        .trim()
+        .toLowerCase(),
+      String(value || "").trim(),
+    ])
     .filter(([property, value]) => property && value)
     .map(([property, value]) => `${property}: ${value}`)
     .join("; ");
 
 const isMeaningfulStyleValue = (value) =>
-  !ZERO_LIKE_STYLE_VALUES.has(String(value || "").trim().toLowerCase());
+  !ZERO_LIKE_STYLE_VALUES.has(
+    String(value || "")
+      .trim()
+      .toLowerCase(),
+  );
 
 const normalizeFontFamilyBucket = (value) => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (!normalized) {
     return "";
   }
@@ -1233,7 +1269,9 @@ const normalizeFontFamilyBucket = (value) => {
 };
 
 const parseCssNumericValue = (value) => {
-  const match = String(value || "").trim().match(/-?\d+(?:\.\d+)?/);
+  const match = String(value || "")
+    .trim()
+    .match(/-?\d+(?:\.\d+)?/);
   if (!match) {
     return null;
   }
@@ -1242,7 +1280,9 @@ const parseCssNumericValue = (value) => {
 };
 
 const computeFontSizeRatio = (value, baseFontSize) => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   const parsed = parseCssNumericValue(normalized);
   if (!parsed || !Number.isFinite(baseFontSize) || baseFontSize <= 0) {
     return null;
@@ -1300,10 +1340,7 @@ const classifyEditorialBlockScale = (element, computed, { baseFontSize } = {}) =
     return null;
   }
 
-  const hint = [element?.className, element?.id]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+  const hint = [element?.className, element?.id].filter(Boolean).join(" ").toLowerCase();
   const hasHeadingHint = /\b(chapter-title|title|subtitle|heading|subhead)\b/i.test(hint);
   const isCentered = String(computed?.textAlign || "").toLowerCase() === "center";
   const hasShortText = visibleTextLength <= 120;
@@ -1325,12 +1362,20 @@ const elementHasOnlyThisImage = (element) => {
   if (elementChildren.length !== 1 || elementChildren[0] !== element) {
     return false;
   }
-  return String(parent.textContent || "").replace(/\s+/g, "").trim() === "";
+  return (
+    String(parent.textContent || "")
+      .replace(/\s+/g, "")
+      .trim() === ""
+  );
 };
 
 const extractEditorialImageAlignment = (element, computed, wrapperComputed) => {
-  const marginLeft = String(computed?.marginLeft || "").trim().toLowerCase();
-  const marginRight = String(computed?.marginRight || "").trim().toLowerCase();
+  const marginLeft = String(computed?.marginLeft || "")
+    .trim()
+    .toLowerCase();
+  const marginRight = String(computed?.marginRight || "")
+    .trim()
+    .toLowerCase();
   if (marginLeft === "auto" && marginRight === "auto") {
     return "center";
   }
@@ -1341,8 +1386,12 @@ const extractEditorialImageAlignment = (element, computed, wrapperComputed) => {
     return "left";
   }
 
-  const display = String(computed?.display || "").trim().toLowerCase();
-  const wrapperTextAlign = String(wrapperComputed?.textAlign || "").trim().toLowerCase();
+  const display = String(computed?.display || "")
+    .trim()
+    .toLowerCase();
+  const wrapperTextAlign = String(wrapperComputed?.textAlign || "")
+    .trim()
+    .toLowerCase();
   const isolatedInParent = elementHasOnlyThisImage(element);
   if ((display === "block" || isolatedInParent) && wrapperTextAlign === "center") {
     return "center";
@@ -1371,7 +1420,9 @@ const loadEpubDocumentStylesheets = async ({
       .filter(Boolean);
     stylesheets.push(...inlineStyles);
 
-    const stylesheetHrefs = [...sourceDom.window.document.querySelectorAll('link[rel~="stylesheet"][href]')]
+    const stylesheetHrefs = [
+      ...sourceDom.window.document.querySelectorAll('link[rel~="stylesheet"][href]'),
+    ]
       .map((element) => String(element.getAttribute("href") || "").trim())
       .filter(Boolean);
 
@@ -1399,8 +1450,11 @@ const buildStyledEpubDocument = ({ rawHtml, stylesheets } = {}) => {
   const sourceDom = new JSDOM(String(rawHtml || ""));
   try {
     const bodyHtml = sourceDom.window.document.body?.innerHTML || String(rawHtml || "");
-    const styleTag = stylesheets && stylesheets.length > 0 ? `<style>${stylesheets.join("\n")}</style>` : "";
-    return new JSDOM(`<!doctype html><html><head>${styleTag}</head><body>${bodyHtml}</body></html>`);
+    const styleTag =
+      stylesheets && stylesheets.length > 0 ? `<style>${stylesheets.join("\n")}</style>` : "";
+    return new JSDOM(
+      `<!doctype html><html><head>${styleTag}</head><body>${bodyHtml}</body></html>`,
+    );
   } finally {
     sourceDom.window.close();
   }
@@ -1447,7 +1501,9 @@ const inlineEditorialComputedStyles = (document) => {
       ],
       [
         "text-align",
-        ["left", "right", "center", "justify"].includes(String(computed.textAlign || "").toLowerCase())
+        ["left", "right", "center", "justify"].includes(
+          String(computed.textAlign || "").toLowerCase(),
+        )
           ? computed.textAlign.toLowerCase()
           : "",
       ],
@@ -1457,7 +1513,9 @@ const inlineEditorialComputedStyles = (document) => {
       ["line-height", isMeaningfulStyleValue(computed.lineHeight) ? computed.lineHeight : ""],
       [
         "font-family",
-        isMeaningfulStyleValue(computed.fontFamily) ? normalizeFontFamilyBucket(computed.fontFamily) : "",
+        isMeaningfulStyleValue(computed.fontFamily)
+          ? normalizeFontFamilyBucket(computed.fontFamily)
+          : "",
       ],
     ]);
     applyInlineStyle(element, styleText);
@@ -1474,9 +1532,13 @@ const inlineEditorialComputedStyles = (document) => {
   const inlineElements = [...document.querySelectorAll("span, em, strong, i, b, u, s, sub, sup")];
   for (const element of inlineElements) {
     const computed = computeElementStyles(element);
-    const parentComputed = element.parentElement ? computeElementStyles(element.parentElement) : null;
+    const parentComputed = element.parentElement
+      ? computeElementStyles(element.parentElement)
+      : null;
     const computedFontFamily = normalizeFontFamilyBucket(computed.fontFamily);
-    const parentFontFamily = parentComputed ? normalizeFontFamilyBucket(parentComputed.fontFamily) : "";
+    const parentFontFamily = parentComputed
+      ? normalizeFontFamilyBucket(parentComputed.fontFamily)
+      : "";
     const styleText = buildStyleDeclaration([
       [
         "font-size",
@@ -1490,11 +1552,16 @@ const inlineEditorialComputedStyles = (document) => {
       ],
       [
         "font-weight",
-        ["bold", "500", "600", "700", "800", "900"].includes(String(computed.fontWeight || "").toLowerCase())
+        ["bold", "500", "600", "700", "800", "900"].includes(
+          String(computed.fontWeight || "").toLowerCase(),
+        )
           ? computed.fontWeight.toLowerCase()
           : "",
       ],
-      ["font-family", computedFontFamily && computedFontFamily !== parentFontFamily ? computedFontFamily : ""],
+      [
+        "font-family",
+        computedFontFamily && computedFontFamily !== parentFontFamily ? computedFontFamily : "",
+      ],
     ]);
     applyInlineStyle(element, styleText);
   }
@@ -1502,7 +1569,9 @@ const inlineEditorialComputedStyles = (document) => {
   const images = [...document.querySelectorAll("img")];
   for (const element of images) {
     const computed = computeElementStyles(element);
-    const parentComputed = element.parentElement ? computeElementStyles(element.parentElement) : null;
+    const parentComputed = element.parentElement
+      ? computeElementStyles(element.parentElement)
+      : null;
     const resolvedAlign = extractEditorialImageAlignment(element, computed, parentComputed);
     const shouldForceBlockDisplay = Boolean(resolvedAlign) && elementHasOnlyThisImage(element);
     const styleText = buildStyleDeclaration([
@@ -1513,7 +1582,9 @@ const inlineEditorialComputedStyles = (document) => {
         "display",
         shouldForceBlockDisplay
           ? "block"
-          : ["inline", "block", "inline-block"].includes(String(computed.display || "").toLowerCase())
+          : ["inline", "block", "inline-block"].includes(
+                String(computed.display || "").toLowerCase(),
+              )
             ? computed.display.toLowerCase()
             : "",
       ],
@@ -1544,23 +1615,31 @@ const normalizeEditorialWrappers = (document) => {
 
   for (const wrapper of wrappers) {
     const elementChildren = [...wrapper.children];
-    const nonWhitespaceText = String(wrapper.textContent || "").replace(/\s+/g, "").trim();
-    const onlyImages = elementChildren.length > 0 && elementChildren.every((child) => child.tagName === "IMG");
+    const nonWhitespaceText = String(wrapper.textContent || "")
+      .replace(/\s+/g, "")
+      .trim();
+    const onlyImages =
+      elementChildren.length > 0 && elementChildren.every((child) => child.tagName === "IMG");
 
     if (nonWhitespaceText === "" && onlyImages) {
       const wrapperComputed = document.defaultView.getComputedStyle(wrapper);
       elementChildren.forEach((imageElement) => {
         const imageComputed = document.defaultView.getComputedStyle(imageElement);
-        const resolvedAlign = extractEditorialImageAlignment(imageElement, imageComputed, wrapperComputed);
+        const resolvedAlign = extractEditorialImageAlignment(
+          imageElement,
+          imageComputed,
+          wrapperComputed,
+        );
         const styleText = buildStyleDeclaration([
           ["width", isMeaningfulStyleValue(imageComputed.width) ? imageComputed.width : ""],
           ["height", isMeaningfulStyleValue(imageComputed.height) ? imageComputed.height : ""],
-          ["max-width", isMeaningfulStyleValue(imageComputed.maxWidth) ? imageComputed.maxWidth : ""],
+          [
+            "max-width",
+            isMeaningfulStyleValue(imageComputed.maxWidth) ? imageComputed.maxWidth : "",
+          ],
           [
             "display",
-            resolvedAlign || imageComputed.display === "block"
-              ? "block"
-              : imageComputed.display,
+            resolvedAlign || imageComputed.display === "block" ? "block" : imageComputed.display,
           ],
           [
             "margin-left",
@@ -1582,8 +1661,14 @@ const normalizeEditorialWrappers = (document) => {
                   ? "0"
                   : imageComputed.marginRight,
           ],
-          ["margin-top", isMeaningfulStyleValue(imageComputed.marginTop) ? imageComputed.marginTop : ""],
-          ["margin-bottom", isMeaningfulStyleValue(imageComputed.marginBottom) ? imageComputed.marginBottom : ""],
+          [
+            "margin-top",
+            isMeaningfulStyleValue(imageComputed.marginTop) ? imageComputed.marginTop : "",
+          ],
+          [
+            "margin-bottom",
+            isMeaningfulStyleValue(imageComputed.marginBottom) ? imageComputed.marginBottom : "",
+          ],
           [
             "vertical-align",
             ["baseline", "middle", "text-bottom", "text-top", "sub", "super"].includes(
@@ -1764,12 +1849,7 @@ const prepareNarrativeDocumentHtml = async ({
   }
 };
 
-const createImageImportContext = ({
-  uploadsDir,
-  loadUploads,
-  writeUploads,
-  uploadUserId,
-} = {}) => {
+const createImageImportContext = ({ uploadsDir, loadUploads, writeUploads, uploadUserId } = {}) => {
   if (!uploadsDir || typeof loadUploads !== "function" || typeof writeUploads !== "function") {
     return null;
   }
@@ -1828,12 +1908,7 @@ const buildVolumeCoverAltFallback = ({ targetVolume, projectTitle, epubTitle } =
   return "Capa importada do EPUB";
 };
 
-const importVolumeCoverFromEpub = async ({
-  epub,
-  project,
-  targetVolume,
-  imageContext,
-} = {}) => {
+const importVolumeCoverFromEpub = async ({ epub, project, targetVolume, imageContext } = {}) => {
   const warnings = [];
   const existingCover =
     findVolumeCoverByVolume(
@@ -1906,7 +1981,9 @@ const importVolumeCoverFromEpub = async ({
       uploads: imageContext.uploads,
       buffer: imageBuffer,
       mime: getManifestMediaType(coverAsset.manifestItem),
-      filename: getPathBasename(coverAsset.manifestItem?.href || coverAsset.manifestItem?.id) || "epub-cover",
+      filename:
+        getPathBasename(coverAsset.manifestItem?.href || coverAsset.manifestItem?.id) ||
+        "epub-cover",
       folder: tempFolder,
       altText:
         String(coverAsset.altText || "").trim() ||
@@ -2003,7 +2080,9 @@ const buildNarrativeChapterCandidatesFromToc = async ({
         shouldDiscardRangePartAsBoilerplate(partReference) &&
         !(
           isBoundaryStart &&
-          String(item?.classification?.kind || "").trim().toLowerCase() === "boilerplate_candidate"
+          String(item?.classification?.kind || "")
+            .trim()
+            .toLowerCase() === "boilerplate_candidate"
         )
       ) {
         discardedCounts.boilerplate += 1;
@@ -2041,10 +2120,16 @@ const buildNarrativeChapterCandidatesFromToc = async ({
       sanitizedHtml,
       readingOrder: Number(item.flowIndex) + 1,
       entryKind:
-        String(item?.classification?.kind || "").trim().toLowerCase() === "main" ? "main" : "extra",
+        String(item?.classification?.kind || "")
+          .trim()
+          .toLowerCase() === "main"
+          ? "main"
+          : "extra",
       entrySubtype: String(item?.classification?.subtype || "").trim() || "extra",
       displayLabel:
-        String(item?.classification?.kind || "").trim().toLowerCase() === "main"
+        String(item?.classification?.kind || "")
+          .trim()
+          .toLowerCase() === "main"
           ? ""
           : resolveDisplayLabelForSubtype(item?.classification?.subtype, item.title),
     });
@@ -2118,7 +2203,11 @@ const buildFallbackNarrativeChapterCandidates = async ({
       continue;
     }
 
-    if (classification.kind === "main" || classification.kind === "extra" || classification.kind === "boilerplate_candidate") {
+    if (
+      classification.kind === "main" ||
+      classification.kind === "extra" ||
+      classification.kind === "boilerplate_candidate"
+    ) {
       groups.push({
         stem: null,
         title: candidate.title,
@@ -2173,8 +2262,8 @@ const buildFallbackNarrativeChapterCandidates = async ({
     const entryKind = group.hasMain ? "main" : "extra";
     const entrySubtype =
       String(
-        group.parts.find((part) => String(part?.classification?.subtype || "").trim())?.classification
-          ?.subtype || "",
+        group.parts.find((part) => String(part?.classification?.subtype || "").trim())
+          ?.classification?.subtype || "",
       ).trim() || (entryKind === "main" ? "chapter" : "extra");
     chapters.push({
       id: firstPart?.id,
@@ -2188,7 +2277,10 @@ const buildFallbackNarrativeChapterCandidates = async ({
       displayLabel:
         entryKind === "main"
           ? ""
-          : resolveDisplayLabelForSubtype(entrySubtype, String(group.title || firstPart?.title || "").trim()),
+          : resolveDisplayLabelForSubtype(
+              entrySubtype,
+              String(group.title || firstPart?.title || "").trim(),
+            ),
       classification: primaryClassification,
     });
   }
@@ -2262,7 +2354,12 @@ export const importProjectEpub = async ({
   }
 
   const tocFirstNarrativeFlowIndex = [...tocClassifiedCandidates]
-    .filter((item) => String(item?.classification?.kind || "").trim().toLowerCase() === "main")
+    .filter(
+      (item) =>
+        String(item?.classification?.kind || "")
+          .trim()
+          .toLowerCase() === "main",
+    )
     .map((item) => Number(item?.flowIndex))
     .filter((value) => Number.isFinite(value))
     .sort((left, right) => left - right)[0];
@@ -2340,8 +2437,12 @@ export const importProjectEpub = async ({
     if (leftOrder !== rightOrder) {
       return leftOrder - rightOrder;
     }
-    const leftKind = String(left?.entryKind || "").trim().toLowerCase();
-    const rightKind = String(right?.entryKind || "").trim().toLowerCase();
+    const leftKind = String(left?.entryKind || "")
+      .trim()
+      .toLowerCase();
+    const rightKind = String(right?.entryKind || "")
+      .trim()
+      .toLowerCase();
     if (leftKind === "extra" && rightKind !== "extra") {
       return -1;
     }
@@ -2358,7 +2459,12 @@ export const importProjectEpub = async ({
     const readingOrder = Number.isFinite(Number(item?.readingOrder))
       ? Number(item.readingOrder)
       : chapterIndex + 1;
-    const entryKind = String(item?.entryKind || "").trim().toLowerCase() === "extra" ? "extra" : "main";
+    const entryKind =
+      String(item?.entryKind || "")
+        .trim()
+        .toLowerCase() === "extra"
+        ? "extra"
+        : "main";
     const entrySubtype =
       String(item?.entrySubtype || "").trim() || (entryKind === "extra" ? "extra" : "chapter");
     const displayLabel =
@@ -2373,9 +2479,7 @@ export const importProjectEpub = async ({
           ? existingExtraLookup.byReadingOrder.get(readingOrder)
           : null;
       const existingByTitle =
-        existingByOrder ||
-        existingExtraLookup.byTitle.get(normalizeHintText(title)) ||
-        null;
+        existingByOrder || existingExtraLookup.byTitle.get(normalizeHintText(title)) || null;
       const resolvedExistingNumber = Number(existingByTitle?.number);
       const existingKey = buildEpisodeKey(resolvedExistingNumber, targetVolume);
       if (
@@ -2497,7 +2601,9 @@ export const importProjectEpub = async ({
       author: String(epub?.metadata?.creator || "").trim(),
       language: String(epub?.metadata?.language || "").trim(),
     },
-    volumeCovers: Array.isArray(volumeCoverImport?.volumeCovers) ? volumeCoverImport.volumeCovers : [],
+    volumeCovers: Array.isArray(volumeCoverImport?.volumeCovers)
+      ? volumeCoverImport.volumeCovers
+      : [],
     chapters,
   };
 };

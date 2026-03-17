@@ -6,7 +6,9 @@ const getArgValue = (name) => {
 };
 
 const parseBoolean = (value) => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (!normalized) return null;
   if (["1", "true", "yes", "on"].includes(normalized)) return true;
   if (["0", "false", "no", "off"].includes(normalized)) return false;

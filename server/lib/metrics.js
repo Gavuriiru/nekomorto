@@ -116,15 +116,30 @@ export const createMetricsRegistry = ({ defaultLabels = {} } = {}) => {
       };
 
       Array.from(counters.values())
-        .sort((a, b) => `${a.metricName}${buildSeriesKey(a.labels)}`.localeCompare(`${b.metricName}${buildSeriesKey(b.labels)}`, "en"))
+        .sort((a, b) =>
+          `${a.metricName}${buildSeriesKey(a.labels)}`.localeCompare(
+            `${b.metricName}${buildSeriesKey(b.labels)}`,
+            "en",
+          ),
+        )
         .forEach((entry) => renderSeries(entry, entry.metricName, entry.value));
 
       Array.from(gauges.values())
-        .sort((a, b) => `${a.metricName}${buildSeriesKey(a.labels)}`.localeCompare(`${b.metricName}${buildSeriesKey(b.labels)}`, "en"))
+        .sort((a, b) =>
+          `${a.metricName}${buildSeriesKey(a.labels)}`.localeCompare(
+            `${b.metricName}${buildSeriesKey(b.labels)}`,
+            "en",
+          ),
+        )
         .forEach((entry) => renderSeries(entry, entry.metricName, entry.value));
 
       Array.from(histograms.values())
-        .sort((a, b) => `${a.metricName}${buildSeriesKey(a.labels)}`.localeCompare(`${b.metricName}${buildSeriesKey(b.labels)}`, "en"))
+        .sort((a, b) =>
+          `${a.metricName}${buildSeriesKey(a.labels)}`.localeCompare(
+            `${b.metricName}${buildSeriesKey(b.labels)}`,
+            "en",
+          ),
+        )
         .forEach((entry) => {
           renderSeries(entry, `${entry.metricName}_count`, entry.count);
           renderSeries(entry, `${entry.metricName}_sum`, entry.sum);

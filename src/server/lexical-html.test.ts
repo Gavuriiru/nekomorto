@@ -51,7 +51,9 @@ describe("server lexical HTML bridge", () => {
   });
 
   it("importa img com src publico como epub-image valido", () => {
-    const serialized = htmlToLexicalJson('<p>antes</p><img src="/uploads/tmp/epub-imports/test/image.jpg" alt="Ilustracao">');
+    const serialized = htmlToLexicalJson(
+      '<p>antes</p><img src="/uploads/tmp/epub-imports/test/image.jpg" alt="Ilustracao">',
+    );
     const children = getRootChildren(serialized);
 
     expect(children).toEqual(

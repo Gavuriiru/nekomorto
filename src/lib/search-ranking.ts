@@ -29,8 +29,7 @@ export const normalizeSearchText = (value: string): string =>
 export const comparePtBr = (a: string, b: string): number =>
   PT_BR_COLLATOR.compare(String(a || ""), String(b || ""));
 
-export const sortAlphabeticallyPtBr = (values: string[]): string[] =>
-  [...values].sort(comparePtBr);
+export const sortAlphabeticallyPtBr = (values: string[]): string[] => [...values].sort(comparePtBr);
 
 export const selectVisibleTags = (tags: string[], maxTags = 3, maxChars = 18): string[] => {
   const selected: string[] = [];
@@ -38,7 +37,9 @@ export const selectVisibleTags = (tags: string[], maxTags = 3, maxChars = 18): s
     if (selected.length >= maxTags) {
       break;
     }
-    const tag = String(rawTag || "").replace(/\s+/g, " ").trim();
+    const tag = String(rawTag || "")
+      .replace(/\s+/g, " ")
+      .trim();
     if (!tag) {
       continue;
     }
@@ -57,9 +58,14 @@ const splitWords = (value: string) =>
 
 const textIncludesToken = (text: string, token: string) => text.includes(token);
 
-const wordsStartWithToken = (value: string, token: string) => splitWords(value).some((word) => word.startsWith(token));
+const wordsStartWithToken = (value: string, token: string) =>
+  splitWords(value).some((word) => word.startsWith(token));
 
-const scoreTextField = (value: string, token: string, weights: { startsWith: number; wordStartsWith: number; includes: number }) => {
+const scoreTextField = (
+  value: string,
+  token: string,
+  weights: { startsWith: number; wordStartsWith: number; includes: number },
+) => {
   const normalized = normalizeSearchText(value);
   if (!normalized || !token) {
     return 0;
@@ -110,7 +116,11 @@ export const rankProjects = (items: ProjectSearchItem[], query: string): Project
   const ranked: RankedItem<ProjectSearchItem>[] = [];
 
   items.forEach((item) => {
-    const searchableFields = [item.label, item.synopsis || "", ...(Array.isArray(item.tags) ? item.tags : [])];
+    const searchableFields = [
+      item.label,
+      item.synopsis || "",
+      ...(Array.isArray(item.tags) ? item.tags : []),
+    ];
     const matchesAllTokens = tokens.every((token) => hasTokenMatch(searchableFields, token));
     if (!matchesAllTokens) {
       return;

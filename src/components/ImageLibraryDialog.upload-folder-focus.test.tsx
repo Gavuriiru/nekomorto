@@ -9,28 +9,30 @@ const { apiFetchMock } = vi.hoisted(() => ({
 
 vi.mock("react-advanced-cropper", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
-  const FixedCropper = React.forwardRef((props: Record<string, unknown>, ref: React.ForwardedRef<unknown>) => {
-    const cropperApi = {
-      getCanvas: () => null,
-      getCoordinates: () => null,
-      getImage: () => null,
-      getState: () => null,
-    };
-    if (typeof ref === "function") {
-      ref(cropperApi);
-    } else if (ref && typeof ref === "object") {
-      (ref as { current: unknown }).current = cropperApi;
-    }
-    React.useEffect(() => {
-      const onReady = props.onReady;
-      if (typeof onReady === "function") {
-        const timeout = window.setTimeout(() => onReady(cropperApi), 0);
-        return () => window.clearTimeout(timeout);
+  const FixedCropper = React.forwardRef(
+    (props: Record<string, unknown>, ref: React.ForwardedRef<unknown>) => {
+      const cropperApi = {
+        getCanvas: () => null,
+        getCoordinates: () => null,
+        getImage: () => null,
+        getState: () => null,
+      };
+      if (typeof ref === "function") {
+        ref(cropperApi);
+      } else if (ref && typeof ref === "object") {
+        (ref as { current: unknown }).current = cropperApi;
       }
-      return undefined;
-    }, [props.onReady]);
-    return React.createElement("div", { "data-testid": "advanced-cropper-focus-mock" });
-  });
+      React.useEffect(() => {
+        const onReady = props.onReady;
+        if (typeof onReady === "function") {
+          const timeout = window.setTimeout(() => onReady(cropperApi), 0);
+          return () => window.clearTimeout(timeout);
+        }
+        return undefined;
+      }, [props.onReady]);
+      return React.createElement("div", { "data-testid": "advanced-cropper-focus-mock" });
+    },
+  );
 
   return {
     Cropper: FixedCropper,
@@ -210,7 +212,9 @@ describe("ImageLibraryDialog upload folder focus", () => {
       expect(folderSelect).toHaveTextContent(chapterFolder);
     });
 
-    expect(await screen.findByRole("button", { name: /capitulos\/volume-1\/capitulo-2/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /capitulos\/volume-1\/capitulo-2/i }),
+    ).toBeInTheDocument();
     expect(await screen.findByText("Imagem Capitulo")).toBeInTheDocument();
     expect(screen.queryByText("Imagem Episodios")).not.toBeInTheDocument();
     expect(screen.queryByText("Imagem Raiz")).not.toBeInTheDocument();
@@ -263,7 +267,10 @@ describe("ImageLibraryDialog upload folder focus", () => {
           ],
         });
       }
-      if (path === "/api/uploads/image" && String(options?.method || "GET").toUpperCase() === "POST") {
+      if (
+        path === "/api/uploads/image" &&
+        String(options?.method || "GET").toUpperCase() === "POST"
+      ) {
         return mockJsonResponse(true, {
           url: `/uploads/${episodesFolder}/legacy-episode.png`,
         });
@@ -319,7 +326,10 @@ describe("ImageLibraryDialog upload folder focus", () => {
           ],
         });
       }
-      if (path === "/api/uploads/image" && String(options?.method || "GET").toUpperCase() === "POST") {
+      if (
+        path === "/api/uploads/image" &&
+        String(options?.method || "GET").toUpperCase() === "POST"
+      ) {
         return mockJsonResponse(true, {
           url: "/uploads/projects/proj-1/cover.png",
         });
@@ -393,7 +403,10 @@ describe("ImageLibraryDialog upload folder focus", () => {
           ],
         });
       }
-      if (path === "/api/uploads/image" && String(options?.method || "GET").toUpperCase() === "POST") {
+      if (
+        path === "/api/uploads/image" &&
+        String(options?.method || "GET").toUpperCase() === "POST"
+      ) {
         return mockJsonResponse(true, {
           url: "/uploads/projects/proj-1/cover.png",
         });
@@ -458,7 +471,10 @@ describe("ImageLibraryDialog upload folder focus", () => {
           ],
         });
       }
-      if (path === "/api/uploads/image" && String(options?.method || "GET").toUpperCase() === "POST") {
+      if (
+        path === "/api/uploads/image" &&
+        String(options?.method || "GET").toUpperCase() === "POST"
+      ) {
         return mockJsonResponse(true, {
           url: "/uploads/projects/proj-1/cover.png",
         });
@@ -758,7 +774,10 @@ describe("ImageLibraryDialog upload folder focus", () => {
           ],
         });
       }
-      if (path === "/api/uploads/image" && String(options?.method || "GET").toUpperCase() === "POST") {
+      if (
+        path === "/api/uploads/image" &&
+        String(options?.method || "GET").toUpperCase() === "POST"
+      ) {
         uploadCalls += 1;
         return mockJsonResponse(true, {
           url: uploadCalls === 1 ? "/uploads/users/existing.png" : "/uploads/users/novo.png",

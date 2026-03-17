@@ -72,7 +72,8 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const findAncestor = (
   element: HTMLElement,
@@ -144,10 +145,8 @@ describe("DashboardSettings mobile layout", () => {
     await screen.findByRole("heading", { name: /Fontes de download/i });
 
     const nameInput = screen.getByDisplayValue("Google Drive");
-    const card = findAncestor(
-      nameInput,
-      (candidate) =>
-        classTokens(candidate).includes("md:grid-cols-[1.2fr_0.25fr_0.6fr_1.6fr_auto]"),
+    const card = findAncestor(nameInput, (candidate) =>
+      classTokens(candidate).includes("md:grid-cols-[1.2fr_0.25fr_0.6fr_1.6fr_auto]"),
     );
 
     expect(card).not.toBeNull();
@@ -259,9 +258,8 @@ describe("DashboardSettings mobile layout", () => {
     await screen.findByRole("heading", { name: /Redes sociais/i });
 
     const nameInput = screen.getByDisplayValue("Instagram");
-    const card = findAncestor(
-      nameInput,
-      (candidate) => classTokens(candidate).includes("md:grid-cols-[1fr_1.6fr_auto]"),
+    const card = findAncestor(nameInput, (candidate) =>
+      classTokens(candidate).includes("md:grid-cols-[1fr_1.6fr_auto]"),
     );
 
     expect(card).not.toBeNull();
@@ -334,9 +332,8 @@ describe("DashboardSettings mobile layout", () => {
     await screen.findByRole("heading", { name: /Fun/i });
 
     const teamNameInput = screen.getByDisplayValue("Tradutor");
-    const teamCard = findAncestor(
-      teamNameInput,
-      (candidate) => classTokens(candidate).includes("md:grid-cols-[1.4fr_1fr_auto]"),
+    const teamCard = findAncestor(teamNameInput, (candidate) =>
+      classTokens(candidate).includes("md:grid-cols-[1.4fr_1fr_auto]"),
     );
 
     expect(teamCard).not.toBeNull();
@@ -368,10 +365,8 @@ describe("DashboardSettings mobile layout", () => {
     await screen.findByRole("heading", { name: /Links do menu/i });
 
     const navbarLabelInput = screen.getByDisplayValue("Projetos");
-    const navbarCard = findAncestor(
-      navbarLabelInput,
-      (candidate) =>
-        classTokens(candidate).includes("md:grid-cols-[0.85fr_1fr_1.6fr_auto]"),
+    const navbarCard = findAncestor(navbarLabelInput, (candidate) =>
+      classTokens(candidate).includes("md:grid-cols-[0.85fr_1fr_1.6fr_auto]"),
     );
 
     expect(navbarCard).not.toBeNull();
@@ -422,9 +417,9 @@ describe("DashboardSettings mobile layout", () => {
     expect(columnCardTokens).toContain("md:p-4");
     expect(columnCardTokens).toContain("md:space-y-4");
 
-    const columnHeaderRemove = Array.from((columnCard as HTMLElement).querySelectorAll("button")).find(
-      (candidate) => classTokens(candidate as HTMLElement).includes("self-end"),
-    );
+    const columnHeaderRemove = Array.from(
+      (columnCard as HTMLElement).querySelectorAll("button"),
+    ).find((candidate) => classTokens(candidate as HTMLElement).includes("self-end"));
     expect(columnHeaderRemove).toBeDefined();
     const columnHeaderRemoveTokens = classTokens(columnHeaderRemove as HTMLElement);
     expect(columnHeaderRemoveTokens).toContain("h-7");
@@ -433,9 +428,8 @@ describe("DashboardSettings mobile layout", () => {
     expect(columnHeaderRemoveTokens).toContain("md:self-auto");
 
     const footerLinkInput = screen.getByDisplayValue("Sobre");
-    const footerLinkCard = findAncestor(
-      footerLinkInput,
-      (candidate) => classTokens(candidate).includes("md:grid-cols-[1fr_1.6fr_auto]"),
+    const footerLinkCard = findAncestor(footerLinkInput, (candidate) =>
+      classTokens(candidate).includes("md:grid-cols-[1fr_1.6fr_auto]"),
     );
     expect(footerLinkCard).not.toBeNull();
     const footerLinkCardTokens = classTokens(footerLinkCard as HTMLElement);
@@ -468,8 +462,8 @@ describe("DashboardSettings mobile layout", () => {
     expect(footerSocialGridTokens).toContain("grid");
     expect(footerSocialGridTokens).toContain("md:min-w-[720px]");
 
-    const footerSocialTopRow = Array.from(footerSocialRow.querySelectorAll("div")).find((candidate) =>
-      classTokens(candidate as HTMLElement).includes("grid-cols-[auto_1fr_auto]"),
+    const footerSocialTopRow = Array.from(footerSocialRow.querySelectorAll("div")).find(
+      (candidate) => classTokens(candidate as HTMLElement).includes("grid-cols-[auto_1fr_auto]"),
     );
     expect(footerSocialTopRow).not.toBeNull();
     const footerSocialTopRowTokens = classTokens(footerSocialTopRow as HTMLElement);
@@ -502,10 +496,11 @@ describe("DashboardSettings mobile layout", () => {
     expect(legalCardTokens).toContain("md:space-y-6");
     expect(legalCardTokens).toContain("md:p-6");
 
-    const disclaimerTextarea = within(legalCardContent as HTMLElement).getByDisplayValue(/Todo o conte/i);
-    const disclaimerCard = findAncestor(
-      disclaimerTextarea,
-      (candidate) => classTokens(candidate).includes("md:grid-cols-[1fr_auto]"),
+    const disclaimerTextarea = within(legalCardContent as HTMLElement).getByDisplayValue(
+      /Todo o conte/i,
+    );
+    const disclaimerCard = findAncestor(disclaimerTextarea, (candidate) =>
+      classTokens(candidate).includes("md:grid-cols-[1fr_auto]"),
     );
     expect(disclaimerCard).not.toBeNull();
     const disclaimerCardTokens = classTokens(disclaimerCard as HTMLElement);
@@ -535,9 +530,8 @@ describe("DashboardSettings mobile layout", () => {
     expect(addParagraphTokens).toContain("md:w-auto");
 
     const highlightInput = within(legalCardContent as HTMLElement).getByDisplayValue(/Atribui/i);
-    const highlightGrid = findAncestor(
-      highlightInput,
-      (candidate) => classTokens(candidate).includes("md:grid-cols-2"),
+    const highlightGrid = findAncestor(highlightInput, (candidate) =>
+      classTokens(candidate).includes("md:grid-cols-2"),
     );
     expect(highlightGrid).not.toBeNull();
     const highlightGridTokens = classTokens(highlightGrid as HTMLElement);

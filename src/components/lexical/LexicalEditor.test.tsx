@@ -94,7 +94,9 @@ describe("LexicalEditor", () => {
 
   it("nao crasha com root vazio", () => {
     expect(() =>
-      render(<LexicalEditor value={EMPTY_ROOT_STATE} onChange={vi.fn()} placeholder="Digite aqui" />),
+      render(
+        <LexicalEditor value={EMPTY_ROOT_STATE} onChange={vi.fn()} placeholder="Digite aqui" />,
+      ),
     ).not.toThrow();
 
     expect(screen.getByTestId("lexical-editor-shell")).toBeInTheDocument();

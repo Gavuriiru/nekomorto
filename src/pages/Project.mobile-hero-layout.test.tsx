@@ -647,9 +647,7 @@ describe("Project mobile hero layout", () => {
     expect(triggerGrid).not.toBeNull();
     expect(classTokens(triggerGrid as HTMLElement)).toContain("md:items-start");
     expect(classTokens(triggerGrid as HTMLElement)).toContain("md:gap-5");
-    expect(
-      (triggerGrid as HTMLElement).querySelector('[class*="self-start"]'),
-    ).not.toBeNull();
+    expect((triggerGrid as HTMLElement).querySelector('[class*="self-start"]')).not.toBeNull();
     expect((triggerGrid as HTMLElement).querySelector('[class*="w-28"]')).not.toBeNull();
 
     expect(within(volumeTrigger).getAllByRole("img", { name: "Capa do volume 2" }).length).toBe(1);
@@ -701,9 +699,7 @@ describe("Project mobile hero layout", () => {
     ) as HTMLElement | null;
     expect(triggerGrid).not.toBeNull();
     expect(classTokens(triggerGrid as HTMLElement)).toContain("md:items-start");
-    expect(
-      (triggerGrid as HTMLElement).querySelector('[class*="self-start"]'),
-    ).not.toBeNull();
+    expect((triggerGrid as HTMLElement).querySelector('[class*="self-start"]')).not.toBeNull();
     expect((triggerGrid as HTMLElement).querySelector('[class*="w-28"]')).not.toBeNull();
 
     expect(within(volumeTrigger).getAllByRole("img", { name: "Capa do volume 3" }).length).toBe(1);
@@ -730,7 +726,9 @@ describe("Project mobile hero layout", () => {
     });
     const downloadsSection = document.getElementById("downloads");
     expect(downloadsSection).not.toBeNull();
-    expect((downloadsSection as HTMLElement).querySelector('[class*="justify-items-center"]')).toBeNull();
+    expect(
+      (downloadsSection as HTMLElement).querySelector('[class*="justify-items-center"]'),
+    ).toBeNull();
 
     const chapterTitle = screen.getByText("Capitulo 1");
     const episodeCard = findAncestor(chapterTitle, (candidate) =>

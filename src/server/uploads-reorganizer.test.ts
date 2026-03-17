@@ -153,7 +153,9 @@ describe("uploads reorganizer classification", () => {
       projectMainIds: new Set(),
       projectVolumeIds: new Set(),
       projectEpisodeIds: new Set(["proj-1"]),
-      projectEpisodeChapterFolders: new Set(["proj-1\u0001projects/proj-1/capitulos/volume-2/capitulo-8"]),
+      projectEpisodeChapterFolders: new Set([
+        "proj-1\u0001projects/proj-1/capitulos/volume-2/capitulo-8",
+      ]),
     };
     const target = classifyTargetFolder(
       usage,
@@ -246,9 +248,9 @@ describe("uploads reorganizer apply", () => {
 
     const report = runUploadsReorganization({ datasets, uploadsDir, applyChanges: true });
     expect(report.mappings).toEqual([]);
-    expect((report.rewritten.projects as Array<Record<string, unknown>>)[0].relations?.[0]?.image).toBe(
-      "/uploads/shared/relations/relation-777.png",
-    );
+    expect(
+      (report.rewritten.projects as Array<Record<string, unknown>>)[0].relations?.[0]?.image,
+    ).toBe("/uploads/shared/relations/relation-777.png");
     expect(fs.existsSync(path.join(uploadsDir, "shared/relations/relation-777.png"))).toBe(true);
   });
 
@@ -489,7 +491,9 @@ describe("uploads reorganizer apply", () => {
       "/uploads/projects/proj-1/capitulos/volume-2/capitulo-3/ep-3.png",
     );
     expect(
-      fs.existsSync(path.join(uploadsDir, "projects/proj-1/capitulos/volume-2/capitulo-3/ep-3.png")),
+      fs.existsSync(
+        path.join(uploadsDir, "projects/proj-1/capitulos/volume-2/capitulo-3/ep-3.png"),
+      ),
     ).toBe(true);
     expect(fs.existsSync(path.join(uploadsDir, "projects/proj-1/episodes/ep-3.png"))).toBe(false);
   });
@@ -536,8 +540,12 @@ describe("uploads reorganizer apply", () => {
         newUrl: "/uploads/projects/proj-1/episodes/legacy-shared.png",
       },
     ]);
-    expect(episodeDownloads[0].coverImageUrl).toBe("/uploads/projects/proj-1/episodes/legacy-shared.png");
-    expect(episodeDownloads[1].coverImageUrl).toBe("/uploads/projects/proj-1/episodes/legacy-shared.png");
+    expect(episodeDownloads[0].coverImageUrl).toBe(
+      "/uploads/projects/proj-1/episodes/legacy-shared.png",
+    );
+    expect(episodeDownloads[1].coverImageUrl).toBe(
+      "/uploads/projects/proj-1/episodes/legacy-shared.png",
+    );
     expect(fs.existsSync(path.join(uploadsDir, "projects/proj-1/episodes/legacy-shared.png"))).toBe(
       true,
     );
@@ -591,10 +599,7 @@ describe("uploads reorganizer apply", () => {
     );
     expect(
       fs.existsSync(
-        path.join(
-          uploadsDir,
-          "projects/proj-1/capitulos/volume-2/capitulo-8/paginas/page-1.jpg",
-        ),
+        path.join(uploadsDir, "projects/proj-1/capitulos/volume-2/capitulo-8/paginas/page-1.jpg"),
       ),
     ).toBe(true);
   });

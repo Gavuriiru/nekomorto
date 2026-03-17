@@ -20,7 +20,15 @@ import {
   upsertNormalizedRuntimeState,
 } from "../server/lib/normalized-domain-store.js";
 
-const DEFAULT_DOMAINS = ["users", "uploads", "projects", "posts", "post_versions", "updates", "comments"];
+const DEFAULT_DOMAINS = [
+  "users",
+  "uploads",
+  "projects",
+  "posts",
+  "post_versions",
+  "updates",
+  "comments",
+];
 
 const parseArgs = (argv) =>
   argv.reduce(
@@ -43,7 +51,10 @@ const ensureArray = (value) => (Array.isArray(value) ? value : []);
 const cloneValue = (value) => JSON.parse(JSON.stringify(value ?? null));
 
 const checksum = (value) =>
-  crypto.createHash("sha256").update(JSON.stringify(value ?? null)).digest("hex");
+  crypto
+    .createHash("sha256")
+    .update(JSON.stringify(value ?? null))
+    .digest("hex");
 
 const writeReport = async (reportPath, payload) => {
   const targetPath =
@@ -121,7 +132,9 @@ const buildIntegrityReport = (legacy) => {
   });
   return {
     orphanOwnerIds: ensureArray(legacy.ownerIds).filter((userId) => !knownUserIds.has(userId)),
-    orphanAllowedUsers: ensureArray(legacy.allowedUsers).filter((userId) => !knownUserIds.has(userId)),
+    orphanAllowedUsers: ensureArray(legacy.allowedUsers).filter(
+      (userId) => !knownUserIds.has(userId),
+    ),
     orphanMfaUsers: ensureArray(legacy.userMfaTotp).filter((userId) => !knownUserIds.has(userId)),
     orphanSessionUsers: ensureArray(legacy.userSessionIndex)
       .filter((entry) => entry?.userId && !knownUserIds.has(String(entry.userId)))
@@ -232,7 +245,9 @@ const main = async () => {
     const loadedProjects = domains.includes("projects")
       ? legacy.projects
       : await loadProjectsFromNormalized(prisma);
-    const loadedPosts = domains.includes("posts") ? legacy.posts : await loadPostsFromNormalized(prisma);
+    const loadedPosts = domains.includes("posts")
+      ? legacy.posts
+      : await loadPostsFromNormalized(prisma);
     const normalizedProjects = loadedProjects.length > 0 ? loadedProjects : legacy.projects;
     const normalizedPosts = loadedPosts.length > 0 ? loadedPosts : legacy.posts;
     const previousComments = await loadCommentsFromNormalized(prisma, {

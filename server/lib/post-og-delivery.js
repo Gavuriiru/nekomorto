@@ -1,8 +1,5 @@
 import { buildOgRenderCacheKey } from "./og-render-cache.js";
-import {
-  buildPostOgCardModel,
-  buildPostOgImageResponse,
-} from "./post-og.js";
+import { buildPostOgCardModel, buildPostOgImageResponse } from "./post-og.js";
 import {
   loadProjectOgArtworkDataUrl,
   loadProjectOgProcessedBackdropDataUrl,
@@ -38,10 +35,7 @@ const buildPostOgBaseModel = ({
     resolveVariantUrl,
   });
 
-const renderPostOgBuffer = async ({
-  baseModel,
-  origin,
-} = {}) => {
+const renderPostOgBuffer = async ({ baseModel, origin } = {}) => {
   const imageEncodingConfig = resolveOgPublicImageEncodingConfig();
   const [artworkDataUrl, backdropDataUrl, subtitleAvatarDataUrl] = await Promise.all([
     loadProjectOgArtworkDataUrl({

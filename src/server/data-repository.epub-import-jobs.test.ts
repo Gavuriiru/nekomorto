@@ -146,7 +146,9 @@ describe("DbDataRepository EPUB import jobs fallback", () => {
 
   it("desabilita jobs EPUB quando a tabela ainda nao existe", async () => {
     const repo = createRepo();
-    prismaMock.epubImportJobRecord.findMany.mockRejectedValueOnce(createMissingEpubJobsTableError());
+    prismaMock.epubImportJobRecord.findMany.mockRejectedValueOnce(
+      createMissingEpubJobsTableError(),
+    );
     const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     try {

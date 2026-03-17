@@ -117,10 +117,13 @@ class RedisRateLimitStore {
         end
         return { current, ttl }
       `;
-      const result = await this.client.eval(script, {
-        keys: [redisKey],
-        arguments: [String(normalizedWindowMs)],
-      });
+      const result = await this.client.sendCommand([
+        "EVAL",
+        script,
+        "1",
+        redisKey,
+        String(normalizedWindowMs),
+      ]);
       const count = Number(Array.isArray(result) ? result[0] : 0) || 0;
       const ttl =
         Number(Array.isArray(result) ? result[1] : normalizedWindowMs) || normalizedWindowMs;

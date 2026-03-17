@@ -42,8 +42,7 @@ vi.mock("../../server/lib/uploads-import.js", () => ({
   EPUB_IMPORT_TMP_TTL_MS: 72 * 60 * 60 * 1000,
   buildEpubImportTempFolder: ({ userId, importId }: Record<string, unknown>) =>
     `tmp/epub-imports/${String(userId || "anonymous")}/${String(importId || "import")}`,
-  isEpubImportTempFolder: (folder: unknown) =>
-    String(folder || "").startsWith("tmp/epub-imports/"),
+  isEpubImportTempFolder: (folder: unknown) => String(folder || "").startsWith("tmp/epub-imports/"),
   storeUploadImageBuffer: storeUploadImageBufferMock,
 }));
 
@@ -99,7 +98,11 @@ describe("project EPUB import", () => {
       { id: "cover", title: "Cover", href: "OEBPS/Text/cover.xhtml" },
       { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
       { id: "afterword", title: "Afterword", href: "OEBPS/Text/afterword.xhtml" },
-      { id: "newsletterSignup", title: "Yen Newsletter", href: "OEBPS/Text/newsletterSignup.xhtml" },
+      {
+        id: "newsletterSignup",
+        title: "Yen Newsletter",
+        href: "OEBPS/Text/newsletterSignup.xhtml",
+      },
     ];
     epubState.manifest = {
       cover: { id: "cover", title: "Cover" },
@@ -298,7 +301,9 @@ describe("project EPUB import", () => {
     const loadUploads = vi.fn(() => []);
     const writeUploads = vi.fn();
 
-    epubState.toc = [{ id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" }];
+    epubState.toc = [
+      { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
+    ];
     epubState.flow = [
       { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
       { id: "chapter001_a", href: "OEBPS/Text/chapter001_a.xhtml" },
@@ -313,8 +318,7 @@ describe("project EPUB import", () => {
       },
     };
     epubState.chapters = {
-      chapter001:
-        '<p><img src="../Images/Art_P8.jpg" alt="Art 1"></p><p>Parte 1 do capitulo.</p>',
+      chapter001: '<p><img src="../Images/Art_P8.jpg" alt="Art 1"></p><p>Parte 1 do capitulo.</p>',
       chapter001_a:
         '<p>Parte 2 do capitulo.</p><p><img src="../Images/Art_P8.jpg" alt="Art 1 repetida"></p>',
     };
@@ -345,8 +349,12 @@ describe("project EPUB import", () => {
     const loadUploads = vi.fn(() => []);
     const writeUploads = vi.fn();
 
-    epubState.toc = [{ id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" }];
-    epubState.flow = [{ id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
+    epubState.toc = [
+      { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
+    ];
+    epubState.flow = [
+      { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+    ];
     epubState.manifest = {
       chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
       stylesheet: {
@@ -433,21 +441,27 @@ describe("project EPUB import", () => {
 
   it("continua a importacao quando a etapa de estilo editorial falha", async () => {
     const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
-    const windowGetterSpy = vi.spyOn(JSDOM.prototype, "window", "get").mockImplementation(function () {
-      const nextWindow = originalWindowDescriptor?.get?.call(this);
-      if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
-        nextWindow.getComputedStyle = () => {
-          throw new Error(
-            "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
-          );
-        };
-      }
-      return nextWindow;
-    });
+    const windowGetterSpy = vi
+      .spyOn(JSDOM.prototype, "window", "get")
+      .mockImplementation(function () {
+        const nextWindow = originalWindowDescriptor?.get?.call(this);
+        if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
+          nextWindow.getComputedStyle = () => {
+            throw new Error(
+              "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
+            );
+          };
+        }
+        return nextWindow;
+      });
 
     try {
-      epubState.toc = [{ id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
-      epubState.flow = [{ id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
+      epubState.toc = [
+        { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      ];
+      epubState.flow = [
+        { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      ];
       epubState.manifest = {
         chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
       };
@@ -483,21 +497,25 @@ describe("project EPUB import", () => {
 
   it("deduplica fallback CSS por documentHref durante a mesma importacao", async () => {
     const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
-    const windowGetterSpy = vi.spyOn(JSDOM.prototype, "window", "get").mockImplementation(function () {
-      const nextWindow = originalWindowDescriptor?.get?.call(this);
-      if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
-        nextWindow.getComputedStyle = () => {
-          throw new Error(
-            "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
-          );
-        };
-      }
-      return nextWindow;
-    });
+    const windowGetterSpy = vi
+      .spyOn(JSDOM.prototype, "window", "get")
+      .mockImplementation(function () {
+        const nextWindow = originalWindowDescriptor?.get?.call(this);
+        if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
+          nextWindow.getComputedStyle = () => {
+            throw new Error(
+              "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
+            );
+          };
+        }
+        return nextWindow;
+      });
     const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     try {
-      epubState.toc = [{ id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
+      epubState.toc = [
+        { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      ];
       epubState.flow = [
         { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
         { id: "chapter001_part2", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
@@ -534,17 +552,19 @@ describe("project EPUB import", () => {
 
   it("usa documentHref como contexto quando a etapa de estilo falha sem titulo de capitulo", async () => {
     const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
-    const windowGetterSpy = vi.spyOn(JSDOM.prototype, "window", "get").mockImplementation(function () {
-      const nextWindow = originalWindowDescriptor?.get?.call(this);
-      if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
-        nextWindow.getComputedStyle = () => {
-          throw new Error(
-            "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
-          );
-        };
-      }
-      return nextWindow;
-    });
+    const windowGetterSpy = vi
+      .spyOn(JSDOM.prototype, "window", "get")
+      .mockImplementation(function () {
+        const nextWindow = originalWindowDescriptor?.get?.call(this);
+        if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
+          nextWindow.getComputedStyle = () => {
+            throw new Error(
+              "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
+            );
+          };
+        }
+        return nextWindow;
+      });
     const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     try {
@@ -588,7 +608,9 @@ describe("project EPUB import", () => {
     const loadUploads = vi.fn(() => []);
     const writeUploads = vi.fn();
 
-    epubState.toc = [{ id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" }];
+    epubState.toc = [
+      { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
+    ];
     epubState.flow = [
       { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
       { id: "chapter001_a", href: "OEBPS/Text/chapter001_a.xhtml" },
@@ -654,7 +676,9 @@ describe("project EPUB import", () => {
   });
 
   it("descarta paginas somente com imagem no fallback do flow", async () => {
-    epubState.flow = [{ id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
+    epubState.flow = [
+      { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+    ];
     epubState.manifest = {
       chapter001: { id: "chapter001", title: "Chapter 1" },
     };
@@ -684,7 +708,9 @@ describe("project EPUB import", () => {
     epubState.toc = [
       { id: "chapter-toc", title: "Chapter 2", href: "OEBPS/Text/chapter002.xhtml#Ref_2" },
     ];
-    epubState.flow = [{ id: "chapter002", title: "Chapter 2", href: "OEBPS/Text/chapter002.xhtml" }];
+    epubState.flow = [
+      { id: "chapter002", title: "Chapter 2", href: "OEBPS/Text/chapter002.xhtml" },
+    ];
     epubState.manifest = {
       chapter002: { id: "chapter002", title: "Chapter 2" },
     };
@@ -802,7 +828,11 @@ describe("project EPUB import", () => {
       }),
     );
     expect(result.chapters.map((chapter) => chapter.entryKind)).toEqual(["extra", "main", "main"]);
-    expect(result.chapters.map((chapter) => chapter.title)).toEqual(["Cover", "Chapter 1", "Chapter 2"]);
+    expect(result.chapters.map((chapter) => chapter.title)).toEqual([
+      "Cover",
+      "Chapter 1",
+      "Chapter 2",
+    ]);
     expect(result.chapters.map((chapter) => chapter.number)).toEqual([100000, 1, 2]);
     expect(result.volumeCovers).toEqual([
       expect.objectContaining({
@@ -920,24 +950,32 @@ describe("project EPUB import", () => {
       ]),
     );
     expect(htmlToLexicalJsonMock).toHaveBeenCalledTimes(2);
-    expect(String(htmlToLexicalJsonMock.mock.calls[0]?.[0] || "")).toContain("Copyrights and Credits");
-    expect(String(htmlToLexicalJsonMock.mock.calls[0]?.[0] || "")).toContain("Table of Contents Page");
-    expect(String(htmlToLexicalJsonMock.mock.calls[0]?.[0] || "")).not.toContain("Newsletter signup");
+    expect(String(htmlToLexicalJsonMock.mock.calls[0]?.[0] || "")).toContain(
+      "Copyrights and Credits",
+    );
+    expect(String(htmlToLexicalJsonMock.mock.calls[0]?.[0] || "")).toContain(
+      "Table of Contents Page",
+    );
+    expect(String(htmlToLexicalJsonMock.mock.calls[0]?.[0] || "")).not.toContain(
+      "Newsletter signup",
+    );
   });
 
   it("usa documentHref no fallback CSS para item de front matter consolidado sem titulo", async () => {
     const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
-    const windowGetterSpy = vi.spyOn(JSDOM.prototype, "window", "get").mockImplementation(function () {
-      const nextWindow = originalWindowDescriptor?.get?.call(this);
-      if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
-        nextWindow.getComputedStyle = () => {
-          throw new Error(
-            "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
-          );
-        };
-      }
-      return nextWindow;
-    });
+    const windowGetterSpy = vi
+      .spyOn(JSDOM.prototype, "window", "get")
+      .mockImplementation(function () {
+        const nextWindow = originalWindowDescriptor?.get?.call(this);
+        if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
+          nextWindow.getComputedStyle = () => {
+            throw new Error(
+              "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
+            );
+          };
+        }
+        return nextWindow;
+      });
     const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     try {
@@ -1123,7 +1161,9 @@ describe("project EPUB import", () => {
     epubState.toc = [
       { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
     ];
-    epubState.flow = [{ id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
+    epubState.flow = [
+      { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+    ];
     epubState.manifest = {
       chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
       art1: { id: "art1", href: "OEBPS/Images/art1.jpg", "media-type": "image/jpeg" },
@@ -1156,7 +1196,9 @@ describe("project EPUB import", () => {
     epubState.toc = [
       { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
     ];
-    epubState.flow = [{ id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
+    epubState.flow = [
+      { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+    ];
     epubState.manifest = {
       coverImage: {
         id: "coverImage",

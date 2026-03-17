@@ -88,7 +88,10 @@ const findElement = (
   return null;
 };
 
-const getSubtitleLineMargin = (model: Record<string, unknown> | null | undefined, lineIndex: number) => {
+const getSubtitleLineMargin = (
+  model: Record<string, unknown> | null | undefined,
+  lineIndex: number,
+) => {
   const layout = (model?.layout as Record<string, unknown> | undefined) || {};
   const subtitleTop = Number(model?.subtitleTop || 0);
   const subtitleFontSize = Number(layout.subtitleFontSize || 0);
@@ -98,7 +101,9 @@ const getSubtitleLineMargin = (model: Record<string, unknown> | null | undefined
     layout: model?.layout,
     y: centerY,
   });
-  const subtitleLineLayouts = Array.isArray(model?.subtitleLineLayouts) ? model.subtitleLineLayouts : [];
+  const subtitleLineLayouts = Array.isArray(model?.subtitleLineLayouts)
+    ? model.subtitleLineLayouts
+    : [];
   const lineLayout = subtitleLineLayouts[lineIndex] as Record<string, unknown> | undefined;
   return diagonalX - Number(layout.subtitleLeft || 0) - Number(lineLayout?.maxWidth || 0);
 };

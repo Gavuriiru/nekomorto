@@ -5,10 +5,7 @@ export const AVATAR_CROPPER_BOUNDARY_SIZE = 320;
 
 const CROPPER_OUTPUT_SIZE = 512;
 
-export type AvatarCropperHandle = Pick<
-  FixedCropperRef,
-  "getCoordinates" | "getImage" | "getState"
->;
+export type AvatarCropperHandle = Pick<FixedCropperRef, "getCoordinates" | "getImage" | "getState">;
 
 const loadAvatarCropSourceImage = (src: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {

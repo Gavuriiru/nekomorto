@@ -64,7 +64,9 @@ const areJsonEqual = (left, right) => {
 
 const upsertUploadEntries = (existingUploads, incomingEntries) => {
   const current = Array.isArray(existingUploads) ? existingUploads : [];
-  const byUrl = new Map(current.filter((item) => item?.url).map((item) => [String(item.url), item]));
+  const byUrl = new Map(
+    current.filter((item) => item?.url).map((item) => [String(item.url), item]),
+  );
   let changed = false;
   (Array.isArray(incomingEntries) ? incomingEntries : []).forEach((entry) => {
     const nextUrl = String(entry?.url || "").trim();
@@ -79,10 +81,10 @@ const upsertUploadEntries = (existingUploads, incomingEntries) => {
       url: nextUrl,
       fileName: String(entry?.fileName || previous?.fileName || ""),
       folder: String(entry?.folder || previous?.folder || ""),
-      size: Number.isFinite(entry?.size) ? Number(entry.size) : previous?.size ?? null,
+      size: Number.isFinite(entry?.size) ? Number(entry.size) : (previous?.size ?? null),
       mime: String(entry?.mime || previous?.mime || ""),
-      width: Number.isFinite(entry?.width) ? Number(entry.width) : previous?.width ?? null,
-      height: Number.isFinite(entry?.height) ? Number(entry.height) : previous?.height ?? null,
+      width: Number.isFinite(entry?.width) ? Number(entry.width) : (previous?.width ?? null),
+      height: Number.isFinite(entry?.height) ? Number(entry.height) : (previous?.height ?? null),
       createdAt: String(entry?.createdAt || previous?.createdAt || new Date().toISOString()),
     };
     if (!areJsonEqual(previous || null, next)) {
@@ -92,7 +94,9 @@ const upsertUploadEntries = (existingUploads, incomingEntries) => {
   });
   return {
     changed,
-    uploads: Array.from(byUrl.values()).sort((a, b) => String(a.url || "").localeCompare(String(b.url || ""), "en")),
+    uploads: Array.from(byUrl.values()).sort((a, b) =>
+      String(a.url || "").localeCompare(String(b.url || ""), "en"),
+    ),
   };
 };
 
@@ -122,10 +126,15 @@ const toUploadRelativePath = (uploadUrl) =>
     .replace(/\\/g, "/");
 
 const isRelationInProjectFolder = (uploadUrl, projectFolder) =>
-  String(uploadUrl || "").startsWith(`/uploads/${String(projectFolder || "").replace(/^\/+/, "")}/`);
+  String(uploadUrl || "").startsWith(
+    `/uploads/${String(projectFolder || "").replace(/^\/+/, "")}/`,
+  );
 
 const normalizeExtension = (value) => {
-  const raw = String(value || "").trim().toLowerCase().replace(/^\./, "");
+  const raw = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^\./, "");
   if (!raw) {
     return "";
   }
@@ -164,7 +173,9 @@ const migrateLocalRelationUploads = ({ project, uploadsDirPath, apply }) => {
   const { projectFolder } = resolveProjectImageFolders(project || {});
   const nextProject = {
     ...project,
-    relations: Array.isArray(project?.relations) ? project.relations.map((item) => ({ ...item })) : [],
+    relations: Array.isArray(project?.relations)
+      ? project.relations.map((item) => ({ ...item }))
+      : [],
   };
   const summary = {
     attempted: 0,
@@ -319,7 +330,9 @@ try {
       apply: applyChanges,
     });
 
-    const dryRunSkipped = result.failures.filter((failure) => failure.error === "dry_run_skip").length;
+    const dryRunSkipped = result.failures.filter(
+      (failure) => failure.error === "dry_run_skip",
+    ).length;
     const effectiveFailed = Math.max(0, Number(result.summary.failed || 0) - dryRunSkipped);
 
     totals.attempted += Number(result.summary.attempted || 0);
@@ -373,9 +386,7 @@ try {
 
   const touchedProjects = perProjectReports.filter(
     (item) =>
-      item.attempted > 0 ||
-      item.normalizedLocalAbsolute > 0 ||
-      item.relationLegacyAttempted > 0,
+      item.attempted > 0 || item.normalizedLocalAbsolute > 0 || item.relationLegacyAttempted > 0,
   );
   if (touchedProjects.length > 0) {
     console.log("\nResumo por projeto:");

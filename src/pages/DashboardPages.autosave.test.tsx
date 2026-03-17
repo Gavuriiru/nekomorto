@@ -201,9 +201,7 @@ describe("DashboardPages autosave", () => {
     expect(putCalls).toHaveLength(1);
     const payload = JSON.parse(String(((putCalls[0][2] || {}) as RequestInit).body || "{}"));
     expect(payload.pages?.home?.shareImage).toBe("/uploads/shared/home-og.jpg");
-    expect(payload.pages?.home?.shareImageAlt).toBe(
-      "Imagem de compartilhamento da página inicial",
-    );
+    expect(payload.pages?.home?.shareImageAlt).toBe("Imagem de compartilhamento da página inicial");
   });
 
   it("seleciona imagem via biblioteca no preview e persiste no payload", async () => {

@@ -40,7 +40,8 @@ export const isInstitutionalOgPageKey = (value) =>
 export const resolveInstitutionalOgPageKeyFromPath = (pathname) => {
   const normalizedPath = normalizeText(pathname).replace(/\/+$/, "") || "/";
   return (
-    Object.entries(INSTITUTIONAL_OG_PAGE_PATHS).find(([, path]) => path === normalizedPath)?.[0] || ""
+    Object.entries(INSTITUTIONAL_OG_PAGE_PATHS).find(([, path]) => path === normalizedPath)?.[0] ||
+    ""
   );
 };
 
@@ -58,16 +59,16 @@ export const resolveInstitutionalOgSupportText = ({ pageKey, pages, settings } =
 
   const pageConfig = pages && typeof pages === "object" ? pages[normalizedPageKey] : null;
   return (
-    normalizeText(pageConfig?.heroSubtitle) ||
-    normalizeText(settings?.site?.description) ||
-    ""
+    normalizeText(pageConfig?.heroSubtitle) || normalizeText(settings?.site?.description) || ""
   );
 };
 
 export const resolveInstitutionalOgBackgroundImage = ({ pageKey, pages, settings } = {}) => {
   const normalizedPageKey = normalizeText(pageKey);
   const pageConfig = pages && typeof pages === "object" ? pages[normalizedPageKey] : null;
-  return normalizeText(pageConfig?.shareImage) || normalizeText(settings?.site?.defaultShareImage) || "";
+  return (
+    normalizeText(pageConfig?.shareImage) || normalizeText(settings?.site?.defaultShareImage) || ""
+  );
 };
 
 export const buildInstitutionalOgImageAlt = (pageKey) => {

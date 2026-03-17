@@ -20,13 +20,7 @@ vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
 }));
 
 vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({
-    title,
-    actions,
-  }: {
-    title: string;
-    actions?: ReactNode;
-  }) => (
+  default: ({ title, actions }: { title: string; actions?: ReactNode }) => (
     <div>
       <h1>{title}</h1>
       {actions}
@@ -47,11 +41,13 @@ vi.mock("@/components/ThemedSvgLogo", () => ({
 
 vi.mock("@/components/lexical/LexicalEditor", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
-  const MockEditor = React.forwardRef((props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
-    lexicalPropsSpy(props);
-    React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
-    return <div data-testid="lexical-editor" />;
-  });
+  const MockEditor = React.forwardRef(
+    (props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
+      lexicalPropsSpy(props);
+      React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
+      return <div data-testid="lexical-editor" />;
+    },
+  );
   MockEditor.displayName = "MockLexicalEditor";
   return { default: MockEditor };
 });
@@ -124,7 +120,8 @@ const projectFixtureBase = {
       duration: "",
       sourceType: "TV",
       sources: [],
-      content: "{\"root\":{\"children\":[],\"direction\":null,\"format\":\"\",\"indent\":0,\"type\":\"root\",\"version\":1}}",
+      content:
+        '{"root":{"children":[],"direction":null,"format":"","indent":0,"type":"root","version":1}}',
       contentFormat: "lexical",
     },
   ],
@@ -257,7 +254,7 @@ describe("DashboardProjectsEditor image library context", () => {
     fireEvent.click(projectCardButton);
     await screen.findByText("Editar projeto");
 
-    const episodesSectionTrigger = await screen.findByText(/Conte.do/i);
+    const [episodesSectionTrigger] = await screen.findAllByRole("button", { name: /Conte.do/i });
     fireEvent.click(episodesSectionTrigger);
     const volumeGroup = await screen.findByTestId("volume-group-none");
     const volumeGroupTrigger = volumeGroup.querySelector("button");
@@ -269,7 +266,9 @@ describe("DashboardProjectsEditor image library context", () => {
     expect(episodeToggleButton).toBeTruthy();
     fireEvent.click(episodeToggleButton as HTMLButtonElement);
 
-    const episodeLibraryButton = within(episodeCard).getAllByRole("button", { name: "Biblioteca" })[0];
+    const episodeLibraryButton = within(episodeCard).getAllByRole("button", {
+      name: "Biblioteca",
+    })[0];
     fireEvent.click(episodeLibraryButton);
 
     await waitFor(() => {

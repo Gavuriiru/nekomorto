@@ -136,8 +136,7 @@ const DashboardAvatar = ({
 }: DashboardAvatarProps) => {
   const [hasError, setHasError] = useState(false);
   const hasImage = Boolean(avatarUrl) && !hasError;
-  const wrapperClassName =
-    `${sizeClassName} ${frameClassName} relative shrink-0 overflow-hidden rounded-full`;
+  const wrapperClassName = `${sizeClassName} ${frameClassName} relative shrink-0 overflow-hidden rounded-full`;
 
   useEffect(() => {
     setHasError(false);
@@ -227,7 +226,9 @@ const normalizeFavoriteWorksList = (value: unknown): string[] => {
   const dedupe = new Set<string>();
   const output: string[] = [];
   for (const item of value) {
-    const title = String(item || "").trim().slice(0, MAX_FAVORITE_WORK_LENGTH);
+    const title = String(item || "")
+      .trim()
+      .slice(0, MAX_FAVORITE_WORK_LENGTH);
     if (!title) {
       continue;
     }
@@ -277,7 +278,9 @@ const toFavoriteWorksDraft = (value: unknown): FavoriteWorksDraft => {
   };
 };
 
-const buildFavoriteWorksPayloadFromDraft = (draft: FavoriteWorksDraft): FavoriteWorksByCategory => ({
+const buildFavoriteWorksPayloadFromDraft = (
+  draft: FavoriteWorksDraft,
+): FavoriteWorksByCategory => ({
   manga: normalizeFavoriteWorksList(draft.manga),
   anime: normalizeFavoriteWorksList(draft.anime),
 });
@@ -1233,15 +1236,18 @@ const DashboardUsers = () => {
     }));
     clearSocialDragState();
   };
-  const moveSocialLink = useCallback((from: number, to: number) => {
-    if (!canEditBasicFields || from === to) {
-      return;
-    }
-    setFormState((prev) => ({
-      ...prev,
-      socials: reorderItems(prev.socials, from, to),
-    }));
-  }, [canEditBasicFields]);
+  const moveSocialLink = useCallback(
+    (from: number, to: number) => {
+      if (!canEditBasicFields || from === to) {
+        return;
+      }
+      setFormState((prev) => ({
+        ...prev,
+        socials: reorderItems(prev.socials, from, to),
+      }));
+    },
+    [canEditBasicFields],
+  );
 
   const reorderUsers = (orderedActiveIds: string[], orderedRetiredIds: string[]) => {
     setUsers((prev) => {
@@ -1342,10 +1348,8 @@ const DashboardUsers = () => {
       const snapshot = users.map((userItem) => ({ ...userItem }));
       const activeIds = activeUsers.map((user) => user.id);
       const retiredIds = retiredUsers.map((user) => user.id);
-      const nextActiveIds =
-        group === "active" ? reorderItems(activeIds, from, to) : activeIds;
-      const nextRetiredIds =
-        group === "retired" ? reorderItems(retiredIds, from, to) : retiredIds;
+      const nextActiveIds = group === "active" ? reorderItems(activeIds, from, to) : activeIds;
+      const nextRetiredIds = group === "retired" ? reorderItems(retiredIds, from, to) : retiredIds;
       reorderUsers(nextActiveIds, nextRetiredIds);
       void persistUserOrder(nextActiveIds, nextRetiredIds, snapshot);
     },
@@ -1385,11 +1389,8 @@ const DashboardUsers = () => {
   const editorUserLabel = editingUser ? "Usuário em edição" : "Novo usuário";
   const editorUserTitle = formState.name.trim() || "Sem nome";
   const editorUserId = formState.id.trim() || "Será definido ao salvar";
-  const editorAccessRoleLabel = ownerToggle || isOwnerRecord
-    ? "Dono"
-    : formState.accessRole === "admin"
-      ? "Admin"
-      : "Normal";
+  const editorAccessRoleLabel =
+    ownerToggle || isOwnerRecord ? "Dono" : formState.accessRole === "admin" ? "Admin" : "Normal";
   const editorStatusLabel = formState.status === "active" ? "Ativo" : "Aposentado";
   const editorDialogDescription = editingUser
     ? "Atualize as informações e permissões do usuário."
@@ -1534,41 +1535,43 @@ const DashboardUsers = () => {
                                 fallbackClassName="bg-card/80 text-sm text-foreground"
                                 fallbackText={user.name.slice(0, 2).toUpperCase()}
                               />
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h3 className="text-lg font-semibold">{user.name}</h3>
-                                {ownerIds.includes(user.id) && (
-                                  <Badge className="bg-primary/20 text-primary">Dono</Badge>
-                                )}
-                                {!ownerIds.includes(user.id) && isAdminRecord(user) && (
-                                  <Badge className="bg-card/80 text-muted-foreground">
-                                    Administrador
-                                  </Badge>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="text-lg font-semibold">{user.name}</h3>
+                                  {ownerIds.includes(user.id) && (
+                                    <Badge className="bg-primary/20 text-primary">Dono</Badge>
+                                  )}
+                                  {!ownerIds.includes(user.id) && isAdminRecord(user) && (
+                                    <Badge className="bg-card/80 text-muted-foreground">
+                                      Administrador
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  {user.phrase || "-"}
+                                </p>
+                                <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                                  {user.bio || "Sem biografia cadastrada."}
+                                </p>
+                                {user.roles && user.roles.length > 0 && (
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {(ownerIds.includes(user.id)
+                                      ? user.roles
+                                      : stripOwnerRole(user.roles)
+                                    ).map((role) => (
+                                      <Badge
+                                        key={role}
+                                        variant="secondary"
+                                        className="text-[10px] uppercase"
+                                      >
+                                        {role}
+                                      </Badge>
+                                    ))}
+                                  </div>
                                 )}
                               </div>
-                              <p className="text-sm text-muted-foreground">{user.phrase || "-"}</p>
-                              <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
-                                {user.bio || "Sem biografia cadastrada."}
-                              </p>
-                              {user.roles && user.roles.length > 0 && (
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                  {(ownerIds.includes(user.id)
-                                    ? user.roles
-                                    : stripOwnerRole(user.roles)
-                                  ).map((role) => (
-                                    <Badge
-                                      key={role}
-                                      variant="secondary"
-                                      className="text-[10px] uppercase"
-                                    >
-                                      {role}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
                             </div>
                           </div>
-                        </div>
                           <div className="relative z-10 flex flex-wrap items-center gap-2">
                             {canManageUsers ? (
                               <ReorderControls
@@ -1654,43 +1657,43 @@ const DashboardUsers = () => {
                                   fallbackClassName="bg-card/80 text-sm text-foreground"
                                   fallbackText={user.name.slice(0, 2).toUpperCase()}
                                 />
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <h3 className="text-lg font-semibold">{user.name}</h3>
-                                  <Badge className="bg-card/80 text-muted-foreground">
-                                    Aposentado
-                                  </Badge>
-                                  {isAdminRecord(user) ? (
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="text-lg font-semibold">{user.name}</h3>
                                     <Badge className="bg-card/80 text-muted-foreground">
-                                      Administrador
+                                      Aposentado
                                     </Badge>
+                                    {isAdminRecord(user) ? (
+                                      <Badge className="bg-card/80 text-muted-foreground">
+                                        Administrador
+                                      </Badge>
+                                    ) : null}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">
+                                    {user.phrase || "-"}
+                                  </p>
+                                  <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                                    {user.bio || "Sem biografia cadastrada."}
+                                  </p>
+                                  {user.roles && user.roles.length > 0 ? (
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                      {(ownerIds.includes(user.id)
+                                        ? user.roles
+                                        : stripOwnerRole(user.roles)
+                                      ).map((role) => (
+                                        <Badge
+                                          key={role}
+                                          variant="secondary"
+                                          className="text-[10px] uppercase"
+                                        >
+                                          {role}
+                                        </Badge>
+                                      ))}
+                                    </div>
                                   ) : null}
                                 </div>
-                                <p className="text-sm text-muted-foreground">
-                                  {user.phrase || "-"}
-                                </p>
-                                <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
-                                  {user.bio || "Sem biografia cadastrada."}
-                                </p>
-                                {user.roles && user.roles.length > 0 ? (
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    {(ownerIds.includes(user.id)
-                                      ? user.roles
-                                      : stripOwnerRole(user.roles)
-                                    ).map((role) => (
-                                      <Badge
-                                        key={role}
-                                        variant="secondary"
-                                        className="text-[10px] uppercase"
-                                      >
-                                        {role}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                ) : null}
                               </div>
                             </div>
-                          </div>
                             <div className="relative z-10 flex flex-wrap items-center gap-2">
                               {canManageUsers ? (
                                 <ReorderControls
@@ -1776,802 +1779,851 @@ const DashboardUsers = () => {
               setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
             }}
           >
-          <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
-            <DialogHeader className="space-y-0 px-4 pb-2.5 pt-3.5 text-left md:px-6 lg:px-8">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-                      {editorUserLabel}
-                    </Badge>
-                    {ownerToggle || isOwnerRecord ? (
-                      <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
-                        Dono
+            <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
+              <DialogHeader className="space-y-0 px-4 pb-2.5 pt-3.5 text-left md:px-6 lg:px-8">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] uppercase tracking-[0.12em]"
+                      >
+                        {editorUserLabel}
                       </Badge>
-                    ) : null}
+                      {ownerToggle || isOwnerRecord ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] uppercase tracking-[0.12em]"
+                        >
+                          Dono
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <DialogTitle className="text-xl md:text-2xl">
+                      {editingUser ? "Editar usuário" : "Adicionar usuário"}
+                    </DialogTitle>
+                    <DialogDescription className="max-w-2xl text-xs md:text-sm">
+                      {editorDialogDescription}
+                    </DialogDescription>
                   </div>
-                  <DialogTitle className="text-xl md:text-2xl">
-                    {editingUser ? "Editar usuário" : "Adicionar usuário"}
-                  </DialogTitle>
-                  <DialogDescription className="max-w-2xl text-xs md:text-sm">
-                    {editorDialogDescription}
-                  </DialogDescription>
+                  <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-1.5 text-right">
+                    <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                      Usuário
+                    </p>
+                    <p className="max-w-[240px] truncate text-sm font-medium text-foreground">
+                      {editorUserTitle}
+                    </p>
+                  </div>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-1.5 text-right">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                    Usuário
-                  </p>
-                  <p className="max-w-[240px] truncate text-sm font-medium text-foreground">
-                    {editorUserTitle}
-                  </p>
+              </DialogHeader>
+              <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-1.5 md:px-6 lg:px-8">
+                <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                  ID {editorUserId}
+                </Badge>
+                <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                  {editorAccessRoleLabel}
+                </Badge>
+                <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                  {editorStatusLabel}
+                </Badge>
+                <span className="text-[11px] text-muted-foreground">
+                  {formState.socials.length} redes
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {stripOwnerRole(formState.roles).length} funções
+                </span>
+              </div>
+            </div>
+
+            <div className="project-editor-layout grid gap-3.5 px-4 pb-4 pt-2.5 md:gap-4 md:px-6 md:pb-5 lg:gap-5 lg:px-8">
+              {basicProfileOnlyEdit ? (
+                <div className="rounded-2xl border border-border/60 bg-card/60 px-4 py-3 text-xs text-muted-foreground">
+                  Você só pode alterar informações básicas deste usuário.
                 </div>
-              </div>
-            </DialogHeader>
-            <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-1.5 md:px-6 lg:px-8">
-              <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
-                ID {editorUserId}
-              </Badge>
-              <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-                {editorAccessRoleLabel}
-              </Badge>
-              <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-                {editorStatusLabel}
-              </Badge>
-              <span className="text-[11px] text-muted-foreground">{formState.socials.length} redes</span>
-              <span className="text-[11px] text-muted-foreground">
-                {stripOwnerRole(formState.roles).length} funções
-              </span>
-            </div>
-          </div>
-
-          <div className="project-editor-layout grid gap-3.5 px-4 pb-4 pt-2.5 md:gap-4 md:px-6 md:pb-5 lg:gap-5 lg:px-8">
-            {basicProfileOnlyEdit ? (
-              <div className="rounded-2xl border border-border/60 bg-card/60 px-4 py-3 text-xs text-muted-foreground">
-                Você só pode alterar informações básicas deste usuário.
-              </div>
-            ) : null}
-            <Accordion
-              type="multiple"
-              value={editorAccordionValue}
-              onValueChange={setEditorAccordionValue}
-              className="project-editor-accordion space-y-2.5"
-            >
-              <AccordionItem value="dados-principais" className={editorSectionClassName}>
-                <AccordionTrigger className={editorSectionTriggerClassName}>
-                  <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <span>Dados principais</span>
-                    <span className="text-xs text-muted-foreground">{editorUserTitle}</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className={editorSectionContentClassName}>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="grid gap-2">
-              <Label htmlFor="user-id">ID do Discord</Label>
-              <Input
-                id="user-id"
-                value={formState.id}
-                onChange={(event) => setFormState((prev) => ({ ...prev, id: event.target.value }))}
-                placeholder="Ex.: 380305493391966208"
-                disabled={Boolean(editingUser) || !canManageUsers}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="user-name">Nome</Label>
-              <Input
-                id="user-name"
-                value={formState.name}
-                onChange={(event) =>
-                  setFormState((prev) => ({ ...prev, name: event.target.value }))
-                }
-                placeholder="Nome exibido"
-                disabled={!canEditBasicFields}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="user-phrase">Frase</Label>
-              <Input
-                id="user-phrase"
-                value={formState.phrase}
-                onChange={(event) =>
-                  setFormState((prev) => ({ ...prev, phrase: event.target.value }))
-                }
-                placeholder="Frase curta"
-                disabled={!canEditBasicFields}
-              />
-            </div>
-            <div className="grid gap-2 md:col-span-2">
-              <Label htmlFor="user-bio">Bio</Label>
-              <Textarea
-                id="user-bio"
-                value={formState.bio}
-                onChange={(event) => setFormState((prev) => ({ ...prev, bio: event.target.value }))}
-                placeholder="Texto da bio"
-                rows={4}
-                disabled={!canEditBasicFields}
-              />
-            </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="perfil-publico" className={editorSectionClassName}>
-                <AccordionTrigger className={editorSectionTriggerClassName}>
-                  <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <span>Perfil público</span>
-                    <span className="text-xs text-muted-foreground">
-                      {formState.socials.length} redes • avatar e obras
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className={editorSectionContentClassName}>
-                  <div className="grid gap-4">
-                    <div className="grid gap-3">
-              <Label>Obras favoritas (até 3 por categoria)</Label>
-              <div className="grid gap-4 md:grid-cols-2">
-                {FAVORITE_WORK_CATEGORIES.map((category) => {
-                  const categoryLabel = category === "manga" ? "Mangá" : "Anime";
-                  return (
-                    <div key={category} className="space-y-2 rounded-xl border border-border/60 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                        {categoryLabel}
-                      </p>
-                      <div className="grid gap-2">
-                        {formState.favoriteWorksDraft[category].map((value, index) => (
-                          <Input
-                            key={`${category}-${index}`}
-                            id={`user-favorite-works-${category}-${index + 1}`}
-                            aria-label={`${categoryLabel} ${index + 1}`}
-                            value={value}
-                            onChange={(event) =>
-                              setFormState((prev) => {
-                                const nextCategory = [...prev.favoriteWorksDraft[category]] as [
-                                  string,
-                                  string,
-                                  string,
-                                ];
-                                nextCategory[index] = event.target.value;
-                                return {
-                                  ...prev,
-                                  favoriteWorksDraft: {
-                                    ...prev.favoriteWorksDraft,
-                                    [category]: nextCategory,
-                                  },
-                                };
-                              })
-                            }
-                            placeholder={`${categoryLabel} ${index + 1}`}
-                            disabled={!canEditBasicFields}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Espaços e edição livre são preservados durante a digitação; a normalização ocorre ao salvar.
-              </p>
-            </div>
-            <div className="grid gap-2">
-              <Label>Avatar</Label>
-              <div className="flex flex-wrap items-center gap-3">
-                {formState.avatarUrl ? (
-                  <DashboardAvatar
-                    avatarUrl={toAvatarRenderUrl(formState.avatarUrl, editorAvatarPreviewRevision)}
-                    name={formState.name || "Avatar"}
-                    sizeClassName="h-12 w-12"
-                    frameClassName="border border-border/60 bg-card/60"
-                    fallbackClassName="bg-card/60 text-xs text-foreground"
-                    fallbackText={(formState.name || "U").slice(0, 1).toUpperCase()}
-                  />
-                ) : (
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-dashed border-border/60 text-[10px] text-muted-foreground">
-                    Sem imagem
-                  </div>
-                )}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={openLibrary}
-                  disabled={!canEditBasicFields}
-                >
-                  Biblioteca
-                </Button>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>Links e redes</Label>
-              <div className="grid gap-3">
-                {formState.socials.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Nenhum link adicionado.</p>
-                ) : null}
-                {formState.socials.map((social, index) => {
-                  const availableLinkTypes = linkTypes.length > 0 ? linkTypes : fallbackLinkTypes;
-                  const selectedOption =
-                    availableLinkTypes.find((option) => option.id === social.label) ||
-                    availableLinkTypes.find((option) => option.label === social.label) ||
-                    null;
-                  const isCustomSelectedIcon = Boolean(
-                    selectedOption && isIconUrl(selectedOption.icon),
-                  );
-                  const SelectedIcon =
-                    !isCustomSelectedIcon && selectedOption
-                      ? socialIconMap[selectedOption.icon] || Globe
-                      : Globe;
-                  const selectedLabel = selectedOption?.label || "Selecione a rede";
-
-                  return (
-                    <div
-                      key={`${social.label}-${index}`}
-                      data-testid={`user-social-row-${index}`}
-                      className={`overflow-x-auto rounded-xl border p-2 transition ${
-                        socialDragOverIndex === index
-                          ? "border-primary/40 bg-primary/5"
-                          : "border-transparent"
-                      }`}
-                      onDragOver={(event) => handleSocialDragOver(event, index)}
-                      onDrop={(event) => handleSocialDrop(event, index)}
-                    >
-                      <div className="grid grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] items-center gap-2">
-                        <button
-                          type="button"
-                          draggable={canEditBasicFields}
-                          className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground transition hover:border-primary/40 hover:text-primary active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
-                          aria-label={`Arrastar rede ${social.label || index + 1}`}
-                          onDragStart={(event) => handleSocialDragStart(event, index)}
-                          onDragEnd={clearSocialDragState}
-                          disabled={!canEditBasicFields}
-                        >
-                          <GripVertical className="h-4 w-4" />
-                        </button>
-                        <ReorderControls
-                          label={`rede ${social.label || index + 1}`}
-                          index={index}
-                          total={formState.socials.length}
-                          onMove={(targetIndex) => moveSocialLink(index, targetIndex)}
-                          disabled={!canEditBasicFields}
-                        />
-                        <Select
-                          value={social.label}
-                          onValueChange={(value) =>
-                            setFormState((prev) => {
-                              const next = [...prev.socials];
-                              next[index] = { ...next[index], label: value };
-                              return { ...prev, socials: next };
-                            })
-                          }
-                          disabled={!canEditBasicFields}
-                        >
-                          <SelectTrigger
-                            className="h-10 w-14 shrink-0 justify-center gap-1 bg-background/60 px-2"
-                            aria-label={selectedLabel}
-                            title={selectedLabel}
-                          >
-                            <span className="flex items-center justify-center">
-                              {isCustomSelectedIcon && selectedOption ? (
-                                <ThemedSvgLogo
-                                  url={selectedOption.icon}
-                                  label={selectedLabel}
-                                  className="h-4 w-4 text-primary"
-                                />
-                              ) : (
-                                <SelectedIcon
-                                  className={`h-4 w-4 ${
-                                    selectedOption ? "text-foreground" : "text-muted-foreground"
-                                  }`}
-                                />
-                              )}
-                            </span>
-                            <span className="sr-only">{selectedLabel}</span>
-                          </SelectTrigger>
-                          <SelectContent align="start">
-                            {availableLinkTypes.map((option) => {
-                              const isCustomIcon = isIconUrl(option.icon);
-                              const Icon = !isCustomIcon ? socialIconMap[option.icon] || Globe : null;
-                              return (
-                                <SelectItem
-                                  key={option.id}
-                                  value={option.id}
-                                  className="pl-2 pr-2 [&>span:first-child]:hidden"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    {isCustomIcon ? (
-                                      <ThemedSvgLogo
-                                        url={option.icon}
-                                        label={option.label}
-                                        className="h-4 w-4 text-primary"
-                                      />
-                                    ) : (
-                                      <Icon className="h-4 w-4" />
-                                    )}
-                                    <span>{option.label}</span>
-                                  </div>
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          className="min-w-0"
-                          value={social.href}
-                          onChange={(event) =>
-                            setFormState((prev) => {
-                              const next = [...prev.socials];
-                              next[index] = { ...next[index], href: event.target.value };
-                              return { ...prev, socials: next };
-                            })
-                          }
-                          placeholder="https://"
-                          disabled={!canEditBasicFields}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
-                          aria-label={`Remover rede ${social.label || index + 1}`}
-                          onClick={() =>
-                            setFormState((prev) => ({
-                              ...prev,
-                              socials: prev.socials.filter((_, idx) => idx !== index),
-                            }))
-                          }
-                          disabled={!canEditBasicFields}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() =>
-                    setFormState((prev) => ({
-                      ...prev,
-                      socials: [...prev.socials, { label: "", href: "" }],
-                    }))
-                  }
-                  disabled={!canEditBasicFields}
-                >
-                  Adicionar link
-                </Button>
-              </div>
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              {showSelfSecuritySection ? (
-                <AccordionItem value="seguranca" className={editorSectionClassName}>
+              ) : null}
+              <Accordion
+                type="multiple"
+                value={editorAccordionValue}
+                onValueChange={setEditorAccordionValue}
+                className="project-editor-accordion space-y-2.5"
+              >
+                <AccordionItem value="dados-principais" className={editorSectionClassName}>
                   <AccordionTrigger className={editorSectionTriggerClassName}>
                     <div className="flex w-full items-center justify-between gap-4 text-left">
-                      <span>Segurança</span>
+                      <span>Dados principais</span>
+                      <span className="text-xs text-muted-foreground">{editorUserTitle}</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className={editorSectionContentClassName}>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="grid gap-2">
+                        <Label htmlFor="user-id">ID do Discord</Label>
+                        <Input
+                          id="user-id"
+                          value={formState.id}
+                          onChange={(event) =>
+                            setFormState((prev) => ({ ...prev, id: event.target.value }))
+                          }
+                          placeholder="Ex.: 380305493391966208"
+                          disabled={Boolean(editingUser) || !canManageUsers}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="user-name">Nome</Label>
+                        <Input
+                          id="user-name"
+                          value={formState.name}
+                          onChange={(event) =>
+                            setFormState((prev) => ({ ...prev, name: event.target.value }))
+                          }
+                          placeholder="Nome exibido"
+                          disabled={!canEditBasicFields}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="user-phrase">Frase</Label>
+                        <Input
+                          id="user-phrase"
+                          value={formState.phrase}
+                          onChange={(event) =>
+                            setFormState((prev) => ({ ...prev, phrase: event.target.value }))
+                          }
+                          placeholder="Frase curta"
+                          disabled={!canEditBasicFields}
+                        />
+                      </div>
+                      <div className="grid gap-2 md:col-span-2">
+                        <Label htmlFor="user-bio">Bio</Label>
+                        <Textarea
+                          id="user-bio"
+                          value={formState.bio}
+                          onChange={(event) =>
+                            setFormState((prev) => ({ ...prev, bio: event.target.value }))
+                          }
+                          placeholder="Texto da bio"
+                          rows={4}
+                          disabled={!canEditBasicFields}
+                        />
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="perfil-publico" className={editorSectionClassName}>
+                  <AccordionTrigger className={editorSectionTriggerClassName}>
+                    <div className="flex w-full items-center justify-between gap-4 text-left">
+                      <span>Perfil público</span>
                       <span className="text-xs text-muted-foreground">
-                        2FA {securitySummary?.totpEnabled ? "ativo" : "inativo"}
+                        {formState.socials.length} redes • avatar e obras
                       </span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className={editorSectionContentClassName}>
-                    <div className="grid gap-3 rounded-2xl border border-border/60 bg-card/60 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-sm font-medium">Segurança da conta</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Configure 2FA opcional e gerencie suas sessões ativas.
-                    </p>
-                  </div>
-                  <Button size="sm" variant="outline" onClick={() => void refreshSelfSecurity()}>
-                    Atualizar
-                  </Button>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-card/80 text-muted-foreground">
-                    2FA {securitySummary?.totpEnabled ? "Ativo" : "Inativo"}
-                  </Badge>
-                  <Badge className="bg-card/80 text-muted-foreground">
-                    Recovery: {securitySummary?.recoveryCodesRemaining ?? 0}
-                  </Badge>
-                  <Badge className="bg-card/80 text-muted-foreground">
-                    Sessões: {securitySummary?.activeSessionsCount ?? 0}
-                  </Badge>
-                </div>
-
-                {!securitySummary?.totpEnabled ? (
-                  <div className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-3">
-                    <Button size="sm" onClick={startSelfEnrollment}>
-                      Ativar 2FA (TOTP)
-                    </Button>
-                    {securityEnrollment ? (
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-3">
-                          {securityEnrollment.iconUrl ? (
-                            <img
-                              src={securityEnrollment.iconUrl}
-                              alt="Icone da conta"
-                              className="h-9 w-9 rounded-full border border-border/60 object-cover"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : null}
-                          <p className="text-xs text-muted-foreground">
-                            {securityEnrollment.issuer || securitySummary?.issuer || "Nekomata"}:
-                            {securityEnrollment.accountLabel ||
-                              securitySummary?.accountLabel ||
-                              currentUser?.username ||
-                              currentUser?.name ||
-                              editingUser?.id}
-                          </p>
+                    <div className="grid gap-4">
+                      <div className="grid gap-3">
+                        <Label>Obras favoritas (até 3 por categoria)</Label>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {FAVORITE_WORK_CATEGORIES.map((category) => {
+                            const categoryLabel = category === "manga" ? "Mangá" : "Anime";
+                            return (
+                              <div
+                                key={category}
+                                className="space-y-2 rounded-xl border border-border/60 p-3"
+                              >
+                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                                  {categoryLabel}
+                                </p>
+                                <div className="grid gap-2">
+                                  {formState.favoriteWorksDraft[category].map((value, index) => (
+                                    <Input
+                                      key={`${category}-${index}`}
+                                      id={`user-favorite-works-${category}-${index + 1}`}
+                                      aria-label={`${categoryLabel} ${index + 1}`}
+                                      value={value}
+                                      onChange={(event) =>
+                                        setFormState((prev) => {
+                                          const nextCategory = [
+                                            ...prev.favoriteWorksDraft[category],
+                                          ] as [string, string, string];
+                                          nextCategory[index] = event.target.value;
+                                          return {
+                                            ...prev,
+                                            favoriteWorksDraft: {
+                                              ...prev.favoriteWorksDraft,
+                                              [category]: nextCategory,
+                                            },
+                                          };
+                                        })
+                                      }
+                                      placeholder={`${categoryLabel} ${index + 1}`}
+                                      disabled={!canEditBasicFields}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                        <div className="flex flex-wrap gap-4">
-                          {securityQrDataUrl ? (
-                            <img
-                              src={securityQrDataUrl}
-                              alt="QR code para configurar TOTP"
-                              className="h-48 w-48 rounded-xl border border-border/60 bg-white p-2"
+                        <p className="text-xs text-muted-foreground">
+                          Espaços e edição livre são preservados durante a digitação; a normalização
+                          ocorre ao salvar.
+                        </p>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Avatar</Label>
+                        <div className="flex flex-wrap items-center gap-3">
+                          {formState.avatarUrl ? (
+                            <DashboardAvatar
+                              avatarUrl={toAvatarRenderUrl(
+                                formState.avatarUrl,
+                                editorAvatarPreviewRevision,
+                              )}
+                              name={formState.name || "Avatar"}
+                              sizeClassName="h-12 w-12"
+                              frameClassName="border border-border/60 bg-card/60"
+                              fallbackClassName="bg-card/60 text-xs text-foreground"
+                              fallbackText={(formState.name || "U").slice(0, 1).toUpperCase()}
                             />
                           ) : (
-                            <div className="flex h-48 w-48 items-center justify-center rounded-xl border border-dashed border-border/60 text-xs text-muted-foreground">
-                              Gerando QR...
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-dashed border-border/60 text-[10px] text-muted-foreground">
+                              Sem imagem
                             </div>
                           )}
-                          <div className="min-w-0 flex-1 space-y-2">
-                            <code className="block break-all rounded bg-card px-3 py-2 text-xs">
-                              {securityEnrollment.manualSecret}
-                            </code>
-                            <div className="flex flex-wrap gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={async () => {
-                                  try {
-                                    await navigator.clipboard.writeText(
-                                      securityEnrollment.manualSecret,
-                                    );
-                                    toast({ title: "Segredo copiado" });
-                                  } catch {
-                                    toast({
-                                      title: "Não foi possível copiar",
-                                      variant: "destructive",
-                                    });
-                                  }
-                                }}
-                              >
-                                Copiar segredo
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={async () => {
-                                  try {
-                                    await navigator.clipboard.writeText(
-                                      securityEnrollment.otpauthUrl,
-                                    );
-                                    toast({ title: "URL OTP copiada" });
-                                  } catch {
-                                    toast({
-                                      title: "Não foi possível copiar",
-                                      variant: "destructive",
-                                    });
-                                  }
-                                }}
-                              >
-                                Copiar URL OTP
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={startSelfEnrollment}>
-                                Reiniciar ativação
-                              </Button>
-                            </div>
-                            <Input
-                              value={securityEnrollCode}
-                              onChange={(event) => setSecurityEnrollCode(event.target.value)}
-                              placeholder="Código de 6 dígitos"
-                            />
-                            <Button
-                              size="sm"
-                              onClick={confirmSelfEnrollment}
-                              disabled={
-                                !securityEnrollCode.trim() || !securityEnrollment.enrollmentToken
-                              }
-                            >
-                              Confirmar ativação
-                            </Button>
-                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={openLibrary}
+                            disabled={!canEditBasicFields}
+                          >
+                            Biblioteca
+                          </Button>
                         </div>
                       </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="space-y-2 rounded-2xl border border-border/60 bg-background/60 p-3">
-                    <Input
-                      value={securityDisableCode}
-                      onChange={(event) => setSecurityDisableCode(event.target.value)}
-                      placeholder="Código TOTP ou código de recuperação"
-                    />
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={disableSelfTotp}
-                      disabled={!securityDisableCode.trim()}
-                    >
-                      Desativar 2FA
-                    </Button>
-                  </div>
-                )}
-
-                {securityRecoveryCodes.length > 0 ? (
-                  <div className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3">
-                    <p className="text-xs font-medium">Salve estes recovery codes agora:</p>
-                    <div className="grid gap-1 md:grid-cols-2">
-                      {securityRecoveryCodes.map((code) => (
-                        <code key={code} className="rounded bg-card px-2 py-1 text-xs">
-                          {code}
-                        </code>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="space-y-2 rounded-2xl border border-border/60 bg-background/60 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium">Sessões ativas</p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={revokeSelfOthers}
-                      disabled={isLoadingSecurity}
-                    >
-                      Encerrar outras
-                    </Button>
-                  </div>
-                  {isLoadingSecurity ? (
-                    <div
-                      className="space-y-2"
-                      data-testid="dashboard-users-security-loading"
-                      role="status"
-                      aria-live="polite"
-                      aria-busy="true"
-                    >
-                      {Array.from({ length: 2 }).map((_, index) => (
-                        <div
-                          key={`dashboard-users-security-loading-${index}`}
-                          className="rounded-xl border border-border/60 bg-card/50 p-2"
-                        >
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div className="space-y-2">
-                              <Skeleton className="h-3 w-24" />
-                              <Skeleton className="h-3 w-36" />
-                            </div>
-                            <Skeleton className="h-6 w-20 rounded-full" />
-                          </div>
-                        </div>
-                      ))}
-                      <span className="sr-only">Carregando sessões...</span>
-                    </div>
-                  ) : securitySessions.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Nenhuma sessão ativa.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {securitySessions.map((session) => (
-                        <div
-                          key={session.sid}
-                          className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-border/60 bg-card/50 p-2"
-                        >
-                          <div className="space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-xs font-medium">
-                                {isCurrentSecuritySession(session)
-                                  ? "Sessão atual"
-                                  : "Sessão remota"}
-                              </p>
-                              {isCurrentSecuritySession(session) ? (
-                                <Badge variant="success">Atual</Badge>
-                              ) : null}
-                              {session.isPendingMfa ? (
-                                <Badge variant="warning">Pendente MFA</Badge>
-                              ) : null}
-                            </div>
-                            <p className="text-[11px] text-muted-foreground">
-                              Última atividade: {formatSecurityDateTime(session.lastSeenAt)}
-                            </p>
-                            <p className="text-[11px] text-muted-foreground">
-                              Criada em: {formatSecurityDateTime(session.createdAt)}
-                            </p>
-                            <p className="text-[11px] text-muted-foreground">
-                              IP: {session.lastIp || "-"}
-                            </p>
-                            <p className="max-w-[360px] truncate text-[11px] text-muted-foreground">
-                              {session.userAgent || "-"}
-                            </p>
-                          </div>
-                          {!isCurrentSecuritySession(session) ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => revokeSelfSession(session.sid)}
-                            >
-                              Encerrar
-                            </Button>
+                      <div className="grid gap-2">
+                        <Label>Links e redes</Label>
+                        <div className="grid gap-3">
+                          {formState.socials.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">Nenhum link adicionado.</p>
                           ) : null}
+                          {formState.socials.map((social, index) => {
+                            const availableLinkTypes =
+                              linkTypes.length > 0 ? linkTypes : fallbackLinkTypes;
+                            const selectedOption =
+                              availableLinkTypes.find((option) => option.id === social.label) ||
+                              availableLinkTypes.find((option) => option.label === social.label) ||
+                              null;
+                            const isCustomSelectedIcon = Boolean(
+                              selectedOption && isIconUrl(selectedOption.icon),
+                            );
+                            const SelectedIcon =
+                              !isCustomSelectedIcon && selectedOption
+                                ? socialIconMap[selectedOption.icon] || Globe
+                                : Globe;
+                            const selectedLabel = selectedOption?.label || "Selecione a rede";
+
+                            return (
+                              <div
+                                key={`${social.label}-${index}`}
+                                data-testid={`user-social-row-${index}`}
+                                className={`overflow-x-auto rounded-xl border p-2 transition ${
+                                  socialDragOverIndex === index
+                                    ? "border-primary/40 bg-primary/5"
+                                    : "border-transparent"
+                                }`}
+                                onDragOver={(event) => handleSocialDragOver(event, index)}
+                                onDrop={(event) => handleSocialDrop(event, index)}
+                              >
+                                <div className="grid grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] items-center gap-2">
+                                  <button
+                                    type="button"
+                                    draggable={canEditBasicFields}
+                                    className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground transition hover:border-primary/40 hover:text-primary active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
+                                    aria-label={`Arrastar rede ${social.label || index + 1}`}
+                                    onDragStart={(event) => handleSocialDragStart(event, index)}
+                                    onDragEnd={clearSocialDragState}
+                                    disabled={!canEditBasicFields}
+                                  >
+                                    <GripVertical className="h-4 w-4" />
+                                  </button>
+                                  <ReorderControls
+                                    label={`rede ${social.label || index + 1}`}
+                                    index={index}
+                                    total={formState.socials.length}
+                                    onMove={(targetIndex) => moveSocialLink(index, targetIndex)}
+                                    disabled={!canEditBasicFields}
+                                  />
+                                  <Select
+                                    value={social.label}
+                                    onValueChange={(value) =>
+                                      setFormState((prev) => {
+                                        const next = [...prev.socials];
+                                        next[index] = { ...next[index], label: value };
+                                        return { ...prev, socials: next };
+                                      })
+                                    }
+                                    disabled={!canEditBasicFields}
+                                  >
+                                    <SelectTrigger
+                                      className="h-10 w-14 shrink-0 justify-center gap-1 bg-background/60 px-2"
+                                      aria-label={selectedLabel}
+                                      title={selectedLabel}
+                                    >
+                                      <span className="flex items-center justify-center">
+                                        {isCustomSelectedIcon && selectedOption ? (
+                                          <ThemedSvgLogo
+                                            url={selectedOption.icon}
+                                            label={selectedLabel}
+                                            className="h-4 w-4 text-primary"
+                                          />
+                                        ) : (
+                                          <SelectedIcon
+                                            className={`h-4 w-4 ${
+                                              selectedOption
+                                                ? "text-foreground"
+                                                : "text-muted-foreground"
+                                            }`}
+                                          />
+                                        )}
+                                      </span>
+                                      <span className="sr-only">{selectedLabel}</span>
+                                    </SelectTrigger>
+                                    <SelectContent align="start">
+                                      {availableLinkTypes.map((option) => {
+                                        const isCustomIcon = isIconUrl(option.icon);
+                                        const Icon = !isCustomIcon
+                                          ? socialIconMap[option.icon] || Globe
+                                          : null;
+                                        return (
+                                          <SelectItem
+                                            key={option.id}
+                                            value={option.id}
+                                            className="pl-2 pr-2 [&>span:first-child]:hidden"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              {isCustomIcon ? (
+                                                <ThemedSvgLogo
+                                                  url={option.icon}
+                                                  label={option.label}
+                                                  className="h-4 w-4 text-primary"
+                                                />
+                                              ) : (
+                                                <Icon className="h-4 w-4" />
+                                              )}
+                                              <span>{option.label}</span>
+                                            </div>
+                                          </SelectItem>
+                                        );
+                                      })}
+                                    </SelectContent>
+                                  </Select>
+                                  <Input
+                                    className="min-w-0"
+                                    value={social.href}
+                                    onChange={(event) =>
+                                      setFormState((prev) => {
+                                        const next = [...prev.socials];
+                                        next[index] = { ...next[index], href: event.target.value };
+                                        return { ...prev, socials: next };
+                                      })
+                                    }
+                                    placeholder="https://"
+                                    disabled={!canEditBasicFields}
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
+                                    aria-label={`Remover rede ${social.label || index + 1}`}
+                                    onClick={() =>
+                                      setFormState((prev) => ({
+                                        ...prev,
+                                        socials: prev.socials.filter((_, idx) => idx !== index),
+                                      }))
+                                    }
+                                    disabled={!canEditBasicFields}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                socials: [...prev.socials, { label: "", href: "" }],
+                              }))
+                            }
+                            disabled={!canEditBasicFields}
+                          >
+                            Adicionar link
+                          </Button>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      </div>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
-              ) : null}
-              <AccordionItem value="acesso-permissoes" className={editorSectionClassName}>
-                <AccordionTrigger className={editorSectionTriggerClassName}>
-                  <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <span>Acesso e permissões</span>
-                    <span className="text-xs text-muted-foreground">
-                      {editorAccessRoleLabel} • {stripOwnerRole(formState.roles).length} funções
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className={editorSectionContentClassName}>
-                  <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label>Funções</Label>
-              {!canEditRoles && (
-                <p className="text-xs text-muted-foreground">
-                  Apenas donos com permissão de acesso podem alterar funções de equipe.
-                </p>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {roleOptions.map((role) => {
-                  const isSelected = formState.roles.includes(role);
-                  const iconKey = roleIconMap.get(role);
-                  const RoleIcon = iconKey ? roleIconRegistry[String(iconKey).toLowerCase()] : null;
-                  return (
-                    <Button
-                      key={role}
-                      type="button"
-                      variant={isSelected ? "default" : "outline"}
-                      className={
-                        isSelected ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
-                      }
-                      onClick={() => toggleRole(role)}
-                      disabled={!canEditRoles}
-                    >
-                      {RoleIcon ? <RoleIcon className="h-4 w-4" /> : null}
-                      {role}
-                    </Button>
-                  );
-                })}
-              </div>
-              {isOwnerRecord && (
-                <p className="text-xs text-muted-foreground">A badge de dono é automática.</p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <Label>Papel de acesso</Label>
-              <Select
-                value={formState.accessRole}
-                onValueChange={(value) =>
-                  setFormState((prev) => ({
-                    ...prev,
-                    accessRole: value === "admin" ? "admin" : "normal",
-                    permissions:
-                      value === "admin"
-                        ? permissionOptions
-                            .filter((option) =>
-                              [
-                                "posts",
-                                "projetos",
-                                "comentarios",
-                                "paginas",
-                                "uploads",
-                                "analytics",
-                                "usuarios_basico",
-                              ].includes(option.id),
-                            )
-                            .map((option) => option.id)
-                        : prev.permissions,
-                  }))
-                }
-                disabled={!canEditAccessControls || isOwnerRecord}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um papel" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accessRoleOptions.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {isOwnerRecord ? (
-                <p className="text-xs text-muted-foreground">
-                  O papel de dono é definido pela governança de owners.
-                </p>
-              ) : null}
-            </div>
-            <div className="grid gap-2">
-              <Label>Permissões</Label>
-              {isOwnerRecord && (
-                <Badge className="w-fit bg-primary/20 text-primary">Acesso total</Badge>
-              )}
-              {!isOwnerRecord && isAdminForm && (
-                <Badge className="w-fit bg-card/80 text-muted-foreground">Administrador</Badge>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {permissionOptions.map((permission) => {
-                  const isSelected = effectivePermissions.includes(permission.id);
-                  return (
-                    <Button
-                      key={permission.id}
-                      type="button"
-                      variant={isSelected ? "default" : "outline"}
-                      className={
-                        isSelected ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
-                      }
-                      onClick={() => togglePermission(permission.id)}
-                      disabled={!canEditAccessControls || isOwnerRecord}
-                    >
-                      {permission.label}
-                    </Button>
-                  );
-                })}
-              </div>
-              {!canEditAccessControls && (
-                <p className="text-xs text-muted-foreground">
-                  Apenas donos com permissão de acesso podem alterar permissões de acesso.
-                </p>
-              )}
-            </div>
-            {canManageUsers ? (
-              <div className="grid gap-2">
-                <Label>Dono</Label>
-                <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
-                  <span className="text-sm text-muted-foreground">
-                    Permite acesso total ao painel e às configurações críticas.
-                  </span>
-                  <Switch
-                    checked={ownerToggle}
-                    onCheckedChange={setOwnerToggle}
-                    disabled={!canManageOwners || isPrimaryOwnerRecord}
-                  />
-                </div>
-                {!canManageOwners ? (
-                  <p className="text-xs text-muted-foreground">
-                    Apenas o primeiro dono pode promover ou rebaixar outros donos.
-                  </p>
+
+                {showSelfSecuritySection ? (
+                  <AccordionItem value="seguranca" className={editorSectionClassName}>
+                    <AccordionTrigger className={editorSectionTriggerClassName}>
+                      <div className="flex w-full items-center justify-between gap-4 text-left">
+                        <span>Segurança</span>
+                        <span className="text-xs text-muted-foreground">
+                          2FA {securitySummary?.totpEnabled ? "ativo" : "inativo"}
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className={editorSectionContentClassName}>
+                      <div className="grid gap-3 rounded-2xl border border-border/60 bg-card/60 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-sm font-medium">Segurança da conta</Label>
+                            <p className="text-xs text-muted-foreground">
+                              Configure 2FA opcional e gerencie suas sessões ativas.
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void refreshSelfSecurity()}
+                          >
+                            Atualizar
+                          </Button>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge className="bg-card/80 text-muted-foreground">
+                            2FA {securitySummary?.totpEnabled ? "Ativo" : "Inativo"}
+                          </Badge>
+                          <Badge className="bg-card/80 text-muted-foreground">
+                            Recovery: {securitySummary?.recoveryCodesRemaining ?? 0}
+                          </Badge>
+                          <Badge className="bg-card/80 text-muted-foreground">
+                            Sessões: {securitySummary?.activeSessionsCount ?? 0}
+                          </Badge>
+                        </div>
+
+                        {!securitySummary?.totpEnabled ? (
+                          <div className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-3">
+                            <Button size="sm" onClick={startSelfEnrollment}>
+                              Ativar 2FA (TOTP)
+                            </Button>
+                            {securityEnrollment ? (
+                              <div className="space-y-3">
+                                <div className="flex flex-wrap items-center gap-3">
+                                  {securityEnrollment.iconUrl ? (
+                                    <img
+                                      src={securityEnrollment.iconUrl}
+                                      alt="Icone da conta"
+                                      className="h-9 w-9 rounded-full border border-border/60 object-cover"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  ) : null}
+                                  <p className="text-xs text-muted-foreground">
+                                    {securityEnrollment.issuer ||
+                                      securitySummary?.issuer ||
+                                      "Nekomata"}
+                                    :
+                                    {securityEnrollment.accountLabel ||
+                                      securitySummary?.accountLabel ||
+                                      currentUser?.username ||
+                                      currentUser?.name ||
+                                      editingUser?.id}
+                                  </p>
+                                </div>
+                                <div className="flex flex-wrap gap-4">
+                                  {securityQrDataUrl ? (
+                                    <img
+                                      src={securityQrDataUrl}
+                                      alt="QR code para configurar TOTP"
+                                      className="h-48 w-48 rounded-xl border border-border/60 bg-white p-2"
+                                    />
+                                  ) : (
+                                    <div className="flex h-48 w-48 items-center justify-center rounded-xl border border-dashed border-border/60 text-xs text-muted-foreground">
+                                      Gerando QR...
+                                    </div>
+                                  )}
+                                  <div className="min-w-0 flex-1 space-y-2">
+                                    <code className="block break-all rounded bg-card px-3 py-2 text-xs">
+                                      {securityEnrollment.manualSecret}
+                                    </code>
+                                    <div className="flex flex-wrap gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={async () => {
+                                          try {
+                                            await navigator.clipboard.writeText(
+                                              securityEnrollment.manualSecret,
+                                            );
+                                            toast({ title: "Segredo copiado" });
+                                          } catch {
+                                            toast({
+                                              title: "Não foi possível copiar",
+                                              variant: "destructive",
+                                            });
+                                          }
+                                        }}
+                                      >
+                                        Copiar segredo
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={async () => {
+                                          try {
+                                            await navigator.clipboard.writeText(
+                                              securityEnrollment.otpauthUrl,
+                                            );
+                                            toast({ title: "URL OTP copiada" });
+                                          } catch {
+                                            toast({
+                                              title: "Não foi possível copiar",
+                                              variant: "destructive",
+                                            });
+                                          }
+                                        }}
+                                      >
+                                        Copiar URL OTP
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={startSelfEnrollment}
+                                      >
+                                        Reiniciar ativação
+                                      </Button>
+                                    </div>
+                                    <Input
+                                      value={securityEnrollCode}
+                                      onChange={(event) =>
+                                        setSecurityEnrollCode(event.target.value)
+                                      }
+                                      placeholder="Código de 6 dígitos"
+                                    />
+                                    <Button
+                                      size="sm"
+                                      onClick={confirmSelfEnrollment}
+                                      disabled={
+                                        !securityEnrollCode.trim() ||
+                                        !securityEnrollment.enrollmentToken
+                                      }
+                                    >
+                                      Confirmar ativação
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <div className="space-y-2 rounded-2xl border border-border/60 bg-background/60 p-3">
+                            <Input
+                              value={securityDisableCode}
+                              onChange={(event) => setSecurityDisableCode(event.target.value)}
+                              placeholder="Código TOTP ou código de recuperação"
+                            />
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={disableSelfTotp}
+                              disabled={!securityDisableCode.trim()}
+                            >
+                              Desativar 2FA
+                            </Button>
+                          </div>
+                        )}
+
+                        {securityRecoveryCodes.length > 0 ? (
+                          <div className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3">
+                            <p className="text-xs font-medium">Salve estes recovery codes agora:</p>
+                            <div className="grid gap-1 md:grid-cols-2">
+                              {securityRecoveryCodes.map((code) => (
+                                <code key={code} className="rounded bg-card px-2 py-1 text-xs">
+                                  {code}
+                                </code>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div className="space-y-2 rounded-2xl border border-border/60 bg-background/60 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium">Sessões ativas</p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={revokeSelfOthers}
+                              disabled={isLoadingSecurity}
+                            >
+                              Encerrar outras
+                            </Button>
+                          </div>
+                          {isLoadingSecurity ? (
+                            <div
+                              className="space-y-2"
+                              data-testid="dashboard-users-security-loading"
+                              role="status"
+                              aria-live="polite"
+                              aria-busy="true"
+                            >
+                              {Array.from({ length: 2 }).map((_, index) => (
+                                <div
+                                  key={`dashboard-users-security-loading-${index}`}
+                                  className="rounded-xl border border-border/60 bg-card/50 p-2"
+                                >
+                                  <div className="flex flex-wrap items-start justify-between gap-2">
+                                    <div className="space-y-2">
+                                      <Skeleton className="h-3 w-24" />
+                                      <Skeleton className="h-3 w-36" />
+                                    </div>
+                                    <Skeleton className="h-6 w-20 rounded-full" />
+                                  </div>
+                                </div>
+                              ))}
+                              <span className="sr-only">Carregando sessões...</span>
+                            </div>
+                          ) : securitySessions.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">Nenhuma sessão ativa.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {securitySessions.map((session) => (
+                                <div
+                                  key={session.sid}
+                                  className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-border/60 bg-card/50 p-2"
+                                >
+                                  <div className="space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <p className="text-xs font-medium">
+                                        {isCurrentSecuritySession(session)
+                                          ? "Sessão atual"
+                                          : "Sessão remota"}
+                                      </p>
+                                      {isCurrentSecuritySession(session) ? (
+                                        <Badge variant="success">Atual</Badge>
+                                      ) : null}
+                                      {session.isPendingMfa ? (
+                                        <Badge variant="warning">Pendente MFA</Badge>
+                                      ) : null}
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground">
+                                      Última atividade: {formatSecurityDateTime(session.lastSeenAt)}
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                      Criada em: {formatSecurityDateTime(session.createdAt)}
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                      IP: {session.lastIp || "-"}
+                                    </p>
+                                    <p className="max-w-[360px] truncate text-[11px] text-muted-foreground">
+                                      {session.userAgent || "-"}
+                                    </p>
+                                  </div>
+                                  {!isCurrentSecuritySession(session) ? (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => revokeSelfSession(session.sid)}
+                                    >
+                                      Encerrar
+                                    </Button>
+                                  ) : null}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
                 ) : null}
-                {isPrimaryOwnerRecord ? (
-                  <p className="text-xs text-muted-foreground">
-                    O primeiro dono não pode ser rebaixado.
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-            <div className="grid gap-2">
-              <Label>Status</Label>
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
-                <span className="text-sm text-muted-foreground">
-                  {formState.status === "active" ? "Ativo" : "Aposentado"}
-                </span>
-                <Switch
-                  checked={formState.status === "active"}
-                  onCheckedChange={(checked) =>
-                    setFormState((prev) => ({ ...prev, status: checked ? "active" : "retired" }))
-                  }
-                  disabled={!canEditStatus}
-                />
-              </div>
+                <AccordionItem value="acesso-permissoes" className={editorSectionClassName}>
+                  <AccordionTrigger className={editorSectionTriggerClassName}>
+                    <div className="flex w-full items-center justify-between gap-4 text-left">
+                      <span>Acesso e permissões</span>
+                      <span className="text-xs text-muted-foreground">
+                        {editorAccessRoleLabel} • {stripOwnerRole(formState.roles).length} funções
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className={editorSectionContentClassName}>
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label>Funções</Label>
+                        {!canEditRoles && (
+                          <p className="text-xs text-muted-foreground">
+                            Apenas donos com permissão de acesso podem alterar funções de equipe.
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                          {roleOptions.map((role) => {
+                            const isSelected = formState.roles.includes(role);
+                            const iconKey = roleIconMap.get(role);
+                            const RoleIcon = iconKey
+                              ? roleIconRegistry[String(iconKey).toLowerCase()]
+                              : null;
+                            return (
+                              <Button
+                                key={role}
+                                type="button"
+                                variant={isSelected ? "default" : "outline"}
+                                className={
+                                  isSelected
+                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                    : ""
+                                }
+                                onClick={() => toggleRole(role)}
+                                disabled={!canEditRoles}
+                              >
+                                {RoleIcon ? <RoleIcon className="h-4 w-4" /> : null}
+                                {role}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                        {isOwnerRecord && (
+                          <p className="text-xs text-muted-foreground">
+                            A badge de dono é automática.
+                          </p>
+                        )}
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Papel de acesso</Label>
+                        <Select
+                          value={formState.accessRole}
+                          onValueChange={(value) =>
+                            setFormState((prev) => ({
+                              ...prev,
+                              accessRole: value === "admin" ? "admin" : "normal",
+                              permissions:
+                                value === "admin"
+                                  ? permissionOptions
+                                      .filter((option) =>
+                                        [
+                                          "posts",
+                                          "projetos",
+                                          "comentarios",
+                                          "paginas",
+                                          "uploads",
+                                          "analytics",
+                                          "usuarios_basico",
+                                        ].includes(option.id),
+                                      )
+                                      .map((option) => option.id)
+                                  : prev.permissions,
+                            }))
+                          }
+                          disabled={!canEditAccessControls || isOwnerRecord}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione um papel" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {accessRoleOptions.map((option) => (
+                              <SelectItem key={option.id} value={option.id}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {isOwnerRecord ? (
+                          <p className="text-xs text-muted-foreground">
+                            O papel de dono é definido pela governança de owners.
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Permissões</Label>
+                        {isOwnerRecord && (
+                          <Badge className="w-fit bg-primary/20 text-primary">Acesso total</Badge>
+                        )}
+                        {!isOwnerRecord && isAdminForm && (
+                          <Badge className="w-fit bg-card/80 text-muted-foreground">
+                            Administrador
+                          </Badge>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                          {permissionOptions.map((permission) => {
+                            const isSelected = effectivePermissions.includes(permission.id);
+                            return (
+                              <Button
+                                key={permission.id}
+                                type="button"
+                                variant={isSelected ? "default" : "outline"}
+                                className={
+                                  isSelected
+                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                    : ""
+                                }
+                                onClick={() => togglePermission(permission.id)}
+                                disabled={!canEditAccessControls || isOwnerRecord}
+                              >
+                                {permission.label}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                        {!canEditAccessControls && (
+                          <p className="text-xs text-muted-foreground">
+                            Apenas donos com permissão de acesso podem alterar permissões de acesso.
+                          </p>
+                        )}
+                      </div>
+                      {canManageUsers ? (
+                        <div className="grid gap-2">
+                          <Label>Dono</Label>
+                          <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
+                            <span className="text-sm text-muted-foreground">
+                              Permite acesso total ao painel e às configurações críticas.
+                            </span>
+                            <Switch
+                              checked={ownerToggle}
+                              onCheckedChange={setOwnerToggle}
+                              disabled={!canManageOwners || isPrimaryOwnerRecord}
+                            />
+                          </div>
+                          {!canManageOwners ? (
+                            <p className="text-xs text-muted-foreground">
+                              Apenas o primeiro dono pode promover ou rebaixar outros donos.
+                            </p>
+                          ) : null}
+                          {isPrimaryOwnerRecord ? (
+                            <p className="text-xs text-muted-foreground">
+                              O primeiro dono não pode ser rebaixado.
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      <div className="grid gap-2">
+                        <Label>Status</Label>
+                        <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
+                          <span className="text-sm text-muted-foreground">
+                            {formState.status === "active" ? "Ativo" : "Aposentado"}
+                          </span>
+                          <Switch
+                            checked={formState.status === "active"}
+                            onCheckedChange={(checked) =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                status: checked ? "active" : "retired",
+                              }))
+                            }
+                            disabled={!canEditStatus}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </div>
-          <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2.5 lg:px-8">
+            <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2.5 lg:px-8">
               {editingUser ? (
                 <Button
                   variant="destructive"

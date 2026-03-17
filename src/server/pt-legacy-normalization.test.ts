@@ -24,7 +24,7 @@ describe("pt legacy normalization", () => {
     const input = {
       kind: "Ajuste",
       unit: "Extra",
-      reason: "Conteúdo ajustado no extra \"Afterword\"",
+      reason: 'Conteúdo ajustado no extra "Afterword"',
     };
 
     expect(normalizeLegacyUpdateRecord(input)).toBe(input);
@@ -42,4 +42,3 @@ describe("pt legacy normalization", () => {
     );
   });
 });
-

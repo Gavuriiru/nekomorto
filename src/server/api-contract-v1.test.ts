@@ -7,17 +7,21 @@ describe("buildApiContractV1", () => {
     vi.unstubAllEnvs();
   });
 
-  it("exposes EPUB capabilities and build metadata", () => {
+  it("exposes import/export capabilities and build metadata", () => {
     vi.stubEnv("APP_COMMIT_SHA", "abcdef1234567890");
     vi.stubEnv("APP_BUILD_TIME", "2026-03-02T16:00:00Z");
 
     const contract = buildApiContractV1();
 
     expect(contract.version).toBe(API_CONTRACT_VERSION);
-    expect(contract.capabilities).toEqual({
+    expect(contract.capabilities).toMatchObject({
       project_epub_import: true,
       project_epub_export: true,
       project_epub_import_async: true,
+      project_image_chapters: true,
+      project_manga_import: true,
+      project_manga_import_async: true,
+      project_manga_export: true,
     });
     expect(contract.build).toEqual({
       commitSha: "abcdef1234567890",
@@ -83,10 +87,14 @@ describe("buildApiContractV1", () => {
       },
     });
 
-    expect(contract.capabilities).toEqual({
+    expect(contract.capabilities).toMatchObject({
       project_epub_import: true,
       project_epub_export: true,
       project_epub_import_async: false,
+      project_image_chapters: true,
+      project_manga_import: true,
+      project_manga_import_async: true,
+      project_manga_export: true,
     });
   });
 });

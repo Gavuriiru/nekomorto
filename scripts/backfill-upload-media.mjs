@@ -26,7 +26,9 @@ const mimeFromFileName = (fileName) => {
 };
 
 const normalizeUploadMime = (value, fileName) => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (!normalized) {
     return mimeFromFileName(fileName);
   }

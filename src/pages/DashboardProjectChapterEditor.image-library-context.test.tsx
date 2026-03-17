@@ -46,7 +46,15 @@ vi.mock("@/components/ImageLibraryDialog", () => ({
 }));
 
 vi.mock("@/components/ui/async-state", () => ({
-  default: ({ title, description, action }: { title?: string; description?: string; action?: ReactNode }) => (
+  default: ({
+    title,
+    description,
+    action,
+  }: {
+    title?: string;
+    description?: string;
+    action?: ReactNode;
+  }) => (
     <div>
       {title ? <div>{title}</div> : null}
       {description ? <div>{description}</div> : null}
@@ -225,7 +233,7 @@ describe("DashboardProjectChapterEditor image library context", () => {
       "projects/project-ln-1/episodes",
     ]);
 
-    fireEvent.click(screen.getByRole("button", { name: "Salvar imagem mock" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Salvar imagem mock" }));
 
     expect(screen.getByLabelText("Texto alternativo")).toHaveValue("Capa do volume 2");
   });

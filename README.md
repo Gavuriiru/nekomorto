@@ -45,7 +45,7 @@ Resposta esperada (exemplo):
 
 ## 3. Pre-requisitos
 
-- Node.js `24.13.x` (pino oficial; ver `.nvmrc` e `.node-version`)
+- Node.js `24.14.x` (pino oficial; ver `.nvmrc` e `.node-version`)
 - npm `11.x`
 - PostgreSQL acessivel pela `DATABASE_URL`
 - Git

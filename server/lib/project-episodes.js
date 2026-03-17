@@ -20,7 +20,11 @@ export const getEpisodeVolumeValue = (value) => {
 };
 
 export const getEpisodeEntryKind = (episode) =>
-  String(episode?.entryKind || "").trim().toLowerCase() === "extra" ? "extra" : "main";
+  String(episode?.entryKind || "")
+    .trim()
+    .toLowerCase() === "extra"
+    ? "extra"
+    : "main";
 
 const getLookupVolumeValue = (value) => {
   if (value === null || value === undefined) {
@@ -43,9 +47,7 @@ export const buildEpisodeKey = (number, volume) => {
 
 export const getEpisodeSourceUrls = (episode) =>
   Array.isArray(episode?.sources)
-    ? episode.sources
-        .map((source) => String(source?.url || "").trim())
-        .filter(Boolean)
+    ? episode.sources.map((source) => String(source?.url || "").trim()).filter(Boolean)
     : [];
 
 export const hasEpisodeSources = (episode) => getEpisodeSourceUrls(episode).length > 0;
@@ -58,7 +60,9 @@ export const hasEpisodePages = (episode) => hasProjectEpisodePages(episode);
 export const hasEpisodeContent = (episode) => hasProjectEpisodeReadableContent(episode);
 
 export const getEpisodePublicationStatus = (episode) =>
-  String(episode?.publicationStatus || "").trim().toLowerCase() === "draft"
+  String(episode?.publicationStatus || "")
+    .trim()
+    .toLowerCase() === "draft"
     ? "draft"
     : "published";
 

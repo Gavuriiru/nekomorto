@@ -12,10 +12,7 @@ import {
   buildInstitutionalOgRevision,
   buildVersionedInstitutionalOgImagePath,
 } from "../../shared/institutional-og-seo.js";
-import {
-  normalizeUploadVariantUrlKey,
-  type UploadMediaVariantsMap,
-} from "@/lib/upload-variants";
+import { normalizeUploadVariantUrlKey, type UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
 
 const TEAM_AVATAR_IMAGE_SIZES = "(max-width: 639px) 224px, (max-width: 767px) 240px, 256px";
@@ -94,7 +91,9 @@ const Team = () => {
           if (isActive) {
             setMembers(Array.isArray(data.users) ? data.users : []);
             setMemberMediaVariants(
-              data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+              data?.mediaVariants && typeof data.mediaVariants === "object"
+                ? data.mediaVariants
+                : {},
             );
           }
         } else if (isActive) {
@@ -147,7 +146,9 @@ const Team = () => {
       return image;
     }
     const normalizedVersion = Math.floor(variantsVersion);
-    return image.includes("?") ? `${image}&v=${normalizedVersion}` : `${image}?v=${normalizedVersion}`;
+    return image.includes("?")
+      ? `${image}&v=${normalizedVersion}`
+      : `${image}?v=${normalizedVersion}`;
   };
 
   const prioritizedMemberId = activeMembers[0]?.id || retiredMembers[0]?.id || "";

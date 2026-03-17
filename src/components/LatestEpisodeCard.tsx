@@ -46,10 +46,13 @@ const LEGACY_REASON_WORD_REPLACEMENTS: Array<{ from: string; to: string }> = [
 ];
 
 const normalizeReasonForDisplay = (value: string) =>
-  LEGACY_REASON_WORD_REPLACEMENTS.reduce((result, item) => {
-    const regex = new RegExp(`\\b${item.from}\\b`, "gi");
-    return result.replace(regex, (match) => applyReplacementWithCase(match, item.to));
-  }, String(value || ""));
+  LEGACY_REASON_WORD_REPLACEMENTS.reduce(
+    (result, item) => {
+      const regex = new RegExp(`\\b${item.from}\\b`, "gi");
+      return result.replace(regex, (match) => applyReplacementWithCase(match, item.to));
+    },
+    String(value || ""),
+  );
 
 const LatestEpisodeCard = () => {
   const { data: bootstrapData, isLoading } = usePublicBootstrap();
@@ -138,12 +141,11 @@ const LatestEpisodeCard = () => {
                   ? normalizedReason.charAt(0).toUpperCase() + normalizedReason.slice(1)
                   : "";
                 const normalizedKind = normalizeLookupKey(String(update.kind || ""));
-                const kindLabel =
-                  normalizedKind.startsWith("lan")
-                    ? "Lançamento"
-                    : normalizedKind.includes("ajuste") || normalizedKind.includes("atualiza")
-                      ? "Ajuste"
-                      : update.kind;
+                const kindLabel = normalizedKind.startsWith("lan")
+                  ? "Lançamento"
+                  : normalizedKind.includes("ajuste") || normalizedKind.includes("atualiza")
+                    ? "Ajuste"
+                    : update.kind;
                 return (
                   <Link
                     key={update.id}
@@ -169,11 +171,17 @@ const LatestEpisodeCard = () => {
                       </div>
                       <div className="flex h-full min-w-0 flex-1 flex-col gap-3">
                         <div className="no-scrollbar flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
-                          <Badge variant="secondary" className="hidden shrink-0 text-[10px] md:inline-flex">
+                          <Badge
+                            variant="secondary"
+                            className="hidden shrink-0 text-[10px] md:inline-flex"
+                          >
                             {isExtraUnit ? "Extra" : `${unitShort} ${update.episodeNumber}`}
                           </Badge>
                           {update.volume ? (
-                            <Badge variant="outline" className="hidden shrink-0 text-[10px] md:inline-flex">
+                            <Badge
+                              variant="outline"
+                              className="hidden shrink-0 text-[10px] md:inline-flex"
+                            >
                               Vol. {update.volume}
                             </Badge>
                           ) : null}

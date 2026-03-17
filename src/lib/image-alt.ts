@@ -31,10 +31,7 @@ export const getShareImageAltFallback = (pageKey: ShareImageAltPageKey) =>
 export const getEpisodeCoverAltFallback = (isChapterBased: boolean) =>
   isChapterBased ? DEFAULT_CHAPTER_COVER_ALT : DEFAULT_EPISODE_COVER_ALT;
 
-export const resolveAssetAltText = (
-  rawAltText: string | null | undefined,
-  fallback: string,
-) => {
+export const resolveAssetAltText = (rawAltText: string | null | undefined, fallback: string) => {
   const trimmed = String(rawAltText || "").trim();
   return trimmed || fallback;
 };

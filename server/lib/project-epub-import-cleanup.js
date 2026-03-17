@@ -37,7 +37,9 @@ const parseTempImportFolder = (folder) => {
   if (!isEpubImportTempFolder(folder)) {
     return null;
   }
-  const normalized = toPosix(String(folder || "").trim()).replace(/^\/+/, "").replace(/\/+$/, "");
+  const normalized = toPosix(String(folder || "").trim())
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
   const parts = normalized.split("/").filter(Boolean);
   if (parts.length < 4 || parts[0] !== "tmp" || parts[1] !== "epub-imports") {
     return null;
@@ -74,7 +76,12 @@ export const cleanupProjectEpubImportTempUploads = ({
   const requestedImportIdSet = new Set(requestedImportIds);
   const safeUserId = String(uploadUserId || "anonymous").trim() || "anonymous";
   const usedUrlSet = new Set(
-    (usedUploadUrls instanceof Set ? Array.from(usedUploadUrls) : Array.isArray(usedUploadUrls) ? usedUploadUrls : [])
+    (usedUploadUrls instanceof Set
+      ? Array.from(usedUploadUrls)
+      : Array.isArray(usedUploadUrls)
+        ? usedUploadUrls
+        : []
+    )
       .map((item) => normalizeUploadUrl(item))
       .filter(Boolean),
   );
@@ -174,4 +181,3 @@ export const __testing = {
   normalizeUploadUrl,
   parseTempImportFolder,
 };
-

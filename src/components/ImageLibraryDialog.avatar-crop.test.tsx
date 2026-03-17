@@ -15,18 +15,17 @@ const {
   cropperGetStateMock,
   cropperToDataUrlMock,
   drawCroppedAreaMock,
-} =
-  vi.hoisted(() => ({
-    apiFetchMock: vi.fn(),
-    toastMock: vi.fn(),
-    cropperRenderMock: vi.fn(),
-    cropperGetCanvasMock: vi.fn(),
-    cropperGetCoordinatesMock: vi.fn(),
-    cropperGetImageMock: vi.fn(),
-    cropperGetStateMock: vi.fn(),
-    cropperToDataUrlMock: vi.fn(),
-    drawCroppedAreaMock: vi.fn(),
-  }));
+} = vi.hoisted(() => ({
+  apiFetchMock: vi.fn(),
+  toastMock: vi.fn(),
+  cropperRenderMock: vi.fn(),
+  cropperGetCanvasMock: vi.fn(),
+  cropperGetCoordinatesMock: vi.fn(),
+  cropperGetImageMock: vi.fn(),
+  cropperGetStateMock: vi.fn(),
+  cropperToDataUrlMock: vi.fn(),
+  drawCroppedAreaMock: vi.fn(),
+}));
 
 vi.mock("advanced-cropper", async () => {
   const actual = await vi.importActual<typeof import("advanced-cropper")>("advanced-cropper");
@@ -38,32 +37,34 @@ vi.mock("advanced-cropper", async () => {
 
 vi.mock("react-advanced-cropper", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
-  const FixedCropper = React.forwardRef((props: Record<string, unknown>, ref: React.ForwardedRef<unknown>) => {
-    cropperRenderMock(props);
-    const cropperApi = React.useMemo(
-      () => ({
-        getCanvas: (...args: unknown[]) => cropperGetCanvasMock(...args),
-        getCoordinates: (...args: unknown[]) => cropperGetCoordinatesMock(...args),
-        getImage: (...args: unknown[]) => cropperGetImageMock(...args),
-        getState: (...args: unknown[]) => cropperGetStateMock(...args),
-      }),
-      [],
-    );
-    if (typeof ref === "function") {
-      ref(cropperApi);
-    } else if (ref && typeof ref === "object") {
-      (ref as { current: unknown }).current = cropperApi;
-    }
-    React.useEffect(() => {
-      const onReady = props.onReady;
-      if (typeof onReady === "function") {
-        const timeout = window.setTimeout(() => onReady(cropperApi), 0);
-        return () => window.clearTimeout(timeout);
+  const FixedCropper = React.forwardRef(
+    (props: Record<string, unknown>, ref: React.ForwardedRef<unknown>) => {
+      cropperRenderMock(props);
+      const cropperApi = React.useMemo(
+        () => ({
+          getCanvas: (...args: unknown[]) => cropperGetCanvasMock(...args),
+          getCoordinates: (...args: unknown[]) => cropperGetCoordinatesMock(...args),
+          getImage: (...args: unknown[]) => cropperGetImageMock(...args),
+          getState: (...args: unknown[]) => cropperGetStateMock(...args),
+        }),
+        [],
+      );
+      if (typeof ref === "function") {
+        ref(cropperApi);
+      } else if (ref && typeof ref === "object") {
+        (ref as { current: unknown }).current = cropperApi;
       }
-      return undefined;
-    }, [cropperApi, props.onReady, props.src]);
-    return React.createElement("div", { "data-testid": "advanced-cropper-mock" });
-  });
+      React.useEffect(() => {
+        const onReady = props.onReady;
+        if (typeof onReady === "function") {
+          const timeout = window.setTimeout(() => onReady(cropperApi), 0);
+          return () => window.clearTimeout(timeout);
+        }
+        return undefined;
+      }, [cropperApi, props.onReady, props.src]);
+      return React.createElement("div", { "data-testid": "advanced-cropper-mock" });
+    },
+  );
 
   return {
     Cropper: FixedCropper,
@@ -321,9 +322,9 @@ describe("ImageLibraryDialog avatar crop flow", () => {
       height: "320px",
     });
 
-    const cropperProps = cropperRenderMock.mock.calls[cropperRenderMock.mock.calls.length - 1]?.[0] as
-      | Record<string, unknown>
-      | undefined;
+    const cropperProps = cropperRenderMock.mock.calls[
+      cropperRenderMock.mock.calls.length - 1
+    ]?.[0] as Record<string, unknown> | undefined;
     expect(cropperProps).toBeTruthy();
     expect(cropperProps?.imageRestriction).toBe("stencil");
     expect(cropperProps?.transformImage).toMatchObject({
@@ -347,7 +348,9 @@ describe("ImageLibraryDialog avatar crop flow", () => {
       },
     });
     expect(typeof cropperProps?.stencilSize).toBe("function");
-    const stencilSizeResult = (cropperProps?.stencilSize as (state: unknown) => { width: number; height: number })({
+    const stencilSizeResult = (
+      cropperProps?.stencilSize as (state: unknown) => { width: number; height: number }
+    )({
       boundary: { width: 220, height: 320 },
     });
     expect(stencilSizeResult).toEqual({
@@ -421,7 +424,9 @@ describe("ImageLibraryDialog avatar crop flow", () => {
         "/api/uploads/list?folder=users&recursive=1&scopeUserId=user-1",
         expect.any(Object),
       );
-      const cropCall = apiFetchMock.mock.calls.find((call) => String(call[1] || "") === "/api/uploads/image");
+      const cropCall = apiFetchMock.mock.calls.find(
+        (call) => String(call[1] || "") === "/api/uploads/image",
+      );
       expect(cropCall).toBeTruthy();
       const request = cropCall?.[2] as { body?: string };
       const payload = JSON.parse(String(request?.body || "{}"));
@@ -690,7 +695,9 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     expect(await screen.findByRole("menuitem", { name: "Editar avatar" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Renomear" })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Excluir" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "Editar texto alternativo" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Editar texto alternativo" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Definir ponto focal" })).not.toBeInTheDocument();
   });
 
@@ -732,7 +739,9 @@ describe("ImageLibraryDialog avatar crop flow", () => {
 
     await waitFor(() => {
       const hasMandatoryCropToast = toastMock.mock.calls.some((call) =>
-        String((call[0] as { title?: string })?.title || "").includes("Aplique o recorte do avatar"),
+        String((call[0] as { title?: string })?.title || "").includes(
+          "Aplique o recorte do avatar",
+        ),
       );
       expect(hasMandatoryCropToast).toBe(true);
     });
@@ -780,7 +789,9 @@ describe("ImageLibraryDialog avatar crop flow", () => {
       expect(hasMissingSlotToast).toBe(true);
     });
 
-    const calledUploadEndpoint = apiFetchMock.mock.calls.some((call) => String(call[1] || "") === "/api/uploads/image");
+    const calledUploadEndpoint = apiFetchMock.mock.calls.some(
+      (call) => String(call[1] || "") === "/api/uploads/image",
+    );
     expect(calledUploadEndpoint).toBe(false);
   });
 
@@ -888,7 +899,9 @@ describe("ImageLibraryDialog avatar crop flow", () => {
       />,
     );
 
-    expect(await screen.findByText("Nenhum upload corresponde aos filtros atuais.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Nenhum upload corresponde aos filtros atuais."),
+    ).toBeInTheDocument();
 
     const searchInput = screen.getByPlaceholderText("Pesquisar por nome, projeto ou URL...");
     fireEvent.change(searchInput, { target: { value: "nao-encontra-avatar" } });
@@ -1199,7 +1212,9 @@ describe("ImageLibraryDialog avatar crop flow", () => {
 
     const finalAvatarButtonBefore = (await screen.findByText("Avatar Final")).closest("button");
     expect(finalAvatarButtonBefore).toBeTruthy();
-    const finalAvatarImageBefore = (finalAvatarButtonBefore as HTMLButtonElement).querySelector("img");
+    const finalAvatarImageBefore = (finalAvatarButtonBefore as HTMLButtonElement).querySelector(
+      "img",
+    );
     expect(finalAvatarImageBefore).toBeTruthy();
     expect(finalAvatarImageBefore?.getAttribute("src")).toContain("variant-1");
 
@@ -1415,13 +1430,11 @@ describe("ImageLibraryDialog avatar crop flow", () => {
 
   it("falha de forma controlada quando o cropper nao expõe state/image/coordenadas", async () => {
     await expect(
-      renderAvatarCropDataUrl(
-        {
-          getState: () => null,
-          getCoordinates: () => null,
-          getImage: () => null,
-        } as Parameters<typeof renderAvatarCropDataUrl>[0],
-      ),
+      renderAvatarCropDataUrl({
+        getState: () => null,
+        getCoordinates: () => null,
+        getImage: () => null,
+      } as Parameters<typeof renderAvatarCropDataUrl>[0]),
     ).rejects.toThrow("cropper_state_unavailable");
   });
 
@@ -1469,4 +1482,3 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     expect(calledUploadEndpoint).toBe(false);
   });
 });
-

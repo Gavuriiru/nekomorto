@@ -37,7 +37,8 @@ vi.mock("@/components/ImageLibraryDialog", () => ({
 }));
 
 vi.mock("@/components/project-reader/MangaWorkflowPanel", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/components/project-reader/MangaWorkflowPanel")>();
+  const actual =
+    await importOriginal<typeof import("@/components/project-reader/MangaWorkflowPanel")>();
   return {
     ...actual,
     default: (props: {
@@ -335,7 +336,8 @@ const baseProject = {
       sources: [],
       progressStage: "aguardando-raw",
       completedStages: [],
-      content: "{\"root\":{\"children\":[],\"direction\":null,\"format\":\"\",\"indent\":0,\"type\":\"root\",\"version\":1}}",
+      content:
+        '{"root":{"children":[],"direction":null,"format":"","indent":0,"type":"root","version":1}}',
       contentFormat: "lexical",
       publicationStatus: "published",
       coverImageUrl: "",
@@ -633,7 +635,8 @@ const setupApiMock = ({
                 ...project.episodeDownloads[1],
                 number: 3,
                 title: "Capítulo importado",
-                content: "{\"root\":{\"children\":[],\"direction\":null,\"format\":\"\",\"indent\":0,\"type\":\"root\",\"version\":1}}",
+                content:
+                  '{"root":{"children":[],"direction":null,"format":"","indent":0,"type":"root","version":1}}',
                 publicationStatus: "draft",
               },
             ],
@@ -690,7 +693,7 @@ const setupApiMock = ({
                     number: 3,
                     title: "Capítulo importado",
                     content:
-                      "{\"root\":{\"children\":[],\"direction\":null,\"format\":\"\",\"indent\":0,\"type\":\"root\",\"version\":1}}",
+                      '{"root":{"children":[],"direction":null,"format":"","indent":0,"type":"root","version":1}}',
                     publicationStatus: "draft",
                   },
                 ],
@@ -724,7 +727,10 @@ describe("DashboardProjectChapterEditor", () => {
     imageLibraryPropsSpy.mockReset();
     mangaWorkflowPropsSpy.mockReset();
     vi.stubGlobal("open", vi.fn());
-    vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true),
+    );
     vi.stubGlobal("scrollBy", vi.fn());
     window.URL.createObjectURL = vi.fn(() => "blob:epub");
     window.URL.revokeObjectURL = vi.fn();
@@ -792,7 +798,10 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.getByTestId("chapter-structure-group-toggle-none")).toBeInTheDocument();
     expectStructureGroupNotSelected("2");
     expectStructureGroupNotSelected("none");
-    expect(screen.getByTestId("chapter-structure-select-2")).not.toHaveClass("rounded-xl", "border");
+    expect(screen.getByTestId("chapter-structure-select-2")).not.toHaveClass(
+      "rounded-xl",
+      "border",
+    );
     expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
     expect(screen.queryByTestId("chapter-selection-state")).not.toBeInTheDocument();
     expect(screen.queryByTestId("chapter-content-accordion")).not.toBeInTheDocument();
@@ -879,9 +888,7 @@ describe("DashboardProjectChapterEditor", () => {
 
   it("mostra ZIP de volume e acoes de capitulo apenas para itens exportaveis na estrutura", async () => {
     const anchorClick = vi.fn();
-    const clickSpy = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(anchorClick);
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(anchorClick);
 
     setupApiMock({
       project: buildProject({
@@ -915,7 +922,7 @@ describe("DashboardProjectChapterEditor", () => {
             sourceType: "Web",
             sources: [],
             content:
-              "{\"root\":{\"children\":[],\"direction\":null,\"format\":\"\",\"indent\":0,\"type\":\"root\",\"version\":1}}",
+              '{"root":{"children":[],"direction":null,"format":"","indent":0,"type":"root","version":1}}',
             contentFormat: "lexical",
             pages: [],
             pageCount: 0,
@@ -952,7 +959,7 @@ describe("DashboardProjectChapterEditor", () => {
             sourceType: "Web",
             sources: [],
             content:
-              "{\"root\":{\"children\":[],\"direction\":null,\"format\":\"\",\"indent\":0,\"type\":\"root\",\"version\":1}}",
+              '{"root":{"children":[],"direction":null,"format":"","indent":0,"type":"root","version":1}}',
             contentFormat: "lexical",
             pages: [],
             pageCount: 0,
@@ -981,7 +988,9 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.getByTestId("chapter-structure-episode-export-cbz-3:1")).toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-open-icon-3:1")).toBeInTheDocument();
     expect(
-      within(screen.getByTestId("chapter-structure-episode-header-3:1")).getByText("Capitulo em imagem"),
+      within(screen.getByTestId("chapter-structure-episode-header-3:1")).getByText(
+        "Capitulo em imagem",
+      ),
     ).toHaveClass("line-clamp-2");
     expect(screen.getByTestId("chapter-structure-episode-footer-4:1")).toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-meta-4:1")).toBeInTheDocument();
@@ -998,7 +1007,8 @@ describe("DashboardProjectChapterEditor", () => {
           ([, path, options]) =>
             path === "/api/projects/project-ln-1/manga-export/jobs" &&
             options?.method === "POST" &&
-            (options?.json as { volume?: number; includeDrafts?: boolean } | undefined)?.volume === 1 &&
+            (options?.json as { volume?: number; includeDrafts?: boolean } | undefined)?.volume ===
+              1 &&
             (options?.json as { volume?: number; includeDrafts?: boolean } | undefined)
               ?.includeDrafts === false,
         ),
@@ -1112,10 +1122,7 @@ describe("DashboardProjectChapterEditor", () => {
       if (path === "/api/projects/project-ln-1/manga-export/chapter") {
         return new Promise<Response>(() => undefined);
       }
-      if (
-        path === "/api/projects/project-ln-1/manga-export/jobs" &&
-        options?.json?.volume === 1
-      ) {
+      if (path === "/api/projects/project-ln-1/manga-export/jobs" && options?.json?.volume === 1) {
         return new Promise<Response>(() => undefined);
       }
       return defaultImplementation?.(...args);
@@ -1250,7 +1257,9 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.getByTestId("location-pathname")).toHaveTextContent(
       "/dashboard/projetos/project-ln-1/capitulos/7",
     );
-    expect(getTopActions().getByRole("button", { name: /Salvar como rascunho/i })).toBeInTheDocument();
+    expect(
+      getTopActions().getByRole("button", { name: /Salvar como rascunho/i }),
+    ).toBeInTheDocument();
     expect(getTopActions().getByRole("button", { name: /^Publicar$/i })).toBeInTheDocument();
     expect(screen.queryByTestId("chapter-editor-footer-actions")).not.toBeInTheDocument();
   });
@@ -1307,17 +1316,29 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.queryByTestId("chapter-epub-tools")).not.toBeInTheDocument();
     expect(screen.queryByText(/Autosave do cap/i)).not.toBeInTheDocument();
     expect(getTopActions().getByRole("button", { name: /Salvar altera/i })).toBeInTheDocument();
-    expect(getTopActions().getByRole("button", { name: /Mover para rascunho/i })).toBeInTheDocument();
+    expect(
+      getTopActions().getByRole("button", { name: /Mover para rascunho/i }),
+    ).toBeInTheDocument();
     expect(screen.queryByTestId("chapter-editor-footer-actions")).not.toBeInTheDocument();
     expect(actionRail).toHaveClass("lg:flex-row", "lg:justify-between");
     expect(topStatusGroup).toContainElement(screen.getByText(/Sem alter/i));
-    expect(topActions).toContainElement(getTopActions().getByRole("button", { name: /Salvar altera/i }));
-    expect(topActions).toContainElement(getTopActions().getByRole("button", { name: /Mover para rascunho/i }));
+    expect(topActions).toContainElement(
+      getTopActions().getByRole("button", { name: /Salvar altera/i }),
+    );
+    expect(topActions).toContainElement(
+      getTopActions().getByRole("button", { name: /Mover para rascunho/i }),
+    );
     expect(topActions).toContainElement(screen.getByRole("button", { name: /Excluir cap/i }));
-    expect(within(statusBar).queryByRole("button", { name: /Salvar altera/i })).not.toBeInTheDocument();
-    expect(within(statusBar).queryByRole("button", { name: /Excluir cap/i })).not.toBeInTheDocument();
+    expect(
+      within(statusBar).queryByRole("button", { name: /Salvar altera/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(statusBar).queryByRole("button", { name: /Excluir cap/i }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
-    expect(within(screen.getByTestId("chapter-publication-section")).getByText(/^Status atual$/i)).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("chapter-publication-section")).getByText(/^Status atual$/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/ações do topo/i)).toBeInTheDocument();
     expect(structureTrigger).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
     expect(screen.getByText("Estrutura")).toBeInTheDocument();
@@ -1349,22 +1370,35 @@ describe("DashboardProjectChapterEditor", () => {
       "w-full",
     );
     expect(
-      lexicalEditorPropsSpy.mock.calls.some(
-        ([props]) =>
-          Boolean(
-            (props as { className?: string; followCaretScroll?: boolean }).followCaretScroll &&
-              String((props as { className?: string }).className || "").includes(
-                "lexical-playground--chapter-editor",
-              ),
-          ),
+      lexicalEditorPropsSpy.mock.calls.some(([props]) =>
+        Boolean(
+          (props as { className?: string; followCaretScroll?: boolean }).followCaretScroll &&
+            String((props as { className?: string }).className || "").includes(
+              "lexical-playground--chapter-editor",
+            ),
+        ),
       ),
     ).toBe(true);
     expect(lexicalWrapper).toHaveClass("min-h-[420px]", "lg:min-h-[620px]");
-    expect(screen.getByTestId("chapter-standard-compact-fields")).toHaveClass("flex", "flex-wrap", "gap-3");
-    expect(document.getElementById("chapter-title-standard") as HTMLInputElement).toHaveClass("w-full");
-    expect(document.getElementById("chapter-number-standard") as HTMLInputElement).toHaveClass("w-full", "sm:w-[132px]");
-    expect(document.getElementById("chapter-volume-standard") as HTMLInputElement).toHaveClass("w-full", "sm:w-[132px]");
-    expect(document.getElementById("chapter-synopsis-standard") as HTMLTextAreaElement).toHaveClass("w-full");
+    expect(screen.getByTestId("chapter-standard-compact-fields")).toHaveClass(
+      "flex",
+      "flex-wrap",
+      "gap-3",
+    );
+    expect(document.getElementById("chapter-title-standard") as HTMLInputElement).toHaveClass(
+      "w-full",
+    );
+    expect(document.getElementById("chapter-number-standard") as HTMLInputElement).toHaveClass(
+      "w-full",
+      "sm:w-[132px]",
+    );
+    expect(document.getElementById("chapter-volume-standard") as HTMLInputElement).toHaveClass(
+      "w-full",
+      "sm:w-[132px]",
+    );
+    expect(document.getElementById("chapter-synopsis-standard") as HTMLTextAreaElement).toHaveClass(
+      "w-full",
+    );
   });
   it("simplifica o workspace para capitulos em imagem", async () => {
     const imageProject = buildProject({
@@ -1414,16 +1448,33 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.queryByTestId("chapter-sources-section")).not.toBeInTheDocument();
     expect(within(identityCard).getByText(/Dados do cap/i)).toBeInTheDocument();
     expect(within(contentCard).getByRole("heading", { name: /Pag/i })).toBeInTheDocument();
-    expect(document.getElementById("chapter-volume-image") as HTMLInputElement).toHaveClass("w-full", "sm:w-[132px]");
-    expect(document.getElementById("chapter-number-image") as HTMLInputElement).toHaveClass("w-full", "sm:w-[132px]");
-    expect(document.getElementById("chapter-title-image") as HTMLInputElement).toHaveClass("w-full");
-    expect(screen.getByTestId("chapter-image-compact-fields")).toHaveClass("flex", "flex-wrap", "gap-3");
+    expect(document.getElementById("chapter-volume-image") as HTMLInputElement).toHaveClass(
+      "w-full",
+      "sm:w-[132px]",
+    );
+    expect(document.getElementById("chapter-number-image") as HTMLInputElement).toHaveClass(
+      "w-full",
+      "sm:w-[132px]",
+    );
+    expect(document.getElementById("chapter-title-image") as HTMLInputElement).toHaveClass(
+      "w-full",
+    );
+    expect(screen.getByTestId("chapter-image-compact-fields")).toHaveClass(
+      "flex",
+      "flex-wrap",
+      "gap-3",
+    );
     expect(screen.queryByText("Texto / Lexical")).not.toBeInTheDocument();
     expect(screen.queryByText("Imagem / Manga")).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Ordem de leitura/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Sinopse/i)).not.toBeInTheDocument();
-    expect(screen.getByTestId("manga-pages-utilities-trigger")).toHaveAttribute("aria-expanded", "false");
-    expect(getTopActions().getByRole("button", { name: /Salvar como rascunho/i })).toBeInTheDocument();
+    expect(screen.getByTestId("manga-pages-utilities-trigger")).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(
+      getTopActions().getByRole("button", { name: /Salvar como rascunho/i }),
+    ).toBeInTheDocument();
     expect(getTopActions().getByRole("button", { name: /Publicar/i })).toBeInTheDocument();
     expect(screen.queryByTestId("chapter-editor-footer-actions")).not.toBeInTheDocument();
   });
@@ -1486,13 +1537,16 @@ describe("DashboardProjectChapterEditor", () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/1?volume=2");
     await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
+    await screen.findByTestId("mock-lexical");
 
     const lexicalProps = lexicalEditorPropsSpy.mock.calls.at(-1)?.[0] as {
       imageLibraryOptions?: {
         onRequestNavigateToUploads?: () => boolean | Promise<boolean>;
       };
     };
-    expect(lexicalProps.imageLibraryOptions?.onRequestNavigateToUploads).toEqual(expect.any(Function));
+    expect(lexicalProps.imageLibraryOptions?.onRequestNavigateToUploads).toEqual(
+      expect.any(Function),
+    );
 
     fireEvent.change(screen.getByTestId("mock-lexical"), {
       target: { value: "Conteudo alterado" },
@@ -1509,20 +1563,28 @@ describe("DashboardProjectChapterEditor", () => {
     const navigateToUploadsPromise = dialogProps.onRequestNavigateToUploads?.();
 
     const leaveDialog = await findLeaveDialog();
-    expect(within(leaveDialog).getByRole("button", { name: /Descartar e continuar/i })).toBeInTheDocument();
+    expect(
+      within(leaveDialog).getByRole("button", { name: /Descartar e continuar/i }),
+    ).toBeInTheDocument();
     fireEvent.click(within(leaveDialog).getByRole("button", { name: /Descartar e continuar/i }));
 
     await navigateToUploadsPromise;
-    expect(screen.getByTestId("location-pathname")).toHaveTextContent("/dashboard/uploads");
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname")).toHaveTextContent("/dashboard/uploads");
+    });
   });
   it("mostra acoes contextuais de rascunho no topo para capitulos draft", async () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
     await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
 
-    expect(getTopActions().getByRole("button", { name: /Salvar como rascunho/i })).toBeInTheDocument();
+    expect(
+      getTopActions().getByRole("button", { name: /Salvar como rascunho/i }),
+    ).toBeInTheDocument();
     expect(getTopActions().getByRole("button", { name: /Publicar/i })).toBeInTheDocument();
-    expect(getTopActions().queryByRole("button", { name: /Mover para rascunho/i })).not.toBeInTheDocument();
+    expect(
+      getTopActions().queryByRole("button", { name: /Mover para rascunho/i }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByTestId("chapter-editor-footer-actions")).not.toBeInTheDocument();
   });
   it("simplifica a identidade do capítulo e remove o subtipo manual", async () => {
@@ -1647,11 +1709,15 @@ describe("DashboardProjectChapterEditor", () => {
 
     fireEvent.click(screen.getByTestId("chapter-structure-select-2"));
     expect(volumeToggle).toHaveAttribute("aria-expanded", "false");
-    expect(within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 2")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 2"),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("chapter-structure-select-2"));
     expect(volumeToggle).toHaveAttribute("aria-expanded", "true");
-    expect(within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 2")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 2"),
+    ).toBeInTheDocument();
   });
 
   it("usa o chevron do volume apenas para expandir e colapsar sem selecionar", async () => {
@@ -1695,7 +1761,9 @@ describe("DashboardProjectChapterEditor", () => {
       "/dashboard/projetos/project-ln-1/capitulos",
     );
     expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
-    expect(within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 2")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 2"),
+    ).toBeInTheDocument();
 
     fireEvent.click(volumeToggle);
     expect(volumeToggle).toHaveAttribute("aria-expanded", "false");
@@ -1775,15 +1843,23 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.getByTestId("chapter-structure-group-1")).toBeInTheDocument();
     const workspace = screen.getByTestId("chapter-editor-workspace");
     expect(screen.getByTestId("chapter-volume-accordion")).toBeInTheDocument();
-    expect(within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 1")).toBeInTheDocument();
-    expect(Array.from(screen.getByTestId("chapter-editor-main-column").children)).toEqual([workspace]);
+    expect(
+      within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 1"),
+    ).toBeInTheDocument();
+    expect(Array.from(screen.getByTestId("chapter-editor-main-column").children)).toEqual([
+      workspace,
+    ]);
     expect(Array.from(workspace.children)).toEqual([
       screen.getByTestId("chapter-volume-accordion"),
       screen.getByTestId("chapter-epub-tools"),
     ]);
     expect(screen.getByTestId("chapter-volume-trigger")).toHaveAttribute("aria-expanded", "false");
     openVolumeAccordion();
-    expect(within(screen.getByTestId("chapter-volume-editor")).getByText(/Nenhum capítulo vinculado a este volume/i)).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("chapter-volume-editor")).getByText(
+        /Nenhum capítulo vinculado a este volume/i,
+      ),
+    ).toBeInTheDocument();
   });
 
   it("edita e salva volumes pelo fluxo manual do projeto", async () => {
@@ -1831,8 +1907,7 @@ describe("DashboardProjectChapterEditor", () => {
     await waitFor(() => {
       expect(
         apiFetchMock.mock.calls.some(
-          ([, path, options]) =>
-            path === "/api/projects/project-ln-1" && options?.method === "PUT",
+          ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
         ),
       ).toBe(true);
     });
@@ -1852,7 +1927,9 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.click(screen.getByTestId("chapter-structure-group-toggle-2"));
     fireEvent.click(screen.getByRole("button", { name: /Cap.*1/i }));
     let leaveDialog = await findLeaveDialog();
-    expect(within(leaveDialog).getByRole("button", { name: /Salvar volume e continuar/i })).toBeInTheDocument();
+    expect(
+      within(leaveDialog).getByRole("button", { name: /Salvar volume e continuar/i }),
+    ).toBeInTheDocument();
     fireEvent.click(within(leaveDialog).getByRole("button", { name: /Cancelar/i }));
     await waitFor(() => {
       expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
@@ -1863,7 +1940,9 @@ describe("DashboardProjectChapterEditor", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Cap.*1/i }));
     leaveDialog = await findLeaveDialog();
-    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Salvar volume e continuar/i }));
+    fireEvent.click(
+      within(leaveDialog).getByRole("button", { name: /Salvar volume e continuar/i }),
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
@@ -1911,9 +1990,13 @@ describe("DashboardProjectChapterEditor", () => {
     const destructiveFooter = within(volumeEditor).getByTestId("chapter-volume-destructive-footer");
     fireEvent.click(within(destructiveFooter).getByRole("button", { name: /Excluir volume/i }));
     expect(screen.getByRole("heading", { name: /Excluir volume\?/i })).toBeInTheDocument();
-    expect(screen.getByText(/Isso também excluirá 2 capítulo\(s\) vinculado\(s\)\./i)).toBeInTheDocument();
     expect(
-      screen.getByText(/As alterações atuais da página serão aplicadas imediatamente junto com a exclusão\./i),
+      screen.getByText(/Isso também excluirá 2 capítulo\(s\) vinculado\(s\)\./i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /As alterações atuais da página serão aplicadas imediatamente junto com a exclusão\./i,
+      ),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /^Excluir$/i }));
     await waitFor(() => {
@@ -1940,7 +2023,9 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.click(screen.getByTestId("chapter-structure-select-2"));
     await screen.findByTestId("chapter-volume-editor");
     const closeVolumeButton = screen.getByTestId("chapter-close-volume-button");
-    expect(within(screen.getByTestId("chapter-editor-status-bar")).getByText("Volume 2")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("chapter-editor-status-bar")).getByText("Volume 2"),
+    ).toBeInTheDocument();
     fireEvent.click(closeVolumeButton);
     await waitFor(() => {
       expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
@@ -2010,7 +2095,9 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.getByTestId("location-pathname").textContent).toBe(
       "/dashboard/projetos/project-ln-1/capitulos",
     );
-    expect(within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 2")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 2"),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Alternar Sem volume/i }));
     fireEvent.click(screen.getByRole("button", { name: /Capítulo sem volume/i }));
@@ -2042,7 +2129,9 @@ describe("DashboardProjectChapterEditor", () => {
 
     const workspace = screen.getByTestId("chapter-editor-workspace");
     expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
-    expect(Array.from(screen.getByTestId("chapter-editor-main-column").children)).toEqual([workspace]);
+    expect(Array.from(screen.getByTestId("chapter-editor-main-column").children)).toEqual([
+      workspace,
+    ]);
     expect(workspace).toContainElement(screen.getByTestId("chapter-identity-accordion"));
     expect(workspace).toContainElement(screen.getByTestId("chapter-content-accordion"));
   });
@@ -2081,7 +2170,9 @@ describe("DashboardProjectChapterEditor", () => {
       );
     });
     expect(screen.getByTestId("location-search").textContent).toBe("");
-    expect(within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 4")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 4"),
+    ).toBeInTheDocument();
   });
 
   it("leva ao neutro e preserva o volume selecionado quando o novo volume não tem capítulos", async () => {
@@ -2108,7 +2199,9 @@ describe("DashboardProjectChapterEditor", () => {
       );
     });
     expect(screen.getByTestId("location-search").textContent).toBe("");
-    expect(within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 5")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 5"),
+    ).toBeInTheDocument();
   });
 
   it("leva ao neutro mesmo quando seleciona o mesmo volume do capítulo aberto", async () => {
@@ -2124,7 +2217,9 @@ describe("DashboardProjectChapterEditor", () => {
       );
     });
     expect(screen.getByTestId("location-search").textContent).toBe("");
-    expect(within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 2")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 2"),
+    ).toBeInTheDocument();
   });
 
   it("abre o volume pelo modal de alteracoes nao salvas do capitulo", async () => {
@@ -2144,7 +2239,9 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/1?volume=2");
     await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
     openIdentityAccordion();
-    fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, { target: { value: "Capitulo pendente" } });
+    fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, {
+      target: { value: "Capitulo pendente" },
+    });
 
     fireEvent.click(screen.getByTestId("chapter-structure-select-4"));
     let leaveDialog = await findLeaveDialog();
@@ -2167,7 +2264,9 @@ describe("DashboardProjectChapterEditor", () => {
       );
     });
     expect(screen.getByTestId("location-search").textContent).toBe("");
-    expect(within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 4")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 4"),
+    ).toBeInTheDocument();
 
     const saveCall = apiFetchMock.mock.calls.find(
       ([, path, options]) =>
@@ -2473,7 +2572,8 @@ describe("DashboardProjectChapterEditor", () => {
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
-        ([, path, options]) => path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
       const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
@@ -2495,7 +2595,8 @@ describe("DashboardProjectChapterEditor", () => {
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
-        ([, path, options]) => path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
       const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
@@ -2618,7 +2719,8 @@ describe("DashboardProjectChapterEditor", () => {
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
-        ([, path, options]) => path === "/api/projects/project-ln-1/chapters/1?volume=2" && options?.method === "PUT",
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1/chapters/1?volume=2" && options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
       const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
@@ -2639,7 +2741,8 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.keyDown(window, { key: "s", ctrlKey: true });
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
-        ([, path, options]) => path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
       const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
@@ -2657,7 +2760,9 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor();
     await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
     openIdentityAccordion();
-    fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, { target: { value: "Capitulo pendente" } });
+    fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, {
+      target: { value: "Capitulo pendente" },
+    });
 
     fireEvent.click(screen.getByRole("button", { name: /Fechar cap/i }));
     let leaveDialog = await findLeaveDialog();
@@ -2689,7 +2794,9 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: /Excluir capítulo/i }));
     expect(screen.getByRole("heading", { name: /Excluir capítulo\?/i })).toBeInTheDocument();
     expect(
-      screen.getByText(/As alterações atuais da página serão aplicadas imediatamente junto com a exclusão\./i),
+      screen.getByText(
+        /As alterações atuais da página serão aplicadas imediatamente junto com a exclusão\./i,
+      ),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /^Excluir$/i }));
     await waitFor(() => {
@@ -2716,7 +2823,9 @@ describe("DashboardProjectChapterEditor", () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-epub-tools");
-    const fileInput = document.getElementById("chapter-editor-epub-import-file") as HTMLInputElement;
+    const fileInput = document.getElementById(
+      "chapter-editor-epub-import-file",
+    ) as HTMLInputElement;
     const file = new File(["epub"], "novo.epub", { type: "application/epub+zip" });
     fireEvent.change(fileInput, { target: { files: [file] } });
     fireEvent.click(
@@ -2748,7 +2857,7 @@ describe("DashboardProjectChapterEditor", () => {
             number: 3,
             title: "Capítulo importado A",
             content:
-              "{\"root\":{\"children\":[],\"direction\":null,\"format\":\"\",\"indent\":0,\"type\":\"root\",\"version\":1}}",
+              '{"root":{"children":[],"direction":null,"format":"","indent":0,"type":"root","version":1}}',
             publicationStatus: "draft",
           },
           {
@@ -2756,7 +2865,7 @@ describe("DashboardProjectChapterEditor", () => {
             number: 4,
             title: "Capítulo importado B",
             content:
-              "{\"root\":{\"children\":[],\"direction\":null,\"format\":\"\",\"indent\":0,\"type\":\"root\",\"version\":1}}",
+              '{"root":{"children":[],"direction":null,"format":"","indent":0,"type":"root","version":1}}',
             publicationStatus: "draft",
           },
         ],
@@ -2765,7 +2874,9 @@ describe("DashboardProjectChapterEditor", () => {
     });
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-epub-tools");
-    const fileInput = document.getElementById("chapter-editor-epub-import-file") as HTMLInputElement;
+    const fileInput = document.getElementById(
+      "chapter-editor-epub-import-file",
+    ) as HTMLInputElement;
     const file = new File(["epub"], "sem-summary.epub", { type: "application/epub+zip" });
     fireEvent.change(fileInput, { target: { files: [file] } });
     fireEvent.click(
@@ -2782,9 +2893,11 @@ describe("DashboardProjectChapterEditor", () => {
         }),
       );
     });
-    expect(screen.getByTestId("location-pathname").textContent).toBe(
-      "/dashboard/projetos/project-ln-1/capitulos/3",
-    );
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos/3",
+      );
+    });
   });
 
   it("importa EPUB por job assíncrono quando a capability está disponível", async () => {
@@ -2795,7 +2908,9 @@ describe("DashboardProjectChapterEditor", () => {
     });
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-epub-tools");
-    const fileInput = document.getElementById("chapter-editor-epub-import-file") as HTMLInputElement;
+    const fileInput = document.getElementById(
+      "chapter-editor-epub-import-file",
+    ) as HTMLInputElement;
     const file = new File(["epub"], "novo.epub", { type: "application/epub+zip" });
     fireEvent.change(fileInput, { target: { files: [file] } });
     fireEvent.click(
@@ -2804,9 +2919,9 @@ describe("DashboardProjectChapterEditor", () => {
       }),
     );
     await waitFor(() => {
-      expect(apiFetchMock.mock.calls.some(([, path]) => path === "/api/projects/epub/import/jobs")).toBe(
-        true,
-      );
+      expect(
+        apiFetchMock.mock.calls.some(([, path]) => path === "/api/projects/epub/import/jobs"),
+      ).toBe(true);
       expect(
         apiFetchMock.mock.calls.some(([, path]) =>
           String(path).startsWith("/api/projects/epub/import/jobs/"),
@@ -2823,9 +2938,11 @@ describe("DashboardProjectChapterEditor", () => {
         ([, path, options]) => path === "/api/projects/epub/import" && options?.method === "POST",
       ),
     ).toBe(false);
-    expect(screen.getByTestId("location-pathname").textContent).toBe(
-      "/dashboard/projetos/project-ln-1/capitulos/3",
-    );
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos/3",
+      );
+    });
   });
 
   it("faz fallback para a rota sincrona quando a rota de jobs retorna 404", async () => {
@@ -2837,7 +2954,9 @@ describe("DashboardProjectChapterEditor", () => {
     });
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-epub-tools");
-    const fileInput = document.getElementById("chapter-editor-epub-import-file") as HTMLInputElement;
+    const fileInput = document.getElementById(
+      "chapter-editor-epub-import-file",
+    ) as HTMLInputElement;
     const file = new File(["epub"], "fallback.epub", { type: "application/epub+zip" });
     fireEvent.change(fileInput, { target: { files: [file] } });
     fireEvent.click(
@@ -2856,9 +2975,7 @@ describe("DashboardProjectChapterEditor", () => {
 
   it("exporta EPUB no estado neutro usando o snapshot atual da página", async () => {
     const anchorClick = vi.fn();
-    const clickSpy = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(anchorClick);
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(anchorClick);
 
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
@@ -2880,7 +2997,9 @@ describe("DashboardProjectChapterEditor", () => {
       );
       expect(exportCall).toBeDefined();
       const body = JSON.parse(String(exportCall?.[2]?.body || "{}"));
-      expect(body.project.episodeDownloads[0].content).toBe(baseProject.episodeDownloads[0].content);
+      expect(body.project.episodeDownloads[0].content).toBe(
+        baseProject.episodeDownloads[0].content,
+      );
       expect(body.project.volumeEntries).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -2947,7 +3066,8 @@ describe("DashboardProjectChapterEditor", () => {
         const testId = this.getAttribute("data-testid");
         if (testId === "chapter-structure-group-4") {
           const pathname =
-            document.querySelector<HTMLElement>("[data-testid='location-pathname']")?.textContent || "";
+            document.querySelector<HTMLElement>("[data-testid='location-pathname']")?.textContent ||
+            "";
           return createMockDomRect(
             pathname === "/dashboard/projetos/project-ln-1/capitulos" ? 120 : 260,
           );
@@ -2977,6 +3097,3 @@ describe("DashboardProjectChapterEditor", () => {
     rectSpy.mockRestore();
   });
 });
-
-
-

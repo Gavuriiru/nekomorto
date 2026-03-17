@@ -91,7 +91,12 @@ const sanitizeEpisodeDownloads = (episodes) =>
         number: Number.isFinite(Number(episode?.number)) ? Number(episode.number) : 0,
         volume: Number.isFinite(Number(episode?.volume)) ? Number(episode.volume) : undefined,
         title: safeString(episode?.title),
-        entryKind: String(episode?.entryKind || "").trim().toLowerCase() === "extra" ? "extra" : "main",
+        entryKind:
+          String(episode?.entryKind || "")
+            .trim()
+            .toLowerCase() === "extra"
+            ? "extra"
+            : "main",
         entrySubtype: safeString(episode?.entrySubtype),
         readingOrder: Number.isFinite(Number(episode?.readingOrder))
           ? Number(episode.readingOrder)
@@ -157,9 +162,7 @@ export const toPublicBootstrapUpdate = (update) => ({
   id: safeString(update?.id),
   projectId: safeString(update?.projectId),
   projectTitle: safeString(update?.projectTitle),
-  episodeNumber: Number.isFinite(Number(update?.episodeNumber))
-    ? Number(update.episodeNumber)
-    : 0,
+  episodeNumber: Number.isFinite(Number(update?.episodeNumber)) ? Number(update.episodeNumber) : 0,
   volume: Number.isFinite(Number(update?.volume)) ? Number(update.volume) : undefined,
   kind: safeString(update?.kind),
   reason: safeString(update?.reason),
@@ -207,7 +210,9 @@ export const normalizePublicTagTranslations = (translations) => ({
       ? translations.tags
       : {},
   genres:
-    translations?.genres && typeof translations.genres === "object" && !Array.isArray(translations.genres)
+    translations?.genres &&
+    typeof translations.genres === "object" &&
+    !Array.isArray(translations.genres)
       ? translations.genres
       : {},
   staffRoles:
@@ -236,7 +241,9 @@ export const buildPublicBootstrapPayload = ({
   posts: Array.isArray(posts) ? posts.map(toPublicBootstrapPost) : [],
   updates: Array.isArray(updates) ? updates.map(toPublicBootstrapUpdate) : [],
   teamMembers: Array.isArray(teamMembers) ? teamMembers.map(toPublicBootstrapTeamMember) : [],
-  teamLinkTypes: Array.isArray(teamLinkTypes) ? teamLinkTypes.map(toPublicBootstrapTeamLinkType) : [],
+  teamLinkTypes: Array.isArray(teamLinkTypes)
+    ? teamLinkTypes.map(toPublicBootstrapTeamLinkType)
+    : [],
   tagTranslations: normalizePublicTagTranslations(tagTranslations),
   generatedAt: safeString(generatedAt || new Date().toISOString()),
   payloadMode: normalizePublicBootstrapPayloadMode(payloadMode),

@@ -6,12 +6,7 @@ type SerializedNodeLike = {
   type?: string;
 };
 
-const BLOCK_NODE_TYPES = new Set([
-  "heading",
-  "listitem",
-  "paragraph",
-  "quote",
-]);
+const BLOCK_NODE_TYPES = new Set(["heading", "listitem", "paragraph", "quote"]);
 
 const visitSerializedNode = (node: SerializedNodeLike | null | undefined): string => {
   if (!node || typeof node !== "object") {
@@ -22,7 +17,8 @@ const visitSerializedNode = (node: SerializedNodeLike | null | undefined): strin
     return node.text;
   }
 
-  const sourceNode = node.editorState && typeof node.editorState === "object" ? node.editorState : node;
+  const sourceNode =
+    node.editorState && typeof node.editorState === "object" ? node.editorState : node;
   const childText = Array.isArray(sourceNode.children)
     ? sourceNode.children.map((child) => visitSerializedNode(child)).join("")
     : "";
@@ -51,7 +47,9 @@ export const extractSerializedLexicalText = (value: unknown) => {
         ? parsed.editorState.root || parsed.editorState
         : parsed;
 
-  return visitSerializedNode(rootNode).replace(/\n{3,}/g, "\n\n").trim();
+  return visitSerializedNode(rootNode)
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 };
 
 export const toPixelValue = (value: number | string | undefined) => {

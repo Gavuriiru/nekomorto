@@ -116,7 +116,9 @@ describe("Login redesign", () => {
   });
 
   it("cancela login MFA com logout explicito e redireciona para home", async () => {
-    apiFetchMock.mockResolvedValueOnce(mockResponse(false)).mockResolvedValueOnce(mockResponse(true));
+    apiFetchMock
+      .mockResolvedValueOnce(mockResponse(false))
+      .mockResolvedValueOnce(mockResponse(true));
 
     renderLogin("/login?mfa=required");
 
@@ -134,7 +136,9 @@ describe("Login redesign", () => {
   });
 
   it("redireciona para home mesmo quando logout falha (fail-open)", async () => {
-    apiFetchMock.mockResolvedValueOnce(mockResponse(false)).mockRejectedValueOnce(new Error("network"));
+    apiFetchMock
+      .mockResolvedValueOnce(mockResponse(false))
+      .mockRejectedValueOnce(new Error("network"));
 
     renderLogin("/login?mfa=required");
 

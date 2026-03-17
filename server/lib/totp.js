@@ -106,7 +106,9 @@ export const verifyTotpCode = ({ secret, code, window = 1, nowMs = Date.now() } 
     return false;
   }
   const baseCounter = currentCounter(nowMs, TOTP_PERIOD_SECONDS);
-  const safeWindow = Number.isFinite(Number(window)) ? Math.min(Math.max(Math.floor(window), 0), 5) : 1;
+  const safeWindow = Number.isFinite(Number(window))
+    ? Math.min(Math.max(Math.floor(window), 0), 5)
+    : 1;
   for (let offset = -safeWindow; offset <= safeWindow; offset += 1) {
     const expected = computeTotp({
       secretBuffer,
@@ -134,7 +136,9 @@ export const hashRecoveryCode = ({ code, pepper = "" } = {}) => {
 };
 
 export const generateRecoveryCodes = ({ count = 8 } = {}) => {
-  const safeCount = Number.isFinite(Number(count)) ? Math.min(Math.max(Math.floor(count), 4), 20) : 8;
+  const safeCount = Number.isFinite(Number(count))
+    ? Math.min(Math.max(Math.floor(count), 4), 20)
+    : 8;
   const set = new Set();
   while (set.size < safeCount) {
     const code = crypto.randomBytes(5).toString("hex").toUpperCase();

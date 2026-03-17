@@ -20,45 +20,85 @@ export const registerPwa = (callbacks: PwaRegisterCallbacks = {}) => {
 
   registrationPromise = (async () => {
     try {
-      const pwaModule = await import("virtual:pwa-register");
-      if (!pwaModule || typeof pwaModule.registerSW !== "function") {
-        return null;
-      }
-
       let hasOfflineReadyNotified = false;
       let hasNeedRefreshNotified = false;
-      let updateServiceWorker = async (_reloadPage = true) => {};
+      let shouldReloadOnControllerChange = false;
+      const reloadOnControllerChange = () => {
+        if (!shouldReloadOnControllerChange) {
+          return;
+        }
+        shouldReloadOnControllerChange = false;
+        window.location.reload();
+      };
+      navigator.serviceWorker.addEventListener("controllerchange", reloadOnControllerChange);
 
-      const registerSwResult = pwaModule.registerSW({
-        immediate: callbacks.immediate ?? true,
-        onNeedRefresh: () => {
-          if (hasNeedRefreshNotified) {
-            return;
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      const maybeNotifyOfflineReady = () => {
+        if (hasOfflineReadyNotified) {
+          return;
+        }
+        hasOfflineReadyNotified = true;
+        callbacks.onOfflineReady?.();
+      };
+      const maybeNotifyNeedRefresh = () => {
+        if (hasNeedRefreshNotified) {
+          return;
+        }
+        hasNeedRefreshNotified = true;
+        const applyUpdate = () => {
+          void updateServiceWorker(true);
+        };
+        if (callbacks.onNeedRefresh) {
+          callbacks.onNeedRefresh(applyUpdate);
+          return;
+        }
+        applyUpdate();
+      };
+      const updateServiceWorker = async (reloadPage = true) => {
+        shouldReloadOnControllerChange = reloadPage;
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: "SKIP_WAITING" });
+          if (!reloadPage) {
+            shouldReloadOnControllerChange = false;
           }
-          hasNeedRefreshNotified = true;
-          const applyUpdate = () => {
-            void updateServiceWorker(true);
-          };
-          if (callbacks.onNeedRefresh) {
-            callbacks.onNeedRefresh(applyUpdate);
-            return;
+          return;
+        }
+        await registration.update();
+        if (reloadPage && !registration.waiting) {
+          window.location.reload();
+        }
+      };
+
+      if (registration.waiting && navigator.serviceWorker.controller) {
+        maybeNotifyNeedRefresh();
+      }
+
+      registration.addEventListener("updatefound", () => {
+        const installingWorker = registration.installing;
+        if (!installingWorker) {
+          return;
+        }
+        installingWorker.addEventListener("statechange", () => {
+          if (installingWorker.state === "installed") {
+            if (navigator.serviceWorker.controller) {
+              maybeNotifyNeedRefresh();
+              return;
+            }
+            maybeNotifyOfflineReady();
           }
-          applyUpdate();
-        },
-        onOfflineReady: () => {
-          if (hasOfflineReadyNotified) {
-            return;
+          if (installingWorker.state === "activated") {
+            maybeNotifyOfflineReady();
           }
-          hasOfflineReadyNotified = true;
-          callbacks.onOfflineReady?.();
-        },
+        });
       });
 
-      if (typeof registerSwResult === "function") {
-        updateServiceWorker = async (reloadPage = true) => {
-          await registerSwResult(reloadPage);
-        };
+      if (callbacks.immediate ?? true) {
+        void registration.update();
       }
+
+      void navigator.serviceWorker.ready.then(() => {
+        maybeNotifyOfflineReady();
+      });
 
       return {
         updateServiceWorker: async (reloadPage = true) => {

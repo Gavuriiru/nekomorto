@@ -12,8 +12,7 @@ const lighthouseTmpDir = path.join(outputDir, "tmp");
 const categoryIds = ["performance", "accessibility", "best-practices", "seo"];
 const strictCategoryIds = ["performance", "accessibility", "seo"];
 const defaultRuns = 3;
-const defaultUrl =
-  process.env.LIGHTHOUSE_PROJECTS_URL || "http://127.0.0.1:8080/projetos";
+const defaultUrl = process.env.LIGHTHOUSE_PROJECTS_URL || "http://127.0.0.1:8080/projetos";
 const profileConfigs = {
   mobile: path.join(workspaceRoot, "scripts", "lighthouse-projects-mobile.config.cjs"),
   desktop: path.join(workspaceRoot, "scripts", "lighthouse-projects-desktop.config.cjs"),
@@ -221,9 +220,7 @@ const main = async () => {
 
     const reports = [];
     for (let index = 1; index <= args.runs; index += 1) {
-      console.log(
-        `[lighthouse-projects:${args.profile}] running sample ${index}/${args.runs}`,
-      );
+      console.log(`[lighthouse-projects:${args.profile}] running sample ${index}/${args.runs}`);
       const report = await runLighthouse({
         url: args.url,
         profile: args.profile,
@@ -244,7 +241,9 @@ const main = async () => {
     console.log(`[lighthouse-projects:${args.profile}] summary written to ${summaryPath}`);
     console.log(
       `[lighthouse-projects:${args.profile}] median categories: ${categoryIds
-        .map((categoryId) => `${categoryId}=${Math.round(summary.medianCategories[categoryId] * 100)}`)
+        .map(
+          (categoryId) => `${categoryId}=${Math.round(summary.medianCategories[categoryId] * 100)}`,
+        )
         .join(", ")}`,
     );
 
@@ -253,10 +252,7 @@ const main = async () => {
       console.log(`[lighthouse-projects:${args.profile}] strict gate passed`);
     }
   } catch (error) {
-    console.error(
-      `[lighthouse-projects:${args.profile}] failed:`,
-      error?.message || error,
-    );
+    console.error(`[lighthouse-projects:${args.profile}] failed:`, error?.message || error);
     process.exitCode = 1;
   }
 };

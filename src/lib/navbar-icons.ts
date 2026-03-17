@@ -36,6 +36,8 @@ const navbarIconMap: Record<string, LucideIcon> = navbarIconOptions.reduce(
 );
 
 export const getNavbarIcon = (value?: string | null): LucideIcon => {
-  const key = String(value || "").trim().toLowerCase();
+  const key = String(value || "")
+    .trim()
+    .toLowerCase();
   return navbarIconMap[key] || Link2;
 };

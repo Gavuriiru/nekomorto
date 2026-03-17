@@ -139,7 +139,12 @@ const buildDescendingFontSizes = ({ maxFontSize, minFontSize, step = TITLE_FONT_
   const safeMax = Number(maxFontSize);
   const safeMin = Number(minFontSize);
   const safeStep = Number(step);
-  if (!Number.isFinite(safeMax) || !Number.isFinite(safeMin) || !Number.isFinite(safeStep) || safeStep <= 0) {
+  if (
+    !Number.isFinite(safeMax) ||
+    !Number.isFinite(safeMin) ||
+    !Number.isFinite(safeStep) ||
+    safeStep <= 0
+  ) {
     return sizes;
   }
 
@@ -200,7 +205,9 @@ const resolveProjectOgSubtitle = (project) => {
 
   const animeStaff = Array.isArray(project?.animeStaff) ? project.animeStaff : [];
   for (const roleKey of PROJECT_OG_AUTHOR_ROLE_PRIORITY) {
-    const staffEntry = animeStaff.find((entry) => normalizeProjectOgRoleKey(entry?.role) === roleKey);
+    const staffEntry = animeStaff.find(
+      (entry) => normalizeProjectOgRoleKey(entry?.role) === roleKey,
+    );
     if (!staffEntry) {
       continue;
     }
@@ -660,7 +667,11 @@ const getTitleLineMaxWidth = ({ layout = DEFAULT_LAYOUT, fontSize, lineIndex }) 
   const centerY = Number(layout.titleTop) + safeLineIndex * lineHeightPx + lineHeightPx / 2;
   const diagonalX = getDiagonalXAtY({ layout, y: centerY });
   const rawWidth = diagonalX - Number(layout.titleLeft) - TITLE_DIAGONAL_INSET;
-  return clamp(rawWidth, Number(layout.titleWidth) || 0, OG_PROJECT_WIDTH - Number(layout.titleLeft));
+  return clamp(
+    rawWidth,
+    Number(layout.titleWidth) || 0,
+    OG_PROJECT_WIDTH - Number(layout.titleLeft),
+  );
 };
 
 const getTagRowMaxWidth = ({ layout = DEFAULT_LAYOUT, rowIndex }) => {
@@ -669,7 +680,11 @@ const getTagRowMaxWidth = ({ layout = DEFAULT_LAYOUT, rowIndex }) => {
   const centerY = rowTop + Number(layout.tagHeight) / 2;
   const diagonalX = getDiagonalXAtY({ layout, y: centerY });
   const rawWidth = diagonalX - Number(layout.tagsLeft) - TITLE_DIAGONAL_INSET;
-  return clamp(rawWidth, Number(layout.tagsMaxWidth) || 0, OG_PROJECT_WIDTH - Number(layout.tagsLeft));
+  return clamp(
+    rawWidth,
+    Number(layout.tagsMaxWidth) || 0,
+    OG_PROJECT_WIDTH - Number(layout.tagsLeft),
+  );
 };
 
 const buildTitleLineLayouts = ({ lines, layout = DEFAULT_LAYOUT, fontSize }) =>
@@ -794,13 +809,7 @@ const resolveProjectOgTitleVisualMinFontSize = (layout = DEFAULT_LAYOUT) => {
   return projectOgTitleVisualMinFontSizeCache;
 };
 
-const wrapTextLinesByLineWidths = ({
-  text,
-  getLineMaxWidth,
-  fontSize,
-  fontWeight,
-  maxLines,
-}) => {
+const wrapTextLinesByLineWidths = ({ text, getLineMaxWidth, fontSize, fontWeight, maxLines }) => {
   const normalizedText = String(text || "")
     .replace(/\r\n/g, "\n")
     .trim();
@@ -865,7 +874,8 @@ const wrapTextLinesByLineWidths = ({
 
 const buildTitleLayout = (title, layout = DEFAULT_LAYOUT, { subtitleHeightOverride } = {}) => {
   const normalizedTitle = String(title || "").trim() || "Projeto";
-  const visualMinFontSize = Number(layout.titleMinFontSize) || resolveProjectOgTitleVisualMinFontSize(layout);
+  const visualMinFontSize =
+    Number(layout.titleMinFontSize) || resolveProjectOgTitleVisualMinFontSize(layout);
   const regularFontSizes = buildDescendingFontSizes({
     maxFontSize: Number(layout.titleBaseFontSize),
     minFontSize: visualMinFontSize,
@@ -1162,7 +1172,9 @@ const parseDataUrlAsset = (value) => {
 
   try {
     return {
-      buffer: isBase64 ? Buffer.from(body, "base64") : Buffer.from(decodeURIComponent(body), "utf8"),
+      buffer: isBase64
+        ? Buffer.from(body, "base64")
+        : Buffer.from(decodeURIComponent(body), "utf8"),
       mimeType,
     };
   } catch {
@@ -1380,30 +1392,29 @@ const buildTitleNode = (model) =>
         letterSpacing: 0,
       },
     },
-    ...(
-      Array.isArray(model.titleLineLayouts) && model.titleLineLayouts.length > 0
-        ? model.titleLineLayouts
-        : (Array.isArray(model.titleLines) ? model.titleLines : [String(model.title || "Projeto")]).map(
-            (line) => ({
-              text: line,
-              maxWidth: model.layout.titleWidth,
-            }),
-          )
-    ).map(
-      (line, index) =>
-        createElement(
-          "div",
-          {
-            key: `title-line-${index}`,
-            style: {
-              display: "flex",
-              width: line.maxWidth,
-              maxWidth: line.maxWidth,
-              whiteSpace: "nowrap",
-            },
+    ...(Array.isArray(model.titleLineLayouts) && model.titleLineLayouts.length > 0
+      ? model.titleLineLayouts
+      : (Array.isArray(model.titleLines)
+          ? model.titleLines
+          : [String(model.title || "Projeto")]
+        ).map((line) => ({
+          text: line,
+          maxWidth: model.layout.titleWidth,
+        }))
+    ).map((line, index) =>
+      createElement(
+        "div",
+        {
+          key: `title-line-${index}`,
+          style: {
+            display: "flex",
+            width: line.maxWidth,
+            maxWidth: line.maxWidth,
+            whiteSpace: "nowrap",
           },
-          line.text,
-        ),
+        },
+        line.text,
+      ),
     ),
   );
 
@@ -1481,8 +1492,7 @@ const buildSubtitleNode = (model) => {
       ? model.subtitleLineLayouts
       : null;
   if (subtitleLineLayouts) {
-    const lineHeightPx =
-      (Number(model.layout?.subtitleFontSize) || 0) * 1.2;
+    const lineHeightPx = (Number(model.layout?.subtitleFontSize) || 0) * 1.2;
     const subtitleHeight =
       Number(model.subtitleHeight) || subtitleLineLayouts.length * lineHeightPx;
     const subtitleRenderWidth = Math.max(
@@ -1539,15 +1549,15 @@ const buildSubtitleNode = (model) => {
   const hasSubtitleAvatar = Boolean(subtitleAvatarSrc);
   const shouldNoWrap = Boolean(model.subtitleNoWrap);
   const subtitleWidth = Number(model.layout?.subtitleMaxWidth) || 0;
-  const subtitleAvatarSize = hasSubtitleAvatar
-    ? Number(model.layout?.subtitleAvatarSize) || 27
-    : 0;
-  const subtitleAvatarGap = hasSubtitleAvatar
-    ? Number(model.layout?.subtitleAvatarGap) || 8
-    : 0;
+  const subtitleAvatarSize = hasSubtitleAvatar ? Number(model.layout?.subtitleAvatarSize) || 27 : 0;
+  const subtitleAvatarGap = hasSubtitleAvatar ? Number(model.layout?.subtitleAvatarGap) || 8 : 0;
   const subtitleTextMaxWidth =
     shouldNoWrap && subtitleWidth > 0
-      ? Math.max(0, Number(model.subtitleTextMaxWidth) || subtitleWidth - subtitleAvatarSize - subtitleAvatarGap)
+      ? Math.max(
+          0,
+          Number(model.subtitleTextMaxWidth) ||
+            subtitleWidth - subtitleAvatarSize - subtitleAvatarGap,
+        )
       : 0;
   const measuredSubtitleWidth = measureTextWidth({
     text: subtitle,
@@ -1591,18 +1601,18 @@ const buildSubtitleNode = (model) => {
           lineHeight: 1.2,
         },
       },
-        createElement(
-          "div",
-          {
-            style: {
-              minWidth: 0,
-              maxWidth: subtitleTextMaxWidth || undefined,
-              display: "block",
-              flexShrink: 1,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            },
+      createElement(
+        "div",
+        {
+          style: {
+            minWidth: 0,
+            maxWidth: subtitleTextMaxWidth || undefined,
+            display: "block",
+            flexShrink: 1,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          },
         },
         subtitle,
       ),
@@ -2067,7 +2077,9 @@ export const buildProjectOgScene = (model = {}) => {
     palette,
     title: String(model?.title || "").trim() || "Projeto",
     titleLines:
-      Array.isArray(model?.titleLines) && model.titleLines.length > 0 ? model.titleLines : ["Projeto"],
+      Array.isArray(model?.titleLines) && model.titleLines.length > 0
+        ? model.titleLines
+        : ["Projeto"],
     titleLineLayouts:
       Array.isArray(model?.titleLineLayouts) && model.titleLineLayouts.length > 0
         ? model.titleLineLayouts

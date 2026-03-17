@@ -17,10 +17,9 @@ describe("useEditorScrollLock", () => {
   });
 
   it("adiciona e remove classes ao alternar enabled", () => {
-    const { rerender } = renderHook(
-      ({ enabled }) => useEditorScrollLock(enabled),
-      { initialProps: { enabled: false } },
-    );
+    const { rerender } = renderHook(({ enabled }) => useEditorScrollLock(enabled), {
+      initialProps: { enabled: false },
+    });
 
     expect(document.documentElement).not.toHaveClass(EDITOR_SCROLL_LOCKED_CLASS);
     expect(document.body).not.toHaveClass(EDITOR_SCROLL_LOCKED_CLASS);

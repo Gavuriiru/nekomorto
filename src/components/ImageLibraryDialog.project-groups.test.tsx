@@ -87,7 +87,9 @@ describe("ImageLibraryDialog project groups", () => {
       expect(rootTrigger).toBeInTheDocument();
       expect(chapterTrigger).toBeInTheDocument();
     });
-    expect(rootTrigger!.compareDocumentPosition(chapterTrigger!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(rootTrigger!.compareDocumentPosition(chapterTrigger!)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
     expect(screen.queryByText("Projeto 1 (Capa)")).not.toBeInTheDocument();
     expect(screen.queryByText("Projeto 1 (Banner)")).not.toBeInTheDocument();
 

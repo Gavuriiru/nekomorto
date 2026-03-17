@@ -33,7 +33,11 @@ try {
   const datasets = await loadDbDatasets(prisma);
 
   fs.mkdirSync(targetDir, { recursive: true });
-  fs.writeFileSync(path.join(targetDir, "db-snapshot.json"), `${JSON.stringify(datasets, null, 2)}\n`, "utf-8");
+  fs.writeFileSync(
+    path.join(targetDir, "db-snapshot.json"),
+    `${JSON.stringify(datasets, null, 2)}\n`,
+    "utf-8",
+  );
   copyDir(uploadsDir, path.join(targetDir, "uploads"));
 
   console.log(`Backup criado em: ${targetDir}`);

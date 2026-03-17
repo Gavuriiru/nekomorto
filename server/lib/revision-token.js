@@ -21,4 +21,3 @@ const stableSerialize = (value) => {
 
 export const createRevisionToken = (value) =>
   crypto.createHash("sha256").update(stableSerialize(value)).digest("hex");
-

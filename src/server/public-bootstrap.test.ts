@@ -64,7 +64,7 @@ describe("public bootstrap payload", () => {
               number: 3,
               volume: 1,
               title: "Capitulo 3",
-              content: "{\"root\":{}}",
+              content: '{"root":{}}',
               sources: [{ label: "Drive", url: "https://example.com/file" }],
               completedStages: ["traducao"],
               coverImageUrl: "/uploads/episode-3.jpg",
@@ -203,7 +203,9 @@ describe("public bootstrap payload", () => {
         coverImageAlt: "Capa do episodio 3",
       }),
     ]);
-    expect((project.episodeDownloads as Array<Record<string, unknown>>)[0]).not.toHaveProperty("content");
+    expect((project.episodeDownloads as Array<Record<string, unknown>>)[0]).not.toHaveProperty(
+      "content",
+    );
     expect(payload.teamMembers[0]).toEqual(
       expect.objectContaining({
         id: "team-1",

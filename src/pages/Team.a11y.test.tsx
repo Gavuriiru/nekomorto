@@ -62,24 +62,26 @@ const usersFixture = [
 describe("Team accessibility", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
 
-      if (endpoint === "/api/public/users" && method === "GET") {
-        return mockJsonResponse(true, {
-          users: usersFixture,
-          mediaVariants: {},
-        });
-      }
-      if (endpoint === "/api/link-types" && method === "GET") {
-        return mockJsonResponse(true, { items: [{ id: "site", label: "Site", icon: "globe" }] });
-      }
-      if (endpoint === "/api/public/pages" && method === "GET") {
-        return mockJsonResponse(true, { pages: { team: {} } });
-      }
+        if (endpoint === "/api/public/users" && method === "GET") {
+          return mockJsonResponse(true, {
+            users: usersFixture,
+            mediaVariants: {},
+          });
+        }
+        if (endpoint === "/api/link-types" && method === "GET") {
+          return mockJsonResponse(true, { items: [{ id: "site", label: "Site", icon: "globe" }] });
+        }
+        if (endpoint === "/api/public/pages" && method === "GET") {
+          return mockJsonResponse(true, { pages: { team: {} } });
+        }
 
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
   });
 
   it("mantem a ordem semantica dos headings sem violacoes axe", async () => {
@@ -95,10 +97,18 @@ describe("Team accessibility", () => {
         name: /faz o projeto acontecer/i,
       }),
     ).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { level: 2, name: "Membros ativos" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { level: 2, name: "Membros aposentados" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { level: 3, name: "Integrante ativo" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { level: 3, name: "Integrante aposentado" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Membros ativos" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Membros aposentados" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 3, name: "Integrante ativo" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 3, name: "Integrante aposentado" }),
+    ).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 });

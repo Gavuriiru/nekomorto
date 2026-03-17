@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPublicSearchSuggestions, parseSearchLimit, parseSearchScope } from "../../server/lib/public-search.js";
+import {
+  buildPublicSearchSuggestions,
+  parseSearchLimit,
+  parseSearchScope,
+} from "../../server/lib/public-search.js";
 
 describe("public-search", () => {
   const projects = [
@@ -93,4 +97,3 @@ describe("public-search", () => {
     expect(parseSearchLimit("-1")).toBe(8);
   });
 });
-

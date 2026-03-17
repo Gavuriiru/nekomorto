@@ -99,13 +99,7 @@ const DASHBOARD_WIDGET_IDS: DashboardWidgetId[] = [
 const DASHBOARD_ROLE_PRESETS: Record<DashboardHomeRole, DashboardWidgetId[]> = {
   editor: ["recent_posts", "analytics_summary", "projects_quick"],
   moderador: ["comments_queue", "ops_status", "recent_posts"],
-  admin: [
-    "ops_status",
-    "comments_queue",
-    "analytics_summary",
-    "recent_posts",
-    "metrics_overview",
-  ],
+  admin: ["ops_status", "comments_queue", "analytics_summary", "recent_posts", "metrics_overview"],
 };
 
 const readGrant = (source: Record<string, unknown>, key: string) => source[key] === true;
@@ -507,7 +501,9 @@ const Dashboard = () => {
 
   const dailyTotals = useMemo(
     () =>
-      last7Days.map((day) => overview.analyticsSeries7d.find((item) => item.date === day)?.value ?? 0),
+      last7Days.map(
+        (day) => overview.analyticsSeries7d.find((item) => item.date === day)?.value ?? 0,
+      ),
     [last7Days, overview.analyticsSeries7d],
   );
   const recentPosts = overview.recentPosts;
@@ -587,8 +583,7 @@ const Dashboard = () => {
       try {
         await dashboardPreferences.patchDashboardPreferences((previousDashboard) => ({
           homeByRole: {
-            ...(previousDashboard.homeByRole &&
-            typeof previousDashboard.homeByRole === "object"
+            ...(previousDashboard.homeByRole && typeof previousDashboard.homeByRole === "object"
               ? previousDashboard.homeByRole
               : {}),
             [role]: {
@@ -705,7 +700,9 @@ const Dashboard = () => {
           }>;
         },
       ];
-      const exportProjects = Array.isArray(projectsPayload.projects) ? projectsPayload.projects : [];
+      const exportProjects = Array.isArray(projectsPayload.projects)
+        ? projectsPayload.projects
+        : [];
       const exportPosts = Array.isArray(postsPayload.posts) ? postsPayload.posts : [];
       const totalProjectViews = exportProjects.reduce(
         (sum, project) => sum + Number(project.views || 0),

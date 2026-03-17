@@ -6,6 +6,7 @@ import PublicPageContainer from "@/components/PublicPageContainer";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import "@/styles/login.css";
 
 const Login = () => {
   usePageMeta({ title: "Login", noIndex: true });

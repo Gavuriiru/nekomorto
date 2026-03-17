@@ -300,11 +300,23 @@ const DashboardSeoRedirectsPanel = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" size="sm" variant="outline" className="gap-2" onClick={addSeoRedirectRule}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-2"
+              onClick={addSeoRedirectRule}
+            >
               <Plus className="h-4 w-4" />
               Nova regra
             </Button>
-            <Button type="button" size="sm" className="gap-2" onClick={() => void handleSave()} disabled={isSaving || !isDirty}>
+            <Button
+              type="button"
+              size="sm"
+              className="gap-2"
+              onClick={() => void handleSave()}
+              disabled={isSaving || !isDirty}
+            >
               <Save className="h-4 w-4" />
               {isSaving ? "Salvando..." : "Salvar SEO"}
             </Button>

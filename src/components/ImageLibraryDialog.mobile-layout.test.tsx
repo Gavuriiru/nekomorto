@@ -18,7 +18,8 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 describe("ImageLibraryDialog mobile layout", () => {
   beforeEach(() => {

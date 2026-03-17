@@ -129,11 +129,7 @@ const Footer = () => {
                   >
                     <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-secondary/70 text-primary/80 transition group-hover:border-primary/40 group-hover:text-primary">
                       {renderCustomIcon ? (
-                        <ThemedSvgMaskIcon
-                          url={iconValue}
-                          label={link.label}
-                          className="h-4 w-4"
-                        />
+                        <ThemedSvgMaskIcon url={iconValue} label={link.label} className="h-4 w-4" />
                       ) : (
                         <Icon className="h-4 w-4" aria-hidden="true" />
                       )}
@@ -161,9 +157,7 @@ const Footer = () => {
 
       <div className="border-t border-border/60 bg-background/40">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-6 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between md:px-12">
-          <p>
-            {footer.copyright || ""}
-          </p>
+          <p>{footer.copyright || ""}</p>
         </div>
       </div>
     </footer>

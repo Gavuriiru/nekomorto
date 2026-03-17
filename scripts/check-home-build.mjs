@@ -3,10 +3,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_MAX_HOME_CRITICAL_CSS_BYTES = 200 * 1024;
-const MAX_HOME_CRITICAL_CSS_BYTES = Number.parseInt(
-  process.env.HOME_CRITICAL_CSS_MAX_BYTES ?? "",
-  10,
-) || DEFAULT_MAX_HOME_CRITICAL_CSS_BYTES;
+const MAX_HOME_CRITICAL_CSS_BYTES =
+  Number.parseInt(process.env.HOME_CRITICAL_CSS_MAX_BYTES ?? "", 10) ||
+  DEFAULT_MAX_HOME_CRITICAL_CSS_BYTES;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -62,9 +61,7 @@ const findChunkFilesByPrefix = (prefix, excludePrefixes = []) =>
     return !excludePrefixes.some((excludedPrefix) => fileName.startsWith(`${excludedPrefix}-`));
   });
 
-const entryScriptMatch = html.match(
-  /<script[^>]+type=["']module["'][^>]+src=["']([^"']+)["']/i,
-);
+const entryScriptMatch = html.match(/<script[^>]+type=["']module["'][^>]+src=["']([^"']+)["']/i);
 
 if (!entryScriptMatch) {
   fail("nao foi possivel identificar o script module de entrada no index.html.");

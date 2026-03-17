@@ -29,19 +29,33 @@ describe("ThemeModeSwitcher", () => {
     useThemeModeMock.mockReturnValue(createThemeState());
     const { container } = render(<ThemeModeSwitcher />);
     const button = screen.getByRole("button", { name: "Alternar para tema claro" });
+    const svg = container.querySelector("svg.theme-toggle__classic");
+    const clipPath = container.querySelector("svg.theme-toggle__classic clipPath");
+    const rays = container.querySelectorAll("svg.theme-toggle__classic g g path");
 
     expect(button).toBeInTheDocument();
+    expect(button).toHaveClass("theme-toggle");
     expect(button).toHaveClass("text-foreground/80");
     expect(button).toHaveClass("hover:bg-accent");
     expect(button).toHaveClass("hover:text-foreground");
     expect(button).not.toHaveClass("hover:text-accent-foreground");
     expect(button).toHaveClass("theme-toggle--toggled");
     expect(button).toHaveAttribute(THEME_MODE_PRESERVE_MOTION_ATTRIBUTE, "true");
-    expect(container.querySelector("svg.theme-toggle__classic")).not.toBeNull();
+    expect(button).toHaveStyle({ "--theme-toggle__classic--duration": "200ms" });
+    expect(svg).not.toBeNull();
+    expect(clipPath).not.toBeNull();
+    expect(clipPath?.querySelector("path")).toHaveAttribute("d", "M0-5h30a1 1 0 0 0 9 13v24H0Z");
+    expect(container.querySelector("svg.theme-toggle__classic g circle")).toHaveAttribute(
+      "r",
+      "9.34",
+    );
+    expect(rays).toHaveLength(8);
   });
 
   it("em global dark alterna para light", () => {
-    useThemeModeMock.mockReturnValue(createThemeState({ globalMode: "dark", effectiveMode: "dark" }));
+    useThemeModeMock.mockReturnValue(
+      createThemeState({ globalMode: "dark", effectiveMode: "dark" }),
+    );
     render(<ThemeModeSwitcher />);
 
     fireEvent.click(screen.getByRole("button", { name: "Alternar para tema claro" }));
@@ -60,18 +74,24 @@ describe("ThemeModeSwitcher", () => {
       }),
     );
     const { container } = render(<ThemeModeSwitcher />);
+    const button = screen.getByRole("button", { name: "Alternar para tema escuro" });
+    const svg = container.querySelector("svg.theme-toggle__classic");
 
-    expect(screen.getByRole("button", { name: "Alternar para tema escuro" })).toBeInTheDocument();
-    expect(container.querySelector("svg.theme-toggle__classic")).not.toBeNull();
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveClass("theme-toggle");
+    expect(button).not.toHaveClass("theme-toggle--toggled");
+    expect(svg?.querySelectorAll("g g path")).toHaveLength(8);
 
-    fireEvent.click(screen.getByRole("button", { name: "Alternar para tema escuro" }));
+    fireEvent.click(button);
 
     expect(setPreferenceMock).toHaveBeenCalledTimes(1);
     expect(setPreferenceMock).toHaveBeenCalledWith("global");
   });
 
   it("em global light alterna para dark", () => {
-    useThemeModeMock.mockReturnValue(createThemeState({ globalMode: "light", effectiveMode: "light" }));
+    useThemeModeMock.mockReturnValue(
+      createThemeState({ globalMode: "light", effectiveMode: "light" }),
+    );
     render(<ThemeModeSwitcher />);
 
     fireEvent.click(screen.getByRole("button", { name: "Alternar para tema escuro" }));

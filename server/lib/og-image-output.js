@@ -23,13 +23,16 @@ const isFinitePositiveInteger = (value) =>
 const toValidMaxBytes = (value) =>
   isFinitePositiveInteger(value) ? Math.floor(Number(value)) : OG_MAX_RECOMMENDED_BYTES;
 
-const toValidOptimizeMode = (value) => (String(value || "").trim() === "lossless" ? "lossless" : "adaptive");
+const toValidOptimizeMode = (value) =>
+  String(value || "").trim() === "lossless" ? "lossless" : "adaptive";
 const toAlwaysAttempt = (value) => value === true;
 const normalizeText = (value) => String(value || "").trim();
 const toValidPublicTargetFormat = (value) =>
   normalizeText(value).toLowerCase() === "jpeg" ? "jpeg" : "jpeg";
 const toValidPublicProfile = (value) =>
-  normalizeText(value).toLowerCase() === "visually-lossless" ? "visually-lossless" : "visually-lossless";
+  normalizeText(value).toLowerCase() === "visually-lossless"
+    ? "visually-lossless"
+    : "visually-lossless";
 const toValidPublicTargetKb = (value) => {
   if (!isFinitePositiveInteger(value)) {
     return OG_PUBLIC_DEFAULT_TARGET_KB;
@@ -78,16 +81,10 @@ const toValidContentType = (value) => {
   return "image/png";
 };
 
-const optimizePngWithPreset = async (buffer, options) =>
-  sharp(buffer)
-    .png(options)
-    .toBuffer();
+const optimizePngWithPreset = async (buffer, options) => sharp(buffer).png(options).toBuffer();
 
 const optimizeJpegWithPreset = async (buffer, options) =>
-  sharp(buffer)
-    .flatten({ background: OG_PUBLIC_JPEG_FLATTEN_BACKGROUND })
-    .jpeg(options)
-    .toBuffer();
+  sharp(buffer).flatten({ background: OG_PUBLIC_JPEG_FLATTEN_BACKGROUND }).jpeg(options).toBuffer();
 
 const warnOgPublicImageEncodingConfig = ({
   targetKbRaw,
@@ -128,7 +125,9 @@ const warnOgPublicImageEncodingConfig = ({
     qualityLadderEffective: Array.isArray(qualityLadderEffective)
       ? [...qualityLadderEffective]
       : [...OG_PUBLIC_DEFAULT_JPEG_QUALITY_LADDER],
-    discardedQualityValues: Array.isArray(discardedQualityValues) ? [...discardedQualityValues] : [],
+    discardedQualityValues: Array.isArray(discardedQualityValues)
+      ? [...discardedQualityValues]
+      : [],
     usedDefaultTargetKb: Boolean(usedDefaultTargetKb),
     usedDefaultQualityLadder: Boolean(usedDefaultQualityLadder),
   });
@@ -158,12 +157,16 @@ export const resolveOgPublicImageEncodingConfig = ({ env = process.env } = {}) =
       const quality = Math.floor(Number(candidate));
       return quality < OG_PUBLIC_JPEG_MIN_QUALITY || quality > OG_PUBLIC_JPEG_MAX_QUALITY;
     });
-  const usedDefaultTargetKb = hasTargetKbInput && String(targetKb) !== String(normalizeText(targetKbRaw));
+  const usedDefaultTargetKb =
+    hasTargetKbInput && String(targetKb) !== String(normalizeText(targetKbRaw));
   const usedDefaultQualityLadder =
     hasQualityInput &&
     qualityLadder.length === OG_PUBLIC_DEFAULT_JPEG_QUALITY_LADDER.length &&
-    qualityLadder.every((quality, index) => quality === OG_PUBLIC_DEFAULT_JPEG_QUALITY_LADDER[index]) &&
-    normalizeText(qualityValuesRaw) !== normalizeText(OG_PUBLIC_DEFAULT_JPEG_QUALITY_LADDER.join(","));
+    qualityLadder.every(
+      (quality, index) => quality === OG_PUBLIC_DEFAULT_JPEG_QUALITY_LADDER[index],
+    ) &&
+    normalizeText(qualityValuesRaw) !==
+      normalizeText(OG_PUBLIC_DEFAULT_JPEG_QUALITY_LADDER.join(","));
 
   warnOgPublicImageEncodingConfig({
     targetKbRaw,

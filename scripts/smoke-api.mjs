@@ -53,7 +53,9 @@ const assertXmlEndpoint = async (path, { expectedContentTypePart, expectedBodySn
   }
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.toLowerCase().includes(expectedContentTypePart)) {
-    throw new Error(`${path} expected content-type containing "${expectedContentTypePart}", got "${contentType}"`);
+    throw new Error(
+      `${path} expected content-type containing "${expectedContentTypePart}", got "${contentType}"`,
+    );
   }
   const body = await response.text();
   if (!body.includes(expectedBodySnippet)) {
@@ -240,7 +242,9 @@ const main = async () => {
         `${serviceWorkerCheck.workboxScriptPath} returned ${workboxResponse.status}: ${body}`,
       );
     }
-    const workboxContentType = String(workboxResponse.headers.get("content-type") || "").toLowerCase();
+    const workboxContentType = String(
+      workboxResponse.headers.get("content-type") || "",
+    ).toLowerCase();
     if (
       !workboxContentType.includes("javascript") &&
       !workboxContentType.includes("ecmascript") &&

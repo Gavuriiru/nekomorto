@@ -60,8 +60,14 @@ type PostRecord = {
   projectId?: string | null;
 };
 
-const normalizeAuthorKey = (value: unknown) => String(value || "").trim().toLowerCase();
-const normalizePostSlug = (value: unknown) => String(value || "").trim().toLowerCase();
+const normalizeAuthorKey = (value: unknown) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+const normalizePostSlug = (value: unknown) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
 
 const toBootstrapPostRecord = (post: PublicBootstrapPost | null): PostRecord | null => {
   if (!post) {
@@ -124,10 +130,7 @@ const resolveBootstrapAuthorCard = (
   };
 };
 
-const mergeMediaVariants = (
-  base: UploadMediaVariantsMap,
-  nextValue: unknown,
-) => ({
+const mergeMediaVariants = (base: UploadMediaVariantsMap, nextValue: unknown) => ({
   ...base,
   ...(nextValue && typeof nextValue === "object" ? (nextValue as UploadMediaVariantsMap) : {}),
 });
@@ -136,11 +139,16 @@ const Post = () => {
   const { slug } = useParams();
   const location = useLocation();
   const apiBase = getApiBase();
-  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() => readWindowPublicBootstrap());
+  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() =>
+    readWindowPublicBootstrap(),
+  );
   const [currentUser] = useState<PublicBootstrapCurrentUser | null>(() =>
     readWindowPublicBootstrapCurrentUser(),
   );
-  const bootstrapPost = useMemo(() => resolveBootstrapPost(bootstrapData, slug), [bootstrapData, slug]);
+  const bootstrapPost = useMemo(
+    () => resolveBootstrapPost(bootstrapData, slug),
+    [bootstrapData, slug],
+  );
   const bootstrapPostRecord = useMemo(() => toBootstrapPostRecord(bootstrapPost), [bootstrapPost]);
   const [post, setPost] = useState<PostRecord | null>(bootstrapPostRecord);
   const [hasLoaded, setHasLoaded] = useState(Boolean(bootstrapPostRecord));
@@ -191,17 +199,18 @@ const Post = () => {
           return;
         }
         setPost((current) => ({
-          ...(current || bootstrapPostRecord || {
-            id: "",
-            title: "",
-            slug: String(slug || ""),
-            excerpt: "",
-            content: "",
-            author: "",
-            publishedAt: "",
-            views: 0,
-            commentsCount: 0,
-          }),
+          ...(current ||
+            bootstrapPostRecord || {
+              id: "",
+              title: "",
+              slug: String(slug || ""),
+              excerpt: "",
+              content: "",
+              author: "",
+              publishedAt: "",
+              views: 0,
+              commentsCount: 0,
+            }),
           ...(data?.post || {}),
         }));
         setMediaVariants((current) =>

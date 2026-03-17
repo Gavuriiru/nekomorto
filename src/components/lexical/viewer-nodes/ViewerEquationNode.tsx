@@ -43,7 +43,10 @@ const convertEquationElement = (domNode: HTMLElement): DOMConversionOutput | nul
     return null;
   }
   return {
-    node: $createViewerEquationNode(atob(encodedEquation), domNode.getAttribute("data-lexical-inline") === "true"),
+    node: $createViewerEquationNode(
+      atob(encodedEquation),
+      domNode.getAttribute("data-lexical-inline") === "true",
+    ),
   };
 };
 

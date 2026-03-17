@@ -1,4 +1,7 @@
-const normalizeName = (value) => String(value || "").replace(/\s+/g, " ").trim();
+const normalizeName = (value) =>
+  String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const normalizeCompanyId = (value) => {
   if (value === null || value === undefined) {

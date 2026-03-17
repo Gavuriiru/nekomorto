@@ -107,9 +107,7 @@ describe("createUploadStorageService", () => {
       uploadUrlPrefix: "/uploads/_variants/u-local/",
     });
 
-    expect(
-      fs.existsSync(path.join(uploadsDir, "_variants", "u-local", "card.avif")),
-    ).toBe(false);
+    expect(fs.existsSync(path.join(uploadsDir, "_variants", "u-local", "card.avif"))).toBe(false);
   });
 
   it("encaminha operacoes S3-compatible com prefixo de chave", async () => {

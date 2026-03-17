@@ -54,8 +54,18 @@ describe("project image isolator", () => {
   it("duplica URL compartilhada entre dois projetos e reescreve ambos", () => {
     const { uploadsDir, datasets } = createTempWorkspace({
       projects: [
-        { id: "proj-1", title: "Projeto Um", cover: "/uploads/shared/common.png", episodeDownloads: [] },
-        { id: "proj-2", title: "Projeto Dois", cover: "/uploads/shared/common.png", episodeDownloads: [] },
+        {
+          id: "proj-1",
+          title: "Projeto Um",
+          cover: "/uploads/shared/common.png",
+          episodeDownloads: [],
+        },
+        {
+          id: "proj-2",
+          title: "Projeto Dois",
+          cover: "/uploads/shared/common.png",
+          episodeDownloads: [],
+        },
       ],
       posts: [],
       uploads: [
@@ -88,7 +98,14 @@ describe("project image isolator", () => {
 
   it("quando URL e compartilhada entre projeto e post, reescreve apenas o projeto", () => {
     const { uploadsDir, datasets } = createTempWorkspace({
-      projects: [{ id: "proj-1", title: "Projeto Um", cover: "/uploads/shared/mixed.png", episodeDownloads: [] }],
+      projects: [
+        {
+          id: "proj-1",
+          title: "Projeto Um",
+          cover: "/uploads/shared/mixed.png",
+          episodeDownloads: [],
+        },
+      ],
       posts: [
         {
           id: "post-1",
@@ -108,14 +125,21 @@ describe("project image isolator", () => {
     const posts = datasets.posts as Array<Record<string, unknown>>;
 
     expect(projects[0].cover).toBe("/uploads/projects/proj-1/mixed.png");
-    expect(String(posts[0].content || "")).toContain('/uploads/shared/mixed.png');
+    expect(String(posts[0].content || "")).toContain("/uploads/shared/mixed.png");
     expect(fs.existsSync(path.join(uploadsDir, "shared/mixed.png"))).toBe(true);
     expect(fs.existsSync(path.join(uploadsDir, "projects/proj-1/mixed.png"))).toBe(true);
   });
 
   it("dry-run nao altera arquivos", () => {
     const { uploadsDir, datasets } = createTempWorkspace({
-      projects: [{ id: "proj-1", title: "Projeto Um", cover: "/uploads/shared/dry.png", episodeDownloads: [] }],
+      projects: [
+        {
+          id: "proj-1",
+          title: "Projeto Um",
+          cover: "/uploads/shared/dry.png",
+          episodeDownloads: [],
+        },
+      ],
       posts: [],
       uploads: [],
       uploadFiles: [{ relativePath: "shared/dry.png", content: "dry" }],
@@ -131,7 +155,14 @@ describe("project image isolator", () => {
 
   it("arquivo ausente entra em missing sem quebrar", () => {
     const { uploadsDir, datasets } = createTempWorkspace({
-      projects: [{ id: "proj-1", title: "Projeto Um", cover: "/uploads/shared/missing.png", episodeDownloads: [] }],
+      projects: [
+        {
+          id: "proj-1",
+          title: "Projeto Um",
+          cover: "/uploads/shared/missing.png",
+          episodeDownloads: [],
+        },
+      ],
       posts: [],
       uploads: [],
       uploadFiles: [],

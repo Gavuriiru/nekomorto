@@ -91,9 +91,11 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
   const [replyTo, setReplyTo] = useState<PublicComment | null>(null);
   const [form, setForm] = useState({ name: "", email: "", content: "", website: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{ name: string; email?: string; permissions?: string[] } | null>(
-    null,
-  );
+  const [currentUser, setCurrentUser] = useState<{
+    name: string;
+    email?: string;
+    permissions?: string[];
+  } | null>(null);
   const [canModerate, setCanModerate] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<PublicComment | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -102,41 +104,44 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
   const location = useLocation();
   const lastScrolledRef = useRef<string | null>(null);
 
-  const fetchComments = useCallback(async (options: FetchCommentsOptions = {}) => {
-    const { showLoading = true } = options;
-    try {
-      if (showLoading) {
-        setIsLoading(true);
-      }
-      const params = new URLSearchParams({
-        type: targetType,
-        id: targetId,
-      });
-      if (targetType === "chapter" && Number.isFinite(chapterNumber)) {
-        params.set("chapter", String(chapterNumber));
-        if (Number.isFinite(volume)) {
-          params.set("volume", String(volume));
+  const fetchComments = useCallback(
+    async (options: FetchCommentsOptions = {}) => {
+      const { showLoading = true } = options;
+      try {
+        if (showLoading) {
+          setIsLoading(true);
         }
-      }
-      const response = await apiFetch(apiBase, `/api/public/comments?${params.toString()}`);
-      if (!response.ok) {
+        const params = new URLSearchParams({
+          type: targetType,
+          id: targetId,
+        });
+        if (targetType === "chapter" && Number.isFinite(chapterNumber)) {
+          params.set("chapter", String(chapterNumber));
+          if (Number.isFinite(volume)) {
+            params.set("volume", String(volume));
+          }
+        }
+        const response = await apiFetch(apiBase, `/api/public/comments?${params.toString()}`);
+        if (!response.ok) {
+          if (showLoading) {
+            setComments([]);
+          }
+          return;
+        }
+        const data = await response.json();
+        setComments(Array.isArray(data.comments) ? data.comments : []);
+      } catch {
         if (showLoading) {
           setComments([]);
         }
-        return;
+      } finally {
+        if (showLoading) {
+          setIsLoading(false);
+        }
       }
-      const data = await response.json();
-      setComments(Array.isArray(data.comments) ? data.comments : []);
-    } catch {
-      if (showLoading) {
-        setComments([]);
-      }
-    } finally {
-      if (showLoading) {
-        setIsLoading(false);
-      }
-    }
-  }, [apiBase, chapterNumber, targetId, targetType, volume]);
+    },
+    [apiBase, chapterNumber, targetId, targetType, volume],
+  );
 
   useEffect(() => {
     void fetchComments();
@@ -368,85 +373,85 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
   return (
     <>
       <Card className="border-border bg-card">
-      <CardHeader>
-        <CardTitle className="text-lg">Comentários</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <MessageSquare className="h-4 w-4 text-primary/70" aria-hidden="true" />
-            {canModerate
-              ? "Como staff, seus comentários aparecem imediatamente."
-              : "Os comentários passam por aprovação antes de aparecerem."}
+        <CardHeader>
+          <CardTitle className="text-lg">Comentários</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <MessageSquare className="h-4 w-4 text-primary/70" aria-hidden="true" />
+              {canModerate
+                ? "Como staff, seus comentários aparecem imediatamente."
+                : "Os comentários passam por aprovação antes de aparecerem."}
+            </div>
+            <span className="text-xs text-muted-foreground">
+              Avatar via Gravatar (quando e-mail for informado).
+            </span>
           </div>
-          <span className="text-xs text-muted-foreground">
-            Avatar via Gravatar (quando e-mail for informado).
-          </span>
-        </div>
-        <Separator />
-        <div className="space-y-3">
-          {replyTo ? (
-            <div className="rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
-              Respondendo a <span className="font-semibold text-foreground">{replyTo.name}</span>.
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="ml-2 h-auto px-2 text-xs"
-                onClick={() => setReplyTo(null)}
-              >
-                Cancelar
+          <Separator />
+          <div className="space-y-3">
+            {replyTo ? (
+              <div className="rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                Respondendo a <span className="font-semibold text-foreground">{replyTo.name}</span>.
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="ml-2 h-auto px-2 text-xs"
+                  onClick={() => setReplyTo(null)}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            ) : null}
+            <div className="grid gap-3 md:grid-cols-2">
+              <Input
+                placeholder="Seu nome"
+                value={form.name}
+                onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                disabled={canModerate}
+              />
+              <Input
+                type="email"
+                placeholder="Seu e-mail (opcional, usado para o Gravatar)"
+                value={form.email}
+                onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+                disabled={canModerate}
+              />
+            </div>
+            <input
+              className="hidden"
+              tabIndex={-1}
+              autoComplete="off"
+              value={form.website}
+              onChange={(event) => setForm((prev) => ({ ...prev, website: event.target.value }))}
+              aria-hidden="true"
+            />
+            <Textarea
+              placeholder="Escreva seu comentário"
+              value={form.content}
+              onChange={(event) => setForm((prev) => ({ ...prev, content: event.target.value }))}
+              className="min-h-[120px]"
+            />
+            {notice ? <p className="text-xs text-muted-foreground">{notice}</p> : null}
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting ? "Enviando..." : "Publicar comentário"}
               </Button>
             </div>
-          ) : null}
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input
-              placeholder="Seu nome"
-              value={form.name}
-              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-              disabled={canModerate}
-            />
-            <Input
-              type="email"
-              placeholder="Seu e-mail (opcional, usado para o Gravatar)"
-              value={form.email}
-              onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-              disabled={canModerate}
-            />
           </div>
-          <input
-            className="hidden"
-            tabIndex={-1}
-            autoComplete="off"
-            value={form.website}
-            onChange={(event) => setForm((prev) => ({ ...prev, website: event.target.value }))}
-            aria-hidden="true"
-          />
-          <Textarea
-            placeholder="Escreva seu comentário"
-            value={form.content}
-            onChange={(event) => setForm((prev) => ({ ...prev, content: event.target.value }))}
-            className="min-h-[120px]"
-          />
-          {notice ? <p className="text-xs text-muted-foreground">{notice}</p> : null}
-          <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? "Enviando..." : "Publicar comentário"}
-            </Button>
-          </div>
-        </div>
-        {isLoading ? (
-          <div className="rounded-xl border border-border bg-background/60 p-4 text-sm text-muted-foreground">
-            Carregando comentários...
-          </div>
-        ) : commentTree.length === 0 ? (
-          <div className="rounded-xl border border-border bg-background/60 p-4 text-sm text-muted-foreground">
-            Ainda não há comentários aprovados.
-          </div>
-        ) : (
-        <div className="space-y-6">{commentTree.map((comment) => renderComment(comment))}</div>
-        )}
-      </CardContent>
+          {isLoading ? (
+            <div className="rounded-xl border border-border bg-background/60 p-4 text-sm text-muted-foreground">
+              Carregando comentários...
+            </div>
+          ) : commentTree.length === 0 ? (
+            <div className="rounded-xl border border-border bg-background/60 p-4 text-sm text-muted-foreground">
+              Ainda não há comentários aprovados.
+            </div>
+          ) : (
+            <div className="space-y-6">{commentTree.map((comment) => renderComment(comment))}</div>
+          )}
+        </CardContent>
       </Card>
       <AlertDialog
         open={Boolean(deleteTarget)}
@@ -483,5 +488,3 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
 };
 
 export default CommentsSection;
-
-

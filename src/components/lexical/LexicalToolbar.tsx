@@ -1,22 +1,59 @@
 import * as React from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { $createParagraphNode, $getRoot, $getSelection, $isElementNode, $isRangeSelection, FORMAT_ELEMENT_COMMAND, FORMAT_TEXT_COMMAND, REDO_COMMAND, SELECTION_CHANGE_COMMAND, UNDO_COMMAND } from "lexical";
+import {
+  $createParagraphNode,
+  $getRoot,
+  $getSelection,
+  $isElementNode,
+  $isRangeSelection,
+  FORMAT_ELEMENT_COMMAND,
+  FORMAT_TEXT_COMMAND,
+  REDO_COMMAND,
+  SELECTION_CHANGE_COMMAND,
+  UNDO_COMMAND,
+} from "lexical";
 import { $setBlocksType } from "@lexical/selection";
 import { INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND } from "@lexical/list";
-import { $createHeadingNode, $createQuoteNode, $isHeadingNode, $isQuoteNode } from "@lexical/rich-text";
+import {
+  $createHeadingNode,
+  $createQuoteNode,
+  $isHeadingNode,
+  $isQuoteNode,
+} from "@lexical/rich-text";
 import { $createCodeNode, $isCodeNode } from "@lexical/code";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
-import { AlignCenter, AlignLeft, AlignRight, Bold, Code, Heading1, Heading2, Heading3, Italic, Link2, List, ListOrdered, Quote, Redo2, Strikethrough, Table, Underline, Undo2, Image as ImageIcon, Video } from "lucide-react";
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  Code,
+  Heading1,
+  Heading2,
+  Heading3,
+  Italic,
+  Link2,
+  List,
+  ListOrdered,
+  Quote,
+  Redo2,
+  Strikethrough,
+  Table,
+  Underline,
+  Undo2,
+  Image as ImageIcon,
+  Video,
+} from "lucide-react";
 
-type BlockType =
-  | "paragraph"
-  | "h1"
-  | "h2"
-  | "h3"
-  | "quote"
-  | "code";
+type BlockType = "paragraph" | "h1" | "h2" | "h3" | "quote" | "code";
 
 type LexicalToolbarProps = {
   onRequestImage?: () => void;
@@ -25,7 +62,10 @@ type LexicalToolbarProps = {
   onRequestTable?: () => void;
 };
 
-const applyBlockType = (editor: ReturnType<typeof useLexicalComposerContext>[0], value: BlockType) => {
+const applyBlockType = (
+  editor: ReturnType<typeof useLexicalComposerContext>[0],
+  value: BlockType,
+) => {
   editor.focus();
   editor.update(() => {
     let selection = $getSelection();
@@ -65,7 +105,12 @@ const applyBlockType = (editor: ReturnType<typeof useLexicalComposerContext>[0],
 const toSupportedBlockType = (tag: string): BlockType =>
   tag === "h1" || tag === "h2" || tag === "h3" ? tag : "paragraph";
 
-const LexicalToolbar = ({ onRequestImage, onRequestLink, onRequestVideo, onRequestTable }: LexicalToolbarProps) => {
+const LexicalToolbar = ({
+  onRequestImage,
+  onRequestLink,
+  onRequestVideo,
+  onRequestTable,
+}: LexicalToolbarProps) => {
   const [editor] = useLexicalComposerContext();
   const [blockType, setBlockType] = React.useState<BlockType>("paragraph");
   const blockLabel = React.useMemo(() => {
@@ -113,9 +158,7 @@ const LexicalToolbar = ({ onRequestImage, onRequestLink, onRequestVideo, onReque
           return;
         }
         const anchorNode = selection.anchor.getNode();
-        const element = $isElementNode(anchorNode)
-          ? anchorNode
-          : anchorNode.getParentOrThrow();
+        const element = $isElementNode(anchorNode) ? anchorNode : anchorNode.getParentOrThrow();
         const topLevel = element.getTopLevelElementOrThrow();
         if ($isHeadingNode(topLevel)) {
           setBlockType(toSupportedBlockType(topLevel.getTag()));
@@ -144,9 +187,7 @@ const LexicalToolbar = ({ onRequestImage, onRequestLink, onRequestVideo, onReque
             return;
           }
           const anchorNode = selection.anchor.getNode();
-          const element = $isElementNode(anchorNode)
-            ? anchorNode
-            : anchorNode.getParentOrThrow();
+          const element = $isElementNode(anchorNode) ? anchorNode : anchorNode.getParentOrThrow();
           const topLevel = element.getTopLevelElementOrThrow();
           if ($isHeadingNode(topLevel)) {
             setBlockType(toSupportedBlockType(topLevel.getTag()));
@@ -226,64 +267,104 @@ const LexicalToolbar = ({ onRequestImage, onRequestLink, onRequestVideo, onReque
       </Select>
 
       <div className="flex flex-wrap items-center gap-1">
-        <Button type="button" variant="ghost" size="icon" onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}
+        >
           <Bold className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}
+        >
           <Italic className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")}
+        >
           <Underline className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")}
+        >
           <Strikethrough className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "left")}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "left")}
+        >
           <AlignLeft className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "center")}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "center")}
+        >
           <AlignCenter className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "right")}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "right")}
+        >
           <AlignRight className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => requireSelection(INSERT_UNORDERED_LIST_COMMAND)}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => requireSelection(INSERT_UNORDERED_LIST_COMMAND)}
+        >
           <List className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => requireSelection(INSERT_ORDERED_LIST_COMMAND)}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => requireSelection(INSERT_ORDERED_LIST_COMMAND)}
+        >
           <ListOrdered className="h-4 w-4" />
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => onRequestLink?.()}
-        >
+        <Button type="button" variant="ghost" size="icon" onClick={() => onRequestLink?.()}>
           <Link2 className="h-4 w-4" />
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => onRequestImage?.()}
-        >
+        <Button type="button" variant="ghost" size="icon" onClick={() => onRequestImage?.()}>
           <ImageIcon className="h-4 w-4" />
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => onRequestVideo?.()}
-        >
+        <Button type="button" variant="ghost" size="icon" onClick={() => onRequestVideo?.()}>
           <Video className="h-4 w-4" />
         </Button>
         <Button type="button" variant="ghost" size="icon" onClick={() => onRequestTable?.()}>
           <Table className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
+        >
           <Undo2 className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
+        >
           <Redo2 className="h-4 w-4" />
         </Button>
       </div>

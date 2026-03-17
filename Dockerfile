@@ -1,10 +1,11 @@
-FROM node:24.13.0-bookworm-slim AS base
+FROM node:24.14.0-bookworm-slim AS base
 
 WORKDIR /app
 
 FROM base AS deps
 
 COPY package.json package-lock.json ./
+COPY scripts/patch-vercel-og.mjs ./scripts/patch-vercel-og.mjs
 RUN npm ci
 
 FROM deps AS build

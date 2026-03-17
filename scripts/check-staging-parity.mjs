@@ -30,7 +30,11 @@ const baseRequiredKeys = [
 ];
 
 const truthy = (value) =>
-  ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+  ["1", "true", "yes", "on"].includes(
+    String(value || "")
+      .trim()
+      .toLowerCase(),
+  );
 
 const parseEnvLikeFile = (raw) => {
   const result = {};
@@ -81,7 +85,10 @@ const main = () => {
     missing.push("OWNER_IDS or BOOTSTRAP_TOKEN");
   }
 
-  if (truthy(envSource.METRICS_ENABLED) && String(envSource.METRICS_TOKEN ?? "").trim().length === 0) {
+  if (
+    truthy(envSource.METRICS_ENABLED) &&
+    String(envSource.METRICS_TOKEN ?? "").trim().length === 0
+  ) {
     missing.push("METRICS_TOKEN");
   }
 

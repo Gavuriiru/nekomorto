@@ -70,7 +70,10 @@ const normalizeBoolean = (value, fallback = false) => {
 };
 
 const resolveContentTypeFromKey = (key, fallback = DEFAULT_IMAGE_CONTENT_TYPE) => {
-  const ext = path.posix.extname(String(key || "")).replace(".", "").toLowerCase();
+  const ext = path.posix
+    .extname(String(key || ""))
+    .replace(".", "")
+    .toLowerCase();
   return EXTENSION_TO_CONTENT_TYPE[ext] || String(fallback || DEFAULT_IMAGE_CONTENT_TYPE);
 };
 
@@ -172,7 +175,9 @@ export const getUploadAssetDescriptors = (entry) => {
       url: normalizedUrl,
       contentType: String(entry?.mime || "").trim() || resolveContentTypeFromKey(normalizedUrl),
       expectedSize:
-        Number.isFinite(Number(entry?.size)) && Number(entry?.size) >= 0 ? Number(entry.size) : null,
+        Number.isFinite(Number(entry?.size)) && Number(entry?.size) >= 0
+          ? Number(entry.size)
+          : null,
     },
   ];
   const variants = entry?.variants && typeof entry.variants === "object" ? entry.variants : {};
@@ -214,9 +219,10 @@ export const getUploadVariantUrlPrefix = (entryOrUploadId) => {
 
 export const buildUploadStorageConfig = (env = process.env) => ({
   activeProvider: normalizeUploadStorageProvider(env.UPLOAD_STORAGE_DRIVER),
-  delivery: String(env.UPLOAD_STORAGE_DELIVERY || UPLOAD_STORAGE_DELIVERY_PROXY)
-    .trim()
-    .toLowerCase() || UPLOAD_STORAGE_DELIVERY_PROXY,
+  delivery:
+    String(env.UPLOAD_STORAGE_DELIVERY || UPLOAD_STORAGE_DELIVERY_PROXY)
+      .trim()
+      .toLowerCase() || UPLOAD_STORAGE_DELIVERY_PROXY,
   s3: {
     bucket: String(env.UPLOAD_STORAGE_BUCKET || "").trim(),
     region: String(env.UPLOAD_STORAGE_REGION || "").trim(),
@@ -230,7 +236,9 @@ export const buildUploadStorageConfig = (env = process.env) => ({
 });
 
 const createLocalDriver = ({ uploadsDir }) => {
-  const uploadsRoot = path.resolve(String(uploadsDir || path.join(process.cwd(), "public", "uploads")));
+  const uploadsRoot = path.resolve(
+    String(uploadsDir || path.join(process.cwd(), "public", "uploads")),
+  );
 
   const resolvePath = (key) => {
     const relative = trimSlashes(key);
@@ -607,7 +615,13 @@ export const createUploadStorageService = ({ uploadsDir, env = process.env } = {
       }
       return trimSlashes(key);
     },
-    async putUploadUrl({ provider = config.activeProvider, uploadUrl, buffer, contentType, cacheControl } = {}) {
+    async putUploadUrl({
+      provider = config.activeProvider,
+      uploadUrl,
+      buffer,
+      contentType,
+      cacheControl,
+    } = {}) {
       const normalizedProvider = normalizeUploadStorageProvider(provider, config.activeProvider);
       return getDriver(normalizedProvider).putObject({
         key: buildKey(normalizedProvider, uploadUrl),

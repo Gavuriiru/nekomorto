@@ -23,7 +23,9 @@ export const normalizeSitemapEntries = (entries) =>
         return null;
       }
       const lastmod = toIsoDateOrNull(entry.lastmod);
-      const changefreq = String(entry.changefreq || "").trim().toLowerCase();
+      const changefreq = String(entry.changefreq || "")
+        .trim()
+        .toLowerCase();
       const priorityRaw = Number(entry.priority);
       const priority =
         Number.isFinite(priorityRaw) && priorityRaw >= 0 && priorityRaw <= 1
@@ -61,4 +63,3 @@ export const buildSitemapXml = (entries) => {
   lines.push("</urlset>");
   return `${lines.join("\n")}\n`;
 };
-

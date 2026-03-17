@@ -20,6 +20,8 @@ describe("Footer copyright text", () => {
     );
 
     expect(screen.getByText(defaultSettings.footer.copyright)).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: defaultSettings.footer.copyright })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: defaultSettings.footer.copyright }),
+    ).not.toBeInTheDocument();
   });
 });

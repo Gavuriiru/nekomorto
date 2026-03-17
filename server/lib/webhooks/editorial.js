@@ -197,17 +197,18 @@ const normalizeTemplate = (value, fallback) => {
   const baseEmbed = asObject(base.embed);
   const inputEmbed = asObject(input.embed);
   const fieldsInput =
-    asArray(inputEmbed.fields).length > 0
-      ? asArray(inputEmbed.fields)
-      : asArray(baseEmbed.fields);
+    asArray(inputEmbed.fields).length > 0 ? asArray(inputEmbed.fields) : asArray(baseEmbed.fields);
 
-  const footerSource = inputEmbed.footerText ?? inputEmbed.footer ?? baseEmbed.footerText ?? baseEmbed.footer;
+  const footerSource =
+    inputEmbed.footerText ?? inputEmbed.footer ?? baseEmbed.footerText ?? baseEmbed.footer;
   const footerIconSource = inputEmbed.footerIconUrl ?? baseEmbed.footerIconUrl;
 
   return {
     content: replaceMentionPlaceholderAliases(String(input.content ?? base.content ?? "").trim()),
     embed: {
-      title: replaceMentionPlaceholderAliases(String(inputEmbed.title ?? baseEmbed.title ?? "").trim()),
+      title: replaceMentionPlaceholderAliases(
+        String(inputEmbed.title ?? baseEmbed.title ?? "").trim(),
+      ),
       description: replaceMentionPlaceholderAliases(
         String(inputEmbed.description ?? baseEmbed.description ?? "").trim(),
       ),
@@ -298,12 +299,7 @@ const normalizeExplicitTypeRoles = (value) => {
   return map;
 };
 
-const normalizeTypeRoles = ({
-  value,
-  categories,
-  typeMappings,
-  projectTypes,
-}) => {
+const normalizeTypeRoles = ({ value, categories, typeMappings, projectTypes }) => {
   const explicit = normalizeExplicitTypeRoles(value);
   const legacy = buildLegacyTypeRoleIndex({ categories, typeMappings });
 
@@ -357,10 +353,7 @@ const normalizeChannelSettings = ({
   };
 };
 
-const migrateTemplateCollectionMentionAliases = (
-  templatesInput,
-  eventKeys,
-) => {
+const migrateTemplateCollectionMentionAliases = (templatesInput, eventKeys) => {
   const templates = asObject(templatesInput);
   const nextTemplates = { ...templates };
   eventKeys.forEach((eventKey) => {
@@ -384,17 +377,17 @@ export const migrateEditorialMentionPlaceholdersInSettings = (settingsInput = {}
       ...channels,
       posts: {
         ...posts,
-        templates: migrateTemplateCollectionMentionAliases(
-          posts.templates,
-          ["post_create", "post_update"],
-        ),
+        templates: migrateTemplateCollectionMentionAliases(posts.templates, [
+          "post_create",
+          "post_update",
+        ]),
       },
       projects: {
         ...projects,
-        templates: migrateTemplateCollectionMentionAliases(
-          projects.templates,
-          ["project_release", "project_adjust"],
-        ),
+        templates: migrateTemplateCollectionMentionAliases(projects.templates, [
+          "project_release",
+          "project_adjust",
+        ]),
       },
     },
   };
@@ -463,9 +456,7 @@ export const normalizeEditorialWebhookSettings = (
           : FALLBACK_PROJECT_TYPES,
   });
   const catalog =
-    uniqueStrings(projectTypes).length > 0
-      ? uniqueStrings(projectTypes)
-      : fallbackCatalog;
+    uniqueStrings(projectTypes).length > 0 ? uniqueStrings(projectTypes) : fallbackCatalog;
 
   const defaults = defaultEditorialWebhookSettings(catalog);
   const typeRoles = normalizeTypeRoles({
@@ -707,7 +698,10 @@ const resolvePathValue = (source, path) => {
     return "";
   }
   if (Array.isArray(current)) {
-    return current.map((item) => String(item ?? "").trim()).filter(Boolean).join(", ");
+    return current
+      .map((item) => String(item ?? "").trim())
+      .filter(Boolean)
+      .join(", ");
   }
   if (typeof current === "object") {
     return "";
@@ -756,8 +750,7 @@ export const renderWebhookTemplate = (template, context) => {
 export const resolveEditorialEventChannel = (eventKey) =>
   EDITORIAL_EVENT_TO_CHANNEL[eventKey] || "";
 
-export const resolveEditorialEventLabel = (eventKey) =>
-  EDITORIAL_EVENT_LABEL[eventKey] || "Evento";
+export const resolveEditorialEventLabel = (eventKey) => EDITORIAL_EVENT_LABEL[eventKey] || "Evento";
 
 const buildTypeRoleIndex = (settings) => {
   const map = new Map();
@@ -862,7 +855,9 @@ export const buildEditorialEventContext = ({
   const postSlug = String(safePost.slug || "").trim();
   const normalizedOrigin = String(origin || "").replace(/\/+$/, "");
   const resolvedAuthorName = String(safeAuthor.name || safePost.author || "").trim();
-  const resolvedAuthorAvatarUrl = String(safeAuthor.avatarUrl || safePost.authorAvatarUrl || "").trim();
+  const resolvedAuthorAvatarUrl = String(
+    safeAuthor.avatarUrl || safePost.authorAvatarUrl || "",
+  ).trim();
   const fallbackSiteImageUrl = pickFirstText(siteCoverImageUrl, DEFAULT_IMAGE_PLACEHOLDER_PATH);
   const chapterCoverImageUrl = pickFirstText(safeChapter.coverImageUrl, safeProject.heroImageUrl);
   const resolvedProjectOgImageUrl = pickFirstText(projectOgImageUrl);
@@ -940,7 +935,9 @@ export const buildEditorialEventContext = ({
       publishedAt: String(safePost.publishedAt || ""),
       updatedAt: String(safePost.updatedAt || ""),
       excerpt: String(safePost.excerpt || ""),
-      tags: asArray(safePost.tags).map((item) => String(item || "")).filter(Boolean),
+      tags: asArray(safePost.tags)
+        .map((item) => String(item || ""))
+        .filter(Boolean),
       coverImageUrl: String(safePost.coverImageUrl || ""),
       coverAlt: String(safePost.coverAlt || ""),
       imageUrl: resolvedPostImageUrl,
@@ -960,14 +957,20 @@ export const buildEditorialEventContext = ({
       year: String(safeProject.year || ""),
       studio: String(safeProject.studio || ""),
       episodes: String(safeProject.episodes || ""),
-      tags: asArray(safeProject.tags).map((item) => String(item || "")).filter(Boolean),
-      genres: asArray(safeProject.genres).map((item) => String(item || "")).filter(Boolean),
+      tags: asArray(safeProject.tags)
+        .map((item) => String(item || ""))
+        .filter(Boolean),
+      genres: asArray(safeProject.genres)
+        .map((item) => String(item || ""))
+        .filter(Boolean),
       season: String(safeProject.season || ""),
       schedule: String(safeProject.schedule || ""),
       rating: String(safeProject.rating || ""),
       country: String(safeProject.country || ""),
       source: String(safeProject.source || ""),
-      producers: asArray(safeProject.producers).map((item) => String(item || "")).filter(Boolean),
+      producers: asArray(safeProject.producers)
+        .map((item) => String(item || ""))
+        .filter(Boolean),
       score: Number.isFinite(Number(safeProject.score)) ? Number(safeProject.score) : "",
       startDate: String(safeProject.startDate || ""),
       endDate: String(safeProject.endDate || ""),
@@ -1005,6 +1008,13 @@ export const extractProjectTypeCatalog = ({
   defaultTypes = [],
 } = {}) => {
   const typeRoles = asArray(settings?.typeRoles).map((item) => String(item?.type || "").trim());
-  const legacyMappedTypes = asArray(settings?.typeMappings).map((item) => String(item?.type || "").trim());
-  return uniqueStrings([...typeRoles, ...legacyMappedTypes, ...asArray(existingTypes), ...asArray(defaultTypes)]);
+  const legacyMappedTypes = asArray(settings?.typeMappings).map((item) =>
+    String(item?.type || "").trim(),
+  );
+  return uniqueStrings([
+    ...typeRoles,
+    ...legacyMappedTypes,
+    ...asArray(existingTypes),
+    ...asArray(defaultTypes),
+  ]);
 };

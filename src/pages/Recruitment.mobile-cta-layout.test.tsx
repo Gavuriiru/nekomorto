@@ -24,9 +24,11 @@ vi.mock("@/hooks/use-site-settings", () => ({
   useSiteSettings: () => useSiteSettingsMock(),
 }));
 
-const createSettings = (override: Partial<SiteSettings> = {}) => mergeSettings(defaultSettings, override);
+const createSettings = (override: Partial<SiteSettings> = {}) =>
+  mergeSettings(defaultSettings, override);
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({
@@ -90,4 +92,3 @@ describe("Recruitment mobile CTA layout", () => {
     expect(ctaContentTokens).not.toContain("items-start");
   });
 });
-

@@ -50,8 +50,12 @@ describe("comments bulk moderation helper", () => {
     expect(result.remainingPending).toBe(0);
     expect(result.comments).toHaveLength(3);
     expect(result.comments.filter((comment) => comment.status === "pending")).toHaveLength(0);
-    expect(result.comments.find((comment) => comment.id === "c1")?.approvedAt).toBe("2026-02-26T12:00:00.000Z");
-    expect(result.comments.find((comment) => comment.id === "c2")?.approvedAt).toBe("2026-02-26T10:02:00.000Z");
+    expect(result.comments.find((comment) => comment.id === "c1")?.approvedAt).toBe(
+      "2026-02-26T12:00:00.000Z",
+    );
+    expect(result.comments.find((comment) => comment.id === "c2")?.approvedAt).toBe(
+      "2026-02-26T10:02:00.000Z",
+    );
   });
 
   it("delete_all remove apenas pendentes e exige confirmação", () => {
@@ -83,7 +87,11 @@ describe("comments bulk moderation helper", () => {
     });
 
     const noPending = bulkModeratePendingComments(
-      baseComments.map((comment) => ({ ...comment, status: "approved", approvedAt: comment.approvedAt || "x" })),
+      baseComments.map((comment) => ({
+        ...comment,
+        status: "approved",
+        approvedAt: comment.approvedAt || "x",
+      })),
       { action: "approve_all", nowIso: "2026-02-26T12:00:00.000Z" },
     );
     expect(noPending.ok).toBe(true);
@@ -93,4 +101,3 @@ describe("comments bulk moderation helper", () => {
     expect(noPending.remainingPending).toBe(0);
   });
 });
-

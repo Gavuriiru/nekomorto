@@ -86,7 +86,9 @@ const addUnique = (target, value) => {
 };
 
 export const normalizeAccessRole = (value, fallback = AccessRole.NORMAL) => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (KNOWN_ACCESS_ROLE_SET.has(normalized)) {
     return normalized;
   }
@@ -113,7 +115,9 @@ export const expandLegacyPermissions = (
   let hadLegacyStar = false;
 
   input.forEach((permissionRaw) => {
-    const permission = String(permissionRaw || "").trim().toLowerCase();
+    const permission = String(permissionRaw || "")
+      .trim()
+      .toLowerCase();
     if (!permission) {
       return;
     }
@@ -193,7 +197,9 @@ export const computeGrants = ({
       }).knownPermissions
     : null;
   const basePermissions =
-    explicitPermissions !== null ? explicitPermissions : defaultPermissionsForRole(effectiveAccessRole);
+    explicitPermissions !== null
+      ? explicitPermissions
+      : defaultPermissionsForRole(effectiveAccessRole);
 
   const grants = buildEmptyGrants();
   basePermissions.forEach((permissionId) => {
@@ -213,10 +219,7 @@ export const can = ({ grants, permissionId }) => {
 
 export const sanitizePermissionsForStorage = (
   permissions,
-  {
-    acceptLegacyStar = true,
-    keepUnknown = true,
-  } = {},
+  { acceptLegacyStar = true, keepUnknown = true } = {},
 ) => {
   const expanded = expandLegacyPermissions(permissions, {
     acceptLegacyStar,
@@ -232,7 +235,12 @@ export const removeOwnerRoleLabel = (roles) => {
   if (!Array.isArray(roles)) {
     return [];
   }
-  return roles.filter((role) => String(role || "").trim().toLowerCase() !== "dono");
+  return roles.filter(
+    (role) =>
+      String(role || "")
+        .trim()
+        .toLowerCase() !== "dono",
+  );
 };
 
 export const addOwnerRoleLabel = (roles, isOwner) => {
@@ -269,4 +277,3 @@ export const isTruthyEnv = (value, defaultValue = false) => {
   }
   return defaultValue;
 };
-

@@ -51,7 +51,9 @@ describe("ImageLibraryDialog project image scope", () => {
     });
 
     expect(screen.queryByText("Imagens dos projetos")).not.toBeInTheDocument();
-    expect(screen.queryByText("Imagens de projeto ocultas neste contexto.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Imagens de projeto ocultas neste contexto."),
+    ).not.toBeInTheDocument();
   });
 
   it("nao consulta /api/uploads/project-images por padrao", async () => {

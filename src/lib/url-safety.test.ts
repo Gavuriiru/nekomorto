@@ -14,7 +14,9 @@ describe("frontend url-safety", () => {
 
   it("sanitizeIconSource allows only icon key, https and /uploads", () => {
     expect(sanitizeIconSource("instagram")).toBe("instagram");
-    expect(sanitizeIconSource("https://cdn.exemplo.com/icon.svg")).toBe("https://cdn.exemplo.com/icon.svg");
+    expect(sanitizeIconSource("https://cdn.exemplo.com/icon.svg")).toBe(
+      "https://cdn.exemplo.com/icon.svg",
+    );
     expect(sanitizeIconSource("/uploads/socials/icon.svg")).toBe("/uploads/socials/icon.svg");
     expect(sanitizeIconSource("http://cdn.exemplo.com/icon.svg")).toBeNull();
     expect(sanitizeIconSource("data:image/svg+xml,<svg/>")).toBeNull();

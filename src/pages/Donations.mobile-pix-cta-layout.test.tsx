@@ -17,13 +17,15 @@ vi.mock("qrcode", () => ({
   },
 }));
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const setBootstrapDonationsPage = () => {
   (
-    window as Window & typeof globalThis & {
-      __BOOTSTRAP_PUBLIC__?: unknown;
-    }
+    window as Window &
+      typeof globalThis & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+      }
   ).__BOOTSTRAP_PUBLIC__ = {
     settings: {},
     pages: {
@@ -75,4 +77,3 @@ describe("Donations mobile PIX CTA layout", () => {
     expect(wrapperTokens).toContain("md:justify-center");
   });
 });
-

@@ -80,11 +80,15 @@ export const stampEpisodePublicUpdatedAt = (prevEpisode, nextEpisode, now, proje
 };
 
 export const applyEpisodePublicationMetadata = (prevProject, nextProject, now) => {
-  const prevEpisodes = Array.isArray(prevProject?.episodeDownloads) ? prevProject.episodeDownloads : [];
+  const prevEpisodes = Array.isArray(prevProject?.episodeDownloads)
+    ? prevProject.episodeDownloads
+    : [];
   const prevMap = new Map(
     prevEpisodes.map((episode) => [buildEpisodeKey(episode?.number, episode?.volume), episode]),
   );
-  const nextEpisodes = Array.isArray(nextProject?.episodeDownloads) ? nextProject.episodeDownloads : [];
+  const nextEpisodes = Array.isArray(nextProject?.episodeDownloads)
+    ? nextProject.episodeDownloads
+    : [];
 
   return {
     ...nextProject,
@@ -106,8 +110,12 @@ export const applyEpisodePublicationMetadata = (prevProject, nextProject, now) =
 
 export const collectEpisodeUpdates = (prevProject, nextProject, now) => {
   const updates = [];
-  const nextEpisodes = Array.isArray(nextProject?.episodeDownloads) ? nextProject.episodeDownloads : [];
-  const prevEpisodes = Array.isArray(prevProject?.episodeDownloads) ? prevProject.episodeDownloads : [];
+  const nextEpisodes = Array.isArray(nextProject?.episodeDownloads)
+    ? nextProject.episodeDownloads
+    : [];
+  const prevEpisodes = Array.isArray(prevProject?.episodeDownloads)
+    ? prevProject.episodeDownloads
+    : [];
   const prevMap = new Map(
     prevEpisodes.map((episode) => [buildEpisodeKey(episode?.number, episode?.volume), episode]),
   );

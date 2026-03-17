@@ -13,7 +13,10 @@ const CHECK_FINDING_TITLES = Object.freeze({
 
 const CHECK_ALERT_EQUIVALENCE = Object.freeze({
   database: ["db_unhealthy", "db_latency_high"],
-  data_repository: ["data_repository_persist_queue_backlog", "data_repository_persist_error_recent"],
+  data_repository: [
+    "data_repository_persist_queue_backlog",
+    "data_repository_persist_error_recent",
+  ],
   maintenance_mode: ["maintenance_mode_enabled"],
   session_config: ["session_secret_default_in_production"],
 });
@@ -29,7 +32,9 @@ export const normalizeOperationalAlert = (alert) => {
   if (!code) {
     return null;
   }
-  const severity = String(alert?.severity || "info").trim().toLowerCase();
+  const severity = String(alert?.severity || "info")
+    .trim()
+    .toLowerCase();
   return {
     code,
     severity: VALID_SEVERITIES.has(severity) ? severity : "info",
@@ -81,7 +86,9 @@ const normalizeCheckFinding = (check) => {
   if (!name) {
     return null;
   }
-  const severity = String(check?.status || "").trim().toLowerCase();
+  const severity = String(check?.status || "")
+    .trim()
+    .toLowerCase();
   if (!VALID_CHECK_FINDING_SEVERITIES.has(severity)) {
     return null;
   }
@@ -105,15 +112,13 @@ const normalizeCheckFinding = (check) => {
 };
 
 const sortOperationalCheckFindings = (findings) =>
-  (Array.isArray(findings) ? findings : [])
-    .filter(Boolean)
-    .sort((a, b) => {
-      const severityDiff = severityRank(b.severity) - severityRank(a.severity);
-      if (severityDiff !== 0) {
-        return severityDiff;
-      }
-      return a.name.localeCompare(b.name, "pt-BR");
-    });
+  (Array.isArray(findings) ? findings : []).filter(Boolean).sort((a, b) => {
+    const severityDiff = severityRank(b.severity) - severityRank(a.severity);
+    if (severityDiff !== 0) {
+      return severityDiff;
+    }
+    return a.name.localeCompare(b.name, "pt-BR");
+  });
 
 const summarizeOperationalCheckFindings = (findings) => {
   const normalized = sortOperationalCheckFindings(findings);
@@ -152,11 +157,15 @@ const buildOperationalCheckFindings = ({ checks, alerts } = {}) => {
 
 export const deriveOverallStatusFromChecks = (checks) => {
   const safeChecks = Array.isArray(checks) ? checks : [];
-  const hasCritical = safeChecks.some((check) => String(check?.status || "").toLowerCase() === "critical");
+  const hasCritical = safeChecks.some(
+    (check) => String(check?.status || "").toLowerCase() === "critical",
+  );
   if (hasCritical) {
     return "fail";
   }
-  const hasWarning = safeChecks.some((check) => String(check?.status || "").toLowerCase() === "warning");
+  const hasWarning = safeChecks.some(
+    (check) => String(check?.status || "").toLowerCase() === "warning",
+  );
   if (hasWarning) {
     return "degraded";
   }
@@ -206,7 +215,9 @@ export const buildOperationalAlertsV1 = ({
       description: String(dbCheck?.message || "Falha no ping do banco de dados."),
       since: nowIso,
       meta: {
-        latencyMs: Number.isFinite(Number(dbCheck?.latencyMs)) ? Number(dbCheck.latencyMs) : undefined,
+        latencyMs: Number.isFinite(Number(dbCheck?.latencyMs))
+          ? Number(dbCheck.latencyMs)
+          : undefined,
       },
     });
   } else if (
@@ -253,8 +264,10 @@ export const buildOperationalAlertsV1 = ({
         code: "data_repository_persist_error_recent",
         severity: "critical",
         title: "Erro recente na persistência",
-        description:
-          String(repositoryHealth?.lastPersistErrorMessage || "Falha recente ao persistir dados em background."),
+        description: String(
+          repositoryHealth?.lastPersistErrorMessage ||
+            "Falha recente ao persistir dados em background.",
+        ),
         since: repositoryHealth?.lastPersistErrorAt || nowIso,
         meta: {
           label: repositoryHealth?.lastPersistErrorLabel || null,
@@ -289,11 +302,12 @@ export const buildOperationalAlertsResponse = ({ alerts, checks, generatedAt } =
     : normalizedAlerts.some((item) => item.severity === "warning")
       ? "degraded"
       : "ok";
-  const status = statusFromChecks === "fail" || statusFromAlerts === "fail"
-    ? "fail"
-    : statusFromChecks === "degraded" || statusFromAlerts === "degraded"
-      ? "degraded"
-      : "ok";
+  const status =
+    statusFromChecks === "fail" || statusFromAlerts === "fail"
+      ? "fail"
+      : statusFromChecks === "degraded" || statusFromAlerts === "degraded"
+        ? "degraded"
+        : "ok";
   return {
     ok: status !== "fail",
     status,

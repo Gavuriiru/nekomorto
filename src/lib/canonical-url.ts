@@ -16,4 +16,3 @@ export const getCanonicalPageUrl = (input?: string | URL | Location | null): str
     return "";
   }
 };
-

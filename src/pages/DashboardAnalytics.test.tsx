@@ -122,7 +122,8 @@ const setupApiMock = ({
     return mockJsonResponse(false, { error: "not_found" }, 404);
   });
 };
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 const LocationProbe = () => {
   const location = useLocation();
   return <div data-testid="location-pathname">{location.pathname}</div>;
@@ -180,8 +181,8 @@ describe("DashboardAnalytics", () => {
     await screen.findByText(/S.rie temporal \(Cliques em downloads\)/i);
 
     await waitFor(() => {
-      const timeseriesCall = apiFetchMock.mock.calls.find(
-        (call) => String(call[1]).startsWith("/api/analytics/timeseries?"),
+      const timeseriesCall = apiFetchMock.mock.calls.find((call) =>
+        String(call[1]).startsWith("/api/analytics/timeseries?"),
       );
       expect(timeseriesCall).toBeDefined();
       expect(String(timeseriesCall?.[1])).toContain("metric=download_clicks");
@@ -289,7 +290,9 @@ describe("DashboardAnalytics", () => {
     renderPage();
 
     const rankingHeading = await screen.findByRole("heading", { name: "Ranking" });
-    const rankingCard = rankingHeading.closest(".rounded-xl, .rounded-2xl, .rounded-3xl") ?? rankingHeading.parentElement?.parentElement;
+    const rankingCard =
+      rankingHeading.closest(".rounded-xl, .rounded-2xl, .rounded-3xl") ??
+      rankingHeading.parentElement?.parentElement;
     expect(rankingCard).not.toBeNull();
 
     const table = within(rankingCard as HTMLElement).getByRole("table");

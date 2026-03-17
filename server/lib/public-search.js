@@ -14,7 +14,10 @@ const normalizeSearchText = (value) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const tokenize = (value) => normalizeSearchText(value).split(/[^a-z0-9]+/g).filter(Boolean);
+const tokenize = (value) =>
+  normalizeSearchText(value)
+    .split(/[^a-z0-9]+/g)
+    .filter(Boolean);
 
 const wordsFromField = (value) => tokenize(value);
 
@@ -62,13 +65,7 @@ const scoreTokenInField = (
   token,
   normalizedField,
   fieldWords,
-  {
-    startsWith = 0,
-    wordStartsWith = 0,
-    includes = 0,
-    typoDistance = 2,
-    typo = 0,
-  },
+  { startsWith = 0, wordStartsWith = 0, includes = 0, typoDistance = 2, typo = 0 },
 ) => {
   if (!token || !normalizedField) {
     return 0;
@@ -108,7 +105,12 @@ const scoreCandidate = (tokens, fieldGroups) => {
   for (const token of tokens) {
     let bestForToken = 0;
     fieldGroups.forEach((group) => {
-      const next = scoreTokenInField(token, group.field.normalized, group.field.words, group.weights);
+      const next = scoreTokenInField(
+        token,
+        group.field.normalized,
+        group.field.words,
+        group.weights,
+      );
       if (next > bestForToken) {
         bestForToken = next;
       }
@@ -138,7 +140,10 @@ const titleLengthBoost = (title) => {
 };
 
 const toProjectSuggestion = (project, score) => {
-  const metaParts = [String(project?.type || "").trim(), String(project?.status || "").trim()].filter(Boolean);
+  const metaParts = [
+    String(project?.type || "").trim(),
+    String(project?.status || "").trim(),
+  ].filter(Boolean);
   return {
     kind: "project",
     id: String(project?.id || ""),
@@ -189,7 +194,10 @@ const compareByRank = (a, b) => {
   return PT_BR_COLLATOR.compare(a.label, b.label);
 };
 
-const clampQuery = (value) => String(value || "").trim().slice(0, MAX_QUERY_LENGTH);
+const clampQuery = (value) =>
+  String(value || "")
+    .trim()
+    .slice(0, MAX_QUERY_LENGTH);
 
 export const parseSearchScope = (value) => {
   const normalized = String(value || "all")
@@ -219,11 +227,7 @@ const rankProjectSuggestions = (projects, tokens) => {
   const ranked = [];
   projects.forEach((project) => {
     const titleField = prepareField(project?.title || "");
-    const tagsField = prepareField(
-      Array.isArray(project?.tags)
-        ? project.tags.join(" ")
-        : "",
-    );
+    const tagsField = prepareField(Array.isArray(project?.tags) ? project.tags.join(" ") : "");
     const metadataField = prepareField(
       [
         project?.type,

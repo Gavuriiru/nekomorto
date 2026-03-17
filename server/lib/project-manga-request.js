@@ -88,7 +88,9 @@ export const resolveProjectImageImportRequestInput = (req) => {
     targetVolume: req.body?.targetVolume,
     targetChapterNumber: req.body?.targetChapterNumber,
     defaultStatus:
-      String(req.body?.defaultStatus || "").trim().toLowerCase() === "published"
+      String(req.body?.defaultStatus || "")
+        .trim()
+        .toLowerCase() === "published"
         ? "published"
         : "draft",
   };

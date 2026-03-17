@@ -43,14 +43,22 @@ const normalizeOptionalVolume = (value, fallbackValue) => {
 };
 
 const normalizePublicationStatus = (value, fallbackValue) =>
-  String(value || "").trim().toLowerCase() === "draft"
+  String(value || "")
+    .trim()
+    .toLowerCase() === "draft"
     ? "draft"
-    : String(value || "").trim().toLowerCase() === "published"
+    : String(value || "")
+          .trim()
+          .toLowerCase() === "published"
       ? "published"
       : fallbackValue;
 
 const normalizeEntryKind = (value, fallbackValue) =>
-  String(value || "").trim().toLowerCase() === "extra" ? "extra" : fallbackValue || "main";
+  String(value || "")
+    .trim()
+    .toLowerCase() === "extra"
+    ? "extra"
+    : fallbackValue || "main";
 
 const normalizeSourceType = (value, fallbackValue) => {
   if (value === "TV" || value === "Web" || value === "Blu-ray") {
@@ -76,11 +84,7 @@ const normalizeCompletedStages = (value, fallbackValue) => {
     return Array.isArray(fallbackValue) ? fallbackValue : [];
   }
   return Array.from(
-    new Set(
-      value
-        .map((item) => normalizeOptionalTrimmedString(item))
-        .filter(Boolean),
-    ),
+    new Set(value.map((item) => normalizeOptionalTrimmedString(item)).filter(Boolean)),
   );
 };
 
@@ -91,12 +95,7 @@ const normalizePages = (value, fallbackValue) => {
   return normalizeProjectEpisodePages(value);
 };
 
-export const applyProjectChapterUpdate = ({
-  project,
-  targetNumber,
-  targetVolume,
-  chapter,
-}) => {
+export const applyProjectChapterUpdate = ({ project, targetNumber, targetVolume, chapter }) => {
   const lookup = resolveEpisodeLookup(project, targetNumber, targetVolume);
   if (!lookup.ok) {
     return lookup;
@@ -110,7 +109,10 @@ export const applyProjectChapterUpdate = ({
   const nextPages = normalizePages(nextChapterInput.pages, currentChapter.pages);
   const nextContentFormat = normalizeProjectEpisodeContentFormat(
     nextChapterInput.contentFormat,
-    normalizeProjectEpisodeContentFormat(currentChapter.contentFormat, nextPages.length > 0 ? "images" : "lexical"),
+    normalizeProjectEpisodeContentFormat(
+      currentChapter.contentFormat,
+      nextPages.length > 0 ? "images" : "lexical",
+    ),
   );
   const nextPageCount = hasOwn(nextChapterInput, "pageCount")
     ? Math.max(0, normalizeOptionalNumber(nextChapterInput.pageCount) ?? nextPages.length)
@@ -186,7 +188,9 @@ export const applyProjectChapterUpdate = ({
     ),
   };
 
-  const nextEpisodes = [...(Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : [])];
+  const nextEpisodes = [
+    ...(Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : []),
+  ];
   nextEpisodes[lookup.index] = nextChapter;
 
   return {

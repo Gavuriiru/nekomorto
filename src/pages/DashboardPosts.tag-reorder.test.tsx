@@ -17,13 +17,7 @@ vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
 }));
 
 vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({
-    title,
-    actions,
-  }: {
-    title: string;
-    actions?: ReactNode;
-  }) => (
+  default: ({ title, actions }: { title: string; actions?: ReactNode }) => (
     <div>
       <h1>{title}</h1>
       {actions}
@@ -41,10 +35,12 @@ vi.mock("@/components/ProjectEmbedCard", () => ({
 
 vi.mock("@/components/lexical/LexicalEditor", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
-  const MockEditor = React.forwardRef((_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
-    React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
-    return <div data-testid="lexical-editor" />;
-  });
+  const MockEditor = React.forwardRef(
+    (_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
+      React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
+      return <div data-testid="lexical-editor" />;
+    },
+  );
   MockEditor.displayName = "MockLexicalEditor";
   return { default: MockEditor };
 });
@@ -150,8 +146,12 @@ describe("DashboardPosts tag reorder", () => {
     renderSubject();
 
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).queryByRole("button", { name: /Mover .* para cima/i })).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole("button", { name: /Mover .* para baixo/i })).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("button", { name: /Mover .* para cima/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("button", { name: /Mover .* para baixo/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("reordena tags com Alt+seta e anuncia a nova posicao", async () => {
@@ -170,7 +170,9 @@ describe("DashboardPosts tag reorder", () => {
       expect(getTagOrder(dialog)).toEqual(["YURI", "ISEKAI", "MEDIEVAL"]);
     });
     await waitFor(() => {
-      expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(/ISEKAI movida para a posição 2/i);
+      expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(
+        /ISEKAI movida para a posição 2/i,
+      );
     });
   });
 

@@ -17,10 +17,9 @@ describe("useEditorScrollStability", () => {
   });
 
   it("adiciona e remove classes ao alternar enabled", () => {
-    const { rerender } = renderHook(
-      ({ enabled }) => useEditorScrollStability(enabled),
-      { initialProps: { enabled: false } },
-    );
+    const { rerender } = renderHook(({ enabled }) => useEditorScrollStability(enabled), {
+      initialProps: { enabled: false },
+    });
 
     expect(document.documentElement).not.toHaveClass(EDITOR_SCROLL_STABLE_CLASS);
     expect(document.body).not.toHaveClass(EDITOR_SCROLL_STABLE_CLASS);

@@ -10,7 +10,9 @@ import { useDashboardSession } from "@/hooks/use-dashboard-session";
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-const toDashboardPreferences = (preferences: Record<string, unknown>): DashboardPreferencesShape => {
+const toDashboardPreferences = (
+  preferences: Record<string, unknown>,
+): DashboardPreferencesShape => {
   const dashboard = isRecord(preferences.dashboard) ? preferences.dashboard : {};
   return {
     homeByRole: isRecord(dashboard.homeByRole) ? dashboard.homeByRole : {},
@@ -182,10 +184,7 @@ export const DashboardPreferencesProvider = ({ children }: { children: ReactNode
     [persistPreferences],
   );
 
-  const dashboardPreferences = useMemo(
-    () => toDashboardPreferences(preferences),
-    [preferences],
-  );
+  const dashboardPreferences = useMemo(() => toDashboardPreferences(preferences), [preferences]);
 
   const value = useMemo(
     () => ({
@@ -198,7 +197,15 @@ export const DashboardPreferencesProvider = ({ children }: { children: ReactNode
       updatePreferences: persistPreferences,
       patchDashboardPreferences,
     }),
-    [dashboardPreferences, hasResolved, isLoading, patchDashboardPreferences, persistPreferences, preferences, refresh],
+    [
+      dashboardPreferences,
+      hasResolved,
+      isLoading,
+      patchDashboardPreferences,
+      persistPreferences,
+      preferences,
+      refresh,
+    ],
   );
 
   return (

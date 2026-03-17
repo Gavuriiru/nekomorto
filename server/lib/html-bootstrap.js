@@ -25,10 +25,7 @@ const injectSnippet = (html, marker, snippet, fallbackPattern = "</head>") => {
 };
 
 const readHtmlAttributeValue = (tag, attributeName) => {
-  const pattern = new RegExp(
-    `${attributeName}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`,
-    "i",
-  );
+  const pattern = new RegExp(`${attributeName}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i");
   const match = String(tag || "").match(pattern);
   if (!match) {
     return "";
@@ -56,10 +53,7 @@ export const extractLocalStylesheetHrefs = (html) => {
   const seen = new Set();
 
   tags.forEach((tag) => {
-    const rel = readHtmlAttributeValue(tag, "rel")
-      .toLowerCase()
-      .split(/\s+/)
-      .filter(Boolean);
+    const rel = readHtmlAttributeValue(tag, "rel").toLowerCase().split(/\s+/).filter(Boolean);
     if (!rel.includes("stylesheet")) {
       return;
     }
@@ -108,7 +102,7 @@ const buildInlineBootstrapInitScript = () =>
     "    return '#' + raw.toLowerCase();",
     "  };",
     "  var applyThemeColor = function (accentHex) {",
-    '    var meta = document.querySelector(\'meta[name="theme-color"]\');',
+    "    var meta = document.querySelector('meta[name=\"theme-color\"]');",
     "    if (!meta) return;",
     "    meta.setAttribute('content', normalizeThemeColor(accentHex));",
     "  };",
@@ -242,31 +236,31 @@ export const injectPreloadLinks = ({ html, preloads = [] }) => {
     });
 
   const tags = uniquePreloads.map((entry) => {
-      const parts = [
-        '  <link rel="preload"',
-        `href="${escapeHtmlAttribute(entry.href)}"`,
-        `as="${escapeHtmlAttribute(entry.as || "fetch")}"`,
-      ];
-      if (entry.crossorigin) {
-        parts.push(`crossorigin="${escapeHtmlAttribute(entry.crossorigin)}"`);
-      }
-      if (entry.type) {
-        parts.push(`type="${escapeHtmlAttribute(entry.type)}"`);
-      }
-      if (entry.imagesrcset) {
-        parts.push(`imagesrcset="${escapeHtmlAttribute(entry.imagesrcset)}"`);
-      }
-      if (entry.imagesizes) {
-        parts.push(`imagesizes="${escapeHtmlAttribute(entry.imagesizes)}"`);
-      }
-      if (entry.fetchpriority) {
-        parts.push(`fetchpriority="${escapeHtmlAttribute(entry.fetchpriority)}"`);
-      }
-      if (entry.media) {
-        parts.push(`media="${escapeHtmlAttribute(entry.media)}"`);
-      }
-      return `${parts.join(" ")} />`;
-    });
+    const parts = [
+      '  <link rel="preload"',
+      `href="${escapeHtmlAttribute(entry.href)}"`,
+      `as="${escapeHtmlAttribute(entry.as || "fetch")}"`,
+    ];
+    if (entry.crossorigin) {
+      parts.push(`crossorigin="${escapeHtmlAttribute(entry.crossorigin)}"`);
+    }
+    if (entry.type) {
+      parts.push(`type="${escapeHtmlAttribute(entry.type)}"`);
+    }
+    if (entry.imagesrcset) {
+      parts.push(`imagesrcset="${escapeHtmlAttribute(entry.imagesrcset)}"`);
+    }
+    if (entry.imagesizes) {
+      parts.push(`imagesizes="${escapeHtmlAttribute(entry.imagesizes)}"`);
+    }
+    if (entry.fetchpriority) {
+      parts.push(`fetchpriority="${escapeHtmlAttribute(entry.fetchpriority)}"`);
+    }
+    if (entry.media) {
+      parts.push(`media="${escapeHtmlAttribute(entry.media)}"`);
+    }
+    return `${parts.join(" ")} />`;
+  });
   if (tags.length === 0) {
     return String(html || "");
   }

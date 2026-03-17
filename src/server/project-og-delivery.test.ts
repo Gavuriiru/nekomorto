@@ -76,7 +76,13 @@ describe("project og delivery", () => {
     resolveOgPublicImageEncodingConfigMock.mockReturnValue(imageEncodingConfigFixture);
 
     buildProjectOgCardModelMock.mockImplementation(
-      ({ project, settings }: { project?: Record<string, unknown>; settings?: Record<string, unknown> }) => ({
+      ({
+        project,
+        settings,
+      }: {
+        project?: Record<string, unknown>;
+        settings?: Record<string, unknown>;
+      }) => ({
         eyebrow: `${String(project?.type || "")} • ${String(project?.status || "")}`,
         title: String(project?.title || "Projeto"),
         subtitle: String(project?.studio || ""),
@@ -110,7 +116,8 @@ describe("project og delivery", () => {
       async ({ artworkUrl }: { artworkUrl?: string }) => `data:artwork:${String(artworkUrl || "")}`,
     );
     loadProjectOgProcessedBackdropDataUrlMock.mockImplementation(
-      async ({ artworkUrl }: { artworkUrl?: string }) => `data:backdrop:${String(artworkUrl || "")}`,
+      async ({ artworkUrl }: { artworkUrl?: string }) =>
+        `data:backdrop:${String(artworkUrl || "")}`,
     );
     buildProjectOgImageResponseMock.mockImplementation(
       ({

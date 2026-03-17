@@ -58,4 +58,3 @@ export const diffOperationalAlertSets = ({ previousAlerts = [], currentAlerts = 
     hasChanges: triggered.length > 0 || changed.length > 0 || resolved.length > 0,
   };
 };
-

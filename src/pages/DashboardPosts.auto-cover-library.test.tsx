@@ -19,13 +19,7 @@ vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
 }));
 
 vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({
-    title,
-    actions,
-  }: {
-    title: string;
-    actions?: ReactNode;
-  }) => (
+  default: ({ title, actions }: { title: string; actions?: ReactNode }) => (
     <div>
       <h1>{title}</h1>
       {actions}
@@ -77,10 +71,12 @@ vi.mock("@/components/ProjectEmbedCard", () => ({
 
 vi.mock("@/components/lexical/LexicalEditor", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
-  const MockEditor = React.forwardRef((_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
-    React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
-    return <div data-testid="lexical-editor" />;
-  });
+  const MockEditor = React.forwardRef(
+    (_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
+      React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
+      return <div data-testid="lexical-editor" />;
+    },
+  );
   MockEditor.displayName = "MockLexicalEditor";
   return { default: MockEditor };
 });
@@ -188,7 +184,9 @@ describe("DashboardPosts biblioteca com capa automatica", () => {
     expect(within(dialog).getByText(/Autom.+tica$/i)).toBeInTheDocument();
 
     await waitFor(() => {
-      const latest = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as { currentSelectionUrls?: string[] } | undefined;
+      const latest = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as
+        | { currentSelectionUrls?: string[] }
+        | undefined;
       expect(latest?.currentSelectionUrls).toEqual(["/uploads/primeira-capa.png"]);
     });
 
@@ -201,6 +199,8 @@ describe("DashboardPosts biblioteca com capa automatica", () => {
     });
 
     const sidebarImage = within(dialog).getByAltText(/Primeira autom/i);
-    expect(sidebarImage.getAttribute("src") || "").toContain("/uploads/_variants/post-1/card-v1.jpeg");
+    expect(sidebarImage.getAttribute("src") || "").toContain(
+      "/uploads/_variants/post-1/card-v1.jpeg",
+    );
   });
 });

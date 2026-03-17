@@ -393,13 +393,7 @@ const reorder = <T,>(items: T[], from: number, to: number) => {
   return next;
 };
 
-const IconSelect = ({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (next: string) => void;
-}) => {
+const IconSelect = ({ value, onChange }: { value: string; onChange: (next: string) => void }) => {
   const CurrentIcon = editorIconMap[value] || Sparkles;
   return (
     <Select value={value} onValueChange={onChange}>
@@ -553,9 +547,7 @@ const DashboardPages = () => {
       }
       const data = await response.json().catch(() => null);
       const normalizedPages = normalizePagesShareImages(
-        mergePagesConfig(
-          (data?.pages as Partial<PagesConfig> | undefined) || normalizedNextPages,
-        ),
+        mergePagesConfig((data?.pages as Partial<PagesConfig> | undefined) || normalizedNextPages),
       );
       setPages(normalizedPages);
       writeDashboardPagesCache(normalizedPages);
@@ -643,23 +635,22 @@ const DashboardPages = () => {
       },
     }));
   }, []);
-  const applyPageShareImage = useCallback((
-    pageKey: ShareImagePageKey,
-    shareImage: string,
-    altText?: string,
-  ) => {
-    const normalizedShareImage = String(shareImage || "").trim();
-    setPages((prev) => ({
-      ...prev,
-      [pageKey]: {
-        ...prev[pageKey],
-        shareImage: normalizedShareImage,
-        shareImageAlt: normalizedShareImage
-          ? resolveAssetAltText(altText, getShareImageAltFallback(pageKey))
-          : "",
-      },
-    }));
-  }, []);
+  const applyPageShareImage = useCallback(
+    (pageKey: ShareImagePageKey, shareImage: string, altText?: string) => {
+      const normalizedShareImage = String(shareImage || "").trim();
+      setPages((prev) => ({
+        ...prev,
+        [pageKey]: {
+          ...prev[pageKey],
+          shareImage: normalizedShareImage,
+          shareImageAlt: normalizedShareImage
+            ? resolveAssetAltText(altText, getShareImageAltFallback(pageKey))
+            : "",
+        },
+      }));
+    },
+    [],
+  );
   const openPreviewLibrary = useCallback((pageKey: ShareImagePageKey) => {
     setPreviewLibraryTarget(pageKey);
     setIsPreviewLibraryOpen(true);
@@ -788,9 +779,7 @@ const DashboardPages = () => {
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <DashboardPageBadge>
-                Páginas
-              </DashboardPageBadge>
+              <DashboardPageBadge>Páginas</DashboardPageBadge>
               <h1 className="mt-4 text-3xl font-semibold lg:text-4xl animate-slide-up">
                 Gerenciar páginas
               </h1>
@@ -807,29 +796,29 @@ const DashboardPages = () => {
               data-testid="dashboard-pages-autosave-reveal"
             >
               <DashboardAutosaveStatus
-              title="Autosave das páginas"
-              status={pagesAutosave.status}
-              enabled={pagesAutosave.enabled}
-              onEnabledChange={(nextEnabled) => {
-                if (!autosaveRuntimeConfig.enabledByDefault) {
-                  return;
+                title="Autosave das páginas"
+                status={pagesAutosave.status}
+                enabled={pagesAutosave.enabled}
+                onEnabledChange={(nextEnabled) => {
+                  if (!autosaveRuntimeConfig.enabledByDefault) {
+                    return;
+                  }
+                  pagesAutosave.setEnabled(nextEnabled);
+                }}
+                toggleDisabled={!autosaveRuntimeConfig.enabledByDefault}
+                lastSavedAt={pagesAutosave.lastSavedAt}
+                errorMessage={
+                  pagesAutosave.status === "error"
+                    ? "As alterações continuam pendentes até um novo salvamento."
+                    : null
                 }
-                pagesAutosave.setEnabled(nextEnabled);
-              }}
-              toggleDisabled={!autosaveRuntimeConfig.enabledByDefault}
-              lastSavedAt={pagesAutosave.lastSavedAt}
-              errorMessage={
-                pagesAutosave.status === "error"
-                  ? "As alterações continuam pendentes até um novo salvamento."
-                  : null
-              }
-              onManualSave={() => {
-                void handleSave();
-              }}
-              manualActionLabel={
-                pagesAutosave.status === "saving" ? "Salvando..." : "Salvar alterações"
-              }
-              manualActionDisabled={pagesAutosave.status === "saving"}
+                onManualSave={() => {
+                  void handleSave();
+                }}
+                manualActionLabel={
+                  pagesAutosave.status === "saving" ? "Salvando..." : "Salvar alterações"
+                }
+                manualActionDisabled={pagesAutosave.status === "saving"}
               />
             </div>
           </div>
@@ -885,7 +874,10 @@ const DashboardPages = () => {
                   </Alert>
                 ) : null}
                 {isInitialLoading ? (
-                  <Card className="mt-6 border-border/60 bg-card/80" data-testid="dashboard-pages-skeleton-surface">
+                  <Card
+                    className="mt-6 border-border/60 bg-card/80"
+                    data-testid="dashboard-pages-skeleton-surface"
+                  >
                     <CardContent className="space-y-6 p-6">
                       <div className="space-y-2">
                         <Skeleton className="h-6 w-48" />
@@ -908,1027 +900,196 @@ const DashboardPages = () => {
                   </Card>
                 ) : (
                   <>
-            <TabsContent value="preview" className="mt-6 space-y-6">
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-6 p-6">
-                  <div>
-                    <h2 className="text-lg font-semibold">Prévias de compartilhamento</h2>
-                    <p className="text-xs text-muted-foreground">
-                      Defina a imagem OG de cada página para links compartilhados.
-                    </p>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {shareImagePageKeys.map((pageKey) => {
-                      const shareImage = readPageShareImage(pageKey);
-                      return (
-                        <div
-                          key={pageKey}
-                          className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3"
-                        >
-                          <div className="space-y-1">
-                            <p className="text-sm font-semibold">{shareImagePageLabels[pageKey]}</p>
+                    <TabsContent value="preview" className="mt-6 space-y-6">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-6 p-6">
+                          <div>
+                            <h2 className="text-lg font-semibold">Prévias de compartilhamento</h2>
                             <p className="text-xs text-muted-foreground">
-                              Imagem exibida no card social ao compartilhar essa URL.
+                              Defina a imagem OG de cada página para links compartilhados.
                             </p>
                           </div>
 
-                          {shareImage ? (
-                            <div className="space-y-2">
-                              <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
-                                <img
-                                  src={normalizeAssetUrl(shareImage)}
-                                  alt={`Prévia de ${shareImagePageLabels[pageKey]}`}
-                                  className="aspect-3/2 w-full object-cover"
-                                  loading="lazy"
-                                />
-                              </div>
-                              <p className="text-xs text-muted-foreground break-all">
-                                {shareImage}
-                              </p>
-                            </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">
-                              Sem imagem de preview definida.
-                            </p>
-                          )}
+                          <div className="grid gap-4 md:grid-cols-2">
+                            {shareImagePageKeys.map((pageKey) => {
+                              const shareImage = readPageShareImage(pageKey);
+                              return (
+                                <div
+                                  key={pageKey}
+                                  className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3"
+                                >
+                                  <div className="space-y-1">
+                                    <p className="text-sm font-semibold">
+                                      {shareImagePageLabels[pageKey]}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Imagem exibida no card social ao compartilhar essa URL.
+                                    </p>
+                                  </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor={`page-preview-${pageKey}`}>URL da imagem</Label>
+                                  {shareImage ? (
+                                    <div className="space-y-2">
+                                      <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
+                                        <img
+                                          src={normalizeAssetUrl(shareImage)}
+                                          alt={`Prévia de ${shareImagePageLabels[pageKey]}`}
+                                          className="aspect-3/2 w-full object-cover"
+                                          loading="lazy"
+                                        />
+                                      </div>
+                                      <p className="text-xs text-muted-foreground break-all">
+                                        {shareImage}
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground">
+                                      Sem imagem de preview definida.
+                                    </p>
+                                  )}
+
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`page-preview-${pageKey}`}>URL da imagem</Label>
+                                    <Input
+                                      id={`page-preview-${pageKey}`}
+                                      value={shareImage}
+                                      placeholder="/uploads/shared/og-pagina.jpg"
+                                      onChange={(event) =>
+                                        updatePageShareImage(
+                                          pageKey,
+                                          String(event.target.value || "").trim(),
+                                        )
+                                      }
+                                    />
+                                  </div>
+
+                                  <div className="flex flex-wrap gap-2">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => openPreviewLibrary(pageKey)}
+                                    >
+                                      Biblioteca
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      disabled={!shareImage}
+                                      onClick={() => {
+                                        applyPageShareImage(pageKey, "");
+                                      }}
+                                    >
+                                      Limpar
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    <TabsContent value="about" className="mt-6 space-y-6">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                          <div className="grid gap-2">
+                            <Label>Badge</Label>
                             <Input
-                              id={`page-preview-${pageKey}`}
-                              value={shareImage}
-                              placeholder="/uploads/shared/og-pagina.jpg"
-                              onChange={(event) =>
-                                updatePageShareImage(
-                                  pageKey,
-                                  String(event.target.value || "").trim(),
-                                )
-                              }
+                              value={pages.about.heroBadge}
+                              onChange={(e) => updateAbout({ heroBadge: e.target.value })}
                             />
                           </div>
-
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openPreviewLibrary(pageKey)}
-                            >
-                              Biblioteca
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              disabled={!shareImage}
-                              onClick={() => {
-                                applyPageShareImage(pageKey, "");
-                              }}
-                            >
-                              Limpar
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="about" className="mt-6 space-y-6">
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label>Badge</Label>
-                    <Input
-                      value={pages.about.heroBadge}
-                      onChange={(e) => updateAbout({ heroBadge: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Título</Label>
-                    <Input
-                      value={pages.about.heroTitle}
-                      onChange={(e) => updateAbout({ heroTitle: e.target.value })}
-                    />
-                  </div>
-                  <div className="md:col-span-2 grid gap-2">
-                    <Label>Subtítulo</Label>
-                    <Textarea
-                      value={pages.about.heroSubtitle}
-                      onChange={(e) => updateAbout({ heroSubtitle: e.target.value })}
-                    />
-                  </div>
-                  <div className="md:col-span-2 space-y-2">
-                    <Label>Badges do topo</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {pages.about.heroBadges.map((badge, index) => (
-                        <div key={`${badge}-${index}`} className="flex items-center gap-2">
-                          <Input
-                            value={badge}
-                            onChange={(e) => {
-                              const next = [...pages.about.heroBadges];
-                              next[index] = e.target.value;
-                              updateAbout({ heroBadges: next });
-                            }}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              const next = pages.about.heroBadges.filter((_, i) => i !== index);
-                              updateAbout({ heroBadges: next });
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          updateAbout({ heroBadges: [...pages.about.heroBadges, "Nova badge"] })
-                        }
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Adicionar badge
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-4 p-6">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                      Destaques
-                    </h2>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        updateAbout({
-                          highlights: [
-                            ...pages.about.highlights,
-                            { label: "Novo destaque", text: "", icon: "Sparkles" },
-                          ],
-                        })
-                      }
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Adicionar
-                    </Button>
-                  </div>
-                  <div className="grid gap-4">
-                    {pages.about.highlights.map((item, index) => (
-                      <div
-                        key={`${item.label}-${index}`}
-                        draggable
-                        onDragStart={() => handleDragStart("about.highlights", index)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => handleDrop("about.highlights", index)}
-                        className="rounded-xl border border-border/60 bg-background/60 p-4"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <GripVertical className="h-4 w-4" />
-                            Arraste para reordenar
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <ReorderControls
-                              label={`destaque ${index + 1}`}
-                              index={index}
-                              total={pages.about.highlights.length}
-                              onMove={(targetIndex) =>
-                                moveListItem("about.highlights", index, targetIndex)
-                              }
-                            />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                updateAbout({
-                                  highlights: pages.about.highlights.filter((_, i) => i !== index),
-                                })
-                              }
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="mt-3 grid gap-2">
-                          <Input
-                            value={item.label}
-                            onChange={(e) => {
-                              const next = [...pages.about.highlights];
-                              next[index] = { ...item, label: e.target.value };
-                              updateAbout({ highlights: next });
-                            }}
-                          />
-                          <Textarea
-                            value={item.text}
-                            onChange={(e) => {
-                              const next = [...pages.about.highlights];
-                              next[index] = { ...item, text: e.target.value };
-                              updateAbout({ highlights: next });
-                            }}
-                          />
                           <div className="grid gap-2">
-                            <Label>Ícone</Label>
-                            <IconSelect
-                              value={item.icon || "Sparkles"}
-                              onChange={(nextIcon) => {
-                                const next = [...pages.about.highlights];
-                                next[index] = { ...item, icon: nextIcon };
-                                updateAbout({ highlights: next });
-                              }}
+                            <Label>Título</Label>
+                            <Input
+                              value={pages.about.heroTitle}
+                              onChange={(e) => updateAbout({ heroTitle: e.target.value })}
                             />
                           </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-4 p-6">
-                  <div className="grid gap-2">
-                    <Label>Título do manifesto</Label>
-                    <Input
-                      value={pages.about.manifestoTitle}
-                      onChange={(e) => updateAbout({ manifestoTitle: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Ícone do manifesto</Label>
-                    <IconSelect
-                      value={pages.about.manifestoIcon || "Flame"}
-                      onChange={(nextIcon) => updateAbout({ manifestoIcon: nextIcon })}
-                    />
-                  </div>
-                  <div className="grid gap-3">
-                    {pages.about.manifestoParagraphs.map((paragraph, index) => (
-                      <div key={`${paragraph}-${index}`} className="flex gap-2">
-                        <Textarea
-                          value={paragraph}
-                          onChange={(e) => {
-                            const next = [...pages.about.manifestoParagraphs];
-                            next[index] = e.target.value;
-                            updateAbout({ manifestoParagraphs: next });
-                          }}
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            const next = pages.about.manifestoParagraphs.filter(
-                              (_, i) => i !== index,
-                            );
-                            updateAbout({ manifestoParagraphs: next });
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        updateAbout({
-                          manifestoParagraphs: [...pages.about.manifestoParagraphs, ""],
-                        })
-                      }
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Adicionar parágrafo
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-4 p-6">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                      Pilares
-                    </h2>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        updateAbout({
-                          pillars: [
-                            ...pages.about.pillars,
-                            { title: "Novo pilar", description: "", icon: "Sparkles" },
-                          ],
-                        })
-                      }
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Adicionar
-                    </Button>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {pages.about.pillars.map((item, index) => (
-                      <div
-                        key={`${item.title}-${index}`}
-                        draggable
-                        onDragStart={() => handleDragStart("about.pillars", index)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => handleDrop("about.pillars", index)}
-                        className="rounded-xl border border-border/60 bg-background/60 p-4"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <GripVertical className="h-4 w-4" />
-                            Arraste para reordenar
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <ReorderControls
-                              label={`pilar ${index + 1}`}
-                              index={index}
-                              total={pages.about.pillars.length}
-                              onMove={(targetIndex) =>
-                                moveListItem("about.pillars", index, targetIndex)
-                              }
-                            />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                updateAbout({
-                                  pillars: pages.about.pillars.filter((_, i) => i !== index),
-                                })
-                              }
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="mt-3 grid gap-2">
-                          <Input
-                            value={item.title}
-                            onChange={(e) => {
-                              const next = [...pages.about.pillars];
-                              next[index] = { ...item, title: e.target.value };
-                              updateAbout({ pillars: next });
-                            }}
-                          />
-                          <Textarea
-                            value={item.description}
-                            onChange={(e) => {
-                              const next = [...pages.about.pillars];
-                              next[index] = { ...item, description: e.target.value };
-                              updateAbout({ pillars: next });
-                            }}
-                          />
-                          <div className="grid gap-2">
-                            <Label>Ícone</Label>
-                            <IconSelect
-                              value={item.icon}
-                              onChange={(nextIcon) => {
-                                const next = [...pages.about.pillars];
-                                next[index] = { ...item, icon: nextIcon };
-                                updateAbout({ pillars: next });
-                              }}
+                          <div className="md:col-span-2 grid gap-2">
+                            <Label>Subtítulo</Label>
+                            <Textarea
+                              value={pages.about.heroSubtitle}
+                              onChange={(e) => updateAbout({ heroSubtitle: e.target.value })}
                             />
                           </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                          <div className="md:col-span-2 space-y-2">
+                            <Label>Badges do topo</Label>
+                            <div className="flex flex-wrap gap-2">
+                              {pages.about.heroBadges.map((badge, index) => (
+                                <div key={`${badge}-${index}`} className="flex items-center gap-2">
+                                  <Input
+                                    value={badge}
+                                    onChange={(e) => {
+                                      const next = [...pages.about.heroBadges];
+                                      next[index] = e.target.value;
+                                      updateAbout({ heroBadges: next });
+                                    }}
+                                  />
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      const next = pages.about.heroBadges.filter(
+                                        (_, i) => i !== index,
+                                      );
+                                      updateAbout({ heroBadges: next });
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  updateAbout({
+                                    heroBadges: [...pages.about.heroBadges, "Nova badge"],
+                                  })
+                                }
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Adicionar badge
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
 
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-4 p-6">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                      Valores
-                    </h2>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        updateAbout({
-                          values: [
-                            ...pages.about.values,
-                            { title: "Novo valor", description: "", icon: "Heart" },
-                          ],
-                        })
-                      }
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Adicionar
-                    </Button>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {pages.about.values.map((item, index) => (
-                      <div
-                        key={`${item.title}-${index}`}
-                        draggable
-                        onDragStart={() => handleDragStart("about.values", index)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => handleDrop("about.values", index)}
-                        className="rounded-xl border border-border/60 bg-background/60 p-4"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <GripVertical className="h-4 w-4" />
-                            Arraste para reordenar
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <ReorderControls
-                              label={`valor ${index + 1}`}
-                              index={index}
-                              total={pages.about.values.length}
-                              onMove={(targetIndex) =>
-                                moveListItem("about.values", index, targetIndex)
-                              }
-                            />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                updateAbout({
-                                  values: pages.about.values.filter((_, i) => i !== index),
-                                })
-                              }
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="mt-3 grid gap-2">
-                          <Input
-                            value={item.title}
-                            onChange={(e) => {
-                              const next = [...pages.about.values];
-                              next[index] = { ...item, title: e.target.value };
-                              updateAbout({ values: next });
-                            }}
-                          />
-                          <Textarea
-                            value={item.description}
-                            onChange={(e) => {
-                              const next = [...pages.about.values];
-                              next[index] = { ...item, description: e.target.value };
-                              updateAbout({ values: next });
-                            }}
-                          />
-                          <div className="grid gap-2">
-                            <Label>Ícone</Label>
-                            <IconSelect
-                              value={item.icon}
-                              onChange={(nextIcon) => {
-                                const next = [...pages.about.values];
-                                next[index] = { ...item, icon: nextIcon };
-                                updateAbout({ values: next });
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="donations" className="mt-6 space-y-6">
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label>Título</Label>
-                    <Input
-                      value={pages.donations.heroTitle}
-                      onChange={(e) => updateDonations({ heroTitle: e.target.value })}
-                    />
-                  </div>
-                  <div className="md:col-span-2 grid gap-2">
-                    <Label>Subtítulo</Label>
-                    <Textarea
-                      value={pages.donations.heroSubtitle}
-                      onChange={(e) => updateDonations({ heroSubtitle: e.target.value })}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-4 p-6">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                      Custos
-                    </h2>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        updateDonations({
-                          costs: [
-                            ...pages.donations.costs,
-                            { title: "Novo custo", description: "", icon: "Server" },
-                          ],
-                        })
-                      }
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Adicionar
-                    </Button>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {pages.donations.costs.map((item, index) => (
-                      <div
-                        key={`${item.title}-${index}`}
-                        draggable
-                        onDragStart={() => handleDragStart("donations.costs", index)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => handleDrop("donations.costs", index)}
-                        className="rounded-xl border border-border/60 bg-background/60 p-4"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <GripVertical className="h-4 w-4" />
-                            Arraste para reordenar
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <ReorderControls
-                              label={`custo ${index + 1}`}
-                              index={index}
-                              total={pages.donations.costs.length}
-                              onMove={(targetIndex) =>
-                                moveListItem("donations.costs", index, targetIndex)
-                              }
-                            />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                updateDonations({
-                                  costs: pages.donations.costs.filter((_, i) => i !== index),
-                                })
-                              }
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="mt-3 grid gap-2">
-                          <Input
-                            value={item.title}
-                            onChange={(e) => {
-                              const next = [...pages.donations.costs];
-                              next[index] = { ...item, title: e.target.value };
-                              updateDonations({ costs: next });
-                            }}
-                          />
-                          <Textarea
-                            value={item.description}
-                            onChange={(e) => {
-                              const next = [...pages.donations.costs];
-                              next[index] = { ...item, description: e.target.value };
-                              updateDonations({ costs: next });
-                            }}
-                          />
-                          <div className="grid gap-2">
-                            <Label>Ícone</Label>
-                            <IconSelect
-                              value={item.icon}
-                              onChange={(nextIcon) => {
-                                const next = [...pages.donations.costs];
-                                next[index] = { ...item, icon: nextIcon };
-                                updateDonations({ costs: next });
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label>Título do bloco</Label>
-                    <Input
-                      value={pages.donations.reasonTitle}
-                      onChange={(e) => updateDonations({ reasonTitle: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Ícone do bloco</Label>
-                    <IconSelect
-                      value={pages.donations.reasonIcon || "HeartHandshake"}
-                      onChange={(nextIcon) => updateDonations({ reasonIcon: nextIcon })}
-                    />
-                  </div>
-                  <div className="md:col-span-2 grid gap-2">
-                    <Label>Texto</Label>
-                    <Textarea
-                      value={pages.donations.reasonText}
-                      onChange={(e) => updateDonations({ reasonText: e.target.value })}
-                    />
-                  </div>
-                  <div className="md:col-span-2 grid gap-2">
-                    <Label>Nota</Label>
-                    <Textarea
-                      value={pages.donations.reasonNote}
-                      onChange={(e) => updateDonations({ reasonNote: e.target.value })}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="grid gap-4 p-6 md:grid-cols-[1.2fr_0.8fr]">
-                  <div className="grid gap-2">
-                    <Label>Ícone do Pix</Label>
-                    <IconSelect
-                      value={pages.donations.pixIcon || "QrCode"}
-                      onChange={(nextIcon) => updateDonations({ pixIcon: nextIcon })}
-                    />
-                    <Label>Chave Pix</Label>
-                    <Input
-                      value={pages.donations.pixKey}
-                      onChange={(e) => updateDonations({ pixKey: e.target.value })}
-                    />
-                    <Label>Descrição no QR (opcional)</Label>
-                    <Input
-                      value={pages.donations.pixNote}
-                      onChange={(e) => updateDonations({ pixNote: e.target.value })}
-                    />
-                    <Label>Cidade do recebedor (opcional)</Label>
-                    <Input
-                      value={pages.donations.pixCity}
-                      onChange={(e) => updateDonations({ pixCity: e.target.value })}
-                      placeholder="CIDADE"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Se vazio, o QR Pix usa CIDADE como fallback.
-                    </p>
-                    <Label>QR Code (URL customizada)</Label>
-                    <Input
-                      value={pages.donations.qrCustomUrl}
-                      onChange={(e) => updateDonations({ qrCustomUrl: e.target.value })}
-                      placeholder="Opcional"
-                    />
-                  </div>
-                  <div className="flex items-center justify-center rounded-xl border border-border/60 bg-background/60 p-4">
-                    <img src={qrPreview} alt="Prévia QR Code" className="h-40 w-40 object-cover" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-4 p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                      Doadores
-                    </h2>
-                    <div className="w-full md:w-56">
-                      <IconSelect
-                        value={pages.donations.donorsIcon || "PiggyBank"}
-                        onChange={(nextIcon) => updateDonations({ donorsIcon: nextIcon })}
-                      />
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        updateDonations({
-                          donors: [
-                            ...pages.donations.donors,
-                            { name: "Novo doador", amount: "", goal: "", date: "" },
-                          ],
-                        })
-                      }
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Adicionar
-                    </Button>
-                  </div>
-                  <div className="grid gap-4">
-                    {pages.donations.donors.map((donor, index) => (
-                      <div
-                        key={`${donor.name}-${index}`}
-                        draggable
-                        onDragStart={() => handleDragStart("donations.donors", index)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => handleDrop("donations.donors", index)}
-                        className="rounded-xl border border-border/60 bg-background/60 p-4"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <GripVertical className="h-4 w-4" />
-                            Arraste para reordenar
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <ReorderControls
-                              label={`doador ${index + 1}`}
-                              index={index}
-                              total={pages.donations.donors.length}
-                              onMove={(targetIndex) =>
-                                moveListItem("donations.donors", index, targetIndex)
-                              }
-                            />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                updateDonations({
-                                  donors: pages.donations.donors.filter((_, i) => i !== index),
-                                })
-                              }
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="mt-3 grid gap-2 md:grid-cols-4">
-                          <Input
-                            value={donor.name}
-                            onChange={(e) => {
-                              const next = [...pages.donations.donors];
-                              next[index] = { ...donor, name: e.target.value };
-                              updateDonations({ donors: next });
-                            }}
-                            placeholder="Doador"
-                          />
-                          <Input
-                            value={donor.amount}
-                            onChange={(e) => {
-                              const next = [...pages.donations.donors];
-                              next[index] = { ...donor, amount: e.target.value };
-                              updateDonations({ donors: next });
-                            }}
-                            placeholder="Valor"
-                          />
-                          <Input
-                            value={donor.goal}
-                            onChange={(e) => {
-                              const next = [...pages.donations.donors];
-                              next[index] = { ...donor, goal: e.target.value };
-                              updateDonations({ donors: next });
-                            }}
-                            placeholder="Objetivo"
-                          />
-                          <Input
-                            value={donor.date}
-                            onChange={(e) => {
-                              const next = [...pages.donations.donors];
-                              next[index] = { ...donor, date: e.target.value };
-                              updateDonations({ donors: next });
-                            }}
-                            placeholder="Mês/Ano"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="faq" className="mt-6 space-y-6">
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label>Título</Label>
-                    <Input
-                      value={pages.faq.heroTitle}
-                      onChange={(e) => updateFaq({ heroTitle: e.target.value })}
-                    />
-                  </div>
-                  <div className="md:col-span-2 grid gap-2">
-                    <Label>Subtítulo</Label>
-                    <Textarea
-                      value={pages.faq.heroSubtitle}
-                      onChange={(e) => updateFaq({ heroSubtitle: e.target.value })}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-4 p-6">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                      Cards introdutórios
-                    </h2>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        updateFaq({
-                          introCards: [
-                            ...pages.faq.introCards,
-                            { title: "Novo card", icon: "Info", text: "", note: "" },
-                          ],
-                        })
-                      }
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Adicionar
-                    </Button>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {pages.faq.introCards.map((card, index) => (
-                      <div
-                        key={`${card.title}-${index}`}
-                        draggable
-                        onDragStart={() => handleDragStart("faq.intro", index)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => handleDrop("faq.intro", index)}
-                        className="rounded-xl border border-border/60 bg-background/60 p-4"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <GripVertical className="h-4 w-4" />
-                            Arraste para reordenar
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <ReorderControls
-                              label={`card introdutorio ${index + 1}`}
-                              index={index}
-                              total={pages.faq.introCards.length}
-                              onMove={(targetIndex) => moveListItem("faq.intro", index, targetIndex)}
-                            />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                updateFaq({
-                                  introCards: pages.faq.introCards.filter((_, i) => i !== index),
-                                })
-                              }
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="mt-3 grid gap-2">
-                          <Input
-                            value={card.title}
-                            onChange={(e) => {
-                              const next = [...pages.faq.introCards];
-                              next[index] = { ...card, title: e.target.value };
-                              updateFaq({ introCards: next });
-                            }}
-                          />
-                          <Textarea
-                            value={card.text}
-                            onChange={(e) => {
-                              const next = [...pages.faq.introCards];
-                              next[index] = { ...card, text: e.target.value };
-                              updateFaq({ introCards: next });
-                            }}
-                          />
-                          <Textarea
-                            value={card.note}
-                            onChange={(e) => {
-                              const next = [...pages.faq.introCards];
-                              next[index] = { ...card, note: e.target.value };
-                              updateFaq({ introCards: next });
-                            }}
-                          />
-                          <IconSelect
-                            value={card.icon}
-                            onChange={(nextIcon) => {
-                              const next = [...pages.faq.introCards];
-                              next[index] = { ...card, icon: nextIcon };
-                              updateFaq({ introCards: next });
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-4 p-6">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                      Grupos de FAQ
-                    </h2>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        updateFaq({
-                          groups: [
-                            ...pages.faq.groups,
-                            { title: "Novo grupo", icon: "Info", items: [] },
-                          ],
-                        })
-                      }
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Adicionar grupo
-                    </Button>
-                  </div>
-                  <div className="grid gap-4">
-                    {pages.faq.groups.map((group, groupIndex) => (
-                      <div
-                        key={`${group.title}-${groupIndex}`}
-                        draggable
-                        onDragStart={() => handleDragStart("faq.groups", groupIndex)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => handleDrop("faq.groups", groupIndex)}
-                        className="rounded-xl border border-border/60 bg-background/60 p-4"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <GripVertical className="h-4 w-4" />
-                            Arraste para reordenar
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <ReorderControls
-                              label={`grupo de faq ${groupIndex + 1}`}
-                              index={groupIndex}
-                              total={pages.faq.groups.length}
-                              onMove={(targetIndex) =>
-                                moveListItem("faq.groups", groupIndex, targetIndex)
-                              }
-                            />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                updateFaq({
-                                  groups: pages.faq.groups.filter((_, i) => i !== groupIndex),
-                                })
-                              }
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="mt-3 grid gap-2">
-                          <Input
-                            value={group.title}
-                            onChange={(e) => {
-                              const next = [...pages.faq.groups];
-                              next[groupIndex] = { ...group, title: e.target.value };
-                              updateFaq({ groups: next });
-                            }}
-                          />
-                          <IconSelect
-                            value={group.icon}
-                            onChange={(nextIcon) => {
-                              const next = [...pages.faq.groups];
-                              next[groupIndex] = { ...group, icon: nextIcon };
-                              updateFaq({ groups: next });
-                            }}
-                          />
-                        </div>
-                        <div className="mt-4 space-y-3">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-4 p-6">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                              Perguntas
-                            </span>
+                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                              Destaques
+                            </h2>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => {
-                                const next = [...pages.faq.groups];
-                                next[groupIndex] = {
-                                  ...group,
-                                  items: [
-                                    ...group.items,
-                                    { question: "Nova pergunta", answer: "" },
+                              onClick={() =>
+                                updateAbout({
+                                  highlights: [
+                                    ...pages.about.highlights,
+                                    { label: "Novo destaque", text: "", icon: "Sparkles" },
                                   ],
-                                };
-                                updateFaq({ groups: next });
-                              }}
+                                })
+                              }
                             >
                               <Plus className="mr-2 h-4 w-4" />
                               Adicionar
                             </Button>
                           </div>
-                          <div className="grid gap-3">
-                            {group.items.map((item, itemIndex) => (
+                          <div className="grid gap-4">
+                            {pages.about.highlights.map((item, index) => (
                               <div
-                                key={`${item.question}-${itemIndex}`}
+                                key={`${item.label}-${index}`}
                                 draggable
-                                onDragStart={(event) => {
-                                  // Avoid parent FAQ group dragstart overriding item drag state.
-                                  event.stopPropagation();
-                                  handleDragStart(`faq.items.${groupIndex}`, itemIndex);
-                                }}
+                                onDragStart={() => handleDragStart("about.highlights", index)}
                                 onDragOver={(event) => event.preventDefault()}
-                                onDrop={() => handleDrop(`faq.items.${groupIndex}`, itemIndex)}
-                                className="rounded-xl border border-border/60 bg-card/70 p-3"
+                                onDrop={() => handleDrop("about.highlights", index)}
+                                className="rounded-xl border border-border/60 bg-background/60 p-4"
                               >
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -1937,247 +1098,1120 @@ const DashboardPages = () => {
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <ReorderControls
-                                      label={`pergunta ${itemIndex + 1}`}
-                                      index={itemIndex}
-                                      total={group.items.length}
+                                      label={`destaque ${index + 1}`}
+                                      index={index}
+                                      total={pages.about.highlights.length}
                                       onMove={(targetIndex) =>
-                                        moveListItem(`faq.items.${groupIndex}`, itemIndex, targetIndex)
+                                        moveListItem("about.highlights", index, targetIndex)
                                       }
                                     />
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      onClick={() => {
-                                        const next = [...pages.faq.groups];
-                                        const items = group.items.filter((_, i) => i !== itemIndex);
-                                        next[groupIndex] = { ...group, items };
-                                        updateFaq({ groups: next });
-                                      }}
+                                      onClick={() =>
+                                        updateAbout({
+                                          highlights: pages.about.highlights.filter(
+                                            (_, i) => i !== index,
+                                          ),
+                                        })
+                                      }
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </div>
                                 </div>
-                                <div className="mt-2 grid gap-2">
+                                <div className="mt-3 grid gap-2">
                                   <Input
-                                    value={item.question}
+                                    value={item.label}
                                     onChange={(e) => {
-                                      const next = [...pages.faq.groups];
-                                      const items = [...group.items];
-                                      items[itemIndex] = { ...item, question: e.target.value };
-                                      next[groupIndex] = { ...group, items };
-                                      updateFaq({ groups: next });
+                                      const next = [...pages.about.highlights];
+                                      next[index] = { ...item, label: e.target.value };
+                                      updateAbout({ highlights: next });
                                     }}
                                   />
                                   <Textarea
-                                    value={item.answer}
+                                    value={item.text}
                                     onChange={(e) => {
-                                      const next = [...pages.faq.groups];
-                                      const items = [...group.items];
-                                      items[itemIndex] = { ...item, answer: e.target.value };
-                                      next[groupIndex] = { ...group, items };
-                                      updateFaq({ groups: next });
+                                      const next = [...pages.about.highlights];
+                                      next[index] = { ...item, text: e.target.value };
+                                      updateAbout({ highlights: next });
+                                    }}
+                                  />
+                                  <div className="grid gap-2">
+                                    <Label>Ícone</Label>
+                                    <IconSelect
+                                      value={item.icon || "Sparkles"}
+                                      onChange={(nextIcon) => {
+                                        const next = [...pages.about.highlights];
+                                        next[index] = { ...item, icon: nextIcon };
+                                        updateAbout({ highlights: next });
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-4 p-6">
+                          <div className="grid gap-2">
+                            <Label>Título do manifesto</Label>
+                            <Input
+                              value={pages.about.manifestoTitle}
+                              onChange={(e) => updateAbout({ manifestoTitle: e.target.value })}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Ícone do manifesto</Label>
+                            <IconSelect
+                              value={pages.about.manifestoIcon || "Flame"}
+                              onChange={(nextIcon) => updateAbout({ manifestoIcon: nextIcon })}
+                            />
+                          </div>
+                          <div className="grid gap-3">
+                            {pages.about.manifestoParagraphs.map((paragraph, index) => (
+                              <div key={`${paragraph}-${index}`} className="flex gap-2">
+                                <Textarea
+                                  value={paragraph}
+                                  onChange={(e) => {
+                                    const next = [...pages.about.manifestoParagraphs];
+                                    next[index] = e.target.value;
+                                    updateAbout({ manifestoParagraphs: next });
+                                  }}
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    const next = pages.about.manifestoParagraphs.filter(
+                                      (_, i) => i !== index,
+                                    );
+                                    updateAbout({ manifestoParagraphs: next });
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                updateAbout({
+                                  manifestoParagraphs: [...pages.about.manifestoParagraphs, ""],
+                                })
+                              }
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Adicionar parágrafo
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-4 p-6">
+                          <div className="flex items-center justify-between">
+                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                              Pilares
+                            </h2>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                updateAbout({
+                                  pillars: [
+                                    ...pages.about.pillars,
+                                    { title: "Novo pilar", description: "", icon: "Sparkles" },
+                                  ],
+                                })
+                              }
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Adicionar
+                            </Button>
+                          </div>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            {pages.about.pillars.map((item, index) => (
+                              <div
+                                key={`${item.title}-${index}`}
+                                draggable
+                                onDragStart={() => handleDragStart("about.pillars", index)}
+                                onDragOver={(event) => event.preventDefault()}
+                                onDrop={() => handleDrop("about.pillars", index)}
+                                className="rounded-xl border border-border/60 bg-background/60 p-4"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <GripVertical className="h-4 w-4" />
+                                    Arraste para reordenar
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <ReorderControls
+                                      label={`pilar ${index + 1}`}
+                                      index={index}
+                                      total={pages.about.pillars.length}
+                                      onMove={(targetIndex) =>
+                                        moveListItem("about.pillars", index, targetIndex)
+                                      }
+                                    />
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        updateAbout({
+                                          pillars: pages.about.pillars.filter(
+                                            (_, i) => i !== index,
+                                          ),
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="mt-3 grid gap-2">
+                                  <Input
+                                    value={item.title}
+                                    onChange={(e) => {
+                                      const next = [...pages.about.pillars];
+                                      next[index] = { ...item, title: e.target.value };
+                                      updateAbout({ pillars: next });
+                                    }}
+                                  />
+                                  <Textarea
+                                    value={item.description}
+                                    onChange={(e) => {
+                                      const next = [...pages.about.pillars];
+                                      next[index] = { ...item, description: e.target.value };
+                                      updateAbout({ pillars: next });
+                                    }}
+                                  />
+                                  <div className="grid gap-2">
+                                    <Label>Ícone</Label>
+                                    <IconSelect
+                                      value={item.icon}
+                                      onChange={(nextIcon) => {
+                                        const next = [...pages.about.pillars];
+                                        next[index] = { ...item, icon: nextIcon };
+                                        updateAbout({ pillars: next });
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-4 p-6">
+                          <div className="flex items-center justify-between">
+                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                              Valores
+                            </h2>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                updateAbout({
+                                  values: [
+                                    ...pages.about.values,
+                                    { title: "Novo valor", description: "", icon: "Heart" },
+                                  ],
+                                })
+                              }
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Adicionar
+                            </Button>
+                          </div>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            {pages.about.values.map((item, index) => (
+                              <div
+                                key={`${item.title}-${index}`}
+                                draggable
+                                onDragStart={() => handleDragStart("about.values", index)}
+                                onDragOver={(event) => event.preventDefault()}
+                                onDrop={() => handleDrop("about.values", index)}
+                                className="rounded-xl border border-border/60 bg-background/60 p-4"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <GripVertical className="h-4 w-4" />
+                                    Arraste para reordenar
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <ReorderControls
+                                      label={`valor ${index + 1}`}
+                                      index={index}
+                                      total={pages.about.values.length}
+                                      onMove={(targetIndex) =>
+                                        moveListItem("about.values", index, targetIndex)
+                                      }
+                                    />
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        updateAbout({
+                                          values: pages.about.values.filter((_, i) => i !== index),
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="mt-3 grid gap-2">
+                                  <Input
+                                    value={item.title}
+                                    onChange={(e) => {
+                                      const next = [...pages.about.values];
+                                      next[index] = { ...item, title: e.target.value };
+                                      updateAbout({ values: next });
+                                    }}
+                                  />
+                                  <Textarea
+                                    value={item.description}
+                                    onChange={(e) => {
+                                      const next = [...pages.about.values];
+                                      next[index] = { ...item, description: e.target.value };
+                                      updateAbout({ values: next });
+                                    }}
+                                  />
+                                  <div className="grid gap-2">
+                                    <Label>Ícone</Label>
+                                    <IconSelect
+                                      value={item.icon}
+                                      onChange={(nextIcon) => {
+                                        const next = [...pages.about.values];
+                                        next[index] = { ...item, icon: nextIcon };
+                                        updateAbout({ values: next });
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    <TabsContent value="donations" className="mt-6 space-y-6">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                          <div className="grid gap-2">
+                            <Label>Título</Label>
+                            <Input
+                              value={pages.donations.heroTitle}
+                              onChange={(e) => updateDonations({ heroTitle: e.target.value })}
+                            />
+                          </div>
+                          <div className="md:col-span-2 grid gap-2">
+                            <Label>Subtítulo</Label>
+                            <Textarea
+                              value={pages.donations.heroSubtitle}
+                              onChange={(e) => updateDonations({ heroSubtitle: e.target.value })}
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-4 p-6">
+                          <div className="flex items-center justify-between">
+                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                              Custos
+                            </h2>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                updateDonations({
+                                  costs: [
+                                    ...pages.donations.costs,
+                                    { title: "Novo custo", description: "", icon: "Server" },
+                                  ],
+                                })
+                              }
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Adicionar
+                            </Button>
+                          </div>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            {pages.donations.costs.map((item, index) => (
+                              <div
+                                key={`${item.title}-${index}`}
+                                draggable
+                                onDragStart={() => handleDragStart("donations.costs", index)}
+                                onDragOver={(event) => event.preventDefault()}
+                                onDrop={() => handleDrop("donations.costs", index)}
+                                className="rounded-xl border border-border/60 bg-background/60 p-4"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <GripVertical className="h-4 w-4" />
+                                    Arraste para reordenar
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <ReorderControls
+                                      label={`custo ${index + 1}`}
+                                      index={index}
+                                      total={pages.donations.costs.length}
+                                      onMove={(targetIndex) =>
+                                        moveListItem("donations.costs", index, targetIndex)
+                                      }
+                                    />
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        updateDonations({
+                                          costs: pages.donations.costs.filter(
+                                            (_, i) => i !== index,
+                                          ),
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="mt-3 grid gap-2">
+                                  <Input
+                                    value={item.title}
+                                    onChange={(e) => {
+                                      const next = [...pages.donations.costs];
+                                      next[index] = { ...item, title: e.target.value };
+                                      updateDonations({ costs: next });
+                                    }}
+                                  />
+                                  <Textarea
+                                    value={item.description}
+                                    onChange={(e) => {
+                                      const next = [...pages.donations.costs];
+                                      next[index] = { ...item, description: e.target.value };
+                                      updateDonations({ costs: next });
+                                    }}
+                                  />
+                                  <div className="grid gap-2">
+                                    <Label>Ícone</Label>
+                                    <IconSelect
+                                      value={item.icon}
+                                      onChange={(nextIcon) => {
+                                        const next = [...pages.donations.costs];
+                                        next[index] = { ...item, icon: nextIcon };
+                                        updateDonations({ costs: next });
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                          <div className="grid gap-2">
+                            <Label>Título do bloco</Label>
+                            <Input
+                              value={pages.donations.reasonTitle}
+                              onChange={(e) => updateDonations({ reasonTitle: e.target.value })}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Ícone do bloco</Label>
+                            <IconSelect
+                              value={pages.donations.reasonIcon || "HeartHandshake"}
+                              onChange={(nextIcon) => updateDonations({ reasonIcon: nextIcon })}
+                            />
+                          </div>
+                          <div className="md:col-span-2 grid gap-2">
+                            <Label>Texto</Label>
+                            <Textarea
+                              value={pages.donations.reasonText}
+                              onChange={(e) => updateDonations({ reasonText: e.target.value })}
+                            />
+                          </div>
+                          <div className="md:col-span-2 grid gap-2">
+                            <Label>Nota</Label>
+                            <Textarea
+                              value={pages.donations.reasonNote}
+                              onChange={(e) => updateDonations({ reasonNote: e.target.value })}
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="grid gap-4 p-6 md:grid-cols-[1.2fr_0.8fr]">
+                          <div className="grid gap-2">
+                            <Label>Ícone do Pix</Label>
+                            <IconSelect
+                              value={pages.donations.pixIcon || "QrCode"}
+                              onChange={(nextIcon) => updateDonations({ pixIcon: nextIcon })}
+                            />
+                            <Label>Chave Pix</Label>
+                            <Input
+                              value={pages.donations.pixKey}
+                              onChange={(e) => updateDonations({ pixKey: e.target.value })}
+                            />
+                            <Label>Descrição no QR (opcional)</Label>
+                            <Input
+                              value={pages.donations.pixNote}
+                              onChange={(e) => updateDonations({ pixNote: e.target.value })}
+                            />
+                            <Label>Cidade do recebedor (opcional)</Label>
+                            <Input
+                              value={pages.donations.pixCity}
+                              onChange={(e) => updateDonations({ pixCity: e.target.value })}
+                              placeholder="CIDADE"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Se vazio, o QR Pix usa CIDADE como fallback.
+                            </p>
+                            <Label>QR Code (URL customizada)</Label>
+                            <Input
+                              value={pages.donations.qrCustomUrl}
+                              onChange={(e) => updateDonations({ qrCustomUrl: e.target.value })}
+                              placeholder="Opcional"
+                            />
+                          </div>
+                          <div className="flex items-center justify-center rounded-xl border border-border/60 bg-background/60 p-4">
+                            <img
+                              src={qrPreview}
+                              alt="Prévia QR Code"
+                              className="h-40 w-40 object-cover"
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-4 p-6">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                              Doadores
+                            </h2>
+                            <div className="w-full md:w-56">
+                              <IconSelect
+                                value={pages.donations.donorsIcon || "PiggyBank"}
+                                onChange={(nextIcon) => updateDonations({ donorsIcon: nextIcon })}
+                              />
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                updateDonations({
+                                  donors: [
+                                    ...pages.donations.donors,
+                                    { name: "Novo doador", amount: "", goal: "", date: "" },
+                                  ],
+                                })
+                              }
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Adicionar
+                            </Button>
+                          </div>
+                          <div className="grid gap-4">
+                            {pages.donations.donors.map((donor, index) => (
+                              <div
+                                key={`${donor.name}-${index}`}
+                                draggable
+                                onDragStart={() => handleDragStart("donations.donors", index)}
+                                onDragOver={(event) => event.preventDefault()}
+                                onDrop={() => handleDrop("donations.donors", index)}
+                                className="rounded-xl border border-border/60 bg-background/60 p-4"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <GripVertical className="h-4 w-4" />
+                                    Arraste para reordenar
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <ReorderControls
+                                      label={`doador ${index + 1}`}
+                                      index={index}
+                                      total={pages.donations.donors.length}
+                                      onMove={(targetIndex) =>
+                                        moveListItem("donations.donors", index, targetIndex)
+                                      }
+                                    />
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        updateDonations({
+                                          donors: pages.donations.donors.filter(
+                                            (_, i) => i !== index,
+                                          ),
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="mt-3 grid gap-2 md:grid-cols-4">
+                                  <Input
+                                    value={donor.name}
+                                    onChange={(e) => {
+                                      const next = [...pages.donations.donors];
+                                      next[index] = { ...donor, name: e.target.value };
+                                      updateDonations({ donors: next });
+                                    }}
+                                    placeholder="Doador"
+                                  />
+                                  <Input
+                                    value={donor.amount}
+                                    onChange={(e) => {
+                                      const next = [...pages.donations.donors];
+                                      next[index] = { ...donor, amount: e.target.value };
+                                      updateDonations({ donors: next });
+                                    }}
+                                    placeholder="Valor"
+                                  />
+                                  <Input
+                                    value={donor.goal}
+                                    onChange={(e) => {
+                                      const next = [...pages.donations.donors];
+                                      next[index] = { ...donor, goal: e.target.value };
+                                      updateDonations({ donors: next });
+                                    }}
+                                    placeholder="Objetivo"
+                                  />
+                                  <Input
+                                    value={donor.date}
+                                    onChange={(e) => {
+                                      const next = [...pages.donations.donors];
+                                      next[index] = { ...donor, date: e.target.value };
+                                      updateDonations({ donors: next });
+                                    }}
+                                    placeholder="Mês/Ano"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    <TabsContent value="faq" className="mt-6 space-y-6">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                          <div className="grid gap-2">
+                            <Label>Título</Label>
+                            <Input
+                              value={pages.faq.heroTitle}
+                              onChange={(e) => updateFaq({ heroTitle: e.target.value })}
+                            />
+                          </div>
+                          <div className="md:col-span-2 grid gap-2">
+                            <Label>Subtítulo</Label>
+                            <Textarea
+                              value={pages.faq.heroSubtitle}
+                              onChange={(e) => updateFaq({ heroSubtitle: e.target.value })}
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-4 p-6">
+                          <div className="flex items-center justify-between">
+                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                              Cards introdutórios
+                            </h2>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                updateFaq({
+                                  introCards: [
+                                    ...pages.faq.introCards,
+                                    { title: "Novo card", icon: "Info", text: "", note: "" },
+                                  ],
+                                })
+                              }
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Adicionar
+                            </Button>
+                          </div>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            {pages.faq.introCards.map((card, index) => (
+                              <div
+                                key={`${card.title}-${index}`}
+                                draggable
+                                onDragStart={() => handleDragStart("faq.intro", index)}
+                                onDragOver={(event) => event.preventDefault()}
+                                onDrop={() => handleDrop("faq.intro", index)}
+                                className="rounded-xl border border-border/60 bg-background/60 p-4"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <GripVertical className="h-4 w-4" />
+                                    Arraste para reordenar
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <ReorderControls
+                                      label={`card introdutorio ${index + 1}`}
+                                      index={index}
+                                      total={pages.faq.introCards.length}
+                                      onMove={(targetIndex) =>
+                                        moveListItem("faq.intro", index, targetIndex)
+                                      }
+                                    />
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        updateFaq({
+                                          introCards: pages.faq.introCards.filter(
+                                            (_, i) => i !== index,
+                                          ),
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="mt-3 grid gap-2">
+                                  <Input
+                                    value={card.title}
+                                    onChange={(e) => {
+                                      const next = [...pages.faq.introCards];
+                                      next[index] = { ...card, title: e.target.value };
+                                      updateFaq({ introCards: next });
+                                    }}
+                                  />
+                                  <Textarea
+                                    value={card.text}
+                                    onChange={(e) => {
+                                      const next = [...pages.faq.introCards];
+                                      next[index] = { ...card, text: e.target.value };
+                                      updateFaq({ introCards: next });
+                                    }}
+                                  />
+                                  <Textarea
+                                    value={card.note}
+                                    onChange={(e) => {
+                                      const next = [...pages.faq.introCards];
+                                      next[index] = { ...card, note: e.target.value };
+                                      updateFaq({ introCards: next });
+                                    }}
+                                  />
+                                  <IconSelect
+                                    value={card.icon}
+                                    onChange={(nextIcon) => {
+                                      const next = [...pages.faq.introCards];
+                                      next[index] = { ...card, icon: nextIcon };
+                                      updateFaq({ introCards: next });
                                     }}
                                   />
                                 </div>
                               </div>
                             ))}
                           </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                        </CardContent>
+                      </Card>
 
-            <TabsContent value="team" className="mt-6 space-y-6">
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label>Badge</Label>
-                    <Input
-                      value={pages.team.heroBadge}
-                      onChange={(e) => updateTeam({ heroBadge: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Título</Label>
-                    <Input
-                      value={pages.team.heroTitle}
-                      onChange={(e) => updateTeam({ heroTitle: e.target.value })}
-                    />
-                  </div>
-                  <div className="md:col-span-2 grid gap-2">
-                    <Label>Subtítulo</Label>
-                    <Textarea
-                      value={pages.team.heroSubtitle}
-                      onChange={(e) => updateTeam({ heroSubtitle: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Título aposentados</Label>
-                    <Input
-                      value={pages.team.retiredTitle}
-                      onChange={(e) => updateTeam({ retiredTitle: e.target.value })}
-                    />
-                  </div>
-                  <div className="md:col-span-2 grid gap-2">
-                    <Label>Subtítulo aposentados</Label>
-                    <Textarea
-                      value={pages.team.retiredSubtitle}
-                      onChange={(e) => updateTeam({ retiredSubtitle: e.target.value })}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="recruitment" className="mt-6 space-y-6">
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label>Badge</Label>
-                    <Input
-                      value={pages.recruitment.heroBadge}
-                      onChange={(e) => updateRecruitment({ heroBadge: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Título</Label>
-                    <Input
-                      value={pages.recruitment.heroTitle}
-                      onChange={(e) => updateRecruitment({ heroTitle: e.target.value })}
-                    />
-                  </div>
-                  <div className="md:col-span-2 grid gap-2">
-                    <Label>Subtítulo</Label>
-                    <Textarea
-                      value={pages.recruitment.heroSubtitle}
-                      onChange={(e) => updateRecruitment({ heroSubtitle: e.target.value })}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-4 p-6">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                      Funções
-                    </h2>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        updateRecruitment({
-                          roles: [
-                            ...pages.recruitment.roles,
-                            { title: "Nova função", description: "", icon: "Sparkles" },
-                          ],
-                        })
-                      }
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Adicionar
-                    </Button>
-                  </div>
-                  <div className="grid gap-4">
-                    {pages.recruitment.roles.map((role, index) => (
-                      <div
-                        key={`${role.title}-${index}`}
-                        draggable
-                        onDragStart={() => handleDragStart("recruitment.roles", index)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => handleDrop("recruitment.roles", index)}
-                        className="rounded-xl border border-border/60 bg-background/60 p-4"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <GripVertical className="h-4 w-4" />
-                            Arraste para reordenar
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <ReorderControls
-                              label={`funcao ${index + 1}`}
-                              index={index}
-                              total={pages.recruitment.roles.length}
-                              onMove={(targetIndex) =>
-                                moveListItem("recruitment.roles", index, targetIndex)
-                              }
-                            />
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-4 p-6">
+                          <div className="flex items-center justify-between">
+                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                              Grupos de FAQ
+                            </h2>
                             <Button
-                              variant="ghost"
-                              size="icon"
+                              variant="outline"
+                              size="sm"
                               onClick={() =>
-                                updateRecruitment({
-                                  roles: pages.recruitment.roles.filter((_, i) => i !== index),
+                                updateFaq({
+                                  groups: [
+                                    ...pages.faq.groups,
+                                    { title: "Novo grupo", icon: "Info", items: [] },
+                                  ],
                                 })
                               }
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Plus className="mr-2 h-4 w-4" />
+                              Adicionar grupo
                             </Button>
                           </div>
-                        </div>
-                        <div className="mt-3 grid gap-2 md:grid-cols-2">
-                          <Input
-                            value={role.title}
-                            onChange={(e) => {
-                              const next = [...pages.recruitment.roles];
-                              next[index] = { ...role, title: e.target.value };
-                              updateRecruitment({ roles: next });
-                            }}
-                          />
-                          <IconSelect
-                            value={role.icon}
-                            onChange={(nextIcon) => {
-                              const next = [...pages.recruitment.roles];
-                              next[index] = { ...role, icon: nextIcon };
-                              updateRecruitment({ roles: next });
-                            }}
-                          />
-                          <Textarea
-                            className="md:col-span-2"
-                            value={role.description}
-                            onChange={(e) => {
-                              const next = [...pages.recruitment.roles];
-                              next[index] = { ...role, description: e.target.value };
-                              updateRecruitment({ roles: next });
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                          <div className="grid gap-4">
+                            {pages.faq.groups.map((group, groupIndex) => (
+                              <div
+                                key={`${group.title}-${groupIndex}`}
+                                draggable
+                                onDragStart={() => handleDragStart("faq.groups", groupIndex)}
+                                onDragOver={(event) => event.preventDefault()}
+                                onDrop={() => handleDrop("faq.groups", groupIndex)}
+                                className="rounded-xl border border-border/60 bg-background/60 p-4"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <GripVertical className="h-4 w-4" />
+                                    Arraste para reordenar
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <ReorderControls
+                                      label={`grupo de faq ${groupIndex + 1}`}
+                                      index={groupIndex}
+                                      total={pages.faq.groups.length}
+                                      onMove={(targetIndex) =>
+                                        moveListItem("faq.groups", groupIndex, targetIndex)
+                                      }
+                                    />
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        updateFaq({
+                                          groups: pages.faq.groups.filter(
+                                            (_, i) => i !== groupIndex,
+                                          ),
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="mt-3 grid gap-2">
+                                  <Input
+                                    value={group.title}
+                                    onChange={(e) => {
+                                      const next = [...pages.faq.groups];
+                                      next[groupIndex] = { ...group, title: e.target.value };
+                                      updateFaq({ groups: next });
+                                    }}
+                                  />
+                                  <IconSelect
+                                    value={group.icon}
+                                    onChange={(nextIcon) => {
+                                      const next = [...pages.faq.groups];
+                                      next[groupIndex] = { ...group, icon: nextIcon };
+                                      updateFaq({ groups: next });
+                                    }}
+                                  />
+                                </div>
+                                <div className="mt-4 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                                      Perguntas
+                                    </span>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        const next = [...pages.faq.groups];
+                                        next[groupIndex] = {
+                                          ...group,
+                                          items: [
+                                            ...group.items,
+                                            { question: "Nova pergunta", answer: "" },
+                                          ],
+                                        };
+                                        updateFaq({ groups: next });
+                                      }}
+                                    >
+                                      <Plus className="mr-2 h-4 w-4" />
+                                      Adicionar
+                                    </Button>
+                                  </div>
+                                  <div className="grid gap-3">
+                                    {group.items.map((item, itemIndex) => (
+                                      <div
+                                        key={`${item.question}-${itemIndex}`}
+                                        draggable
+                                        onDragStart={(event) => {
+                                          // Avoid parent FAQ group dragstart overriding item drag state.
+                                          event.stopPropagation();
+                                          handleDragStart(`faq.items.${groupIndex}`, itemIndex);
+                                        }}
+                                        onDragOver={(event) => event.preventDefault()}
+                                        onDrop={() =>
+                                          handleDrop(`faq.items.${groupIndex}`, itemIndex)
+                                        }
+                                        className="rounded-xl border border-border/60 bg-card/70 p-3"
+                                      >
+                                        <div className="flex items-center justify-between gap-2">
+                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <GripVertical className="h-4 w-4" />
+                                            Arraste para reordenar
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <ReorderControls
+                                              label={`pergunta ${itemIndex + 1}`}
+                                              index={itemIndex}
+                                              total={group.items.length}
+                                              onMove={(targetIndex) =>
+                                                moveListItem(
+                                                  `faq.items.${groupIndex}`,
+                                                  itemIndex,
+                                                  targetIndex,
+                                                )
+                                              }
+                                            />
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => {
+                                                const next = [...pages.faq.groups];
+                                                const items = group.items.filter(
+                                                  (_, i) => i !== itemIndex,
+                                                );
+                                                next[groupIndex] = { ...group, items };
+                                                updateFaq({ groups: next });
+                                              }}
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                        </div>
+                                        <div className="mt-2 grid gap-2">
+                                          <Input
+                                            value={item.question}
+                                            onChange={(e) => {
+                                              const next = [...pages.faq.groups];
+                                              const items = [...group.items];
+                                              items[itemIndex] = {
+                                                ...item,
+                                                question: e.target.value,
+                                              };
+                                              next[groupIndex] = { ...group, items };
+                                              updateFaq({ groups: next });
+                                            }}
+                                          />
+                                          <Textarea
+                                            value={item.answer}
+                                            onChange={(e) => {
+                                              const next = [...pages.faq.groups];
+                                              const items = [...group.items];
+                                              items[itemIndex] = {
+                                                ...item,
+                                                answer: e.target.value,
+                                              };
+                                              next[groupIndex] = { ...group, items };
+                                              updateFaq({ groups: next });
+                                            }}
+                                          />
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
 
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label>Título do CTA</Label>
-                    <Input
-                      value={pages.recruitment.ctaTitle}
-                      onChange={(e) => updateRecruitment({ ctaTitle: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Texto do CTA</Label>
-                    <Input
-                      value={pages.recruitment.ctaSubtitle}
-                      onChange={(e) => updateRecruitment({ ctaSubtitle: e.target.value })}
-                    />
-                  </div>
-                  <div className="md:col-span-2 grid gap-2">
-                    <Label>Texto do botão</Label>
-                    <Input
-                      value={pages.recruitment.ctaButtonLabel}
-                      onChange={(e) => updateRecruitment({ ctaButtonLabel: e.target.value })}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                    <TabsContent value="team" className="mt-6 space-y-6">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                          <div className="grid gap-2">
+                            <Label>Badge</Label>
+                            <Input
+                              value={pages.team.heroBadge}
+                              onChange={(e) => updateTeam({ heroBadge: e.target.value })}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Título</Label>
+                            <Input
+                              value={pages.team.heroTitle}
+                              onChange={(e) => updateTeam({ heroTitle: e.target.value })}
+                            />
+                          </div>
+                          <div className="md:col-span-2 grid gap-2">
+                            <Label>Subtítulo</Label>
+                            <Textarea
+                              value={pages.team.heroSubtitle}
+                              onChange={(e) => updateTeam({ heroSubtitle: e.target.value })}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Título aposentados</Label>
+                            <Input
+                              value={pages.team.retiredTitle}
+                              onChange={(e) => updateTeam({ retiredTitle: e.target.value })}
+                            />
+                          </div>
+                          <div className="md:col-span-2 grid gap-2">
+                            <Label>Subtítulo aposentados</Label>
+                            <Textarea
+                              value={pages.team.retiredSubtitle}
+                              onChange={(e) => updateTeam({ retiredSubtitle: e.target.value })}
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    <TabsContent value="recruitment" className="mt-6 space-y-6">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                          <div className="grid gap-2">
+                            <Label>Badge</Label>
+                            <Input
+                              value={pages.recruitment.heroBadge}
+                              onChange={(e) => updateRecruitment({ heroBadge: e.target.value })}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Título</Label>
+                            <Input
+                              value={pages.recruitment.heroTitle}
+                              onChange={(e) => updateRecruitment({ heroTitle: e.target.value })}
+                            />
+                          </div>
+                          <div className="md:col-span-2 grid gap-2">
+                            <Label>Subtítulo</Label>
+                            <Textarea
+                              value={pages.recruitment.heroSubtitle}
+                              onChange={(e) => updateRecruitment({ heroSubtitle: e.target.value })}
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-4 p-6">
+                          <div className="flex items-center justify-between">
+                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                              Funções
+                            </h2>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                updateRecruitment({
+                                  roles: [
+                                    ...pages.recruitment.roles,
+                                    { title: "Nova função", description: "", icon: "Sparkles" },
+                                  ],
+                                })
+                              }
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Adicionar
+                            </Button>
+                          </div>
+                          <div className="grid gap-4">
+                            {pages.recruitment.roles.map((role, index) => (
+                              <div
+                                key={`${role.title}-${index}`}
+                                draggable
+                                onDragStart={() => handleDragStart("recruitment.roles", index)}
+                                onDragOver={(event) => event.preventDefault()}
+                                onDrop={() => handleDrop("recruitment.roles", index)}
+                                className="rounded-xl border border-border/60 bg-background/60 p-4"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <GripVertical className="h-4 w-4" />
+                                    Arraste para reordenar
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <ReorderControls
+                                      label={`funcao ${index + 1}`}
+                                      index={index}
+                                      total={pages.recruitment.roles.length}
+                                      onMove={(targetIndex) =>
+                                        moveListItem("recruitment.roles", index, targetIndex)
+                                      }
+                                    />
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        updateRecruitment({
+                                          roles: pages.recruitment.roles.filter(
+                                            (_, i) => i !== index,
+                                          ),
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                                  <Input
+                                    value={role.title}
+                                    onChange={(e) => {
+                                      const next = [...pages.recruitment.roles];
+                                      next[index] = { ...role, title: e.target.value };
+                                      updateRecruitment({ roles: next });
+                                    }}
+                                  />
+                                  <IconSelect
+                                    value={role.icon}
+                                    onChange={(nextIcon) => {
+                                      const next = [...pages.recruitment.roles];
+                                      next[index] = { ...role, icon: nextIcon };
+                                      updateRecruitment({ roles: next });
+                                    }}
+                                  />
+                                  <Textarea
+                                    className="md:col-span-2"
+                                    value={role.description}
+                                    onChange={(e) => {
+                                      const next = [...pages.recruitment.roles];
+                                      next[index] = { ...role, description: e.target.value };
+                                      updateRecruitment({ roles: next });
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                          <div className="grid gap-2">
+                            <Label>Título do CTA</Label>
+                            <Input
+                              value={pages.recruitment.ctaTitle}
+                              onChange={(e) => updateRecruitment({ ctaTitle: e.target.value })}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Texto do CTA</Label>
+                            <Input
+                              value={pages.recruitment.ctaSubtitle}
+                              onChange={(e) => updateRecruitment({ ctaSubtitle: e.target.value })}
+                            />
+                          </div>
+                          <div className="md:col-span-2 grid gap-2">
+                            <Label>Texto do botão</Label>
+                            <Input
+                              value={pages.recruitment.ctaButtonLabel}
+                              onChange={(e) =>
+                                updateRecruitment({ ctaButtonLabel: e.target.value })
+                              }
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
                   </>
                 )}
               </>

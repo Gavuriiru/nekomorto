@@ -2,7 +2,9 @@ export const normalizeType = (type?: string | null) => String(type || "").toLowe
 
 export const isMangaType = (type?: string | null) => {
   const label = normalizeType(type);
-  return label === "manga" || label === "mangá" || label.includes("mang") || label.includes("webtoon");
+  return (
+    label === "manga" || label === "mangá" || label.includes("mang") || label.includes("webtoon")
+  );
 };
 
 export const isLightNovelType = (type?: string | null) => {

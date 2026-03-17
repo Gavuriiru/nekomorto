@@ -40,7 +40,12 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
-import type { Project, ProjectEpisode, ProjectVolumeCover, ProjectVolumeEntry } from "@/data/projects";
+import type {
+  Project,
+  ProjectEpisode,
+  ProjectVolumeCover,
+  ProjectVolumeEntry,
+} from "@/data/projects";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
@@ -293,10 +298,7 @@ type ChapterEditorPaneProps = {
   ) => Promise<ProjectRecord | null>;
   onProjectChange: (nextProject: ProjectRecord) => void;
   onSelectedStageChapterChange?: (chapter: StageChapter | null) => void;
-  onOpenImportedChapter?: (
-    nextProject: ProjectRecord,
-    importedChapters: ProjectEpisode[],
-  ) => void;
+  onOpenImportedChapter?: (nextProject: ProjectRecord, importedChapters: ProjectEpisode[]) => void;
   onChapterSaved: (
     project: ProjectRecord,
     chapter: ProjectEpisode,
@@ -357,8 +359,7 @@ const editorAccordionTriggerClassName =
   "project-editor-section-trigger flex w-full items-start gap-4 px-5 py-3.5 text-left hover:no-underline md:py-4";
 const editorSectionContentClassName = "project-editor-section-content px-5 pb-5";
 const editorAccordionHeaderTextClassName = "min-w-0 flex-1 space-y-1 text-left";
-const editorAccordionTitleClassName =
-  "block text-[15px] font-semibold leading-tight md:text-base";
+const editorAccordionTitleClassName = "block text-[15px] font-semibold leading-tight md:text-base";
 const editorAccordionSubtitleClassName = "block text-xs leading-5 text-muted-foreground";
 const editorialMastheadClassName =
   "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
@@ -366,7 +367,8 @@ const editorialCommandBarClassName =
   "sticky top-3 z-20 overflow-hidden rounded-2xl border border-border/60 bg-background/92 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.72)] backdrop-blur supports-backdrop-filter:bg-background/78";
 const workspaceSectionClassName =
   "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
-const workspaceSectionMutedClassName = "overflow-hidden rounded-2xl border border-border/60 bg-card/65";
+const workspaceSectionMutedClassName =
+  "overflow-hidden rounded-2xl border border-border/60 bg-card/65";
 const workspaceSectionHeaderClassName =
   "flex flex-col gap-3 border-b border-border/60 px-5 py-4 md:flex-row md:items-start md:justify-between";
 const workspaceSectionBodyClassName = "space-y-5 px-5 py-5";
@@ -633,8 +635,7 @@ const normalizeChapterForSave = (chapter: ProjectEpisode): ProjectEpisode => {
     pages: normalizedPages,
     pageCount: normalizedPages.length,
     hasPages: normalizedPages.length > 0,
-    coverImageUrl:
-      String(chapter.coverImageUrl || "").trim() || normalizedPages[0]?.imageUrl || "",
+    coverImageUrl: String(chapter.coverImageUrl || "").trim() || normalizedPages[0]?.imageUrl || "",
     publicationStatus: chapter.publicationStatus === "draft" ? "draft" : "published",
     chapterUpdatedAt: String(chapter.chapterUpdatedAt || "").trim() || undefined,
   };
@@ -889,7 +890,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       () => overlayDraftOnProject(project, activeChapterKey, draft),
       [activeChapterKey, draft, project],
     );
-    const activeChapterSnapshot = useMemo(() => buildChapterSnapshot(activeChapter), [activeChapter]);
+    const activeChapterSnapshot = useMemo(
+      () => buildChapterSnapshot(activeChapter),
+      [activeChapter],
+    );
     const draftSnapshot = useMemo(
       () => (hasActiveChapter ? buildChapterSnapshot(draft) : ""),
       [draft, hasActiveChapter],
@@ -900,8 +904,12 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       const normalizedProjectId = String(project.id || "").trim();
       return normalizedProjectId ? [normalizedProjectId] : [];
     }, [project.id]);
-    const { projectRootFolder, projectEpisodesFolder, projectVolumeCoversFolder, projectChaptersFolder } =
-      useMemo(
+    const {
+      projectRootFolder,
+      projectEpisodesFolder,
+      projectVolumeCoversFolder,
+      projectChaptersFolder,
+    } = useMemo(
       () => resolveProjectImageFolders(project.id, project.title),
       [project.id, project.title],
     );
@@ -1081,8 +1089,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           return true;
         }
         const resolvedPublicationStatus = nextPublicationStatus ?? draft.publicationStatus;
-        const shouldPersist =
-          isDirty || resolvedPublicationStatus !== draft.publicationStatus;
+        const shouldPersist = isDirty || resolvedPublicationStatus !== draft.publicationStatus;
         if (!shouldPersist) {
           return true;
         }
@@ -1263,7 +1270,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
 
     const publicReadingHref = useMemo(
       () =>
-        hasActiveChapter ? buildProjectPublicReadingHref(project.id, draft.number, draft.volume) : "",
+        hasActiveChapter
+          ? buildProjectPublicReadingHref(project.id, draft.number, draft.volume)
+          : "",
       [draft.number, draft.volume, hasActiveChapter, project.id],
     );
     const chapterTitle = hasActiveChapter
@@ -1306,7 +1315,13 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         );
       }
       return structureGroups[0]?.key || "";
-    }, [activeChapterKey, hasActiveChapter, selectedStageChapterId, selectedVolumeNumber, structureGroups]);
+    }, [
+      activeChapterKey,
+      hasActiveChapter,
+      selectedStageChapterId,
+      selectedVolumeNumber,
+      structureGroups,
+    ]);
     const selectedStructureGroupKey = useMemo(() => {
       const activeGroup = activeChapterKey
         ? structureGroups.find((group) =>
@@ -1327,15 +1342,21 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         }
       }
       if (selectedVolumeNumber !== null) {
-        return (
-          structureGroups.find((group) => group.volume === selectedVolumeNumber)?.key ||
-          ""
-        );
+        return structureGroups.find((group) => group.volume === selectedVolumeNumber)?.key || "";
       }
       return "";
-    }, [activeChapterKey, hasActiveChapter, selectedStageChapterId, selectedVolumeNumber, structureGroups]);
+    }, [
+      activeChapterKey,
+      hasActiveChapter,
+      selectedStageChapterId,
+      selectedVolumeNumber,
+      structureGroups,
+    ]);
     const [openStructureGroupKeys, setOpenStructureGroupKeys] = useState<string[]>(() => {
-      const initialKeys = normalizeStructureGroupKeys(initialOpenStructureGroupKeys, structureGroups);
+      const initialKeys = normalizeStructureGroupKeys(
+        initialOpenStructureGroupKeys,
+        structureGroups,
+      );
       if (initialKeys.length > 0) {
         return initialKeys;
       }
@@ -1347,14 +1368,13 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       setOpenStructureGroupKeys((currentKeys) => {
         const fallbackGroupKey = structureGroups[0]?.key || "";
         const normalizedActiveStructureGroupKey =
-          activeStructureGroupKey && structureGroups.some((group) => group.key === activeStructureGroupKey)
+          activeStructureGroupKey &&
+          structureGroups.some((group) => group.key === activeStructureGroupKey)
             ? activeStructureGroupKey
             : fallbackGroupKey;
         const normalizedCurrentKeys = normalizeStructureGroupKeys(currentKeys, structureGroups);
 
-        if (
-          normalizedActiveStructureGroupKey !== lastAutoSyncedStructureGroupKeyRef.current
-        ) {
+        if (normalizedActiveStructureGroupKey !== lastAutoSyncedStructureGroupKeyRef.current) {
           lastAutoSyncedStructureGroupKeyRef.current = normalizedActiveStructureGroupKey;
           if (
             !normalizedActiveStructureGroupKey ||
@@ -1373,14 +1393,17 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       onStructureGroupKeysChange(openStructureGroupKeys);
     }, [onStructureGroupKeysChange, openStructureGroupKeys]);
 
-    const toggleStructureGroup = useCallback((groupKey: string) => {
-      setOpenStructureGroupKeys((currentKeys) => {
-        const normalizedCurrentKeys = normalizeStructureGroupKeys(currentKeys, structureGroups);
-        return normalizedCurrentKeys.includes(groupKey)
-          ? normalizedCurrentKeys.filter((key) => key !== groupKey)
-          : [...normalizedCurrentKeys, groupKey];
-      });
-    }, [structureGroups]);
+    const toggleStructureGroup = useCallback(
+      (groupKey: string) => {
+        setOpenStructureGroupKeys((currentKeys) => {
+          const normalizedCurrentKeys = normalizeStructureGroupKeys(currentKeys, structureGroups);
+          return normalizedCurrentKeys.includes(groupKey)
+            ? normalizedCurrentKeys.filter((key) => key !== groupKey)
+            : [...normalizedCurrentKeys, groupKey];
+        });
+      },
+      [structureGroups],
+    );
 
     const handleStructureVolumeInteraction = useCallback(
       async (groupKey: string, nextVolume: number) => {
@@ -1415,7 +1438,14 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           setOpenStructureGroupKeys(previousOpenGroupKeys);
         }
       },
-      [hasActiveChapter, isVolumeDirty, onSelectedVolumeChange, openStructureGroupKeys, requestLeave, selectedVolumeNumber],
+      [
+        hasActiveChapter,
+        isVolumeDirty,
+        onSelectedVolumeChange,
+        openStructureGroupKeys,
+        requestLeave,
+        selectedVolumeNumber,
+      ],
     );
 
     const handleSelectPendingStageChapter = useCallback(
@@ -1439,7 +1469,15 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         }
         setSelectedStageChapterId(chapterId);
       },
-      [hasActiveChapter, isVolumeDirty, neutralHref, onNavigateToHref, requestLeave, selectedStageChapterId, setSelectedStageChapterId],
+      [
+        hasActiveChapter,
+        isVolumeDirty,
+        neutralHref,
+        onNavigateToHref,
+        requestLeave,
+        selectedStageChapterId,
+        setSelectedStageChapterId,
+      ],
     );
 
     const handleStructureChapterExport = useCallback(
@@ -1560,7 +1598,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   </p>
                 ) : null}
                 {frontendBuildLabel ? (
-                  <p className="text-[11px] text-muted-foreground">Frontend: {frontendBuildLabel}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Frontend: {frontendBuildLabel}
+                  </p>
                 ) : null}
               </div>
 
@@ -1626,7 +1666,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     onCheckedChange={(checked) => onEpubImportAsDraftChange(checked === true)}
                   />
                   <span className="space-y-1">
-                    <span className="block font-medium text-foreground">Importar como rascunho</span>
+                    <span className="block font-medium text-foreground">
+                      Importar como rascunho
+                    </span>
                     <span className="block text-xs text-muted-foreground">
                       Capítulos importados ficam ocultos ao público até a publicação.
                     </span>
@@ -1664,9 +1706,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 <label className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm">
                   <Checkbox
                     checked={epubExportIncludeDrafts}
-                    onCheckedChange={(checked) =>
-                      onEpubExportIncludeDraftsChange(checked === true)
-                    }
+                    onCheckedChange={(checked) => onEpubExportIncludeDraftsChange(checked === true)}
                   />
                   <span className="space-y-1">
                     <span className="block font-medium text-foreground">Incluir rascunhos</span>
@@ -1738,10 +1778,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     </SelectContent>
                   </Select>
                 </div>
-                <div
-                  className="space-y-3"
-                  data-testid="chapter-structure-intro-row"
-                >
+                <div className="space-y-3" data-testid="chapter-structure-intro-row">
                   <p
                     className="text-xs leading-5 text-muted-foreground"
                     data-testid="chapter-structure-intro-copy"
@@ -1806,58 +1843,61 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                         data-testid={`chapter-structure-group-header-${group.key}`}
                       >
                         <div className="flex items-start gap-3">
-                        {group.volume !== null ? (
-                          <button
-                            type="button"
-                            data-testid={`chapter-structure-select-${group.key}`}
-                            onClick={() =>
-                              void handleStructureVolumeInteraction(group.key, group.volume as number)
-                            }
-                            className="min-w-0 flex-1 self-stretch text-left"
-                          >
-                            <div
-                              className="min-w-0 space-y-2"
+                          {group.volume !== null ? (
+                            <button
+                              type="button"
+                              data-testid={`chapter-structure-select-${group.key}`}
+                              onClick={() =>
+                                void handleStructureVolumeInteraction(
+                                  group.key,
+                                  group.volume as number,
+                                )
+                              }
+                              className="min-w-0 flex-1 self-stretch text-left"
+                            >
+                              <div
+                                className="min-w-0 space-y-2"
+                                data-testid={`chapter-structure-group-main-${group.key}`}
+                              >
+                                <div className="min-w-0 space-y-1">
+                                  <p className="text-sm font-semibold tracking-tight text-foreground">
+                                    {group.label}
+                                  </p>
+                                  <p className="text-xs leading-5 text-muted-foreground">
+                                    {group.chapterCount > 0 || pendingCount > 0
+                                      ? `${group.chapterCount} salvo(s)${
+                                          pendingCount > 0 ? ` + ${pendingCount} no lote` : ""
+                                        }`
+                                      : "Nenhum capítulo vinculado"}
+                                  </p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Badge variant={group.hasMetadata ? "secondary" : "outline"}>
+                                    {group.hasMetadata ? "Metadados" : "Sem metadados"}
+                                  </Badge>
+                                  {pendingCount > 0 ? (
+                                    <Badge variant="outline">Importação {pendingCount}</Badge>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => toggleStructureGroup(group.key)}
+                              className="min-w-0 flex-1 self-stretch text-left"
                               data-testid={`chapter-structure-group-main-${group.key}`}
                             >
-                              <div className="min-w-0 space-y-1">
-                                <p className="text-sm font-semibold tracking-tight text-foreground">
-                                  {group.label}
-                                </p>
-                                <p className="text-xs leading-5 text-muted-foreground">
-                                  {group.chapterCount > 0 || pendingCount > 0
-                                    ? `${group.chapterCount} salvo(s)${
-                                        pendingCount > 0 ? ` + ${pendingCount} no lote` : ""
-                                      }`
-                                    : "Nenhum capítulo vinculado"}
-                                </p>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Badge variant={group.hasMetadata ? "secondary" : "outline"}>
-                                  {group.hasMetadata ? "Metadados" : "Sem metadados"}
-                                </Badge>
-                                {pendingCount > 0 ? (
-                                  <Badge variant="outline">Importação {pendingCount}</Badge>
-                                ) : null}
-                              </div>
-                            </div>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => toggleStructureGroup(group.key)}
-                            className="min-w-0 flex-1 self-stretch text-left"
-                            data-testid={`chapter-structure-group-main-${group.key}`}
-                          >
-                            <p className="text-sm font-semibold text-foreground">{group.label}</p>
-                            <p className="text-xs leading-5 text-muted-foreground">
-                              {group.chapterCount > 0 || pendingCount > 0
-                                ? `${group.chapterCount} salvo(s)${
-                                    pendingCount > 0 ? ` + ${pendingCount} no lote` : ""
-                                  }`
-                                : "Agrupe aqui capítulos fora de volume"}
-                            </p>
-                          </button>
-                        )}
+                              <p className="text-sm font-semibold text-foreground">{group.label}</p>
+                              <p className="text-xs leading-5 text-muted-foreground">
+                                {group.chapterCount > 0 || pendingCount > 0
+                                  ? `${group.chapterCount} salvo(s)${
+                                      pendingCount > 0 ? ` + ${pendingCount} no lote` : ""
+                                    }`
+                                  : "Agrupe aqui capítulos fora de volume"}
+                              </p>
+                            </button>
+                          )}
                           <Button
                             type="button"
                             size="icon"
@@ -1937,7 +1977,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                     <div className="flex items-start justify-between gap-3">
                                       <div className="min-w-0">
                                         <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                          {chapter.operation === "update" ? "Atualizar" : "Importar"}
+                                          {chapter.operation === "update"
+                                            ? "Atualizar"
+                                            : "Importar"}
                                         </p>
                                         <p className="line-clamp-2 text-sm font-semibold text-foreground">
                                           {buildStageChapterLabel(chapter)}
@@ -1979,7 +2021,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                   episode.volume,
                                 );
                                 const isActive = episodeKey === activeChapterKey;
-                                const episodePages = normalizeProjectEpisodePages(episode.pages || []);
+                                const episodePages = normalizeProjectEpisodePages(
+                                  episode.pages || [],
+                                );
                                 const isImageEpisode =
                                   normalizeProjectEpisodeContentFormat(
                                     episode.contentFormat,
@@ -2048,7 +2092,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                           data-testid={`chapter-structure-episode-meta-${episodeKey}`}
                                         >
                                           <span>
-                                            {chapterHasContent(episode) ? "Com leitura" : "Sem leitura"}
+                                            {chapterHasContent(episode)
+                                              ? "Com leitura"
+                                              : "Sem leitura"}
                                           </span>
                                           {episode.sources?.length ? (
                                             <span>- {episode.sources.length} fonte(s)</span>
@@ -2115,7 +2161,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                     </div>
                                   </div>
                                 );
-                            })}
+                              })}
                             </>
                           ) : (
                             <div className="rounded-[18px] border border-dashed border-border/60 bg-background/30 px-4 py-4 text-sm text-muted-foreground">
@@ -2476,7 +2522,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     onClick={() =>
                       updateDraft((current) => ({
                         ...current,
-                        sources: (current.sources || []).filter((_, index) => index !== sourceIndex),
+                        sources: (current.sources || []).filter(
+                          (_, index) => index !== sourceIndex,
+                        ),
                       }))
                     }
                   >
@@ -2525,23 +2573,23 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           >
             Alternar volume
           </button>
-            <div className="flex w-full items-start justify-between gap-4 text-left">
-              <div className={editorAccordionHeaderTextClassName}>
-                <span className={editorAccordionTitleClassName}>
+          <div className="flex w-full items-start justify-between gap-4 text-left">
+            <div className={editorAccordionHeaderTextClassName}>
+              <span className={editorAccordionTitleClassName}>
                 {selectedVolumeNumber !== null ? selectedVolumeLabel : "Editor de volume"}
               </span>
-                <span className={editorAccordionSubtitleClassName}>
+              <span className={editorAccordionSubtitleClassName}>
                 {selectedVolumeNumber !== null
                   ? "Capa, texto alternativo e sinopse do volume selecionado"
                   : "Selecione um volume na sidebar ou crie um novo para editar seus metadados"}
-                </span>
-              </div>
-              {selectedVolumeNumber !== null ? (
+              </span>
+            </div>
+            {selectedVolumeNumber !== null ? (
               <Badge variant="outline" className="shrink-0">
                 {selectedVolumeChapterCount} capítulo(s)
               </Badge>
-              ) : null}
-            </div>
+            ) : null}
+          </div>
           {selectedVolumeNumber !== null ? (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-border/50 bg-background/45 p-4">
@@ -2580,7 +2628,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 )}
                 <div className="space-y-3">
                   <p className="text-xs leading-5 text-muted-foreground">
-                    Selecione a capa do volume pela biblioteca para manter a pasta dedicada organizada.
+                    Selecione a capa do volume pela biblioteca para manter a pasta dedicada
+                    organizada.
                   </p>
                   <div className="space-y-2">
                     <Label htmlFor="chapter-volume-cover-alt">Texto alternativo</Label>
@@ -2639,7 +2688,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               </div>
             </div>
           ) : (
-            <div className="rounded-[20px] border border-dashed border-border/60 bg-background/40 px-4 py-8" data-testid="chapter-volume-empty-state">
+            <div
+              className="rounded-[20px] border border-dashed border-border/60 bg-background/40 px-4 py-8"
+              data-testid="chapter-volume-empty-state"
+            >
               <AsyncState
                 kind="empty"
                 title="Nenhum volume selecionado"
@@ -2651,9 +2703,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 }
               />
             </div>
-            )}
+          )}
         </div>
-        </WorkspaceSectionCard>
+      </WorkspaceSectionCard>
     ) : null;
     const contentSection = hasActiveChapter ? (
       <WorkspaceSectionCard
@@ -2667,16 +2719,16 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         testId="chapter-content-accordion"
         className="chapter-editor-content-shell min-w-0"
       >
-            <div data-testid="chapter-content-section" className="space-y-4" data-state="open">
-            <button
-              type="button"
-              className="sr-only"
-              data-testid="chapter-content-trigger"
-              aria-expanded="true"
-            >
-              Alternar conteudo
-            </button>
-            <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div data-testid="chapter-content-section" className="space-y-4" data-state="open">
+          <button
+            type="button"
+            className="sr-only"
+            data-testid="chapter-content-trigger"
+            aria-expanded="true"
+          >
+            Alternar conteudo
+          </button>
+          <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
@@ -2702,63 +2754,65 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               {draft.sources?.length ? <span>{draft.sources.length} fonte(s)</span> : null}
               <span>{chapterStatusLabel(draft)}</span>
             </div>
-            </div>
-            <div
-              data-testid="chapter-content-viewport"
-              data-state="open"
-              className="grid grid-rows-[1fr] opacity-100"
-            >
+          </div>
+          <div
+            data-testid="chapter-content-viewport"
+            data-state="open"
+            className="grid grid-rows-[1fr] opacity-100"
+          >
             <div
               className="space-y-4 transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
               data-testid="chapter-content-body"
               data-state="open"
               aria-hidden="false"
             >
-                  {isImageChapter ? (
-                    <MangaChapterPagesEditor
-                      apiBase={apiBase}
-                      projectSnapshot={projectSnapshotForImageExport}
-                      chapter={draft}
-                      uploadFolder={chapterFolder}
-                      onChange={(nextChapter) => onDraftChange(normalizeChapterForSave(nextChapter))}
-                    />
-                  ) : (
-                    <>
-                      <div
-                        className={`chapter-editor-lexical-wrapper min-w-0 rounded-[22px] border border-border/50 bg-background/40 p-2 md:p-3 ${chapterEditorLexicalMinHeightClassName}`}
-                        data-testid="chapter-lexical-wrapper"
-                      >
-                        <Suspense fallback={<LexicalEditorFallback />}>
-                          <LexicalEditor
-                            ref={editorRef}
-                            value={draft.content || ""}
-                            onChange={(nextValue) =>
-                              updateDraft((current) => ({
-                                ...current,
-                                content: nextValue,
-                                contentFormat: "lexical",
-                                pages: [],
-                                pageCount: 0,
-                                hasPages: false,
-                              }))
-                            }
-                            placeholder="Escreva o capítulo..."
-                            className="lexical-playground--modal lexical-playground--stretch lexical-playground--chapter-editor min-w-0 w-full"
-                            imageLibraryOptions={chapterImageLibraryOptions}
-                            autoFocus={false}
-                            followCaretScroll
-                          />
-                        </Suspense>
-                      </div>
-                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-border/50 bg-background/35 px-4 py-3 text-xs text-muted-foreground">
-                        <span>O conteudo usa o snapshot atual da pagina para EPUB e leitura publica.</span>
-                        <span>Escrita continua com layout ampliado para capitulos longos.</span>
-                      </div>
-                    </>
-                  )}
+              {isImageChapter ? (
+                <MangaChapterPagesEditor
+                  apiBase={apiBase}
+                  projectSnapshot={projectSnapshotForImageExport}
+                  chapter={draft}
+                  uploadFolder={chapterFolder}
+                  onChange={(nextChapter) => onDraftChange(normalizeChapterForSave(nextChapter))}
+                />
+              ) : (
+                <>
+                  <div
+                    className={`chapter-editor-lexical-wrapper min-w-0 rounded-[22px] border border-border/50 bg-background/40 p-2 md:p-3 ${chapterEditorLexicalMinHeightClassName}`}
+                    data-testid="chapter-lexical-wrapper"
+                  >
+                    <Suspense fallback={<LexicalEditorFallback />}>
+                      <LexicalEditor
+                        ref={editorRef}
+                        value={draft.content || ""}
+                        onChange={(nextValue) =>
+                          updateDraft((current) => ({
+                            ...current,
+                            content: nextValue,
+                            contentFormat: "lexical",
+                            pages: [],
+                            pageCount: 0,
+                            hasPages: false,
+                          }))
+                        }
+                        placeholder="Escreva o capítulo..."
+                        className="lexical-playground--modal lexical-playground--stretch lexical-playground--chapter-editor min-w-0 w-full"
+                        imageLibraryOptions={chapterImageLibraryOptions}
+                        autoFocus={false}
+                        followCaretScroll
+                      />
+                    </Suspense>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-border/50 bg-background/35 px-4 py-3 text-xs text-muted-foreground">
+                    <span>
+                      O conteudo usa o snapshot atual da pagina para EPUB e leitura publica.
+                    </span>
+                    <span>Escrita continua com layout ampliado para capitulos longos.</span>
+                  </div>
+                </>
+              )}
             </div>
-            </div>
-            </div>
+          </div>
+        </div>
       </WorkspaceSectionCard>
     ) : null;
     const imageIdentitySection =
@@ -3102,16 +3156,16 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     return (
       <>
         <div className="space-y-3" data-testid="chapter-editor-header-shell">
-          <section
-            className={editorialMastheadClassName}
-            data-testid="chapter-editor-masthead"
-          >
+          <section className={editorialMastheadClassName} data-testid="chapter-editor-masthead">
             <div className="grid gap-5 px-4 py-5 md:px-6 md:py-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:px-8">
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   {hasActiveChapter ? (
                     <>
-                      <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] uppercase tracking-[0.12em]"
+                      >
                         {chapterSummaryLabel}
                       </Badge>
                       <Badge
@@ -3121,14 +3175,20 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                         {chapterStatusLabel(draft)}
                       </Badge>
                       {Number.isFinite(Number(draft.volume)) ? (
-                        <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] uppercase tracking-[0.12em]"
+                        >
                           {buildChapterVolumeLabel(draft.volume)}
                         </Badge>
                       ) : null}
                     </>
                   ) : selectedVolumeNumber !== null ? (
                     <>
-                      <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] uppercase tracking-[0.12em]"
+                      >
                         Volume em edição
                       </Badge>
                       <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
@@ -3165,10 +3225,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             </div>
           </section>
 
-          <div
-            className={editorialCommandBarClassName}
-            data-testid="chapter-editor-command-bar"
-          >
+          <div className={editorialCommandBarClassName} data-testid="chapter-editor-command-bar">
             <div className="space-y-3 px-4 py-3 md:px-6 lg:px-8">
               <div
                 className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
@@ -3274,7 +3331,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                       <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
                         {chapterPositionLabel}
                       </Badge>
-                      <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] uppercase tracking-[0.12em]"
+                      >
                         Capítulo {draft.number}
                       </Badge>
                       <span className="text-[11px] text-muted-foreground">
@@ -3325,7 +3385,11 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                           <span>Abrir leitura</span>
                         </Link>
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => onNavigateToHref(neutralHref)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onNavigateToHref(neutralHref)}
+                      >
                         <span>Fechar capítulo</span>
                       </Button>
                       <Button
@@ -3368,19 +3432,16 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     </Button>
                   ) : null}
                 </div>
-                </div>
               </div>
             </div>
           </div>
+        </div>
 
         <div
           className="project-editor-layout mx-auto grid w-full gap-5 pb-8 pt-4 md:pb-10 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start"
           data-testid="chapter-editor-upper-layout"
         >
-          <div
-            className="min-w-0 w-full"
-            data-testid="chapter-editor-main-column"
-          >
+          <div className="min-w-0 w-full" data-testid="chapter-editor-main-column">
             <div className="space-y-4" data-testid="chapter-editor-workspace">
               {hasActiveChapter ? (
                 <>
@@ -3648,12 +3709,12 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     data-testid="chapter-identity-trigger"
                   >
                     <EditorAccordionHeader
-        title={isImageChapter ? "Dados do capitulo" : "Identidade do capÃ­tulo"}
-        subtitle={
-          isImageChapter
-            ? "Volume, capitulo, tipo de entrada e titulo."
-            : "TÃ­tulo, numeraÃ§Ã£o, tipo e resumo"
-        }
+                      title={isImageChapter ? "Dados do capitulo" : "Identidade do capÃ­tulo"}
+                      subtitle={
+                        isImageChapter
+                          ? "Volume, capitulo, tipo de entrada e titulo."
+                          : "TÃ­tulo, numeraÃ§Ã£o, tipo e resumo"
+                      }
                     />
                   </AccordionTrigger>
                   <AccordionContent className={editorSectionContentClassName}>
@@ -3664,12 +3725,12 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                         </div>
                       ) : null}
 
-          <div
-            className={cn(
-              "grid gap-3",
-              isImageChapter ? "md:grid-cols-3" : "md:grid-cols-2 xl:grid-cols-4",
-            )}
-          >
+                      <div
+                        className={cn(
+                          "grid gap-3",
+                          isImageChapter ? "md:grid-cols-3" : "md:grid-cols-2 xl:grid-cols-4",
+                        )}
+                      >
                         <div className="space-y-2">
                           <Label htmlFor="chapter-number">CapÃ­tulo</Label>
                           <Input
@@ -3793,10 +3854,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             {null}
           </div>
 
-          <aside
-            className="min-w-0 xl:sticky xl:top-24"
-            data-testid="chapter-editor-sidebar"
-          >
+          <aside className="min-w-0 xl:sticky xl:top-24" data-testid="chapter-editor-sidebar">
             {false ? (
               <Accordion
                 type="multiple"
@@ -3820,7 +3878,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                           type="date"
                           value={draft.releaseDate || ""}
                           onChange={(event) =>
-                            updateDraft((current) => ({ ...current, releaseDate: event.target.value }))
+                            updateDraft((current) => ({
+                              ...current,
+                              releaseDate: event.target.value,
+                            }))
                           }
                         />
                       </div>
@@ -3860,7 +3921,12 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                             Usa a pasta dedicada do capítulo na biblioteca.
                           </p>
                         </div>
-                        <Button type="button" variant="outline" size="sm" onClick={openChapterCoverLibrary}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={openChapterCoverLibrary}
+                        >
                           <ImagePlus className="h-4 w-4" />
                           <span>Biblioteca</span>
                         </Button>
@@ -3998,7 +4064,6 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             ) : null}
             {structureAccordion}
           </aside>
-
         </div>
 
         <Dialog
@@ -4026,11 +4091,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               <Button type="button" variant="ghost" onClick={handleLeaveDialogCancel}>
                 Cancelar
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleLeaveDialogDiscardAndContinue}
-              >
+              <Button type="button" variant="outline" onClick={handleLeaveDialogDiscardAndContinue}>
                 Descartar e continuar
               </Button>
               {leaveDialogState?.chapterDirty ? (
@@ -4199,8 +4260,9 @@ const DashboardProjectChapterEditor = () => {
   const [backendCapabilities, setBackendCapabilities] = useState<ApiContractCapabilities | null>(
     null,
   );
-  const [backendBuildMetadata, setBackendBuildMetadata] =
-    useState<ApiContractBuildMetadata | null>(null);
+  const [backendBuildMetadata, setBackendBuildMetadata] = useState<ApiContractBuildMetadata | null>(
+    null,
+  );
   const [backendCapabilitiesError, setBackendCapabilitiesError] = useState<string | null>(null);
   const [epubRouteStatus, setEpubRouteStatus] = useState<EpubRouteStatus>("unknown");
   const [epubImportFile, setEpubImportFile] = useState<File | null>(null);
@@ -4463,11 +4525,15 @@ const DashboardProjectChapterEditor = () => {
   const activeChapterIndex =
     activeChapterLookup.ok && "index" in activeChapterLookup ? activeChapterLookup.index : -1;
   const activeChapterKey =
-    activeChapter && chapterNumber ? buildEpisodeKey(activeChapter.number, activeChapter.volume) : null;
+    activeChapter && chapterNumber
+      ? buildEpisodeKey(activeChapter.number, activeChapter.volume)
+      : null;
   const activeChapterSnapshot = useMemo(() => buildChapterSnapshot(activeChapter), [activeChapter]);
   const activeDraftSnapshot = useMemo(() => buildChapterSnapshot(activeDraft), [activeDraft]);
   const isChapterDirty =
-    Boolean(activeChapterKey) && Boolean(activeDraft) && activeDraftSnapshot !== activeChapterSnapshot;
+    Boolean(activeChapterKey) &&
+    Boolean(activeDraft) &&
+    activeDraftSnapshot !== activeChapterSnapshot;
 
   useEffect(() => {
     if (!activeChapter || !activeChapterKey) {
@@ -4733,39 +4799,45 @@ const DashboardProjectChapterEditor = () => {
     Array.from(chaptersByStructureGroup.keys()).forEach((key) => {
       const parsedVolume = Number(key);
       if (key !== "none" && Number.isFinite(parsedVolume) && parsedVolume > 0) {
-        numericVolumeMap.set(parsedVolume, numericVolumeMap.get(parsedVolume) || {
-          volume: parsedVolume,
-          chapterCount: (chaptersByStructureGroup.get(key) || []).length,
-          hasMetadata: false,
-        });
+        numericVolumeMap.set(
+          parsedVolume,
+          numericVolumeMap.get(parsedVolume) || {
+            volume: parsedVolume,
+            chapterCount: (chaptersByStructureGroup.get(key) || []).length,
+            hasMetadata: false,
+          },
+        );
       }
     });
     Array.from(stagedChaptersByStructureGroup.keys()).forEach((key) => {
       const parsedVolume = Number(key);
       if (key !== "none" && Number.isFinite(parsedVolume) && parsedVolume > 0) {
-        numericVolumeMap.set(parsedVolume, numericVolumeMap.get(parsedVolume) || {
-          volume: parsedVolume,
-          chapterCount: (chaptersByStructureGroup.get(key) || []).length,
-          hasMetadata: false,
-        });
+        numericVolumeMap.set(
+          parsedVolume,
+          numericVolumeMap.get(parsedVolume) || {
+            volume: parsedVolume,
+            chapterCount: (chaptersByStructureGroup.get(key) || []).length,
+            hasMetadata: false,
+          },
+        );
       }
     });
     const numericGroups = Array.from(numericVolumeMap.values())
       .sort((left, right) => left.volume - right.volume)
       .map((volumeOption) => {
-      const key = String(volumeOption.volume);
-      return {
-        key,
-        label: buildChapterVolumeLabel(volumeOption.volume),
-        volume: volumeOption.volume,
-        hasMetadata: volumeOption.hasMetadata,
-        chapterCount: volumeOption.chapterCount,
-        allItems: chaptersByStructureGroup.get(key) || [],
-        visibleItems: filteredChaptersByStructureGroup.get(key) || [],
-        pendingItems: stagedChaptersByStructureGroup.get(key) || [],
-        visiblePendingItems: visibleStagedChaptersByStructureGroup.get(key) || [],
-      };
-    });
+        const key = String(volumeOption.volume);
+        return {
+          key,
+          label: buildChapterVolumeLabel(volumeOption.volume),
+          volume: volumeOption.volume,
+          hasMetadata: volumeOption.hasMetadata,
+          chapterCount: volumeOption.chapterCount,
+          allItems: chaptersByStructureGroup.get(key) || [],
+          visibleItems: filteredChaptersByStructureGroup.get(key) || [],
+          pendingItems: stagedChaptersByStructureGroup.get(key) || [],
+          visiblePendingItems: visibleStagedChaptersByStructureGroup.get(key) || [],
+        };
+      });
     const semVolumeItems = chaptersByStructureGroup.get("none") || [];
     numericGroups.push({
       key: "none",
@@ -4865,10 +4937,7 @@ const DashboardProjectChapterEditor = () => {
   );
 
   const handleStructureVolumeSelection = useCallback(
-    async (
-      nextVolume: number,
-      options?: VolumeSelectionOptions,
-    ) => {
+    async (nextVolume: number, options?: VolumeSelectionOptions) => {
       const normalizedVolume = Number(nextVolume);
       if (!Number.isFinite(normalizedVolume) || normalizedVolume <= 0) {
         return false;
@@ -4903,7 +4972,7 @@ const DashboardProjectChapterEditor = () => {
           ? undefined
           : Number.isFinite(Number(routeHint.volume)) && Number(routeHint.volume) >= 0
             ? Math.floor(Number(routeHint.volume))
-          : undefined;
+            : undefined;
       const canonicalChapter = resolveCanonicalEpisodeRouteTarget(
         nextProject.episodeDownloads || [],
         hintedNumber,
@@ -5027,9 +5096,9 @@ const DashboardProjectChapterEditor = () => {
                   ? "Não foi possível excluir o capítulo"
                   : options.context === "volume-delete"
                     ? "Não foi possível excluir o volume"
-                : options.context === "chapter-create"
-                  ? "Não foi possível criar o capítulo"
-                  : "Falha ao importar EPUB",
+                    : options.context === "chapter-create"
+                      ? "Não foi possível criar o capítulo"
+                      : "Falha ao importar EPUB",
             description:
               options.context === "volume-editor"
                 ? "O projeto possui capítulos duplicados por número e volume."
@@ -5037,9 +5106,9 @@ const DashboardProjectChapterEditor = () => {
                   ? "A remoção deixou o projeto com capítulos duplicados."
                   : options.context === "volume-delete"
                     ? "A remoção deixou o projeto com capítulos duplicados."
-                : options.context === "chapter-create"
-                  ? "Já existe um capítulo com essa combinação de número e volume."
-                  : EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
+                    : options.context === "chapter-create"
+                      ? "Já existe um capítulo com essa combinação de número e volume."
+                      : EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
             variant: "destructive",
           });
           return null;
@@ -5051,17 +5120,17 @@ const DashboardProjectChapterEditor = () => {
                 ? "Volumes duplicados"
                 : options.context === "volume-delete"
                   ? "Volumes duplicados"
-                : options.context === "chapter-create"
-                  ? "Não foi possível criar o capítulo"
-                  : "Falha ao importar EPUB",
+                  : options.context === "chapter-create"
+                    ? "Não foi possível criar o capítulo"
+                    : "Falha ao importar EPUB",
             description:
               options.context === "volume-editor"
                 ? "Cada volume pode aparecer apenas uma vez."
                 : options.context === "volume-delete"
                   ? "Cada volume pode aparecer apenas uma vez."
-                : options.context === "chapter-create"
-                  ? "Os metadados de volume ficaram duplicados neste snapshot."
-                  : "O projeto resultante ficou com mais de uma entrada para o mesmo volume.",
+                  : options.context === "chapter-create"
+                    ? "Os metadados de volume ficaram duplicados neste snapshot."
+                    : "O projeto resultante ficou com mais de uma entrada para o mesmo volume.",
             variant: "destructive",
           });
           return null;
@@ -5074,9 +5143,9 @@ const DashboardProjectChapterEditor = () => {
                 ? "Não foi possível excluir o capítulo"
                 : options.context === "volume-delete"
                   ? "Não foi possível excluir o volume"
-              : options.context === "chapter-create"
-                ? "Não foi possível criar o capítulo"
-                : "Não foi possível salvar o projeto",
+                  : options.context === "chapter-create"
+                    ? "Não foi possível criar o capítulo"
+                    : "Não foi possível salvar o projeto",
           description: "Tente novamente em alguns instantes.",
           variant: "destructive",
         });
@@ -5130,7 +5199,8 @@ const DashboardProjectChapterEditor = () => {
     if (!activeChapter) {
       return;
     }
-    const chapterLabel = String(activeChapter.title || "").trim() || `Capítulo ${activeChapter.number}`;
+    const chapterLabel =
+      String(activeChapter.title || "").trim() || `Capítulo ${activeChapter.number}`;
     const dirtyNotice =
       isChapterDirty || isVolumeDirty
         ? " As alterações atuais da página serão aplicadas imediatamente junto com a exclusão."
@@ -5150,7 +5220,8 @@ const DashboardProjectChapterEditor = () => {
         return;
       }
       const linkedChapterCount =
-        availableVolumes.find((volumeOption) => volumeOption.volume === normalizedVolume)?.chapterCount || 0;
+        availableVolumes.find((volumeOption) => volumeOption.volume === normalizedVolume)
+          ?.chapterCount || 0;
       const dirtyNotice =
         isChapterDirty || isVolumeDirty
           ? " As alterações atuais da página serão aplicadas imediatamente junto com a exclusão."
@@ -5219,11 +5290,14 @@ const DashboardProjectChapterEditor = () => {
       }
 
       const volumeToDelete = deleteDialogState.volume;
-      const nextSnapshot = buildProjectSnapshotWithVolumeEntries(projectWithVolumeDraft || project, [
-        ...normalizeProjectVolumeEntries(volumeEntriesDraft).filter(
-          (entry) => buildVolumeCoverKey(entry.volume) !== buildVolumeCoverKey(volumeToDelete),
-        ),
-      ]);
+      const nextSnapshot = buildProjectSnapshotWithVolumeEntries(
+        projectWithVolumeDraft || project,
+        [
+          ...normalizeProjectVolumeEntries(volumeEntriesDraft).filter(
+            (entry) => buildVolumeCoverKey(entry.volume) !== buildVolumeCoverKey(volumeToDelete),
+          ),
+        ],
+      );
       nextSnapshot.episodeDownloads = sortChapters(
         (Array.isArray(nextSnapshot.episodeDownloads) ? nextSnapshot.episodeDownloads : []).filter(
           (episode) => Number(episode.volume) !== volumeToDelete,
@@ -5329,12 +5403,7 @@ const DashboardProjectChapterEditor = () => {
         intent: "success",
       });
     },
-    [
-      chapterSearchQuery,
-      filterMode,
-      navigate,
-      persistProjectSnapshot,
-    ],
+    [chapterSearchQuery, filterMode, navigate, persistProjectSnapshot],
   );
 
   const openEpubImportPicker = useCallback(
@@ -5350,90 +5419,87 @@ const DashboardProjectChapterEditor = () => {
     [backendSupportsEpubImport, isImportingEpub],
   );
 
-  const handleEpubImportFailureResponse = useCallback(
-    (response: Response, data: unknown) => {
-      const payload = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
-      if (response.status === 404) {
-        if (payload?.error === "project_not_found") {
-          setEpubRouteStatus("legacy_project_not_found");
-          toast({
-            title: "Falha ao importar EPUB",
-            description: EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE,
-            variant: "destructive",
-          });
-          return;
-        }
-        setEpubRouteStatus("route_unreachable_for_current_origin");
+  const handleEpubImportFailureResponse = useCallback((response: Response, data: unknown) => {
+    const payload = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+    if (response.status === 404) {
+      if (payload?.error === "project_not_found") {
+        setEpubRouteStatus("legacy_project_not_found");
         toast({
           title: "Falha ao importar EPUB",
-          description: EPUB_IMPORT_ROUTE_MISSING_MESSAGE,
+          description: EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE,
           variant: "destructive",
         });
         return;
       }
-      if (response.status === 403) {
-        setEpubRouteStatus("forbidden");
-        toast({
-          title: "Falha ao importar EPUB",
-          description: "Você não tem permissão para importar EPUB.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (
-        (typeof payload?.error === "string" && payload.error === "project_snapshot_too_large") ||
-        isLegacyMultipartSnapshotTooLargeError(payload?.error, payload?.detail)
-      ) {
-        setEpubRouteStatus("ok");
-        toast({
-          title: "Falha ao importar EPUB",
-          description: EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE,
-          variant: "destructive",
-        });
-        return;
-      }
-      if (typeof payload?.error === "string" && payload.error === "invalid_project_snapshot") {
-        setEpubRouteStatus("ok");
-        toast({
-          title: "Falha ao importar EPUB",
-          description: EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE,
-          variant: "destructive",
-        });
-        return;
-      }
-      if (typeof payload?.error === "string" && payload.error === "duplicate_episode_key") {
-        setEpubRouteStatus("ok");
-        toast({
-          title: "Falha ao importar EPUB",
-          description: EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
-          variant: "destructive",
-        });
-        return;
-      }
-      if (
-        typeof payload?.error === "string" &&
-        payload.error === "epub_import_failed" &&
-        (isEpubCssEngineFailureDetail(payload?.detail) ||
-          !(typeof payload?.detail === "string" && payload.detail.trim().length > 0))
-      ) {
-        toast({
-          title: "Falha ao importar EPUB",
-          description: EPUB_IMPORT_PROCESSING_MESSAGE,
-          variant: "destructive",
-        });
-        return;
-      }
+      setEpubRouteStatus("route_unreachable_for_current_origin");
       toast({
         title: "Falha ao importar EPUB",
-        description:
-          typeof payload?.detail === "string"
-            ? payload.detail
-            : "Não foi possível processar o arquivo informado.",
+        description: EPUB_IMPORT_ROUTE_MISSING_MESSAGE,
         variant: "destructive",
       });
-    },
-    [],
-  );
+      return;
+    }
+    if (response.status === 403) {
+      setEpubRouteStatus("forbidden");
+      toast({
+        title: "Falha ao importar EPUB",
+        description: "Você não tem permissão para importar EPUB.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (
+      (typeof payload?.error === "string" && payload.error === "project_snapshot_too_large") ||
+      isLegacyMultipartSnapshotTooLargeError(payload?.error, payload?.detail)
+    ) {
+      setEpubRouteStatus("ok");
+      toast({
+        title: "Falha ao importar EPUB",
+        description: EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (typeof payload?.error === "string" && payload.error === "invalid_project_snapshot") {
+      setEpubRouteStatus("ok");
+      toast({
+        title: "Falha ao importar EPUB",
+        description: EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (typeof payload?.error === "string" && payload.error === "duplicate_episode_key") {
+      setEpubRouteStatus("ok");
+      toast({
+        title: "Falha ao importar EPUB",
+        description: EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (
+      typeof payload?.error === "string" &&
+      payload.error === "epub_import_failed" &&
+      (isEpubCssEngineFailureDetail(payload?.detail) ||
+        !(typeof payload?.detail === "string" && payload.detail.trim().length > 0))
+    ) {
+      toast({
+        title: "Falha ao importar EPUB",
+        description: EPUB_IMPORT_PROCESSING_MESSAGE,
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({
+      title: "Falha ao importar EPUB",
+      description:
+        typeof payload?.detail === "string"
+          ? payload.detail
+          : "Não foi possível processar o arquivo informado.",
+      variant: "destructive",
+    });
+  }, []);
 
   const applyImportedEpubPayload = useCallback(
     async (payload: unknown, baseProjectSnapshot: ProjectRecord) => {
@@ -5777,7 +5843,10 @@ const DashboardProjectChapterEditor = () => {
         const projectSnapshotForImport = projectSnapshot;
         const formData = new FormData();
         formData.set("file", file);
-        formData.set("project", JSON.stringify(buildEpubImportProjectSnapshot(projectSnapshotForImport)));
+        formData.set(
+          "project",
+          JSON.stringify(buildEpubImportProjectSnapshot(projectSnapshotForImport)),
+        );
         if (epubImportTargetVolume.trim()) {
           formData.set("targetVolume", epubImportTargetVolume.trim());
         }
@@ -5800,7 +5869,9 @@ const DashboardProjectChapterEditor = () => {
             handleEpubImportFailureResponse(jobResponse, data);
             return;
           } else {
-            const data = (await jobResponse.json().catch(() => null)) as { job?: EpubImportJob } | null;
+            const data = (await jobResponse.json().catch(() => null)) as {
+              job?: EpubImportJob;
+            } | null;
             const initialJob = normalizeEpubImportJob(data?.job);
             if (!initialJob) {
               toast({

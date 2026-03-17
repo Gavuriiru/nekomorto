@@ -61,17 +61,15 @@ const createProjectFixture = (episodeDownloads?: Array<Record<string, unknown>>)
   cover: "/uploads/project-cover.jpg",
   volumeEntries: [],
   volumeCovers: [],
-  episodeDownloads:
-    episodeDownloads ||
-    [
-      {
-        number: 1,
-        volume: 2,
-        title: "Capitulo 1",
-        synopsis: "Resumo do capitulo",
-        content: "<p>Conteudo</p>",
-      },
-    ],
+  episodeDownloads: episodeDownloads || [
+    {
+      number: 1,
+      volume: 2,
+      title: "Capitulo 1",
+      synopsis: "Resumo do capitulo",
+      content: "<p>Conteudo</p>",
+    },
+  ],
 });
 
 const setupProjectReadingApiMock = (
@@ -137,6 +135,18 @@ const setupProjectReadingApiMock = (
               number: Number(entry.number || 0),
               volume: Number.isFinite(Number(entry.volume)) ? Number(entry.volume) : undefined,
               title: String(entry.title || ""),
+              content: typeof entry.content === "string" ? entry.content : "",
+              contentFormat:
+                String(entry.contentFormat || "")
+                  .trim()
+                  .toLowerCase() === "images"
+                  ? "images"
+                  : "lexical",
+              pages: Array.isArray(entry.pages) ? entry.pages : [],
+              pageCount: Number.isFinite(Number(entry.pageCount))
+                ? Number(entry.pageCount)
+                : undefined,
+              hasPages: Boolean((entry as { hasPages?: boolean }).hasPages),
               releaseDate: String(entry.releaseDate || ""),
               duration: String(entry.duration || ""),
               coverImageUrl: String(entry.coverImageUrl || ""),
@@ -150,8 +160,9 @@ const setupProjectReadingApiMock = (
                 Boolean((entry as { hasContent?: boolean }).hasContent) ||
                 (typeof entry.content === "string" && entry.content.trim().length > 0),
               entryKind:
-                String((entry as { entryKind?: string }).entryKind || "").trim().toLowerCase() ===
-                "extra"
+                String((entry as { entryKind?: string }).entryKind || "")
+                  .trim()
+                  .toLowerCase() === "extra"
                   ? "extra"
                   : "main",
               entrySubtype: String((entry as { entrySubtype?: string }).entrySubtype || ""),
@@ -187,23 +198,25 @@ const setupProjectReadingApiMock = (
         permissions,
       }
     : null;
-  apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-    if (
-      endpoint === "/api/public/projects/projeto-teste" &&
-      (!options?.method || options.method === "GET")
-    ) {
-      return mockJsonResponse(true, { project });
-    }
-    if (endpoint === chapterEndpoint && (!options?.method || options.method === "GET")) {
-      return mockJsonResponse(true, {
-        chapter: chapterResponse,
-      });
-    }
-    if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
-      return mockJsonResponse(true, { ok: true });
-    }
-    return mockJsonResponse(false, { error: "not_found" }, 404);
-  });
+  apiFetchMock.mockImplementation(
+    async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      if (
+        endpoint === "/api/public/projects/projeto-teste" &&
+        (!options?.method || options.method === "GET")
+      ) {
+        return mockJsonResponse(true, { project });
+      }
+      if (endpoint === chapterEndpoint && (!options?.method || options.method === "GET")) {
+        return mockJsonResponse(true, {
+          chapter: chapterResponse,
+        });
+      }
+      if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+        return mockJsonResponse(true, { ok: true });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    },
+  );
 };
 
 describe("ProjectReading analytics", () => {
@@ -550,36 +563,38 @@ describe("ProjectReading analytics", () => {
     ];
 
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      if (
-        endpoint === "/api/public/projects/projeto-teste" &&
-        (!options?.method || options.method === "GET")
-      ) {
-        return mockJsonResponse(true, { project });
-      }
-      if (
-        endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
-        (!options?.method || options.method === "GET")
-      ) {
-        return mockJsonResponse(true, {
-          chapter: {
-            number: 1,
-            volume: 2,
-            title: "Capitulo 1",
-            synopsis: "",
-            content: "<p>Conteudo</p>",
-            contentFormat: "lexical",
-          },
-        });
-      }
-      if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
-        return mockJsonResponse(true, { user: null });
-      }
-      if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
-        return mockJsonResponse(true, { ok: true });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        if (
+          endpoint === "/api/public/projects/projeto-teste" &&
+          (!options?.method || options.method === "GET")
+        ) {
+          return mockJsonResponse(true, { project });
+        }
+        if (
+          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+          (!options?.method || options.method === "GET")
+        ) {
+          return mockJsonResponse(true, {
+            chapter: {
+              number: 1,
+              volume: 2,
+              title: "Capitulo 1",
+              synopsis: "",
+              content: "<p>Conteudo</p>",
+              contentFormat: "lexical",
+            },
+          });
+        }
+        if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+          return mockJsonResponse(true, { user: null });
+        }
+        if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+          return mockJsonResponse(true, { ok: true });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     render(
       <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
@@ -612,36 +627,38 @@ describe("ProjectReading analytics", () => {
     ];
 
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      if (
-        endpoint === "/api/public/projects/projeto-teste" &&
-        (!options?.method || options.method === "GET")
-      ) {
-        return mockJsonResponse(true, { project });
-      }
-      if (
-        endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
-        (!options?.method || options.method === "GET")
-      ) {
-        return mockJsonResponse(true, {
-          chapter: {
-            number: 1,
-            volume: 2,
-            title: "Capitulo 1",
-            synopsis: "",
-            content: "<p>Conteudo</p>",
-            contentFormat: "lexical",
-          },
-        });
-      }
-      if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
-        return mockJsonResponse(true, { user: null });
-      }
-      if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
-        return mockJsonResponse(true, { ok: true });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        if (
+          endpoint === "/api/public/projects/projeto-teste" &&
+          (!options?.method || options.method === "GET")
+        ) {
+          return mockJsonResponse(true, { project });
+        }
+        if (
+          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+          (!options?.method || options.method === "GET")
+        ) {
+          return mockJsonResponse(true, {
+            chapter: {
+              number: 1,
+              volume: 2,
+              title: "Capitulo 1",
+              synopsis: "",
+              content: "<p>Conteudo</p>",
+              contentFormat: "lexical",
+            },
+          });
+        }
+        if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+          return mockJsonResponse(true, { user: null });
+        }
+        if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+          return mockJsonResponse(true, { ok: true });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     render(
       <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
@@ -664,38 +681,40 @@ describe("ProjectReading analytics", () => {
     ];
 
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      if (
-        endpoint === "/api/public/projects/projeto-teste" &&
-        (!options?.method || options.method === "GET")
-      ) {
-        return mockJsonResponse(true, { project });
-      }
-      if (
-        endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
-        (!options?.method || options.method === "GET")
-      ) {
-        return mockJsonResponse(true, {
-          chapter: {
-            number: 1,
-            volume: 2,
-            title: "Capitulo 1",
-            synopsis: "Resumo do capitulo",
-            content: "<p>Conteudo</p>",
-            contentFormat: "lexical",
-            coverImageUrl: "/uploads/chapter-1-cover.jpg",
-            coverImageAlt: "Capa do capitulo 1",
-          },
-        });
-      }
-      if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
-        return mockJsonResponse(true, { user: null });
-      }
-      if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
-        return mockJsonResponse(true, { ok: true });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        if (
+          endpoint === "/api/public/projects/projeto-teste" &&
+          (!options?.method || options.method === "GET")
+        ) {
+          return mockJsonResponse(true, { project });
+        }
+        if (
+          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+          (!options?.method || options.method === "GET")
+        ) {
+          return mockJsonResponse(true, {
+            chapter: {
+              number: 1,
+              volume: 2,
+              title: "Capitulo 1",
+              synopsis: "Resumo do capitulo",
+              content: "<p>Conteudo</p>",
+              contentFormat: "lexical",
+              coverImageUrl: "/uploads/chapter-1-cover.jpg",
+              coverImageAlt: "Capa do capitulo 1",
+            },
+          });
+        }
+        if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+          return mockJsonResponse(true, { user: null });
+        }
+        if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+          return mockJsonResponse(true, { ok: true });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     render(
       <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
@@ -721,36 +740,38 @@ describe("ProjectReading analytics", () => {
     ];
 
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      if (
-        endpoint === "/api/public/projects/projeto-teste" &&
-        (!options?.method || options.method === "GET")
-      ) {
-        return mockJsonResponse(true, { project });
-      }
-      if (
-        endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
-        (!options?.method || options.method === "GET")
-      ) {
-        return mockJsonResponse(true, {
-          chapter: {
-            number: 1,
-            volume: 2,
-            title: "Capitulo 1",
-            synopsis: "Resumo do capitulo",
-            content: "<p>Conteudo</p>",
-            contentFormat: "lexical",
-          },
-        });
-      }
-      if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
-        return mockJsonResponse(true, { user: null });
-      }
-      if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
-        return mockJsonResponse(true, { ok: true });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        if (
+          endpoint === "/api/public/projects/projeto-teste" &&
+          (!options?.method || options.method === "GET")
+        ) {
+          return mockJsonResponse(true, { project });
+        }
+        if (
+          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+          (!options?.method || options.method === "GET")
+        ) {
+          return mockJsonResponse(true, {
+            chapter: {
+              number: 1,
+              volume: 2,
+              title: "Capitulo 1",
+              synopsis: "Resumo do capitulo",
+              content: "<p>Conteudo</p>",
+              contentFormat: "lexical",
+            },
+          });
+        }
+        if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+          return mockJsonResponse(true, { user: null });
+        }
+        if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+          return mockJsonResponse(true, { ok: true });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     render(
       <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>

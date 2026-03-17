@@ -9,8 +9,7 @@ import {
   buildPostOgScene,
 } from "../../server/lib/post-og.js";
 
-const transparentDataUrl =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+const transparentDataUrl = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
 const baseSettings = {
   theme: {
@@ -225,10 +224,16 @@ describe("post og helper", () => {
     const withoutAvatarScene = buildPostOgScene(withoutAvatar);
 
     expect(
-      findElement(withAvatarScene, (candidate) => candidate.props?.["data-og-part"] === "subtitle-avatar"),
+      findElement(
+        withAvatarScene,
+        (candidate) => candidate.props?.["data-og-part"] === "subtitle-avatar",
+      ),
     ).not.toBeNull();
     expect(
-      findElement(withoutAvatarScene, (candidate) => candidate.props?.["data-og-part"] === "subtitle-avatar"),
+      findElement(
+        withoutAvatarScene,
+        (candidate) => candidate.props?.["data-og-part"] === "subtitle-avatar",
+      ),
     ).toBeNull();
   });
 
@@ -285,7 +290,9 @@ describe("post og helper", () => {
     expect(
       findElement(scene, (candidate) => candidate.props?.["data-og-part"] === "artwork-fallback"),
     ).not.toBeNull();
-    expect(findElement(scene, (candidate) => candidate.props?.["data-og-part"] === "artwork")).toBeNull();
+    expect(
+      findElement(scene, (candidate) => candidate.props?.["data-og-part"] === "artwork"),
+    ).toBeNull();
   });
 
   it("renders a valid PNG with the shared project card renderer", async () => {

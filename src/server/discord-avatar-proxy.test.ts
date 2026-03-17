@@ -45,14 +45,15 @@ describe("discord avatar proxy", () => {
   });
 
   it("faz proxy do avatar com cache imutavel e sem expor cookies do upstream", async () => {
-    const fetchMock = vi.fn(async () =>
-      new Response(new Uint8Array([1, 2, 3]), {
-        status: 200,
-        headers: {
-          "content-type": "image/png",
-          "set-cookie": "_cfuvid=blocked",
-        },
-      }),
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: {
+            "content-type": "image/png",
+            "set-cookie": "_cfuvid=blocked",
+          },
+        }),
     );
 
     const result = await proxyDiscordAvatarRequest({

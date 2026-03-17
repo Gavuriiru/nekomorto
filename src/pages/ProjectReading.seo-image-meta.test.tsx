@@ -43,13 +43,9 @@ vi.mock("@/components/CommentsSection", () => ({
 }));
 
 vi.mock("@/components/UploadPicture", () => ({
-  default: ({
-    alt,
-    src,
-  }: {
-    alt?: string;
-    src?: string;
-  }) => <img alt={String(alt || "")} src={String(src || "")} />,
+  default: ({ alt, src }: { alt?: string; src?: string }) => (
+    <img alt={String(alt || "")} src={String(src || "")} />
+  ),
 }));
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
@@ -93,25 +89,23 @@ const buildBootstrapProject = (episodeDownloads?: Array<Record<string, unknown>>
     },
   ],
   volumeCovers: [],
-  episodeDownloads:
-    episodeDownloads ||
-    [
-      {
-        number: 1,
-        volume: 2,
-        title: "Capitulo Bootstrap",
-        releaseDate: "2026-02-10",
-        duration: "Leitura",
-        coverImageUrl: "/uploads/chapter-1.jpg",
-        coverImageAlt: "Capitulo 1",
-        sourceType: "Web",
-        sources: [],
-        progressStage: "",
-        completedStages: [],
-        chapterUpdatedAt: "2026-02-10T00:00:00.000Z",
-        hasContent: true,
-      },
-    ],
+  episodeDownloads: episodeDownloads || [
+    {
+      number: 1,
+      volume: 2,
+      title: "Capitulo Bootstrap",
+      releaseDate: "2026-02-10",
+      duration: "Leitura",
+      coverImageUrl: "/uploads/chapter-1.jpg",
+      coverImageAlt: "Capitulo 1",
+      sourceType: "Web",
+      sources: [],
+      progressStage: "",
+      completedStages: [],
+      chapterUpdatedAt: "2026-02-10T00:00:00.000Z",
+      hasContent: true,
+    },
+  ],
   views: 0,
   viewsDaily: {},
 });
@@ -189,9 +183,7 @@ describe("ProjectReading SEO image meta", () => {
             /\/api\/og\/project\/projeto-teste\/reading\/1\?volume=2&v=[a-f0-9]{16}$/.test(
               String(arg.image || ""),
             ) &&
-            String(arg.imageAlt || "").includes(
-              "Card de compartilhamento da leitura",
-            ) &&
+            String(arg.imageAlt || "").includes("Card de compartilhamento da leitura") &&
             arg.type === "article",
         ),
       ).toBe(true);

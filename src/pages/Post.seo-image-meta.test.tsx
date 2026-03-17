@@ -108,25 +108,27 @@ describe("Post SEO image meta", () => {
       tags: [],
     };
 
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
-        return postRequest;
-      }
-      if (endpoint === "/api/public/users" && method === "GET") {
-        return mockJsonResponse(true, { users: [], mediaVariants: {} });
-      }
-      if (endpoint === "/api/link-types" && method === "GET") {
-        return mockJsonResponse(true, { items: [] });
-      }
-      if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
-        return mockJsonResponse(true, { views: 11 });
-      }
-      if (endpoint === "/api/public/me" && method === "GET") {
-        return mockJsonResponse(true, { user: null });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
+          return postRequest;
+        }
+        if (endpoint === "/api/public/users" && method === "GET") {
+          return mockJsonResponse(true, { users: [], mediaVariants: {} });
+        }
+        if (endpoint === "/api/link-types" && method === "GET") {
+          return mockJsonResponse(true, { items: [] });
+        }
+        if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
+          return mockJsonResponse(true, { views: 11 });
+        }
+        if (endpoint === "/api/public/me" && method === "GET") {
+          return mockJsonResponse(true, { user: null });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     render(
       <MemoryRouter>
@@ -138,8 +140,7 @@ describe("Post SEO image meta", () => {
       expect(
         hasMetaCall(
           (arg) =>
-            String(arg.image || "").includes("/uploads/default-og.jpg") &&
-            arg.type === "article",
+            String(arg.image || "").includes("/uploads/default-og.jpg") && arg.type === "article",
         ),
       ).toBe(true);
     });

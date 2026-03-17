@@ -119,27 +119,35 @@ describe("Project analytics events", () => {
       ],
     };
 
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      if (endpoint === "/api/public/projects/projeto-teste" && (!options?.method || options.method === "GET")) {
-        return mockJsonResponse(true, { project });
-      }
-      if (endpoint === "/api/public/projects" && (!options?.method || options.method === "GET")) {
-        return mockJsonResponse(true, { projects: [project] });
-      }
-      if (endpoint === "/api/public/tag-translations" && (!options?.method || options.method === "GET")) {
-        return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
-      }
-      if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
-        return mockJsonResponse(true, { user: null });
-      }
-      if (endpoint === "/api/public/projects/projeto-teste/view" && options?.method === "POST") {
-        return mockJsonResponse(true, { views: 2 });
-      }
-      if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
-        return mockJsonResponse(true, { ok: true });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        if (
+          endpoint === "/api/public/projects/projeto-teste" &&
+          (!options?.method || options.method === "GET")
+        ) {
+          return mockJsonResponse(true, { project });
+        }
+        if (endpoint === "/api/public/projects" && (!options?.method || options.method === "GET")) {
+          return mockJsonResponse(true, { projects: [project] });
+        }
+        if (
+          endpoint === "/api/public/tag-translations" &&
+          (!options?.method || options.method === "GET")
+        ) {
+          return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+        }
+        if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+          return mockJsonResponse(true, { user: null });
+        }
+        if (endpoint === "/api/public/projects/projeto-teste/view" && options?.method === "POST") {
+          return mockJsonResponse(true, { views: 2 });
+        }
+        if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+          return mockJsonResponse(true, { ok: true });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     render(
       <MemoryRouter>
@@ -151,7 +159,9 @@ describe("Project analytics events", () => {
     fireEvent.click(sourceLink);
 
     await waitFor(() => {
-      const analyticsCall = apiFetchMock.mock.calls.find((call) => call[1] === "/api/public/analytics/event");
+      const analyticsCall = apiFetchMock.mock.calls.find(
+        (call) => call[1] === "/api/public/analytics/event",
+      );
       expect(analyticsCall).toBeDefined();
       const requestOptions = (analyticsCall?.[2] || {}) as RequestInit;
       expect(String(requestOptions.method || "").toUpperCase()).toBe("POST");
@@ -217,27 +227,35 @@ describe("Project analytics events", () => {
       ],
     };
 
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      if (endpoint === "/api/public/projects/projeto-teste" && (!options?.method || options.method === "GET")) {
-        return mockJsonResponse(true, { project });
-      }
-      if (endpoint === "/api/public/projects" && (!options?.method || options.method === "GET")) {
-        return mockJsonResponse(true, { projects: [project] });
-      }
-      if (endpoint === "/api/public/tag-translations" && (!options?.method || options.method === "GET")) {
-        return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
-      }
-      if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
-        return mockJsonResponse(true, { user: null });
-      }
-      if (endpoint === "/api/public/projects/projeto-teste/view" && options?.method === "POST") {
-        return mockJsonResponse(true, { views: 2 });
-      }
-      if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
-        return mockJsonResponse(true, { ok: true });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        if (
+          endpoint === "/api/public/projects/projeto-teste" &&
+          (!options?.method || options.method === "GET")
+        ) {
+          return mockJsonResponse(true, { project });
+        }
+        if (endpoint === "/api/public/projects" && (!options?.method || options.method === "GET")) {
+          return mockJsonResponse(true, { projects: [project] });
+        }
+        if (
+          endpoint === "/api/public/tag-translations" &&
+          (!options?.method || options.method === "GET")
+        ) {
+          return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+        }
+        if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+          return mockJsonResponse(true, { user: null });
+        }
+        if (endpoint === "/api/public/projects/projeto-teste/view" && options?.method === "POST") {
+          return mockJsonResponse(true, { views: 2 });
+        }
+        if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+          return mockJsonResponse(true, { ok: true });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     render(
       <MemoryRouter>
@@ -255,7 +273,9 @@ describe("Project analytics events", () => {
     fireEvent.click(sourceLink);
 
     await waitFor(() => {
-      const analyticsCall = apiFetchMock.mock.calls.find((call) => call[1] === "/api/public/analytics/event");
+      const analyticsCall = apiFetchMock.mock.calls.find(
+        (call) => call[1] === "/api/public/analytics/event",
+      );
       expect(analyticsCall).toBeDefined();
       const requestOptions = (analyticsCall?.[2] || {}) as RequestInit;
       const payload = JSON.parse(String(requestOptions.body || "{}"));

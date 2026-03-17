@@ -25,7 +25,8 @@ export type SerializedVideoNode = Spread<
   SerializedLexicalNode
 >;
 
-export const INSERT_VIDEO_COMMAND: LexicalCommand<VideoPayload> = createCommand("INSERT_VIDEO_COMMAND");
+export const INSERT_VIDEO_COMMAND: LexicalCommand<VideoPayload> =
+  createCommand("INSERT_VIDEO_COMMAND");
 
 export class VideoNode extends DecoratorNode<JSX.Element> {
   __src: string;
@@ -91,7 +92,10 @@ export class VideoNode extends DecoratorNode<JSX.Element> {
     const iframe = document.createElement("iframe");
     iframe.setAttribute("src", this.__src);
     iframe.setAttribute("title", this.__title || "Video");
-    iframe.setAttribute("allow", "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture");
+    iframe.setAttribute(
+      "allow",
+      "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
+    );
     iframe.setAttribute("allowfullscreen", "true");
     iframe.style.border = "0";
     iframe.setAttribute("data-lexical-node", "video");

@@ -6,7 +6,8 @@ const SIZE_UNITS: Record<string, number> = {
   TB: 1024 ** 4,
 };
 
-const trimTrailingZeros = (value: string) => value.replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
+const trimTrailingZeros = (value: string) =>
+  value.replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
 
 export const parseHumanSizeToBytes = (input: string): number | null => {
   const raw = String(input || "").trim();
@@ -56,4 +57,3 @@ export const formatBytesCompact = (bytes: number): string => {
 
   return `${trimTrailingZeros(value.toFixed(decimals))} ${units[unitIndex]}`;
 };
-

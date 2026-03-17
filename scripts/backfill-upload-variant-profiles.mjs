@@ -121,7 +121,9 @@ const hasSamePresetKeys = (left, right) =>
   left.length === right.length && left.every((presetKey) => right.includes(presetKey));
 
 const buildTargetPresetKeys = (upload, referencedDatasets) => {
-  let targetPresetKeys = resolveUploadVariantPresetKeysForArea(upload?.area || upload?.folder || "");
+  let targetPresetKeys = resolveUploadVariantPresetKeysForArea(
+    upload?.area || upload?.folder || "",
+  );
   const ambiguousReferencedDatasets = [];
 
   referencedDatasets.forEach((datasetKey) => {
@@ -186,8 +188,12 @@ try {
       current,
       referencedDatasets,
     );
-    const wouldShrink = currentPresetKeys.some((presetKey) => !targetPresetKeys.includes(presetKey));
-    const wouldExpand = targetPresetKeys.some((presetKey) => !currentPresetKeys.includes(presetKey));
+    const wouldShrink = currentPresetKeys.some(
+      (presetKey) => !targetPresetKeys.includes(presetKey),
+    );
+    const wouldExpand = targetPresetKeys.some(
+      (presetKey) => !currentPresetKeys.includes(presetKey),
+    );
 
     if (hasSamePresetKeys(currentPresetKeys, targetPresetKeys)) {
       skippedAlreadyAligned += 1;
@@ -260,7 +266,8 @@ try {
         nextUploads[index] = next;
         updated += 1;
         appliedBytesDelta +=
-          Number(next?.variantBytes || 0) - Number(current?.variantBytes || currentVariantSummary.bytes || 0);
+          Number(next?.variantBytes || 0) -
+          Number(current?.variantBytes || currentVariantSummary.bytes || 0);
       }
     } catch (error) {
       failed += 1;

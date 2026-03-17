@@ -33,18 +33,32 @@ describe("UploadPicture", () => {
     const sources = Array.from(container.querySelectorAll("source"));
     expect(sources).toHaveLength(2);
     expect(sources[0]).toHaveAttribute("type", "image/avif");
-    expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/uploads/_variants/u123/card-v3.avif"));
+    expect(sources[0]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/card-v3.avif"),
+    );
     expect(sources[1]).toHaveAttribute("type", "image/webp");
-    expect(sources[1]).toHaveAttribute("srcset", expect.stringContaining("/uploads/_variants/u123/card-v3.webp"));
+    expect(sources[1]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/card-v3.webp"),
+    );
 
     const img = container.querySelector("img");
     expect(img).not.toBeNull();
-    expect(img).toHaveAttribute("src", expect.stringContaining("/uploads/_variants/u123/card-v3.jpeg"));
+    expect(img).toHaveAttribute(
+      "src",
+      expect.stringContaining("/uploads/_variants/u123/card-v3.jpeg"),
+    );
   });
 
   it("usa src original quando nao ha variantes", () => {
     const { container } = render(
-      <UploadPicture src="/uploads/posts/original.jpg" alt="Original" preset="hero" mediaVariants={{}} />,
+      <UploadPicture
+        src="/uploads/posts/original.jpg"
+        alt="Original"
+        preset="hero"
+        mediaVariants={{}}
+      />,
     );
     const sources = Array.from(container.querySelectorAll("source"));
     expect(sources).toHaveLength(0);
@@ -79,8 +93,14 @@ describe("UploadPicture", () => {
     const sources = Array.from(container.querySelectorAll("source"));
     expect(sources).toHaveLength(1);
     expect(sources[0]).toHaveAttribute("type", "image/avif");
-    expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/uploads/_variants/u123/hero-v6.avif"));
-    expect(container.querySelector("img")).toHaveAttribute("src", expect.stringContaining("/uploads/posts/capa.png"));
+    expect(sources[0]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/hero-v6.avif"),
+    );
+    expect(container.querySelector("img")).toHaveAttribute(
+      "src",
+      expect.stringContaining("/uploads/posts/capa.png"),
+    );
   });
 
   it("resolve a variante cardWide quando disponivel", () => {
@@ -552,7 +572,10 @@ describe("UploadPicture", () => {
     let img = container.querySelector("img");
     expect(img).not.toBeNull();
     expect(container.querySelectorAll("source")).toHaveLength(1);
-    expect(img).toHaveAttribute("src", expect.stringContaining("/uploads/_variants/u123/hero-v1.jpeg"));
+    expect(img).toHaveAttribute(
+      "src",
+      expect.stringContaining("/uploads/_variants/u123/hero-v1.jpeg"),
+    );
 
     fireEvent.error(img as HTMLImageElement);
 

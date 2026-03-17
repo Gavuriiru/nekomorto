@@ -138,8 +138,7 @@ describe("Project SEO image meta", () => {
       expect(
         hasMetaCall(
           (arg) =>
-            String(arg.image || "").includes("/uploads/default-og.jpg") &&
-            arg.type === "article",
+            String(arg.image || "").includes("/uploads/default-og.jpg") && arg.type === "article",
         ),
       ).toBe(true);
     });
@@ -150,7 +149,9 @@ describe("Project SEO image meta", () => {
       expect(
         hasMetaCall(
           (arg) =>
-            String(arg.image || "").includes(`/api/og/project/projeto-teste?v=${projectRevision}`) &&
+            String(arg.image || "").includes(
+              `/api/og/project/projeto-teste?v=${projectRevision}`,
+            ) &&
             arg.imageAlt === "Card de compartilhamento do projeto Projeto Teste" &&
             arg.type === "article",
         ),

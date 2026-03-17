@@ -66,44 +66,46 @@ describe("Team social icon theme tint", () => {
     vi.stubGlobal("Image", MockImage as unknown as typeof Image);
 
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (endpoint === "/api/public/users" && method === "GET") {
-        return mockJsonResponse(true, {
-          users: [
-            {
-              id: "member-1",
-              name: "Integrante",
-              phrase: "",
-              bio: "",
-              status: "active",
-              roles: ["Membro"],
-              socials: [
-                {
-                  label: "custom-profile",
-                  href: "https://safe.example/profile",
-                },
-              ],
-            },
-          ],
-        });
-      }
-      if (endpoint === "/api/link-types" && method === "GET") {
-        return mockJsonResponse(true, {
-          items: [
-            {
-              id: "custom-profile",
-              label: "Perfil",
-              icon: "https://cdn.exemplo.com/team-icon.svg",
-            },
-          ],
-        });
-      }
-      if (endpoint === "/api/public/pages" && method === "GET") {
-        return mockJsonResponse(true, { pages: { team: {} } });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (endpoint === "/api/public/users" && method === "GET") {
+          return mockJsonResponse(true, {
+            users: [
+              {
+                id: "member-1",
+                name: "Integrante",
+                phrase: "",
+                bio: "",
+                status: "active",
+                roles: ["Membro"],
+                socials: [
+                  {
+                    label: "custom-profile",
+                    href: "https://safe.example/profile",
+                  },
+                ],
+              },
+            ],
+          });
+        }
+        if (endpoint === "/api/link-types" && method === "GET") {
+          return mockJsonResponse(true, {
+            items: [
+              {
+                id: "custom-profile",
+                label: "Perfil",
+                icon: "https://cdn.exemplo.com/team-icon.svg",
+              },
+            ],
+          });
+        }
+        if (endpoint === "/api/public/pages" && method === "GET") {
+          return mockJsonResponse(true, { pages: { team: {} } });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
   });
 
   afterEach(() => {

@@ -249,14 +249,12 @@ export const storeUploadImageBuffer = async ({
       ? Buffer.from(sanitizeSvg(Buffer.from(buffer).toString("utf-8")), "utf-8")
       : Buffer.from(buffer);
   const hashSha256 = computeBufferSha256(sourceBuffer);
-  const safeDedupeMode =
-    dedupeMode === "none" || dedupeMode === "folder" ? dedupeMode : "global";
+  const safeDedupeMode = dedupeMode === "none" || dedupeMode === "folder" ? dedupeMode : "global";
   const dedupePool =
     safeDedupeMode === "folder"
       ? nextUploads.filter((entry) => String(entry?.folder || "") === safeFolder)
       : nextUploads;
-  const dedupeEntry =
-    safeDedupeMode === "none" ? null : findUploadByHash(dedupePool, hashSha256);
+  const dedupeEntry = safeDedupeMode === "none" ? null : findUploadByHash(dedupePool, hashSha256);
   if (dedupeEntry) {
     const ensuredEntry = await ensureUploadHasRequiredVariants({
       uploadsDir,

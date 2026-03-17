@@ -82,7 +82,10 @@ export const resolveNextMainEpisodeNumber = <
   const isExtra =
     typeof options?.isExtra === "function"
       ? options.isExtra
-      : (episode: Episode) => String(episode?.entryKind || "").trim().toLowerCase() === "extra";
+      : (episode: Episode) =>
+          String(episode?.entryKind || "")
+            .trim()
+            .toLowerCase() === "extra";
   const reservedKeys = new Set(
     list
       .map((episode, index) => {
@@ -212,7 +215,9 @@ export const resolveCanonicalEpisodeRouteTarget = <
       const normalized = Math.floor(parsed);
       return normalized >= 0 ? normalized : null;
     })
-    .filter((value, index, values): value is number => value !== null && values.indexOf(value) === index);
+    .filter(
+      (value, index, values): value is number => value !== null && values.indexOf(value) === index,
+    );
 
   for (const volume of normalizedPreferredVolumes) {
     const exactLookup = resolveEpisodeLookup(episodes, safeNumber, volume);

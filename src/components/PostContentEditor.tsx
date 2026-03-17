@@ -27,6 +27,7 @@ import {
   Video,
 } from "lucide-react";
 import { normalizeAssetUrl } from "@/lib/asset-url";
+import "@/styles/rich-content.css";
 
 type PostContentEditorProps = {
   format: "markdown" | "html";

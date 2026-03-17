@@ -13,4 +13,3 @@ describe("getCanonicalPageUrl", () => {
     expect(getCanonicalPageUrl("::::")).toBe("");
   });
 });
-

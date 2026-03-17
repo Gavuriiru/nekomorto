@@ -144,7 +144,7 @@ const probeNormalizedRuntimeStateTable = async (db) => {
     const rows = await db.$queryRaw`
       SELECT to_regclass('public.normalized_runtime_state')::text AS table_name
     `;
-    const tableName = Array.isArray(rows) ? rows[0]?.table_name ?? null : null;
+    const tableName = Array.isArray(rows) ? (rows[0]?.table_name ?? null) : null;
     if (tableName) {
       return { ok: true, exists: true, source: "normalized_runtime_state" };
     }
@@ -190,8 +190,9 @@ export const loadNormalizedRuntimeStateMap = async (db) => {
 };
 
 export const isNormalizedDomainReady = (stateMap, domain) =>
-  String(stateMap?.get(String(domain || ""))?.status || "").trim().toLowerCase() ===
-  NORMALIZED_DOMAIN_READY;
+  String(stateMap?.get(String(domain || ""))?.status || "")
+    .trim()
+    .toLowerCase() === NORMALIZED_DOMAIN_READY;
 
 export const upsertNormalizedRuntimeState = async (db, domain, payload = {}) => {
   if (!hasModelMethod(db, "normalizedRuntimeStateRecord", "upsert")) {
@@ -305,7 +306,9 @@ export const loadUsersFromNormalized = async (db) => {
   ensureArray(favoriteWorks).forEach((row) => {
     const userId = String(row.userId);
     const bucket = favoritesByUserId.get(userId) || { anime: [], manga: [] };
-    const category = String(row?.category || "").trim().toLowerCase();
+    const category = String(row?.category || "")
+      .trim()
+      .toLowerCase();
     if (category === "anime" || category === "manga") {
       bucket[category].push(String(row?.title || ""));
     }
@@ -415,7 +418,10 @@ const uploadRowFromEntry = (entry, index) => ({
   fileName: String(entry?.fileName || ""),
   folder: String(entry?.folder || ""),
   area: String(entry?.area || String(entry?.folder || "").split("/")[0] || "root"),
-  storageProvider: String(entry?.storageProvider || "local").trim().toLowerCase() || "local",
+  storageProvider:
+    String(entry?.storageProvider || "local")
+      .trim()
+      .toLowerCase() || "local",
   mime: String(entry?.mime || ""),
   size: toIntegerOrNull(entry?.size),
   width: toIntegerOrNull(entry?.width),
@@ -464,7 +470,10 @@ export const loadUploadsFromNormalized = async (db) => {
     url: String(row?.url || ""),
     fileName: String(row?.fileName || ""),
     folder: String(row?.folder || ""),
-    storageProvider: String(row?.storageProvider || "local").trim().toLowerCase() || "local",
+    storageProvider:
+      String(row?.storageProvider || "local")
+        .trim()
+        .toLowerCase() || "local",
     size: row?.size ?? null,
     mime: String(row?.mime || ""),
     width: row?.width ?? null,
@@ -553,7 +562,9 @@ const projectRowFromEntry = (entry, index) => ({
   heroImageUrl: String(entry?.heroImageUrl || ""),
   heroImageAlt: String(entry?.heroImageAlt || ""),
   readerConfig:
-    entry?.readerConfig && typeof entry.readerConfig === "object" && !Array.isArray(entry.readerConfig)
+    entry?.readerConfig &&
+    typeof entry.readerConfig === "object" &&
+    !Array.isArray(entry.readerConfig)
       ? cloneValue(entry.readerConfig)
       : null,
   staff:
@@ -616,7 +627,12 @@ const projectEpisodeRowsFromProject = (projectId, project) =>
     number: toIntegerOrDefault(episode?.number, 0),
     volume: toIntegerOrNull(episode?.volume),
     title: String(episode?.title || ""),
-    entryKind: String(episode?.entryKind || "main").trim().toLowerCase() === "extra" ? "extra" : "main",
+    entryKind:
+      String(episode?.entryKind || "main")
+        .trim()
+        .toLowerCase() === "extra"
+        ? "extra"
+        : "main",
     entrySubtype: String(episode?.entrySubtype || "").trim() || null,
     readingOrder: toIntegerOrNull(episode?.readingOrder),
     displayLabel: String(episode?.displayLabel || "").trim() || null,
@@ -626,7 +642,11 @@ const projectEpisodeRowsFromProject = (projectId, project) =>
     coverImageAlt: String(episode?.coverImageAlt || ""),
     content: typeof episode?.content === "string" ? episode.content : "",
     contentFormat:
-      String(episode?.contentFormat || "").trim().toLowerCase() === "images" ? "images" : "lexical",
+      String(episode?.contentFormat || "")
+        .trim()
+        .toLowerCase() === "images"
+        ? "images"
+        : "lexical",
     pageCount: Math.max(
       0,
       toIntegerOrDefault(
@@ -635,7 +655,9 @@ const projectEpisodeRowsFromProject = (projectId, project) =>
       ),
     ),
     publicationStatus:
-      String(episode?.publicationStatus || "").trim().toLowerCase() === "draft"
+      String(episode?.publicationStatus || "")
+        .trim()
+        .toLowerCase() === "draft"
         ? "draft"
         : "published",
     hash: String(episode?.hash || "").trim() || null,
@@ -693,7 +715,9 @@ export const loadProjectsFromNormalized = async (db) => {
       ? db.projectRelationRecord.findMany({ orderBy: [{ projectId: "asc" }, { position: "asc" }] })
       : Promise.resolve([]),
     hasModelMethod(db, "projectVolumeEntryRecord", "findMany")
-      ? db.projectVolumeEntryRecord.findMany({ orderBy: [{ projectId: "asc" }, { position: "asc" }] })
+      ? db.projectVolumeEntryRecord.findMany({
+          orderBy: [{ projectId: "asc" }, { position: "asc" }],
+        })
       : Promise.resolve([]),
     hasModelMethod(db, "projectEpisodeRecord", "findMany")
       ? db.projectEpisodeRecord.findMany({ orderBy: [{ projectId: "asc" }, { position: "asc" }] })
@@ -902,17 +926,11 @@ export const syncProjectsToNormalized = async (db, previousProjects, nextProject
         ops.push(db.projectEpisodeRecord.createMany({ data: episodeRows }));
       }
       const pageRows = projectEpisodePageRowsFromProject(projectId, item);
-      if (
-        pageRows.length > 0 &&
-        hasModelMethod(db, "projectEpisodePageRecord", "createMany")
-      ) {
+      if (pageRows.length > 0 && hasModelMethod(db, "projectEpisodePageRecord", "createMany")) {
         ops.push(db.projectEpisodePageRecord.createMany({ data: pageRows }));
       }
       const sourceRows = projectEpisodeSourceRowsFromProject(projectId, item);
-      if (
-        sourceRows.length > 0 &&
-        hasModelMethod(db, "projectEpisodeSourceRecord", "createMany")
-      ) {
+      if (sourceRows.length > 0 && hasModelMethod(db, "projectEpisodeSourceRecord", "createMany")) {
         ops.push(db.projectEpisodeSourceRecord.createMany({ data: sourceRows }));
       }
     }
@@ -1016,7 +1034,8 @@ const postVersionRowFromEntry = (entry, index) => ({
   versionNumber: Math.max(1, toIntegerOrDefault(entry?.versionNumber, index + 1)),
   reason: String(entry?.reason || "update"),
   label: typeof entry?.label === "string" && entry.label.trim() ? String(entry.label) : null,
-  actorId: typeof entry?.actorId === "string" && entry.actorId.trim() ? String(entry.actorId) : null,
+  actorId:
+    typeof entry?.actorId === "string" && entry.actorId.trim() ? String(entry.actorId) : null,
   actorName:
     typeof entry?.actorName === "string" && entry.actorName.trim() ? String(entry.actorName) : null,
   slug: String(entry?.slug || entry?.snapshot?.slug || ""),
@@ -1128,7 +1147,12 @@ export const loadUpdatesFromNormalized = async (db) => {
   }));
 };
 
-export const syncUpdatesToNormalized = async (db, previousUpdates, nextUpdates, references = {}) => {
+export const syncUpdatesToNormalized = async (
+  db,
+  previousUpdates,
+  nextUpdates,
+  references = {},
+) => {
   if (!hasModelMethod(db, "updateV2Record", "upsert") || typeof db?.$transaction !== "function") {
     return { changed: false, deleteCount: 0, upsertCount: 0, quarantined: [] };
   }
@@ -1165,7 +1189,9 @@ export const syncUpdatesToNormalized = async (db, previousUpdates, nextUpdates, 
 };
 
 const resolveCommentTargetRefs = (comment, { posts = [], projects = [] } = {}) => {
-  const targetType = String(comment?.targetType || "").trim().toLowerCase();
+  const targetType = String(comment?.targetType || "")
+    .trim()
+    .toLowerCase();
   const targetId = String(comment?.targetId || "").trim();
   if (!targetType || !targetId) {
     return null;
@@ -1175,19 +1201,35 @@ const resolveCommentTargetRefs = (comment, { posts = [], projects = [] } = {}) =
     if (!post?.id) {
       return null;
     }
-    return { targetType, postId: String(post.id), projectId: null, episodeId: null, targetMeta: null };
+    return {
+      targetType,
+      postId: String(post.id),
+      projectId: null,
+      episodeId: null,
+      targetMeta: null,
+    };
   }
   if (targetType === "project") {
-    const project = ensureArray(projects).find((entry) => String(entry?.id || "").trim() === targetId);
+    const project = ensureArray(projects).find(
+      (entry) => String(entry?.id || "").trim() === targetId,
+    );
     if (!project?.id) {
       return null;
     }
-    return { targetType, postId: null, projectId: String(project.id), episodeId: null, targetMeta: null };
+    return {
+      targetType,
+      postId: null,
+      projectId: String(project.id),
+      episodeId: null,
+      targetMeta: null,
+    };
   }
   if (targetType !== "chapter") {
     return null;
   }
-  const project = ensureArray(projects).find((entry) => String(entry?.id || "").trim() === targetId);
+  const project = ensureArray(projects).find(
+    (entry) => String(entry?.id || "").trim() === targetId,
+  );
   if (!project?.id) {
     return null;
   }
@@ -1242,7 +1284,9 @@ export const loadCommentsFromNormalized = async (db, references = {}) => {
     return [];
   }
   const rows = await db.commentV2Record.findMany({ orderBy: { position: "asc" } });
-  const postsById = new Map(ensureArray(references?.posts).map((post) => [String(post?.id || ""), post]));
+  const postsById = new Map(
+    ensureArray(references?.posts).map((post) => [String(post?.id || ""), post]),
+  );
   const episodesById = new Map();
   ensureArray(references?.projects).forEach((project) => {
     const projectId = String(project?.id || "").trim();
@@ -1253,7 +1297,9 @@ export const loadCommentsFromNormalized = async (db, references = {}) => {
 
   return ensureArray(rows)
     .map((row) => {
-      const targetType = String(row?.targetType || "").trim().toLowerCase();
+      const targetType = String(row?.targetType || "")
+        .trim()
+        .toLowerCase();
       let targetId = "";
       let targetMeta = cloneValue(row?.targetMeta || null);
       if (targetType === "post") {

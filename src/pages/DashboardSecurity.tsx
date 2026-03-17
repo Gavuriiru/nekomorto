@@ -101,7 +101,10 @@ const readSecurityCache = (key: string) => {
   };
 };
 
-const writeSecurityCache = (key: string, value: { sessions: ActiveSessionRow[]; total: number }) => {
+const writeSecurityCache = (
+  key: string,
+  value: { sessions: ActiveSessionRow[]; total: number },
+) => {
   securitySessionsCache.delete(key);
   securitySessionsCache.set(key, {
     sessions: [...value.sessions],
@@ -158,62 +161,65 @@ const DashboardSecurity = () => {
     return Math.max(1, Math.ceil(total / limit));
   }, [limit, total]);
 
-  const load = useCallback(async (options?: { background?: boolean }) => {
-    const cacheKey = buildSecurityCacheKey(page, limit);
-    const cached = readSecurityCache(cacheKey);
-    if (cached) {
-      setSessions(cached.sessions);
-      setTotal(cached.total);
-      setHasLoadedOnce(true);
-      setIsInitialLoading(false);
-    }
-    const background = options?.background ?? (hasLoadedOnceRef.current || Boolean(cached));
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
-    if (background) {
-      setIsRefreshing(true);
-    } else {
-      setIsInitialLoading(true);
-    }
-    setLoadError("");
-    try {
-      const sessionsRes = await apiFetch(
-        apiBase,
-        "/api/admin/sessions/active?page=" + page + "&limit=" + limit,
-        {
-          auth: true,
-        },
-      );
-
-      if (requestIdRef.current !== requestId) {
-        return;
-      }
-      if (!sessionsRes.ok) {
-        setLoadError("Nao foi possivel carregar a lista de sessoes ativas.");
-        return;
-      }
-      const payload = await sessionsRes.json();
-      const nextSessions = Array.isArray(payload.sessions) ? payload.sessions : [];
-      const nextTotal = Number(payload.total || 0);
-      setSessions(nextSessions);
-      setTotal(nextTotal);
-      setHasLoadedOnce(true);
-      writeSecurityCache(cacheKey, {
-        sessions: nextSessions,
-        total: nextTotal,
-      });
-    } catch {
-      if (requestIdRef.current !== requestId) {
-        return;
-      }
-      setLoadError("Nao foi possivel carregar a lista de sessoes ativas.");
-    } finally {
-      if (requestIdRef.current === requestId) {
+  const load = useCallback(
+    async (options?: { background?: boolean }) => {
+      const cacheKey = buildSecurityCacheKey(page, limit);
+      const cached = readSecurityCache(cacheKey);
+      if (cached) {
+        setSessions(cached.sessions);
+        setTotal(cached.total);
+        setHasLoadedOnce(true);
         setIsInitialLoading(false);
-        setIsRefreshing(false);
       }
-    }
-  }, [apiBase, limit, page]);
+      const background = options?.background ?? (hasLoadedOnceRef.current || Boolean(cached));
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
+      if (background) {
+        setIsRefreshing(true);
+      } else {
+        setIsInitialLoading(true);
+      }
+      setLoadError("");
+      try {
+        const sessionsRes = await apiFetch(
+          apiBase,
+          "/api/admin/sessions/active?page=" + page + "&limit=" + limit,
+          {
+            auth: true,
+          },
+        );
+
+        if (requestIdRef.current !== requestId) {
+          return;
+        }
+        if (!sessionsRes.ok) {
+          setLoadError("Nao foi possivel carregar a lista de sessoes ativas.");
+          return;
+        }
+        const payload = await sessionsRes.json();
+        const nextSessions = Array.isArray(payload.sessions) ? payload.sessions : [];
+        const nextTotal = Number(payload.total || 0);
+        setSessions(nextSessions);
+        setTotal(nextTotal);
+        setHasLoadedOnce(true);
+        writeSecurityCache(cacheKey, {
+          sessions: nextSessions,
+          total: nextTotal,
+        });
+      } catch {
+        if (requestIdRef.current !== requestId) {
+          return;
+        }
+        setLoadError("Nao foi possivel carregar a lista de sessoes ativas.");
+      } finally {
+        if (requestIdRef.current === requestId) {
+          setIsInitialLoading(false);
+          setIsRefreshing(false);
+        }
+      }
+    },
+    [apiBase, limit, page],
+  );
 
   useEffect(() => {
     void load();
@@ -309,7 +315,10 @@ const DashboardSecurity = () => {
   return (
     <DashboardShell currentUser={me} isLoadingUser={isLoadingUser}>
       <main className="pt-24">
-        <section className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-20 md:px-10 reveal" data-reveal>
+        <section
+          className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-20 md:px-10 reveal"
+          data-reveal
+        >
           <header className="space-y-2">
             <DashboardPageBadge data-testid="dashboard-security-header-badge">
               Segurança
@@ -342,9 +351,7 @@ const DashboardSecurity = () => {
                   </>
                 ) : (
                   <>
-                    <Badge className="bg-card/80 text-muted-foreground">
-                      Total ativo: {total}
-                    </Badge>
+                    <Badge className="bg-card/80 text-muted-foreground">Total ativo: {total}</Badge>
                     <Badge className="bg-card/80 text-muted-foreground">
                       Página {page} de {pageCount}
                     </Badge>
@@ -429,92 +436,94 @@ const DashboardSecurity = () => {
                 <span className="sr-only">Carregando sessões...</span>
               </div>
             ) : hasBlockingLoadError ? (
-                <p
-                  className="text-sm text-amber-300 animate-slide-up opacity-0"
-                  style={dashboardAnimationDelay(
-                    dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
-                  )}
-                >
-                  Não foi possível carregar a lista de sessões ativas.
-                </p>
-              ) : sessions.length === 0 ? (
-                <p
-                  className="text-sm text-muted-foreground animate-slide-up opacity-0"
-                  style={dashboardAnimationDelay(
-                    dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
-                  )}
-                >
-                  Nenhuma sessão ativa encontrada.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {sessions.map((session, index) => {
-                    const isRevokingSession = revokingSid === session.sid;
-                    const revokeButtonLabel = `${
-                      isRevokingSession ? "Encerrando" : "Encerrar"
-                    } sessao de ${session.userName || session.userId || "usuario"}`;
+              <p
+                className="text-sm text-amber-300 animate-slide-up opacity-0"
+                style={dashboardAnimationDelay(
+                  dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
+                )}
+              >
+                Não foi possível carregar a lista de sessões ativas.
+              </p>
+            ) : sessions.length === 0 ? (
+              <p
+                className="text-sm text-muted-foreground animate-slide-up opacity-0"
+                style={dashboardAnimationDelay(
+                  dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
+                )}
+              >
+                Nenhuma sessão ativa encontrada.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {sessions.map((session, index) => {
+                  const isRevokingSession = revokingSid === session.sid;
+                  const revokeButtonLabel = `${
+                    isRevokingSession ? "Encerrando" : "Encerrar"
+                  } sessao de ${session.userName || session.userId || "usuario"}`;
 
-                    return (
-                  <article
-                    key={session.sid}
-                    className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4 animate-slide-up opacity-0"
-                    style={dashboardAnimationDelay(
-                      dashboardClampedStaggerMs(index, dashboardMotionDelays.sectionLeadMs + 120),
-                    )}
-                  >
-                    <div className="flex flex-wrap items-start gap-3 md:flex-nowrap">
-                      <div className="flex min-w-0 flex-1 items-center gap-3">
-                        {session.userAvatarUrl ? (
-                          <img
-                            src={session.userAvatarUrl}
-                            alt={session.userName}
-                            className="h-10 w-10 rounded-full border border-border/60 object-cover"
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-card text-xs font-semibold text-muted-foreground">
-                            {userInitials(session.userName)}
+                  return (
+                    <article
+                      key={session.sid}
+                      className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4 animate-slide-up opacity-0"
+                      style={dashboardAnimationDelay(
+                        dashboardClampedStaggerMs(index, dashboardMotionDelays.sectionLeadMs + 120),
+                      )}
+                    >
+                      <div className="flex flex-wrap items-start gap-3 md:flex-nowrap">
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          {session.userAvatarUrl ? (
+                            <img
+                              src={session.userAvatarUrl}
+                              alt={session.userName}
+                              className="h-10 w-10 rounded-full border border-border/60 object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-card text-xs font-semibold text-muted-foreground">
+                              {userInitials(session.userName)}
+                            </div>
+                          )}
+                          <div className="min-w-0 space-y-1">
+                            <p className="break-words text-sm font-medium">{session.userName}</p>
+                            <p className="break-all text-xs text-muted-foreground">
+                              ID: {session.userId}
+                            </p>
                           </div>
-                        )}
-                        <div className="min-w-0 space-y-1">
-                          <p className="break-words text-sm font-medium">{session.userName}</p>
-                          <p className="break-all text-xs text-muted-foreground">ID: {session.userId}</p>
+                        </div>
+                        {session.sid && session.userId && !session.currentForViewer ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="order-2 h-9 w-9 shrink-0 px-0 md:order-3 md:w-auto md:px-3"
+                            onClick={() => requestRevokeSession(session)}
+                            disabled={Boolean(revokingSid)}
+                            aria-label={revokeButtonLabel}
+                            title={revokeButtonLabel}
+                          >
+                            <LogOut className="h-4 w-4" />
+                            <span className="hidden md:inline">
+                              {isRevokingSession ? "Encerrando..." : "Encerrar"}
+                            </span>
+                          </Button>
+                        ) : null}
+                        <div className="order-3 flex basis-full flex-wrap gap-2 md:order-2 md:ml-auto md:basis-auto md:justify-end">
+                          {session.currentForViewer ? (
+                            <Badge variant="success">Sua sessão atual</Badge>
+                          ) : null}
+                          {session.isPendingMfa ? (
+                            <Badge variant="warning">Pendente MFA</Badge>
+                          ) : null}
                         </div>
                       </div>
-                      {session.sid && session.userId && !session.currentForViewer ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="order-2 h-9 w-9 shrink-0 px-0 md:order-3 md:w-auto md:px-3"
-                          onClick={() => requestRevokeSession(session)}
-                          disabled={Boolean(revokingSid)}
-                          aria-label={revokeButtonLabel}
-                          title={revokeButtonLabel}
-                        >
-                          <LogOut className="h-4 w-4" />
-                          <span className="hidden md:inline">
-                            {isRevokingSession ? "Encerrando..." : "Encerrar"}
-                          </span>
-                        </Button>
-                      ) : null}
-                      <div className="order-3 flex basis-full flex-wrap gap-2 md:order-2 md:ml-auto md:basis-auto md:justify-end">
-                        {session.currentForViewer ? (
-                          <Badge variant="success">Sua sessão atual</Badge>
-                        ) : null}
-                        {session.isPendingMfa ? (
-                          <Badge variant="warning">Pendente MFA</Badge>
-                        ) : null}
+                      <div className="grid gap-1 text-xs text-muted-foreground md:grid-cols-2">
+                        <p>Criada em: {formatDateTime(session.createdAt)}</p>
+                        <p>Última atividade: {formatDateTime(session.lastSeenAt)}</p>
+                        <p>IP: {session.lastIp || "-"}</p>
+                        <p className="truncate">User-Agent: {session.userAgent || "-"}</p>
                       </div>
-                    </div>
-                    <div className="grid gap-1 text-xs text-muted-foreground md:grid-cols-2">
-                      <p>Criada em: {formatDateTime(session.createdAt)}</p>
-                      <p>Última atividade: {formatDateTime(session.lastSeenAt)}</p>
-                      <p>IP: {session.lastIp || "-"}</p>
-                      <p className="truncate">User-Agent: {session.userAgent || "-"}</p>
-                    </div>
-                  </article>
-                    );
-                  })}
+                    </article>
+                  );
+                })}
               </div>
             )}
           </section>

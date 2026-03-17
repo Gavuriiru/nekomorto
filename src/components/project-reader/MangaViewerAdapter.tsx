@@ -204,10 +204,7 @@ const MangaViewerAdapter = ({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<any>(null);
 
-  const pageSources = useMemo(
-    () => pages.map((entry) => entry.imageUrl).filter(Boolean),
-    [pages],
-  );
+  const pageSources = useMemo(() => pages.map((entry) => entry.imageUrl).filter(Boolean), [pages]);
 
   useEffect(() => {
     const host = hostRef.current;

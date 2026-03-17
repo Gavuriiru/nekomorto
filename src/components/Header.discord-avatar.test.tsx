@@ -54,7 +54,9 @@ vi.mock("@/components/HeaderActionMenus", () => ({
   default: (props: unknown) => {
     headerActionMenusMock(props);
     const typedProps = props as { headerAvatarUrl?: string };
-    return <div data-testid="header-action-menus" data-avatar-url={typedProps.headerAvatarUrl || ""} />;
+    return (
+      <div data-testid="header-action-menus" data-avatar-url={typedProps.headerAvatarUrl || ""} />
+    );
   },
 }));
 
@@ -71,29 +73,33 @@ describe("Header discord avatar proxy", () => {
       "https://cdn.discordapp.com/avatars/123456789/avatar_hash.png?size=128";
 
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (endpoint === "/api/public/me" && method === "GET") {
-        return mockJsonResponse(true, {
-          user: {
-            id: "user-1",
-            name: "Admin",
-            username: "admin",
-            avatarUrl: discordAvatarUrl,
-          },
-        });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (endpoint === "/api/public/me" && method === "GET") {
+          return mockJsonResponse(true, {
+            user: {
+              id: "user-1",
+              name: "Admin",
+              username: "admin",
+              avatarUrl: discordAvatarUrl,
+            },
+          });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     scheduleOnBrowserLoadIdleMock.mockReset();
-    scheduleOnBrowserLoadIdleMock.mockImplementation((callback: (deadline: IdleDeadline) => void) => {
-      callback({
-        didTimeout: false,
-        timeRemaining: () => 16,
-      } as IdleDeadline);
-      return () => undefined;
-    });
+    scheduleOnBrowserLoadIdleMock.mockImplementation(
+      (callback: (deadline: IdleDeadline) => void) => {
+        callback({
+          didTimeout: false,
+          timeRemaining: () => 16,
+        } as IdleDeadline);
+        return () => undefined;
+      },
+    );
 
     useIsMobileMock.mockReset();
     useIsMobileMock.mockReturnValue(false);
@@ -153,21 +159,23 @@ describe("Header discord avatar proxy", () => {
   });
 
   it("anexa a revision em avatars locais para invalidar cache na navbar publica", async () => {
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (endpoint === "/api/public/me" && method === "GET") {
-        return mockJsonResponse(true, {
-          user: {
-            id: "user-1",
-            name: "Admin",
-            username: "admin",
-            avatarUrl: "/uploads/users/avatar-user-1.png",
-            revision: "rev-2",
-          },
-        });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (endpoint === "/api/public/me" && method === "GET") {
+          return mockJsonResponse(true, {
+            user: {
+              id: "user-1",
+              name: "Admin",
+              username: "admin",
+              avatarUrl: "/uploads/users/avatar-user-1.png",
+              revision: "rev-2",
+            },
+          });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     (
       window as Window & {
@@ -189,9 +197,6 @@ describe("Header discord avatar proxy", () => {
     );
 
     const menus = await screen.findByTestId("header-action-menus");
-    expect(menus).toHaveAttribute(
-      "data-avatar-url",
-      "/uploads/users/avatar-user-1.png?v=rev-2",
-    );
+    expect(menus).toHaveAttribute("data-avatar-url", "/uploads/users/avatar-user-1.png?v=rev-2");
   });
 });

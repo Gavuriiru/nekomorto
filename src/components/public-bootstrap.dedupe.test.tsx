@@ -52,13 +52,9 @@ vi.mock("@/components/ui/carousel", () => {
     children: ReactNode;
     className?: string;
   }) => <div className={className}>{children}</div>;
-  const CarouselItem = ({
-    children,
-    className,
-  }: {
-    children: ReactNode;
-    className?: string;
-  }) => <div className={className}>{children}</div>;
+  const CarouselItem = ({ children, className }: { children: ReactNode; className?: string }) => (
+    <div className={className}>{children}</div>
+  );
   const CarouselPrevious = ({ className }: { className?: string }) => (
     <button type="button" className={className} />
   );

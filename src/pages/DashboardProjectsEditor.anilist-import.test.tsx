@@ -19,13 +19,7 @@ vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
 }));
 
 vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({
-    title,
-    actions,
-  }: {
-    title: string;
-    actions?: ReactNode;
-  }) => (
+  default: ({ title, actions }: { title: string; actions?: ReactNode }) => (
     <div>
       <h1>{title}</h1>
       {actions}
@@ -156,48 +150,50 @@ describe("DashboardProjectsEditor AniList import", () => {
       });
     }
 
-    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit & { json?: unknown }) => {
-      const method = String(options?.method || "GET").toUpperCase();
+    apiFetchMock.mockImplementation(
+      async (_base: string, path: string, options?: RequestInit & { json?: unknown }) => {
+        const method = String(options?.method || "GET").toUpperCase();
 
-      if (path === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, {
-          id: "1",
-          name: "Admin",
-          username: "admin",
-          permissions: ["projetos"],
-        });
-      }
-      if (path === "/api/contracts/v1.json" && method === "GET") {
-        return mockJsonResponse(true, {
-          capabilities: {
-            project_epub_import: false,
-            project_epub_export: false,
-          },
-          build: null,
-        });
-      }
-      if (path === "/api/projects" && method === "GET") {
-        return mockJsonResponse(true, { projects: [] });
-      }
-      if (path === "/api/users" && method === "GET") {
-        return mockJsonResponse(true, { users: [] });
-      }
-      if (path === "/api/public/tag-translations" && method === "GET") {
-        return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
-      }
-      if (path === "/api/tag-translations/sync" && method === "POST") {
-        return mockJsonResponse(true, { ok: true });
-      }
-      if (path === "/api/anilist/21878" && method === "GET") {
-        return mockJsonResponse(true, { data: { Media: anilistMediaFixture } });
-      }
-      if (path === "/api/projects" && method === "POST") {
-        savedProject = (options?.json || null) as Record<string, unknown> | null;
-        return mockJsonResponse(true, { project: options?.json });
-      }
+        if (path === "/api/me" && method === "GET") {
+          return mockJsonResponse(true, {
+            id: "1",
+            name: "Admin",
+            username: "admin",
+            permissions: ["projetos"],
+          });
+        }
+        if (path === "/api/contracts/v1.json" && method === "GET") {
+          return mockJsonResponse(true, {
+            capabilities: {
+              project_epub_import: false,
+              project_epub_export: false,
+            },
+            build: null,
+          });
+        }
+        if (path === "/api/projects" && method === "GET") {
+          return mockJsonResponse(true, { projects: [] });
+        }
+        if (path === "/api/users" && method === "GET") {
+          return mockJsonResponse(true, { users: [] });
+        }
+        if (path === "/api/public/tag-translations" && method === "GET") {
+          return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+        }
+        if (path === "/api/tag-translations/sync" && method === "POST") {
+          return mockJsonResponse(true, { ok: true });
+        }
+        if (path === "/api/anilist/21878" && method === "GET") {
+          return mockJsonResponse(true, { data: { Media: anilistMediaFixture } });
+        }
+        if (path === "/api/projects" && method === "POST") {
+          savedProject = (options?.json || null) as Record<string, unknown> | null;
+          return mockJsonResponse(true, { project: options?.json });
+        }
 
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     render(
       <MemoryRouter initialEntries={["/dashboard/projetos"]}>

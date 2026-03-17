@@ -21,7 +21,7 @@ describe("public project serialization", () => {
             coverImageUrl: "/uploads/projects/project-1/episodes/chapter-1.jpg",
             coverImageAlt: "Capa do capitulo 1",
             publicationStatus: "published",
-            content: "{\"root\":{\"children\":[{\"type\":\"paragraph\",\"children\":[],\"version\":1}]}}",
+            content: '{"root":{"children":[{"type":"paragraph","children":[],"version":1}]}}',
             sources: [],
           },
           {
@@ -29,7 +29,7 @@ describe("public project serialization", () => {
             volume: 1,
             title: "Capitulo 2",
             publicationStatus: "draft",
-            content: "{\"root\":{\"children\":[{\"type\":\"paragraph\",\"children\":[],\"version\":1}]}}",
+            content: '{"root":{"children":[{"type":"paragraph","children":[],"version":1}]}}',
             sources: [],
           },
         ],
@@ -44,7 +44,7 @@ describe("public project serialization", () => {
         volume: 1,
         coverImageUrl: "/uploads/projects/project-1/episodes/chapter-1.jpg",
         coverImageAlt: "Capa do capitulo 1",
-        content: expect.stringContaining("\"root\""),
+        content: expect.stringContaining('"root"'),
       }),
     ]);
 

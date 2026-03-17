@@ -98,7 +98,8 @@ describe("DashboardUsers socials reorder", () => {
           user: {
             ...userFixture,
             ...payload,
-            socials: (payload.socials as Array<{ label: string; href: string }>) || userFixture.socials,
+            socials:
+              (payload.socials as Array<{ label: string; href: string }>) || userFixture.socials,
           },
         });
       }
@@ -151,7 +152,9 @@ describe("DashboardUsers socials reorder", () => {
         return path === "/api/users/user-1" && method === "PUT";
       });
       expect(putCall).toBeTruthy();
-      const payload = (putCall?.[2] as { json?: { socials?: Array<{ label: string; href: string }> } }).json;
+      const payload = (
+        putCall?.[2] as { json?: { socials?: Array<{ label: string; href: string }> } }
+      ).json;
       expect(payload?.socials?.[0]?.label).toBe("discord");
       expect(payload?.socials?.[0]?.href).toBe("https://discord.gg/admin");
     });
@@ -274,7 +277,9 @@ describe("DashboardUsers socials reorder", () => {
     });
 
     await waitFor(() => {
-      const userHeadings = screen.getAllByRole("heading", { level: 3 }).map((node) => node.textContent || "");
+      const userHeadings = screen
+        .getAllByRole("heading", { level: 3 })
+        .map((node) => node.textContent || "");
       const alphaIndex = userHeadings.findIndex((text) => text.includes("Alpha"));
       const betaIndex = userHeadings.findIndex((text) => text.includes("Beta"));
       expect(alphaIndex).toBeGreaterThanOrEqual(0);

@@ -25,9 +25,7 @@ import {
   buildVersionedInstitutionalOgImagePath,
   getInstitutionalOgCachedRender,
 } from "../../server/lib/institutional-og-delivery.js";
-import {
-  resolveInstitutionalOgPageKeyFromPath,
-} from "../../shared/institutional-og-seo.js";
+import { resolveInstitutionalOgPageKeyFromPath } from "../../shared/institutional-og-seo.js";
 
 const settingsFixture = {
   theme: {
@@ -94,13 +92,7 @@ describe("institutional og delivery", () => {
     resolveOgPublicImageEncodingConfigMock.mockReturnValue(imageEncodingConfigFixture);
 
     buildInstitutionalOgCardModelMock.mockImplementation(
-      ({
-        pageKey,
-        settings,
-      }: {
-        pageKey?: string;
-        settings?: Record<string, unknown>;
-      }) => ({
+      ({ pageKey, settings }: { pageKey?: string; settings?: Record<string, unknown> }) => ({
         pageKey: String(pageKey || ""),
         title: "Sobre",
         subtitle: "Conheca a fansub.",
@@ -121,13 +113,7 @@ describe("institutional og delivery", () => {
         `data:background:${String(backgroundUrl || "")}`,
     );
     buildInstitutionalOgImageResponseMock.mockImplementation(
-      ({
-        title,
-        backgroundDataUrl,
-      }: {
-        title?: string;
-        backgroundDataUrl?: string;
-      }) => ({
+      ({ title, backgroundDataUrl }: { title?: string; backgroundDataUrl?: string }) => ({
         headers: {
           get: (name: string) => (name === "content-type" ? "image/png" : null),
         },

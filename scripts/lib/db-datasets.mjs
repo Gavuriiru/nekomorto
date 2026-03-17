@@ -91,7 +91,9 @@ export const loadDbDatasets = async (client = defaultPrisma) => {
     analyticsEvents: analyticsEvents.map((row) => cloneValue(row.data)),
     pages: pages?.data && typeof pages.data === "object" ? cloneValue(pages.data) : {},
     siteSettings:
-      siteSettings?.data && typeof siteSettings.data === "object" ? cloneValue(siteSettings.data) : {},
+      siteSettings?.data && typeof siteSettings.data === "object"
+        ? cloneValue(siteSettings.data)
+        : {},
     tagTranslations:
       tagTranslations?.data && typeof tagTranslations.data === "object"
         ? cloneValue(tagTranslations.data)
@@ -131,9 +133,7 @@ const syncRowsByPk = async ({ client, modelName, pk, rows }) => {
       update: row,
     });
   }
-  const staleIds = existingRows
-    .map((item) => String(item[pk]))
-    .filter((id) => !nextIds.has(id));
+  const staleIds = existingRows.map((item) => String(item[pk])).filter((id) => !nextIds.has(id));
   if (staleIds.length > 0) {
     await model.deleteMany({
       where: {
@@ -333,7 +333,10 @@ const persistTagTranslations = async ({ client, datasets }) => {
 };
 
 const persistAnalyticsDaily = async ({ client, datasets }) => {
-  const daily = datasets.analyticsDaily && typeof datasets.analyticsDaily === "object" ? datasets.analyticsDaily : {};
+  const daily =
+    datasets.analyticsDaily && typeof datasets.analyticsDaily === "object"
+      ? datasets.analyticsDaily
+      : {};
   await upsertSingleton({
     client,
     modelName: "analyticsDailyRecord",
@@ -347,7 +350,10 @@ const persistAnalyticsDaily = async ({ client, datasets }) => {
 };
 
 const persistAnalyticsMeta = async ({ client, datasets }) => {
-  const meta = datasets.analyticsMeta && typeof datasets.analyticsMeta === "object" ? datasets.analyticsMeta : {};
+  const meta =
+    datasets.analyticsMeta && typeof datasets.analyticsMeta === "object"
+      ? datasets.analyticsMeta
+      : {};
   await upsertSingleton({
     client,
     modelName: "analyticsMetaRecord",
@@ -382,7 +388,13 @@ const PERSISTERS = {
 };
 
 export const persistDbDatasets = async (client = defaultPrisma, datasets, changedKeys = []) => {
-  const uniqueKeys = Array.from(new Set(ensureArray(changedKeys).map((key) => String(key).trim()).filter(Boolean)));
+  const uniqueKeys = Array.from(
+    new Set(
+      ensureArray(changedKeys)
+        .map((key) => String(key).trim())
+        .filter(Boolean),
+    ),
+  );
   for (const key of uniqueKeys) {
     const persister = PERSISTERS[key];
     if (!persister) {

@@ -8,9 +8,7 @@ import type { Project } from "@/data/projects";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import {
-  readWindowPublicBootstrap,
-} from "@/lib/public-bootstrap-global";
+import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
@@ -36,8 +34,9 @@ const resolveBootstrapProject = (
     return null;
   }
   const match =
-    bootstrapData?.projects.find((candidate) => String(candidate.id || "").trim() === normalizedProjectId) ||
-    null;
+    bootstrapData?.projects.find(
+      (candidate) => String(candidate.id || "").trim() === normalizedProjectId,
+    ) || null;
   if (!match) {
     return null;
   }
@@ -54,17 +53,16 @@ const resolveBootstrapProject = (
   };
 };
 
-const mergeMediaVariants = (
-  base: UploadMediaVariantsMap,
-  nextValue: unknown,
-) => ({
+const mergeMediaVariants = (base: UploadMediaVariantsMap, nextValue: unknown) => ({
   ...base,
   ...(nextValue && typeof nextValue === "object" ? (nextValue as UploadMediaVariantsMap) : {}),
 });
 
 const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   const apiBase = getApiBase();
-  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() => readWindowPublicBootstrap());
+  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() =>
+    readWindowPublicBootstrap(),
+  );
   const bootstrapProject = useMemo(
     () => resolveBootstrapProject(bootstrapData, projectId),
     [bootstrapData, projectId],
@@ -264,7 +262,10 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
                   ) : null}
                 </div>
                 {project?.tags?.length ? (
-                  <div data-testid="project-embed-tags" className="hidden flex-wrap gap-1.5 sm:flex">
+                  <div
+                    data-testid="project-embed-tags"
+                    className="hidden flex-wrap gap-1.5 sm:flex"
+                  >
                     {sortedTags.slice(0, 4).map((tag) => (
                       <Badge key={tag} variant="secondary" className="text-[9px] uppercase">
                         {translateTag(tag, tagTranslationMap)}

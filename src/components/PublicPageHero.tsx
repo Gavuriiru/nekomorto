@@ -18,13 +18,7 @@ const badgesAnimationDelay = {
   animationDelay: "0.4s",
 } as CSSProperties;
 
-const PublicPageHero = ({
-  badge,
-  title,
-  subtitle,
-  badges = [],
-  children,
-}: PublicPageHeroProps) => {
+const PublicPageHero = ({ badge, title, subtitle, badges = [], children }: PublicPageHeroProps) => {
   const badgeLabel = String(badge || "").trim();
   const badgeItems = badges.map((item) => String(item || "").trim()).filter(Boolean);
 
@@ -35,7 +29,10 @@ const PublicPageHero = ({
       >
         <div className="public-page-hero__copy reveal space-y-4" data-reveal>
           {badgeLabel ? (
-            <Badge variant="secondary" className="text-xs uppercase tracking-widest animate-fade-in">
+            <Badge
+              variant="secondary"
+              className="text-xs uppercase tracking-widest animate-fade-in"
+            >
               {badgeLabel}
             </Badge>
           ) : null}

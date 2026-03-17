@@ -141,7 +141,9 @@ describe("DashboardSettings loading state", () => {
     expect(screen.queryByTestId("dashboard-settings-skeleton-surface")).not.toBeInTheDocument();
 
     await act(async () => {
-      translationsDeferred.resolve(mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} }));
+      translationsDeferred.resolve(
+        mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} }),
+      );
       projectsDeferred.resolve(mockJsonResponse(true, { projects: [] }));
       linkTypesDeferred.resolve(mockJsonResponse(true, { items: [] }));
     });

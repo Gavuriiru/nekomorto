@@ -14,7 +14,9 @@ const printHelp = () => {
   console.log("  node scripts/restore-uploads-from-object-storage.mjs --dry-run");
   console.log("  node scripts/restore-uploads-from-object-storage.mjs --apply");
   console.log("  node scripts/restore-uploads-from-object-storage.mjs --apply --folder posts");
-  console.log("  node scripts/restore-uploads-from-object-storage.mjs --apply --upload-id upload-1");
+  console.log(
+    "  node scripts/restore-uploads-from-object-storage.mjs --apply --upload-id upload-1",
+  );
 };
 
 const readFlagValue = (args, flag) => {

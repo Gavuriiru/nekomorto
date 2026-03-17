@@ -35,7 +35,8 @@ vi.mock("@/components/CommentsSection", () => ({
   default: () => <div data-testid="comments-section" />,
 }));
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const findAncestor = (
   element: HTMLElement,
@@ -169,7 +170,9 @@ describe("Project mobile download card layout", () => {
     );
     expect(cardContent).not.toBeNull();
     expect(classTokens(cardContent as HTMLElement)).toContain("md:grid-cols-[316px_minmax(0,1fr)]");
-    expect(classTokens(cardContent as HTMLElement)).not.toContain("md:grid-cols-[272px_minmax(0,1fr)]");
+    expect(classTokens(cardContent as HTMLElement)).not.toContain(
+      "md:grid-cols-[272px_minmax(0,1fr)]",
+    );
 
     const imageShell = findAncestor(
       previewImage,
@@ -195,8 +198,11 @@ describe("Project mobile download card layout", () => {
     expect(classTokens(metaShell as HTMLElement)).not.toContain("md:overflow-hidden");
 
     const sourceLink = screen.getByRole("link", { name: /Google Drive/i });
-    const actionsRow = findAncestor(sourceLink, (candidate) =>
-      classTokens(candidate).includes("justify-end") && classTokens(candidate).includes("flex-wrap"),
+    const actionsRow = findAncestor(
+      sourceLink,
+      (candidate) =>
+        classTokens(candidate).includes("justify-end") &&
+        classTokens(candidate).includes("flex-wrap"),
     );
     expect(actionsRow).not.toBeNull();
     expect(classTokens(actionsRow as HTMLElement)).toContain("mt-2");

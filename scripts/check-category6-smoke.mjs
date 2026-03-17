@@ -1,6 +1,9 @@
 const args = process.argv.slice(2);
 const baseArg = args.find((arg) => arg.startsWith("--base="));
-const baseUrl = (baseArg ? baseArg.split("=").slice(1).join("=") : "http://localhost:8080").replace(/\/+$/, "");
+const baseUrl = (baseArg ? baseArg.split("=").slice(1).join("=") : "http://localhost:8080").replace(
+  /\/+$/,
+  "",
+);
 
 const checks = [];
 
@@ -17,7 +20,9 @@ const runRequest = async (path, options = {}, { expectedStatuses = [200], label 
   });
   if (!ok) {
     const body = await response.text();
-    throw new Error(`Smoke check failed for ${label}: ${response.status} (expected ${expectedStatuses.join(", ")})\n${body}`);
+    throw new Error(
+      `Smoke check failed for ${label}: ${response.status} (expected ${expectedStatuses.join(", ")})\n${body}`,
+    );
   }
   return response;
 };

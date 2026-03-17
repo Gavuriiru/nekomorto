@@ -59,9 +59,7 @@ export const asPublicBootstrapPayload = (value: unknown): PublicBootstrapPayload
   };
 };
 
-export const asPublicBootstrapCurrentUser = (
-  value: unknown,
-): PublicBootstrapCurrentUser | null => {
+export const asPublicBootstrapCurrentUser = (value: unknown): PublicBootstrapCurrentUser | null => {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -71,9 +69,7 @@ export const asPublicBootstrapCurrentUser = (
     return null;
   }
   const permissions = Array.isArray(candidate.permissions)
-    ? candidate.permissions
-        .map((permission) => String(permission || "").trim())
-        .filter(Boolean)
+    ? candidate.permissions.map((permission) => String(permission || "").trim()).filter(Boolean)
     : [];
   const ownerIds = Array.isArray(candidate.ownerIds)
     ? candidate.ownerIds.map((ownerId) => String(ownerId || "").trim()).filter(Boolean)

@@ -97,7 +97,9 @@ const normalizeFavoriteWorksList = (value: unknown): string[] => {
   const dedupe = new Set<string>();
   const output: string[] = [];
   for (const item of value) {
-    const title = String(item || "").trim().slice(0, MAX_FAVORITE_WORK_LENGTH);
+    const title = String(item || "")
+      .trim()
+      .slice(0, MAX_FAVORITE_WORK_LENGTH);
     if (!title) {
       continue;
     }
@@ -214,7 +216,9 @@ const PublicUserProfileCard = ({
   const getRoleIcon = (role: string) => {
     const key = roleIconMap.get(role);
     if (key) {
-      return ROLE_ICON_REGISTRY[String(key).toLowerCase() as keyof typeof ROLE_ICON_REGISTRY] || null;
+      return (
+        ROLE_ICON_REGISTRY[String(key).toLowerCase() as keyof typeof ROLE_ICON_REGISTRY] || null
+      );
     }
     const normalized = role.toLowerCase();
     if (normalized === "dono") {
@@ -418,7 +422,9 @@ const PublicUserProfileCard = ({
                               ))}
                             </ul>
                           ) : (
-                            <p className="text-sm text-muted-foreground">Nenhuma obra cadastrada.</p>
+                            <p className="text-sm text-muted-foreground">
+                              Nenhuma obra cadastrada.
+                            </p>
                           )}
                         </div>
                       );

@@ -310,7 +310,9 @@ const DashboardNotificationsPopover = ({
               <span className="sr-only">Carregando notificações...</span>
             </div>
           ) : items.length === 0 ? (
-            <p className="px-2 py-4 text-sm text-muted-foreground">Nenhuma pendência operacional no momento.</p>
+            <p className="px-2 py-4 text-sm text-muted-foreground">
+              Nenhuma pendência operacional no momento.
+            </p>
           ) : (
             items.map((item) => {
               const ItemIcon = getNotificationIcon(item);

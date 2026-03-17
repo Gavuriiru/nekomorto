@@ -39,8 +39,7 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
 
       const grants = resolveGrants(user || null);
       const accessRole = resolveAccessRole(user || null);
-      const isOwner =
-        accessRole === "owner_primary" || accessRole === "owner_secondary";
+      const isOwner = accessRole === "owner_primary" || accessRole === "owner_secondary";
       if (location.pathname.startsWith("/dashboard/seguranca") && !isOwner) {
         const target = getFirstAllowedDashboardRoute(grants);
         toast({
@@ -79,8 +78,7 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
         const user = await response.json();
         const grants = resolveGrants(user || null);
         const accessRole = resolveAccessRole(user || null);
-        const isOwner =
-          accessRole === "owner_primary" || accessRole === "owner_secondary";
+        const isOwner = accessRole === "owner_primary" || accessRole === "owner_secondary";
         if (location.pathname.startsWith("/dashboard/seguranca") && !isOwner) {
           const target = getFirstAllowedDashboardRoute(grants);
           toast({

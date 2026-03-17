@@ -89,12 +89,15 @@ const Index = () => {
       return;
     }
 
-    const observer = new IntersectionObserver((entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) {
-        return;
-      }
-      setShouldRenderReleases(true);
-    }, { rootMargin: "0px 0px -35% 0px" });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) {
+          return;
+        }
+        setShouldRenderReleases(true);
+      },
+      { rootMargin: "0px 0px -35% 0px" },
+    );
     observer.observe(sentinel);
 
     return () => {

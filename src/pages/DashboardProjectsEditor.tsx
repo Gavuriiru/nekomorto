@@ -106,7 +106,11 @@ import {
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
-import type { ApiContractBuildMetadata, ApiContractCapabilities, ApiContractV1 } from "@/types/api-contract";
+import type {
+  ApiContractBuildMetadata,
+  ApiContractCapabilities,
+  ApiContractV1,
+} from "@/types/api-contract";
 import {
   normalizeProjectReaderConfig,
   PROJECT_READER_DIRECTIONS,
@@ -1174,13 +1178,7 @@ const projectEditorAccordionTitleClassName =
   "block text-[15px] font-semibold leading-tight md:text-base";
 const projectEditorAccordionSubtitleClassName = "block text-xs leading-5 text-muted-foreground";
 
-const ProjectEditorAccordionHeader = ({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle: string;
-}) => (
+const ProjectEditorAccordionHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
   <div className={projectEditorAccordionHeaderTextClassName}>
     <span className={projectEditorAccordionTitleClassName}>{title}</span>
     <span className={projectEditorAccordionSubtitleClassName}>{subtitle}</span>
@@ -1233,7 +1231,9 @@ const DashboardProjectsEditor = () => {
   const { currentUser, isLoadingUser } = useDashboardCurrentUser();
   const hasLoadedCurrentUser = !isLoadingUser;
   const initialCacheRef = useRef(readProjectsPageCache());
-  const [projects, setProjects] = useState<ProjectRecord[]>(initialCacheRef.current?.projects ?? []);
+  const [projects, setProjects] = useState<ProjectRecord[]>(
+    initialCacheRef.current?.projects ?? [],
+  );
   const [projectTypeOptions, setProjectTypeOptions] = useState<string[]>(
     initialCacheRef.current?.projectTypeOptions ?? defaultFormatOptions,
   );
@@ -1719,9 +1719,7 @@ const DashboardProjectsEditor = () => {
 
   const tagSuggestionOptions = useMemo(
     () =>
-      buildTaxonomySuggestionOptions(knownTagValues, (tag) =>
-        translateTag(tag, tagTranslationMap),
-      ),
+      buildTaxonomySuggestionOptions(knownTagValues, (tag) => translateTag(tag, tagTranslationMap)),
     [knownTagValues, tagTranslationMap],
   );
 
@@ -2559,7 +2557,14 @@ const DashboardProjectsEditor = () => {
       staffRoleTranslations,
     });
     return nextProjects;
-  }, [apiBase, genreTranslations, memberDirectory, projectTypeOptions, staffRoleTranslations, tagTranslations]);
+  }, [
+    apiBase,
+    genreTranslations,
+    memberDirectory,
+    projectTypeOptions,
+    staffRoleTranslations,
+    tagTranslations,
+  ]);
 
   const loadProjectTypes = useCallback(async () => {
     const response = await apiFetch(apiBase, "/api/project-types", {
@@ -2653,7 +2658,9 @@ const DashboardProjectsEditor = () => {
                 .map((user) => user.name)
                 .filter((name): name is string => Boolean(name))
             : [];
-          nextMemberDirectory = Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR"));
+          nextMemberDirectory = Array.from(new Set(names)).sort((a, b) =>
+            a.localeCompare(b, "pt-BR"),
+          );
         } else {
           nextMemberDirectory = [];
         }
@@ -3411,11 +3418,7 @@ const DashboardProjectsEditor = () => {
     [],
   );
 
-  const openEpubImportPicker = ({
-    autoImportAfterSelect,
-  }: {
-    autoImportAfterSelect: boolean;
-  }) => {
+  const openEpubImportPicker = ({ autoImportAfterSelect }: { autoImportAfterSelect: boolean }) => {
     const input = epubImportInputRef.current;
     if (!input || isImportingEpub || !backendSupportsEpubImport) {
       return;
@@ -3775,7 +3778,9 @@ const DashboardProjectsEditor = () => {
         const duplicateIndex = formState.episodeDownloads.findIndex(
           (episode) => buildEpisodeKey(episode.number, episode.volume) === duplicateKey,
         );
-        setEditorAccordionValue((prev) => (prev.includes("episodios") ? prev : [...prev, "episodios"]));
+        setEditorAccordionValue((prev) =>
+          prev.includes("episodios") ? prev : [...prev, "episodios"],
+        );
         if (duplicateIndex >= 0) {
           revealEpisodeAtIndex(duplicateIndex);
         }
@@ -3815,7 +3820,8 @@ const DashboardProjectsEditor = () => {
     (payload: unknown) => {
       setEpubRouteStatus("ok");
       registerPendingEpubImportIds(payload);
-      const data = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+      const data =
+        payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
       const chapters = Array.isArray(data?.chapters) ? (data.chapters as ProjectEpisode[]) : [];
       const volumeCovers = Array.isArray(data?.volumeCovers)
         ? (data.volumeCovers as Array<
@@ -3885,12 +3891,16 @@ const DashboardProjectsEditor = () => {
         scrollToFirstAffectedItem: false,
       });
       mergeImportedVolumeCoversIntoForm(volumeCovers);
-      setEditorAccordionValue((prev) => (prev.includes("episodios") ? prev : [...prev, "episodios"]));
+      setEditorAccordionValue((prev) =>
+        prev.includes("episodios") ? prev : [...prev, "episodios"],
+      );
       toast({
         title: "EPUB importado",
         description: [
           `${importedChapterCount} cap?tulo(s) incorporados ao formul?rio para revis?o.`,
-          ...(mainImportedCount > 0 ? [`${mainImportedCount} cap?tulo(s) principais detectados.`] : []),
+          ...(mainImportedCount > 0
+            ? [`${mainImportedCount} cap?tulo(s) principais detectados.`]
+            : []),
           ...(extrasImportedCount > 0 ? [`${extrasImportedCount} extra(s) detectados.`] : []),
           ...(boilerplatePromoted > 0
             ? [`${boilerplatePromoted} item(ns) de boilerplate foram promovidos para extras.`]
@@ -3898,7 +3908,9 @@ const DashboardProjectsEditor = () => {
           ...(boilerplateDiscarded > 0
             ? [`${boilerplateDiscarded} item(ns) de boilerplate foram descartados.`]
             : []),
-          ...(imagesImported > 0 ? [`${imagesImported} imagem(ns) interna(s) foram importadas.`] : []),
+          ...(imagesImported > 0
+            ? [`${imagesImported} imagem(ns) interna(s) foram importadas.`]
+            : []),
           ...(imageImportFailures > 0
             ? [`${imageImportFailures} imagem(ns) falharam e foram ignoradas.`]
             : []),
@@ -3997,7 +4009,9 @@ const DashboardProjectsEditor = () => {
             handleEpubImportFailureResponse(jobResponse, data);
             return;
           } else {
-            const data = (await jobResponse.json().catch(() => null)) as { job?: EpubImportJob } | null;
+            const data = (await jobResponse.json().catch(() => null)) as {
+              job?: EpubImportJob;
+            } | null;
             const initialJob = normalizeEpubImportJob(data?.job);
             if (!initialJob) {
               toast({
@@ -5900,13 +5914,16 @@ const DashboardProjectsEditor = () => {
                                 Conteúdo dedicado
                               </h3>
                               <p className="text-xs text-muted-foreground">
-                                O fluxo de importação, organização, disponibilização e exportação de mangá/webtoon fica na página dedicada de capítulos.
+                                O fluxo de importação, organização, disponibilização e exportação de
+                                mangá/webtoon fica na página dedicada de capítulos.
                               </p>
                             </div>
                             <div className="mt-4 flex flex-wrap items-center gap-3">
                               {editingProject?.id ? (
                                 <Button type="button" variant="outline" asChild>
-                                  <Link to={buildDashboardProjectChaptersEditorHref(editingProject.id)}>
+                                  <Link
+                                    to={buildDashboardProjectChaptersEditorHref(editingProject.id)}
+                                  >
                                     <FileText className="h-4 w-4" />
                                     Abrir conteúdo
                                   </Link>
@@ -5918,7 +5935,8 @@ const DashboardProjectsEditor = () => {
                                 </Button>
                               )}
                               <span className="text-xs text-muted-foreground">
-                                O editor principal fica só com metadados, equipe, assets e estrutura.
+                                O editor principal fica só com metadados, equipe, assets e
+                                estrutura.
                               </span>
                             </div>
                           </div>
@@ -6449,7 +6467,10 @@ const DashboardProjectsEditor = () => {
                               <Input
                                 value={formState.episodes}
                                 onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, episodes: event.target.value }))
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    episodes: event.target.value,
+                                  }))
                                 }
                               />
                             </div>
@@ -6490,7 +6511,9 @@ const DashboardProjectsEditor = () => {
                           className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
                         >
                           <div className="space-y-1">
-                            <h3 className={editorSectionBlockTitleClassName}>Estúdios e produtoras</h3>
+                            <h3 className={editorSectionBlockTitleClassName}>
+                              Estúdios e produtoras
+                            </h3>
                             <p className="text-xs leading-5 text-muted-foreground">
                               Separe o estúdio principal dos estúdios de animação e das produtoras.
                             </p>
@@ -7260,8 +7283,9 @@ const DashboardProjectsEditor = () => {
                       <ProjectEditorAccordionHeader
                         title="Mídias"
                         subtitle={`${
-                          [formState.heroImageUrl, formState.cover, formState.banner].filter(Boolean)
-                            .length
+                          [formState.heroImageUrl, formState.cover, formState.banner].filter(
+                            Boolean,
+                          ).length
                         }/3 selecionadas`}
                       />
                     </AccordionTrigger>
@@ -7463,410 +7487,408 @@ const DashboardProjectsEditor = () => {
                         className={editorSectionContentClassName}
                         contentClassName={isChapterBased ? chapterOpenContentClassName : undefined}
                       >
-                      <div ref={contentSectionRef} className="space-y-3">
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          {isChapterBased && supportsVolumeEntries ? (
+                        <div ref={contentSectionRef} className="space-y-3">
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            {isChapterBased && supportsVolumeEntries ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={addVolumeEntry}
+                              >
+                                Adicionar volume
+                              </Button>
+                            ) : null}
                             <Button
                               type="button"
                               size="sm"
                               variant="outline"
-                              onClick={addVolumeEntry}
+                              onClick={handleAddEpisodeDownload}
                             >
-                              Adicionar volume
+                              {isChapterBased ? "Adicionar capítulo" : "Adicionar episódio"}
                             </Button>
-                          ) : null}
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={handleAddEpisodeDownload}
+                          </div>
+                          <div
+                            className={isChapterBased && supportsVolumeEntries ? "space-y-4" : ""}
                           >
-                            {isChapterBased ? "Adicionar capítulo" : "Adicionar episódio"}
-                          </Button>
-                        </div>
-                        <div className={isChapterBased && supportsVolumeEntries ? "space-y-4" : ""}>
-                          <Accordion
-                            type="multiple"
-                            value={volumeGroupOpenValues}
-                            onValueChange={handleVolumeGroupAccordionChange}
-                            className="space-y-4"
-                          >
-                            {episodeGroupsForRender.map((group, groupIndex) => {
-                              const groupVolumeEntry =
-                                group.volumeEntryIndex !== null
-                                  ? formState.volumeEntries[group.volumeEntryIndex] || null
-                                  : null;
-                              const groupHasEpisodes = group.episodeItems.length > 0;
-                              const volumeLabel = group.hasNumericVolume
-                                ? `Volume ${group.volume}`
-                                : "Sem volume";
-                              const volumeDescription = group.hasNumericVolume
-                                ? "Configure capa e sinopse para este volume."
-                                : "Capítulos sem volume usam capa e sinopse do próprio projeto.";
-                              return (
-                                <AccordionItem
-                                  ref={(node) => {
-                                    if (node) {
-                                      volumeGroupNodeMapRef.current.set(group.key, node);
-                                    } else {
-                                      volumeGroupNodeMapRef.current.delete(group.key);
-                                    }
-                                  }}
-                                  key={`episode-group-${groupIndex}`}
-                                  value={group.key}
-                                  className="rounded-2xl border border-border/60 bg-card/40"
-                                  data-testid={`volume-group-${group.key}`}
-                                >
-                                  {isChapterBased && supportsVolumeEntries ? (
-                                    <div className="flex w-full items-start gap-2 px-4 pb-3 pt-3">
-                                      <AccordionTrigger
-                                        headerClassName="flex-1 min-w-0"
-                                        className="w-full gap-3 py-0 text-left hover:no-underline [&>svg]:mt-0 [&>svg]:self-center"
-                                      >
-                                        <div className="flex min-w-0 flex-1 items-center justify-between gap-3 pr-1">
-                                          <div className="min-w-0 space-y-1">
-                                            <Label className="cursor-pointer">{volumeLabel}</Label>
-                                            <p className="text-xs text-muted-foreground">
-                                              {volumeDescription}
-                                            </p>
-                                          </div>
-                                          <Badge
-                                            variant="outline"
-                                            className="shrink-0 self-center text-[10px] uppercase"
-                                          >
-                                            {group.episodeItems.length} capítulo(s)
-                                          </Badge>
-                                        </div>
-                                      </AccordionTrigger>
-                                      {group.hasNumericVolume && groupVolumeEntry ? (
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          data-no-toggle
-                                          onClick={(event) => {
-                                            event.preventDefault();
-                                            event.stopPropagation();
-                                            removeVolumeEntryByVolume(group.volume);
-                                          }}
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      ) : null}
-                                    </div>
-                                  ) : null}
-                                  <AccordionContent
-                                    className="space-y-3 px-4 pb-3"
-                                    contentClassName={
-                                      isChapterBased ? chapterOpenContentClassName : undefined
-                                    }
+                            <Accordion
+                              type="multiple"
+                              value={volumeGroupOpenValues}
+                              onValueChange={handleVolumeGroupAccordionChange}
+                              className="space-y-4"
+                            >
+                              {episodeGroupsForRender.map((group, groupIndex) => {
+                                const groupVolumeEntry =
+                                  group.volumeEntryIndex !== null
+                                    ? formState.volumeEntries[group.volumeEntryIndex] || null
+                                    : null;
+                                const groupHasEpisodes = group.episodeItems.length > 0;
+                                const volumeLabel = group.hasNumericVolume
+                                  ? `Volume ${group.volume}`
+                                  : "Sem volume";
+                                const volumeDescription = group.hasNumericVolume
+                                  ? "Configure capa e sinopse para este volume."
+                                  : "Capítulos sem volume usam capa e sinopse do próprio projeto.";
+                                return (
+                                  <AccordionItem
+                                    ref={(node) => {
+                                      if (node) {
+                                        volumeGroupNodeMapRef.current.set(group.key, node);
+                                      } else {
+                                        volumeGroupNodeMapRef.current.delete(group.key);
+                                      }
+                                    }}
+                                    key={`episode-group-${groupIndex}`}
+                                    value={group.key}
+                                    className="rounded-2xl border border-border/60 bg-card/40"
+                                    data-testid={`volume-group-${group.key}`}
                                   >
-                                    {group.hasNumericVolume ? (
-                                      <div className="space-y-3 rounded-xl border border-border/60 bg-background/40 p-3">
-                                        <div className="flex items-center gap-3">
-                                          {groupVolumeEntry?.coverImageUrl ? (
-                                            <img
-                                              src={groupVolumeEntry.coverImageUrl}
-                                              alt={
-                                                groupVolumeEntry.coverImageAlt || "Capa do volume"
-                                              }
-                                              className="h-16 w-12 rounded-lg object-cover"
-                                            />
-                                          ) : (
-                                            <div className="flex h-16 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                              Sem capa
+                                    {isChapterBased && supportsVolumeEntries ? (
+                                      <div className="flex w-full items-start gap-2 px-4 pb-3 pt-3">
+                                        <AccordionTrigger
+                                          headerClassName="flex-1 min-w-0"
+                                          className="w-full gap-3 py-0 text-left hover:no-underline [&>svg]:mt-0 [&>svg]:self-center"
+                                        >
+                                          <div className="flex min-w-0 flex-1 items-center justify-between gap-3 pr-1">
+                                            <div className="min-w-0 space-y-1">
+                                              <Label className="cursor-pointer">
+                                                {volumeLabel}
+                                              </Label>
+                                              <p className="text-xs text-muted-foreground">
+                                                {volumeDescription}
+                                              </p>
                                             </div>
-                                          )}
+                                            <Badge
+                                              variant="outline"
+                                              className="shrink-0 self-center text-[10px] uppercase"
+                                            >
+                                              {group.episodeItems.length} capítulo(s)
+                                            </Badge>
+                                          </div>
+                                        </AccordionTrigger>
+                                        {group.hasNumericVolume && groupVolumeEntry ? (
                                           <Button
                                             type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => openLibraryForVolumeCover(group.volume)}
+                                            variant="ghost"
+                                            size="icon"
+                                            data-no-toggle
+                                            onClick={(event) => {
+                                              event.preventDefault();
+                                              event.stopPropagation();
+                                              removeVolumeEntryByVolume(group.volume);
+                                            }}
                                           >
-                                            Biblioteca
+                                            <Trash2 className="h-4 w-4" />
                                           </Button>
-                                        </div>
-                                        <div className="space-y-2">
-                                          <Label className="text-xs">Alt</Label>
-                                          <Input
-                                            value={groupVolumeEntry?.coverImageAlt || ""}
-                                            onChange={(event) =>
-                                              updateVolumeEntryByVolume(group.volume, (entry) => ({
-                                                ...entry,
-                                                coverImageAlt: event.target.value,
-                                              }))
-                                            }
-                                            placeholder="Texto alternativo da capa"
-                                          />
-                                        </div>
-                                        <div className="space-y-2">
-                                          <Label className="text-xs">Sinopse do volume</Label>
-                                          <Textarea
-                                            value={groupVolumeEntry?.synopsis || ""}
-                                            onChange={(event) =>
-                                              updateVolumeEntryByVolume(group.volume, (entry) => ({
-                                                ...entry,
-                                                synopsis: event.target.value,
-                                              }))
-                                            }
-                                            rows={3}
-                                            placeholder="Resumo exibido nas páginas públicas para este volume"
-                                          />
-                                        </div>
+                                        ) : null}
                                       </div>
                                     ) : null}
-                                    {!groupHasEpisodes ? (
-                                      <div className="rounded-xl border border-dashed border-border/60 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
-                                        Nenhum capítulo vinculado a este volume.
-                                      </div>
-                                    ) : null}
-                                    <Accordion
-                                      type="multiple"
-                                      value={episodeOpenValues}
-                                      onValueChange={handleEpisodeAccordionChange}
-                                      className="space-y-3"
+                                    <AccordionContent
+                                      className="space-y-3 px-4 pb-3"
+                                      contentClassName={
+                                        isChapterBased ? chapterOpenContentClassName : undefined
+                                      }
                                     >
-                                      {group.episodeItems.map(({ episode, index }) => {
-                                        const isEpisodeCollapsed =
-                                          collapsedEpisodes[index] ?? false;
-                                        const entryKind = getEpisodeEntryKind(episode);
-                                        const isExtraEntry = entryKind === "extra";
-                                        const episodeUnitLabel = isChapterBased
-                                          ? "Capítulo"
-                                          : "Episódio";
-                                        const episodeNumberLabel = isExtraEntry
-                                          ? "Extra"
-                                          : `${episodeUnitLabel} ${episode.number || index + 1}`;
-                                        const episodeTitleLabel =
-                                          String(episode.title || "").trim() || "Sem título";
-                                        const episodeKey = buildEpisodeKey(
-                                          episode.number,
-                                          episode.volume,
-                                        );
-                                        const publicationStatus =
-                                          episode.publicationStatus === "draft"
-                                            ? "draft"
-                                            : "published";
-                                        const hasEpisodeContent =
-                                          String(episode.content || "").trim().length > 0;
-                                        const hasDownloadSource = (episode.sources || []).some(
-                                          (source) => source.url,
-                                        );
-                                        const isProgressOnlyEntry =
-                                          !hasDownloadSource &&
-                                          !(isLightNovel && hasEpisodeContent);
-                                        const currentProgressStageLabel =
-                                          stageOptions.find(
-                                            (stage) =>
-                                              stage.id ===
-                                              getProgressStage(
-                                                formState.type || "",
-                                                episode.completedStages,
-                                              ),
-                                          )?.label || "Aguardando Raw";
-                                        const statusLabel =
-                                          publicationStatus === "draft" ? "Rascunho" : "Publicado";
-                                        const availabilityLabel = isLightNovel
-                                          ? hasEpisodeContent && hasDownloadSource
-                                            ? "Híbrido"
-                                            : hasEpisodeContent
-                                              ? "Leitura"
-                                              : hasDownloadSource
-                                                ? "Download"
-                                                : "Sem público"
-                                          : hasDownloadSource
-                                            ? "Download"
-                                            : currentProgressStageLabel;
-                                        const statusVisibilitySummary = `${statusLabel} • ${availabilityLabel}`;
-
-                                        return (
-                                          <AccordionItem
-                                            key={episode._editorKey || `legacy-episode-${index}`}
-                                            value={getEpisodeAccordionValue(index)}
-                                            className="border-none"
-                                          >
-                                            <Card
-                                              ref={(node) => {
-                                                if (node) {
-                                                  episodeCardNodeMapRef.current.set(episode, node);
-                                                  if (
-                                                    pendingEpisodeToScrollRef.current === episode
-                                                  ) {
-                                                    requestAnimationFrame(() => {
-                                                      const latestNode =
-                                                        episodeCardNodeMapRef.current.get(episode);
-                                                      if (
-                                                        !latestNode ||
-                                                        pendingEpisodeToScrollRef.current !==
-                                                          episode
-                                                      ) {
-                                                        return;
-                                                      }
-                                                      latestNode.scrollIntoView({
-                                                        behavior: "smooth",
-                                                        block: "center",
-                                                        inline: "nearest",
-                                                      });
-                                                      pendingEpisodeToScrollRef.current = null;
-                                                    });
-                                                  }
+                                      {group.hasNumericVolume ? (
+                                        <div className="space-y-3 rounded-xl border border-border/60 bg-background/40 p-3">
+                                          <div className="flex items-center gap-3">
+                                            {groupVolumeEntry?.coverImageUrl ? (
+                                              <img
+                                                src={groupVolumeEntry.coverImageUrl}
+                                                alt={
+                                                  groupVolumeEntry.coverImageAlt || "Capa do volume"
                                                 }
-                                              }}
-                                              className="project-editor-episode-card border-border/60 bg-card/70 !shadow-none hover:!shadow-none"
-                                              data-episode-key={episodeKey}
-                                              data-testid={`episode-card-${index}`}
-                                              onDragStart={() => setEpisodeDragId(null)}
+                                                className="h-16 w-12 rounded-lg object-cover"
+                                              />
+                                            ) : (
+                                              <div className="flex h-16 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                                Sem capa
+                                              </div>
+                                            )}
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() =>
+                                                openLibraryForVolumeCover(group.volume)
+                                              }
                                             >
-                                              <CardContent
-                                                className={`project-editor-episode-content space-y-3 ${isEpisodeCollapsed ? "p-3" : "p-4"}`}
+                                              Biblioteca
+                                            </Button>
+                                          </div>
+                                          <div className="space-y-2">
+                                            <Label className="text-xs">Alt</Label>
+                                            <Input
+                                              value={groupVolumeEntry?.coverImageAlt || ""}
+                                              onChange={(event) =>
+                                                updateVolumeEntryByVolume(
+                                                  group.volume,
+                                                  (entry) => ({
+                                                    ...entry,
+                                                    coverImageAlt: event.target.value,
+                                                  }),
+                                                )
+                                              }
+                                              placeholder="Texto alternativo da capa"
+                                            />
+                                          </div>
+                                          <div className="space-y-2">
+                                            <Label className="text-xs">Sinopse do volume</Label>
+                                            <Textarea
+                                              value={groupVolumeEntry?.synopsis || ""}
+                                              onChange={(event) =>
+                                                updateVolumeEntryByVolume(
+                                                  group.volume,
+                                                  (entry) => ({
+                                                    ...entry,
+                                                    synopsis: event.target.value,
+                                                  }),
+                                                )
+                                              }
+                                              rows={3}
+                                              placeholder="Resumo exibido nas páginas públicas para este volume"
+                                            />
+                                          </div>
+                                        </div>
+                                      ) : null}
+                                      {!groupHasEpisodes ? (
+                                        <div className="rounded-xl border border-dashed border-border/60 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+                                          Nenhum capítulo vinculado a este volume.
+                                        </div>
+                                      ) : null}
+                                      <Accordion
+                                        type="multiple"
+                                        value={episodeOpenValues}
+                                        onValueChange={handleEpisodeAccordionChange}
+                                        className="space-y-3"
+                                      >
+                                        {group.episodeItems.map(({ episode, index }) => {
+                                          const isEpisodeCollapsed =
+                                            collapsedEpisodes[index] ?? false;
+                                          const entryKind = getEpisodeEntryKind(episode);
+                                          const isExtraEntry = entryKind === "extra";
+                                          const episodeUnitLabel = isChapterBased
+                                            ? "Capítulo"
+                                            : "Episódio";
+                                          const episodeNumberLabel = isExtraEntry
+                                            ? "Extra"
+                                            : `${episodeUnitLabel} ${episode.number || index + 1}`;
+                                          const episodeTitleLabel =
+                                            String(episode.title || "").trim() || "Sem título";
+                                          const episodeKey = buildEpisodeKey(
+                                            episode.number,
+                                            episode.volume,
+                                          );
+                                          const publicationStatus =
+                                            episode.publicationStatus === "draft"
+                                              ? "draft"
+                                              : "published";
+                                          const hasEpisodeContent =
+                                            String(episode.content || "").trim().length > 0;
+                                          const hasDownloadSource = (episode.sources || []).some(
+                                            (source) => source.url,
+                                          );
+                                          const isProgressOnlyEntry =
+                                            !hasDownloadSource &&
+                                            !(isLightNovel && hasEpisodeContent);
+                                          const currentProgressStageLabel =
+                                            stageOptions.find(
+                                              (stage) =>
+                                                stage.id ===
+                                                getProgressStage(
+                                                  formState.type || "",
+                                                  episode.completedStages,
+                                                ),
+                                            )?.label || "Aguardando Raw";
+                                          const statusLabel =
+                                            publicationStatus === "draft"
+                                              ? "Rascunho"
+                                              : "Publicado";
+                                          const availabilityLabel = isLightNovel
+                                            ? hasEpisodeContent && hasDownloadSource
+                                              ? "Híbrido"
+                                              : hasEpisodeContent
+                                                ? "Leitura"
+                                                : hasDownloadSource
+                                                  ? "Download"
+                                                  : "Sem público"
+                                            : hasDownloadSource
+                                              ? "Download"
+                                              : currentProgressStageLabel;
+                                          const statusVisibilitySummary = `${statusLabel} • ${availabilityLabel}`;
+
+                                          return (
+                                            <AccordionItem
+                                              key={episode._editorKey || `legacy-episode-${index}`}
+                                              value={getEpisodeAccordionValue(index)}
+                                              className="border-none"
+                                            >
+                                              <Card
+                                                ref={(node) => {
+                                                  if (node) {
+                                                    episodeCardNodeMapRef.current.set(
+                                                      episode,
+                                                      node,
+                                                    );
+                                                    if (
+                                                      pendingEpisodeToScrollRef.current === episode
+                                                    ) {
+                                                      requestAnimationFrame(() => {
+                                                        const latestNode =
+                                                          episodeCardNodeMapRef.current.get(
+                                                            episode,
+                                                          );
+                                                        if (
+                                                          !latestNode ||
+                                                          pendingEpisodeToScrollRef.current !==
+                                                            episode
+                                                        ) {
+                                                          return;
+                                                        }
+                                                        latestNode.scrollIntoView({
+                                                          behavior: "smooth",
+                                                          block: "center",
+                                                          inline: "nearest",
+                                                        });
+                                                        pendingEpisodeToScrollRef.current = null;
+                                                      });
+                                                    }
+                                                  }
+                                                }}
+                                                className="project-editor-episode-card border-border/60 bg-card/70 !shadow-none hover:!shadow-none"
+                                                data-episode-key={episodeKey}
+                                                data-testid={`episode-card-${index}`}
+                                                onDragStart={() => setEpisodeDragId(null)}
                                               >
-                                                <div
-                                                  className="project-editor-episode-header flex flex-wrap items-center justify-between gap-2"
-                                                  data-testid={`episode-header-${index}`}
-                                                  onClick={(event) =>
-                                                    handleEpisodeHeaderClick(index, event)
-                                                  }
+                                                <CardContent
+                                                  className={`project-editor-episode-content space-y-3 ${isEpisodeCollapsed ? "p-3" : "p-4"}`}
                                                 >
-                                                  <div className="min-w-0 flex-1">
-                                                    <AccordionTrigger
-                                                      data-episode-accordion-trigger
-                                                      className="project-editor-episode-trigger gap-3 py-0 text-left text-foreground hover:no-underline [&>svg]:mt-0 [&>svg]:self-center [&>svg]:shrink-0"
-                                                    >
-                                                      <div className="flex min-w-0 flex-col py-0.5">
-                                                        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                                          {episodeNumberLabel}
-                                                        </span>
-                                                        <span className="line-clamp-1 text-sm font-semibold leading-tight">
-                                                          {episodeTitleLabel}
-                                                        </span>
-                                                        {episode.releaseDate ? (
-                                                          <span className="text-[11px] text-muted-foreground">
-                                                            {formatEpisodeReleaseDate(
-                                                              episode.releaseDate,
-                                                              episode.duration,
-                                                            )}
+                                                  <div
+                                                    className="project-editor-episode-header flex flex-wrap items-center justify-between gap-2"
+                                                    data-testid={`episode-header-${index}`}
+                                                    onClick={(event) =>
+                                                      handleEpisodeHeaderClick(index, event)
+                                                    }
+                                                  >
+                                                    <div className="min-w-0 flex-1">
+                                                      <AccordionTrigger
+                                                        data-episode-accordion-trigger
+                                                        className="project-editor-episode-trigger gap-3 py-0 text-left text-foreground hover:no-underline [&>svg]:mt-0 [&>svg]:self-center [&>svg]:shrink-0"
+                                                      >
+                                                        <div className="flex min-w-0 flex-col py-0.5">
+                                                          <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                                                            {episodeNumberLabel}
                                                           </span>
-                                                        ) : null}
-                                                      </div>
-                                                    </AccordionTrigger>
-                                                  </div>
-                                                  <div className="flex flex-wrap items-center gap-2">
-                                                    <span
-                                                      className="text-[11px] text-muted-foreground"
-                                                      data-testid={`episode-header-status-visibility-${index}`}
-                                                    >
-                                                      {statusVisibilitySummary}
-                                                    </span>
-                                                    <ReorderControls
-                                                      label={`item ${isExtraEntry ? "extra" : episode.number || index + 1}`}
-                                                      index={index}
-                                                      total={sortedEpisodeDownloads.length}
-                                                      onMove={(targetIndex) =>
-                                                        moveEpisodeItem(index, targetIndex)
-                                                      }
-                                                      buttonClassName="h-7 w-7"
-                                                    />
-                                                    <Button
-                                                      type="button"
-                                                      size="sm"
-                                                      variant="ghost"
-                                                      className="h-7 px-2 text-[11px] text-destructive hover:text-destructive"
-                                                      data-no-toggle
-                                                      onClick={() => {
-                                                        setFormState((prev) => ({
-                                                          ...prev,
-                                                          episodeDownloads:
-                                                            prev.episodeDownloads.filter(
-                                                              (_, idx) => idx !== index,
-                                                            ),
-                                                        }));
-                                                        setEpisodeDateDraft((prev) =>
-                                                          shiftDraftAfterRemoval(prev, index),
-                                                        );
-                                                        setEpisodeTimeDraft((prev) =>
-                                                          shiftDraftAfterRemoval(prev, index),
-                                                        );
-                                                        setEpisodeSizeDrafts((prev) =>
-                                                          shiftDraftAfterRemoval(prev, index),
-                                                        );
-                                                        setEpisodeSizeErrors((prev) =>
-                                                          shiftDraftAfterRemoval(prev, index),
-                                                        );
-                                                        setCollapsedEpisodes((prev) =>
-                                                          shiftCollapsedEpisodesAfterRemoval(
-                                                            prev,
-                                                            index,
-                                                          ),
-                                                        );
-                                                      }}
-                                                    >
-                                                      {isChapterBased
-                                                        ? "Remover capítulo"
-                                                        : "Remover episódio"}
-                                                    </Button>
-                                                  </div>
-                                                </div>
-                                                <AccordionContent
-                                                  className="project-editor-episode-panel pt-3 pb-0 px-1"
-                                                  contentClassName={
-                                                    isChapterBased
-                                                      ? chapterOpenContentClassName
-                                                      : undefined
-                                                  }
-                                                >
-                                                  <div className="project-editor-episode-group project-editor-episode-basics grid gap-3 md:grid-cols-[minmax(120px,0.9fr)_minmax(84px,0.7fr)_minmax(84px,0.7fr)_minmax(180px,1.4fr)_minmax(150px,1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)]">
-                                                    <Select
-                                                      value={isExtraEntry ? "extra" : "main"}
-                                                      onValueChange={(value) =>
-                                                        setEpisodeEntryKind(
-                                                          index,
-                                                          value === "extra" ? "extra" : "main",
-                                                        )
-                                                      }
-                                                    >
-                                                      <SelectTrigger aria-label="Tipo da entrada">
-                                                        <SelectValue placeholder="Tipo" />
-                                                      </SelectTrigger>
-                                                      <SelectContent>
-                                                        <SelectItem value="main">
-                                                          Principal
-                                                        </SelectItem>
-                                                        <SelectItem value="extra">Extra</SelectItem>
-                                                      </SelectContent>
-                                                    </Select>
-                                                    <Input
-                                                      type="number"
-                                                      value={episode.number}
-                                                      disabled={isExtraEntry}
-                                                      onChange={(event) =>
-                                                        setFormState((prev) => {
-                                                          const next = [...prev.episodeDownloads];
-                                                          next[index] = {
-                                                            ...next[index],
-                                                            number: Number(event.target.value),
-                                                          };
-                                                          return {
+                                                          <span className="line-clamp-1 text-sm font-semibold leading-tight">
+                                                            {episodeTitleLabel}
+                                                          </span>
+                                                          {episode.releaseDate ? (
+                                                            <span className="text-[11px] text-muted-foreground">
+                                                              {formatEpisodeReleaseDate(
+                                                                episode.releaseDate,
+                                                                episode.duration,
+                                                              )}
+                                                            </span>
+                                                          ) : null}
+                                                        </div>
+                                                      </AccordionTrigger>
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                      <span
+                                                        className="text-[11px] text-muted-foreground"
+                                                        data-testid={`episode-header-status-visibility-${index}`}
+                                                      >
+                                                        {statusVisibilitySummary}
+                                                      </span>
+                                                      <ReorderControls
+                                                        label={`item ${isExtraEntry ? "extra" : episode.number || index + 1}`}
+                                                        index={index}
+                                                        total={sortedEpisodeDownloads.length}
+                                                        onMove={(targetIndex) =>
+                                                          moveEpisodeItem(index, targetIndex)
+                                                        }
+                                                        buttonClassName="h-7 w-7"
+                                                      />
+                                                      <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="h-7 px-2 text-[11px] text-destructive hover:text-destructive"
+                                                        data-no-toggle
+                                                        onClick={() => {
+                                                          setFormState((prev) => ({
                                                             ...prev,
-                                                            episodeDownloads: next,
-                                                          };
-                                                        })
-                                                      }
-                                                      placeholder={
-                                                        isExtraEntry ? "Técnico" : "Número"
-                                                      }
-                                                    />
-                                                    {isChapterBased ? (
+                                                            episodeDownloads:
+                                                              prev.episodeDownloads.filter(
+                                                                (_, idx) => idx !== index,
+                                                              ),
+                                                          }));
+                                                          setEpisodeDateDraft((prev) =>
+                                                            shiftDraftAfterRemoval(prev, index),
+                                                          );
+                                                          setEpisodeTimeDraft((prev) =>
+                                                            shiftDraftAfterRemoval(prev, index),
+                                                          );
+                                                          setEpisodeSizeDrafts((prev) =>
+                                                            shiftDraftAfterRemoval(prev, index),
+                                                          );
+                                                          setEpisodeSizeErrors((prev) =>
+                                                            shiftDraftAfterRemoval(prev, index),
+                                                          );
+                                                          setCollapsedEpisodes((prev) =>
+                                                            shiftCollapsedEpisodesAfterRemoval(
+                                                              prev,
+                                                              index,
+                                                            ),
+                                                          );
+                                                        }}
+                                                      >
+                                                        {isChapterBased
+                                                          ? "Remover capítulo"
+                                                          : "Remover episódio"}
+                                                      </Button>
+                                                    </div>
+                                                  </div>
+                                                  <AccordionContent
+                                                    className="project-editor-episode-panel pt-3 pb-0 px-1"
+                                                    contentClassName={
+                                                      isChapterBased
+                                                        ? chapterOpenContentClassName
+                                                        : undefined
+                                                    }
+                                                  >
+                                                    <div className="project-editor-episode-group project-editor-episode-basics grid gap-3 md:grid-cols-[minmax(120px,0.9fr)_minmax(84px,0.7fr)_minmax(84px,0.7fr)_minmax(180px,1.4fr)_minmax(150px,1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)]">
+                                                      <Select
+                                                        value={isExtraEntry ? "extra" : "main"}
+                                                        onValueChange={(value) =>
+                                                          setEpisodeEntryKind(
+                                                            index,
+                                                            value === "extra" ? "extra" : "main",
+                                                          )
+                                                        }
+                                                      >
+                                                        <SelectTrigger aria-label="Tipo da entrada">
+                                                          <SelectValue placeholder="Tipo" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                          <SelectItem value="main">
+                                                            Principal
+                                                          </SelectItem>
+                                                          <SelectItem value="extra">
+                                                            Extra
+                                                          </SelectItem>
+                                                        </SelectContent>
+                                                      </Select>
                                                       <Input
                                                         type="number"
-                                                        value={episode.volume || ""}
+                                                        value={episode.number}
+                                                        disabled={isExtraEntry}
                                                         onChange={(event) =>
                                                           setFormState((prev) => {
                                                             const next = [...prev.episodeDownloads];
                                                             next[index] = {
                                                               ...next[index],
-                                                              volume: event.target.value
-                                                                ? Number(event.target.value)
-                                                                : undefined,
+                                                              number: Number(event.target.value),
                                                             };
                                                             return {
                                                               ...prev,
@@ -7874,38 +7896,42 @@ const DashboardProjectsEditor = () => {
                                                             };
                                                           })
                                                         }
-                                                        placeholder="Volume"
+                                                        placeholder={
+                                                          isExtraEntry ? "Técnico" : "Número"
+                                                        }
                                                       />
-                                                    ) : null}
-                                                    <Input
-                                                      value={episode.title}
-                                                      onChange={(event) =>
-                                                        setFormState((prev) => {
-                                                          const next = [...prev.episodeDownloads];
-                                                          next[index] = {
-                                                            ...next[index],
-                                                            title: event.target.value,
-                                                          };
-                                                          return {
-                                                            ...prev,
-                                                            episodeDownloads: next,
-                                                          };
-                                                        })
-                                                      }
-                                                      placeholder="Título"
-                                                    />
-                                                    {isLightNovel ? (
-                                                      <Select
-                                                        value={publicationStatus}
-                                                        onValueChange={(value) =>
+                                                      {isChapterBased ? (
+                                                        <Input
+                                                          type="number"
+                                                          value={episode.volume || ""}
+                                                          onChange={(event) =>
+                                                            setFormState((prev) => {
+                                                              const next = [
+                                                                ...prev.episodeDownloads,
+                                                              ];
+                                                              next[index] = {
+                                                                ...next[index],
+                                                                volume: event.target.value
+                                                                  ? Number(event.target.value)
+                                                                  : undefined,
+                                                              };
+                                                              return {
+                                                                ...prev,
+                                                                episodeDownloads: next,
+                                                              };
+                                                            })
+                                                          }
+                                                          placeholder="Volume"
+                                                        />
+                                                      ) : null}
+                                                      <Input
+                                                        value={episode.title}
+                                                        onChange={(event) =>
                                                           setFormState((prev) => {
                                                             const next = [...prev.episodeDownloads];
                                                             next[index] = {
                                                               ...next[index],
-                                                              publicationStatus:
-                                                                value === "draft"
-                                                                  ? "draft"
-                                                                  : "published",
+                                                              title: event.target.value,
                                                             };
                                                             return {
                                                               ...prev,
@@ -7913,144 +7939,76 @@ const DashboardProjectsEditor = () => {
                                                             };
                                                           })
                                                         }
-                                                      >
-                                                        <SelectTrigger>
-                                                          <SelectValue placeholder="Status" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                          <SelectItem value="draft">
-                                                            Rascunho
-                                                          </SelectItem>
-                                                          <SelectItem value="published">
-                                                            Publicado
-                                                          </SelectItem>
-                                                        </SelectContent>
-                                                      </Select>
-                                                    ) : null}
-                                                    <Input
-                                                      type="text"
-                                                      inputMode="numeric"
-                                                      value={
-                                                        episodeDateDraft[index] ??
-                                                        isoToDisplayDate(episode.releaseDate)
-                                                      }
-                                                      onChange={(event) => {
-                                                        const masked = formatDateDigitsToDisplay(
-                                                          event.target.value,
-                                                        );
-                                                        const digits = digitsOnly(masked);
-                                                        setEpisodeDateDraft((prev) => ({
-                                                          ...prev,
-                                                          [index]: masked,
-                                                        }));
-                                                        if (digits.length === 8) {
-                                                          const iso = displayDateToIso(masked);
-                                                          if (iso) {
+                                                        placeholder="Título"
+                                                      />
+                                                      {isLightNovel ? (
+                                                        <Select
+                                                          value={publicationStatus}
+                                                          onValueChange={(value) =>
                                                             setFormState((prev) => {
                                                               const next = [
                                                                 ...prev.episodeDownloads,
                                                               ];
                                                               next[index] = {
                                                                 ...next[index],
-                                                                releaseDate: iso,
+                                                                publicationStatus:
+                                                                  value === "draft"
+                                                                    ? "draft"
+                                                                    : "published",
                                                               };
                                                               return {
                                                                 ...prev,
                                                                 episodeDownloads: next,
                                                               };
-                                                            });
+                                                            })
                                                           }
-                                                        } else if (digits.length === 0) {
-                                                          setFormState((prev) => {
-                                                            const next = [...prev.episodeDownloads];
-                                                            next[index] = {
-                                                              ...next[index],
-                                                              releaseDate: "",
-                                                            };
-                                                            return {
-                                                              ...prev,
-                                                              episodeDownloads: next,
-                                                            };
-                                                          });
-                                                        }
-                                                      }}
-                                                      onBlur={(event) => {
-                                                        const masked = formatDateDigitsToDisplay(
-                                                          event.target.value,
-                                                        );
-                                                        const digits = digitsOnly(masked);
-                                                        if (digits.length === 8) {
-                                                          const iso = displayDateToIso(masked);
-                                                          if (iso) {
-                                                            setFormState((prev) => {
-                                                              const next = [
-                                                                ...prev.episodeDownloads,
-                                                              ];
-                                                              next[index] = {
-                                                                ...next[index],
-                                                                releaseDate: iso,
-                                                              };
-                                                              return {
-                                                                ...prev,
-                                                                episodeDownloads: next,
-                                                              };
-                                                            });
-                                                          }
-                                                        } else if (digits.length === 0) {
-                                                          setFormState((prev) => {
-                                                            const next = [...prev.episodeDownloads];
-                                                            next[index] = {
-                                                              ...next[index],
-                                                              releaseDate: "",
-                                                            };
-                                                            return {
-                                                              ...prev,
-                                                              episodeDownloads: next,
-                                                            };
-                                                          });
-                                                        }
-                                                        setEpisodeDateDraft((prev) => {
-                                                          const next = { ...prev };
-                                                          delete next[index];
-                                                          return next;
-                                                        });
-                                                      }}
-                                                      placeholder="DD/MM/AAAA"
-                                                      className="md:min-w-[150px]"
-                                                    />
-                                                    {!isChapterBased ? (
+                                                        >
+                                                          <SelectTrigger>
+                                                            <SelectValue placeholder="Status" />
+                                                          </SelectTrigger>
+                                                          <SelectContent>
+                                                            <SelectItem value="draft">
+                                                              Rascunho
+                                                            </SelectItem>
+                                                            <SelectItem value="published">
+                                                              Publicado
+                                                            </SelectItem>
+                                                          </SelectContent>
+                                                        </Select>
+                                                      ) : null}
                                                       <Input
                                                         type="text"
                                                         inputMode="numeric"
                                                         value={
-                                                          episodeTimeDraft[index] ??
-                                                          canonicalToDisplayTime(episode.duration)
+                                                          episodeDateDraft[index] ??
+                                                          isoToDisplayDate(episode.releaseDate)
                                                         }
                                                         onChange={(event) => {
-                                                          const masked = formatTimeDigitsToDisplay(
+                                                          const masked = formatDateDigitsToDisplay(
                                                             event.target.value,
                                                           );
                                                           const digits = digitsOnly(masked);
-                                                          setEpisodeTimeDraft((prev) => ({
+                                                          setEpisodeDateDraft((prev) => ({
                                                             ...prev,
                                                             [index]: masked,
                                                           }));
-                                                          const canonical =
-                                                            displayTimeToCanonical(masked);
-                                                          if (canonical) {
-                                                            setFormState((prev) => {
-                                                              const next = [
-                                                                ...prev.episodeDownloads,
-                                                              ];
-                                                              next[index] = {
-                                                                ...next[index],
-                                                                duration: canonical,
-                                                              };
-                                                              return {
-                                                                ...prev,
-                                                                episodeDownloads: next,
-                                                              };
-                                                            });
+                                                          if (digits.length === 8) {
+                                                            const iso = displayDateToIso(masked);
+                                                            if (iso) {
+                                                              setFormState((prev) => {
+                                                                const next = [
+                                                                  ...prev.episodeDownloads,
+                                                                ];
+                                                                next[index] = {
+                                                                  ...next[index],
+                                                                  releaseDate: iso,
+                                                                };
+                                                                return {
+                                                                  ...prev,
+                                                                  episodeDownloads: next,
+                                                                };
+                                                              });
+                                                            }
                                                           } else if (digits.length === 0) {
                                                             setFormState((prev) => {
                                                               const next = [
@@ -8058,7 +8016,7 @@ const DashboardProjectsEditor = () => {
                                                               ];
                                                               next[index] = {
                                                                 ...next[index],
-                                                                duration: "",
+                                                                releaseDate: "",
                                                               };
                                                               return {
                                                                 ...prev,
@@ -8068,26 +8026,27 @@ const DashboardProjectsEditor = () => {
                                                           }
                                                         }}
                                                         onBlur={(event) => {
-                                                          const masked = formatTimeDigitsToDisplay(
+                                                          const masked = formatDateDigitsToDisplay(
                                                             event.target.value,
                                                           );
                                                           const digits = digitsOnly(masked);
-                                                          const canonical =
-                                                            displayTimeToCanonical(masked);
-                                                          if (canonical) {
-                                                            setFormState((prev) => {
-                                                              const next = [
-                                                                ...prev.episodeDownloads,
-                                                              ];
-                                                              next[index] = {
-                                                                ...next[index],
-                                                                duration: canonical,
-                                                              };
-                                                              return {
-                                                                ...prev,
-                                                                episodeDownloads: next,
-                                                              };
-                                                            });
+                                                          if (digits.length === 8) {
+                                                            const iso = displayDateToIso(masked);
+                                                            if (iso) {
+                                                              setFormState((prev) => {
+                                                                const next = [
+                                                                  ...prev.episodeDownloads,
+                                                                ];
+                                                                next[index] = {
+                                                                  ...next[index],
+                                                                  releaseDate: iso,
+                                                                };
+                                                                return {
+                                                                  ...prev,
+                                                                  episodeDownloads: next,
+                                                                };
+                                                              });
+                                                            }
                                                           } else if (digits.length === 0) {
                                                             setFormState((prev) => {
                                                               const next = [
@@ -8095,7 +8054,7 @@ const DashboardProjectsEditor = () => {
                                                               ];
                                                               next[index] = {
                                                                 ...next[index],
-                                                                duration: "",
+                                                                releaseDate: "",
                                                               };
                                                               return {
                                                                 ...prev,
@@ -8103,149 +8062,124 @@ const DashboardProjectsEditor = () => {
                                                               };
                                                             });
                                                           }
-                                                          setEpisodeTimeDraft((prev) => {
+                                                          setEpisodeDateDraft((prev) => {
                                                             const next = { ...prev };
                                                             delete next[index];
                                                             return next;
                                                           });
                                                         }}
-                                                        placeholder="MM:SS ou H:MM:SS"
+                                                        placeholder="DD/MM/AAAA"
                                                         className="md:min-w-[150px]"
                                                       />
-                                                    ) : null}
-                                                    {!isChapterBased ? (
-                                                      <Select
-                                                        value={episode.sourceType}
-                                                        onValueChange={(value) =>
-                                                          setFormState((prev) => {
-                                                            const next = [...prev.episodeDownloads];
-                                                            next[index] = {
-                                                              ...next[index],
-                                                              sourceType:
-                                                                value as EditorProjectEpisode["sourceType"],
-                                                            };
-                                                            return {
+                                                      {!isChapterBased ? (
+                                                        <Input
+                                                          type="text"
+                                                          inputMode="numeric"
+                                                          value={
+                                                            episodeTimeDraft[index] ??
+                                                            canonicalToDisplayTime(episode.duration)
+                                                          }
+                                                          onChange={(event) => {
+                                                            const masked =
+                                                              formatTimeDigitsToDisplay(
+                                                                event.target.value,
+                                                              );
+                                                            const digits = digitsOnly(masked);
+                                                            setEpisodeTimeDraft((prev) => ({
                                                               ...prev,
-                                                              episodeDownloads: next,
-                                                            };
-                                                          })
-                                                        }
-                                                      >
-                                                        <SelectTrigger>
-                                                          <SelectValue placeholder="Origem" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                          <SelectItem value="TV">TV</SelectItem>
-                                                          <SelectItem value="Web">Web</SelectItem>
-                                                          <SelectItem value="Blu-ray">
-                                                            Blu-ray
-                                                          </SelectItem>
-                                                        </SelectContent>
-                                                      </Select>
-                                                    ) : null}
-                                                  </div>
-                                                  {isProgressOnlyEntry ? (
-                                                    <div className="project-editor-episode-group mt-3 space-y-2">
-                                                      <Label className="text-xs">Etapa atual</Label>
-                                                      <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
-                                                        {currentProgressStageLabel}
-                                                      </div>
-                                                    </div>
-                                                  ) : null}
-                                                  <div className="project-editor-episode-group mt-3 space-y-2">
-                                                    <Label className="text-xs">
-                                                      {isChapterBased
-                                                        ? "Capa do capítulo"
-                                                        : "Capa do episódio"}
-                                                    </Label>
-                                                    <div className="flex flex-wrap items-center gap-3">
-                                                      {episode.coverImageUrl ? (
-                                                        <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                                                          <img
-                                                            src={episode.coverImageUrl}
-                                                            alt={episode.title || "Capa"}
-                                                            className="h-12 w-12 rounded-lg object-cover"
-                                                          />
-                                                        </div>
-                                                      ) : (
-                                                        <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                                          Sem imagem
-                                                        </div>
-                                                      )}
-                                                      <Button
-                                                        type="button"
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() =>
-                                                          openLibraryForEpisodeCover(index)
-                                                        }
-                                                      >
-                                                        Biblioteca
-                                                      </Button>
-                                                    </div>
-                                                  </div>
-                                                  {isLightNovel ? (
-                                                    <div className="project-editor-episode-group mt-3">
-                                                      <Label className="text-xs">
-                                                        Conteúdo do capítulo
-                                                      </Label>
-                                                      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-background/50 px-4 py-3">
-                                                        {chapterEditorHref ? (
-                                                          <Button type="button" size="sm" asChild>
-                                                            <Link to={chapterEditorHref}>
-                                                              Abrir editor dedicado
-                                                            </Link>
-                                                          </Button>
-                                                        ) : (
-                                                          <Button type="button" size="sm" disabled>
-                                                            Salve o projeto para editar
-                                                          </Button>
-                                                        )}
-                                                        <Badge
-                                                          variant={
-                                                            hasEpisodeContent
-                                                              ? "secondary"
-                                                              : "outline"
-                                                          }
-                                                        >
-                                                          {hasEpisodeContent
-                                                            ? "Com conte?do"
-                                                            : "Sem conte?do"}
-                                                        </Badge>
-                                                      </div>
-                                                      <div
-                                                        className="mt-3"
-                                                        onFocusCapture={(event) => {
-                                                          const target =
-                                                            event.target as HTMLElement | null;
-                                                          if (
-                                                            target?.closest(".lexical-playground")
-                                                          ) {
-                                                            return;
-                                                          }
-                                                          const editor =
-                                                            chapterEditorsRef.current[index];
-                                                          editor?.blur?.();
-                                                        }}
-                                                      >
-                                                        <EpisodeContentEditor
-                                                          value={episode.content || ""}
-                                                          imageLibraryOptions={buildEpisodeLibraryOptions(
-                                                            episode,
-                                                            index,
-                                                          )}
-                                                          onRegister={(handlers) => {
-                                                            chapterEditorsRef.current[index] =
-                                                              handlers;
+                                                              [index]: masked,
+                                                            }));
+                                                            const canonical =
+                                                              displayTimeToCanonical(masked);
+                                                            if (canonical) {
+                                                              setFormState((prev) => {
+                                                                const next = [
+                                                                  ...prev.episodeDownloads,
+                                                                ];
+                                                                next[index] = {
+                                                                  ...next[index],
+                                                                  duration: canonical,
+                                                                };
+                                                                return {
+                                                                  ...prev,
+                                                                  episodeDownloads: next,
+                                                                };
+                                                              });
+                                                            } else if (digits.length === 0) {
+                                                              setFormState((prev) => {
+                                                                const next = [
+                                                                  ...prev.episodeDownloads,
+                                                                ];
+                                                                next[index] = {
+                                                                  ...next[index],
+                                                                  duration: "",
+                                                                };
+                                                                return {
+                                                                  ...prev,
+                                                                  episodeDownloads: next,
+                                                                };
+                                                              });
+                                                            }
                                                           }}
-                                                          onChange={(nextValue) =>
+                                                          onBlur={(event) => {
+                                                            const masked =
+                                                              formatTimeDigitsToDisplay(
+                                                                event.target.value,
+                                                              );
+                                                            const digits = digitsOnly(masked);
+                                                            const canonical =
+                                                              displayTimeToCanonical(masked);
+                                                            if (canonical) {
+                                                              setFormState((prev) => {
+                                                                const next = [
+                                                                  ...prev.episodeDownloads,
+                                                                ];
+                                                                next[index] = {
+                                                                  ...next[index],
+                                                                  duration: canonical,
+                                                                };
+                                                                return {
+                                                                  ...prev,
+                                                                  episodeDownloads: next,
+                                                                };
+                                                              });
+                                                            } else if (digits.length === 0) {
+                                                              setFormState((prev) => {
+                                                                const next = [
+                                                                  ...prev.episodeDownloads,
+                                                                ];
+                                                                next[index] = {
+                                                                  ...next[index],
+                                                                  duration: "",
+                                                                };
+                                                                return {
+                                                                  ...prev,
+                                                                  episodeDownloads: next,
+                                                                };
+                                                              });
+                                                            }
+                                                            setEpisodeTimeDraft((prev) => {
+                                                              const next = { ...prev };
+                                                              delete next[index];
+                                                              return next;
+                                                            });
+                                                          }}
+                                                          placeholder="MM:SS ou H:MM:SS"
+                                                          className="md:min-w-[150px]"
+                                                        />
+                                                      ) : null}
+                                                      {!isChapterBased ? (
+                                                        <Select
+                                                          value={episode.sourceType}
+                                                          onValueChange={(value) =>
                                                             setFormState((prev) => {
                                                               const next = [
                                                                 ...prev.episodeDownloads,
                                                               ];
                                                               next[index] = {
                                                                 ...next[index],
-                                                                content: nextValue,
+                                                                sourceType:
+                                                                  value as EditorProjectEpisode["sourceType"],
                                                               };
                                                               return {
                                                                 ...prev,
@@ -8253,109 +8187,283 @@ const DashboardProjectsEditor = () => {
                                                               };
                                                             })
                                                           }
-                                                        />
+                                                        >
+                                                          <SelectTrigger>
+                                                            <SelectValue placeholder="Origem" />
+                                                          </SelectTrigger>
+                                                          <SelectContent>
+                                                            <SelectItem value="TV">TV</SelectItem>
+                                                            <SelectItem value="Web">Web</SelectItem>
+                                                            <SelectItem value="Blu-ray">
+                                                              Blu-ray
+                                                            </SelectItem>
+                                                          </SelectContent>
+                                                        </Select>
+                                                      ) : null}
+                                                    </div>
+                                                    {isProgressOnlyEntry ? (
+                                                      <div className="project-editor-episode-group mt-3 space-y-2">
+                                                        <Label className="text-xs">
+                                                          Etapa atual
+                                                        </Label>
+                                                        <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+                                                          {currentProgressStageLabel}
+                                                        </div>
+                                                      </div>
+                                                    ) : null}
+                                                    <div className="project-editor-episode-group mt-3 space-y-2">
+                                                      <Label className="text-xs">
+                                                        {isChapterBased
+                                                          ? "Capa do capítulo"
+                                                          : "Capa do episódio"}
+                                                      </Label>
+                                                      <div className="flex flex-wrap items-center gap-3">
+                                                        {episode.coverImageUrl ? (
+                                                          <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                                                            <img
+                                                              src={episode.coverImageUrl}
+                                                              alt={episode.title || "Capa"}
+                                                              className="h-12 w-12 rounded-lg object-cover"
+                                                            />
+                                                          </div>
+                                                        ) : (
+                                                          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                                            Sem imagem
+                                                          </div>
+                                                        )}
+                                                        <Button
+                                                          type="button"
+                                                          size="sm"
+                                                          variant="outline"
+                                                          onClick={() =>
+                                                            openLibraryForEpisodeCover(index)
+                                                          }
+                                                        >
+                                                          Biblioteca
+                                                        </Button>
                                                       </div>
                                                     </div>
-                                                  ) : null}
-                                                  {isProgressOnlyEntry ? (
-                                                    <div className="project-editor-episode-group mt-3">
-                                                      <Label className="text-xs">
-                                                        Etapas concluídas
-                                                      </Label>
-                                                      <div className="mt-2 flex flex-wrap gap-2">
-                                                        {stageOptions.map((stage) => {
-                                                          const completed = (
-                                                            episode.completedStages || []
-                                                          ).includes(stage.id);
-                                                          return (
+                                                    {isLightNovel ? (
+                                                      <div className="project-editor-episode-group mt-3">
+                                                        <Label className="text-xs">
+                                                          Conteúdo do capítulo
+                                                        </Label>
+                                                        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-background/50 px-4 py-3">
+                                                          {chapterEditorHref ? (
+                                                            <Button type="button" size="sm" asChild>
+                                                              <Link to={chapterEditorHref}>
+                                                                Abrir editor dedicado
+                                                              </Link>
+                                                            </Button>
+                                                          ) : (
                                                             <Button
-                                                              key={stage.id}
                                                               type="button"
                                                               size="sm"
-                                                              variant={
-                                                                completed ? "default" : "outline"
-                                                              }
-                                                              onClick={() =>
-                                                                setFormState((prev) => {
-                                                                  const next = [
-                                                                    ...prev.episodeDownloads,
-                                                                  ];
-                                                                  const current =
-                                                                    next[index].completedStages ||
-                                                                    [];
-                                                                  next[index] = {
-                                                                    ...next[index],
-                                                                    completedStages: completed
-                                                                      ? current.filter(
-                                                                          (item) =>
-                                                                            item !== stage.id,
-                                                                        )
-                                                                      : [...current, stage.id],
-                                                                  };
-                                                                  return {
-                                                                    ...prev,
-                                                                    episodeDownloads: next,
-                                                                  };
-                                                                })
-                                                              }
+                                                              disabled
                                                             >
-                                                              {stage.label}
+                                                              Salve o projeto para editar
                                                             </Button>
-                                                          );
-                                                        })}
-                                                      </div>
-                                                    </div>
-                                                  ) : null}
-                                                  <div className="project-editor-episode-group mt-3 space-y-3">
-                                                    <div hidden={isLightNovel}>
-                                                      <Label className="text-xs">
-                                                        Arquivo do episódio
-                                                      </Label>
-                                                      <div className="mt-2 grid gap-2 md:grid-cols-2">
-                                                        <div className="space-y-1">
-                                                          <Input
-                                                            ref={(node) => {
-                                                              episodeSizeInputRefs.current[index] =
-                                                                node;
-                                                            }}
-                                                            value={
-                                                              episodeSizeDrafts[index] ??
-                                                              (episode.sizeBytes
-                                                                ? formatBytesCompact(
-                                                                    episode.sizeBytes,
-                                                                  )
-                                                                : "")
+                                                          )}
+                                                          <Badge
+                                                            variant={
+                                                              hasEpisodeContent
+                                                                ? "secondary"
+                                                                : "outline"
                                                             }
-                                                            onChange={(event) => {
-                                                              const nextValue = event.target.value;
-                                                              setEpisodeSizeDrafts((prev) => ({
-                                                                ...prev,
-                                                                [index]: nextValue,
-                                                              }));
-                                                              setEpisodeSizeErrors((prev) => {
-                                                                if (!prev[index]) {
-                                                                  return prev;
-                                                                }
-                                                                const next = { ...prev };
-                                                                delete next[index];
-                                                                return next;
-                                                              });
+                                                          >
+                                                            {hasEpisodeContent
+                                                              ? "Com conte?do"
+                                                              : "Sem conte?do"}
+                                                          </Badge>
+                                                        </div>
+                                                        <div
+                                                          className="mt-3"
+                                                          onFocusCapture={(event) => {
+                                                            const target =
+                                                              event.target as HTMLElement | null;
+                                                            if (
+                                                              target?.closest(".lexical-playground")
+                                                            ) {
+                                                              return;
+                                                            }
+                                                            const editor =
+                                                              chapterEditorsRef.current[index];
+                                                            editor?.blur?.();
+                                                          }}
+                                                        >
+                                                          <EpisodeContentEditor
+                                                            value={episode.content || ""}
+                                                            imageLibraryOptions={buildEpisodeLibraryOptions(
+                                                              episode,
+                                                              index,
+                                                            )}
+                                                            onRegister={(handlers) => {
+                                                              chapterEditorsRef.current[index] =
+                                                                handlers;
                                                             }}
-                                                            onBlur={(event) => {
-                                                              const rawValue =
+                                                            onChange={(nextValue) =>
+                                                              setFormState((prev) => {
+                                                                const next = [
+                                                                  ...prev.episodeDownloads,
+                                                                ];
+                                                                next[index] = {
+                                                                  ...next[index],
+                                                                  content: nextValue,
+                                                                };
+                                                                return {
+                                                                  ...prev,
+                                                                  episodeDownloads: next,
+                                                                };
+                                                              })
+                                                            }
+                                                          />
+                                                        </div>
+                                                      </div>
+                                                    ) : null}
+                                                    {isProgressOnlyEntry ? (
+                                                      <div className="project-editor-episode-group mt-3">
+                                                        <Label className="text-xs">
+                                                          Etapas concluídas
+                                                        </Label>
+                                                        <div className="mt-2 flex flex-wrap gap-2">
+                                                          {stageOptions.map((stage) => {
+                                                            const completed = (
+                                                              episode.completedStages || []
+                                                            ).includes(stage.id);
+                                                            return (
+                                                              <Button
+                                                                key={stage.id}
+                                                                type="button"
+                                                                size="sm"
+                                                                variant={
+                                                                  completed ? "default" : "outline"
+                                                                }
+                                                                onClick={() =>
+                                                                  setFormState((prev) => {
+                                                                    const next = [
+                                                                      ...prev.episodeDownloads,
+                                                                    ];
+                                                                    const current =
+                                                                      next[index].completedStages ||
+                                                                      [];
+                                                                    next[index] = {
+                                                                      ...next[index],
+                                                                      completedStages: completed
+                                                                        ? current.filter(
+                                                                            (item) =>
+                                                                              item !== stage.id,
+                                                                          )
+                                                                        : [...current, stage.id],
+                                                                    };
+                                                                    return {
+                                                                      ...prev,
+                                                                      episodeDownloads: next,
+                                                                    };
+                                                                  })
+                                                                }
+                                                              >
+                                                                {stage.label}
+                                                              </Button>
+                                                            );
+                                                          })}
+                                                        </div>
+                                                      </div>
+                                                    ) : null}
+                                                    <div className="project-editor-episode-group mt-3 space-y-3">
+                                                      <div hidden={isLightNovel}>
+                                                        <Label className="text-xs">
+                                                          Arquivo do episódio
+                                                        </Label>
+                                                        <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                                          <div className="space-y-1">
+                                                            <Input
+                                                              ref={(node) => {
+                                                                episodeSizeInputRefs.current[
+                                                                  index
+                                                                ] = node;
+                                                              }}
+                                                              value={
                                                                 episodeSizeDrafts[index] ??
-                                                                event.target.value;
-                                                              const trimmedSize = String(
-                                                                rawValue || "",
-                                                              ).trim();
-                                                              if (!trimmedSize) {
+                                                                (episode.sizeBytes
+                                                                  ? formatBytesCompact(
+                                                                      episode.sizeBytes,
+                                                                    )
+                                                                  : "")
+                                                              }
+                                                              onChange={(event) => {
+                                                                const nextValue =
+                                                                  event.target.value;
+                                                                setEpisodeSizeDrafts((prev) => ({
+                                                                  ...prev,
+                                                                  [index]: nextValue,
+                                                                }));
+                                                                setEpisodeSizeErrors((prev) => {
+                                                                  if (!prev[index]) {
+                                                                    return prev;
+                                                                  }
+                                                                  const next = { ...prev };
+                                                                  delete next[index];
+                                                                  return next;
+                                                                });
+                                                              }}
+                                                              onBlur={(event) => {
+                                                                const rawValue =
+                                                                  episodeSizeDrafts[index] ??
+                                                                  event.target.value;
+                                                                const trimmedSize = String(
+                                                                  rawValue || "",
+                                                                ).trim();
+                                                                if (!trimmedSize) {
+                                                                  setFormState((prev) => {
+                                                                    const next = [
+                                                                      ...prev.episodeDownloads,
+                                                                    ];
+                                                                    next[index] = {
+                                                                      ...next[index],
+                                                                      sizeBytes: undefined,
+                                                                    };
+                                                                    return {
+                                                                      ...prev,
+                                                                      episodeDownloads: next,
+                                                                    };
+                                                                  });
+                                                                  setEpisodeSizeDrafts((prev) => {
+                                                                    const next = { ...prev };
+                                                                    delete next[index];
+                                                                    return next;
+                                                                  });
+                                                                  setEpisodeSizeErrors((prev) => {
+                                                                    const next = { ...prev };
+                                                                    delete next[index];
+                                                                    return next;
+                                                                  });
+                                                                  return;
+                                                                }
+
+                                                                const parsedSize =
+                                                                  parseHumanSizeToBytes(
+                                                                    trimmedSize,
+                                                                  );
+                                                                if (!parsedSize) {
+                                                                  setEpisodeSizeErrors((prev) => ({
+                                                                    ...prev,
+                                                                    [index]:
+                                                                      "Use formatos como 700 MB ou 1.4 GB.",
+                                                                  }));
+                                                                  setEpisodeSizeDrafts((prev) => ({
+                                                                    ...prev,
+                                                                    [index]: rawValue,
+                                                                  }));
+                                                                  return;
+                                                                }
+
                                                                 setFormState((prev) => {
                                                                   const next = [
                                                                     ...prev.episodeDownloads,
                                                                   ];
                                                                   next[index] = {
                                                                     ...next[index],
-                                                                    sizeBytes: undefined,
+                                                                    sizeBytes: parsedSize,
                                                                   };
                                                                   return {
                                                                     ...prev,
@@ -8372,251 +8480,211 @@ const DashboardProjectsEditor = () => {
                                                                   delete next[index];
                                                                   return next;
                                                                 });
-                                                                return;
-                                                              }
-
-                                                              const parsedSize =
-                                                                parseHumanSizeToBytes(trimmedSize);
-                                                              if (!parsedSize) {
-                                                                setEpisodeSizeErrors((prev) => ({
-                                                                  ...prev,
-                                                                  [index]:
-                                                                    "Use formatos como 700 MB ou 1.4 GB.",
-                                                                }));
-                                                                setEpisodeSizeDrafts((prev) => ({
-                                                                  ...prev,
-                                                                  [index]: rawValue,
-                                                                }));
-                                                                return;
-                                                              }
-
+                                                              }}
+                                                              placeholder="Tamanho (ex.: 700 MB ou 1.4 GB)"
+                                                            />
+                                                            {episodeSizeErrors[index] ? (
+                                                              <p className="text-[11px] text-destructive">
+                                                                {episodeSizeErrors[index]}
+                                                              </p>
+                                                            ) : (
+                                                              <p className="text-[11px] text-muted-foreground">
+                                                                Campo opcional. Valor salvo em
+                                                                bytes.
+                                                              </p>
+                                                            )}
+                                                          </div>
+                                                          <Input
+                                                            value={episode.hash || ""}
+                                                            onChange={(event) =>
                                                               setFormState((prev) => {
                                                                 const next = [
                                                                   ...prev.episodeDownloads,
                                                                 ];
                                                                 next[index] = {
                                                                   ...next[index],
-                                                                  sizeBytes: parsedSize,
+                                                                  hash: event.target.value,
                                                                 };
                                                                 return {
                                                                   ...prev,
                                                                   episodeDownloads: next,
                                                                 };
-                                                              });
-                                                              setEpisodeSizeDrafts((prev) => {
-                                                                const next = { ...prev };
-                                                                delete next[index];
-                                                                return next;
-                                                              });
-                                                              setEpisodeSizeErrors((prev) => {
-                                                                const next = { ...prev };
-                                                                delete next[index];
-                                                                return next;
-                                                              });
-                                                            }}
-                                                            placeholder="Tamanho (ex.: 700 MB ou 1.4 GB)"
+                                                              })
+                                                            }
+                                                            placeholder="Hash (ex.: SHA-256: ...)"
                                                           />
-                                                          {episodeSizeErrors[index] ? (
-                                                            <p className="text-[11px] text-destructive">
-                                                              {episodeSizeErrors[index]}
-                                                            </p>
-                                                          ) : (
-                                                            <p className="text-[11px] text-muted-foreground">
-                                                              Campo opcional. Valor salvo em bytes.
-                                                            </p>
-                                                          )}
                                                         </div>
-                                                        <Input
-                                                          value={episode.hash || ""}
-                                                          onChange={(event) =>
-                                                            setFormState((prev) => {
-                                                              const next = [
-                                                                ...prev.episodeDownloads,
-                                                              ];
-                                                              next[index] = {
-                                                                ...next[index],
-                                                                hash: event.target.value,
-                                                              };
-                                                              return {
-                                                                ...prev,
-                                                                episodeDownloads: next,
-                                                              };
-                                                            })
-                                                          }
-                                                          placeholder="Hash (ex.: SHA-256: ...)"
-                                                        />
                                                       </div>
-                                                    </div>
 
-                                                    <div>
-                                                      <Label className="text-xs">
-                                                        Fontes de download
-                                                      </Label>
-                                                      <div className="mt-2 grid gap-2">
-                                                        {(episode.sources || []).map(
-                                                          (source, sourceIndex) => (
-                                                            <div
-                                                              key={`${source.label}-${sourceIndex}`}
-                                                              className="rounded-xl border border-border/60 bg-background/40 p-3"
-                                                            >
-                                                              <div className="grid items-start gap-2 md:grid-cols-[minmax(180px,1fr)_minmax(240px,2fr)_auto]">
-                                                                <Select
-                                                                  value={source.label}
-                                                                  onValueChange={(value) =>
-                                                                    setFormState((prev) => {
-                                                                      const next = [
-                                                                        ...prev.episodeDownloads,
-                                                                      ];
-                                                                      const sources = [
-                                                                        ...(next[index].sources ||
-                                                                          []),
-                                                                      ];
-                                                                      sources[sourceIndex] = {
-                                                                        ...sources[sourceIndex],
-                                                                        label: value,
-                                                                      };
-                                                                      next[index] = {
-                                                                        ...next[index],
-                                                                        sources,
-                                                                      };
-                                                                      return {
-                                                                        ...prev,
-                                                                        episodeDownloads: next,
-                                                                      };
-                                                                    })
-                                                                  }
-                                                                >
-                                                                  <SelectTrigger>
-                                                                    <SelectValue placeholder="Fonte" />
-                                                                  </SelectTrigger>
-                                                                  <SelectContent>
-                                                                    {downloadSourceOptions.map(
-                                                                      (option) => (
-                                                                        <SelectItem
-                                                                          key={option.label}
-                                                                          value={option.label}
-                                                                        >
-                                                                          <span className="flex items-center gap-2">
-                                                                            {renderDownloadIcon(
-                                                                              option.icon,
-                                                                              option.color,
-                                                                              option.label,
-                                                                              option.tintIcon,
-                                                                            )}
-                                                                            <span>
-                                                                              {option.label}
+                                                      <div>
+                                                        <Label className="text-xs">
+                                                          Fontes de download
+                                                        </Label>
+                                                        <div className="mt-2 grid gap-2">
+                                                          {(episode.sources || []).map(
+                                                            (source, sourceIndex) => (
+                                                              <div
+                                                                key={`${source.label}-${sourceIndex}`}
+                                                                className="rounded-xl border border-border/60 bg-background/40 p-3"
+                                                              >
+                                                                <div className="grid items-start gap-2 md:grid-cols-[minmax(180px,1fr)_minmax(240px,2fr)_auto]">
+                                                                  <Select
+                                                                    value={source.label}
+                                                                    onValueChange={(value) =>
+                                                                      setFormState((prev) => {
+                                                                        const next = [
+                                                                          ...prev.episodeDownloads,
+                                                                        ];
+                                                                        const sources = [
+                                                                          ...(next[index].sources ||
+                                                                            []),
+                                                                        ];
+                                                                        sources[sourceIndex] = {
+                                                                          ...sources[sourceIndex],
+                                                                          label: value,
+                                                                        };
+                                                                        next[index] = {
+                                                                          ...next[index],
+                                                                          sources,
+                                                                        };
+                                                                        return {
+                                                                          ...prev,
+                                                                          episodeDownloads: next,
+                                                                        };
+                                                                      })
+                                                                    }
+                                                                  >
+                                                                    <SelectTrigger>
+                                                                      <SelectValue placeholder="Fonte" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                      {downloadSourceOptions.map(
+                                                                        (option) => (
+                                                                          <SelectItem
+                                                                            key={option.label}
+                                                                            value={option.label}
+                                                                          >
+                                                                            <span className="flex items-center gap-2">
+                                                                              {renderDownloadIcon(
+                                                                                option.icon,
+                                                                                option.color,
+                                                                                option.label,
+                                                                                option.tintIcon,
+                                                                              )}
+                                                                              <span>
+                                                                                {option.label}
+                                                                              </span>
                                                                             </span>
-                                                                          </span>
-                                                                        </SelectItem>
-                                                                      ),
-                                                                    )}
-                                                                  </SelectContent>
-                                                                </Select>
-                                                                <Input
-                                                                  value={source.url}
-                                                                  onChange={(event) =>
-                                                                    setFormState((prev) => {
-                                                                      const next = [
-                                                                        ...prev.episodeDownloads,
-                                                                      ];
-                                                                      const sources = [
-                                                                        ...(next[index].sources ||
-                                                                          []),
-                                                                      ];
-                                                                      sources[sourceIndex] = {
-                                                                        ...sources[sourceIndex],
-                                                                        url: event.target.value,
-                                                                      };
-                                                                      next[index] = {
-                                                                        ...next[index],
-                                                                        sources,
-                                                                      };
-                                                                      return {
-                                                                        ...prev,
-                                                                        episodeDownloads: next,
-                                                                      };
-                                                                    })
-                                                                  }
-                                                                  placeholder="URL"
-                                                                />
-                                                                <Button
-                                                                  type="button"
-                                                                  variant="ghost"
-                                                                  size="icon"
-                                                                  className="h-9 w-9"
-                                                                  onClick={() => {
-                                                                    setFormState((prev) => {
-                                                                      const next = [
-                                                                        ...prev.episodeDownloads,
-                                                                      ];
-                                                                      const sources = (
-                                                                        next[index].sources || []
-                                                                      ).filter(
-                                                                        (_, idx) =>
-                                                                          idx !== sourceIndex,
-                                                                      );
-                                                                      next[index] = {
-                                                                        ...next[index],
-                                                                        sources,
-                                                                      };
-                                                                      return {
-                                                                        ...prev,
-                                                                        episodeDownloads: next,
-                                                                      };
-                                                                    });
-                                                                  }}
-                                                                >
-                                                                  <Trash2 className="h-4 w-4" />
-                                                                </Button>
+                                                                          </SelectItem>
+                                                                        ),
+                                                                      )}
+                                                                    </SelectContent>
+                                                                  </Select>
+                                                                  <Input
+                                                                    value={source.url}
+                                                                    onChange={(event) =>
+                                                                      setFormState((prev) => {
+                                                                        const next = [
+                                                                          ...prev.episodeDownloads,
+                                                                        ];
+                                                                        const sources = [
+                                                                          ...(next[index].sources ||
+                                                                            []),
+                                                                        ];
+                                                                        sources[sourceIndex] = {
+                                                                          ...sources[sourceIndex],
+                                                                          url: event.target.value,
+                                                                        };
+                                                                        next[index] = {
+                                                                          ...next[index],
+                                                                          sources,
+                                                                        };
+                                                                        return {
+                                                                          ...prev,
+                                                                          episodeDownloads: next,
+                                                                        };
+                                                                      })
+                                                                    }
+                                                                    placeholder="URL"
+                                                                  />
+                                                                  <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-9 w-9"
+                                                                    onClick={() => {
+                                                                      setFormState((prev) => {
+                                                                        const next = [
+                                                                          ...prev.episodeDownloads,
+                                                                        ];
+                                                                        const sources = (
+                                                                          next[index].sources || []
+                                                                        ).filter(
+                                                                          (_, idx) =>
+                                                                            idx !== sourceIndex,
+                                                                        );
+                                                                        next[index] = {
+                                                                          ...next[index],
+                                                                          sources,
+                                                                        };
+                                                                        return {
+                                                                          ...prev,
+                                                                          episodeDownloads: next,
+                                                                        };
+                                                                      });
+                                                                    }}
+                                                                  >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                  </Button>
+                                                                </div>
                                                               </div>
-                                                            </div>
-                                                          ),
-                                                        )}
-                                                        <Button
-                                                          type="button"
-                                                          size="sm"
-                                                          variant="outline"
-                                                          onClick={() =>
-                                                            setFormState((prev) => {
-                                                              const next = [
-                                                                ...prev.episodeDownloads,
-                                                              ];
-                                                              const existingSources =
-                                                                next[index].sources || [];
-                                                              next[index] = {
-                                                                ...next[index],
-                                                                sources: [
-                                                                  ...existingSources,
-                                                                  { label: "", url: "" },
-                                                                ],
-                                                              };
-                                                              return {
-                                                                ...prev,
-                                                                episodeDownloads: next,
-                                                              };
-                                                            })
-                                                          }
-                                                        >
-                                                          Adicionar fonte
-                                                        </Button>
+                                                            ),
+                                                          )}
+                                                          <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                              setFormState((prev) => {
+                                                                const next = [
+                                                                  ...prev.episodeDownloads,
+                                                                ];
+                                                                const existingSources =
+                                                                  next[index].sources || [];
+                                                                next[index] = {
+                                                                  ...next[index],
+                                                                  sources: [
+                                                                    ...existingSources,
+                                                                    { label: "", url: "" },
+                                                                  ],
+                                                                };
+                                                                return {
+                                                                  ...prev,
+                                                                  episodeDownloads: next,
+                                                                };
+                                                              })
+                                                            }
+                                                          >
+                                                            Adicionar fonte
+                                                          </Button>
+                                                        </div>
                                                       </div>
                                                     </div>
-                                                  </div>
-                                                </AccordionContent>
-                                              </CardContent>
-                                            </Card>
-                                          </AccordionItem>
-                                        );
-                                      })}
-                                    </Accordion>
-                                  </AccordionContent>
-                                </AccordionItem>
-                              );
-                            })}
-                          </Accordion>
+                                                  </AccordionContent>
+                                                </CardContent>
+                                              </Card>
+                                            </AccordionItem>
+                                          );
+                                        })}
+                                      </Accordion>
+                                    </AccordionContent>
+                                  </AccordionItem>
+                                );
+                              })}
+                            </Accordion>
+                          </div>
                         </div>
-                      </div>
-                    </AccordionContent>
+                      </AccordionContent>
                     </AccordionItem>
                   ) : null}
 

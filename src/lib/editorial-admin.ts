@@ -36,9 +36,13 @@ export const fetchPostVersions = async (
     search.set("cursor", String(params.cursor));
   }
   const suffix = search.toString() ? `?${search.toString()}` : "";
-  const response = await apiFetch(apiBase, `/api/admin/content/post/${encodeURIComponent(postId)}/versions${suffix}`, {
-    auth: true,
-  });
+  const response = await apiFetch(
+    apiBase,
+    `/api/admin/content/post/${encodeURIComponent(postId)}/versions${suffix}`,
+    {
+      auth: true,
+    },
+  );
   return readJsonOrThrow<ContentVersionListResponse>(response);
 };
 
@@ -47,12 +51,16 @@ export const createPostVersion = async (
   postId: string,
   payload?: { label?: string },
 ) => {
-  const response = await apiFetch(apiBase, `/api/admin/content/post/${encodeURIComponent(postId)}/version`, {
-    method: "POST",
-    auth: true,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload || {}),
-  });
+  const response = await apiFetch(
+    apiBase,
+    `/api/admin/content/post/${encodeURIComponent(postId)}/version`,
+    {
+      method: "POST",
+      auth: true,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload || {}),
+    },
+  );
   return readJsonOrThrow<CreateContentVersionResponse>(response);
 };
 
@@ -61,12 +69,16 @@ export const rollbackPostVersion = async <TPost = unknown>(
   postId: string,
   versionId: string,
 ) => {
-  const response = await apiFetch(apiBase, `/api/admin/content/post/${encodeURIComponent(postId)}/rollback`, {
-    method: "POST",
-    auth: true,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ versionId }),
-  });
+  const response = await apiFetch(
+    apiBase,
+    `/api/admin/content/post/${encodeURIComponent(postId)}/rollback`,
+    {
+      method: "POST",
+      auth: true,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ versionId }),
+    },
+  );
   return readJsonOrThrow<RollbackPostResponse<TPost>>(response);
 };
 
@@ -86,4 +98,3 @@ export const fetchEditorialCalendar = async (
   });
   return readJsonOrThrow<EditorialCalendarResponse>(response);
 };
-

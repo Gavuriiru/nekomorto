@@ -108,7 +108,10 @@ export const encryptStringWithKeyring = ({ keyring, plaintext } = {}) => {
   }
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
-  const ciphertext = Buffer.concat([cipher.update(String(plaintext || ""), "utf8"), cipher.final()]);
+  const ciphertext = Buffer.concat([
+    cipher.update(String(plaintext || ""), "utf8"),
+    cipher.final(),
+  ]);
   const tag = cipher.getAuthTag();
   return `v1:${activeKeyId}:${toBase64(iv)}:${toBase64(tag)}:${toBase64(ciphertext)}`;
 };
@@ -137,7 +140,9 @@ export const decryptStringWithKeyring = ({ keyring, payload } = {}) => {
     }
     const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
     decipher.setAuthTag(tag);
-    const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
+    const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString(
+      "utf8",
+    );
     return plaintext;
   } catch {
     return null;
@@ -145,4 +150,7 @@ export const decryptStringWithKeyring = ({ keyring, payload } = {}) => {
 };
 
 export const sha256Hex = (value) =>
-  crypto.createHash("sha256").update(String(value || ""), "utf8").digest("hex");
+  crypto
+    .createHash("sha256")
+    .update(String(value || ""), "utf8")
+    .digest("hex");

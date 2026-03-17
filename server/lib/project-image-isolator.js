@@ -40,7 +40,10 @@ const cloneValue = (value) => {
 };
 
 const normalizeExtension = (value) => {
-  const normalized = String(value || "").trim().toLowerCase().replace(/^\./, "");
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^\./, "");
   if (!normalized) {
     return "";
   }
@@ -56,7 +59,11 @@ const getMimeFromFileName = (fileName) => {
 };
 
 const toUploadRelativePath = (uploadUrl) =>
-  toPosix(String(uploadUrl || "").replace(/^\/uploads\//, "").replace(/^\/+/, ""));
+  toPosix(
+    String(uploadUrl || "")
+      .replace(/^\/uploads\//, "")
+      .replace(/^\/+/, ""),
+  );
 
 const escapeRegExp = (value) => String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -237,7 +244,13 @@ const resolveTargetRelative = ({
   });
 };
 
-const buildUploadEntryFromDisk = ({ targetUrl, targetRelative, targetPath, sourceEntry, previousEntry }) => {
+const buildUploadEntryFromDisk = ({
+  targetUrl,
+  targetRelative,
+  targetPath,
+  sourceEntry,
+  previousEntry,
+}) => {
   const stat = fs.statSync(targetPath);
   return {
     ...(previousEntry || {}),
@@ -257,7 +270,9 @@ const buildUploadEntryFromDisk = ({ targetUrl, targetRelative, targetPath, sourc
       : Number.isFinite(sourceEntry?.height)
         ? Number(sourceEntry.height)
         : null,
-    createdAt: String(previousEntry?.createdAt || sourceEntry?.createdAt || stat.mtime.toISOString()),
+    createdAt: String(
+      previousEntry?.createdAt || sourceEntry?.createdAt || stat.mtime.toISOString(),
+    ),
   };
 };
 
@@ -394,7 +409,11 @@ export const isolateProjectImageUploads = ({
       }
 
       const targetFolder = usage.usesMain ? usage.projectFolder : usage.projectEpisodesFolder;
-      const fallbackBase = crypto.createHash("sha1").update(normalizedOldUrl).digest("hex").slice(0, 8);
+      const fallbackBase = crypto
+        .createHash("sha1")
+        .update(normalizedOldUrl)
+        .digest("hex")
+        .slice(0, 8);
       const sourceBaseName = path.posix.basename(sourceRelative) || `asset-${fallbackBase}.bin`;
       const proposedRelative = toPosix(path.posix.join(targetFolder, sourceBaseName));
 
@@ -529,7 +548,9 @@ export const isolateProjectImageUploads = ({
     });
   }
 
-  const effectiveRewriteDetails = rewriteDetails.filter((detail) => !failedRewriteKeys.has(detail.mappingKey));
+  const effectiveRewriteDetails = rewriteDetails.filter(
+    (detail) => !failedRewriteKeys.has(detail.mappingKey),
+  );
   if (failedRewriteKeys.size > 0) {
     rewritesByProjectIndex.forEach((mapping, projectIndex) => {
       for (const oldUrl of mapping.keys()) {
@@ -557,14 +578,10 @@ export const isolateProjectImageUploads = ({
   let uploadsUpdatedCount = 0;
   let uploadsChanged = false;
   const uploadsByUrl = new Map(
-    uploads
-      .filter((item) => item?.url)
-      .map((item) => [String(item.url), item]),
+    uploads.filter((item) => item?.url).map((item) => [String(item.url), item]),
   );
   const uploadEntriesBySourceUrl = new Map(
-    uploads
-      .filter((item) => item?.url)
-      .map((item) => [String(item.url), item]),
+    uploads.filter((item) => item?.url).map((item) => [String(item.url), item]),
   );
 
   if (applyChanges) {
@@ -601,7 +618,9 @@ export const isolateProjectImageUploads = ({
   }
 
   const nextUploads = uploadsChanged
-    ? Array.from(uploadsByUrl.values()).sort((a, b) => String(a.url || "").localeCompare(String(b.url || ""), "en"))
+    ? Array.from(uploadsByUrl.values()).sort((a, b) =>
+        String(a.url || "").localeCompare(String(b.url || ""), "en"),
+      )
     : uploads;
 
   const changedDatasets = [];

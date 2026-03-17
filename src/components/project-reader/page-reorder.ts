@@ -11,7 +11,7 @@ type AltArrowReorderOptions = {
   onAnnounce?: (message: string) => void;
 };
 
-export const reorderList = <T,>(items: T[], fromIndex: number, toIndex: number) => {
+export const reorderList = <T>(items: T[], fromIndex: number, toIndex: number) => {
   if (
     fromIndex === toIndex ||
     fromIndex < 0 ||
@@ -27,7 +27,7 @@ export const reorderList = <T,>(items: T[], fromIndex: number, toIndex: number) 
   return nextItems;
 };
 
-export const buildPreviewReorderList = <T,>(
+export const buildPreviewReorderList = <T>(
   items: T[],
   fromIndex: number | null | undefined,
   toIndex: number | null | undefined,

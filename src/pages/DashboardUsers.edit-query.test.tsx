@@ -174,7 +174,9 @@ describe("DashboardUsers edit query", () => {
     const editorSectionContent = document.querySelector(
       ".project-editor-section-content",
     ) as HTMLElement | null;
-    const editorAccordion = document.querySelector(".project-editor-accordion") as HTMLElement | null;
+    const editorAccordion = document.querySelector(
+      ".project-editor-accordion",
+    ) as HTMLElement | null;
     expect(editorDialog).not.toBeNull();
     expect(editorScrollShell).not.toBeNull();
     expect(editorHeader).not.toBeNull();

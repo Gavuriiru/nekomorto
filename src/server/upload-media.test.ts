@@ -61,9 +61,7 @@ describe("upload-media", () => {
     expect(resolveUploadVariantPresetKeysForArea("projects/demo")).toEqual(
       PROJECT_UPLOAD_VARIANT_PRESET_KEYS,
     );
-    expect(resolveUploadVariantPresetKeysForArea("posts")).toEqual(
-      POST_UPLOAD_VARIANT_PRESET_KEYS,
-    );
+    expect(resolveUploadVariantPresetKeysForArea("posts")).toEqual(POST_UPLOAD_VARIANT_PRESET_KEYS);
     expect(resolveUploadVariantPresetKeysForArea("users/avatar")).toEqual(
       USER_UPLOAD_VARIANT_PRESET_KEYS,
     );

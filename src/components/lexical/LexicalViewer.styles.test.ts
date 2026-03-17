@@ -28,7 +28,10 @@ describe("Lexical viewer styles", () => {
       resolve(process.cwd(), "src/components/lexical/lexical-content-tokens.css"),
       "utf8",
     );
-    const appCss = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+    const richContentCss = readFileSync(
+      resolve(process.cwd(), "src/styles/rich-content.css"),
+      "utf8",
+    );
 
     expect(tokenCss).toContain("--lexical-content-font-size: 15px;");
     expect(tokenCss).toContain("--lexical-content-heading-1-size: 28px;");
@@ -38,7 +41,9 @@ describe("Lexical viewer styles", () => {
     expect(cssSource).toContain("height: var(--lexical-content-hr-thickness, 2px);");
     expect(cssSource).toContain(".lexical-playground.lexical-playground--viewer .lexical-tweet");
     expect(cssSource).toContain(".lexical-tweet__target");
-    expect(cssSource).toContain("clip-path: inset(0 round var(--lexical-content-embed-radius, 16px));");
+    expect(cssSource).toContain(
+      "clip-path: inset(0 round var(--lexical-content-embed-radius, 16px));",
+    );
     expect(cssSource).toContain(".twitter-tweet-rendered");
     expect(cssSource).toContain('iframe[src*="twitter.com"]');
     expect(cssSource).toContain(".lexical-playground.lexical-playground--viewer .lexical-youtube");
@@ -49,8 +54,8 @@ describe("Lexical viewer styles", () => {
     expect(cssSource).toContain(".LexicalViewer__content > * + *");
     expect(cssSource).toContain(".Collapsible__container");
     expect(cssSource).toContain(".Collapsible__content");
-    expect(appCss).toContain(".post-content:not(.lexical-playground--viewer) h1");
-    expect(appCss).toContain(".reader-content:not(.lexical-playground--viewer) h1");
+    expect(richContentCss).toContain(".post-content:not(.lexical-playground--viewer) h1");
+    expect(richContentCss).toContain(".reader-content:not(.lexical-playground--viewer) h1");
   });
 
   it("usa a mesma escala nativa no viewer e no editor sem atropelar o escopo global", () => {

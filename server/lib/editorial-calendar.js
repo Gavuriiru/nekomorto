@@ -17,9 +17,7 @@ export const buildEditorialCalendarItems = (posts, { fromMs, toMs } = {}) => {
   const safeFromMs = Number(fromMs);
   const safeToMs = Number(toMs);
   const hasRange =
-    Number.isFinite(safeFromMs) &&
-    Number.isFinite(safeToMs) &&
-    safeFromMs <= safeToMs;
+    Number.isFinite(safeFromMs) && Number.isFinite(safeToMs) && safeFromMs <= safeToMs;
 
   return (Array.isArray(posts) ? posts : [])
     .filter((post) => post && typeof post === "object")
@@ -49,7 +47,7 @@ export const buildEditorialCalendarItems = (posts, { fromMs, toMs } = {}) => {
       status: post.status === "scheduled" ? "scheduled" : "published",
       projectId: post.projectId || "",
       publishedAt: String(post.publishedAt || ""),
-      scheduledAt: post.status === "scheduled" ? post.scheduledAt || post.publishedAt || null : null,
+      scheduledAt:
+        post.status === "scheduled" ? post.scheduledAt || post.publishedAt || null : null,
     }));
 };
-

@@ -118,8 +118,12 @@ describe("ImageLibraryDialog accordion context", () => {
     const chapterTrigger = await expectTriggerExpanded(/capitulos\/volume-1\/capitulo-2/i, false);
     const episodesTrigger = await expectTriggerExpanded(/episodes/i, false);
 
-    expect(rootTrigger.compareDocumentPosition(chapterTrigger)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(rootTrigger.compareDocumentPosition(episodesTrigger)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(rootTrigger.compareDocumentPosition(chapterTrigger)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(rootTrigger.compareDocumentPosition(episodesTrigger)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
   });
 
   it("uploads aplicam fallback para ancestral mais proximo quando contexto nao existe", async () => {

@@ -101,10 +101,7 @@ type MangaWorkflowPanelProps = {
   onProjectChange: (nextProject: ProjectRecord) => void;
   onNavigateToChapter: (chapter: ProjectEpisode) => void;
   onSelectedStageChapterChange?: (chapter: StageChapter | null) => void;
-  onOpenImportedChapter?: (
-    nextProject: ProjectRecord,
-    importedChapters: ProjectEpisode[],
-  ) => void;
+  onOpenImportedChapter?: (nextProject: ProjectRecord, importedChapters: ProjectEpisode[]) => void;
 };
 
 const NATURAL_COLLATOR = new Intl.Collator("pt-BR", {
@@ -177,11 +174,7 @@ const isSupportedImagePath = (relativePath: string) =>
   [".png", ".jpg", ".jpeg", ".gif", ".webp"].includes(getFileExtension(relativePath));
 
 const stripCommonPrefix = (value: string, pattern: RegExp) =>
-  value
-    .replace(pattern, "")
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  value.replace(pattern, "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
 
 const parseVolumeNumber = (value: string) => {
   const normalized = normalizeText(value);
@@ -234,7 +227,9 @@ const fileToDataUrl = (file: Blob) =>
 const buildVolumeLabel = (value: number | null | undefined) =>
   Number.isFinite(Number(value)) && Number(value) > 0 ? `Volume ${Number(value)}` : "Sem volume";
 
-export const buildStageChapterLabel = (chapter: Pick<StageChapter, "number" | "volume" | "title">) => {
+export const buildStageChapterLabel = (
+  chapter: Pick<StageChapter, "number" | "volume" | "title">,
+) => {
   const title = normalizeText(chapter.title);
   const baseLabel = `${buildVolumeLabel(chapter.volume)} - Capitulo ${chapter.number}`;
   return title ? `${baseLabel} - ${title}` : baseLabel;
@@ -302,7 +297,9 @@ const buildExistingChapterLookup = (project: ProjectRecord) =>
 const buildNextChapterNumberByVolume = (project: ProjectRecord, staged: StageChapter[] = []) => {
   const nextByVolume = new Map<string, number>();
   (Array.isArray(project.episodeDownloads) ? project.episodeDownloads : []).forEach((episode) => {
-    const volumeKey = Number.isFinite(Number(episode.volume)) ? String(Number(episode.volume)) : "none";
+    const volumeKey = Number.isFinite(Number(episode.volume))
+      ? String(Number(episode.volume))
+      : "none";
     const current = nextByVolume.get(volumeKey) || 1;
     const chapterNumber = parsePositiveInteger(episode.number) || 0;
     if (chapterNumber >= current) {
@@ -526,7 +523,10 @@ const MangaWorkflowPanel = ({
       chapters: reconciledStagedChapters.length,
       pages: reconciledStagedChapters.reduce((total, chapter) => total + chapter.pages.length, 0),
       ready: reconciledStagedChapters.filter((chapter) => chapter.warnings.length === 0).length,
-      warnings: reconciledStagedChapters.reduce((total, chapter) => total + chapter.warnings.length, 0),
+      warnings: reconciledStagedChapters.reduce(
+        (total, chapter) => total + chapter.warnings.length,
+        0,
+      ),
     }),
     [reconciledStagedChapters],
   );
@@ -652,7 +652,9 @@ const MangaWorkflowPanel = ({
         }
         return current.filter((chapter) => !chapterIdSet.has(chapter.id));
       });
-      setSelectedStageChapterId((current) => (current && chapterIdSet.has(current) ? null : current));
+      setSelectedStageChapterId((current) =>
+        current && chapterIdSet.has(current) ? null : current,
+      );
     },
     [setSelectedStageChapterId, setStagedChapters],
   );
@@ -762,7 +764,8 @@ const MangaWorkflowPanel = ({
         return {
           ...chapter,
           pages: nextPages,
-          coverPageId: chapter.coverPageId === pageId ? nextPages[0]?.id || null : chapter.coverPageId,
+          coverPageId:
+            chapter.coverPageId === pageId ? nextPages[0]?.id || null : chapter.coverPageId,
         };
       });
     },
@@ -842,9 +845,10 @@ const MangaWorkflowPanel = ({
     ) => {
       const key = buildEpisodeKey(stageChapter.number, stageChapter.volume ?? undefined);
       const existing =
-        (Array.isArray(projectSnapshot.episodeDownloads) ? projectSnapshot.episodeDownloads : []).find(
-          (episode) => buildEpisodeKey(episode.number, episode.volume) === key,
-        ) || null;
+        (Array.isArray(projectSnapshot.episodeDownloads)
+          ? projectSnapshot.episodeDownloads
+          : []
+        ).find((episode) => buildEpisodeKey(episode.number, episode.volume) === key) || null;
       const pages = uploadedPageUrls.map((imageUrl, index) => ({ position: index + 1, imageUrl }));
       const coverIndex = Math.max(
         0,
@@ -919,27 +923,32 @@ const MangaWorkflowPanel = ({
             uploadedPageUrls.push(await uploadStagePage(folder, page));
           }
           importedChapters.push(
-            buildImportedChapter(
-              chapter,
-              uploadedPageUrls,
-              options?.publicationStatusOverride,
-            ),
+            buildImportedChapter(chapter, uploadedPageUrls, options?.publicationStatusOverride),
           );
         }
 
-        const nextSnapshot = mergeImportedImageChaptersIntoProject(projectSnapshot, importedChapters);
-        const persistedProject = await onPersistProjectSnapshot(nextSnapshot, { context: "manga-import" });
+        const nextSnapshot = mergeImportedImageChaptersIntoProject(
+          projectSnapshot,
+          importedChapters,
+        );
+        const persistedProject = await onPersistProjectSnapshot(nextSnapshot, {
+          context: "manga-import",
+        });
         if (!persistedProject) {
           return false;
         }
 
         const firstImported = importedChapters
-          .map((chapter) =>
-            (Array.isArray(persistedProject.episodeDownloads) ? persistedProject.episodeDownloads : []).find(
-              (episode) =>
-                buildEpisodeKey(episode.number, episode.volume) ===
-                buildEpisodeKey(chapter.number, chapter.volume),
-            ) || null,
+          .map(
+            (chapter) =>
+              (Array.isArray(persistedProject.episodeDownloads)
+                ? persistedProject.episodeDownloads
+                : []
+              ).find(
+                (episode) =>
+                  buildEpisodeKey(episode.number, episode.volume) ===
+                  buildEpisodeKey(chapter.number, chapter.volume),
+              ) || null,
           )
           .find(Boolean);
 
@@ -982,7 +991,9 @@ const MangaWorkflowPanel = ({
   );
 
   const handleConfirmImport = useCallback(async () => {
-    const chaptersToImport = reconciledStagedChapters.filter((chapter) => chapter.warnings.length === 0);
+    const chaptersToImport = reconciledStagedChapters.filter(
+      (chapter) => chapter.warnings.length === 0,
+    );
     await importStageChapters(chaptersToImport);
   }, [importStageChapters, reconciledStagedChapters]);
 
@@ -997,7 +1008,9 @@ const MangaWorkflowPanel = ({
         await importStageChapters([selectedStageChapter], {
           publicationStatusOverride: publicationStatus,
           successTitle:
-            publicationStatus === "published" ? "Capitulo publicado" : "Capitulo salvo como rascunho",
+            publicationStatus === "published"
+              ? "Capitulo publicado"
+              : "Capitulo salvo como rascunho",
           successDescription: "O capitulo selecionado ja abriu no editor.",
         });
       } finally {
@@ -1026,7 +1039,9 @@ const MangaWorkflowPanel = ({
             type="file"
             multiple
             accept="image/*"
-            onChange={(event) => void prepareStageFromFiles(Array.from(event.target.files || []), "files")}
+            onChange={(event) =>
+              void prepareStageFromFiles(Array.from(event.target.files || []), "files")
+            }
           />
           <input
             ref={folderInputRef}
@@ -1034,7 +1049,9 @@ const MangaWorkflowPanel = ({
             type="file"
             multiple
             accept="image/*"
-            onChange={(event) => void prepareStageFromFiles(Array.from(event.target.files || []), "folder")}
+            onChange={(event) =>
+              void prepareStageFromFiles(Array.from(event.target.files || []), "folder")
+            }
             {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
           />
           <Input
@@ -1059,12 +1076,18 @@ const MangaWorkflowPanel = ({
               if (!selectedStageChapter) {
                 return;
               }
-              appendPagesToStageChapter(selectedStageChapter.id, Array.from(event.target.files || []));
+              appendPagesToStageChapter(
+                selectedStageChapter.id,
+                Array.from(event.target.files || []),
+              );
             }}
           />
         </div>
 
-        <Card className="border-border/60 bg-background/40" data-testid="manga-workflow-import-card">
+        <Card
+          className="border-border/60 bg-background/40"
+          data-testid="manga-workflow-import-card"
+        >
           <CardContent className="space-y-5 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-1">
@@ -1091,7 +1114,11 @@ const MangaWorkflowPanel = ({
                 onClick={() => folderInputRef.current?.click()}
                 disabled={isPreparingStage || isImporting}
               >
-                {isPreparingStage ? <Loader2 className="h-4 w-4 animate-spin" /> : <FolderOpen className="h-4 w-4" />}
+                {isPreparingStage ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FolderOpen className="h-4 w-4" />
+                )}
                 <span>Pasta</span>
               </Button>
               <Button
@@ -1171,7 +1198,11 @@ const MangaWorkflowPanel = ({
                   onClick={() => void handleConfirmImport()}
                   disabled={isImporting || stageSummary.ready === 0}
                 >
-                  {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {isImporting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
                   <span>Importar lote</span>
                 </Button>
               </div>
@@ -1179,7 +1210,10 @@ const MangaWorkflowPanel = ({
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 bg-background/40" data-testid="manga-workflow-review-card">
+        <Card
+          className="border-border/60 bg-background/40"
+          data-testid="manga-workflow-review-card"
+        >
           <CardContent className="space-y-4 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-1">
@@ -1192,8 +1226,12 @@ const MangaWorkflowPanel = ({
               </div>
               {selectedStageChapter ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={selectedStageChapter.operation === "update" ? "secondary" : "outline"}>
-                    {selectedStageChapter.operation === "update" ? "Atualiza existente" : "Novo capitulo"}
+                  <Badge
+                    variant={selectedStageChapter.operation === "update" ? "secondary" : "outline"}
+                  >
+                    {selectedStageChapter.operation === "update"
+                      ? "Atualiza existente"
+                      : "Novo capitulo"}
                   </Badge>
                   <Badge
                     variant={
@@ -1275,7 +1313,9 @@ const MangaWorkflowPanel = ({
                         }
                         className="text-[10px] uppercase tracking-[0.12em]"
                       >
-                        {selectedStageChapter.publicationStatus === "draft" ? "Rascunho" : "Publicado"}
+                        {selectedStageChapter.publicationStatus === "draft"
+                          ? "Rascunho"
+                          : "Publicado"}
                       </Badge>
                     </div>
                   </div>
@@ -1400,11 +1440,11 @@ const MangaWorkflowPanel = ({
                               onKeyDown={(event) =>
                                 handleStagePageKeyDown(event, selectedStageChapter.id, index)
                               }
-                              >
-                                <div className="aspect-[3/4] bg-muted/30">
-                                  <UploadPicture
-                                    src={page.previewUrl}
-                                    alt={`Pagina ${index + 1}`}
+                            >
+                              <div className="aspect-[3/4] bg-muted/30">
+                                <UploadPicture
+                                  src={page.previewUrl}
+                                  alt={`Pagina ${index + 1}`}
                                   className="h-full w-full object-cover"
                                 />
                               </div>
@@ -1449,8 +1489,8 @@ const MangaWorkflowPanel = ({
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
-                                  </div>
                                 </div>
+                              </div>
                             </div>
                           </motion.div>
                         );

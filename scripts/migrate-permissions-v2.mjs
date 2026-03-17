@@ -70,7 +70,9 @@ const normalizeLegacyPermissions = (permissions) => {
   const unknown = [];
   let hadStar = false;
   ensureArray(permissions).forEach((permissionRaw) => {
-    const permission = String(permissionRaw || "").trim().toLowerCase();
+    const permission = String(permissionRaw || "")
+      .trim()
+      .toLowerCase();
     if (!permission) {
       return;
     }
@@ -109,18 +111,26 @@ const normalizeLegacyPermissions = (permissions) => {
 };
 
 const inferAccessRole = (user) => {
-  const accessRole = String(user?.accessRole || "").trim().toLowerCase();
+  const accessRole = String(user?.accessRole || "")
+    .trim()
+    .toLowerCase();
   if (ACCESS_ROLES.includes(accessRole)) {
     if (accessRole === "owner_primary" || accessRole === "owner_secondary") {
       return "normal";
     }
     return accessRole;
   }
-  const permissions = ensureArray(user?.permissions).map((item) => String(item || "").trim().toLowerCase());
+  const permissions = ensureArray(user?.permissions).map((item) =>
+    String(item || "")
+      .trim()
+      .toLowerCase(),
+  );
   if (permissions.includes("*") || permissions.includes("usuarios")) {
     return "admin";
   }
-  const hasAdminBadge = ADMIN_BADGE_LEGACY_PERMISSIONS.every((permission) => permissions.includes(permission));
+  const hasAdminBadge = ADMIN_BADGE_LEGACY_PERMISSIONS.every((permission) =>
+    permissions.includes(permission),
+  );
   if (hasAdminBadge) {
     return "admin";
   }
@@ -130,7 +140,12 @@ const inferAccessRole = (user) => {
 const getOwnerIdsFromRoles = (users) =>
   users
     .filter((user) =>
-      ensureArray(user?.roles).some((role) => String(role || "").trim().toLowerCase() === "dono"),
+      ensureArray(user?.roles).some(
+        (role) =>
+          String(role || "")
+            .trim()
+            .toLowerCase() === "dono",
+      ),
     )
     .map((user) => String(user?.id || "").trim())
     .filter(Boolean);

@@ -115,9 +115,10 @@ const resolveChapterFolderForEpisode = ({ project, episode, index, projectFolder
   }
   const chapterNumberValue = Number(episode?.number);
   const fallbackNumber = Number.isFinite(Number(index)) ? Number(index) + 1 : 1;
-  const chapterNumber = Number.isFinite(chapterNumberValue) && chapterNumberValue > 0
-    ? Math.floor(chapterNumberValue)
-    : fallbackNumber;
+  const chapterNumber =
+    Number.isFinite(chapterNumberValue) && chapterNumberValue > 0
+      ? Math.floor(chapterNumberValue)
+      : fallbackNumber;
   const volumeSegment = resolveVolumeFolderSegment(episode?.volume);
   return `${projectFolders.chapters}/${volumeSegment}/capitulo-${chapterNumber}`;
 };
@@ -125,7 +126,9 @@ const resolveChapterFolderForEpisode = ({ project, episode, index, projectFolder
 export const getUploadRootSegment = (relativePath) => {
   const normalized = toPosix(String(relativePath || "")).replace(/^\/+/, "");
   const [first] = normalized.split("/");
-  return String(first || "").trim().toLowerCase();
+  return String(first || "")
+    .trim()
+    .toLowerCase();
 };
 
 const isPrivateFolder = (relativePath, privateRootFolders) =>
@@ -273,7 +276,11 @@ const replaceUploadReferencesDeep = (value, mapping) => {
 };
 
 const getUploadRelativePath = (uploadUrl) =>
-  toPosix(String(uploadUrl || "").replace(/^\/uploads\//, "").replace(/^\/+/, ""));
+  toPosix(
+    String(uploadUrl || "")
+      .replace(/^\/uploads\//, "")
+      .replace(/^\/+/, ""),
+  );
 
 const listUploadFilesOnDisk = (uploadsDir) => {
   const files = new Set();
@@ -386,7 +393,9 @@ const collectUsage = (posts, projects) => {
   (Array.isArray(posts) ? posts : []).forEach((post, index) => {
     const postRef = String(post?.slug || post?.id || `post-${index + 1}`);
     addPostUsage(usageByUrl, post?.coverImageUrl, postRef);
-    extractUploadUrlsFromText(post?.content).forEach((uploadUrl) => addPostUsage(usageByUrl, uploadUrl, postRef));
+    extractUploadUrlsFromText(post?.content).forEach((uploadUrl) =>
+      addPostUsage(usageByUrl, uploadUrl, postRef),
+    );
   });
 
   (Array.isArray(projects) ? projects : []).forEach((project) => {
@@ -408,29 +417,31 @@ const collectUsage = (posts, projects) => {
       addProjectUsage(usageByUrl, relation?.image, projectId, "main");
     });
 
-    (Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : []).forEach((episode, index) => {
-      const chapterFolder = resolveChapterFolderForEpisode({
-        project,
-        episode,
-        index,
-        projectFolders,
-      });
-      const episodeOptions = chapterFolder ? { chapterFolder } : undefined;
-      addProjectUsage(usageByUrl, episode?.coverImageUrl, projectId, "episode", episodeOptions);
-      (Array.isArray(episode?.pages) ? episode.pages : []).forEach((page) => {
-        const pagesFolder = resolveEpisodePagesFolder(chapterFolder);
-        addProjectUsage(usageByUrl, page?.imageUrl, projectId, "episode", {
-          chapterFolder,
-          targetFolder: pagesFolder || chapterFolder,
+    (Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : []).forEach(
+      (episode, index) => {
+        const chapterFolder = resolveChapterFolderForEpisode({
+          project,
+          episode,
+          index,
+          projectFolders,
         });
-      });
-      extractUploadUrlsFromText(episode?.content).forEach((uploadUrl) =>
-        addProjectUsage(usageByUrl, uploadUrl, projectId, "episode", episodeOptions),
-      );
-      extractUploadUrlsFromText(episode?.title).forEach((uploadUrl) =>
-        addProjectUsage(usageByUrl, uploadUrl, projectId, "episode", episodeOptions),
-      );
-    });
+        const episodeOptions = chapterFolder ? { chapterFolder } : undefined;
+        addProjectUsage(usageByUrl, episode?.coverImageUrl, projectId, "episode", episodeOptions);
+        (Array.isArray(episode?.pages) ? episode.pages : []).forEach((page) => {
+          const pagesFolder = resolveEpisodePagesFolder(chapterFolder);
+          addProjectUsage(usageByUrl, page?.imageUrl, projectId, "episode", {
+            chapterFolder,
+            targetFolder: pagesFolder || chapterFolder,
+          });
+        });
+        extractUploadUrlsFromText(episode?.content).forEach((uploadUrl) =>
+          addProjectUsage(usageByUrl, uploadUrl, projectId, "episode", episodeOptions),
+        );
+        extractUploadUrlsFromText(episode?.title).forEach((uploadUrl) =>
+          addProjectUsage(usageByUrl, uploadUrl, projectId, "episode", episodeOptions),
+        );
+      },
+    );
 
     extractUploadUrlsFromText(project?.description).forEach((uploadUrl) =>
       addProjectUsage(usageByUrl, uploadUrl, projectId, "main"),
@@ -462,11 +473,7 @@ export const classifyTargetFolder = (usage, projectFoldersById, sourceRelative =
     if (!projectFolders) {
       return "shared";
     }
-    if (
-      projectMainCount === 0 &&
-      projectVolumeCount === 0 &&
-      projectEpisodeCount > 0
-    ) {
+    if (projectMainCount === 0 && projectVolumeCount === 0 && projectEpisodeCount > 0) {
       const chapterFolders = Array.from(usage?.projectEpisodeChapterFolders || [])
         .map((item) => parseProjectEpisodeFolderUsageKey(item))
         .filter((entry) => entry.projectId === projectId && entry.folder)
@@ -490,11 +497,7 @@ export const classifyTargetFolder = (usage, projectFoldersById, sourceRelative =
       }
       return projectFolders.episodes;
     }
-    if (
-      projectMainCount === 0 &&
-      projectEpisodeCount === 0 &&
-      projectVolumeCount > 0
-    ) {
+    if (projectMainCount === 0 && projectEpisodeCount === 0 && projectVolumeCount > 0) {
       return `${projectFolders.root}/volumes`;
     }
     return projectFolders.root;
@@ -625,11 +628,21 @@ export const runUploadsReorganization = ({
 
     const sourceRoot = getUploadRootSegment(sourceRelative);
     if (isPrivateFolder(sourceRelative, privateFoldersSet)) {
-      skipped.push({ type: "private_folder_skipped", url: oldUrl, path: sourceRelative, root: sourceRoot });
+      skipped.push({
+        type: "private_folder_skipped",
+        url: oldUrl,
+        path: sourceRelative,
+        root: sourceRoot,
+      });
       return;
     }
     if (!isManagedSourceRelative(sourceRelative, privateFoldersSet)) {
-      skipped.push({ type: "unmanaged_folder_skipped", url: oldUrl, path: sourceRelative, root: sourceRoot });
+      skipped.push({
+        type: "unmanaged_folder_skipped",
+        url: oldUrl,
+        path: sourceRelative,
+        root: sourceRoot,
+      });
       return;
     }
 

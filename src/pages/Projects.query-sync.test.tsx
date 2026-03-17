@@ -77,25 +77,27 @@ const setupApiMock = ({
   mediaVariants?: unknown;
 } = {}) => {
   apiFetchMock.mockReset();
-  apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-    const method = String(options?.method || "GET").toUpperCase();
-    if (endpoint === "/api/public/projects" && method === "GET") {
-      return mockJsonResponse(true, { projects, mediaVariants });
-    }
-    if (endpoint === "/api/public/tag-translations" && method === "GET") {
-      return mockJsonResponse(true, {
-        tags: { acao: "Acao" },
-        genres: { drama: "Drama" },
-        staffRoles: {},
-      });
-    }
-    if (endpoint === "/api/public/pages" && method === "GET") {
-      return mockJsonResponse(true, {
-        pages: { projects: { shareImage: "" } },
-      });
-    }
-    return mockJsonResponse(false, { error: "not_found" }, 404);
-  });
+  apiFetchMock.mockImplementation(
+    async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (endpoint === "/api/public/projects" && method === "GET") {
+        return mockJsonResponse(true, { projects, mediaVariants });
+      }
+      if (endpoint === "/api/public/tag-translations" && method === "GET") {
+        return mockJsonResponse(true, {
+          tags: { acao: "Acao" },
+          genres: { drama: "Drama" },
+          staffRoles: {},
+        });
+      }
+      if (endpoint === "/api/public/pages" && method === "GET") {
+        return mockJsonResponse(true, {
+          pages: { projects: { shareImage: "" } },
+        });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    },
+  );
 };
 
 const LocationProbe = () => {
@@ -104,7 +106,9 @@ const LocationProbe = () => {
 };
 
 const getSearchParams = () =>
-  new URLSearchParams(String(screen.getByTestId("location-search").textContent || "").replace(/^\?/, ""));
+  new URLSearchParams(
+    String(screen.getByTestId("location-search").textContent || "").replace(/^\?/, ""),
+  );
 
 const getRenderedProjectCards = (container: HTMLElement) =>
   Array.from(container.querySelectorAll("a.projects-public-card"));
@@ -147,8 +151,14 @@ const mockPrimaryBadgeLayoutMetrics = ({
   clickableBadgeShellWidth: number;
   badgeWidth: number;
 }) => {
-  const clientWidthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
-  const offsetWidthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetWidth");
+  const clientWidthDescriptor = Object.getOwnPropertyDescriptor(
+    HTMLElement.prototype,
+    "clientWidth",
+  );
+  const offsetWidthDescriptor = Object.getOwnPropertyDescriptor(
+    HTMLElement.prototype,
+    "offsetWidth",
+  );
 
   Object.defineProperty(HTMLElement.prototype, "clientWidth", {
     configurable: true,
@@ -379,7 +389,11 @@ describe("Projects query sync", () => {
     });
 
     render(
-      <MemoryRouter initialEntries={["/projetos?letter=P&type=Anime&tag=acao&genero=drama&page=2&q=teste&foo=1"]}>
+      <MemoryRouter
+        initialEntries={[
+          "/projetos?letter=P&type=Anime&tag=acao&genero=drama&page=2&q=teste&foo=1",
+        ]}
+      >
         <Projects />
         <LocationProbe />
       </MemoryRouter>,
@@ -460,7 +474,9 @@ describe("Projects query sync", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByPlaceholderText("Buscar por t\u00EDtulo, sinopse, tag ou g\u00EAnero")).toBeInTheDocument();
+    expect(
+      await screen.findByPlaceholderText("Buscar por t\u00EDtulo, sinopse, tag ou g\u00EAnero"),
+    ).toBeInTheDocument();
     expect(screen.getByText("G\u00EAneros")).toBeInTheDocument();
   });
 
@@ -603,24 +619,26 @@ describe("Projects query sync", () => {
   it("permite retry quando o carregamento inicial falha sem bootstrap completo", async () => {
     let projectsRequests = 0;
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (endpoint === "/api/public/projects" && method === "GET") {
-        projectsRequests += 1;
-        if (projectsRequests === 1) {
-          return mockJsonResponse(false, { error: "server_error" }, 500);
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (endpoint === "/api/public/projects" && method === "GET") {
+          projectsRequests += 1;
+          if (projectsRequests === 1) {
+            return mockJsonResponse(false, { error: "server_error" }, 500);
+          }
+          return mockJsonResponse(true, { projects: createProjects(1), mediaVariants: {} });
         }
-        return mockJsonResponse(true, { projects: createProjects(1), mediaVariants: {} });
-      }
-      if (endpoint === "/api/public/tag-translations" && method === "GET") {
-        return mockJsonResponse(true, {
-          tags: { acao: "Acao" },
-          genres: { drama: "Drama" },
-          staffRoles: {},
-        });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+        if (endpoint === "/api/public/tag-translations" && method === "GET") {
+          return mockJsonResponse(true, {
+            tags: { acao: "Acao" },
+            genres: { drama: "Drama" },
+            staffRoles: {},
+          });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     render(
       <MemoryRouter initialEntries={["/projetos"]}>
@@ -629,7 +647,9 @@ describe("Projects query sync", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText("N\u00E3o foi poss\u00EDvel carregar os projetos")).toBeInTheDocument();
+    expect(
+      await screen.findByText("N\u00E3o foi poss\u00EDvel carregar os projetos"),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
 
@@ -916,8 +936,12 @@ describe("Projects query sync", () => {
       });
 
       expect(screen.getByRole("button", { name: "Filtrar por tag Acao" })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Filtrar por tag comedia" })).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Filtrar por genero Drama" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Filtrar por tag comedia" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Filtrar por genero Drama" }),
+      ).not.toBeInTheDocument();
     } finally {
       restoreLayoutMetrics();
     }
@@ -942,4 +966,3 @@ describe("Projects query sync", () => {
     expect(genreButton).toHaveClass("min-h-6", "min-w-6", "rounded-md", "p-0.5");
   });
 });
-

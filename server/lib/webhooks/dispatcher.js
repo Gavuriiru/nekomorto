@@ -5,7 +5,9 @@ export const dispatchWebhookMessage = async ({
   timeoutMs = 5000,
   retries = 0,
 } = {}) => {
-  const safeProvider = String(provider || "").trim().toLowerCase();
+  const safeProvider = String(provider || "")
+    .trim()
+    .toLowerCase();
   const safeWebhookUrl = String(webhookUrl || "").trim();
   if (!safeProvider) {
     return { ok: false, status: "failed", code: "missing_provider" };
@@ -61,4 +63,3 @@ export const dispatchWebhookMessage = async ({
   }
   return { ok: false, status: "failed", code: "unknown" };
 };
-

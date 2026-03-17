@@ -1,6 +1,10 @@
 import fs from "fs";
 import path from "path";
-import { getUploadAssetDescriptors, readUploadStorageProvider, streamToBuffer } from "./upload-storage.js";
+import {
+  getUploadAssetDescriptors,
+  readUploadStorageProvider,
+  streamToBuffer,
+} from "./upload-storage.js";
 import { resolveUploadAbsolutePath } from "./upload-media.js";
 
 const normalizeFilterFolder = (value) =>
@@ -46,7 +50,8 @@ const writeLocalAssetBuffer = ({ uploadsDir, uploadUrl, buffer }) => {
 
 const pickUploads = (uploads, options = {}) =>
   (Array.isArray(uploads) ? uploads : []).filter(
-    (entry) => matchesFolderFilter(entry, options.folder) && matchesUploadIdFilter(entry, options.uploadId),
+    (entry) =>
+      matchesFolderFilter(entry, options.folder) && matchesUploadIdFilter(entry, options.uploadId),
   );
 
 const collectFailures = (failures) =>
@@ -115,7 +120,9 @@ export const syncUploadsToObjectStorage = async ({
       }
 
       if (applyChanges) {
-        const index = nextUploads.findIndex((item) => String(item?.id || "") === String(entry?.id || ""));
+        const index = nextUploads.findIndex(
+          (item) => String(item?.id || "") === String(entry?.id || ""),
+        );
         if (index >= 0) {
           nextUploads[index] = {
             ...nextUploads[index],
@@ -189,7 +196,9 @@ export const restoreUploadsFromObjectStorage = async ({
       }
 
       if (applyChanges) {
-        const index = nextUploads.findIndex((item) => String(item?.id || "") === String(entry?.id || ""));
+        const index = nextUploads.findIndex(
+          (item) => String(item?.id || "") === String(entry?.id || ""),
+        );
         if (index >= 0) {
           nextUploads[index] = {
             ...nextUploads[index],

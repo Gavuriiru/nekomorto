@@ -106,8 +106,10 @@ const TopProjectsSection = () => {
       })
       .filter((item) => item.id && item.title)
       .sort((left, right) => {
-        const leftMetric = mode === "30d" ? left.views30d : mode === "7d" ? left.views7d : left.viewsAll;
-        const rightMetric = mode === "30d" ? right.views30d : mode === "7d" ? right.views7d : right.viewsAll;
+        const leftMetric =
+          mode === "30d" ? left.views30d : mode === "7d" ? left.views7d : left.viewsAll;
+        const rightMetric =
+          mode === "30d" ? right.views30d : mode === "7d" ? right.views7d : right.viewsAll;
         if (rightMetric !== leftMetric) {
           return rightMetric - leftMetric;
         }
@@ -144,8 +146,15 @@ const TopProjectsSection = () => {
     <Card id="top-projetos" lift={false} className="bg-card border-border reveal" data-reveal>
       <CardHeader className="px-4 pb-3 pt-4">
         <div className="flex items-center justify-between gap-3">
-          <CardTitle className="text-lg font-semibold text-foreground">Projetos Populares</CardTitle>
-          <Select value={mode} onValueChange={(value) => setMode(value === "30d" ? "30d" : value === "7d" ? "7d" : "all")}>
+          <CardTitle className="text-lg font-semibold text-foreground">
+            Projetos Populares
+          </CardTitle>
+          <Select
+            value={mode}
+            onValueChange={(value) =>
+              setMode(value === "30d" ? "30d" : value === "7d" ? "7d" : "all")
+            }
+          >
             <SelectTrigger
               aria-label="Ordenar Top 10 por visualizacoes"
               data-testid="top-projects-mode-trigger"
@@ -166,9 +175,15 @@ const TopProjectsSection = () => {
         {isLoadingProjects ? (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, index) => (
-              <div key={`top-projects-skeleton-${index}`} className="rounded-2xl bg-background/40 p-4">
+              <div
+                key={`top-projects-skeleton-${index}`}
+                className="rounded-2xl bg-background/40 p-4"
+              >
                 <div className="flex gap-4">
-                  <Skeleton className="h-32 shrink-0 rounded-xl" style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }} />
+                  <Skeleton
+                    className="h-32 shrink-0 rounded-xl"
+                    style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+                  />
                   <div className="min-w-0 flex-1 space-y-2">
                     <Skeleton className="h-3 w-10" />
                     <Skeleton className="h-4 w-3/4" />
@@ -193,7 +208,8 @@ const TopProjectsSection = () => {
               className={`no-scrollbar -my-1 space-y-[var(--top-gap)] overflow-y-auto overscroll-contain pr-1 pt-1 pb-1 max-h-[calc((var(--top-card-h)*${TOP_PROJECTS_VISIBLE_MOBILE})+(var(--top-gap)*${TOP_PROJECTS_VISIBLE_MOBILE - 1})+0.5rem)] md:max-h-[calc((var(--top-card-h)*${TOP_PROJECTS_VISIBLE_DESKTOP})+(var(--top-gap)*${TOP_PROJECTS_VISIBLE_DESKTOP - 1})+0.5rem)]`}
             >
               {topProjects.map((entry, index) => {
-                const metricValue = mode === "30d" ? entry.views30d : mode === "7d" ? entry.views7d : entry.viewsAll;
+                const metricValue =
+                  mode === "30d" ? entry.views30d : mode === "7d" ? entry.views7d : entry.viewsAll;
 
                 return (
                   <Link
@@ -240,7 +256,10 @@ const TopProjectsSection = () => {
                               className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
                               aria-label={`Posicao: ${index + 1}`}
                             >
-                              <Hash className="h-3.5 w-3.5 text-muted-foreground/80" aria-hidden="true" />
+                              <Hash
+                                className="h-3.5 w-3.5 text-muted-foreground/80"
+                                aria-hidden="true"
+                              />
                               {index + 1}
                             </span>
                             <span
@@ -248,7 +267,10 @@ const TopProjectsSection = () => {
                               className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
                               aria-label={`Visualizacoes: ${numberFormatter.format(metricValue)}`}
                             >
-                              <Eye className="h-3.5 w-3.5 text-muted-foreground/80" aria-hidden="true" />
+                              <Eye
+                                className="h-3.5 w-3.5 text-muted-foreground/80"
+                                aria-hidden="true"
+                              />
                               {numberFormatter.format(metricValue)}
                             </span>
                           </div>

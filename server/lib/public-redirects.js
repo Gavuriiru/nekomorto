@@ -136,11 +136,7 @@ export const isReservedRedirectPath = (value) => {
   if (RESERVED_EXACT_PATHS.has(lower)) {
     return true;
   }
-  if (
-    RESERVED_PREFIXES.some(
-      (prefix) => lower === prefix || lower.startsWith(`${prefix}/`),
-    )
-  ) {
+  if (RESERVED_PREFIXES.some((prefix) => lower === prefix || lower.startsWith(`${prefix}/`))) {
     return true;
   }
   return RESERVED_PATH_PATTERNS.some((pattern) => pattern.test(lower));
@@ -165,7 +161,12 @@ export const normalizePublicRedirects = (value, options = {}) => {
     if (!to) {
       continue;
     }
-    if (to.startsWith("/") && normalizeRedirectFromPath(to) === from && !to.includes("?") && !to.includes("#")) {
+    if (
+      to.startsWith("/") &&
+      normalizeRedirectFromPath(to) === from &&
+      !to.includes("?") &&
+      !to.includes("#")
+    ) {
       continue;
     }
     if (seenFromPaths.has(from)) {

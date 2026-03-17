@@ -10,7 +10,11 @@ import {
   type Spread,
 } from "lexical";
 
-import { applyEditorialStyleToElement, extractBlockEditorialStyle, hasEditorialBlockStyle } from "./epub-style";
+import {
+  applyEditorialStyleToElement,
+  extractBlockEditorialStyle,
+  hasEditorialBlockStyle,
+} from "./epub-style";
 
 export type SerializedEpubParagraphNode = Spread<
   {
@@ -80,7 +84,9 @@ export class EpubParagraphNode extends ParagraphNode {
   }
 
   updateFromJSON(serializedNode: SerializedEpubParagraphNode): this {
-    return super.updateFromJSON(serializedNode).setEditorialStyle(serializedNode.editorialStyle || "");
+    return super
+      .updateFromJSON(serializedNode)
+      .setEditorialStyle(serializedNode.editorialStyle || "");
   }
 
   createDOM(config: EditorConfig): HTMLElement {
@@ -129,14 +135,12 @@ export class EpubParagraphNode extends ParagraphNode {
   }
 }
 
-export const $createEpubParagraphNode = ({
-  editorialStyle = "",
-}: {
-  editorialStyle?: string;
-}) => $applyNodeReplacement(new EpubParagraphNode(editorialStyle));
+export const $createEpubParagraphNode = ({ editorialStyle = "" }: { editorialStyle?: string }) =>
+  $applyNodeReplacement(new EpubParagraphNode(editorialStyle));
 
-export const $isEpubParagraphNode = (node: LexicalNode | null | undefined): node is EpubParagraphNode =>
-  node instanceof EpubParagraphNode;
+export const $isEpubParagraphNode = (
+  node: LexicalNode | null | undefined,
+): node is EpubParagraphNode => node instanceof EpubParagraphNode;
 
 export const $createParagraphLikeNode = (editorialStyle = "") =>
   editorialStyle ? $createEpubParagraphNode({ editorialStyle }) : $createParagraphNode();

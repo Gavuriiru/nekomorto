@@ -96,7 +96,10 @@ const getStagePageOrder = () =>
 
 const renderWorkflow = (options?: {
   onSelectedStageChapterChange?: (chapter: StageChapter | null) => void;
-  onOpenImportedChapter?: (project: Project & { revision?: string }, chapters: ProjectEpisode[]) => void;
+  onOpenImportedChapter?: (
+    project: Project & { revision?: string },
+    chapters: ProjectEpisode[],
+  ) => void;
   onProjectChange?: (project: Project & { revision?: string }) => void;
   onPersistProjectSnapshot?: (
     snapshot: Project & { revision?: string },
@@ -123,7 +126,9 @@ const renderWorkflow = (options?: {
           setStagedChapters={setStagedChapters}
           selectedStageChapterId={selectedStageChapterId}
           setSelectedStageChapterId={setSelectedStageChapterId}
-          onPersistProjectSnapshot={options?.onPersistProjectSnapshot ?? vi.fn(async (snapshot) => snapshot)}
+          onPersistProjectSnapshot={
+            options?.onPersistProjectSnapshot ?? vi.fn(async (snapshot) => snapshot)
+          }
           onProjectChange={onProjectChangeSpy}
           onNavigateToChapter={vi.fn()}
           onSelectedStageChapterChange={onSelectedStageChapterChangeSpy}
@@ -209,9 +214,17 @@ describe("MangaWorkflowPanel", () => {
 
     expect(screen.getByText("Atualiza existente")).toBeInTheDocument();
     expect(screen.queryByText("Criar")).not.toBeInTheDocument();
-    expect(document.getElementById("stage-chapter-title") as HTMLInputElement).toHaveClass("w-full");
-    expect(document.getElementById("stage-chapter-number") as HTMLInputElement).toHaveClass("w-full", "sm:w-[132px]");
-    expect(document.getElementById("stage-chapter-volume") as HTMLInputElement).toHaveClass("w-full", "sm:w-[132px]");
+    expect(document.getElementById("stage-chapter-title") as HTMLInputElement).toHaveClass(
+      "w-full",
+    );
+    expect(document.getElementById("stage-chapter-number") as HTMLInputElement).toHaveClass(
+      "w-full",
+      "sm:w-[132px]",
+    );
+    expect(document.getElementById("stage-chapter-volume") as HTMLInputElement).toHaveClass(
+      "w-full",
+      "sm:w-[132px]",
+    );
     expect(document.getElementById("stage-chapter-publication-status")).toBeNull();
     expect(screen.getByRole("button", { name: /Salvar como rascunho/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Publicar$/i })).toBeInTheDocument();
@@ -398,7 +411,9 @@ describe("MangaWorkflowPanel", () => {
       json: async () => ({ error: "upload_failed" }),
     } as Response);
 
-    const onPersistProjectSnapshot = vi.fn(async (snapshot: Project & { revision?: string }) => snapshot);
+    const onPersistProjectSnapshot = vi.fn(
+      async (snapshot: Project & { revision?: string }) => snapshot,
+    );
     const { onOpenImportedChapterSpy } = renderWorkflow({ onPersistProjectSnapshot });
     await stageSingleChapter();
 
@@ -419,4 +434,3 @@ describe("MangaWorkflowPanel", () => {
     expect(screen.getByRole("button", { name: /Salvar como rascunho/i })).toBeInTheDocument();
   });
 });
-

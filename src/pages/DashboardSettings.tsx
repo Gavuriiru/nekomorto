@@ -342,13 +342,15 @@ const readerProjectTypeMeta: Array<{
   {
     key: "manga",
     title: "Mangá",
-    description: "Preset global usado por projetos de mangá na leitura pública e nos previews editoriais.",
+    description:
+      "Preset global usado por projetos de mangá na leitura pública e nos previews editoriais.",
     projectType: "manga",
   },
   {
     key: "webtoon",
     title: "Webtoon",
-    description: "Preset global usado por projetos de webtoon na leitura pública e nos previews editoriais.",
+    description:
+      "Preset global usado por projetos de webtoon na leitura pública e nos previews editoriais.",
     projectType: "webtoon",
   },
 ];
@@ -1062,7 +1064,16 @@ const DashboardSettings = () => {
       });
       return normalizedSettings;
     },
-    [apiBase, genreTranslations, knownGenres, knownStaffRoles, knownTags, linkTypes, staffRoleTranslations, tagTranslations],
+    [
+      apiBase,
+      genreTranslations,
+      knownGenres,
+      knownStaffRoles,
+      knownTags,
+      linkTypes,
+      staffRoleTranslations,
+      tagTranslations,
+    ],
   );
 
   const translationsValue = useMemo<TranslationsPayload>(
@@ -1144,7 +1155,16 @@ const DashboardSettings = () => {
       });
       return resolvedItems;
     },
-    [apiBase, genreTranslations, knownGenres, knownStaffRoles, knownTags, settings, staffRoleTranslations, tagTranslations],
+    [
+      apiBase,
+      genreTranslations,
+      knownGenres,
+      knownStaffRoles,
+      knownTags,
+      settings,
+      staffRoleTranslations,
+      tagTranslations,
+    ],
   );
 
   const settingsAutosave = useAutosave<SiteSettings>({
@@ -1589,9 +1609,7 @@ const DashboardSettings = () => {
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <DashboardPageBadge>
-                Configurações
-              </DashboardPageBadge>
+              <DashboardPageBadge>Configurações</DashboardPageBadge>
               <h1 className="mt-4 text-3xl font-semibold text-foreground animate-slide-up">
                 Painel de ajustes
               </h1>
@@ -1608,18 +1626,18 @@ const DashboardSettings = () => {
               data-testid="dashboard-settings-autosave-reveal"
             >
               <DashboardAutosaveStatus
-              title="Autosave das configurações"
-              status={combinedAutosaveStatus}
-              enabled={autosaveEnabled}
-              onEnabledChange={handleAutosaveToggle}
-              toggleDisabled={!autosaveRuntimeConfig.enabledByDefault}
-              lastSavedAt={combinedLastSavedAt}
-              errorMessage={combinedAutosaveErrorMessage}
-              onManualSave={() => {
-                void handleSaveSettings();
-              }}
-              manualActionLabel={isSaving ? "Salvando..." : "Salvar ajustes"}
-              manualActionDisabled={isSaving}
+                title="Autosave das configurações"
+                status={combinedAutosaveStatus}
+                enabled={autosaveEnabled}
+                onEnabledChange={handleAutosaveToggle}
+                toggleDisabled={!autosaveRuntimeConfig.enabledByDefault}
+                lastSavedAt={combinedLastSavedAt}
+                errorMessage={combinedAutosaveErrorMessage}
+                onManualSave={() => {
+                  void handleSaveSettings();
+                }}
+                manualActionLabel={isSaving ? "Salvando..." : "Salvar ajustes"}
+                manualActionDisabled={isSaving}
               />
             </div>
           </div>
@@ -1715,2080 +1733,2175 @@ const DashboardSettings = () => {
                   </Card>
                 ) : (
                   <>
-            <TabsContent value="geral" className="mt-6 space-y-6">
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-6 p-6">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Nome do site</Label>
-                      <Input
-                        value={settings.site.name}
-                        onChange={(event) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            site: { ...prev.site, name: event.target.value },
-                            footer: { ...prev.footer, brandName: event.target.value },
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Separador do título</Label>
-                      <Input
-                        value={settings.site.titleSeparator || " | "}
-                        onChange={(event) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            site: { ...prev.site, titleSeparator: event.target.value },
-                          }))
-                        }
-                        placeholder=" | "
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Usado entre o título da página e o nome do site.
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Descrição curta</Label>
-                      <Textarea
-                        value={settings.site.description}
-                        onChange={(event) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            site: { ...prev.site, description: event.target.value },
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Cor de destaque</Label>
-                      <div className="flex items-center gap-3">
-                        <ColorPicker
-                          label=""
-                          showSwatch
-                          buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-xs transition hover:border-primary/40"
-                          value={settings.theme.accent || "#000000"}
-                          onChange={(color) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              theme: { ...prev.theme, accent: color.toString("hex") },
-                            }))
-                          }
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Atualiza a cor principal e o accent do site.
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Card Em Progresso</Label>
-                      <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2">
-                        <span className="text-sm text-foreground">
-                          Usar cor de destaque no card Em Progresso
-                        </span>
-                        <Switch
-                          checked={Boolean(settings.theme.useAccentInProgressCard)}
-                          onCheckedChange={(checked) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              theme: {
-                                ...prev.theme,
-                                useAccentInProgressCard: checked,
-                              },
-                            }))
-                          }
-                          aria-label="Usar cor de destaque no card Em Progresso"
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Quando ativado, barra e badge usam a cor temática em vez da cor da etapa.
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Tema padrão do site</Label>
-                      <Select
-                        value={settings.theme.mode || "dark"}
-                        onValueChange={(value) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            theme: {
-                              ...prev.theme,
-                              mode: value === "light" ? "light" : "dark",
-                            },
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o tema padrão" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="dark">Escuro</SelectItem>
-                          <SelectItem value="light">Claro</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        Define o tema padrão global. Cada usuário pode sobrescrever no cabeçalho.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 rounded-2xl border border-border/60 bg-background/50 p-4">
-                    <div>
-                      <h2 className="text-lg font-semibold">Card de comunidade</h2>
-                      <p className="text-xs text-muted-foreground">
-                        Configure os textos e o botão principal do card de Discord.
-                      </p>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="community-card-title">Título do card</Label>
-                        <Input
-                          id="community-card-title"
-                          value={settings.community.inviteCard.title}
-                          onChange={(event) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              community: {
-                                ...prev.community,
-                                inviteCard: {
-                                  ...prev.community.inviteCard,
-                                  title: event.target.value,
-                                },
-                              },
-                            }))
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="community-card-button-label">Texto do botão</Label>
-                        <Input
-                          id="community-card-button-label"
-                          value={settings.community.inviteCard.ctaLabel}
-                          onChange={(event) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              community: {
-                                ...prev.community,
-                                inviteCard: {
-                                  ...prev.community.inviteCard,
-                                  ctaLabel: event.target.value,
-                                },
-                              },
-                            }))
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="community-card-subtitle">Subtítulo</Label>
-                        <Textarea
-                          id="community-card-subtitle"
-                          value={settings.community.inviteCard.subtitle}
-                          onChange={(event) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              community: {
-                                ...prev.community,
-                                inviteCard: {
-                                  ...prev.community.inviteCard,
-                                  subtitle: event.target.value,
-                                },
-                              },
-                            }))
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="community-card-panel-title">Título do bloco interno</Label>
-                        <Input
-                          id="community-card-panel-title"
-                          value={settings.community.inviteCard.panelTitle}
-                          onChange={(event) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              community: {
-                                ...prev.community,
-                                inviteCard: {
-                                  ...prev.community.inviteCard,
-                                  panelTitle: event.target.value,
-                                },
-                              },
-                            }))
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="community-card-cta-url">URL do botão</Label>
-                        <Input
-                          id="community-card-cta-url"
-                          value={settings.community.inviteCard.ctaUrl}
-                          onChange={(event) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              community: {
-                                ...prev.community,
-                                inviteCard: {
-                                  ...prev.community.inviteCard,
-                                  ctaUrl: event.target.value,
-                                },
-                              },
-                            }))
-                          }
-                          placeholder="https://discord.com/invite/..."
-                        />
-                      </div>
-
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="community-card-panel-description">
-                          Texto do bloco interno
-                        </Label>
-                        <Textarea
-                          id="community-card-panel-description"
-                          value={settings.community.inviteCard.panelDescription}
-                          onChange={(event) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              community: {
-                                ...prev.community,
-                                inviteCard: {
-                                  ...prev.community.inviteCard,
-                                  panelDescription: event.target.value,
-                                },
-                              },
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <h2 className="text-lg font-semibold">Logos e ícones de marca</h2>
-                      <p className="text-xs text-muted-foreground">
-                        Todos os ativos visuais em um só lugar, com fallback e prévia rápida.
-                      </p>
-                    </div>
-
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      {logoEditorFields.map((field) => {
-                        const state = logoFieldState[field.target];
-                        const hasDirectValue = Boolean(state.value);
-                        return (
-                          <div
-                            key={field.target}
-                            className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3"
-                          >
-                            <div>
-                              <p className="text-sm font-semibold">{field.label}</p>
-                              <p className="text-xs text-muted-foreground">{field.description}</p>
-                            </div>
-
-                            <div
-                              className={`flex items-center justify-center rounded-xl border border-border/60 bg-background/60 p-3 ${field.frameClassName}`}
-                            >
-                              {state.preview ? (
-                                <img
-                                  src={state.preview}
-                                  alt={field.label}
-                                  className={field.imageClassName}
-                                />
-                              ) : (
-                                <span className="text-xs text-muted-foreground">
-                                  Sem imagem definida
-                                </span>
-                              )}
-                            </div>
-
-                            <p className="text-[11px] text-muted-foreground">{state.status}</p>
-
-                            <div className="flex gap-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="flex-1"
-                                onClick={() => openLibrary(field.target)}
-                              >
-                                Biblioteca
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                disabled={!hasDirectValue}
-                                onClick={() => clearLibraryImage(field.target)}
-                              >
-                                Limpar
-                              </Button>
-                            </div>
-
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
-                        <Label>Exibição da marca na navbar</Label>
-                        <Select
-                          value={navbarMode}
-                          onValueChange={(value) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              branding: {
-                                ...prev.branding,
-                                display: {
-                                  ...prev.branding.display,
-                                  navbar: value as NavbarBrandMode,
-                                },
-                              },
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="min-w-0">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="wordmark">Wordmark</SelectItem>
-                            <SelectItem value="symbol-text">Símbolo + texto</SelectItem>
-                            <SelectItem value="symbol">Somente símbolo</SelectItem>
-                            <SelectItem value="text">Somente texto</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">
-                          Define como a identidade aparece no topo do site.
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
-                        <Label>Exibição da marca no footer</Label>
-                        <Select
-                          value={footerMode}
-                          onValueChange={(value) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              branding: {
-                                ...prev.branding,
-                                display: {
-                                  ...prev.branding.display,
-                                  footer: value as FooterBrandMode,
-                                },
-                              },
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="min-w-0">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="wordmark">Wordmark</SelectItem>
-                            <SelectItem value="symbol-text">Símbolo + texto</SelectItem>
-                            <SelectItem value="text">Somente texto</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">
-                          Define como a identidade aparece no rodapé.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="rounded-2xl border border-border/60 bg-background/50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                          Prévia navbar
-                        </p>
-                        <div
-                          className={`mt-3 flex min-h-[68px] items-center gap-3 rounded-xl border px-4 py-3 ${navbarPreviewShellClass}`}
-                        >
-                          {showWordmarkInNavbarPreview ? (
-                            <img
-                              src={resolvedNavbarWordmarkUrl}
-                              alt={siteNamePreview}
-                              className="h-9 w-auto max-w-[220px] object-contain"
-                            />
-                          ) : (
-                            <>
-                              {showNavbarSymbolPreview ? (
-                                resolvedNavbarSymbolUrl ? (
-                                  <img
-                                    src={resolvedNavbarSymbolUrl}
-                                    alt="Logo principal"
-                                    className="h-9 w-9 rounded-full object-contain"
-                                  />
-                                ) : (
-                                  <span
-                                    className={`inline-flex h-9 w-9 items-center justify-center rounded-full border text-xs font-semibold ${navbarPreviewFallbackClass}`}
-                                  >
-                                    {siteNamePreview.slice(0, 1).toUpperCase()}
-                                  </span>
-                                )
-                              ) : null}
-                              {showNavbarTextPreview ? (
-                                <span className="text-sm font-semibold uppercase tracking-[0.2em]">
-                                  {siteNamePreview}
-                                </span>
-                              ) : null}
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-border/60 bg-background/50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                          Prévia footer
-                        </p>
-                        <div className="mt-3 flex min-h-[68px] items-center gap-3 rounded-xl border border-border/60 bg-background/70 px-4 py-3">
-                          {showWordmarkInFooterPreview ? (
-                            <img
-                              src={resolvedFooterWordmarkUrl}
-                              alt={footerBrandNamePreview}
-                              className="h-9 w-auto max-w-[220px] object-contain"
-                            />
-                          ) : footerMode === "text" ? (
-                            <span className="text-lg font-black tracking-widest text-gradient-rainbow">
-                              {footerBrandNameUpperPreview}
-                            </span>
-                          ) : (
-                            <>
-                              {resolvedFooterSymbolUrl ? (
-                                <img
-                                  src={resolvedFooterSymbolUrl}
-                                  alt="Logo do footer"
-                                  className="h-9 w-9 rounded-full object-contain"
-                                />
-                              ) : null}
-                              <span className="text-lg font-black tracking-widest text-gradient-rainbow">
-                                {footerBrandNameUpperPreview}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="leitor" className="mt-6 space-y-6">
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
-                  <div className="space-y-1">
-                    <h2 className="text-lg font-semibold">Presets globais do leitor</h2>
-                    <p className="text-xs text-muted-foreground">
-                      Esses presets valem para a leitura pública e para os previews editoriais de mangá e webtoon. Overrides antigos por projeto continuam apenas como fallback legado.
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-border/60 bg-background/45 p-4 text-sm text-muted-foreground">
-                    Precedência: preset global do tipo do projeto, depois `readerConfig` legado do projeto e por fim o preset interno padrão.
-                  </div>
-                </CardContent>
-              </Card>
-
-              {readerProjectTypeMeta.map((presetMeta) => {
-                const preset = readerPresets[presetMeta.key];
-                return (
-                  <Card
-                    key={presetMeta.key}
-                    className="border-border/60 bg-card/80"
-                    data-testid={`reader-preset-${presetMeta.key}`}
-                  >
-                    <CardContent className="space-y-6 p-4 md:p-6">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <h2 className="text-lg font-semibold">{presetMeta.title}</h2>
-                          <p className="text-xs text-muted-foreground">
-                            {presetMeta.description}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <DashboardPageBadge>
-                            {preset.direction === PROJECT_READER_DIRECTIONS.RTL
-                              ? "RTL"
-                              : "LTR"}
-                          </DashboardPageBadge>
-                          <DashboardPageBadge>
-                            {preset.viewMode === PROJECT_READER_VIEW_MODES.SCROLL
-                              ? "Scroll"
-                              : "Página"}
-                          </DashboardPageBadge>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label>Direção</Label>
-                          <Select
-                            value={preset.direction}
-                            onValueChange={(value) =>
-                              updateReaderPreset(presetMeta.key, (current) => ({
-                                ...normalizeProjectReaderConfig(current, {
-                                  projectType: presetMeta.projectType,
-                                }),
-                                direction:
-                                  value === PROJECT_READER_DIRECTIONS.LTR
-                                    ? PROJECT_READER_DIRECTIONS.LTR
-                                    : PROJECT_READER_DIRECTIONS.RTL,
-                              }))
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={PROJECT_READER_DIRECTIONS.RTL}>
-                                Direita para esquerda
-                              </SelectItem>
-                              <SelectItem value={PROJECT_READER_DIRECTIONS.LTR}>
-                                Esquerda para direita
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Modo de leitura</Label>
-                          <Select
-                            value={preset.viewMode}
-                            onValueChange={(value) =>
-                              updateReaderPreset(presetMeta.key, (current) => ({
-                                ...normalizeProjectReaderConfig(current, {
-                                  projectType: presetMeta.projectType,
-                                }),
-                                viewMode:
-                                  value === PROJECT_READER_VIEW_MODES.SCROLL
-                                    ? PROJECT_READER_VIEW_MODES.SCROLL
-                                    : PROJECT_READER_VIEW_MODES.PAGE,
-                              }))
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={PROJECT_READER_VIEW_MODES.PAGE}>
-                                Página
-                              </SelectItem>
-                              <SelectItem value={PROJECT_READER_VIEW_MODES.SCROLL}>
-                                Scroll contínuo
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor={`reader-preview-limit-${presetMeta.key}`}>
-                            Limite de preview
-                          </Label>
-                          <Input
-                            id={`reader-preview-limit-${presetMeta.key}`}
-                            type="number"
-                            min="1"
-                            value={preset.previewLimit ?? ""}
-                            placeholder="Opcional"
-                            onChange={(event) =>
-                              updateReaderPreset(presetMeta.key, (current) => ({
-                                ...normalizeProjectReaderConfig(current, {
-                                  projectType: presetMeta.projectType,
-                                }),
-                                previewLimit: event.target.value.trim()
-                                  ? Math.max(1, Number(event.target.value))
-                                  : null,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor={`reader-theme-${presetMeta.key}`}>Preset visual</Label>
-                          <Input
-                            id={`reader-theme-${presetMeta.key}`}
-                            value={preset.themePreset || ""}
-                            placeholder="manga, webtoon, custom..."
-                            onChange={(event) =>
-                              updateReaderPreset(presetMeta.key, (current) => ({
-                                ...normalizeProjectReaderConfig(current, {
-                                  projectType: presetMeta.projectType,
-                                }),
-                                themePreset: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor={`reader-purchase-url-${presetMeta.key}`}>
-                            URL de compra
-                          </Label>
-                          <Input
-                            id={`reader-purchase-url-${presetMeta.key}`}
-                            value={preset.purchaseUrl || ""}
-                            placeholder="Opcional"
-                            onChange={(event) =>
-                              updateReaderPreset(presetMeta.key, (current) => ({
-                                ...normalizeProjectReaderConfig(current, {
-                                  projectType: presetMeta.projectType,
-                                }),
-                                purchaseUrl: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor={`reader-purchase-price-${presetMeta.key}`}>Preço</Label>
-                          <Input
-                            id={`reader-purchase-price-${presetMeta.key}`}
-                            value={preset.purchasePrice || ""}
-                            placeholder="Ex.: R$ 12,90"
-                            onChange={(event) =>
-                              updateReaderPreset(presetMeta.key, (current) => ({
-                                ...normalizeProjectReaderConfig(current, {
-                                  projectType: presetMeta.projectType,
-                                }),
-                                purchasePrice: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid gap-3 md:grid-cols-3">
-                        <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
-                          <span className="space-y-1">
-                            <span className="block font-medium text-foreground">
-                              Primeira página isolada
-                            </span>
-                            <span className="block text-xs text-muted-foreground">
-                              Útil para capas e páginas ímpares.
-                            </span>
-                          </span>
-                          <Switch
-                            checked={preset.firstPageSingle !== false}
-                            onCheckedChange={(checked) =>
-                              updateReaderPreset(presetMeta.key, (current) => ({
-                                ...normalizeProjectReaderConfig(current, {
-                                  projectType: presetMeta.projectType,
-                                }),
-                                firstPageSingle: checked,
-                              }))
-                            }
-                          />
-                        </label>
-
-                        <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
-                          <span className="space-y-1">
-                            <span className="block font-medium text-foreground">
-                              Permitir spread
-                            </span>
-                            <span className="block text-xs text-muted-foreground">
-                              Junta páginas duplas no modo paginado.
-                            </span>
-                          </span>
-                          <Switch
-                            checked={preset.allowSpread !== false}
-                            onCheckedChange={(checked) =>
-                              updateReaderPreset(presetMeta.key, (current) => ({
-                                ...normalizeProjectReaderConfig(current, {
-                                  projectType: presetMeta.projectType,
-                                }),
-                                allowSpread: checked,
-                              }))
-                            }
-                          />
-                        </label>
-
-                        <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
-                          <span className="space-y-1">
-                            <span className="block font-medium text-foreground">
-                              Mostrar rodapé
-                            </span>
-                            <span className="block text-xs text-muted-foreground">
-                              Mantém os controles inferiores do viewer.
-                            </span>
-                          </span>
-                          <Switch
-                            checked={preset.showFooter !== false}
-                            onCheckedChange={(checked) =>
-                              updateReaderPreset(presetMeta.key, (current) => ({
-                                ...normalizeProjectReaderConfig(current, {
-                                  projectType: presetMeta.projectType,
-                                }),
-                                showFooter: checked,
-                              }))
-                            }
-                          />
-                        </label>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </TabsContent>
-
-            <TabsContent value="traducoes" className="mt-6 space-y-6">
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-6 p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-semibold">Tags</h2>
-                      <p className="text-xs text-muted-foreground">
-                        Termos em inglês importados do AniList com a tradução exibida no site.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => syncAniListTerms()}
-                        disabled={isSyncingAniList}
-                        className="gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        {isSyncingAniList ? "Importando..." : "Importar AniList"}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          void handleSaveTranslations();
-                        }}
-                        disabled={isSavingTranslations}
-                        className="gap-2"
-                      >
-                        <Save className="h-4 w-4" />
-                        {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                    <Input
-                      placeholder="Buscar tag"
-                      value={tagQuery}
-                      onChange={(event) => setTagQuery(event.target.value)}
-                    />
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Nova tag"
-                        value={newTag}
-                        onChange={(event) => setNewTag(event.target.value)}
-                      />
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          const value = newTag.trim();
-                          if (!value || tagTranslations[value] !== undefined) {
-                            return;
-                          }
-                          setTagTranslations((prev) => ({ ...prev, [value]: "" }));
-                          setNewTag("");
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="overflow-hidden rounded-xl border border-border/60">
-                    {filteredTags.length === 0 ? (
-                      <p className="px-4 py-3 text-xs text-muted-foreground">
-                        Nenhuma tag encontrada.
-                      </p>
-                    ) : (
-                      <div className="max-h-[420px] overflow-auto no-scrollbar">
-                        <table className={responsiveTranslationTableClass}>
-                          <colgroup>
-                            <col className={responsiveTranslationTermColClass} />
-                            <col className={responsiveTranslationValueColClass} />
-                            <col className={responsiveTranslationActionColClass} />
-                          </colgroup>
-                          <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
-                            <tr>
-                              <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
-                              <th className="px-4 py-3 text-left font-medium">Tradução</th>
-                              <th className="px-4 py-3 text-right font-medium">Ações</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border/60">
-                            {filteredTags.map((tag) => (
-                              <tr key={tag} className="bg-background/40">
-                                <td className="px-4 py-3 font-medium text-foreground">{tag}</td>
-                                <td className="px-4 py-3">
-                                  <Input
-                                    value={tagTranslations[tag] || ""}
-                                    placeholder={tag}
-                                    onChange={(event) =>
-                                      setTagTranslations((prev) => ({
-                                        ...prev,
-                                        [tag]: event.target.value,
-                                      }))
-                                    }
-                                  />
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() =>
-                                      setTagTranslations((prev) => {
-                                        const next = { ...prev };
-                                        delete next[tag];
-                                        return next;
-                                      })
-                                    }
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-6 p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-semibold">Gêneros</h2>
-                      <p className="text-xs text-muted-foreground">
-                        Termos em inglês importados do AniList com a tradução exibida no site.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => syncAniListTerms()}
-                        disabled={isSyncingAniList}
-                        className="gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        {isSyncingAniList ? "Importando..." : "Importar AniList"}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          void handleSaveTranslations();
-                        }}
-                        disabled={isSavingTranslations}
-                        className="gap-2"
-                      >
-                        <Save className="h-4 w-4" />
-                        {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                    <Input
-                      placeholder="Buscar gênero"
-                      value={genreQuery}
-                      onChange={(event) => setGenreQuery(event.target.value)}
-                    />
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Novo gênero"
-                        value={newGenre}
-                        onChange={(event) => setNewGenre(event.target.value)}
-                      />
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          const value = newGenre.trim();
-                          if (!value || genreTranslations[value] !== undefined) {
-                            return;
-                          }
-                          setGenreTranslations((prev) => ({ ...prev, [value]: "" }));
-                          setNewGenre("");
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="overflow-hidden rounded-xl border border-border/60">
-                    {filteredGenres.length === 0 ? (
-                      <p className="px-4 py-3 text-xs text-muted-foreground">
-                        Nenhum gênero encontrado.
-                      </p>
-                    ) : (
-                      <div className="max-h-[420px] overflow-auto no-scrollbar">
-                        <table className={responsiveTranslationTableClass}>
-                          <colgroup>
-                            <col className={responsiveTranslationTermColClass} />
-                            <col className={responsiveTranslationValueColClass} />
-                            <col className={responsiveTranslationActionColClass} />
-                          </colgroup>
-                          <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
-                            <tr>
-                              <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
-                              <th className="px-4 py-3 text-left font-medium">Tradução</th>
-                              <th className="px-4 py-3 text-right font-medium">Ações</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border/60">
-                            {filteredGenres.map((genre) => (
-                              <tr key={genre} className="bg-background/40">
-                                <td className="px-4 py-3 font-medium text-foreground">{genre}</td>
-                                <td className="px-4 py-3">
-                                  <Input
-                                    value={genreTranslations[genre] || ""}
-                                    placeholder={genre}
-                                    onChange={(event) =>
-                                      setGenreTranslations((prev) => ({
-                                        ...prev,
-                                        [genre]: event.target.value,
-                                      }))
-                                    }
-                                  />
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() =>
-                                      setGenreTranslations((prev) => {
-                                        const next = { ...prev };
-                                        delete next[genre];
-                                        return next;
-                                      })
-                                    }
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-6 p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-semibold">Cargos do AniList</h2>
-                      <p className="text-xs text-muted-foreground">
-                        Traduza funções da equipe do anime exibidas no projeto.
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        void handleSaveTranslations();
-                      }}
-                      disabled={isSavingTranslations}
-                      className="gap-2"
-                    >
-                      <Save className="h-4 w-4" />
-                      {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
-                    </Button>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                    <Input
-                      placeholder="Buscar cargo"
-                      value={staffRoleQuery}
-                      onChange={(event) => setStaffRoleQuery(event.target.value)}
-                    />
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Novo cargo"
-                        value={newStaffRole}
-                        onChange={(event) => setNewStaffRole(event.target.value)}
-                      />
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          const value = newStaffRole.trim();
-                          if (!value || staffRoleTranslations[value] !== undefined) {
-                            return;
-                          }
-                          setStaffRoleTranslations((prev) => ({ ...prev, [value]: "" }));
-                          setNewStaffRole("");
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="overflow-hidden rounded-xl border border-border/60">
-                    {filteredStaffRoles.length === 0 ? (
-                      <p className="px-4 py-3 text-xs text-muted-foreground">
-                        Nenhum cargo encontrado.
-                      </p>
-                    ) : (
-                      <div className="max-h-[420px] overflow-auto no-scrollbar">
-                        <table className={responsiveTranslationTableClass}>
-                          <colgroup>
-                            <col className={responsiveTranslationTermColClass} />
-                            <col className={responsiveTranslationValueColClass} />
-                            <col className={responsiveTranslationActionColClass} />
-                          </colgroup>
-                          <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
-                            <tr>
-                              <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
-                              <th className="px-4 py-3 text-left font-medium">Tradução</th>
-                              <th className="px-4 py-3 text-right font-medium">Ações</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border/60">
-                            {filteredStaffRoles.map((role) => (
-                              <tr key={role} className="bg-background/40">
-                                <td className="px-4 py-3 font-medium text-foreground">{role}</td>
-                                <td className="px-4 py-3">
-                                  <Input
-                                    value={staffRoleTranslations[role] || ""}
-                                    placeholder={role}
-                                    onChange={(event) =>
-                                      setStaffRoleTranslations((prev) => ({
-                                        ...prev,
-                                        [role]: event.target.value,
-                                      }))
-                                    }
-                                  />
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() =>
-                                      setStaffRoleTranslations((prev) => {
-                                        const next = { ...prev };
-                                        delete next[role];
-                                        return next;
-                                      })
-                                    }
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="downloads" className="mt-6 space-y-6">
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-6 p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-semibold">Fontes de download</h2>
-                      <p className="text-xs text-muted-foreground">
-                        Ajuste nome, cor e envie o SVG do serviço para exibição nos downloads.
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        setSettings((prev) => ({
-                          ...prev,
-                          downloads: {
-                            ...prev.downloads,
-                            sources: [
-                              ...prev.downloads.sources,
-                              {
-                                id: `fonte-${Date.now()}`,
-                                label: "Nova fonte",
-                                color: "#64748B",
-                                icon: "",
-                                tintIcon: true,
-                              },
-                            ],
-                          },
-                        }))
-                      }
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid gap-3">
-                    {settings.downloads.sources.map((source, index) => {
-                      const shouldTint = source.tintIcon !== false;
-                      return (
-                        <div
-                          key={`${source.id}-${index}`}
-                          className={`${responsiveSvgCardRowClass} md:grid-cols-[1.2fr_0.25fr_0.6fr_1.6fr_auto]`}
-                        >
-                          <Input
-                            value={source.label}
-                            onChange={(event) =>
-                              setSettings((prev) => {
-                                const next = [...prev.downloads.sources];
-                                next[index] = { ...next[index], label: event.target.value };
-                                return { ...prev, downloads: { ...prev.downloads, sources: next } };
-                              })
-                            }
-                            placeholder="Nome"
-                          />
-                          <div className={responsiveSvgCardPickerClusterClass}>
-                            <div className={responsiveSvgCardColorClass}>
-                              <ColorPicker
-                              label=""
-                              showSwatch
-                              buttonClassName="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-xs transition hover:border-primary/40 md:h-9 md:w-9"
-                              value={source.color}
-                              onChange={(color) =>
-                                setSettings((prev) => {
-                                  const next = [...prev.downloads.sources];
-                                  next[index] = { ...next[index], color: color.toString("hex") };
-                                  return {
-                                    ...prev,
-                                    downloads: { ...prev.downloads, sources: next },
-                                  };
-                                })
-                              }
-                            />
-                          </div>
-                          <div className={responsiveSvgCardTintClass}>
-                            <span className={responsiveSvgCardTintLabelClass}>
-                              Aplicar ao ícone
-                            </span>
-                            <Switch
-                              checked={shouldTint}
-                              onCheckedChange={(checked) =>
-                                setSettings((prev) => {
-                                  const next = [...prev.downloads.sources];
-                                  next[index] = { ...next[index], tintIcon: checked };
-                                  return {
-                                    ...prev,
-                                    downloads: { ...prev.downloads, sources: next },
-                                  };
-                                })
-                              }
-                              aria-label={`Colorir SVG de ${source.label}`}
-                            />
-                            </div>
-                          </div>
-                          <div className={responsiveSvgCardPreviewClass}>
-                            {isIconUrl(source.icon) ? (
-                              shouldTint ? (
-                                <ThemedSvgLogo
-                                  url={toIconPreviewUrl(source.icon)}
-                                  label={`Ícone ${source.label}`}
-                                  className="h-6 w-6 rounded bg-card/90 p-1"
-                                  color={source.color}
-                                />
-                              ) : (
-                                <img
-                                  src={toIconPreviewUrl(source.icon)}
-                                  alt={`Ícone ${source.label}`}
-                                  className="h-6 w-6 rounded bg-card/90 p-1"
-                                />
-                              )
-                            ) : (
-                              <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-card/80 text-[10px]">
-                                SVG
-                              </span>
-                            )}
-                            <span className={responsiveSvgCardPreviewStatusClass}>
-                              {isIconUrl(source.icon) ? "SVG atual" : "Sem SVG"}
-                            </span>
-                            <div className={responsiveSvgCardUploadActionClass}>
+                    <TabsContent value="geral" className="mt-6 space-y-6">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-6 p-6">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>Nome do site</Label>
                               <Input
-                                id={`download-icon-${index}`}
-                                type="file"
-                                accept="image/svg+xml"
-                                className="sr-only"
-                                onChange={(event) => {
-                                  const file = event.target.files?.[0];
-                                  if (file) {
-                                    uploadDownloadIcon(file, index);
-                                  }
-                                }}
-                                disabled={uploadingKey === `download-icon-${index}`}
-                              />
-                              <Label
-                                htmlFor={`download-icon-${index}`}
-                                className={responsiveSvgCardUploadLabelClass}
-                              >
-                                Escolher SVG
-                              </Label>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className={responsiveSvgCardMobileRemoveButtonClass}
-                                onClick={() =>
+                                value={settings.site.name}
+                                onChange={(event) =>
                                   setSettings((prev) => ({
                                     ...prev,
-                                    downloads: {
-                                      ...prev.downloads,
-                                      sources: prev.downloads.sources.filter(
-                                        (_, idx) => idx !== index,
-                                      ),
+                                    site: { ...prev.site, name: event.target.value },
+                                    footer: { ...prev.footer, brandName: event.target.value },
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Separador do título</Label>
+                              <Input
+                                value={settings.site.titleSeparator || " | "}
+                                onChange={(event) =>
+                                  setSettings((prev) => ({
+                                    ...prev,
+                                    site: { ...prev.site, titleSeparator: event.target.value },
+                                  }))
+                                }
+                                placeholder=" | "
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Usado entre o título da página e o nome do site.
+                              </p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Descrição curta</Label>
+                              <Textarea
+                                value={settings.site.description}
+                                onChange={(event) =>
+                                  setSettings((prev) => ({
+                                    ...prev,
+                                    site: { ...prev.site, description: event.target.value },
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Cor de destaque</Label>
+                              <div className="flex items-center gap-3">
+                                <ColorPicker
+                                  label=""
+                                  showSwatch
+                                  buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-xs transition hover:border-primary/40"
+                                  value={settings.theme.accent || "#000000"}
+                                  onChange={(color) =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      theme: { ...prev.theme, accent: color.toString("hex") },
+                                    }))
+                                  }
+                                />
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Atualiza a cor principal e o accent do site.
+                              </p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Card Em Progresso</Label>
+                              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2">
+                                <span className="text-sm text-foreground">
+                                  Usar cor de destaque no card Em Progresso
+                                </span>
+                                <Switch
+                                  checked={Boolean(settings.theme.useAccentInProgressCard)}
+                                  onCheckedChange={(checked) =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      theme: {
+                                        ...prev.theme,
+                                        useAccentInProgressCard: checked,
+                                      },
+                                    }))
+                                  }
+                                  aria-label="Usar cor de destaque no card Em Progresso"
+                                />
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Quando ativado, barra e badge usam a cor temática em vez da cor da
+                                etapa.
+                              </p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Tema padrão do site</Label>
+                              <Select
+                                value={settings.theme.mode || "dark"}
+                                onValueChange={(value) =>
+                                  setSettings((prev) => ({
+                                    ...prev,
+                                    theme: {
+                                      ...prev.theme,
+                                      mode: value === "light" ? "light" : "dark",
                                     },
                                   }))
                                 }
                               >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione o tema padrão" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="dark">Escuro</SelectItem>
+                                  <SelectItem value="light">Claro</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground">
+                                Define o tema padrão global. Cada usuário pode sobrescrever no
+                                cabeçalho.
+                              </p>
                             </div>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className={responsiveSvgCardDesktopRemoveButtonClass}
-                            onClick={() =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                downloads: {
-                                  ...prev.downloads,
-                                  sources: prev.downloads.sources.filter((_, idx) => idx !== index),
-                                },
-                              }))
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
 
-            <TabsContent value="equipe" className="mt-6 space-y-6">
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-6 p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-semibold">Funções do time</h2>
-                      <p className="text-xs text-muted-foreground">
-                        Ajuste os cargos disponíveis para membros.
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        setSettings((prev) => ({
-                          ...prev,
-                          teamRoles: [
-                            ...prev.teamRoles,
-                            { id: `role-${Date.now()}`, label: "Nova função", icon: "user" },
-                          ],
-                        }))
-                      }
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
+                          <div className="space-y-4 rounded-2xl border border-border/60 bg-background/50 p-4">
+                            <div>
+                              <h2 className="text-lg font-semibold">Card de comunidade</h2>
+                              <p className="text-xs text-muted-foreground">
+                                Configure os textos e o botão principal do card de Discord.
+                              </p>
+                            </div>
 
-                  <div className="grid gap-4">
-                    {settings.teamRoles.map((role, index) => (
-                      <div
-                        key={`${role.id}-${index}`}
-                        className={`${responsiveSvgCardRowClass} md:grid-cols-[1.4fr_1fr_auto]`}
-                      >
-                        <Input
-                          value={role.label}
-                          onChange={(event) =>
-                            setSettings((prev) => {
-                              const next = [...prev.teamRoles];
-                              next[index] = { ...next[index], label: event.target.value };
-                              return { ...prev, teamRoles: next };
-                            })
-                          }
-                          placeholder="Nome"
-                        />
-                        <Select
-                          value={role.icon || "user"}
-                          onValueChange={(value) =>
-                            setSettings((prev) => {
-                              const next = [...prev.teamRoles];
-                              next[index] = { ...next[index], icon: value };
-                              return { ...prev, teamRoles: next };
-                            })
-                          }
-                        >
-                          <SelectTrigger className="min-w-0 w-full">
-                            <SelectValue placeholder="Ícone" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {roleIconOptions.map((option) => {
-                              const Icon = roleIconMap[option.id] || User;
-                              return (
-                                <SelectItem key={option.id} value={option.id}>
-                                  <div className="flex items-center gap-2">
-                                    <Icon className="h-4 w-4 text-muted-foreground" />
-                                    <span>{option.label}</span>
-                                  </div>
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className={responsiveCompactRowDeleteButtonClass}
-                          onClick={() =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              teamRoles: prev.teamRoles.filter((_, idx) => idx !== index),
-                            }))
-                          }
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="redes-usuarios" className="mt-6 space-y-6">
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-6 p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-semibold">Redes sociais (Usuários)</h2>
-                      <p className="text-xs text-muted-foreground">
-                        Opções exibidas no editor de usuários.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() =>
-                          setLinkTypes((prev) => [
-                            ...prev,
-                            { id: `nova-${Date.now()}`, label: "Nova rede", icon: "globe" },
-                          ])
-                        }
-                      >
-                        <Plus className="h-4 w-4" />
-                        Adicionar
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          void handleSaveLinkTypes();
-                        }}
-                        disabled={isSavingLinkTypes}
-                        className="gap-2"
-                      >
-                        <Save className="h-4 w-4" />
-                        {isSavingLinkTypes ? "Salvando..." : "Salvar"}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3">
-                    {linkTypes.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">Nenhuma rede cadastrada.</p>
-                    ) : null}
-                    {linkTypes.map((link, index) => {
-                      const isCustomIcon = isIconUrl(link.icon);
-                      return (
-                        <div
-                          key={`${link.id}-${index}`}
-                          className={`${responsiveSvgCardRowClass} md:grid-cols-[1fr_1.6fr_auto]`}
-                        >
-                          <Input
-                            value={link.label}
-                            placeholder="Label"
-                            onChange={(event) =>
-                              setLinkTypes((prev) => {
-                                const next = [...prev];
-                                next[index] = { ...next[index], label: event.target.value };
-                                return next;
-                              })
-                            }
-                          />
-                          <div className={responsiveSvgCardPreviewClass}>
-                            {isCustomIcon ? (
-                              <ThemedSvgLogo
-                                url={toIconPreviewUrl(link.icon)}
-                                label={`Ícone ${link.label}`}
-                                className="h-6 w-6 text-primary"
-                              />
-                            ) : (
-                              <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-card/80 text-[10px]">
-                                SVG
-                              </span>
-                            )}
-                            <span className={responsiveSvgCardPreviewStatusClass}>
-                              {isCustomIcon ? "SVG atual" : "Sem SVG"}
-                            </span>
-                            <div className={responsiveSvgCardUploadActionClass}>
-                              <Input
-                                id={`linktype-icon-${index}`}
-                                type="file"
-                                accept="image/svg+xml"
-                                className="sr-only"
-                                onChange={(event) => {
-                                  const file = event.target.files?.[0];
-                                  if (file) {
-                                    uploadLinkTypeIcon(file, index);
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <div className="space-y-2">
+                                <Label htmlFor="community-card-title">Título do card</Label>
+                                <Input
+                                  id="community-card-title"
+                                  value={settings.community.inviteCard.title}
+                                  onChange={(event) =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      community: {
+                                        ...prev.community,
+                                        inviteCard: {
+                                          ...prev.community.inviteCard,
+                                          title: event.target.value,
+                                        },
+                                      },
+                                    }))
                                   }
-                                }}
-                                disabled={uploadingKey === `linktype-icon-${index}`}
-                              />
-                              <Label
-                                htmlFor={`linktype-icon-${index}`}
-                                className={responsiveSvgCardUploadLabelClass}
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="community-card-button-label">Texto do botão</Label>
+                                <Input
+                                  id="community-card-button-label"
+                                  value={settings.community.inviteCard.ctaLabel}
+                                  onChange={(event) =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      community: {
+                                        ...prev.community,
+                                        inviteCard: {
+                                          ...prev.community.inviteCard,
+                                          ctaLabel: event.target.value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                              </div>
+
+                              <div className="space-y-2 md:col-span-2">
+                                <Label htmlFor="community-card-subtitle">Subtítulo</Label>
+                                <Textarea
+                                  id="community-card-subtitle"
+                                  value={settings.community.inviteCard.subtitle}
+                                  onChange={(event) =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      community: {
+                                        ...prev.community,
+                                        inviteCard: {
+                                          ...prev.community.inviteCard,
+                                          subtitle: event.target.value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="community-card-panel-title">
+                                  Título do bloco interno
+                                </Label>
+                                <Input
+                                  id="community-card-panel-title"
+                                  value={settings.community.inviteCard.panelTitle}
+                                  onChange={(event) =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      community: {
+                                        ...prev.community,
+                                        inviteCard: {
+                                          ...prev.community.inviteCard,
+                                          panelTitle: event.target.value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="community-card-cta-url">URL do botão</Label>
+                                <Input
+                                  id="community-card-cta-url"
+                                  value={settings.community.inviteCard.ctaUrl}
+                                  onChange={(event) =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      community: {
+                                        ...prev.community,
+                                        inviteCard: {
+                                          ...prev.community.inviteCard,
+                                          ctaUrl: event.target.value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                  placeholder="https://discord.com/invite/..."
+                                />
+                              </div>
+
+                              <div className="space-y-2 md:col-span-2">
+                                <Label htmlFor="community-card-panel-description">
+                                  Texto do bloco interno
+                                </Label>
+                                <Textarea
+                                  id="community-card-panel-description"
+                                  value={settings.community.inviteCard.panelDescription}
+                                  onChange={(event) =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      community: {
+                                        ...prev.community,
+                                        inviteCard: {
+                                          ...prev.community.inviteCard,
+                                          panelDescription: event.target.value,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div>
+                              <h2 className="text-lg font-semibold">Logos e ícones de marca</h2>
+                              <p className="text-xs text-muted-foreground">
+                                Todos os ativos visuais em um só lugar, com fallback e prévia
+                                rápida.
+                              </p>
+                            </div>
+
+                            <div className="grid gap-4 lg:grid-cols-2">
+                              {logoEditorFields.map((field) => {
+                                const state = logoFieldState[field.target];
+                                const hasDirectValue = Boolean(state.value);
+                                return (
+                                  <div
+                                    key={field.target}
+                                    className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3"
+                                  >
+                                    <div>
+                                      <p className="text-sm font-semibold">{field.label}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {field.description}
+                                      </p>
+                                    </div>
+
+                                    <div
+                                      className={`flex items-center justify-center rounded-xl border border-border/60 bg-background/60 p-3 ${field.frameClassName}`}
+                                    >
+                                      {state.preview ? (
+                                        <img
+                                          src={state.preview}
+                                          alt={field.label}
+                                          className={field.imageClassName}
+                                        />
+                                      ) : (
+                                        <span className="text-xs text-muted-foreground">
+                                          Sem imagem definida
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <p className="text-[11px] text-muted-foreground">
+                                      {state.status}
+                                    </p>
+
+                                    <div className="flex gap-2">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1"
+                                        onClick={() => openLibrary(field.target)}
+                                      >
+                                        Biblioteca
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={!hasDirectValue}
+                                        onClick={() => clearLibraryImage(field.target)}
+                                      >
+                                        Limpar
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
+                                <Label>Exibição da marca na navbar</Label>
+                                <Select
+                                  value={navbarMode}
+                                  onValueChange={(value) =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      branding: {
+                                        ...prev.branding,
+                                        display: {
+                                          ...prev.branding.display,
+                                          navbar: value as NavbarBrandMode,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger className="min-w-0">
+                                    <SelectValue placeholder="Selecione" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="wordmark">Wordmark</SelectItem>
+                                    <SelectItem value="symbol-text">Símbolo + texto</SelectItem>
+                                    <SelectItem value="symbol">Somente símbolo</SelectItem>
+                                    <SelectItem value="text">Somente texto</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">
+                                  Define como a identidade aparece no topo do site.
+                                </p>
+                              </div>
+
+                              <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
+                                <Label>Exibição da marca no footer</Label>
+                                <Select
+                                  value={footerMode}
+                                  onValueChange={(value) =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      branding: {
+                                        ...prev.branding,
+                                        display: {
+                                          ...prev.branding.display,
+                                          footer: value as FooterBrandMode,
+                                        },
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger className="min-w-0">
+                                    <SelectValue placeholder="Selecione" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="wordmark">Wordmark</SelectItem>
+                                    <SelectItem value="symbol-text">Símbolo + texto</SelectItem>
+                                    <SelectItem value="text">Somente texto</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">
+                                  Define como a identidade aparece no rodapé.
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <div className="rounded-2xl border border-border/60 bg-background/50 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                                  Prévia navbar
+                                </p>
+                                <div
+                                  className={`mt-3 flex min-h-[68px] items-center gap-3 rounded-xl border px-4 py-3 ${navbarPreviewShellClass}`}
+                                >
+                                  {showWordmarkInNavbarPreview ? (
+                                    <img
+                                      src={resolvedNavbarWordmarkUrl}
+                                      alt={siteNamePreview}
+                                      className="h-9 w-auto max-w-[220px] object-contain"
+                                    />
+                                  ) : (
+                                    <>
+                                      {showNavbarSymbolPreview ? (
+                                        resolvedNavbarSymbolUrl ? (
+                                          <img
+                                            src={resolvedNavbarSymbolUrl}
+                                            alt="Logo principal"
+                                            className="h-9 w-9 rounded-full object-contain"
+                                          />
+                                        ) : (
+                                          <span
+                                            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border text-xs font-semibold ${navbarPreviewFallbackClass}`}
+                                          >
+                                            {siteNamePreview.slice(0, 1).toUpperCase()}
+                                          </span>
+                                        )
+                                      ) : null}
+                                      {showNavbarTextPreview ? (
+                                        <span className="text-sm font-semibold uppercase tracking-[0.2em]">
+                                          {siteNamePreview}
+                                        </span>
+                                      ) : null}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="rounded-2xl border border-border/60 bg-background/50 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                                  Prévia footer
+                                </p>
+                                <div className="mt-3 flex min-h-[68px] items-center gap-3 rounded-xl border border-border/60 bg-background/70 px-4 py-3">
+                                  {showWordmarkInFooterPreview ? (
+                                    <img
+                                      src={resolvedFooterWordmarkUrl}
+                                      alt={footerBrandNamePreview}
+                                      className="h-9 w-auto max-w-[220px] object-contain"
+                                    />
+                                  ) : footerMode === "text" ? (
+                                    <span className="text-lg font-black tracking-widest text-gradient-rainbow">
+                                      {footerBrandNameUpperPreview}
+                                    </span>
+                                  ) : (
+                                    <>
+                                      {resolvedFooterSymbolUrl ? (
+                                        <img
+                                          src={resolvedFooterSymbolUrl}
+                                          alt="Logo do footer"
+                                          className="h-9 w-9 rounded-full object-contain"
+                                        />
+                                      ) : null}
+                                      <span className="text-lg font-black tracking-widest text-gradient-rainbow">
+                                        {footerBrandNameUpperPreview}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    <TabsContent value="leitor" className="mt-6 space-y-6">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
+                          <div className="space-y-1">
+                            <h2 className="text-lg font-semibold">Presets globais do leitor</h2>
+                            <p className="text-xs text-muted-foreground">
+                              Esses presets valem para a leitura pública e para os previews
+                              editoriais de mangá e webtoon. Overrides antigos por projeto continuam
+                              apenas como fallback legado.
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-border/60 bg-background/45 p-4 text-sm text-muted-foreground">
+                            Precedência: preset global do tipo do projeto, depois `readerConfig`
+                            legado do projeto e por fim o preset interno padrão.
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {readerProjectTypeMeta.map((presetMeta) => {
+                        const preset = readerPresets[presetMeta.key];
+                        return (
+                          <Card
+                            key={presetMeta.key}
+                            className="border-border/60 bg-card/80"
+                            data-testid={`reader-preset-${presetMeta.key}`}
+                          >
+                            <CardContent className="space-y-6 p-4 md:p-6">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="space-y-1">
+                                  <h2 className="text-lg font-semibold">{presetMeta.title}</h2>
+                                  <p className="text-xs text-muted-foreground">
+                                    {presetMeta.description}
+                                  </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <DashboardPageBadge>
+                                    {preset.direction === PROJECT_READER_DIRECTIONS.RTL
+                                      ? "RTL"
+                                      : "LTR"}
+                                  </DashboardPageBadge>
+                                  <DashboardPageBadge>
+                                    {preset.viewMode === PROJECT_READER_VIEW_MODES.SCROLL
+                                      ? "Scroll"
+                                      : "Página"}
+                                  </DashboardPageBadge>
+                                </div>
+                              </div>
+
+                              <div className="grid gap-4 md:grid-cols-2">
+                                <div className="space-y-2">
+                                  <Label>Direção</Label>
+                                  <Select
+                                    value={preset.direction}
+                                    onValueChange={(value) =>
+                                      updateReaderPreset(presetMeta.key, (current) => ({
+                                        ...normalizeProjectReaderConfig(current, {
+                                          projectType: presetMeta.projectType,
+                                        }),
+                                        direction:
+                                          value === PROJECT_READER_DIRECTIONS.LTR
+                                            ? PROJECT_READER_DIRECTIONS.LTR
+                                            : PROJECT_READER_DIRECTIONS.RTL,
+                                      }))
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Selecione" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value={PROJECT_READER_DIRECTIONS.RTL}>
+                                        Direita para esquerda
+                                      </SelectItem>
+                                      <SelectItem value={PROJECT_READER_DIRECTIONS.LTR}>
+                                        Esquerda para direita
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label>Modo de leitura</Label>
+                                  <Select
+                                    value={preset.viewMode}
+                                    onValueChange={(value) =>
+                                      updateReaderPreset(presetMeta.key, (current) => ({
+                                        ...normalizeProjectReaderConfig(current, {
+                                          projectType: presetMeta.projectType,
+                                        }),
+                                        viewMode:
+                                          value === PROJECT_READER_VIEW_MODES.SCROLL
+                                            ? PROJECT_READER_VIEW_MODES.SCROLL
+                                            : PROJECT_READER_VIEW_MODES.PAGE,
+                                      }))
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Selecione" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value={PROJECT_READER_VIEW_MODES.PAGE}>
+                                        Página
+                                      </SelectItem>
+                                      <SelectItem value={PROJECT_READER_VIEW_MODES.SCROLL}>
+                                        Scroll contínuo
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor={`reader-preview-limit-${presetMeta.key}`}>
+                                    Limite de preview
+                                  </Label>
+                                  <Input
+                                    id={`reader-preview-limit-${presetMeta.key}`}
+                                    type="number"
+                                    min="1"
+                                    value={preset.previewLimit ?? ""}
+                                    placeholder="Opcional"
+                                    onChange={(event) =>
+                                      updateReaderPreset(presetMeta.key, (current) => ({
+                                        ...normalizeProjectReaderConfig(current, {
+                                          projectType: presetMeta.projectType,
+                                        }),
+                                        previewLimit: event.target.value.trim()
+                                          ? Math.max(1, Number(event.target.value))
+                                          : null,
+                                      }))
+                                    }
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor={`reader-theme-${presetMeta.key}`}>
+                                    Preset visual
+                                  </Label>
+                                  <Input
+                                    id={`reader-theme-${presetMeta.key}`}
+                                    value={preset.themePreset || ""}
+                                    placeholder="manga, webtoon, custom..."
+                                    onChange={(event) =>
+                                      updateReaderPreset(presetMeta.key, (current) => ({
+                                        ...normalizeProjectReaderConfig(current, {
+                                          projectType: presetMeta.projectType,
+                                        }),
+                                        themePreset: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor={`reader-purchase-url-${presetMeta.key}`}>
+                                    URL de compra
+                                  </Label>
+                                  <Input
+                                    id={`reader-purchase-url-${presetMeta.key}`}
+                                    value={preset.purchaseUrl || ""}
+                                    placeholder="Opcional"
+                                    onChange={(event) =>
+                                      updateReaderPreset(presetMeta.key, (current) => ({
+                                        ...normalizeProjectReaderConfig(current, {
+                                          projectType: presetMeta.projectType,
+                                        }),
+                                        purchaseUrl: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor={`reader-purchase-price-${presetMeta.key}`}>
+                                    Preço
+                                  </Label>
+                                  <Input
+                                    id={`reader-purchase-price-${presetMeta.key}`}
+                                    value={preset.purchasePrice || ""}
+                                    placeholder="Ex.: R$ 12,90"
+                                    onChange={(event) =>
+                                      updateReaderPreset(presetMeta.key, (current) => ({
+                                        ...normalizeProjectReaderConfig(current, {
+                                          projectType: presetMeta.projectType,
+                                        }),
+                                        purchasePrice: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid gap-3 md:grid-cols-3">
+                                <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
+                                  <span className="space-y-1">
+                                    <span className="block font-medium text-foreground">
+                                      Primeira página isolada
+                                    </span>
+                                    <span className="block text-xs text-muted-foreground">
+                                      Útil para capas e páginas ímpares.
+                                    </span>
+                                  </span>
+                                  <Switch
+                                    checked={preset.firstPageSingle !== false}
+                                    onCheckedChange={(checked) =>
+                                      updateReaderPreset(presetMeta.key, (current) => ({
+                                        ...normalizeProjectReaderConfig(current, {
+                                          projectType: presetMeta.projectType,
+                                        }),
+                                        firstPageSingle: checked,
+                                      }))
+                                    }
+                                  />
+                                </label>
+
+                                <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
+                                  <span className="space-y-1">
+                                    <span className="block font-medium text-foreground">
+                                      Permitir spread
+                                    </span>
+                                    <span className="block text-xs text-muted-foreground">
+                                      Junta páginas duplas no modo paginado.
+                                    </span>
+                                  </span>
+                                  <Switch
+                                    checked={preset.allowSpread !== false}
+                                    onCheckedChange={(checked) =>
+                                      updateReaderPreset(presetMeta.key, (current) => ({
+                                        ...normalizeProjectReaderConfig(current, {
+                                          projectType: presetMeta.projectType,
+                                        }),
+                                        allowSpread: checked,
+                                      }))
+                                    }
+                                  />
+                                </label>
+
+                                <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
+                                  <span className="space-y-1">
+                                    <span className="block font-medium text-foreground">
+                                      Mostrar rodapé
+                                    </span>
+                                    <span className="block text-xs text-muted-foreground">
+                                      Mantém os controles inferiores do viewer.
+                                    </span>
+                                  </span>
+                                  <Switch
+                                    checked={preset.showFooter !== false}
+                                    onCheckedChange={(checked) =>
+                                      updateReaderPreset(presetMeta.key, (current) => ({
+                                        ...normalizeProjectReaderConfig(current, {
+                                          projectType: presetMeta.projectType,
+                                        }),
+                                        showFooter: checked,
+                                      }))
+                                    }
+                                  />
+                                </label>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </TabsContent>
+
+                    <TabsContent value="traducoes" className="mt-6 space-y-6">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-6 p-6">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <h2 className="text-lg font-semibold">Tags</h2>
+                              <p className="text-xs text-muted-foreground">
+                                Termos em inglês importados do AniList com a tradução exibida no
+                                site.
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => syncAniListTerms()}
+                                disabled={isSyncingAniList}
+                                className="gap-2"
                               >
-                                Escolher SVG
-                              </Label>
+                                <Download className="h-4 w-4" />
+                                {isSyncingAniList ? "Importando..." : "Importar AniList"}
+                              </Button>
                               <Button
                                 type="button"
-                                variant="ghost"
-                                size="icon"
-                                className={responsiveSvgCardMobileRemoveButtonClass}
-                                onClick={() =>
-                                  setLinkTypes((prev) => prev.filter((_, idx) => idx !== index))
-                                }
+                                size="sm"
+                                variant="outline"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  void handleSaveTranslations();
+                                }}
+                                disabled={isSavingTranslations}
+                                className="gap-2"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Save className="h-4 w-4" />
+                                {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
                               </Button>
                             </div>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className={responsiveSvgCardDesktopRemoveButtonClass}
-                            onClick={() =>
-                              setLinkTypes((prev) => prev.filter((_, idx) => idx !== index))
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="navbar" className="mt-6 space-y-6">
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-6 p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-semibold">Links do menu</h2>
-                      <p className="text-xs text-muted-foreground">
-                        Ordem e URLs usados na navbar do site.
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        setSettings((prev) => ({
-                          ...prev,
-                          navbar: {
-                            ...prev.navbar,
-                            links: [
-                              ...prev.navbar.links,
-                              { label: "Novo link", href: "/", icon: "link" },
-                            ],
-                          },
-                        }))
-                      }
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid gap-3">
-                    {settings.navbar.links.map((link, index) => (
-                      <div
-                        key={`${link.label}-${index}`}
-                        className={`${responsiveSvgCardRowClass} md:grid-cols-[0.85fr_1fr_1.6fr_auto]`}
-                      >
-                        <Select
-                          value={link.icon || "link"}
-                          onValueChange={(value) =>
-                            setSettings((prev) => {
-                              const nextLinks = [...prev.navbar.links];
-                              nextLinks[index] = { ...nextLinks[index], icon: value };
-                              return { ...prev, navbar: { ...prev.navbar, links: nextLinks } };
-                            })
-                          }
-                        >
-                          <SelectTrigger className="min-w-0 w-full">
-                            <SelectValue placeholder="Ícone" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {navbarIconOptions.map((option) => {
-                              const OptionIcon = option.icon;
-                              return (
-                                <SelectItem key={option.id} value={option.id}>
-                                  <div className="flex items-center gap-2">
-                                    <OptionIcon className="h-4 w-4 text-muted-foreground" />
-                                    <span>{option.label}</span>
-                                  </div>
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          value={link.label}
-                          placeholder="Label"
-                          onChange={(event) =>
-                            setSettings((prev) => {
-                              const nextLinks = [...prev.navbar.links];
-                              nextLinks[index] = { ...nextLinks[index], label: event.target.value };
-                              return { ...prev, navbar: { ...prev.navbar, links: nextLinks } };
-                            })
-                          }
-                        />
-                        <Input
-                          className="min-w-0"
-                          value={link.href}
-                          placeholder="URL ou rota"
-                          onChange={(event) =>
-                            setSettings((prev) => {
-                              const nextLinks = [...prev.navbar.links];
-                              nextLinks[index] = { ...nextLinks[index], href: event.target.value };
-                              return { ...prev, navbar: { ...prev.navbar, links: nextLinks } };
-                            })
-                          }
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className={responsiveCompactRowDeleteButtonClass}
-                          onClick={() =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              navbar: {
-                                ...prev.navbar,
-                                links: prev.navbar.links.filter((_, idx) => idx !== index),
-                              },
-                            }))
-                          }
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="footer" className="mt-6 space-y-6">
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
-                  <div className="space-y-1">
-                    <h2 className="text-lg font-semibold">Conteúdo do footer</h2>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Descrição</Label>
-                    <Textarea
-                      value={settings.footer.brandDescription}
-                      onChange={(event) =>
-                        setSettings((prev) => ({
-                          ...prev,
-                          footer: { ...prev.footer, brandDescription: event.target.value },
-                        }))
-                      }
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-semibold">Colunas de links</h2>
-                      <p className="text-xs text-muted-foreground">Edite as seções do footer.</p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        setSettings((prev) => ({
-                          ...prev,
-                          footer: {
-                            ...prev.footer,
-                            columns: [...prev.footer.columns, { title: "Nova coluna", links: [] }],
-                          },
-                        }))
-                      }
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid gap-6">
-                    {settings.footer.columns.map((column, columnIndex) => (
-                      <div
-                        key={`${column.title}-${columnIndex}`}
-                        className={responsiveFooterCardShellClass}
-                      >
-                        <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                          <Input
-                            className="w-full min-w-0"
-                            value={column.title}
-                            onChange={(event) =>
-                              setSettings((prev) => {
-                                const next = [...prev.footer.columns];
-                                next[columnIndex] = {
-                                  ...next[columnIndex],
-                                  title: event.target.value,
-                                };
-                                return { ...prev, footer: { ...prev.footer, columns: next } };
-                              })
-                            }
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className={responsiveCompactSelfEndDeleteButtonClass}
-                            onClick={() =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                footer: {
-                                  ...prev.footer,
-                                  columns: prev.footer.columns.filter(
-                                    (_, idx) => idx !== columnIndex,
-                                  ),
-                                },
-                              }))
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="grid gap-3">
-                          {column.links.map((link, linkIndex) => (
-                            <div
-                              key={`${link.label}-${linkIndex}`}
-                              className={`${responsiveSvgCardRowClass} md:grid-cols-[1fr_1.6fr_auto]`}
-                            >
+                          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                            <Input
+                              placeholder="Buscar tag"
+                              value={tagQuery}
+                              onChange={(event) => setTagQuery(event.target.value)}
+                            />
+                            <div className="flex gap-2">
                               <Input
-                                value={link.label}
-                                placeholder="Label"
-                                onChange={(event) =>
-                                  setSettings((prev) => {
-                                    const nextColumns = [...prev.footer.columns];
-                                    const links = [...nextColumns[columnIndex].links];
-                                    links[linkIndex] = {
-                                      ...links[linkIndex],
-                                      label: event.target.value,
-                                    };
-                                    nextColumns[columnIndex] = {
-                                      ...nextColumns[columnIndex],
-                                      links,
-                                    };
-                                    return {
-                                      ...prev,
-                                      footer: { ...prev.footer, columns: nextColumns },
-                                    };
-                                  })
-                                }
-                              />
-                              <Input
-                                value={link.href}
-                                placeholder="URL"
-                                onChange={(event) =>
-                                  setSettings((prev) => {
-                                    const nextColumns = [...prev.footer.columns];
-                                    const links = [...nextColumns[columnIndex].links];
-                                    links[linkIndex] = {
-                                      ...links[linkIndex],
-                                      href: event.target.value,
-                                    };
-                                    nextColumns[columnIndex] = {
-                                      ...nextColumns[columnIndex],
-                                      links,
-                                    };
-                                    return {
-                                      ...prev,
-                                      footer: { ...prev.footer, columns: nextColumns },
-                                    };
-                                  })
-                                }
+                                placeholder="Nova tag"
+                                value={newTag}
+                                onChange={(event) => setNewTag(event.target.value)}
                               />
                               <Button
                                 type="button"
-                                variant="ghost"
-                                size="icon"
-                                className={responsiveCompactRowDeleteButtonClass}
-                                onClick={() =>
-                                  setSettings((prev) => {
-                                    const nextColumns = [...prev.footer.columns];
-                                    const links = nextColumns[columnIndex].links.filter(
-                                      (_, idx) => idx !== linkIndex,
-                                    );
-                                    nextColumns[columnIndex] = {
-                                      ...nextColumns[columnIndex],
-                                      links,
-                                    };
-                                    return {
-                                      ...prev,
-                                      footer: { ...prev.footer, columns: nextColumns },
-                                    };
-                                  })
-                                }
+                                onClick={() => {
+                                  const value = newTag.trim();
+                                  if (!value || tagTranslations[value] !== undefined) {
+                                    return;
+                                  }
+                                  setTagTranslations((prev) => ({ ...prev, [value]: "" }));
+                                  setNewTag("");
+                                }}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Plus className="h-4 w-4" />
                               </Button>
                             </div>
-                          ))}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full md:w-auto"
-                            onClick={() =>
-                              setSettings((prev) => {
-                                const nextColumns = [...prev.footer.columns];
-                                const links = [
-                                  ...nextColumns[columnIndex].links,
-                                  { label: "", href: "" },
-                                ];
-                                nextColumns[columnIndex] = { ...nextColumns[columnIndex], links };
-                                return {
-                                  ...prev,
-                                  footer: { ...prev.footer, columns: nextColumns },
-                                };
-                              })
-                            }
-                          >
-                            <Plus className="h-4 w-4" />
-                            Adicionar link
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                          </div>
+                          <div className="overflow-hidden rounded-xl border border-border/60">
+                            {filteredTags.length === 0 ? (
+                              <p className="px-4 py-3 text-xs text-muted-foreground">
+                                Nenhuma tag encontrada.
+                              </p>
+                            ) : (
+                              <div className="max-h-[420px] overflow-auto no-scrollbar">
+                                <table className={responsiveTranslationTableClass}>
+                                  <colgroup>
+                                    <col className={responsiveTranslationTermColClass} />
+                                    <col className={responsiveTranslationValueColClass} />
+                                    <col className={responsiveTranslationActionColClass} />
+                                  </colgroup>
+                                  <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
+                                    <tr>
+                                      <th className="px-4 py-3 text-left font-medium">
+                                        Termo (AniList)
+                                      </th>
+                                      <th className="px-4 py-3 text-left font-medium">Tradução</th>
+                                      <th className="px-4 py-3 text-right font-medium">Ações</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-border/60">
+                                    {filteredTags.map((tag) => (
+                                      <tr key={tag} className="bg-background/40">
+                                        <td className="px-4 py-3 font-medium text-foreground">
+                                          {tag}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          <Input
+                                            value={tagTranslations[tag] || ""}
+                                            placeholder={tag}
+                                            onChange={(event) =>
+                                              setTagTranslations((prev) => ({
+                                                ...prev,
+                                                [tag]: event.target.value,
+                                              }))
+                                            }
+                                          />
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() =>
+                                              setTagTranslations((prev) => {
+                                                const next = { ...prev };
+                                                delete next[tag];
+                                                return next;
+                                              })
+                                            }
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
 
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-semibold">Redes sociais</h2>
-                      <p className="text-xs text-muted-foreground">Links exibidos no footer.</p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        setSettings((prev) => ({
-                          ...prev,
-                          footer: {
-                            ...prev.footer,
-                            socialLinks: [
-                              ...prev.footer.socialLinks,
-                              {
-                                label: "Nova rede",
-                                href: "",
-                                icon: linkTypes[0]?.icon || "link",
-                              },
-                            ],
-                          },
-                        }))
-                      }
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid gap-3">
-                    {settings.footer.socialLinks.map((link, index) => (
-                      <div
-                        key={`${link.label}-${index}`}
-                        data-testid={`footer-social-row-${index}`}
-                        className={`rounded-2xl border p-3 shadow-sm transition md:overflow-x-auto md:rounded-xl md:p-2 md:shadow-none ${
-                          footerSocialDragOverIndex === index
-                            ? "border-primary/40 bg-primary/5"
-                            : "border-border/60 bg-background/40 md:border-transparent md:bg-transparent"
-                        }`}
-                        onDragOver={(event) => handleFooterSocialDragOver(event, index)}
-                        onDrop={(event) => handleFooterSocialDrop(event, index)}
-                      >
-                        <div className={responsiveFooterSocialGridClass}>
-                          <div className={responsiveFooterSocialTopRowClass}>
-                            <button
-                              type="button"
-                              draggable
-                              className={responsiveFooterSocialDragButtonClass}
-                              aria-label={`Arrastar rede ${link.label || index + 1}`}
-                              onDragStart={(event) => handleFooterSocialDragStart(event, index)}
-                              onDragEnd={clearFooterSocialDragState}
-                            >
-                              <GripVertical className="h-4 w-4" />
-                            </button>
-                            <ReorderControls
-                              label={`rede ${link.label || index + 1}`}
-                              index={index}
-                              total={settings.footer.socialLinks.length}
-                              onMove={(targetIndex) => moveFooterSocialLink(index, targetIndex)}
-                              className="justify-self-center md:justify-self-auto"
-                              buttonClassName="h-7 w-7 md:h-8 md:w-8"
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-6 p-6">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <h2 className="text-lg font-semibold">Gêneros</h2>
+                              <p className="text-xs text-muted-foreground">
+                                Termos em inglês importados do AniList com a tradução exibida no
+                                site.
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => syncAniListTerms()}
+                                disabled={isSyncingAniList}
+                                className="gap-2"
+                              >
+                                <Download className="h-4 w-4" />
+                                {isSyncingAniList ? "Importando..." : "Importar AniList"}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  void handleSaveTranslations();
+                                }}
+                                disabled={isSavingTranslations}
+                                className="gap-2"
+                              >
+                                <Save className="h-4 w-4" />
+                                {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                            <Input
+                              placeholder="Buscar gênero"
+                              value={genreQuery}
+                              onChange={(event) => setGenreQuery(event.target.value)}
                             />
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Novo gênero"
+                                value={newGenre}
+                                onChange={(event) => setNewGenre(event.target.value)}
+                              />
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  const value = newGenre.trim();
+                                  if (!value || genreTranslations[value] !== undefined) {
+                                    return;
+                                  }
+                                  setGenreTranslations((prev) => ({ ...prev, [value]: "" }));
+                                  setNewGenre("");
+                                }}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="overflow-hidden rounded-xl border border-border/60">
+                            {filteredGenres.length === 0 ? (
+                              <p className="px-4 py-3 text-xs text-muted-foreground">
+                                Nenhum gênero encontrado.
+                              </p>
+                            ) : (
+                              <div className="max-h-[420px] overflow-auto no-scrollbar">
+                                <table className={responsiveTranslationTableClass}>
+                                  <colgroup>
+                                    <col className={responsiveTranslationTermColClass} />
+                                    <col className={responsiveTranslationValueColClass} />
+                                    <col className={responsiveTranslationActionColClass} />
+                                  </colgroup>
+                                  <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
+                                    <tr>
+                                      <th className="px-4 py-3 text-left font-medium">
+                                        Termo (AniList)
+                                      </th>
+                                      <th className="px-4 py-3 text-left font-medium">Tradução</th>
+                                      <th className="px-4 py-3 text-right font-medium">Ações</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-border/60">
+                                    {filteredGenres.map((genre) => (
+                                      <tr key={genre} className="bg-background/40">
+                                        <td className="px-4 py-3 font-medium text-foreground">
+                                          {genre}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          <Input
+                                            value={genreTranslations[genre] || ""}
+                                            placeholder={genre}
+                                            onChange={(event) =>
+                                              setGenreTranslations((prev) => ({
+                                                ...prev,
+                                                [genre]: event.target.value,
+                                              }))
+                                            }
+                                          />
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() =>
+                                              setGenreTranslations((prev) => {
+                                                const next = { ...prev };
+                                                delete next[genre];
+                                                return next;
+                                              })
+                                            }
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-6 p-6">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <h2 className="text-lg font-semibold">Cargos do AniList</h2>
+                              <p className="text-xs text-muted-foreground">
+                                Traduza funções da equipe do anime exibidas no projeto.
+                              </p>
+                            </div>
                             <Button
                               type="button"
-                              variant="ghost"
-                              size="icon"
-                              className={responsiveSvgCardMobileRemoveButtonClass}
-                              aria-label={`Remover rede ${link.label || index + 1}`}
+                              size="sm"
+                              variant="outline"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                void handleSaveTranslations();
+                              }}
+                              disabled={isSavingTranslations}
+                              className="gap-2"
+                            >
+                              <Save className="h-4 w-4" />
+                              {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
+                            </Button>
+                          </div>
+                          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                            <Input
+                              placeholder="Buscar cargo"
+                              value={staffRoleQuery}
+                              onChange={(event) => setStaffRoleQuery(event.target.value)}
+                            />
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Novo cargo"
+                                value={newStaffRole}
+                                onChange={(event) => setNewStaffRole(event.target.value)}
+                              />
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  const value = newStaffRole.trim();
+                                  if (!value || staffRoleTranslations[value] !== undefined) {
+                                    return;
+                                  }
+                                  setStaffRoleTranslations((prev) => ({ ...prev, [value]: "" }));
+                                  setNewStaffRole("");
+                                }}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="overflow-hidden rounded-xl border border-border/60">
+                            {filteredStaffRoles.length === 0 ? (
+                              <p className="px-4 py-3 text-xs text-muted-foreground">
+                                Nenhum cargo encontrado.
+                              </p>
+                            ) : (
+                              <div className="max-h-[420px] overflow-auto no-scrollbar">
+                                <table className={responsiveTranslationTableClass}>
+                                  <colgroup>
+                                    <col className={responsiveTranslationTermColClass} />
+                                    <col className={responsiveTranslationValueColClass} />
+                                    <col className={responsiveTranslationActionColClass} />
+                                  </colgroup>
+                                  <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
+                                    <tr>
+                                      <th className="px-4 py-3 text-left font-medium">
+                                        Termo (AniList)
+                                      </th>
+                                      <th className="px-4 py-3 text-left font-medium">Tradução</th>
+                                      <th className="px-4 py-3 text-right font-medium">Ações</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-border/60">
+                                    {filteredStaffRoles.map((role) => (
+                                      <tr key={role} className="bg-background/40">
+                                        <td className="px-4 py-3 font-medium text-foreground">
+                                          {role}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          <Input
+                                            value={staffRoleTranslations[role] || ""}
+                                            placeholder={role}
+                                            onChange={(event) =>
+                                              setStaffRoleTranslations((prev) => ({
+                                                ...prev,
+                                                [role]: event.target.value,
+                                              }))
+                                            }
+                                          />
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() =>
+                                              setStaffRoleTranslations((prev) => {
+                                                const next = { ...prev };
+                                                delete next[role];
+                                                return next;
+                                              })
+                                            }
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    <TabsContent value="downloads" className="mt-6 space-y-6">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-6 p-6">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <h2 className="text-lg font-semibold">Fontes de download</h2>
+                              <p className="text-xs text-muted-foreground">
+                                Ajuste nome, cor e envie o SVG do serviço para exibição nos
+                                downloads.
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
                               onClick={() =>
                                 setSettings((prev) => ({
                                   ...prev,
-                                  footer: {
-                                    ...prev.footer,
-                                    socialLinks: prev.footer.socialLinks.filter(
-                                      (_, idx) => idx !== index,
-                                    ),
+                                  downloads: {
+                                    ...prev.downloads,
+                                    sources: [
+                                      ...prev.downloads.sources,
+                                      {
+                                        id: `fonte-${Date.now()}`,
+                                        label: "Nova fonte",
+                                        color: "#64748B",
+                                        icon: "",
+                                        tintIcon: true,
+                                      },
+                                    ],
                                   },
                                 }))
                               }
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Plus className="h-4 w-4" />
                             </Button>
                           </div>
-                          <Select
-                            value={link.icon || "link"}
-                            onValueChange={(value) =>
-                              setSettings((prev) => {
-                                const next = [...prev.footer.socialLinks];
-                                const matched = linkTypes.find(
-                                  (item) => item.icon === value || item.id === value,
-                                );
-                                next[index] = {
-                                  ...next[index],
-                                  icon: value,
-                                  label: matched?.label || link.label || "Rede social",
-                                };
-                                return { ...prev, footer: { ...prev.footer, socialLinks: next } };
-                              })
-                            }
-                          >
-                          <SelectTrigger className="min-w-0 w-full">
-                            <SelectValue placeholder="Ícone" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {linkTypes.length === 0 ? (
-                              <SelectItem value="link" disabled>
-                                Cadastre redes sociais na aba acima
-                              </SelectItem>
-                            ) : null}
-                            {linkTypes.map((option) => {
-                              const iconValue = option.icon || option.id;
-                              const isCustomIcon = isIconUrl(iconValue);
-                              const Icon = socialIconMap[option.id] || Link2;
+
+                          <div className="grid gap-3">
+                            {settings.downloads.sources.map((source, index) => {
+                              const shouldTint = source.tintIcon !== false;
                               return (
-                                <SelectItem key={option.id} value={iconValue}>
-                                  <div className="flex items-center gap-2">
+                                <div
+                                  key={`${source.id}-${index}`}
+                                  className={`${responsiveSvgCardRowClass} md:grid-cols-[1.2fr_0.25fr_0.6fr_1.6fr_auto]`}
+                                >
+                                  <Input
+                                    value={source.label}
+                                    onChange={(event) =>
+                                      setSettings((prev) => {
+                                        const next = [...prev.downloads.sources];
+                                        next[index] = { ...next[index], label: event.target.value };
+                                        return {
+                                          ...prev,
+                                          downloads: { ...prev.downloads, sources: next },
+                                        };
+                                      })
+                                    }
+                                    placeholder="Nome"
+                                  />
+                                  <div className={responsiveSvgCardPickerClusterClass}>
+                                    <div className={responsiveSvgCardColorClass}>
+                                      <ColorPicker
+                                        label=""
+                                        showSwatch
+                                        buttonClassName="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-xs transition hover:border-primary/40 md:h-9 md:w-9"
+                                        value={source.color}
+                                        onChange={(color) =>
+                                          setSettings((prev) => {
+                                            const next = [...prev.downloads.sources];
+                                            next[index] = {
+                                              ...next[index],
+                                              color: color.toString("hex"),
+                                            };
+                                            return {
+                                              ...prev,
+                                              downloads: { ...prev.downloads, sources: next },
+                                            };
+                                          })
+                                        }
+                                      />
+                                    </div>
+                                    <div className={responsiveSvgCardTintClass}>
+                                      <span className={responsiveSvgCardTintLabelClass}>
+                                        Aplicar ao ícone
+                                      </span>
+                                      <Switch
+                                        checked={shouldTint}
+                                        onCheckedChange={(checked) =>
+                                          setSettings((prev) => {
+                                            const next = [...prev.downloads.sources];
+                                            next[index] = { ...next[index], tintIcon: checked };
+                                            return {
+                                              ...prev,
+                                              downloads: { ...prev.downloads, sources: next },
+                                            };
+                                          })
+                                        }
+                                        aria-label={`Colorir SVG de ${source.label}`}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className={responsiveSvgCardPreviewClass}>
+                                    {isIconUrl(source.icon) ? (
+                                      shouldTint ? (
+                                        <ThemedSvgLogo
+                                          url={toIconPreviewUrl(source.icon)}
+                                          label={`Ícone ${source.label}`}
+                                          className="h-6 w-6 rounded bg-card/90 p-1"
+                                          color={source.color}
+                                        />
+                                      ) : (
+                                        <img
+                                          src={toIconPreviewUrl(source.icon)}
+                                          alt={`Ícone ${source.label}`}
+                                          className="h-6 w-6 rounded bg-card/90 p-1"
+                                        />
+                                      )
+                                    ) : (
+                                      <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-card/80 text-[10px]">
+                                        SVG
+                                      </span>
+                                    )}
+                                    <span className={responsiveSvgCardPreviewStatusClass}>
+                                      {isIconUrl(source.icon) ? "SVG atual" : "Sem SVG"}
+                                    </span>
+                                    <div className={responsiveSvgCardUploadActionClass}>
+                                      <Input
+                                        id={`download-icon-${index}`}
+                                        type="file"
+                                        accept="image/svg+xml"
+                                        className="sr-only"
+                                        onChange={(event) => {
+                                          const file = event.target.files?.[0];
+                                          if (file) {
+                                            uploadDownloadIcon(file, index);
+                                          }
+                                        }}
+                                        disabled={uploadingKey === `download-icon-${index}`}
+                                      />
+                                      <Label
+                                        htmlFor={`download-icon-${index}`}
+                                        className={responsiveSvgCardUploadLabelClass}
+                                      >
+                                        Escolher SVG
+                                      </Label>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className={responsiveSvgCardMobileRemoveButtonClass}
+                                        onClick={() =>
+                                          setSettings((prev) => ({
+                                            ...prev,
+                                            downloads: {
+                                              ...prev.downloads,
+                                              sources: prev.downloads.sources.filter(
+                                                (_, idx) => idx !== index,
+                                              ),
+                                            },
+                                          }))
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className={responsiveSvgCardDesktopRemoveButtonClass}
+                                    onClick={() =>
+                                      setSettings((prev) => ({
+                                        ...prev,
+                                        downloads: {
+                                          ...prev.downloads,
+                                          sources: prev.downloads.sources.filter(
+                                            (_, idx) => idx !== index,
+                                          ),
+                                        },
+                                      }))
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    <TabsContent value="equipe" className="mt-6 space-y-6">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-6 p-6">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <h2 className="text-lg font-semibold">Funções do time</h2>
+                              <p className="text-xs text-muted-foreground">
+                                Ajuste os cargos disponíveis para membros.
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  teamRoles: [
+                                    ...prev.teamRoles,
+                                    {
+                                      id: `role-${Date.now()}`,
+                                      label: "Nova função",
+                                      icon: "user",
+                                    },
+                                  ],
+                                }))
+                              }
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="grid gap-4">
+                            {settings.teamRoles.map((role, index) => (
+                              <div
+                                key={`${role.id}-${index}`}
+                                className={`${responsiveSvgCardRowClass} md:grid-cols-[1.4fr_1fr_auto]`}
+                              >
+                                <Input
+                                  value={role.label}
+                                  onChange={(event) =>
+                                    setSettings((prev) => {
+                                      const next = [...prev.teamRoles];
+                                      next[index] = { ...next[index], label: event.target.value };
+                                      return { ...prev, teamRoles: next };
+                                    })
+                                  }
+                                  placeholder="Nome"
+                                />
+                                <Select
+                                  value={role.icon || "user"}
+                                  onValueChange={(value) =>
+                                    setSettings((prev) => {
+                                      const next = [...prev.teamRoles];
+                                      next[index] = { ...next[index], icon: value };
+                                      return { ...prev, teamRoles: next };
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="min-w-0 w-full">
+                                    <SelectValue placeholder="Ícone" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {roleIconOptions.map((option) => {
+                                      const Icon = roleIconMap[option.id] || User;
+                                      return (
+                                        <SelectItem key={option.id} value={option.id}>
+                                          <div className="flex items-center gap-2">
+                                            <Icon className="h-4 w-4 text-muted-foreground" />
+                                            <span>{option.label}</span>
+                                          </div>
+                                        </SelectItem>
+                                      );
+                                    })}
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={responsiveCompactRowDeleteButtonClass}
+                                  onClick={() =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      teamRoles: prev.teamRoles.filter((_, idx) => idx !== index),
+                                    }))
+                                  }
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    <TabsContent value="redes-usuarios" className="mt-6 space-y-6">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-6 p-6">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <h2 className="text-lg font-semibold">Redes sociais (Usuários)</h2>
+                              <p className="text-xs text-muted-foreground">
+                                Opções exibidas no editor de usuários.
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                  setLinkTypes((prev) => [
+                                    ...prev,
+                                    { id: `nova-${Date.now()}`, label: "Nova rede", icon: "globe" },
+                                  ])
+                                }
+                              >
+                                <Plus className="h-4 w-4" />
+                                Adicionar
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  void handleSaveLinkTypes();
+                                }}
+                                disabled={isSavingLinkTypes}
+                                className="gap-2"
+                              >
+                                <Save className="h-4 w-4" />
+                                {isSavingLinkTypes ? "Salvando..." : "Salvar"}
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-3">
+                            {linkTypes.length === 0 ? (
+                              <p className="text-xs text-muted-foreground">
+                                Nenhuma rede cadastrada.
+                              </p>
+                            ) : null}
+                            {linkTypes.map((link, index) => {
+                              const isCustomIcon = isIconUrl(link.icon);
+                              return (
+                                <div
+                                  key={`${link.id}-${index}`}
+                                  className={`${responsiveSvgCardRowClass} md:grid-cols-[1fr_1.6fr_auto]`}
+                                >
+                                  <Input
+                                    value={link.label}
+                                    placeholder="Label"
+                                    onChange={(event) =>
+                                      setLinkTypes((prev) => {
+                                        const next = [...prev];
+                                        next[index] = { ...next[index], label: event.target.value };
+                                        return next;
+                                      })
+                                    }
+                                  />
+                                  <div className={responsiveSvgCardPreviewClass}>
                                     {isCustomIcon ? (
                                       <ThemedSvgLogo
-                                        url={iconValue}
-                                        label={`Ícone ${option.label}`}
-                                        className="h-4 w-4 text-primary"
+                                        url={toIconPreviewUrl(link.icon)}
+                                        label={`Ícone ${link.label}`}
+                                        className="h-6 w-6 text-primary"
                                       />
                                     ) : (
-                                      <Icon className="h-4 w-4 text-muted-foreground" />
+                                      <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-card/80 text-[10px]">
+                                        SVG
+                                      </span>
                                     )}
-                                    <span>{option.label}</span>
+                                    <span className={responsiveSvgCardPreviewStatusClass}>
+                                      {isCustomIcon ? "SVG atual" : "Sem SVG"}
+                                    </span>
+                                    <div className={responsiveSvgCardUploadActionClass}>
+                                      <Input
+                                        id={`linktype-icon-${index}`}
+                                        type="file"
+                                        accept="image/svg+xml"
+                                        className="sr-only"
+                                        onChange={(event) => {
+                                          const file = event.target.files?.[0];
+                                          if (file) {
+                                            uploadLinkTypeIcon(file, index);
+                                          }
+                                        }}
+                                        disabled={uploadingKey === `linktype-icon-${index}`}
+                                      />
+                                      <Label
+                                        htmlFor={`linktype-icon-${index}`}
+                                        className={responsiveSvgCardUploadLabelClass}
+                                      >
+                                        Escolher SVG
+                                      </Label>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className={responsiveSvgCardMobileRemoveButtonClass}
+                                        onClick={() =>
+                                          setLinkTypes((prev) =>
+                                            prev.filter((_, idx) => idx !== index),
+                                          )
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                   </div>
-                                </SelectItem>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className={responsiveSvgCardDesktopRemoveButtonClass}
+                                    onClick={() =>
+                                      setLinkTypes((prev) => prev.filter((_, idx) => idx !== index))
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               );
                             })}
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          className="min-w-0"
-                          value={link.href}
-                          placeholder="URL"
-                          onChange={(event) =>
-                            setSettings((prev) => {
-                              const next = [...prev.footer.socialLinks];
-                              next[index] = { ...next[index], href: event.target.value };
-                              return { ...prev, footer: { ...prev.footer, socialLinks: next } };
-                            })
-                          }
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className={responsiveFooterSocialDesktopRemoveButtonClass}
-                          aria-label={`Remover rede ${link.label || index + 1}`}
-                          onClick={() =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              footer: {
-                                ...prev.footer,
-                                socialLinks: prev.footer.socialLinks.filter(
-                                  (_, idx) => idx !== index,
-                                ),
-                              },
-                            }))
-                          }
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
 
-              <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
-                  <div className="space-y-1">
-                    <h2 className="text-lg font-semibold">Textos legais</h2>
-                    <p className="text-xs text-muted-foreground">Descrição, aviso e copyright.</p>
-                  </div>
-                  <div className="grid gap-3 md:gap-4">
-                    <div className="space-y-2">
-                      <Label>Parágrafos do aviso</Label>
-                      <div className="space-y-3">
-                        {settings.footer.disclaimer.map((item, index) => (
-                          <div
-                            key={`disclaimer-${index}`}
-                            className={responsiveCompactTextareaRowClass}
-                          >
-                            <Textarea
-                              className="min-h-[96px] md:min-h-[80px]"
-                              value={item}
-                              onChange={(event) =>
-                                setSettings((prev) => {
-                                  const next = [...prev.footer.disclaimer];
-                                  next[index] = event.target.value;
-                                  return { ...prev, footer: { ...prev.footer, disclaimer: next } };
-                                })
-                              }
-                            />
+                    <TabsContent value="navbar" className="mt-6 space-y-6">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-6 p-6">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <h2 className="text-lg font-semibold">Links do menu</h2>
+                              <p className="text-xs text-muted-foreground">
+                                Ordem e URLs usados na navbar do site.
+                              </p>
+                            </div>
                             <Button
                               type="button"
-                              variant="ghost"
-                              size="icon"
-                              className={responsiveCompactRowDeleteButtonClass}
+                              variant="outline"
+                              onClick={() =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  navbar: {
+                                    ...prev.navbar,
+                                    links: [
+                                      ...prev.navbar.links,
+                                      { label: "Novo link", href: "/", icon: "link" },
+                                    ],
+                                  },
+                                }))
+                              }
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="grid gap-3">
+                            {settings.navbar.links.map((link, index) => (
+                              <div
+                                key={`${link.label}-${index}`}
+                                className={`${responsiveSvgCardRowClass} md:grid-cols-[0.85fr_1fr_1.6fr_auto]`}
+                              >
+                                <Select
+                                  value={link.icon || "link"}
+                                  onValueChange={(value) =>
+                                    setSettings((prev) => {
+                                      const nextLinks = [...prev.navbar.links];
+                                      nextLinks[index] = { ...nextLinks[index], icon: value };
+                                      return {
+                                        ...prev,
+                                        navbar: { ...prev.navbar, links: nextLinks },
+                                      };
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="min-w-0 w-full">
+                                    <SelectValue placeholder="Ícone" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {navbarIconOptions.map((option) => {
+                                      const OptionIcon = option.icon;
+                                      return (
+                                        <SelectItem key={option.id} value={option.id}>
+                                          <div className="flex items-center gap-2">
+                                            <OptionIcon className="h-4 w-4 text-muted-foreground" />
+                                            <span>{option.label}</span>
+                                          </div>
+                                        </SelectItem>
+                                      );
+                                    })}
+                                  </SelectContent>
+                                </Select>
+                                <Input
+                                  value={link.label}
+                                  placeholder="Label"
+                                  onChange={(event) =>
+                                    setSettings((prev) => {
+                                      const nextLinks = [...prev.navbar.links];
+                                      nextLinks[index] = {
+                                        ...nextLinks[index],
+                                        label: event.target.value,
+                                      };
+                                      return {
+                                        ...prev,
+                                        navbar: { ...prev.navbar, links: nextLinks },
+                                      };
+                                    })
+                                  }
+                                />
+                                <Input
+                                  className="min-w-0"
+                                  value={link.href}
+                                  placeholder="URL ou rota"
+                                  onChange={(event) =>
+                                    setSettings((prev) => {
+                                      const nextLinks = [...prev.navbar.links];
+                                      nextLinks[index] = {
+                                        ...nextLinks[index],
+                                        href: event.target.value,
+                                      };
+                                      return {
+                                        ...prev,
+                                        navbar: { ...prev.navbar, links: nextLinks },
+                                      };
+                                    })
+                                  }
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={responsiveCompactRowDeleteButtonClass}
+                                  onClick={() =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      navbar: {
+                                        ...prev.navbar,
+                                        links: prev.navbar.links.filter((_, idx) => idx !== index),
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    <TabsContent value="footer" className="mt-6 space-y-6">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
+                          <div className="space-y-1">
+                            <h2 className="text-lg font-semibold">Conteúdo do footer</h2>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Descrição</Label>
+                            <Textarea
+                              value={settings.footer.brandDescription}
+                              onChange={(event) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  footer: { ...prev.footer, brandDescription: event.target.value },
+                                }))
+                              }
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <h2 className="text-lg font-semibold">Colunas de links</h2>
+                              <p className="text-xs text-muted-foreground">
+                                Edite as seções do footer.
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
                               onClick={() =>
                                 setSettings((prev) => ({
                                   ...prev,
                                   footer: {
                                     ...prev.footer,
-                                    disclaimer: prev.footer.disclaimer.filter(
-                                      (_, idx) => idx !== index,
-                                    ),
+                                    columns: [
+                                      ...prev.footer.columns,
+                                      { title: "Nova coluna", links: [] },
+                                    ],
                                   },
                                 }))
                               }
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Plus className="h-4 w-4" />
                             </Button>
                           </div>
-                        ))}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full md:w-auto"
-                        onClick={() =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            footer: {
-                              ...prev.footer,
-                              disclaimer: [...prev.footer.disclaimer, ""],
-                            },
-                          }))
-                        }
-                      >
-                        <Plus className="h-4 w-4" />
-                        Adicionar parágrafo
-                      </Button>
-                    </div>
-                    <div className="grid gap-3 md:grid-cols-2 md:gap-4">
-                      <div className="space-y-2">
-                        <Label>Título do destaque</Label>
-                        <Input
-                          value={settings.footer.highlightTitle}
-                          onChange={(event) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              footer: { ...prev.footer, highlightTitle: event.target.value },
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Descrição do destaque</Label>
-                        <Textarea
-                          value={settings.footer.highlightDescription}
-                          onChange={(event) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              footer: { ...prev.footer, highlightDescription: event.target.value },
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Copyright</Label>
-                      <Input
-                        value={settings.footer.copyright}
-                        onChange={(event) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            footer: { ...prev.footer, copyright: event.target.value },
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
 
-            <TabsContent value="seo" className="mt-6 space-y-6">
-              <DashboardSeoRedirectsPanel />
-            </TabsContent>
+                          <div className="grid gap-6">
+                            {settings.footer.columns.map((column, columnIndex) => (
+                              <div
+                                key={`${column.title}-${columnIndex}`}
+                                className={responsiveFooterCardShellClass}
+                              >
+                                <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                                  <Input
+                                    className="w-full min-w-0"
+                                    value={column.title}
+                                    onChange={(event) =>
+                                      setSettings((prev) => {
+                                        const next = [...prev.footer.columns];
+                                        next[columnIndex] = {
+                                          ...next[columnIndex],
+                                          title: event.target.value,
+                                        };
+                                        return {
+                                          ...prev,
+                                          footer: { ...prev.footer, columns: next },
+                                        };
+                                      })
+                                    }
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className={responsiveCompactSelfEndDeleteButtonClass}
+                                    onClick={() =>
+                                      setSettings((prev) => ({
+                                        ...prev,
+                                        footer: {
+                                          ...prev.footer,
+                                          columns: prev.footer.columns.filter(
+                                            (_, idx) => idx !== columnIndex,
+                                          ),
+                                        },
+                                      }))
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                <div className="grid gap-3">
+                                  {column.links.map((link, linkIndex) => (
+                                    <div
+                                      key={`${link.label}-${linkIndex}`}
+                                      className={`${responsiveSvgCardRowClass} md:grid-cols-[1fr_1.6fr_auto]`}
+                                    >
+                                      <Input
+                                        value={link.label}
+                                        placeholder="Label"
+                                        onChange={(event) =>
+                                          setSettings((prev) => {
+                                            const nextColumns = [...prev.footer.columns];
+                                            const links = [...nextColumns[columnIndex].links];
+                                            links[linkIndex] = {
+                                              ...links[linkIndex],
+                                              label: event.target.value,
+                                            };
+                                            nextColumns[columnIndex] = {
+                                              ...nextColumns[columnIndex],
+                                              links,
+                                            };
+                                            return {
+                                              ...prev,
+                                              footer: { ...prev.footer, columns: nextColumns },
+                                            };
+                                          })
+                                        }
+                                      />
+                                      <Input
+                                        value={link.href}
+                                        placeholder="URL"
+                                        onChange={(event) =>
+                                          setSettings((prev) => {
+                                            const nextColumns = [...prev.footer.columns];
+                                            const links = [...nextColumns[columnIndex].links];
+                                            links[linkIndex] = {
+                                              ...links[linkIndex],
+                                              href: event.target.value,
+                                            };
+                                            nextColumns[columnIndex] = {
+                                              ...nextColumns[columnIndex],
+                                              links,
+                                            };
+                                            return {
+                                              ...prev,
+                                              footer: { ...prev.footer, columns: nextColumns },
+                                            };
+                                          })
+                                        }
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className={responsiveCompactRowDeleteButtonClass}
+                                        onClick={() =>
+                                          setSettings((prev) => {
+                                            const nextColumns = [...prev.footer.columns];
+                                            const links = nextColumns[columnIndex].links.filter(
+                                              (_, idx) => idx !== linkIndex,
+                                            );
+                                            nextColumns[columnIndex] = {
+                                              ...nextColumns[columnIndex],
+                                              links,
+                                            };
+                                            return {
+                                              ...prev,
+                                              footer: { ...prev.footer, columns: nextColumns },
+                                            };
+                                          })
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="w-full md:w-auto"
+                                    onClick={() =>
+                                      setSettings((prev) => {
+                                        const nextColumns = [...prev.footer.columns];
+                                        const links = [
+                                          ...nextColumns[columnIndex].links,
+                                          { label: "", href: "" },
+                                        ];
+                                        nextColumns[columnIndex] = {
+                                          ...nextColumns[columnIndex],
+                                          links,
+                                        };
+                                        return {
+                                          ...prev,
+                                          footer: { ...prev.footer, columns: nextColumns },
+                                        };
+                                      })
+                                    }
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                    Adicionar link
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <h2 className="text-lg font-semibold">Redes sociais</h2>
+                              <p className="text-xs text-muted-foreground">
+                                Links exibidos no footer.
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  footer: {
+                                    ...prev.footer,
+                                    socialLinks: [
+                                      ...prev.footer.socialLinks,
+                                      {
+                                        label: "Nova rede",
+                                        href: "",
+                                        icon: linkTypes[0]?.icon || "link",
+                                      },
+                                    ],
+                                  },
+                                }))
+                              }
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="grid gap-3">
+                            {settings.footer.socialLinks.map((link, index) => (
+                              <div
+                                key={`${link.label}-${index}`}
+                                data-testid={`footer-social-row-${index}`}
+                                className={`rounded-2xl border p-3 shadow-sm transition md:overflow-x-auto md:rounded-xl md:p-2 md:shadow-none ${
+                                  footerSocialDragOverIndex === index
+                                    ? "border-primary/40 bg-primary/5"
+                                    : "border-border/60 bg-background/40 md:border-transparent md:bg-transparent"
+                                }`}
+                                onDragOver={(event) => handleFooterSocialDragOver(event, index)}
+                                onDrop={(event) => handleFooterSocialDrop(event, index)}
+                              >
+                                <div className={responsiveFooterSocialGridClass}>
+                                  <div className={responsiveFooterSocialTopRowClass}>
+                                    <button
+                                      type="button"
+                                      draggable
+                                      className={responsiveFooterSocialDragButtonClass}
+                                      aria-label={`Arrastar rede ${link.label || index + 1}`}
+                                      onDragStart={(event) =>
+                                        handleFooterSocialDragStart(event, index)
+                                      }
+                                      onDragEnd={clearFooterSocialDragState}
+                                    >
+                                      <GripVertical className="h-4 w-4" />
+                                    </button>
+                                    <ReorderControls
+                                      label={`rede ${link.label || index + 1}`}
+                                      index={index}
+                                      total={settings.footer.socialLinks.length}
+                                      onMove={(targetIndex) =>
+                                        moveFooterSocialLink(index, targetIndex)
+                                      }
+                                      className="justify-self-center md:justify-self-auto"
+                                      buttonClassName="h-7 w-7 md:h-8 md:w-8"
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className={responsiveSvgCardMobileRemoveButtonClass}
+                                      aria-label={`Remover rede ${link.label || index + 1}`}
+                                      onClick={() =>
+                                        setSettings((prev) => ({
+                                          ...prev,
+                                          footer: {
+                                            ...prev.footer,
+                                            socialLinks: prev.footer.socialLinks.filter(
+                                              (_, idx) => idx !== index,
+                                            ),
+                                          },
+                                        }))
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                  <Select
+                                    value={link.icon || "link"}
+                                    onValueChange={(value) =>
+                                      setSettings((prev) => {
+                                        const next = [...prev.footer.socialLinks];
+                                        const matched = linkTypes.find(
+                                          (item) => item.icon === value || item.id === value,
+                                        );
+                                        next[index] = {
+                                          ...next[index],
+                                          icon: value,
+                                          label: matched?.label || link.label || "Rede social",
+                                        };
+                                        return {
+                                          ...prev,
+                                          footer: { ...prev.footer, socialLinks: next },
+                                        };
+                                      })
+                                    }
+                                  >
+                                    <SelectTrigger className="min-w-0 w-full">
+                                      <SelectValue placeholder="Ícone" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {linkTypes.length === 0 ? (
+                                        <SelectItem value="link" disabled>
+                                          Cadastre redes sociais na aba acima
+                                        </SelectItem>
+                                      ) : null}
+                                      {linkTypes.map((option) => {
+                                        const iconValue = option.icon || option.id;
+                                        const isCustomIcon = isIconUrl(iconValue);
+                                        const Icon = socialIconMap[option.id] || Link2;
+                                        return (
+                                          <SelectItem key={option.id} value={iconValue}>
+                                            <div className="flex items-center gap-2">
+                                              {isCustomIcon ? (
+                                                <ThemedSvgLogo
+                                                  url={iconValue}
+                                                  label={`Ícone ${option.label}`}
+                                                  className="h-4 w-4 text-primary"
+                                                />
+                                              ) : (
+                                                <Icon className="h-4 w-4 text-muted-foreground" />
+                                              )}
+                                              <span>{option.label}</span>
+                                            </div>
+                                          </SelectItem>
+                                        );
+                                      })}
+                                    </SelectContent>
+                                  </Select>
+                                  <Input
+                                    className="min-w-0"
+                                    value={link.href}
+                                    placeholder="URL"
+                                    onChange={(event) =>
+                                      setSettings((prev) => {
+                                        const next = [...prev.footer.socialLinks];
+                                        next[index] = { ...next[index], href: event.target.value };
+                                        return {
+                                          ...prev,
+                                          footer: { ...prev.footer, socialLinks: next },
+                                        };
+                                      })
+                                    }
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className={responsiveFooterSocialDesktopRemoveButtonClass}
+                                    aria-label={`Remover rede ${link.label || index + 1}`}
+                                    onClick={() =>
+                                      setSettings((prev) => ({
+                                        ...prev,
+                                        footer: {
+                                          ...prev.footer,
+                                          socialLinks: prev.footer.socialLinks.filter(
+                                            (_, idx) => idx !== index,
+                                          ),
+                                        },
+                                      }))
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
+                          <div className="space-y-1">
+                            <h2 className="text-lg font-semibold">Textos legais</h2>
+                            <p className="text-xs text-muted-foreground">
+                              Descrição, aviso e copyright.
+                            </p>
+                          </div>
+                          <div className="grid gap-3 md:gap-4">
+                            <div className="space-y-2">
+                              <Label>Parágrafos do aviso</Label>
+                              <div className="space-y-3">
+                                {settings.footer.disclaimer.map((item, index) => (
+                                  <div
+                                    key={`disclaimer-${index}`}
+                                    className={responsiveCompactTextareaRowClass}
+                                  >
+                                    <Textarea
+                                      className="min-h-[96px] md:min-h-[80px]"
+                                      value={item}
+                                      onChange={(event) =>
+                                        setSettings((prev) => {
+                                          const next = [...prev.footer.disclaimer];
+                                          next[index] = event.target.value;
+                                          return {
+                                            ...prev,
+                                            footer: { ...prev.footer, disclaimer: next },
+                                          };
+                                        })
+                                      }
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className={responsiveCompactRowDeleteButtonClass}
+                                      onClick={() =>
+                                        setSettings((prev) => ({
+                                          ...prev,
+                                          footer: {
+                                            ...prev.footer,
+                                            disclaimer: prev.footer.disclaimer.filter(
+                                              (_, idx) => idx !== index,
+                                            ),
+                                          },
+                                        }))
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full md:w-auto"
+                                onClick={() =>
+                                  setSettings((prev) => ({
+                                    ...prev,
+                                    footer: {
+                                      ...prev.footer,
+                                      disclaimer: [...prev.footer.disclaimer, ""],
+                                    },
+                                  }))
+                                }
+                              >
+                                <Plus className="h-4 w-4" />
+                                Adicionar parágrafo
+                              </Button>
+                            </div>
+                            <div className="grid gap-3 md:grid-cols-2 md:gap-4">
+                              <div className="space-y-2">
+                                <Label>Título do destaque</Label>
+                                <Input
+                                  value={settings.footer.highlightTitle}
+                                  onChange={(event) =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      footer: {
+                                        ...prev.footer,
+                                        highlightTitle: event.target.value,
+                                      },
+                                    }))
+                                  }
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Descrição do destaque</Label>
+                                <Textarea
+                                  value={settings.footer.highlightDescription}
+                                  onChange={(event) =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      footer: {
+                                        ...prev.footer,
+                                        highlightDescription: event.target.value,
+                                      },
+                                    }))
+                                  }
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Copyright</Label>
+                              <Input
+                                value={settings.footer.copyright}
+                                onChange={(event) =>
+                                  setSettings((prev) => ({
+                                    ...prev,
+                                    footer: { ...prev.footer, copyright: event.target.value },
+                                  }))
+                                }
+                              />
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    <TabsContent value="seo" className="mt-6 space-y-6">
+                      <DashboardSeoRedirectsPanel />
+                    </TabsContent>
                   </>
                 )}
               </>

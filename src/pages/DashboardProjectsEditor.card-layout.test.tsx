@@ -16,13 +16,7 @@ vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
 }));
 
 vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({
-    title,
-    actions,
-  }: {
-    title: string;
-    actions?: ReactNode;
-  }) => (
+  default: ({ title, actions }: { title: string; actions?: ReactNode }) => (
     <div>
       <h1>{title}</h1>
       {actions}
@@ -207,7 +201,9 @@ describe("DashboardProjectsEditor card layout", () => {
     const meta = card.querySelector('[data-slot="project-card-meta"]');
 
     expect(cover).not.toBeNull();
-    expect(within(cover as HTMLElement).getByRole("img", { name: "Oshi no Ko" })).toBeInTheDocument();
+    expect(
+      within(cover as HTMLElement).getByRole("img", { name: "Oshi no Ko" }),
+    ).toBeInTheDocument();
     expect(within(cover as HTMLElement).queryByText("Atualizacao")).toBeNull();
     expect(content).not.toBeNull();
     expect(classTokens(content)).toContain("flex");

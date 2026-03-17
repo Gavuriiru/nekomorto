@@ -58,7 +58,9 @@ export type ProjectImageExportJob = {
 };
 
 const normalizeObjectRecord = (value: unknown) =>
-  value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 
 const toNullableIso = (value: unknown) => {
   const normalized = String(value || "").trim();
@@ -70,7 +72,9 @@ const toNullableIso = (value: unknown) => {
 };
 
 const normalizeImportJobStatus = (value: unknown): ProjectImageImportJob["status"] => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (
     normalized === "queued" ||
     normalized === "processing" ||
@@ -84,7 +88,9 @@ const normalizeImportJobStatus = (value: unknown): ProjectImageImportJob["status
 };
 
 const normalizeExportJobStatus = (value: unknown): ProjectImageExportJob["status"] => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (
     normalized === "queued" ||
     normalized === "processing" ||
@@ -125,9 +131,13 @@ export const normalizeProjectImageImportPreviewPayload = (
               sourceLabel: String(record.sourceLabel || "").trim(),
               pageCount: Number(record.pageCount || 0),
               action:
-                String(record.action || "").trim().toLowerCase() === "update"
+                String(record.action || "")
+                  .trim()
+                  .toLowerCase() === "update"
                   ? "update"
-                  : String(record.action || "").trim().toLowerCase() === "ignore"
+                  : String(record.action || "")
+                        .trim()
+                        .toLowerCase() === "ignore"
                     ? "ignore"
                     : "create",
               warnings: Array.isArray(record.warnings)
@@ -218,7 +228,9 @@ export const buildProjectImageImportFormData = ({
   (Array.isArray(files) ? files : []).forEach((file) => {
     formData.append("files", file);
     manifest.push({
-      relativePath: String((file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name),
+      relativePath: String(
+        (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name,
+      ),
     });
   });
   if (manifest.length > 0) {
@@ -234,7 +246,9 @@ export const buildProjectImageImportFormData = ({
   return formData;
 };
 
-export const mergeImportedImageChaptersIntoProject = <T extends { episodeDownloads?: ProjectEpisode[] }>(
+export const mergeImportedImageChaptersIntoProject = <
+  T extends { episodeDownloads?: ProjectEpisode[] },
+>(
   project: T,
   chapters: ProjectEpisode[],
 ): T => {
@@ -267,7 +281,9 @@ export const mergeImportedImageChaptersIntoProject = <T extends { episodeDownloa
 };
 
 export const buildProjectSnapshotForMangaExport = <T extends Project>(project: T): T => {
-  const normalizedVolumeEntries = (Array.isArray(project.volumeEntries) ? project.volumeEntries : [])
+  const normalizedVolumeEntries = (
+    Array.isArray(project.volumeEntries) ? project.volumeEntries : []
+  )
     .map((entry) => {
       const parsedVolume = Number(entry.volume);
       if (!Number.isFinite(parsedVolume) || parsedVolume <= 0) {

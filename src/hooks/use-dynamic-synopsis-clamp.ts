@@ -91,7 +91,15 @@ export const useDynamicSynopsisClamp = <T extends HTMLElement = HTMLDivElement>(
     });
 
     setLineByKey((current) => (mapsAreEqual(current, next) ? current : next));
-  }, [enabled, maxLines, resolvedSelectors.badges, resolvedSelectors.column, resolvedSelectors.synopsis, resolvedSelectors.title, rootRef]);
+  }, [
+    enabled,
+    maxLines,
+    resolvedSelectors.badges,
+    resolvedSelectors.column,
+    resolvedSelectors.synopsis,
+    resolvedSelectors.title,
+    rootRef,
+  ]);
 
   useEffect(() => {
     if (frameRef.current !== null) {

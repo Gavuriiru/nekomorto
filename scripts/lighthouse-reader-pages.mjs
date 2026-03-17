@@ -139,14 +139,7 @@ const isPortAvailable = ({ host, port }) =>
 
 const startPreviewServer = ({ host, port }) => {
   const cmd = commandFor("npm");
-  const args = [
-    "run",
-    "preview",
-    "--",
-    `--host=${host}`,
-    `--port=${port}`,
-    "--strictPort",
-  ];
+  const args = ["run", "preview", "--", `--host=${host}`, `--port=${port}`, "--strictPort"];
   return spawn(cmd, args, {
     cwd: workspaceRoot,
     stdio: "inherit",
@@ -164,10 +157,7 @@ const terminateProcess = async (child) => {
   } catch {
     // Ignore terminate errors.
   }
-  await Promise.race([
-    new Promise((resolve) => child.once("close", resolve)),
-    sleep(5000),
-  ]);
+  await Promise.race([new Promise((resolve) => child.once("close", resolve)), sleep(5000)]);
   if (child.exitCode === null) {
     try {
       child.kill("SIGKILL");
@@ -230,9 +220,7 @@ const summarizeReports = (reports) => {
   const categoriesByRun = reports.map((report) => toCategoryScores(report));
   const medianCategories = categoryIds.reduce((result, categoryId) => {
     result[categoryId] = median(
-      categoriesByRun
-        .map((run) => run[categoryId])
-        .filter((value) => Number.isFinite(value)),
+      categoriesByRun.map((run) => run[categoryId]).filter((value) => Number.isFinite(value)),
     );
     return result;
   }, {});
@@ -288,7 +276,9 @@ const writeSummary = ({ args, summaryByRoute }) => {
 const logSummary = (label, summary) => {
   console.log(
     `[lighthouse-reader-pages:${label}] median categories: ${categoryIds
-      .map((categoryId) => `${categoryId}=${Math.round(summary.medianCategories[categoryId] * 100)}`)
+      .map(
+        (categoryId) => `${categoryId}=${Math.round(summary.medianCategories[categoryId] * 100)}`,
+      )
       .join(", ")}`,
   );
 };

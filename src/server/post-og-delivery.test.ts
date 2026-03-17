@@ -112,7 +112,8 @@ describe("post og delivery", () => {
       async ({ artworkUrl }: { artworkUrl?: string }) => `data:artwork:${String(artworkUrl || "")}`,
     );
     loadProjectOgProcessedBackdropDataUrlMock.mockImplementation(
-      async ({ artworkUrl }: { artworkUrl?: string }) => `data:backdrop:${String(artworkUrl || "")}`,
+      async ({ artworkUrl }: { artworkUrl?: string }) =>
+        `data:backdrop:${String(artworkUrl || "")}`,
     );
     buildPostOgImageResponseMock.mockImplementation(
       ({

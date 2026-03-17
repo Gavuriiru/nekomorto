@@ -59,8 +59,7 @@ describe("Project downloads metadata", () => {
   });
 
   it("shows episode metadata in the unified meta line and keeps links working", async () => {
-    const fullHash =
-      "SHA-256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    const fullHash = "SHA-256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     const project = {
       id: "projeto-teste",
       title: "Projeto Teste",
@@ -115,21 +114,23 @@ describe("Project downloads metadata", () => {
       relations: [],
     };
 
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: { method?: string }) => {
-      if (endpoint === "/api/public/projects/projeto-teste") {
-        return { ok: true, json: async () => ({ project }) };
-      }
-      if (endpoint === "/api/public/projects") {
-        return { ok: true, json: async () => ({ projects: [project] }) };
-      }
-      if (endpoint === "/api/public/tag-translations") {
-        return { ok: true, json: async () => ({ tags: {}, genres: {}, staffRoles: {} }) };
-      }
-      if (endpoint === `/api/public/projects/${project.id}/view` && options?.method === "POST") {
-        return { ok: true, json: async () => ({ ok: true }) };
-      }
-      return { ok: false, json: async () => ({}) };
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: { method?: string }) => {
+        if (endpoint === "/api/public/projects/projeto-teste") {
+          return { ok: true, json: async () => ({ project }) };
+        }
+        if (endpoint === "/api/public/projects") {
+          return { ok: true, json: async () => ({ projects: [project] }) };
+        }
+        if (endpoint === "/api/public/tag-translations") {
+          return { ok: true, json: async () => ({ tags: {}, genres: {}, staffRoles: {} }) };
+        }
+        if (endpoint === `/api/public/projects/${project.id}/view` && options?.method === "POST") {
+          return { ok: true, json: async () => ({ ok: true }) };
+        }
+        return { ok: false, json: async () => ({}) };
+      },
+    );
 
     render(
       <MemoryRouter>
@@ -152,8 +153,12 @@ describe("Project downloads metadata", () => {
     expect(screen.queryByText(/Sem metadados do arquivo/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Sinopse do episodio")).not.toBeInTheDocument();
     const links = screen.getAllByRole("link", { name: /Google Drive/i });
-    expect(links.some((item) => item.getAttribute("href") === "https://example.com/source-1")).toBe(true);
-    expect(links.some((item) => item.getAttribute("href") === "https://example.com/source-2")).toBe(true);
+    expect(links.some((item) => item.getAttribute("href") === "https://example.com/source-1")).toBe(
+      true,
+    );
+    expect(links.some((item) => item.getAttribute("href") === "https://example.com/source-2")).toBe(
+      true,
+    );
     expect(links.every((item) => item.getAttribute("target") === "_blank")).toBe(true);
     expect(links.every((item) => item.getAttribute("rel") === "noreferrer")).toBe(true);
   });

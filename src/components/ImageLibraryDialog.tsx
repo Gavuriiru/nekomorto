@@ -11,6 +11,7 @@ import {
 import { CircleStencil, FixedCropper, type FixedCropperRef } from "react-advanced-cropper";
 import { ImageRestriction } from "advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
+import "@/styles/image-library.css";
 
 import {
   ContextMenu,
@@ -27,9 +28,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import {
-  ImageLibraryDialogLoadingGrid,
-} from "@/components/ImageLibraryDialogLoading";
+import { ImageLibraryDialogLoadingGrid } from "@/components/ImageLibraryDialogLoading";
 import {
   Dialog,
   DialogContent,
@@ -159,8 +158,10 @@ const PT_BR_NATURAL_COLLATOR = new Intl.Collator("pt-BR", {
   numeric: true,
 });
 
-const compareNaturalTextPtBr = (left: string | null | undefined, right: string | null | undefined) =>
-  PT_BR_NATURAL_COLLATOR.compare(String(left || ""), String(right || ""));
+const compareNaturalTextPtBr = (
+  left: string | null | undefined,
+  right: string | null | undefined,
+) => PT_BR_NATURAL_COLLATOR.compare(String(left || ""), String(right || ""));
 
 const stripUrlQueryAndHash = (value: string) => value.split(/[?#]/)[0] || "";
 
@@ -756,11 +757,7 @@ const AvatarCropWorkspace = ({
   );
 };
 
-const buildFocalPreviewImageStyle = ({
-  rect,
-}: {
-  rect: UploadFocalCropRect;
-}) => ({
+const buildFocalPreviewImageStyle = ({ rect }: { rect: UploadFocalCropRect }) => ({
   width: `${(1 / Math.max(rect.width, Number.EPSILON)) * 100}%`,
   height: `${(1 / Math.max(rect.height, Number.EPSILON)) * 100}%`,
   left: `-${(rect.left / Math.max(rect.width, Number.EPSILON)) * 100}%`,
@@ -866,9 +863,7 @@ const FocalPointWorkspace = ({
       height: Math.max(0, frameRect.height),
     };
     setStageSize((prev) =>
-      prev.width === nextSize.width && prev.height === nextSize.height
-        ? prev
-        : nextSize,
+      prev.width === nextSize.width && prev.height === nextSize.height ? prev : nextSize,
     );
   }, []);
 
@@ -966,7 +961,14 @@ const FocalPointWorkspace = ({
       width: activeCrop.width * fitRect.width,
       height: activeCrop.height * fitRect.height,
     };
-  }, [activeCrop.height, activeCrop.left, activeCrop.top, activeCrop.width, fitRect.height, fitRect.width]);
+  }, [
+    activeCrop.height,
+    activeCrop.left,
+    activeCrop.top,
+    activeCrop.width,
+    fitRect.height,
+    fitRect.width,
+  ]);
 
   const syncInteractionFromPointer = useCallback(
     (clientX: number, clientY: number) => {
@@ -978,8 +980,14 @@ const FocalPointWorkspace = ({
         const deltaXNorm = (clientX - interaction.startClientX) / fitRect.width;
         const deltaYNorm = (clientY - interaction.startClientY) / fitRect.height;
         updateActivePresetCrop({
-          left: Math.min(1 - interaction.startCrop.width, Math.max(0, interaction.startCrop.left + deltaXNorm)),
-          top: Math.min(1 - interaction.startCrop.height, Math.max(0, interaction.startCrop.top + deltaYNorm)),
+          left: Math.min(
+            1 - interaction.startCrop.width,
+            Math.max(0, interaction.startCrop.left + deltaXNorm),
+          ),
+          top: Math.min(
+            1 - interaction.startCrop.height,
+            Math.max(0, interaction.startCrop.top + deltaYNorm),
+          ),
           width: interaction.startCrop.width,
           height: interaction.startCrop.height,
         });
@@ -993,10 +1001,7 @@ const FocalPointWorkspace = ({
 
       const frameRect = frame.getBoundingClientRect();
       const localX = Math.min(fitRect.width, Math.max(0, clientX - frameRect.left - fitRect.left));
-      const localY = Math.min(
-        fitRect.height,
-        Math.max(0, clientY - frameRect.top - fitRect.top),
-      );
+      const localY = Math.min(fitRect.height, Math.max(0, clientY - frameRect.top - fitRect.top));
       const startLeftPx = interaction.startCrop.left * fitRect.width;
       const startTopPx = interaction.startCrop.top * fitRect.height;
       const startWidthPx = interaction.startCrop.width * fitRect.width;
@@ -1008,9 +1013,13 @@ const FocalPointWorkspace = ({
       const anchorY =
         interaction.handle === "nw" || interaction.handle === "ne" ? startBottomPx : startTopPx;
       const maxWidthPx =
-        interaction.handle === "nw" || interaction.handle === "sw" ? anchorX : fitRect.width - anchorX;
+        interaction.handle === "nw" || interaction.handle === "sw"
+          ? anchorX
+          : fitRect.width - anchorX;
       const maxHeightPx =
-        interaction.handle === "nw" || interaction.handle === "ne" ? anchorY : fitRect.height - anchorY;
+        interaction.handle === "nw" || interaction.handle === "ne"
+          ? anchorY
+          : fitRect.height - anchorY;
       const minWidthPx = Math.min(fitRect.width, MIN_FOCAL_CROP_DISPLAY_PX);
       const minHeightPx = Math.min(fitRect.height, MIN_FOCAL_CROP_DISPLAY_PX);
       const maxAllowedWidthPx = Math.max(0, Math.min(maxWidthPx, maxHeightPx * activeAspectRatio));
@@ -1020,7 +1029,11 @@ const FocalPointWorkspace = ({
       );
       const rawWidthPx = Math.abs(localX - anchorX);
       const rawHeightPx = Math.abs(localY - anchorY);
-      const requestedWidthPx = Math.min(rawWidthPx, rawHeightPx * activeAspectRatio, maxAllowedWidthPx);
+      const requestedWidthPx = Math.min(
+        rawWidthPx,
+        rawHeightPx * activeAspectRatio,
+        maxAllowedWidthPx,
+      );
       const nextWidthPx = Math.max(minAllowedWidthPx, requestedWidthPx);
       const nextHeightPx = nextWidthPx / activeAspectRatio;
       let nextLeftPx = anchorX;
@@ -1042,7 +1055,15 @@ const FocalPointWorkspace = ({
         height: nextHeightPx / fitRect.height,
       });
     },
-    [activeAspectRatio, fitRect.height, fitRect.left, fitRect.top, fitRect.width, interaction, updateActivePresetCrop],
+    [
+      activeAspectRatio,
+      fitRect.height,
+      fitRect.left,
+      fitRect.top,
+      fitRect.width,
+      interaction,
+      updateActivePresetCrop,
+    ],
   );
 
   const handleStagePointerMove = useCallback(
@@ -1313,7 +1334,9 @@ const ImageLibraryDialog = ({
   const [altTextValue, setAltTextValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<LibraryImageItem | null>(null);
   const [focalTarget, setFocalTarget] = useState<LibraryImageItem | null>(null);
-  const [focalCropDraft, setFocalCropDraft] = useState<UploadFocalCrops>(() => normalizeUploadFocalCrops());
+  const [focalCropDraft, setFocalCropDraft] = useState<UploadFocalCrops>(() =>
+    normalizeUploadFocalCrops(),
+  );
   const [activeFocalPreset, setActiveFocalPreset] = useState<UploadFocalPresetKey>("card");
   const [isRenaming, setIsRenaming] = useState(false);
   const [isSavingAltText, setIsSavingAltText] = useState(false);
@@ -1387,15 +1410,11 @@ const ImageLibraryDialog = ({
     [normalizedProjectImageProjectIds],
   );
   const isBroadProjectLibraryContext = useMemo(
-    () =>
-      includeProjectImages &&
-      (includesProjectsRootInScope || scopedProjectRoots.length > 1),
+    () => includeProjectImages && (includesProjectsRootInScope || scopedProjectRoots.length > 1),
     [includeProjectImages, includesProjectsRootInScope, scopedProjectRoots.length],
   );
   const isProjectLibraryContext = useMemo(
-    () =>
-      includeProjectImages &&
-      (includesProjectsRootInScope || scopedProjectRoots.length > 0),
+    () => includeProjectImages && (includesProjectsRootInScope || scopedProjectRoots.length > 0),
     [includeProjectImages, includesProjectsRootInScope, scopedProjectRoots.length],
   );
 
@@ -1417,11 +1436,7 @@ const ImageLibraryDialog = ({
     return Array.from(set);
   }, [listAll, normalizedListFolders, resolvedUploadFolderForFilter]);
   const foldersToRequest = useMemo(() => {
-    const unique = Array.from(
-      new Set(
-        folders.map((item) => String(item || "").trim()),
-      ),
-    );
+    const unique = Array.from(new Set(folders.map((item) => String(item || "").trim())));
     return unique.filter((folder) => {
       if (!folder || folder === "__all__") {
         return true;
@@ -1482,7 +1497,11 @@ const ImageLibraryDialog = ({
     if (!trimmed) {
       return null;
     }
-    return allItems.get(trimmed) ?? allItemsByComparableKey.get(toComparableSelectionKey(trimmed)) ?? null;
+    return (
+      allItems.get(trimmed) ??
+      allItemsByComparableKey.get(toComparableSelectionKey(trimmed)) ??
+      null
+    );
   }, [allItems, allItemsByComparableKey, primarySelectedUrl]);
   const primarySelectedRenderUrl = useMemo(() => {
     if (primarySelectedItem) {
@@ -1616,12 +1635,11 @@ const ImageLibraryDialog = ({
     const byFolder =
       uploadsFolderFilter === "__all__"
         ? bySearch
-        : bySearch.filter(
-            (item) =>
-              isFolderWithinSelection({
-                itemFolder: resolveItemFolder(item),
-                selectedFolder: uploadsFolderFilter,
-              }),
+        : bySearch.filter((item) =>
+            isFolderWithinSelection({
+              itemFolder: resolveItemFolder(item),
+              selectedFolder: uploadsFolderFilter,
+            }),
           );
     return sortLibraryItems(byFolder);
   }, [matchesSearch, renderableUploads, sortLibraryItems, uploadsFolderFilter]);
@@ -1683,11 +1701,9 @@ const ImageLibraryDialog = ({
   const hasProjectFolderContextExcludedFromUploadFilter = useMemo(
     () =>
       shouldExcludeProjectFoldersFromUploadFilter &&
-      (
-        isProjectsNamespaceFolder(resolvedUploadFolderForFilter) ||
+      (isProjectsNamespaceFolder(resolvedUploadFolderForFilter) ||
         normalizedListFolders.some((folder) => isProjectsNamespaceFolder(folder)) ||
-        hasHiddenProjectUploadsInTopSection
-      ),
+        hasHiddenProjectUploadsInTopSection),
     [
       hasHiddenProjectUploadsInTopSection,
       normalizedListFolders,
@@ -1699,10 +1715,7 @@ const ImageLibraryDialog = ({
     const set = new Set<string>();
     const registerFolderCandidates = (folder: string | null | undefined) => {
       listFolderAncestors(folder).forEach((candidate) => {
-        if (
-          shouldExcludeProjectFoldersFromUploadFilter &&
-          isProjectsNamespaceFolder(candidate)
-        ) {
+        if (shouldExcludeProjectFoldersFromUploadFilter && isProjectsNamespaceFolder(candidate)) {
           return;
         }
         set.add(candidate);
@@ -1741,10 +1754,7 @@ const ImageLibraryDialog = ({
     uploadFolderFilterOptions.length,
   ]);
   const shouldRenderUploadsFolderFilter = useMemo(() => {
-    if (
-      shouldExcludeProjectFoldersFromUploadFilter &&
-      uploadFolderFilterOptions.length === 0
-    ) {
+    if (shouldExcludeProjectFoldersFromUploadFilter && uploadFolderFilterOptions.length === 0) {
       return false;
     }
     return shouldShowAllFoldersFilterOption || uploadFolderFilterOptions.length > 0;
@@ -1879,7 +1889,10 @@ const ImageLibraryDialog = ({
   const projectImageGroups = useMemo<ProjectImageGroup[]>(() => {
     const groupMap = new Map<
       string,
-      ProjectImageGroup & { folderMap: Map<string, ProjectImageFolderGroup>; rootCandidates: string[] }
+      ProjectImageGroup & {
+        folderMap: Map<string, ProjectImageFolderGroup>;
+        rootCandidates: string[];
+      }
     >();
     filteredProjectImages.forEach((item) => {
       const projectId = String(item.projectId || "").trim();
@@ -1941,7 +1954,9 @@ const ImageLibraryDialog = ({
         });
         const folders = Array.from(group.folderMap.values())
           .map((folderGroup) => {
-            const resolvedFolder = folderGroup.items[0] ? resolveItemFolder(folderGroup.items[0]) : "";
+            const resolvedFolder = folderGroup.items[0]
+              ? resolveItemFolder(folderGroup.items[0])
+              : "";
             return {
               ...folderGroup,
               title: toRelativeProjectFolderLabel({
@@ -1967,7 +1982,10 @@ const ImageLibraryDialog = ({
       uploadFolderGroups,
       resolvedUploadFolderForFilter,
     );
-    return contextGroupKey ? [contextGroupKey] : [];
+    if (contextGroupKey) {
+      return [contextGroupKey];
+    }
+    return uploadFolderGroups[0]?.key ? [uploadFolderGroups[0].key] : [];
   }, [resolvedUploadFolderForFilter, uploadFolderGroups]);
 
   const initialProjectAccordionState = useMemo(() => {
@@ -1981,7 +1999,9 @@ const ImageLibraryDialog = ({
 
     let contextGroup: ProjectImageGroup | undefined;
     if (resolvedContextProjectId) {
-      contextGroup = projectImageGroups.find((group) => group.projectId === resolvedContextProjectId);
+      contextGroup = projectImageGroups.find(
+        (group) => group.projectId === resolvedContextProjectId,
+      );
     }
 
     if (!contextGroup) {
@@ -1991,8 +2011,7 @@ const ImageLibraryDialog = ({
           group.folders.some((folderGroup) => {
             const normalizedFolder = sanitizeUploadFolderForComparison(folderGroup.folder);
             return (
-              normalizedFolder === contextRoot ||
-              normalizedFolder.startsWith(`${contextRoot}/`)
+              normalizedFolder === contextRoot || normalizedFolder.startsWith(`${contextRoot}/`)
             );
           }),
         );
@@ -2198,7 +2217,11 @@ const ImageLibraryDialog = ({
         behavior: "smooth",
       });
     }
-    if (pendingRevealRequest.openCrop && matchedUpload && shouldAutoOpenAvatarCrop(matchedUpload.url)) {
+    if (
+      pendingRevealRequest.openCrop &&
+      matchedUpload &&
+      shouldAutoOpenAvatarCrop(matchedUpload.url)
+    ) {
       setIsCropDialogOpen(true);
     }
     setPendingRevealRequest(null);
@@ -3037,12 +3060,12 @@ const ImageLibraryDialog = ({
                       openCrop: cropAvatar && mode === "single",
                     })
                   }
-                  >
-                    <img
-                      src={itemRenderUrl}
-                      alt={toEffectiveName(item)}
-                      className="h-28 w-full object-cover"
-                    />
+                >
+                  <img
+                    src={itemRenderUrl}
+                    alt={toEffectiveName(item)}
+                    className="h-28 w-full object-cover"
+                  />
                   <div className="p-2 text-xs text-muted-foreground line-clamp-2">
                     {item.label || toEffectiveName(item)}
                   </div>
@@ -3180,7 +3203,9 @@ const ImageLibraryDialog = ({
                       <AccordionTrigger className="py-2 text-xs hover:no-underline">
                         <span className="flex items-center gap-2">
                           <span className="font-medium text-foreground/90">{folder.title}</span>
-                          <span className="text-[11px] text-muted-foreground">{folder.items.length}</span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {folder.items.length}
+                          </span>
                         </span>
                       </AccordionTrigger>
                       <AccordionContent className="[&>div]:mt-0">
@@ -3297,9 +3322,7 @@ const ImageLibraryDialog = ({
                 <p className="font-medium text-foreground">
                   Arraste, cole (Ctrl+V) ou escolha arquivos
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Upload direto para o servidor.
-                </p>
+                <p className="mt-1 text-xs text-muted-foreground">Upload direto para o servidor.</p>
               </div>
               <div className="mt-3">
                 <Input
@@ -3387,10 +3410,7 @@ const ImageLibraryDialog = ({
               >
                 <div className="flex flex-1 flex-wrap items-center gap-2">
                   {shouldRenderUploadsFolderFilter ? (
-                    <Select
-                      value={uploadsFolderFilter}
-                      onValueChange={setUploadsFolderFilter}
-                    >
+                    <Select value={uploadsFolderFilter} onValueChange={setUploadsFolderFilter}>
                       <SelectTrigger
                         aria-label="Filtrar por pasta"
                         className="h-9 min-w-0 w-full flex-1 basis-[11rem] bg-card/70 transition-[border-color,box-shadow] focus:border-primary/60 focus:ring-2 focus:ring-inset focus:ring-primary/60 focus:ring-offset-0 data-[state=open]:border-primary/60 data-[state=open]:ring-2 data-[state=open]:ring-inset data-[state=open]:ring-primary/60 data-[state=open]:ring-offset-0 sm:flex-none sm:w-[220px]"
@@ -3449,31 +3469,29 @@ const ImageLibraryDialog = ({
             {includeProjectImages ? (
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-foreground">Imagens dos projetos</h3>
-                <span className="text-xs text-muted-foreground">
-                  Ordenação:{" "}
-                  {sortMode === "recent"
-                    ? "mais recentes"
-                    : sortMode === "oldest"
-                      ? "mais antigos"
-                      : "nome"}
-                </span>
-              </div>
-                {projectImagesView === "by-project" ? (
-                  renderProjectGroups(
-                    projectImageGroups,
-                    normalizedSearch
-                      ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
-                      : "Nenhuma imagem de projeto encontrada.",
-                  )
-                ) : (
-                  renderGrid(
-                    filteredProjectImages,
-                    normalizedSearch
-                      ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
-                      : "Nenhuma imagem de projeto encontrada.",
-                  )
-                )}
+                  <h3 className="text-sm font-semibold text-foreground">Imagens dos projetos</h3>
+                  <span className="text-xs text-muted-foreground">
+                    Ordenação:{" "}
+                    {sortMode === "recent"
+                      ? "mais recentes"
+                      : sortMode === "oldest"
+                        ? "mais antigos"
+                        : "nome"}
+                  </span>
+                </div>
+                {projectImagesView === "by-project"
+                  ? renderProjectGroups(
+                      projectImageGroups,
+                      normalizedSearch
+                        ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
+                        : "Nenhuma imagem de projeto encontrada.",
+                    )
+                  : renderGrid(
+                      filteredProjectImages,
+                      normalizedSearch
+                        ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
+                        : "Nenhuma imagem de projeto encontrada.",
+                    )}
               </div>
             ) : null}
           </div>
@@ -3566,8 +3584,8 @@ const ImageLibraryDialog = ({
           <DialogHeader>
             <DialogTitle>Definir ponto focal</DialogTitle>
             <DialogDescription>
-              Ajuste o enquadramento por preset e regenere as variantes automáticas com uma
-              prévia fiel ao recorte final.
+              Ajuste o enquadramento por preset e regenere as variantes automáticas com uma prévia
+              fiel ao recorte final.
             </DialogDescription>
           </DialogHeader>
           {focalTarget ? (

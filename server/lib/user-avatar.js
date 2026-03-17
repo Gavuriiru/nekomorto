@@ -45,10 +45,7 @@ export const isDiscordAvatarUrl = (value) => {
 
 export const isUploadAvatarUrl = (value) => Boolean(normalizeUploadAvatarUrl(value));
 
-export const resolveEffectiveUserAvatarUrl = ({
-  storedAvatarUrl,
-  fallbackAvatarUrl,
-} = {}) => {
+export const resolveEffectiveUserAvatarUrl = ({ storedAvatarUrl, fallbackAvatarUrl } = {}) => {
   const stored = normalizeAvatarUrl(storedAvatarUrl);
   if (stored) {
     return stored;
@@ -56,10 +53,7 @@ export const resolveEffectiveUserAvatarUrl = ({
   return normalizeAvatarUrl(fallbackAvatarUrl);
 };
 
-export const shouldSyncDiscordAvatarToStoredUser = ({
-  storedAvatarUrl,
-  discordAvatarUrl,
-} = {}) => {
+export const shouldSyncDiscordAvatarToStoredUser = ({ storedAvatarUrl, discordAvatarUrl } = {}) => {
   const nextDiscordAvatarUrl = normalizeAvatarUrl(discordAvatarUrl);
   if (!nextDiscordAvatarUrl || !isDiscordAvatarUrl(nextDiscordAvatarUrl)) {
     return false;
@@ -71,10 +65,7 @@ export const shouldSyncDiscordAvatarToStoredUser = ({
   return isDiscordAvatarUrl(stored);
 };
 
-export const resolveUserAvatarRenderVersion = ({
-  avatarUrl,
-  uploads,
-} = {}) => {
+export const resolveUserAvatarRenderVersion = ({ avatarUrl, uploads } = {}) => {
   const normalizedAvatarUrl = normalizeUploadAvatarUrl(avatarUrl);
   if (!normalizedAvatarUrl) {
     return "";

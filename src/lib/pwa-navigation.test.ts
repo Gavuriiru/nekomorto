@@ -3,12 +3,13 @@ import { describe, expect, it } from "vitest";
 import { shouldRegisterPwaImmediately, shouldUsePwaAppShell } from "@/lib/pwa-navigation";
 
 describe("pwa-navigation", () => {
-  it.each(["/dashboard", "/dashboard/posts", "/dashboard/posts?tab=scheduled"])(
-    "uses the app shell for %s",
-    (pathnameAndSearch) => {
-      expect(shouldUsePwaAppShell(pathnameAndSearch)).toBe(true);
-    },
-  );
+  it.each([
+    "/dashboard",
+    "/dashboard/posts",
+    "/dashboard/posts?tab=scheduled",
+  ])("uses the app shell for %s", (pathnameAndSearch) => {
+    expect(shouldUsePwaAppShell(pathnameAndSearch)).toBe(true);
+  });
 
   it.each([
     "/auth/discord?next=%2Fdashboard",

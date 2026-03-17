@@ -49,7 +49,6 @@ describe("rss xml", () => {
     expect(xml).toContain("<title>Post 1</title>");
     expect(xml).toContain("<description>Resumo &lt;teste&gt;</description>");
     expect(xml).toContain("<category>A</category>");
-    expect(xml).toContain("<guid isPermaLink=\"true\">https://example.com/postagem/post-1</guid>");
+    expect(xml).toContain('<guid isPermaLink="true">https://example.com/postagem/post-1</guid>');
   });
 });
-

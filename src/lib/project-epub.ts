@@ -1,4 +1,9 @@
-import type { Project, ProjectEpisode, ProjectVolumeCover, ProjectVolumeEntry } from "@/data/projects";
+import type {
+  Project,
+  ProjectEpisode,
+  ProjectVolumeCover,
+  ProjectVolumeEntry,
+} from "@/data/projects";
 import { resolveAssetAltText } from "@/lib/image-alt";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
 import { isLightNovelType, isMangaType } from "@/lib/project-utils";
@@ -147,7 +152,9 @@ export const normalizeApiContractBuildMetadata = (
 export const buildEpubImportProjectSnapshot = (
   project: Partial<EpubProjectShape>,
 ): EpubImportProjectSnapshot => {
-  const episodeDownloads = (Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : [])
+  const episodeDownloads = (
+    Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : []
+  )
     .map((episode): EpubImportProjectSnapshot["episodeDownloads"][number] | null => {
       const number = Number(episode?.number);
       if (!Number.isFinite(number)) {
@@ -259,7 +266,9 @@ export const extractEpubTempImportIdsFromPayload = (payload: unknown) => {
 };
 
 export const normalizeEpubImportJobStatus = (value: unknown): EpubImportJobStatus => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (
     normalized === "queued" ||
     normalized === "processing" ||

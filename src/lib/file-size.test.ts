@@ -34,4 +34,3 @@ describe("formatBytesCompact", () => {
     expect(formatBytesCompact(Number.NaN)).toBe("");
   });
 });
-

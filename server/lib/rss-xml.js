@@ -67,7 +67,9 @@ export const buildRssXml = ({
     if (item.link) {
       lines.push(`      <link>${escapeXml(item.link)}</link>`);
     }
-    lines.push(`      <guid isPermaLink="${item.guid === item.link ? "true" : "false"}">${escapeXml(item.guid)}</guid>`);
+    lines.push(
+      `      <guid isPermaLink="${item.guid === item.link ? "true" : "false"}">${escapeXml(item.guid)}</guid>`,
+    );
     if (item.pubDate) {
       lines.push(`      <pubDate>${escapeXml(item.pubDate)}</pubDate>`);
     }
@@ -83,4 +85,3 @@ export const buildRssXml = ({
   lines.push("</rss>");
   return `${lines.join("\n")}\n`;
 };
-

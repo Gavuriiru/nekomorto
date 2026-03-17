@@ -16,13 +16,7 @@ vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
 }));
 
 vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({
-    title,
-    actions,
-  }: {
-    title: string;
-    actions?: ReactNode;
-  }) => (
+  default: ({ title, actions }: { title: string; actions?: ReactNode }) => (
     <div>
       <h1>{title}</h1>
       {actions}
@@ -40,10 +34,12 @@ vi.mock("@/components/ProjectEmbedCard", () => ({
 
 vi.mock("@/components/lexical/LexicalEditor", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
-  const MockEditor = React.forwardRef((_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
-    React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
-    return <div data-testid="lexical-editor" />;
-  });
+  const MockEditor = React.forwardRef(
+    (_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
+      React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
+      return <div data-testid="lexical-editor" />;
+    },
+  );
   MockEditor.displayName = "MockLexicalEditor";
   return { default: MockEditor };
 });
@@ -236,7 +232,9 @@ describe("DashboardPosts query sync", () => {
       const entries = historyText.split("|").filter(Boolean);
       expect(entries).toContain("?page=2&edit=post-1");
       expect(entries).toContain("?page=2");
-      expect(entries.every((entry) => entry === "?page=2&edit=post-1" || entry === "?page=2")).toBe(true);
+      expect(entries.every((entry) => entry === "?page=2&edit=post-1" || entry === "?page=2")).toBe(
+        true,
+      );
     });
   });
 
@@ -319,35 +317,33 @@ describe("DashboardPosts query sync", () => {
     expect(screen.getByText("Publicada")).toBeInTheDocument();
   });
 
-  it(
-    "nao reintroduz query ao navegar para URL limpa e nao usa /api/me/preferences",
-    { timeout: 15000 },
-    async () => {
-      setupApiMock();
+  it("nao reintroduz query ao navegar para URL limpa e nao usa /api/me/preferences", {
+    timeout: 15000,
+  }, async () => {
+    setupApiMock();
 
-      render(
-        <MemoryRouter initialEntries={["/dashboard/posts?page=2"]}>
-          <DashboardPosts />
-          <NavigateCleanQuery />
-          <LocationProbe />
-        </MemoryRouter>,
-      );
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts?page=2"]}>
+        <DashboardPosts />
+        <NavigateCleanQuery />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
 
-      await screen.findByRole("heading", { name: "Gerenciar posts" });
-      await waitFor(() => {
-        expect(screen.getByTestId("location-search").textContent).toBe("?page=2");
-      });
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("?page=2");
+    });
 
-      fireEvent.click(screen.getByRole("button", { name: "Limpar query" }));
+    fireEvent.click(screen.getByRole("button", { name: "Limpar query" }));
 
-      await waitFor(() => {
-        expect(screen.getByTestId("location-search").textContent).toBe("");
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, 80));
+    await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
 
-      expect(getPreferenceCalls()).toHaveLength(0);
-    },
-  );
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(screen.getByTestId("location-search").textContent).toBe("");
+
+    expect(getPreferenceCalls()).toHaveLength(0);
+  });
 });

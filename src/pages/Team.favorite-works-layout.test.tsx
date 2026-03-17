@@ -44,45 +44,47 @@ describe("Team favorite works layout", () => {
   beforeEach(() => {
     delete (window as BootstrapWindow).__BOOTSTRAP_PUBLIC__;
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (endpoint === "/api/public/users" && method === "GET") {
-        return mockJsonResponse(true, {
-          users: [
-            {
-              id: "member-favorites",
-              name: favoriteMemberName,
-              avatarUrl: "/uploads/users/member-favorites.png",
-              phrase: "Frase",
-              bio: "Bio favorita",
-              status: "active",
-              roles: ["Membro"],
-              favoriteWorks: {
-                manga: ["Naruto", "Bleach", "Vinland Saga", "Excedente"],
-                anime: ["One Piece", "Frieren"],
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (endpoint === "/api/public/users" && method === "GET") {
+          return mockJsonResponse(true, {
+            users: [
+              {
+                id: "member-favorites",
+                name: favoriteMemberName,
+                avatarUrl: "/uploads/users/member-favorites.png",
+                phrase: "Frase",
+                bio: "Bio favorita",
+                status: "active",
+                roles: ["Membro"],
+                favoriteWorks: {
+                  manga: ["Naruto", "Bleach", "Vinland Saga", "Excedente"],
+                  anime: ["One Piece", "Frieren"],
+                },
+                socials: [],
               },
-              socials: [],
-            },
-            {
-              id: "member-default",
-              name: defaultMemberName,
-              avatarUrl: "/uploads/users/member-default.png",
-              phrase: "Frase sem favoritos",
-              bio: "Bio sem favoritos",
-              status: "active",
-              roles: ["Membro"],
-              favoriteWorks: { manga: [], anime: [] },
-              socials: [],
-            },
-          ],
-          mediaVariants: {},
-        });
-      }
-      if (endpoint === "/api/link-types" && method === "GET") {
-        return mockJsonResponse(true, { items: [] });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+              {
+                id: "member-default",
+                name: defaultMemberName,
+                avatarUrl: "/uploads/users/member-default.png",
+                phrase: "Frase sem favoritos",
+                bio: "Bio sem favoritos",
+                status: "active",
+                roles: ["Membro"],
+                favoriteWorks: { manga: [], anime: [] },
+                socials: [],
+              },
+            ],
+            mediaVariants: {},
+          });
+        }
+        if (endpoint === "/api/link-types" && method === "GET") {
+          return mockJsonResponse(true, { items: [] });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
   });
 
   it("renderiza painel de obras favoritas apenas quando houver itens", async () => {

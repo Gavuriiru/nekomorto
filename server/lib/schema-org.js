@@ -44,9 +44,7 @@ const toSocialLinks = (settings, origin) => {
   const socialLinks = Array.isArray(settings?.footer?.socialLinks)
     ? settings.footer.socialLinks
     : [];
-  return socialLinks
-    .map((item) => toAbsoluteUrl(origin, item?.href))
-    .filter(Boolean);
+  return socialLinks.map((item) => toAbsoluteUrl(origin, item?.href)).filter(Boolean);
 };
 
 const buildOrganizationSchema = ({ origin, settings }) => {
@@ -258,7 +256,10 @@ export const buildSchemaOrgPayload = ({
     return [];
   }
 
-  const safeCanonicalUrl = toAbsoluteUrl(safeOrigin, canonicalUrl || `${safeOrigin}${normalizedPath}`);
+  const safeCanonicalUrl = toAbsoluteUrl(
+    safeOrigin,
+    canonicalUrl || `${safeOrigin}${normalizedPath}`,
+  );
   const schemas = [
     buildOrganizationSchema({ origin: safeOrigin, settings }),
     buildWebSiteSchema({ origin: safeOrigin, settings }),
@@ -293,5 +294,4 @@ export const buildSchemaOrgPayload = ({
   return schemas;
 };
 
-export const serializeSchemaOrgEntry = (value) =>
-  JSON.stringify(value).replace(/</g, "\\u003c");
+export const serializeSchemaOrgEntry = (value) => JSON.stringify(value).replace(/</g, "\\u003c");

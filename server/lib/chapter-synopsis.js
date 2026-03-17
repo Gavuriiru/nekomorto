@@ -1,4 +1,7 @@
-const collapseWhitespace = (value) => String(value || "").replace(/\s+/g, " ").trim();
+const collapseWhitespace = (value) =>
+  String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const stripHtml = (value) =>
   String(value || "")

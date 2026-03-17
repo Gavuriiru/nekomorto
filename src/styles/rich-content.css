@@ -1,0 +1,308 @@
+.post-content:not(.lexical-playground--viewer) ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+
+.post-content:not(.lexical-playground--viewer) ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+
+.post-content:not(.lexical-playground--viewer) li {
+  margin-block: 0.25rem;
+}
+
+.post-content:not(.lexical-playground--viewer) img {
+  height: auto;
+  max-width: 100%;
+  border-radius: 0.5rem;
+}
+
+.post-content:not(.lexical-playground--viewer) h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.post-content:not(.lexical-playground--viewer) h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.post-content:not(.lexical-playground--viewer) h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.post-content:not(.lexical-playground--viewer) blockquote {
+  border-left: 4px solid hsl(var(--primary) / 0.5);
+  padding-left: 1rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.post-content:not(.lexical-playground--viewer) pre {
+  overflow-x: auto;
+  border: 1px solid hsl(var(--border) / 0.6);
+  border-radius: 0.75rem;
+  background: hsl(var(--muted) / 0.4);
+  padding: 1rem;
+  font-size: 0.75rem;
+  color: hsl(var(--foreground));
+}
+
+.post-content:not(.lexical-playground--viewer) code {
+  border-radius: 0.25rem;
+  background: hsl(var(--muted));
+  padding: 0.125rem 0.25rem;
+  font-size: 0.75rem;
+  color: hsl(var(--foreground));
+}
+
+.post-content:not(.lexical-playground--viewer) table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.post-content:not(.lexical-playground--viewer) th,
+.post-content:not(.lexical-playground--viewer) td {
+  border: 1px solid hsl(var(--border) / 0.6);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.post-content:not(.lexical-playground--viewer) thead {
+  background: hsl(var(--muted) / 0.4);
+}
+
+.post-content:not(.lexical-playground--viewer) hr {
+  border-color: hsl(var(--border) / 0.6);
+}
+
+.post-content:not(.lexical-playground--viewer) .lexical-video iframe,
+.post-content:not(.lexical-playground--viewer) iframe[data-lexical-node="video"] {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 0.75rem;
+}
+
+.post-content:not(.lexical-playground--viewer) iframe[data-lexical-youtube] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 0.75rem;
+}
+
+.post-content:not(.lexical-playground--viewer) ul[data-lexical-list-type="check"],
+.post-content:not(.lexical-playground--viewer) ul[__lexicallisttype="check"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.post-content:not(.lexical-playground--viewer) ul[data-lexical-list-type="check"] li,
+.post-content:not(.lexical-playground--viewer) ul[__lexicallisttype="check"] li {
+  position: relative;
+  padding-left: 1.75rem;
+}
+
+.post-content:not(.lexical-playground--viewer) ul[data-lexical-list-type="check"] li::before,
+.post-content:not(.lexical-playground--viewer) ul[__lexicallisttype="check"] li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid hsl(var(--border));
+  border-radius: 0.2rem;
+  background: hsl(var(--background));
+  transform: translateY(-50%);
+}
+
+.post-content:not(.lexical-playground--viewer)
+  ul[data-lexical-list-type="check"]
+  li[data-lexical-checked="true"]::after,
+.post-content:not(.lexical-playground--viewer)
+  ul[__lexicallisttype="check"]
+  li[aria-checked="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0.3rem;
+  top: 50%;
+  width: 0.35rem;
+  height: 0.55rem;
+  border-right: 2px solid hsl(var(--primary));
+  border-bottom: 2px solid hsl(var(--primary));
+  transform: translateY(-55%) rotate(45deg);
+}
+
+.post-content:not(.lexical-playground--viewer) ul:has([data-lexical-checked]),
+.post-content:not(.lexical-playground--viewer) ol:has([data-lexical-checked]),
+.post-content:not(.lexical-playground--viewer) ul:has([aria-checked]),
+.post-content:not(.lexical-playground--viewer) ol:has([aria-checked]) {
+  list-style: none;
+  padding-left: 0;
+}
+
+.post-content:not(.lexical-playground--viewer) [data-lexical-checked],
+.post-content:not(.lexical-playground--viewer) [aria-checked] {
+  display: block;
+  list-style: none;
+  position: relative;
+  padding-left: 1.75rem;
+}
+
+.post-content:not(.lexical-playground--viewer) [data-lexical-checked]::before,
+.post-content:not(.lexical-playground--viewer) [aria-checked]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid hsl(var(--border));
+  border-radius: 0.2rem;
+  background: hsl(var(--background));
+  transform: translateY(-50%);
+}
+
+.post-content:not(.lexical-playground--viewer) [data-lexical-checked="true"]::after,
+.post-content:not(.lexical-playground--viewer) [aria-checked="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0.3rem;
+  top: 50%;
+  width: 0.35rem;
+  height: 0.55rem;
+  border-right: 2px solid hsl(var(--primary));
+  border-bottom: 2px solid hsl(var(--primary));
+  transform: translateY(-55%) rotate(45deg);
+}
+
+.post-content:not(.lexical-playground--viewer) ul li[data-lexical-checked],
+.post-content:not(.lexical-playground--viewer) ol li[data-lexical-checked],
+.post-content:not(.lexical-playground--viewer) ul li[aria-checked],
+.post-content:not(.lexical-playground--viewer) ol li[aria-checked] {
+  list-style: none;
+  position: relative;
+  padding-left: 1.75rem;
+}
+
+.post-content:not(.lexical-playground--viewer) ul li[data-lexical-checked]::before,
+.post-content:not(.lexical-playground--viewer) ol li[data-lexical-checked]::before,
+.post-content:not(.lexical-playground--viewer) ul li[aria-checked]::before,
+.post-content:not(.lexical-playground--viewer) ol li[aria-checked]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid hsl(var(--border));
+  border-radius: 0.2rem;
+  background: hsl(var(--background));
+  transform: translateY(-50%);
+}
+
+.post-content:not(.lexical-playground--viewer) ul li[data-lexical-checked="true"]::after,
+.post-content:not(.lexical-playground--viewer) ol li[data-lexical-checked="true"]::after,
+.post-content:not(.lexical-playground--viewer) ul li[aria-checked="true"]::after,
+.post-content:not(.lexical-playground--viewer) ol li[aria-checked="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0.3rem;
+  top: 50%;
+  width: 0.35rem;
+  height: 0.55rem;
+  border-right: 2px solid hsl(var(--primary));
+  border-bottom: 2px solid hsl(var(--primary));
+  transform: translateY(-55%) rotate(45deg);
+}
+
+.reader-content:not(.lexical-playground--viewer) {
+  font-size: 1rem;
+  line-height: 1.9;
+}
+
+.reader-content:not(.lexical-playground--viewer) p {
+  margin: 0 0 1.2rem;
+}
+
+.reader-content:not(.lexical-playground--viewer) h1 {
+  margin: 0 0 1.4rem;
+  font-size: 2rem;
+}
+
+.reader-content:not(.lexical-playground--viewer) h2 {
+  margin: 1.4rem 0 1rem;
+  font-size: 1.5rem;
+}
+
+.reader-content:not(.lexical-playground--viewer) h3 {
+  margin: 1.2rem 0 0.8rem;
+  font-size: 1.25rem;
+}
+
+.reader-content:not(.lexical-playground--viewer) blockquote {
+  margin: 1.2rem 0;
+}
+
+.reader-content:not(.lexical-playground--viewer) ul,
+.reader-content:not(.lexical-playground--viewer) ol {
+  margin: 0 0 1.2rem;
+}
+
+.reader-content:not(.lexical-playground--viewer) table {
+  margin: 0 0 1.4rem;
+}
+
+.reader-content:not(.lexical-playground--viewer) iframe {
+  margin: 1.2rem 0;
+}
+
+.lexical-playground.lexical-playground--viewer.post-content .LexicalViewerTheme__code,
+.lexical-playground.lexical-playground--viewer.reader-content .LexicalViewerTheme__code,
+.lexical-playground.lexical-playground--viewer.post-content pre,
+.lexical-playground.lexical-playground--viewer.reader-content pre {
+  display: block;
+  white-space: pre;
+  overflow-x: auto;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.lexical-playground.lexical-playground--viewer.post-content .LexicalViewerTheme__textCode,
+.lexical-playground.lexical-playground--viewer.reader-content .LexicalViewerTheme__textCode {
+  display: inline;
+  white-space: break-spaces;
+}
+
+.lexical-playground.lexical-playground--viewer.post-content .LexicalViewerTheme__table,
+.lexical-playground.lexical-playground--viewer.reader-content .LexicalViewerTheme__table {
+  width: fit-content;
+  min-width: 100%;
+}
+
+.lexical-playground.lexical-playground--viewer.post-content .LexicalViewerTheme__h1,
+.lexical-playground.lexical-playground--viewer.reader-content .LexicalViewerTheme__h1,
+.lexical-playground.lexical-playground--viewer.post-content .LexicalViewerTheme__h2,
+.lexical-playground.lexical-playground--viewer.reader-content .LexicalViewerTheme__h2,
+.lexical-playground.lexical-playground--viewer.post-content .LexicalViewerTheme__h3,
+.lexical-playground.lexical-playground--viewer.reader-content .LexicalViewerTheme__h3 {
+  margin: 0;
+}
+
+.lexical-playground.lexical-playground--viewer.post-content .lexical-tweet,
+.lexical-playground.lexical-playground--viewer.reader-content .lexical-tweet,
+.lexical-playground.lexical-playground--viewer.post-content .lexical-youtube,
+.lexical-playground.lexical-playground--viewer.reader-content .lexical-youtube,
+.lexical-playground.lexical-playground--viewer.post-content iframe[data-lexical-youtube],
+.lexical-playground.lexical-playground--viewer.reader-content iframe[data-lexical-youtube] {
+  margin: 0;
+}

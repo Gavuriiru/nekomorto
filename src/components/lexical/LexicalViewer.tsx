@@ -14,6 +14,7 @@ import LexicalViewerTheme from "./LexicalViewerTheme";
 import { ViewerPollProvider, type PollTarget } from "./viewer-nodes/ViewerPollContext";
 
 import "./lexical-viewer.css";
+import "@/styles/rich-content.css";
 
 type LexicalViewerProps = {
   value: string;
@@ -96,11 +97,12 @@ const normalizeChecklistDom = (rootElement: HTMLElement | null) => {
   if (!rootElement) {
     return;
   }
-  const checklistItems = rootElement.querySelectorAll<HTMLElement>("li[role='checkbox'], li[aria-checked]");
+  const checklistItems = rootElement.querySelectorAll<HTMLElement>(
+    "li[role='checkbox'], li[aria-checked]",
+  );
   checklistItems.forEach((item) => {
     const checkedValue =
-      item.getAttribute("aria-checked") === "true" ||
-      item.dataset.lexicalChecked === "true";
+      item.getAttribute("aria-checked") === "true" || item.dataset.lexicalChecked === "true";
     item.dataset.lexicalChecklistItem = "true";
     item.dataset.lexicalChecked = checkedValue ? "true" : "false";
     item.removeAttribute("role");

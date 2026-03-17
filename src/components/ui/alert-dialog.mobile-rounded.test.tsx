@@ -12,7 +12,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 describe("AlertDialog mobile rounded", () => {
   it("aplica rounded-lg e respiro lateral mobile no conteudo", async () => {

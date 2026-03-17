@@ -84,36 +84,38 @@ describe("ImageLibraryDialog alt text editor", () => {
     toastMock.mockReset();
 
     let listCalls = 0;
-    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: { method?: string; body?: string }) => {
-      if (path.startsWith("/api/uploads/list")) {
-        listCalls += 1;
-        return mockJsonResponse(true, {
-          files: [
-            {
+    apiFetchMock.mockImplementation(
+      async (_base: string, path: string, options?: { method?: string; body?: string }) => {
+        if (path.startsWith("/api/uploads/list")) {
+          listCalls += 1;
+          return mockJsonResponse(true, {
+            files: [
+              {
+                id: "upload-1",
+                url: "/uploads/posts/upload-1.png",
+                name: "upload-1.png",
+                fileName: "upload-1.png",
+                altText: listCalls > 1 ? "Alt atualizado" : "Alt anterior",
+              },
+            ],
+          });
+        }
+
+        if (path === "/api/uploads/upload-1/alt-text" && options?.method === "PATCH") {
+          return mockJsonResponse(true, {
+            ok: true,
+            item: {
               id: "upload-1",
               url: "/uploads/posts/upload-1.png",
-              name: "upload-1.png",
               fileName: "upload-1.png",
-              altText: listCalls > 1 ? "Alt atualizado" : "Alt anterior",
+              altText: "Alt atualizado",
             },
-          ],
-        });
-      }
+          });
+        }
 
-      if (path === "/api/uploads/upload-1/alt-text" && options?.method === "PATCH") {
-        return mockJsonResponse(true, {
-          ok: true,
-          item: {
-            id: "upload-1",
-            url: "/uploads/posts/upload-1.png",
-            fileName: "upload-1.png",
-            altText: "Alt atualizado",
-          },
-        });
-      }
-
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
   });
 
   it("abre a edicao de texto alternativo para uploads e salva no endpoint dedicado", async () => {

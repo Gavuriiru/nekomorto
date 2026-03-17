@@ -16,13 +16,7 @@ vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
 }));
 
 vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({
-    title,
-    actions,
-  }: {
-    title: string;
-    actions?: ReactNode;
-  }) => (
+  default: ({ title, actions }: { title: string; actions?: ReactNode }) => (
     <div>
       <h1>{title}</h1>
       {actions}
@@ -40,10 +34,12 @@ vi.mock("@/components/ProjectEmbedCard", () => ({
 
 vi.mock("@/components/lexical/LexicalEditor", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
-  const MockEditor = React.forwardRef((_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
-    React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
-    return <div data-testid="lexical-editor" />;
-  });
+  const MockEditor = React.forwardRef(
+    (_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
+      React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
+      return <div data-testid="lexical-editor" />;
+    },
+  );
   MockEditor.displayName = "MockLexicalEditor";
   return { default: MockEditor };
 });
@@ -159,7 +155,9 @@ describe("DashboardPosts cover fallback", () => {
     await waitFor(() => {
       const cardImage = card.querySelector("img");
       expect(cardImage).not.toBeNull();
-      expect(cardImage?.getAttribute("src") || "").toContain("/uploads/_variants/post-1/card-v1.jpeg");
+      expect(cardImage?.getAttribute("src") || "").toContain(
+        "/uploads/_variants/post-1/card-v1.jpeg",
+      );
     });
     expect(within(card).queryByText("Sem capa")).not.toBeInTheDocument();
 
@@ -173,7 +171,9 @@ describe("DashboardPosts cover fallback", () => {
 
     await waitFor(() => {
       const sidebarImage = within(dialog).getByAltText(/Primeira autom/i);
-      expect(sidebarImage.getAttribute("src") || "").toContain("/uploads/_variants/post-1/card-v1.jpeg");
+      expect(sidebarImage.getAttribute("src") || "").toContain(
+        "/uploads/_variants/post-1/card-v1.jpeg",
+      );
     });
   });
 });

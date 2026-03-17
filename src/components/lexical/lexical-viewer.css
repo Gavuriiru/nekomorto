@@ -28,39 +28,48 @@
   line-height: var(--lexical-content-line-height, 1.75);
 }
 
-.lexical-playground.lexical-playground--viewer .LexicalViewer__content :where(
-  p,
-  li,
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
-  blockquote,
-  a
-) {
+.lexical-playground.lexical-playground--viewer
+  .LexicalViewer__content
+  :where(p, li, h1, h2, h3, h4, h5, h6, blockquote, a) {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
 .lexical-playground.lexical-playground--viewer .LexicalViewer__content > * + *,
-.lexical-playground.lexical-playground--viewer .LexicalViewer__content > [data-lexical-decorator="true"] + *,
-.lexical-playground.lexical-playground--viewer .LexicalViewer__content > * + [data-lexical-decorator="true"] {
+.lexical-playground.lexical-playground--viewer
+  .LexicalViewer__content
+  > [data-lexical-decorator="true"]
+  + *,
+.lexical-playground.lexical-playground--viewer
+  .LexicalViewer__content
+  > *
+  + [data-lexical-decorator="true"] {
   margin-top: var(--lexical-content-block-gap, 1rem);
 }
 
-.lexical-playground.lexical-playground--viewer .LexicalViewer__content > .LexicalViewerTheme__h1
+.lexical-playground.lexical-playground--viewer
+  .LexicalViewer__content
+  > .LexicalViewerTheme__h1
   + *,
-.lexical-playground.lexical-playground--viewer .LexicalViewer__content > .LexicalViewerTheme__h2
+.lexical-playground.lexical-playground--viewer
+  .LexicalViewer__content
+  > .LexicalViewerTheme__h2
   + *,
-.lexical-playground.lexical-playground--viewer .LexicalViewer__content > .LexicalViewerTheme__h3
+.lexical-playground.lexical-playground--viewer
+  .LexicalViewer__content
+  > .LexicalViewerTheme__h3
   + *,
-.lexical-playground.lexical-playground--viewer .LexicalViewer__content > .LexicalViewerTheme__h4
+.lexical-playground.lexical-playground--viewer
+  .LexicalViewer__content
+  > .LexicalViewerTheme__h4
   + *,
-.lexical-playground.lexical-playground--viewer .LexicalViewer__content > .LexicalViewerTheme__h5
+.lexical-playground.lexical-playground--viewer
+  .LexicalViewer__content
+  > .LexicalViewerTheme__h5
   + *,
-.lexical-playground.lexical-playground--viewer .LexicalViewer__content > .LexicalViewerTheme__h6
+.lexical-playground.lexical-playground--viewer
+  .LexicalViewer__content
+  > .LexicalViewerTheme__h6
   + * {
   margin-top: 0.65rem;
 }

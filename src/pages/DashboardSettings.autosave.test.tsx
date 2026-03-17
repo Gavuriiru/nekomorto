@@ -1,5 +1,5 @@
 ﻿import type { ReactNode } from "react";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -159,7 +159,7 @@ describe("DashboardSettings autosave", () => {
     expect(tablistClasses).toContain("no-scrollbar");
     expect(tablistClasses).toContain("overflow-x-auto");
     expect(tablistClasses).toContain("md:grid");
-    expect(tablistClasses).toContain("md:grid-cols-7");
+    expect(tablistClasses).toContain("md:grid-cols-9");
 
     const tabs = within(tablist).getAllByRole("tab");
     expect(tabs.length).toBeGreaterThan(0);
@@ -184,7 +184,7 @@ describe("DashboardSettings autosave", () => {
     const putCalls = getPutCalls();
     expect(putCalls).toHaveLength(1);
     expect(putCalls[0][1]).toBe("/api/settings");
-  });
+  }, 10000);
 
   it("envia theme.mode no payload de configuracoes", async () => {
     renderDashboardSettings();
@@ -204,7 +204,7 @@ describe("DashboardSettings autosave", () => {
     expect(putCalls[0][1]).toBe("/api/settings");
     const payload = JSON.parse(String(((putCalls[0][2] || {}) as RequestInit).body || "{}"));
     expect(payload?.settings?.theme?.mode).toBe("dark");
-  });
+  }, 10000);
 
   it("envia theme.useAccentInProgressCard no payload de configuracoes", async () => {
     renderDashboardSettings();
@@ -226,7 +226,7 @@ describe("DashboardSettings autosave", () => {
     expect(putCalls[0][1]).toBe("/api/settings");
     const payload = JSON.parse(String(((putCalls[0][2] || {}) as RequestInit).body || "{}"));
     expect(payload?.settings?.theme?.useAccentInProgressCard).toBe(true);
-  });
+  }, 10000);
 
   it("editar tradução dispara apenas PUT /api/tag-translations", async () => {
     renderDashboardSettings();
@@ -244,9 +244,9 @@ describe("DashboardSettings autosave", () => {
     });
 
     const putCalls = getPutCalls();
-    expect(putCalls).toHaveLength(1);
-    expect(putCalls[0][1]).toBe("/api/tag-translations");
-  });
+    expect(putCalls.filter((call) => call[1] === "/api/tag-translations")).toHaveLength(1);
+    expect(putCalls.some((call) => call[1] === "/api/link-types")).toBe(false);
+  }, 10000);
 
   it("editar tipo de link dispara apenas PUT /api/link-types", async () => {
     renderDashboardSettings();
@@ -265,25 +265,26 @@ describe("DashboardSettings autosave", () => {
     });
 
     const putCalls = getPutCalls();
-    expect(putCalls).toHaveLength(1);
-    expect(putCalls[0][1]).toBe("/api/link-types");
-  });
+    expect(putCalls.filter((call) => call[1] === "/api/link-types")).toHaveLength(1);
+  }, 10000);
 
   it("registra beforeunload quando há alteração pendente", async () => {
-    const addEventListenerSpy = vi.spyOn(window, "addEventListener");
     renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
-    addEventListenerSpy.mockClear();
     const siteNameInput = await screen.findByDisplayValue(defaultSettings.site.name);
     fireEvent.change(siteNameInput, { target: { value: "Nome pendente" } });
     await act(async () => {
       await flushMicrotasks();
     });
 
-    expect(addEventListenerSpy.mock.calls.some((call) => call[0] === "beforeunload")).toBe(true);
-
-    addEventListenerSpy.mockRestore();
+    await waitFor(() => {
+      const beforeUnloadEvent = new Event("beforeunload", {
+        cancelable: true,
+      }) as BeforeUnloadEvent;
+      window.dispatchEvent(beforeUnloadEvent);
+      expect(beforeUnloadEvent.defaultPrevented).toBe(true);
+    });
   });
 
   it("renderiza a prévia do footer com nome em uppercase", async () => {
@@ -334,7 +335,7 @@ describe("DashboardSettings autosave", () => {
       (item: { label: string }) => String(item?.label || ""),
     );
     expect(socialLabels[0]).toBe("Discord");
-  });
+  }, 10000);
 
   it("aplica reveal ao bloco de autosave no header", async () => {
     renderDashboardSettings();

@@ -43,9 +43,9 @@ describe("Sidebar mobile toggle", () => {
     expect(dialogStyle).toContain("top: 4.75rem;");
     expect(dialogStyle).toContain("height: calc(100svh - 4.75rem);");
 
-    const overlay = Array.from(document.body.querySelectorAll<HTMLElement>("[data-state='open']")).find(
-      (element) => element.getAttribute("role") !== "dialog",
-    );
+    const overlay = Array.from(
+      document.body.querySelectorAll<HTMLElement>("[data-state='open']"),
+    ).find((element) => element.getAttribute("role") !== "dialog");
 
     expect(overlay).toBeTruthy();
     expect(String(overlay?.className)).toContain("top-[4.75rem]");

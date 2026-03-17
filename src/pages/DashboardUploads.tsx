@@ -183,7 +183,8 @@ const normalizeStorageAreaRow = (
 });
 
 const normalizeStorageSummaryPayload = (payload: unknown): StorageSummaryPayload => {
-  const source = payload && typeof payload === "object" ? (payload as Partial<StorageSummaryPayload>) : {};
+  const source =
+    payload && typeof payload === "object" ? (payload as Partial<StorageSummaryPayload>) : {};
   return {
     generatedAt: String(source.generatedAt || ""),
     totals: normalizeStorageAreaRow(source.totals, "total"),
@@ -194,7 +195,8 @@ const normalizeStorageSummaryPayload = (payload: unknown): StorageSummaryPayload
 };
 
 const normalizeCleanupPreviewPayload = (payload: unknown): CleanupPreviewPayload => {
-  const source = payload && typeof payload === "object" ? (payload as Partial<CleanupPreviewPayload>) : {};
+  const source =
+    payload && typeof payload === "object" ? (payload as Partial<CleanupPreviewPayload>) : {};
   const examples = Array.isArray(source.examples) ? source.examples : [];
   const unusedUploadCount = Number.isFinite(Number(source.unusedUploadCount))
     ? Number(source.unusedUploadCount)
@@ -204,7 +206,9 @@ const normalizeCleanupPreviewPayload = (payload: unknown): CleanupPreviewPayload
 
   return {
     generatedAt: String(source.generatedAt || ""),
-    unusedCount: Number.isFinite(Number(source.unusedCount)) ? Number(source.unusedCount) : unusedUploadCount,
+    unusedCount: Number.isFinite(Number(source.unusedCount))
+      ? Number(source.unusedCount)
+      : unusedUploadCount,
     unusedUploadCount,
     orphanedVariantFilesCount: Number.isFinite(Number(source.orphanedVariantFilesCount))
       ? Number(source.orphanedVariantFilesCount)
@@ -219,7 +223,10 @@ const normalizeCleanupPreviewPayload = (payload: unknown): CleanupPreviewPayload
     quarantinePendingDeleteCount: Number.isFinite(Number(source.quarantinePendingDeleteCount))
       ? Number(source.quarantinePendingDeleteCount)
       : 0,
-    quarantinePendingDeleteTotals: normalizeStorageAreaRow(source.quarantinePendingDeleteTotals, "total"),
+    quarantinePendingDeleteTotals: normalizeStorageAreaRow(
+      source.quarantinePendingDeleteTotals,
+      "total",
+    ),
     totals: normalizeStorageAreaRow(source.totals, "total"),
     areas: Array.isArray(source.areas)
       ? source.areas.map((item) => normalizeStorageAreaRow(item, String(item?.area || "root")))
@@ -242,8 +249,12 @@ const normalizeCleanupPreviewPayload = (payload: unknown): CleanupPreviewPayload
         folder: String(example.folder || ""),
         area: String(example.area || "root"),
         createdAt: example.createdAt ? String(example.createdAt) : null,
-        originalBytes: Number.isFinite(Number(example.originalBytes)) ? Number(example.originalBytes) : 0,
-        variantBytes: Number.isFinite(Number(example.variantBytes)) ? Number(example.variantBytes) : 0,
+        originalBytes: Number.isFinite(Number(example.originalBytes))
+          ? Number(example.originalBytes)
+          : 0,
+        variantBytes: Number.isFinite(Number(example.variantBytes))
+          ? Number(example.variantBytes)
+          : 0,
         totalBytes: Number.isFinite(Number(example.totalBytes)) ? Number(example.totalBytes) : 0,
       };
     }),
@@ -251,7 +262,8 @@ const normalizeCleanupPreviewPayload = (payload: unknown): CleanupPreviewPayload
 };
 
 const normalizeCleanupRunPayload = (payload: unknown): CleanupRunPayload => {
-  const source = payload && typeof payload === "object" ? (payload as Partial<CleanupRunPayload>) : {};
+  const source =
+    payload && typeof payload === "object" ? (payload as Partial<CleanupRunPayload>) : {};
   const failures = Array.isArray(source.failures) ? source.failures : [];
   const deletedUnusedUploadsCount = Number.isFinite(Number(source.deletedUnusedUploadsCount))
     ? Number(source.deletedUnusedUploadsCount)
@@ -261,15 +273,21 @@ const normalizeCleanupRunPayload = (payload: unknown): CleanupRunPayload => {
 
   return {
     ok: source.ok !== false,
-    deletedCount: Number.isFinite(Number(source.deletedCount)) ? Number(source.deletedCount) : deletedUnusedUploadsCount,
+    deletedCount: Number.isFinite(Number(source.deletedCount))
+      ? Number(source.deletedCount)
+      : deletedUnusedUploadsCount,
     deletedUnusedUploadsCount,
-    deletedOrphanedVariantFilesCount: Number.isFinite(Number(source.deletedOrphanedVariantFilesCount))
+    deletedOrphanedVariantFilesCount: Number.isFinite(
+      Number(source.deletedOrphanedVariantFilesCount),
+    )
       ? Number(source.deletedOrphanedVariantFilesCount)
       : 0,
     deletedOrphanedVariantDirsCount: Number.isFinite(Number(source.deletedOrphanedVariantDirsCount))
       ? Number(source.deletedOrphanedVariantDirsCount)
       : 0,
-    quarantinedLooseOriginalFilesCount: Number.isFinite(Number(source.quarantinedLooseOriginalFilesCount))
+    quarantinedLooseOriginalFilesCount: Number.isFinite(
+      Number(source.quarantinedLooseOriginalFilesCount),
+    )
       ? Number(source.quarantinedLooseOriginalFilesCount)
       : 0,
     deletedQuarantineFilesCount: Number.isFinite(Number(source.deletedQuarantineFilesCount))
@@ -440,87 +458,93 @@ const DashboardUploads = () => {
     setIsCleanupRefreshing(false);
   }, []);
 
-  const loadSummary = useCallback(async (options?: { background?: boolean }) => {
-    const background = options?.background ?? hasSummaryLoadedOnceRef.current;
-    const requestId = summaryRequestIdRef.current + 1;
-    summaryRequestIdRef.current = requestId;
-    if (background) {
-      setIsSummaryRefreshing(true);
-    } else {
-      setIsSummaryInitialLoading(true);
-    }
-    setSummaryError("");
-    try {
-      const response = await apiFetch(apiBase, "/api/uploads/storage/areas", { auth: true });
-      if (summaryRequestIdRef.current !== requestId) {
-        return;
+  const loadSummary = useCallback(
+    async (options?: { background?: boolean }) => {
+      const background = options?.background ?? hasSummaryLoadedOnceRef.current;
+      const requestId = summaryRequestIdRef.current + 1;
+      summaryRequestIdRef.current = requestId;
+      if (background) {
+        setIsSummaryRefreshing(true);
+      } else {
+        setIsSummaryInitialLoading(true);
       }
-      if (response.status === 403) {
-        applyForbiddenState();
-        return;
+      setSummaryError("");
+      try {
+        const response = await apiFetch(apiBase, "/api/uploads/storage/areas", { auth: true });
+        if (summaryRequestIdRef.current !== requestId) {
+          return;
+        }
+        if (response.status === 403) {
+          applyForbiddenState();
+          return;
+        }
+        if (!response.ok) {
+          throw new Error("summary_load_failed");
+        }
+        const nextSummary = normalizeStorageSummaryPayload(await response.json());
+        uploadsSummaryCache = writeUploadsCache(nextSummary);
+        setIsForbidden(false);
+        setSummary(nextSummary);
+        setHasSummaryLoadedOnce(true);
+      } catch {
+        if (summaryRequestIdRef.current !== requestId) {
+          return;
+        }
+        setSummaryError("Nao foi possivel carregar os dados de storage.");
+      } finally {
+        if (summaryRequestIdRef.current !== requestId) {
+          return;
+        }
+        setIsSummaryInitialLoading(false);
+        setIsSummaryRefreshing(false);
       }
-      if (!response.ok) {
-        throw new Error("summary_load_failed");
-      }
-      const nextSummary = normalizeStorageSummaryPayload(await response.json());
-      uploadsSummaryCache = writeUploadsCache(nextSummary);
-      setIsForbidden(false);
-      setSummary(nextSummary);
-      setHasSummaryLoadedOnce(true);
-    } catch {
-      if (summaryRequestIdRef.current !== requestId) {
-        return;
-      }
-      setSummaryError("Nao foi possivel carregar os dados de storage.");
-    } finally {
-      if (summaryRequestIdRef.current !== requestId) {
-        return;
-      }
-      setIsSummaryInitialLoading(false);
-      setIsSummaryRefreshing(false);
-    }
-  }, [apiBase, applyForbiddenState]);
+    },
+    [apiBase, applyForbiddenState],
+  );
 
-  const loadCleanupPreview = useCallback(async (options?: { background?: boolean }) => {
-    const background = options?.background ?? hasCleanupLoadedOnceRef.current;
-    const requestId = cleanupRequestIdRef.current + 1;
-    cleanupRequestIdRef.current = requestId;
-    if (background) {
-      setIsCleanupRefreshing(true);
-    } else {
-      setIsCleanupInitialLoading(true);
-    }
-    setCleanupError("");
-    try {
-      const response = await apiFetch(apiBase, "/api/uploads/storage/cleanup", { auth: true });
-      if (cleanupRequestIdRef.current !== requestId) {
-        return;
+  const loadCleanupPreview = useCallback(
+    async (options?: { background?: boolean }) => {
+      const background = options?.background ?? hasCleanupLoadedOnceRef.current;
+      const requestId = cleanupRequestIdRef.current + 1;
+      cleanupRequestIdRef.current = requestId;
+      if (background) {
+        setIsCleanupRefreshing(true);
+      } else {
+        setIsCleanupInitialLoading(true);
       }
-      if (response.status === 403) {
-        applyForbiddenState();
-        return;
+      setCleanupError("");
+      try {
+        const response = await apiFetch(apiBase, "/api/uploads/storage/cleanup", { auth: true });
+        if (cleanupRequestIdRef.current !== requestId) {
+          return;
+        }
+        if (response.status === 403) {
+          applyForbiddenState();
+          return;
+        }
+        if (!response.ok) {
+          throw new Error("cleanup_preview_load_failed");
+        }
+        const nextCleanupPreview = normalizeCleanupPreviewPayload(await response.json());
+        uploadsCleanupPreviewCache = writeUploadsCache(nextCleanupPreview);
+        setIsForbidden(false);
+        setCleanupPreview(nextCleanupPreview);
+        setHasCleanupLoadedOnce(true);
+      } catch {
+        if (cleanupRequestIdRef.current !== requestId) {
+          return;
+        }
+        setCleanupError("Nao foi possivel analisar o armazenamento nao utilizado.");
+      } finally {
+        if (cleanupRequestIdRef.current !== requestId) {
+          return;
+        }
+        setIsCleanupInitialLoading(false);
+        setIsCleanupRefreshing(false);
       }
-      if (!response.ok) {
-        throw new Error("cleanup_preview_load_failed");
-      }
-      const nextCleanupPreview = normalizeCleanupPreviewPayload(await response.json());
-      uploadsCleanupPreviewCache = writeUploadsCache(nextCleanupPreview);
-      setIsForbidden(false);
-      setCleanupPreview(nextCleanupPreview);
-      setHasCleanupLoadedOnce(true);
-    } catch {
-      if (cleanupRequestIdRef.current !== requestId) {
-        return;
-      }
-      setCleanupError("Nao foi possivel analisar o armazenamento nao utilizado.");
-    } finally {
-      if (cleanupRequestIdRef.current !== requestId) {
-        return;
-      }
-      setIsCleanupInitialLoading(false);
-      setIsCleanupRefreshing(false);
-    }
-  }, [apiBase, applyForbiddenState]);
+    },
+    [apiBase, applyForbiddenState],
+  );
 
   const load = useCallback(
     async (options?: { background?: boolean }) => {
@@ -577,8 +601,12 @@ const DashboardUploads = () => {
   const hasCleanupRetainedError = hasCleanupLoadedOnce && Boolean(cleanupError);
   const showSummaryShell = isSummaryInitialLoading && !hasSummaryLoadedOnce;
   const showCleanupShell = isCleanupInitialLoading && !hasCleanupLoadedOnce;
-  const summaryTimestampLabel = hasSummaryLoadedOnce ? formatDateTime(summary.generatedAt) : "aguardando dados";
-  const cleanupTimestampLabel = hasCleanupLoadedOnce ? formatDateTime(cleanupPreview.generatedAt) : "aguardando dados";
+  const summaryTimestampLabel = hasSummaryLoadedOnce
+    ? formatDateTime(summary.generatedAt)
+    : "aguardando dados";
+  const cleanupTimestampLabel = hasCleanupLoadedOnce
+    ? formatDateTime(cleanupPreview.generatedAt)
+    : "aguardando dados";
 
   useDashboardRefreshToast({
     active: isAnyRefreshing && (hasSummaryLoadedOnce || hasCleanupLoadedOnce),
@@ -687,7 +715,9 @@ const DashboardUploads = () => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => void load({ background: hasSummaryLoadedOnce || hasCleanupLoadedOnce })}
+                onClick={() =>
+                  void load({ background: hasSummaryLoadedOnce || hasCleanupLoadedOnce })
+                }
                 disabled={isAnyRefreshing || isCleanupRunning}
               >
                 Atualizar
@@ -742,59 +772,77 @@ const DashboardUploads = () => {
               <div className="border-b border-border/60 px-5 py-4">
                 <h2 className="text-sm font-semibold text-foreground">Consumo por area</h2>
               </div>
-              <div className="min-h-[18rem] overflow-x-auto" aria-busy={showSummaryShell || isSummaryRefreshing ? "true" : "false"}>
-                  <table className="w-full min-w-[760px] text-sm">
-                    <thead className="bg-background/60 text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                      <tr>
-                        <th className="px-4 py-3 text-left">Area</th>
-                        <th className="px-4 py-3 text-right">Originais</th>
-                        <th className="px-4 py-3 text-right">Variantes</th>
-                        <th className="px-4 py-3 text-right">Total</th>
-                        <th className="px-4 py-3 text-right">Arquivos</th>
+              <div
+                className="min-h-[18rem] overflow-x-auto"
+                aria-busy={showSummaryShell || isSummaryRefreshing ? "true" : "false"}
+              >
+                <table className="w-full min-w-[760px] text-sm">
+                  <thead className="bg-background/60 text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 text-left">Area</th>
+                      <th className="px-4 py-3 text-right">Originais</th>
+                      <th className="px-4 py-3 text-right">Variantes</th>
+                      <th className="px-4 py-3 text-right">Total</th>
+                      <th className="px-4 py-3 text-right">Arquivos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {showSummaryShell ? (
+                      Array.from({ length: 4 }).map((_, index) => (
+                        <tr
+                          key={`dashboard-uploads-storage-placeholder-${index}`}
+                          className="border-t border-border/50"
+                        >
+                          <td className="px-4 py-3">
+                            <Skeleton className="h-4 w-24" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Skeleton className="ml-auto h-4 w-20" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Skeleton className="ml-auto h-4 w-20" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Skeleton className="ml-auto h-4 w-20" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Skeleton className="ml-auto h-4 w-12" />
+                          </td>
+                        </tr>
+                      ))
+                    ) : hasSummaryBlockingError ? (
+                      <tr className="border-t border-border/50">
+                        <td colSpan={5} className="px-4 py-10 text-sm text-muted-foreground">
+                          Nao foi possivel carregar os dados de storage.
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {showSummaryShell ? (
-                        Array.from({ length: 4 }).map((_, index) => (
-                          <tr key={`dashboard-uploads-storage-placeholder-${index}`} className="border-t border-border/50">
-                            <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
-                            <td className="px-4 py-3"><Skeleton className="ml-auto h-4 w-20" /></td>
-                            <td className="px-4 py-3"><Skeleton className="ml-auto h-4 w-20" /></td>
-                            <td className="px-4 py-3"><Skeleton className="ml-auto h-4 w-20" /></td>
-                            <td className="px-4 py-3"><Skeleton className="ml-auto h-4 w-12" /></td>
-                          </tr>
-                        ))
-                      ) : hasSummaryBlockingError ? (
-                        <tr className="border-t border-border/50">
-                          <td colSpan={5} className="px-4 py-10 text-sm text-muted-foreground">
-                            Nao foi possivel carregar os dados de storage.
+                    ) : summary.areas.length === 0 ? (
+                      <tr className="border-t border-border/50">
+                        <td colSpan={5} className="px-4 py-10 text-sm text-muted-foreground">
+                          Nenhuma area encontrada no inventario.
+                        </td>
+                      </tr>
+                    ) : (
+                      summary.areas.map((area) => (
+                        <tr key={area.area} className="border-t border-border/50">
+                          <td className="px-4 py-3 font-medium text-foreground">{area.area}</td>
+                          <td className="px-4 py-3 text-right text-muted-foreground">
+                            {formatBytes(area.originalBytes)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-muted-foreground">
+                            {formatBytes(area.variantBytes)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-foreground">
+                            {formatBytes(area.totalBytes)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-muted-foreground">
+                            {area.totalFiles}
                           </td>
                         </tr>
-                      ) : summary.areas.length === 0 ? (
-                        <tr className="border-t border-border/50">
-                          <td colSpan={5} className="px-4 py-10 text-sm text-muted-foreground">
-                            Nenhuma area encontrada no inventario.
-                          </td>
-                        </tr>
-                      ) : (
-                        summary.areas.map((area) => (
-                          <tr key={area.area} className="border-t border-border/50">
-                            <td className="px-4 py-3 font-medium text-foreground">{area.area}</td>
-                            <td className="px-4 py-3 text-right text-muted-foreground">
-                              {formatBytes(area.originalBytes)}
-                            </td>
-                            <td className="px-4 py-3 text-right text-muted-foreground">
-                              {formatBytes(area.variantBytes)}
-                            </td>
-                            <td className="px-4 py-3 text-right text-foreground">
-                              {formatBytes(area.totalBytes)}
-                            </td>
-                            <td className="px-4 py-3 text-right text-muted-foreground">{area.totalFiles}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </article>
           ) : null}
@@ -807,11 +855,10 @@ const DashboardUploads = () => {
             >
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-4">
                 <div className="space-y-1">
-                  <h2 className="text-sm font-semibold text-foreground">
-                    Limpeza
-                  </h2>
+                  <h2 className="text-sm font-semibold text-foreground">Limpeza</h2>
                   <p className="text-sm text-muted-foreground">
-                    Remove uploads sem referência, variantes órfãs e envia originais soltos para _quarantine.
+                    Remove uploads sem referência, variantes órfãs e envia originais soltos para
+                    _quarantine.
                   </p>
                 </div>
                 <Badge className="bg-card/80 text-muted-foreground">
@@ -836,13 +883,25 @@ const DashboardUploads = () => {
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="space-y-1">
-                      <p className="text-sm font-medium text-foreground">Analise de limpeza em andamento</p>
-                      <p className="text-sm text-muted-foreground">-- arquivos de variante orfaos</p>
-                      <p className="text-sm text-muted-foreground">-- diretorios de variantes orfaos</p>
-                      <p className="text-sm text-muted-foreground">-- originais soltos (quarentena)</p>
-                      <p className="text-sm text-muted-foreground">-- arquivos de quarentena vencidos para purga</p>
+                      <p className="text-sm font-medium text-foreground">
+                        Analise de limpeza em andamento
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        -- arquivos de variante orfaos
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        -- diretorios de variantes orfaos
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        -- originais soltos (quarentena)
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        -- arquivos de quarentena vencidos para purga
+                      </p>
                       <p className="text-sm text-muted-foreground">-- recuperaveis no total</p>
-                      <p className="text-xs text-muted-foreground">-- em originais e -- em variantes.</p>
+                      <p className="text-xs text-muted-foreground">
+                        -- em originais e -- em variantes.
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         -- em originais soltos e -- em purga pendente da quarentena.
                       </p>
@@ -864,12 +923,23 @@ const DashboardUploads = () => {
                       </thead>
                       <tbody>
                         {Array.from({ length: 3 }).map((_, index) => (
-                          <tr key={`dashboard-uploads-cleanup-placeholder-${index}`} className="border-t border-border/50">
+                          <tr
+                            key={`dashboard-uploads-cleanup-placeholder-${index}`}
+                            className="border-t border-border/50"
+                          >
                             <td className="px-4 py-3 text-muted-foreground">Aguardando analise</td>
-                            <td className="px-4 py-3"><Skeleton className="h-4 w-40" /></td>
-                            <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
-                            <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
-                            <td className="px-4 py-3"><Skeleton className="ml-auto h-4 w-20" /></td>
+                            <td className="px-4 py-3">
+                              <Skeleton className="h-4 w-40" />
+                            </td>
+                            <td className="px-4 py-3">
+                              <Skeleton className="h-4 w-16" />
+                            </td>
+                            <td className="px-4 py-3">
+                              <Skeleton className="h-4 w-20" />
+                            </td>
+                            <td className="px-4 py-3">
+                              <Skeleton className="ml-auto h-4 w-20" />
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -893,7 +963,8 @@ const DashboardUploads = () => {
                         {cleanupPreview.looseOriginalFilesCount} originais soltos (quarentena)
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {cleanupPreview.quarantinePendingDeleteCount} arquivos de quarentena vencidos para purga
+                        {cleanupPreview.quarantinePendingDeleteCount} arquivos de quarentena
+                        vencidos para purga
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {formatBytes(cleanupPreview.totals.totalBytes)} recuperáveis no total
@@ -903,15 +974,18 @@ const DashboardUploads = () => {
                         {formatBytes(cleanupPreview.totals.variantBytes)} em variantes.
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {formatBytes(cleanupPreview.looseOriginalTotals.totalBytes)} em originais soltos e{" "}
-                        {formatBytes(cleanupPreview.quarantinePendingDeleteTotals.totalBytes)} em purga pendente da
-                        quarentena.
+                        {formatBytes(cleanupPreview.looseOriginalTotals.totalBytes)} em originais
+                        soltos e{" "}
+                        {formatBytes(cleanupPreview.quarantinePendingDeleteTotals.totalBytes)} em
+                        purga pendente da quarentena.
                       </p>
                     </div>
                     <Button
                       size="sm"
                       variant="destructive"
-                      disabled={isCleanupRunning || hasCleanupBlockingError || !hasCleanupCandidates}
+                      disabled={
+                        isCleanupRunning || hasCleanupBlockingError || !hasCleanupCandidates
+                      }
                       onClick={() => setIsCleanupConfirmOpen(true)}
                     >
                       {isCleanupRunning ? "Limpando..." : CLEANUP_ACTION_LABEL}
@@ -944,11 +1018,15 @@ const DashboardUploads = () => {
                                     : "Upload"}
                               </td>
                               <td className="px-4 py-3">
-                                <p className="font-medium text-foreground">{item.fileName || item.url}</p>
+                                <p className="font-medium text-foreground">
+                                  {item.fileName || item.url}
+                                </p>
                                 <p className="text-xs text-muted-foreground">{item.url}</p>
                               </td>
                               <td className="px-4 py-3 text-muted-foreground">{item.area}</td>
-                              <td className="px-4 py-3 text-muted-foreground">{formatDateTime(item.createdAt)}</td>
+                              <td className="px-4 py-3 text-muted-foreground">
+                                {formatDateTime(item.createdAt)}
+                              </td>
                               <td className="px-4 py-3 text-right text-foreground">
                                 {formatBytes(item.totalBytes)}
                               </td>
@@ -995,7 +1073,9 @@ const DashboardUploads = () => {
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
               Uploads sem uso:{" "}
-              <span className="font-semibold text-foreground">{cleanupPreview.unusedUploadCount}</span>
+              <span className="font-semibold text-foreground">
+                {cleanupPreview.unusedUploadCount}
+              </span>
             </p>
             <p className="text-sm text-muted-foreground">
               Variantes órfãs:{" "}
@@ -1005,15 +1085,21 @@ const DashboardUploads = () => {
             </p>
             <p className="text-sm text-muted-foreground">
               Diretórios órfãos:{" "}
-              <span className="font-semibold text-foreground">{cleanupPreview.orphanedVariantDirsCount}</span>
+              <span className="font-semibold text-foreground">
+                {cleanupPreview.orphanedVariantDirsCount}
+              </span>
             </p>
             <p className="text-sm text-muted-foreground">
               Originais soltos (quarentena):{" "}
-              <span className="font-semibold text-foreground">{cleanupPreview.looseOriginalFilesCount}</span>
+              <span className="font-semibold text-foreground">
+                {cleanupPreview.looseOriginalFilesCount}
+              </span>
             </p>
             <p className="text-sm text-muted-foreground">
               Quarentena vencida para purga:{" "}
-              <span className="font-semibold text-foreground">{cleanupPreview.quarantinePendingDeleteCount}</span>
+              <span className="font-semibold text-foreground">
+                {cleanupPreview.quarantinePendingDeleteCount}
+              </span>
             </p>
             <p className="text-sm text-muted-foreground">
               Espaço recuperável:{" "}

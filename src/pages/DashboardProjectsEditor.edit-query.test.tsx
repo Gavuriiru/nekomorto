@@ -16,13 +16,7 @@ vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
 }));
 
 vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({
-    title,
-    actions,
-  }: {
-    title: string;
-    actions?: ReactNode;
-  }) => (
+  default: ({ title, actions }: { title: string; actions?: ReactNode }) => (
     <div>
       <h1>{title}</h1>
       {actions}
@@ -237,7 +231,7 @@ describe("DashboardProjectsEditor edit query", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
-    await screen.findByText("Novo projeto");
+    await screen.findByRole("heading", { name: "Novo projeto" });
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
@@ -360,14 +354,17 @@ describe("DashboardProjectsEditor edit query", () => {
       within(editorDialog).queryByRole("button", { name: /Conte.do.*cap.tulos/i }),
     ).not.toBeInTheDocument();
     expect(within(editorDialog).queryByText("Abrir editor dedicado")).not.toBeInTheDocument();
-    expect(
-      within(editorDialog).getByRole("link", { name: "Conteúdo" }),
-    ).toHaveAttribute("href", "/dashboard/projetos/project-ln-1/capitulos");
+    expect(within(editorDialog).getByRole("link", { name: "Conteúdo" })).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/project-ln-1/capitulos",
+    );
     const sectionTriggers = Array.from(
       editorDialog.querySelectorAll(".project-editor-section-trigger"),
     ) as HTMLElement[];
     const sectionTitles = sectionTriggers.map((trigger) =>
-      String(trigger.textContent || "").replace(/\s+/g, " ").trim(),
+      String(trigger.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim(),
     );
     expect(sectionTitles).toHaveLength(6);
     expect(sectionTitles[0]).toContain("Importação");
@@ -538,9 +535,7 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(within(editorDialog).getByText("Estúdio principal")).toBeInTheDocument();
     expect(within(editorDialog).getByText("Estúdios de animação")).toBeInTheDocument();
     expect(
-      within(editorDialog).getByPlaceholderText(
-        "Adicionar estúdio de animação e pressionar Enter",
-      ),
+      within(editorDialog).getByPlaceholderText("Adicionar estúdio de animação e pressionar Enter"),
     ).toBeInTheDocument();
     expect(within(editorDialog).queryByText("EstÃºdios e produtoras")).not.toBeInTheDocument();
   });

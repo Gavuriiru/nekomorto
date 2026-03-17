@@ -48,10 +48,7 @@ const buildInstitutionalOgBaseModel = ({
     resolveVariantUrl,
   });
 
-const renderInstitutionalOgBuffer = async ({
-  baseModel,
-  origin,
-} = {}) => {
+const renderInstitutionalOgBuffer = async ({ baseModel, origin } = {}) => {
   const timings = {};
   const imageEncodingConfig = resolveOgPublicImageEncodingConfig();
   const backgroundDataUrl = await measureTiming(timings, "background_load", async () =>
@@ -100,11 +97,7 @@ export const buildInstitutionalOgDeliveryHeaders = ({ cacheHit, timings } = {}) 
   };
 };
 
-export const buildInstitutionalOgRevisionValue = ({
-  pageKey,
-  pages,
-  settings,
-} = {}) =>
+export const buildInstitutionalOgRevisionValue = ({ pageKey, pages, settings } = {}) =>
   buildInstitutionalOgRevision({
     pageKey,
     pages,
@@ -140,8 +133,10 @@ export const getInstitutionalOgCachedRender = async ({
     id: String(pageKey || "").trim(),
     model,
   });
-  const cached = await measureTiming(timings, "cache_read", async () =>
-    ogRenderCache?.read?.(cacheKey) || null,
+  const cached = await measureTiming(
+    timings,
+    "cache_read",
+    async () => ogRenderCache?.read?.(cacheKey) || null,
   );
 
   if (cached) {

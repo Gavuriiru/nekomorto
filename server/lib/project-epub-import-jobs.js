@@ -73,7 +73,10 @@ export const toEpubImportJobApiResponse = (job, { result } = {}) => ({
   projectId: normalizeText(job?.projectId),
   requestedBy: normalizeText(job?.requestedBy),
   status: normalizeEpubImportJobStatus(job?.status),
-  summary: job?.summary && typeof job.summary === "object" && !Array.isArray(job.summary) ? job.summary : {},
+  summary:
+    job?.summary && typeof job.summary === "object" && !Array.isArray(job.summary)
+      ? job.summary
+      : {},
   error: job?.error ? String(job.error) : null,
   createdAt: toIsoOrNull(job?.createdAt),
   startedAt: toIsoOrNull(job?.startedAt),

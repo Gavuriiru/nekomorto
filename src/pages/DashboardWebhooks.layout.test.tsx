@@ -157,7 +157,11 @@ const setupApiMock = ({
   meResponse,
   testResponse,
   putResponse,
-}: { meResponse?: Response; testResponse?: Response; putResponse?: Response } = {}) => {
+}: {
+  meResponse?: Response;
+  testResponse?: Response;
+  putResponse?: Response;
+} = {}) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
@@ -195,7 +199,9 @@ const setupApiMock = ({
         return putResponse;
       }
       const parsedBody =
-        typeof options?.body === "string" ? (JSON.parse(options.body) as { settings?: unknown }) : {};
+        typeof options?.body === "string"
+          ? (JSON.parse(options.body) as { settings?: unknown })
+          : {};
       return mockJsonResponse(true, {
         settings: parsedBody.settings || baseSettings,
         projectTypes: ["Anime", "Manga"],
@@ -253,9 +259,9 @@ describe("DashboardWebhooks layout", () => {
     expect(screen.getByTestId("dashboard-webhooks-section-posts")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-webhooks-section-projects")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-webhooks-placeholder-types")).toBeInTheDocument();
-    expect(classTokens(screen.getByTestId("dashboard-webhooks-general-role-placeholder-field"))).toContain(
-      "space-y-2.5",
-    );
+    expect(
+      classTokens(screen.getByTestId("dashboard-webhooks-general-role-placeholder-field")),
+    ).toContain("space-y-2.5");
     expect(
       classTokens(
         within(screen.getByTestId("dashboard-webhooks-general-role-placeholder-field")).getByText(
@@ -560,15 +566,18 @@ describe("DashboardWebhooks layout", () => {
       return path === "/api/integrations/webhooks/editorial" && method === "PUT";
     });
 
-    const payload = ((putCall?.[2] as { json?: { settings?: typeof baseSettings } } | undefined)?.json || {})
-      .settings;
+    const payload = (
+      (putCall?.[2] as { json?: { settings?: typeof baseSettings } } | undefined)?.json || {}
+    ).settings;
 
-    expect(payload?.channels?.posts?.webhookUrl).toBe("https://discord.com/api/webhooks/posts/teste");
+    expect(payload?.channels?.posts?.webhookUrl).toBe(
+      "https://discord.com/api/webhooks/posts/teste",
+    );
     expect(payload?.typeRoles?.[0]?.roleId || "").toBe("");
 
-    expect((screen.getAllByPlaceholderText("ID do cargo do Discord")[0] as HTMLInputElement).value).toBe(
-      "123456",
-    );
+    expect(
+      (screen.getAllByPlaceholderText("ID do cargo do Discord")[0] as HTMLInputElement).value,
+    ).toBe("123456");
   });
 
   it("mostra errorDetail no toast quando o teste falha", async () => {

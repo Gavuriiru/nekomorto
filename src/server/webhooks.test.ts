@@ -43,7 +43,9 @@ describe("webhooks", () => {
   it("gera payload Discord a partir de notificação", () => {
     const notification = buildOperationalAlertsWebhookNotification({
       transition: {
-        triggered: [{ code: "db_unhealthy", severity: "critical", title: "DB", description: "Falha" }],
+        triggered: [
+          { code: "db_unhealthy", severity: "critical", title: "DB", description: "Falha" },
+        ],
         changed: [],
         resolved: [],
         hasChanges: true,
@@ -161,7 +163,8 @@ describe("webhooks", () => {
     settings.channels.posts.templates.post_update.embed.imageUrl = "{{project.backdropImageUrl}}";
     settings.channels.posts.templates.post_update.embed.description =
       "{{post.excerpt}} {{post.ogImageUrl}}";
-    settings.channels.projects.templates.project_release.embed.thumbnailUrl = "{{project.imageUrl}}";
+    settings.channels.projects.templates.project_release.embed.thumbnailUrl =
+      "{{project.imageUrl}}";
     settings.channels.projects.templates.project_release.embed.imageUrl = "{{chapter.imageUrl}}";
     settings.channels.projects.templates.project_adjust.embed.description =
       "{{chapter.synopsis}} {{chapter.ogImageUrl}} {{project.ogImageUrl}}";
@@ -173,8 +176,12 @@ describe("webhooks", () => {
     const migrated = migrateEditorialMentionPlaceholdersInSettings(settings);
     expect(migrated.channels.posts.templates.post_create.content).toContain("{{mention.type}}");
     expect(migrated.channels.posts.templates.post_create.content).toContain("{{mention.release}}");
-    expect(migrated.channels.posts.templates.post_create.content).not.toContain("{{mention.category}}");
-    expect(migrated.channels.posts.templates.post_create.content).not.toContain("{{mention.general}}");
+    expect(migrated.channels.posts.templates.post_create.content).not.toContain(
+      "{{mention.category}}",
+    );
+    expect(migrated.channels.posts.templates.post_create.content).not.toContain(
+      "{{mention.general}}",
+    );
 
     settings.channels.posts.templates.post_create.content = "{{placeholder.inexistente}}";
     const validation = validateEditorialWebhookSettingsPlaceholders(settings);
@@ -249,7 +256,11 @@ describe("webhooks", () => {
           synopsis: "Sinopse do capítulo",
           imageUrl: "https://example.com/chapter-image.jpg",
         },
-        site: { name: "Nekomata", logoUrl: "https://example.com/logo.png", url: "https://example.com" },
+        site: {
+          name: "Nekomata",
+          logoUrl: "https://example.com/logo.png",
+          url: "https://example.com",
+        },
         author: { name: "Equipe", avatarUrl: "https://example.com/avatar.png" },
       },
     );
@@ -339,4 +350,3 @@ describe("webhooks", () => {
     expect(withPlaceholderFallback.chapter.imageUrl).toBe("/placeholder.svg");
   });
 });
-

@@ -50,8 +50,9 @@ type HeaderToastPayload = {
 };
 
 const HeaderSearchPopover = lazy(() => import("@/components/HeaderSearchPopover"));
-let headerActionMenusModulePromise: Promise<typeof import("@/components/HeaderActionMenus")> | null =
-  null;
+let headerActionMenusModulePromise: Promise<
+  typeof import("@/components/HeaderActionMenus")
+> | null = null;
 const loadHeaderActionMenusModule = () => {
   if (!headerActionMenusModulePromise) {
     headerActionMenusModulePromise = import("@/components/HeaderActionMenus");
@@ -116,8 +117,12 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [shouldRenderActionMenus, setShouldRenderActionMenus] = useState(false);
-  const [hasInlineBootstrapSnapshot] = useState<boolean>(() => Boolean(readWindowPublicBootstrap()));
-  const [initialBootstrapUser] = useState<CurrentUser | null>(() => readWindowPublicBootstrapCurrentUser());
+  const [hasInlineBootstrapSnapshot] = useState<boolean>(() =>
+    Boolean(readWindowPublicBootstrap()),
+  );
+  const [initialBootstrapUser] = useState<CurrentUser | null>(() =>
+    readWindowPublicBootstrapCurrentUser(),
+  );
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(initialBootstrapUser);
   const [dashboardMenuItems, setDashboardMenuItems] = useState<DashboardMenuItem[]>([]);
   const searchRef = useRef<HTMLDivElement | null>(null);
@@ -727,10 +732,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 />
               </Suspense>
             ) : (
-              <HeaderActionsFallback
-                currentUser={currentUser}
-                headerAvatarUrl={headerAvatarUrl}
-              />
+              <HeaderActionsFallback currentUser={currentUser} headerAvatarUrl={headerAvatarUrl} />
             )}
           </div>
         </div>
@@ -740,4 +742,3 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
 };
 
 export default Header;
-

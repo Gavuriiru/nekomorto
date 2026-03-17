@@ -41,7 +41,9 @@ const prismaMock = vi.hoisted(() => ({
     deleteMany: vi.fn(async (args: unknown) => args),
     createMany: vi.fn(async (args: unknown) => args),
   },
-  $transaction: vi.fn(async (operations: unknown[]) => Promise.all(operations as Promise<unknown>[])),
+  $transaction: vi.fn(async (operations: unknown[]) =>
+    Promise.all(operations as Promise<unknown>[]),
+  ),
 }));
 
 vi.mock("../../server/lib/prisma-client.js", () => ({

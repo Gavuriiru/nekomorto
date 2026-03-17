@@ -101,10 +101,7 @@ export const buildProjectReadingOgRevisionValue = ({
     sceneVersion: PROJECT_READING_OG_SCENE_VERSION,
   });
 
-const renderProjectReadingOgBuffer = async ({
-  baseModel,
-  origin,
-} = {}) => {
+const renderProjectReadingOgBuffer = async ({ baseModel, origin } = {}) => {
   const timings = {};
   const imageEncodingConfig = resolveOgPublicImageEncodingConfig();
   const [artworkDataUrl, backdropDataUrl] = await Promise.all([
@@ -181,8 +178,10 @@ export const getProjectReadingOgCachedRender = async ({
     id: `${String(project?.id || "").trim()}:${String(model.chapterNumberResolved || "").trim()}:${String(model.volumeResolved ?? "").trim()}`,
     model,
   });
-  const cached = await measureTiming(timings, "cache_read", async () =>
-    ogRenderCache?.read?.(cacheKey) || null,
+  const cached = await measureTiming(
+    timings,
+    "cache_read",
+    async () => ogRenderCache?.read?.(cacheKey) || null,
   );
 
   if (cached) {

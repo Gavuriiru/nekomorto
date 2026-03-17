@@ -11,7 +11,8 @@ import {
 import { ThemeModeProvider } from "@/hooks/theme-mode-provider";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 
-const createSettings = (override: Partial<SiteSettings> = {}) => mergeSettings(defaultSettings, override);
+const createSettings = (override: Partial<SiteSettings> = {}) =>
+  mergeSettings(defaultSettings, override);
 const THEME_TRANSITION_STYLE_SELECTOR = 'style[data-theme-mode-disable-transitions="true"]';
 
 const ThemeProbe = () => {
@@ -195,7 +196,9 @@ describe("ThemeModeProvider", () => {
 
     routes.forEach((route) => {
       window.history.replaceState(null, "", route);
-      const view = renderWithSettings(createSettings({ theme: { accent: "#9667e0", mode: "dark" } }));
+      const view = renderWithSettings(
+        createSettings({ theme: { accent: "#9667e0", mode: "dark" } }),
+      );
       assertThemeColor("#9667e0");
       view.unmount();
     });
@@ -212,7 +215,9 @@ describe("ThemeModeProvider", () => {
       expect(style).not.toBeNull();
       expect(style?.textContent).toContain("transition:none !important");
       expect(style?.textContent).toContain(THEME_MODE_PRESERVE_MOTION_ATTRIBUTE);
-      expect(style?.textContent).toContain(`*:not([${THEME_MODE_PRESERVE_MOTION_ATTRIBUTE}="true"]`);
+      expect(style?.textContent).toContain(
+        `*:not([${THEME_MODE_PRESERVE_MOTION_ATTRIBUTE}="true"]`,
+      );
       assertDocumentTheme("dark");
 
       animationFrames.flushFrame();
@@ -254,7 +259,9 @@ describe("ThemeModeProvider", () => {
     const animationFrames = mockAnimationFrames();
 
     try {
-      const view = renderWithSettings(createSettings({ theme: { accent: "#9667e0", mode: "light" } }));
+      const view = renderWithSettings(
+        createSettings({ theme: { accent: "#9667e0", mode: "light" } }),
+      );
       fireEvent.click(screen.getByRole("button", { name: "set-dark" }));
 
       expect(document.head.querySelector(THEME_TRANSITION_STYLE_SELECTOR)).not.toBeNull();

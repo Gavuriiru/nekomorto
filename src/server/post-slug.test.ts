@@ -17,7 +17,9 @@ describe("createUniqueSlug", () => {
   });
 
   it("busca o proximo indice livre em conflitos encadeados", () => {
-    expect(createUniqueSlug("Meu Post", ["meu-post", "meu-post-2", "meu-post-3"])).toBe("meu-post-4");
+    expect(createUniqueSlug("Meu Post", ["meu-post", "meu-post-2", "meu-post-3"])).toBe(
+      "meu-post-4",
+    );
   });
 
   it("retorna vazio quando o valor nao gera slug valido", () => {

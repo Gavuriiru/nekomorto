@@ -70,7 +70,8 @@ const UploadPicture = ({
   const avifSrcSet = normalizeSrcSet(responsiveVariantSources.avifSrcSet);
   const webpSrcSet = normalizeSrcSet(responsiveVariantSources.webpSrcSet);
   const fallbackSrcSet = normalizeSrcSet(responsiveVariantSources.fallbackSrcSet);
-  const variantFallbackSrc = normalizeAssetUrl(variantSources.fallback || src) || "/placeholder.svg";
+  const variantFallbackSrc =
+    normalizeAssetUrl(variantSources.fallback || src) || "/placeholder.svg";
   const resolvedAvifSrcSet = avifSrcSet || avifSrc;
   const resolvedWebpSrcSet = webpSrcSet || webpSrc;
   const resolvedFallbackSrcSet = fallbackSrcSet || variantFallbackSrc;
@@ -112,11 +113,6 @@ const UploadPicture = ({
       ) : null}
       <img
         {...restImgProps}
-        {...(fetchPriority
-          ? ({
-              fetchpriority: fetchPriority,
-            } as { fetchpriority: string })
-          : {})}
         src={imgSrc}
         srcSet={imgSrcSet}
         sizes={sizes}
@@ -125,6 +121,7 @@ const UploadPicture = ({
         className={imgClassName}
         loading={loading}
         decoding={decoding}
+        fetchPriority={fetchPriority}
         onError={handleError}
       />
     </picture>

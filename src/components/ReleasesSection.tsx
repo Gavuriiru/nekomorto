@@ -131,7 +131,10 @@ const ReleasesSection = () => {
                               {release.author || "Equipe"}
                             </span>
                             <span className="inline-flex items-center gap-1.5">
-                              <CalendarDays className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                              <CalendarDays
+                                className="h-4 w-4 text-primary/70"
+                                aria-hidden="true"
+                              />
                               {formatDate(release.publishedAt)}
                             </span>
                           </div>

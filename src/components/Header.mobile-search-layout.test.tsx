@@ -151,13 +151,15 @@ describe("Header mobile search layout", () => {
     toastMock.mockReset();
     setThemePreferenceMock.mockReset();
     scheduleOnBrowserLoadIdleMock.mockReset();
-    scheduleOnBrowserLoadIdleMock.mockImplementation((callback: (deadline: IdleDeadline) => void) => {
-      callback({
-        didTimeout: false,
-        timeRemaining: () => 16,
-      } as IdleDeadline);
-      return () => undefined;
-    });
+    scheduleOnBrowserLoadIdleMock.mockImplementation(
+      (callback: (deadline: IdleDeadline) => void) => {
+        callback({
+          didTimeout: false,
+          timeRemaining: () => 16,
+        } as IdleDeadline);
+        return () => undefined;
+      },
+    );
     useIsMobileMock.mockReset();
     useIsMobileMock.mockReturnValue(false);
     (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown }).__BOOTSTRAP_PUBLIC__ = undefined;

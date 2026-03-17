@@ -88,37 +88,39 @@ const projectFixture = {
 
 const setupApiMock = (permissions: string[] | null) => {
   apiFetchMock.mockReset();
-  apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-    const method = String(options?.method || "GET").toUpperCase();
+  apiFetchMock.mockImplementation(
+    async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
 
-    if (endpoint === "/api/public/projects/project-1" && method === "GET") {
-      return mockJsonResponse(true, { project: projectFixture });
-    }
-    if (endpoint === "/api/public/projects" && method === "GET") {
-      return mockJsonResponse(true, { projects: [projectFixture] });
-    }
-    if (endpoint === "/api/public/tag-translations" && method === "GET") {
-      return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
-    }
-    if (endpoint === "/api/public/projects/project-1/view" && method === "POST") {
-      return mockJsonResponse(true, { views: 1 });
-    }
-    if (endpoint === "/api/public/me" && method === "GET") {
-      return mockJsonResponse(
-        true,
-        permissions
-          ? {
-              user: {
-                id: "1",
-                name: "Admin",
-                permissions,
-              },
-            }
-          : { user: null },
-      );
-    }
-    return mockJsonResponse(false, { error: "not_found" }, 404);
-  });
+      if (endpoint === "/api/public/projects/project-1" && method === "GET") {
+        return mockJsonResponse(true, { project: projectFixture });
+      }
+      if (endpoint === "/api/public/projects" && method === "GET") {
+        return mockJsonResponse(true, { projects: [projectFixture] });
+      }
+      if (endpoint === "/api/public/tag-translations" && method === "GET") {
+        return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+      }
+      if (endpoint === "/api/public/projects/project-1/view" && method === "POST") {
+        return mockJsonResponse(true, { views: 1 });
+      }
+      if (endpoint === "/api/public/me" && method === "GET") {
+        return mockJsonResponse(
+          true,
+          permissions
+            ? {
+                user: {
+                  id: "1",
+                  name: "Admin",
+                  permissions,
+                },
+              }
+            : { user: null },
+        );
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    },
+  );
 };
 
 describe("Project edit button", () => {

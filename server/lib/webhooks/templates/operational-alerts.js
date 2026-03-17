@@ -56,15 +56,26 @@ export const buildOperationalAlertsWebhookNotification = ({
   return {
     title,
     description,
-    severity: hasCritical ? "critical" : hasWarnings ? "warning" : resolved.length > 0 ? "success" : "info",
+    severity: hasCritical
+      ? "critical"
+      : hasWarnings
+        ? "warning"
+        : resolved.length > 0
+          ? "success"
+          : "info",
     fields,
     url: dashboardUrl || undefined,
     footer: {
       text: `Status operacional • ${severityLabel(
-        hasCritical ? "critical" : hasWarnings ? "warning" : resolved.length > 0 ? "success" : "info",
+        hasCritical
+          ? "critical"
+          : hasWarnings
+            ? "warning"
+            : resolved.length > 0
+              ? "success"
+              : "info",
       )}`,
     },
     timestamp: generatedAt || new Date().toISOString(),
   };
 };
-

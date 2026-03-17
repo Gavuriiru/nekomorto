@@ -37,8 +37,7 @@ const baseProject = {
   banner: "/uploads/projects/oshi-no-ko/banner.jpg",
 };
 
-const transparentDataUrl =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+const transparentDataUrl = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
 const toArray = (value: unknown) => {
   if (Array.isArray(value)) {
@@ -341,7 +340,9 @@ describe("project og helper", () => {
 
   it("returns local artwork data urls when available and can build a processed backdrop data url", async () => {
     const dataUrl = "data:image/png;base64,AAA";
-    await expect(loadProjectOgArtworkDataUrl({ artworkUrl: "https://example.com/image.png" })).resolves.toBe("");
+    await expect(
+      loadProjectOgArtworkDataUrl({ artworkUrl: "https://example.com/image.png" }),
+    ).resolves.toBe("");
     await expect(loadProjectOgArtworkDataUrl({ artworkUrl: dataUrl })).resolves.toBe(dataUrl);
 
     const model = buildProjectOgCardModel({
@@ -413,8 +414,12 @@ describe("project og helper", () => {
     });
 
     expect(model.titleLines.length).toBeGreaterThan(1);
-    expect(model.subtitleTop).toBe(model.layout.titleTop + model.titleHeight + model.layout.subtitleGap);
-    expect(model.subtitleBottom).toBeLessThanOrEqual(model.layout.tagsTop - model.layout.subtitleLimitGap);
+    expect(model.subtitleTop).toBe(
+      model.layout.titleTop + model.titleHeight + model.layout.subtitleGap,
+    );
+    expect(model.subtitleBottom).toBeLessThanOrEqual(
+      model.layout.tagsTop - model.layout.subtitleLimitGap,
+    );
   });
 
   it("keeps the oshi no ko title at the visual maximum size", () => {
@@ -445,7 +450,9 @@ describe("project og helper", () => {
         animeStaff: [
           {
             role: "Original Story",
-            members: ["Um nome de autor extremamente longo para validar truncamento na linha secundaria"],
+            members: [
+              "Um nome de autor extremamente longo para validar truncamento na linha secundaria",
+            ],
           },
         ],
       },
@@ -458,8 +465,12 @@ describe("project og helper", () => {
 
     expect(model.subtitle.endsWith("...")).toBe(true);
     expect(model.subtitle.length).toBeLessThanOrEqual(42);
-    expect(model.subtitleTop).toBe(model.layout.titleTop + model.titleHeight + model.layout.subtitleGap);
-    expect(model.subtitleBottom).toBeLessThanOrEqual(model.layout.tagsTop - model.layout.subtitleLimitGap);
+    expect(model.subtitleTop).toBe(
+      model.layout.titleTop + model.titleHeight + model.layout.subtitleGap,
+    );
+    expect(model.subtitleBottom).toBeLessThanOrEqual(
+      model.layout.tagsTop - model.layout.subtitleLimitGap,
+    );
   });
 
   it("recalibrates the visual minimum title size from the rekishi reference case", () => {
@@ -483,7 +494,9 @@ describe("project og helper", () => {
     expect(model.titleFontSize).toBeCloseTo(model.layout.titleMinFontSize, 4);
     expect(model.titleLines.length).toBeGreaterThan(model.layout.titleMaxLines);
     expect(model.titleTruncated).toBe(false);
-    expect(model.subtitleBottom).toBeLessThanOrEqual(model.layout.tagsTop - model.layout.subtitleLimitGap);
+    expect(model.subtitleBottom).toBeLessThanOrEqual(
+      model.layout.tagsTop - model.layout.subtitleLimitGap,
+    );
   });
 
   it("keeps the classroom title larger and without ellipsis while the studio still fits", () => {
@@ -505,7 +518,9 @@ describe("project og helper", () => {
     expect(model.titleLineLayouts[0]?.maxWidth).toBeGreaterThan(model.layout.titleWidth);
     expect(model.titleLines.at(-1)).not.toContain("...");
     expect(model.titleLines.join(" ")).toContain("3rd");
-    expect(model.subtitleBottom).toBeLessThanOrEqual(model.layout.tagsTop - model.layout.subtitleLimitGap);
+    expect(model.subtitleBottom).toBeLessThanOrEqual(
+      model.layout.tagsTop - model.layout.subtitleLimitGap,
+    );
   });
 
   it("calculates title line widths from the panel diagonal geometry", () => {
@@ -556,7 +571,9 @@ describe("project og helper", () => {
     expect(model.titleFontSize).toBeGreaterThanOrEqual(28);
     expect(model.titleTruncated).toBe(false);
     expect(model.titleLines.at(-1)).not.toContain("...");
-    expect(model.subtitleBottom).toBeLessThanOrEqual(model.layout.tagsTop - model.layout.subtitleLimitGap);
+    expect(model.subtitleBottom).toBeLessThanOrEqual(
+      model.layout.tagsTop - model.layout.subtitleLimitGap,
+    );
   });
 
   it("extends the first chip row toward the diagonal and can show more than four short chips", () => {
@@ -685,7 +702,13 @@ describe("project og helper", () => {
     });
     const lastChip = model.chipLayouts.at(-1);
 
-    expect(model.chips).toEqual(["Drama", "Psicologico", "Escola", "Elenco coral", "Protagonista masculino"]);
+    expect(model.chips).toEqual([
+      "Drama",
+      "Psicologico",
+      "Escola",
+      "Elenco coral",
+      "Protagonista masculino",
+    ]);
     expect(model.chipLayouts.map((chip) => chip.text)).toEqual([
       "Drama",
       "Psicologico",
@@ -801,7 +824,9 @@ describe("project og helper", () => {
         width: model.titleRenderWidth,
       }),
     );
-    const titleLines = toArray(titleNode?.props?.children) as Array<{ props?: Record<string, unknown> }>;
+    const titleLines = toArray(titleNode?.props?.children) as Array<{
+      props?: Record<string, unknown>;
+    }>;
     expect(titleLines[0]?.props?.style).toEqual(
       expect.objectContaining({
         width: model.titleLineLayouts[0]?.maxWidth,
@@ -845,7 +870,9 @@ describe("project og helper", () => {
       backdropDataUrl: transparentDataUrl,
     });
     const children = toArray(scene.props?.children) as Array<{ props?: Record<string, unknown> }>;
-    const artworkIndex = children.findIndex((child) => child?.props?.["data-og-part"] === "artwork");
+    const artworkIndex = children.findIndex(
+      (child) => child?.props?.["data-og-part"] === "artwork",
+    );
     const backdropIndex = children.findIndex(
       (child) =>
         child?.props?.["data-og-part"] === "backdrop" &&
@@ -853,7 +880,9 @@ describe("project og helper", () => {
     );
     const gradientStops = findAllElements(
       scene,
-      (candidate) => typeof candidate.props?.offset === "string" && typeof candidate.props?.stopColor === "string",
+      (candidate) =>
+        typeof candidate.props?.offset === "string" &&
+        typeof candidate.props?.stopColor === "string",
     );
     const stopOffsets = gradientStops.map((stop) => stop.props?.offset);
     const stopOpacities = gradientStops.map((stop) => stop.props?.stopOpacity);
@@ -957,8 +986,12 @@ describe("project og helper", () => {
         background: `linear-gradient(180deg, ${model.palette.accentDarkStart} 0%, ${model.palette.accentDarkEnd} 100%)`,
       }),
     );
-    expect(String(artworkFallbackNode?.props?.style?.background || "").toLowerCase()).not.toContain("#fff");
-    expect(String(artworkFallbackNode?.props?.style?.backgroundColor || "").toLowerCase()).not.toBe("#ffffff");
+    expect(String(artworkFallbackNode?.props?.style?.background || "").toLowerCase()).not.toContain(
+      "#fff",
+    );
+    expect(String(artworkFallbackNode?.props?.style?.backgroundColor || "").toLowerCase()).not.toBe(
+      "#ffffff",
+    );
   });
 
   it("builds the current and legacy scenes with the project card layer", () => {

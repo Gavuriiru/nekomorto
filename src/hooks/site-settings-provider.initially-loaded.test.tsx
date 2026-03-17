@@ -38,10 +38,7 @@ describe("SiteSettingsProvider initiallyLoaded", () => {
 
   it("nao dispara refresh imediato quando initiallyLoaded=true", async () => {
     render(
-      <SiteSettingsProvider
-        initialSettings={{ site: { name: "Nekomata" } } as any}
-        initiallyLoaded
-      >
+      <SiteSettingsProvider initialSettings={{ site: { name: "Nekomata" } } as any} initiallyLoaded>
         <Consumer />
       </SiteSettingsProvider>,
     );

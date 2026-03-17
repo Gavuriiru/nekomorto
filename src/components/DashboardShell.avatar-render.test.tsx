@@ -14,13 +14,9 @@ vi.mock("@/components/Footer", () => ({
 }));
 
 vi.mock("@/components/ui/avatar", () => ({
-  Avatar: ({
-    children,
-    className,
-  }: {
-    children: ReactNode;
-    className?: string;
-  }) => <div className={className}>{children}</div>,
+  Avatar: ({ children, className }: { children: ReactNode; className?: string }) => (
+    <div className={className}>{children}</div>
+  ),
   AvatarFallback: ({ children }: { children: ReactNode }) => <span>{children}</span>,
   AvatarImage: ({ src, alt }: { src?: string; alt?: string }) =>
     src ? <img src={src} alt={alt || ""} /> : null,

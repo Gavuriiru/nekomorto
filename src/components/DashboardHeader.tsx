@@ -52,9 +52,7 @@ type DashboardHeaderProps = {
 const DashboardCommandPalette = lazy(
   () => import("@/components/dashboard/DashboardCommandPalette"),
 );
-const DashboardSearchPopover = lazy(
-  () => import("@/components/dashboard/DashboardSearchPopover"),
-);
+const DashboardSearchPopover = lazy(() => import("@/components/dashboard/DashboardSearchPopover"));
 
 const DashboardHeader = ({
   currentUser,
@@ -208,10 +206,14 @@ const DashboardHeader = ({
           scope: "all",
           limit: "8",
         });
-        const response = await apiFetch(apiBase, `/api/public/search/suggest?${params.toString()}`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
+        const response = await apiFetch(
+          apiBase,
+          `/api/public/search/suggest?${params.toString()}`,
+          {
+            cache: "no-store",
+            signal: controller.signal,
+          },
+        );
         if (!response.ok) {
           throw new Error(`dashboard_search_suggest_${response.status}`);
         }

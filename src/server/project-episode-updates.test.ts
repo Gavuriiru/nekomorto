@@ -77,9 +77,7 @@ describe("project episode updates", () => {
       now,
     );
 
-    expect(preservedProject.episodeDownloads[0].chapterUpdatedAt).toBe(
-      "2026-02-01T00:00:00.000Z",
-    );
+    expect(preservedProject.episodeDownloads[0].chapterUpdatedAt).toBe("2026-02-01T00:00:00.000Z");
   });
 
   it("creates release and adjustment updates using number+volume keys", () => {
@@ -217,6 +215,8 @@ describe("project episode updates", () => {
     expect(resolveProjectUpdateUnitLabel("special", { number: 1 })).toBe("Especial");
     expect(resolveProjectUpdateUnitLabel("Light Novel", { number: 1 })).toBe("Capítulo");
     expect(resolveProjectUpdateUnitLabel("Anime", { number: 1 })).toBe("Episódio");
-    expect(resolveProjectUpdateUnitLabel("Especial", { entryKind: "extra", number: 1 })).toBe("Extra");
+    expect(resolveProjectUpdateUnitLabel("Especial", { entryKind: "extra", number: 1 })).toBe(
+      "Extra",
+    );
   });
 });

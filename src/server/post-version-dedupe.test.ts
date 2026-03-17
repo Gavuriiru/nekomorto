@@ -64,7 +64,9 @@ describe("post version dedupe helper", () => {
       snapshot: { updatedAt: "2026-02-26T11:00:00.000Z" },
     });
 
-    expect(buildPostVersionEditorialDedupKey(first)).toBe(buildPostVersionEditorialDedupKey(second));
+    expect(buildPostVersionEditorialDedupKey(first)).toBe(
+      buildPostVersionEditorialDedupKey(second),
+    );
   });
 
   it("remove duplicatas do mesmo post mantendo somente a mais recente (lista newest-first)", () => {
@@ -130,4 +132,3 @@ describe("post version dedupe helper", () => {
     expect(deduped.map((item) => item.id)).toEqual(["v2", "v1"]);
   });
 });
-

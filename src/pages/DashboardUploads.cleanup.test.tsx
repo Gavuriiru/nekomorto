@@ -266,26 +266,31 @@ const setupApi = (options?: {
     } as const);
   let cleanupRuns = 0;
 
-  apiFetchMock.mockImplementation(async (_base: string, endpoint: string, request?: RequestInit) => {
-    const method = String(request?.method || "GET").toUpperCase();
-    if (endpoint === "/api/me" && method === "GET") {
-      return mockJsonResponse(true, { id: "u-admin", name: "Admin", username: "admin" });
-    }
-    if (endpoint === "/api/uploads/storage/areas" && method === "GET") {
-      return mockJsonResponse(true, {
-        ...baseSummary,
-        generatedAt: cleanupRuns > 0 ? "2026-03-01T10:10:00.000Z" : baseSummary.generatedAt,
-      });
-    }
-    if (endpoint === "/api/uploads/storage/cleanup" && method === "GET") {
-      return mockJsonResponse(true, cleanupRuns > 0 ? cleanupPreviewAfterRun : initialCleanupPreview);
-    }
-    if (endpoint === "/api/uploads/storage/cleanup" && method === "POST") {
-      cleanupRuns += 1;
-      return mockJsonResponse(true, cleanupResult);
-    }
-    return mockJsonResponse(false, { error: "not_found" }, 404);
-  });
+  apiFetchMock.mockImplementation(
+    async (_base: string, endpoint: string, request?: RequestInit) => {
+      const method = String(request?.method || "GET").toUpperCase();
+      if (endpoint === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, { id: "u-admin", name: "Admin", username: "admin" });
+      }
+      if (endpoint === "/api/uploads/storage/areas" && method === "GET") {
+        return mockJsonResponse(true, {
+          ...baseSummary,
+          generatedAt: cleanupRuns > 0 ? "2026-03-01T10:10:00.000Z" : baseSummary.generatedAt,
+        });
+      }
+      if (endpoint === "/api/uploads/storage/cleanup" && method === "GET") {
+        return mockJsonResponse(
+          true,
+          cleanupRuns > 0 ? cleanupPreviewAfterRun : initialCleanupPreview,
+        );
+      }
+      if (endpoint === "/api/uploads/storage/cleanup" && method === "POST") {
+        cleanupRuns += 1;
+        return mockJsonResponse(true, cleanupResult);
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    },
+  );
 };
 
 describe("DashboardUploads cleanup", () => {
@@ -328,19 +333,21 @@ describe("DashboardUploads cleanup", () => {
     const summaryDeferred = createDeferredResponse();
     const cleanupDeferred = createDeferredResponse();
 
-    apiFetchMock.mockImplementation(async (_base: string, endpoint: string, request?: RequestInit) => {
-      const method = String(request?.method || "GET").toUpperCase();
-      if (endpoint === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, { id: "u-admin", name: "Admin", username: "admin" });
-      }
-      if (endpoint === "/api/uploads/storage/areas" && method === "GET") {
-        return summaryDeferred.promise;
-      }
-      if (endpoint === "/api/uploads/storage/cleanup" && method === "GET") {
-        return cleanupDeferred.promise;
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    apiFetchMock.mockImplementation(
+      async (_base: string, endpoint: string, request?: RequestInit) => {
+        const method = String(request?.method || "GET").toUpperCase();
+        if (endpoint === "/api/me" && method === "GET") {
+          return mockJsonResponse(true, { id: "u-admin", name: "Admin", username: "admin" });
+        }
+        if (endpoint === "/api/uploads/storage/areas" && method === "GET") {
+          return summaryDeferred.promise;
+        }
+        if (endpoint === "/api/uploads/storage/cleanup" && method === "GET") {
+          return cleanupDeferred.promise;
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     render(<DashboardUploads />);
 
@@ -373,19 +380,21 @@ describe("DashboardUploads cleanup", () => {
     toastMock.mockReset();
     toastMock.mockReturnValue("dashboard-uploads-refresh-toast");
     dismissToastMock.mockReset();
-    apiFetchMock.mockImplementation(async (_base: string, endpoint: string, request?: RequestInit) => {
-      const method = String(request?.method || "GET").toUpperCase();
-      if (endpoint === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, { id: "u-admin", name: "Admin", username: "admin" });
-      }
-      if (endpoint === "/api/uploads/storage/areas" && method === "GET") {
-        return summaryDeferred.promise;
-      }
-      if (endpoint === "/api/uploads/storage/cleanup" && method === "GET") {
-        return cleanupDeferred.promise;
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    apiFetchMock.mockImplementation(
+      async (_base: string, endpoint: string, request?: RequestInit) => {
+        const method = String(request?.method || "GET").toUpperCase();
+        if (endpoint === "/api/me" && method === "GET") {
+          return mockJsonResponse(true, { id: "u-admin", name: "Admin", username: "admin" });
+        }
+        if (endpoint === "/api/uploads/storage/areas" && method === "GET") {
+          return summaryDeferred.promise;
+        }
+        if (endpoint === "/api/uploads/storage/cleanup" && method === "GET") {
+          return cleanupDeferred.promise;
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     render(<DashboardUploads />);
 
@@ -523,7 +532,9 @@ describe("DashboardUploads cleanup", () => {
     });
 
     expect(cleanupPostCall).toBeDefined();
-    expect(JSON.parse(String((cleanupPostCall?.[2] as RequestInit | undefined)?.body || "{}"))).toEqual({
+    expect(
+      JSON.parse(String((cleanupPostCall?.[2] as RequestInit | undefined)?.body || "{}")),
+    ).toEqual({
       confirm: "EXCLUIR",
     });
 
@@ -572,7 +583,9 @@ describe("DashboardUploads cleanup", () => {
     });
 
     expect(cleanupPostCall).toBeDefined();
-    expect(JSON.parse(String((cleanupPostCall?.[2] as RequestInit | undefined)?.body || "{}"))).toEqual({
+    expect(
+      JSON.parse(String((cleanupPostCall?.[2] as RequestInit | undefined)?.body || "{}")),
+    ).toEqual({
       confirm: "EXCLUIR",
     });
 
@@ -637,7 +650,9 @@ describe("DashboardUploads cleanup", () => {
           variantFiles: 0,
           totalFiles: 0,
         },
-        failures: [{ kind: "variant", url: "/uploads/_variants/u-9/old-card.webp", reason: "eperm" }],
+        failures: [
+          { kind: "variant", url: "/uploads/_variants/u-9/old-card.webp", reason: "eperm" },
+        ],
       },
     });
 
@@ -663,36 +678,38 @@ describe("DashboardUploads cleanup", () => {
   });
 
   it("mantem compatibilidade com preview legado sem campos de quarentena", async () => {
-    apiFetchMock.mockImplementation(async (_base: string, endpoint: string, request?: RequestInit) => {
-      const method = String(request?.method || "GET").toUpperCase();
-      if (endpoint === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, { id: "u-admin", name: "Admin", username: "admin" });
-      }
-      if (endpoint === "/api/uploads/storage/areas" && method === "GET") {
-        return mockJsonResponse(true, baseSummary);
-      }
-      if (endpoint === "/api/uploads/storage/cleanup" && method === "GET") {
-        return mockJsonResponse(true, {
-          generatedAt: "2026-03-01T10:00:00.000Z",
-          unusedCount: 1,
-          unusedUploadCount: 1,
-          orphanedVariantFilesCount: 0,
-          orphanedVariantDirsCount: 0,
-          totals: {
-            area: "total",
-            originalBytes: 100,
-            variantBytes: 0,
-            totalBytes: 100,
-            originalFiles: 1,
-            variantFiles: 0,
-            totalFiles: 1,
-          },
-          areas: [],
-          examples: [],
-        });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    apiFetchMock.mockImplementation(
+      async (_base: string, endpoint: string, request?: RequestInit) => {
+        const method = String(request?.method || "GET").toUpperCase();
+        if (endpoint === "/api/me" && method === "GET") {
+          return mockJsonResponse(true, { id: "u-admin", name: "Admin", username: "admin" });
+        }
+        if (endpoint === "/api/uploads/storage/areas" && method === "GET") {
+          return mockJsonResponse(true, baseSummary);
+        }
+        if (endpoint === "/api/uploads/storage/cleanup" && method === "GET") {
+          return mockJsonResponse(true, {
+            generatedAt: "2026-03-01T10:00:00.000Z",
+            unusedCount: 1,
+            unusedUploadCount: 1,
+            orphanedVariantFilesCount: 0,
+            orphanedVariantDirsCount: 0,
+            totals: {
+              area: "total",
+              originalBytes: 100,
+              variantBytes: 0,
+              totalBytes: 100,
+              originalFiles: 1,
+              variantFiles: 0,
+              totalFiles: 1,
+            },
+            areas: [],
+            examples: [],
+          });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     render(<DashboardUploads />);
 

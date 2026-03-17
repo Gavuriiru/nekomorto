@@ -41,7 +41,8 @@ const main = async () => {
 
   let bootstrapToken = "";
   if (!ownerIds) {
-    bootstrapToken = (await ask("BOOTSTRAP_TOKEN (leave blank to generate one-time token)")) || randomSecret();
+    bootstrapToken =
+      (await ask("BOOTSTRAP_TOKEN (leave blank to generate one-time token)")) || randomSecret();
   }
 
   const lines = [

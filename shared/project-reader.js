@@ -48,10 +48,7 @@ export const normalizeProjectEpisodePages = (value) =>
         return null;
       }
       return {
-        position:
-          position !== null && position >= 0
-            ? Math.floor(position)
-            : index,
+        position: position !== null && position >= 0 ? Math.floor(position) : index,
         imageUrl,
       };
     })

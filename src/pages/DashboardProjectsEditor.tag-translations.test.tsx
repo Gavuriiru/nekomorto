@@ -19,13 +19,7 @@ vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
 }));
 
 vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({
-    title,
-    actions,
-  }: {
-    title: string;
-    actions?: ReactNode;
-  }) => (
+  default: ({ title, actions }: { title: string; actions?: ReactNode }) => (
     <div>
       <h1>{title}</h1>
       {actions}
@@ -234,7 +228,9 @@ describe("DashboardProjectsEditor taxonomy translations", () => {
     });
 
     await waitFor(() => {
-      expect(within(dialog).getAllByRole("button", { name: "A\u00e7\u00e3o" }).length).toBeGreaterThan(0);
+      expect(
+        within(dialog).getAllByRole("button", { name: "A\u00e7\u00e3o" }).length,
+      ).toBeGreaterThan(0);
     });
     expect(within(dialog).queryByRole("button", { name: "Action" })).not.toBeInTheDocument();
 
@@ -258,7 +254,9 @@ describe("DashboardProjectsEditor taxonomy translations", () => {
     });
 
     await waitFor(() => {
-      expect(within(dialog).getAllByRole("button", { name: "Com\u00e9dia" }).length).toBeGreaterThan(0);
+      expect(
+        within(dialog).getAllByRole("button", { name: "Com\u00e9dia" }).length,
+      ).toBeGreaterThan(0);
     });
     expect(within(dialog).queryByRole("button", { name: "Comedy" })).not.toBeInTheDocument();
 

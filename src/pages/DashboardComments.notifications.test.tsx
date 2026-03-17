@@ -64,7 +64,7 @@ const setupApi = (options?: {
   deleteOk?: boolean;
   bulkApproveOk?: boolean;
   bulkDeleteOk?: boolean;
-  pendingComments?: typeof pendingCommentFixture[];
+  pendingComments?: (typeof pendingCommentFixture)[];
 }) => {
   const {
     approveOk = true,
@@ -119,10 +119,18 @@ const setupApi = (options?: {
       return mockJsonResponse(false, { error: "invalid_action" }, 400);
     }
     if (path === `/api/comments/${pendingCommentFixture.id}/approve` && method === "POST") {
-      return mockJsonResponse(approveOk, approveOk ? { ok: true } : { error: "forbidden" }, approveOk ? 200 : 403);
+      return mockJsonResponse(
+        approveOk,
+        approveOk ? { ok: true } : { error: "forbidden" },
+        approveOk ? 200 : 403,
+      );
     }
     if (path === `/api/comments/${pendingCommentFixture.id}` && method === "DELETE") {
-      return mockJsonResponse(deleteOk, deleteOk ? { ok: true } : { error: "forbidden" }, deleteOk ? 200 : 403);
+      return mockJsonResponse(
+        deleteOk,
+        deleteOk ? { ok: true } : { error: "forbidden" },
+        deleteOk ? 200 : 403,
+      );
     }
     return mockJsonResponse(false, { error: "not_found" }, 404);
   });
@@ -240,7 +248,9 @@ describe("DashboardComments notifications", () => {
     });
 
     expect(bulkCalls).toHaveLength(1);
-    expect(JSON.parse(String((bulkCalls[0]?.[2] as RequestInit | undefined)?.body || "{}"))).toEqual({
+    expect(
+      JSON.parse(String((bulkCalls[0]?.[2] as RequestInit | undefined)?.body || "{}")),
+    ).toEqual({
       action: "approve_all",
     });
     expect(toastMock).toHaveBeenCalledWith(
@@ -289,7 +299,9 @@ describe("DashboardComments notifications", () => {
     });
 
     expect(bulkCalls).toHaveLength(1);
-    expect(JSON.parse(String((bulkCalls[0]?.[2] as RequestInit | undefined)?.body || "{}"))).toEqual({
+    expect(
+      JSON.parse(String((bulkCalls[0]?.[2] as RequestInit | undefined)?.body || "{}")),
+    ).toEqual({
       action: "delete_all",
       confirmText: "EXCLUIR",
     });
@@ -330,8 +342,18 @@ describe("DashboardComments notifications", () => {
     setupApi({
       pendingComments: [
         { ...pendingCommentFixture, id: "c-post", targetType: "post", content: "Comentário post" },
-        { ...pendingCommentFixture, id: "c-project", targetType: "project", content: "Comentário projeto" },
-        { ...pendingCommentFixture, id: "c-chapter", targetType: "chapter", content: "Comentário capítulo" },
+        {
+          ...pendingCommentFixture,
+          id: "c-project",
+          targetType: "project",
+          content: "Comentário projeto",
+        },
+        {
+          ...pendingCommentFixture,
+          id: "c-chapter",
+          targetType: "chapter",
+          content: "Comentário capítulo",
+        },
       ],
     });
 
@@ -462,7 +484,10 @@ describe("DashboardComments notifications", () => {
     fireEvent.click(confirmButton);
 
     const bulkActions = screen.getByTestId("dashboard-comments-bulk-actions");
-    const deletingButton = within(bulkActions).getByRole("button", { name: /Excluindo/i, hidden: true });
+    const deletingButton = within(bulkActions).getByRole("button", {
+      name: /Excluindo/i,
+      hidden: true,
+    });
     expect(deletingButton).toHaveTextContent("Excluindo...");
     expect(deletingButton.querySelector(".animate-spin")).not.toBeNull();
   });

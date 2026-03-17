@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  buildCorsOptionsForRequest,
-  isReadOnlyMethod,
-} from "../../server/lib/cors-policy.js";
+import { buildCorsOptionsForRequest, isReadOnlyMethod } from "../../server/lib/cors-policy.js";
 
 describe("cors-policy", () => {
   it("considers GET/HEAD/OPTIONS as read-only methods", () => {

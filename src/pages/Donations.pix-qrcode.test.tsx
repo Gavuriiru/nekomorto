@@ -27,9 +27,10 @@ vi.mock("qrcode", () => ({
 
 const setBootstrapDonationsPage = (donations: Record<string, unknown>) => {
   (
-    window as Window & typeof globalThis & {
-      __BOOTSTRAP_PUBLIC__?: unknown;
-    }
+    window as Window &
+      typeof globalThis & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+      }
   ).__BOOTSTRAP_PUBLIC__ = {
     settings: {},
     pages: {

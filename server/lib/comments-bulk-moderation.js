@@ -6,7 +6,10 @@ export const bulkModeratePendingComments = (comments, options = {}) => {
   const source = normalizeCommentsArray(comments);
   const action = String(options.action || "").trim();
   const confirmText = typeof options.confirmText === "string" ? options.confirmText : "";
-  const nowIso = typeof options.nowIso === "string" && options.nowIso ? options.nowIso : new Date().toISOString();
+  const nowIso =
+    typeof options.nowIso === "string" && options.nowIso
+      ? options.nowIso
+      : new Date().toISOString();
 
   if (!BULK_COMMENT_ACTIONS.has(action)) {
     return { ok: false, error: "invalid_action" };
@@ -56,4 +59,3 @@ export const bulkModeratePendingComments = (comments, options = {}) => {
     remainingPending: 0,
   };
 };
-

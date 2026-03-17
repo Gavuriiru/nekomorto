@@ -133,10 +133,12 @@ const About = () => {
     if (!incoming) {
       return defaultAbout;
     }
-    const highlights = (incoming.highlights || defaultAbout.highlights).map((item: HighlightItem) => ({
-      icon: "Sparkles",
-      ...item,
-    }));
+    const highlights = (incoming.highlights || defaultAbout.highlights).map(
+      (item: HighlightItem) => ({
+        icon: "Sparkles",
+        ...item,
+      }),
+    );
     return {
       ...defaultAbout,
       ...incoming,

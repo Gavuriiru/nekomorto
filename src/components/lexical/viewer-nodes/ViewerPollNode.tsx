@@ -180,6 +180,5 @@ export class ViewerPollNode extends DecoratorNode<JSX.Element> {
 export const $createViewerPollNode = (question: string, options: ViewerPollOptions) =>
   new ViewerPollNode().setQuestion(question).setOptions(options);
 
-export const $isViewerPollNode = (
-  node: LexicalNode | null | undefined,
-): node is ViewerPollNode => node instanceof ViewerPollNode;
+export const $isViewerPollNode = (node: LexicalNode | null | undefined): node is ViewerPollNode =>
+  node instanceof ViewerPollNode;

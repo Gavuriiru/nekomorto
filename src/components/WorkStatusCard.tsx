@@ -117,8 +117,7 @@ const WorkStatusCard = () => {
   const { data: bootstrapData, isLoading } = usePublicBootstrap();
   const projects = bootstrapData?.projects || [];
   const isLoadingProjects = isLoading && !bootstrapData;
-  const useAccentInProgressCard =
-    bootstrapData?.settings?.theme?.useAccentInProgressCard === true;
+  const useAccentInProgressCard = bootstrapData?.settings?.theme?.useAccentInProgressCard === true;
 
   const workItems = useMemo<WorkItem[]>(() => {
     const items: WorkItem[] = [];
@@ -175,10 +174,7 @@ const WorkStatusCard = () => {
         {isLoadingProjects ? (
           <div className="space-y-3">
             {Array.from({ length: 2 }).map((_, index) => (
-              <div
-                key={`progress-skeleton-${index}`}
-                className="rounded-md bg-secondary/40 p-3"
-              >
+              <div key={`progress-skeleton-${index}`} className="rounded-md bg-secondary/40 p-3">
                 <Skeleton className="h-3 w-2/3" />
                 <Skeleton className="mt-2 h-2 w-1/2" />
                 <Skeleton className="mt-3 h-2 w-full" />

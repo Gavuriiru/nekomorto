@@ -21,7 +21,7 @@ Premissas:
 - `DATABASE_URL` obrigatoria
 - sessao em PostgreSQL (`SESSION_TABLE=user_sessions`)
 - `/api/health` com `dataSource=db`
-- runtime Node pinado em `24.13.0` (npm `11.x`)
+- runtime Node pinado em `24.14.0` (npm `11.x`)
 - upgrades de runtime/deps apenas via PR dedicado com gate completo
 
 ## 1.1 Politica de atualizacao de runtime/deps

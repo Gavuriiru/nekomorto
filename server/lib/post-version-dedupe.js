@@ -1,9 +1,5 @@
 const normalizeTags = (tags) =>
-  Array.isArray(tags)
-    ? tags
-        .map((tag) => String(tag || ""))
-        .filter((tag) => tag.length > 0)
-    : [];
+  Array.isArray(tags) ? tags.map((tag) => String(tag || "")).filter((tag) => tag.length > 0) : [];
 
 const buildComparableSnapshot = (snapshot) => {
   const safe = snapshot && typeof snapshot === "object" ? snapshot : {};
@@ -53,4 +49,3 @@ export const dedupePostVersionRecordsNewestFirst = (records) => {
   });
   return kept;
 };
-

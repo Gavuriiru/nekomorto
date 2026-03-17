@@ -21,11 +21,7 @@ const MIME_BY_EXTENSION = Object.freeze({
   ".webp": "image/webp",
 });
 
-const IGNORED_IMPORT_BASENAMES = new Set([
-  ".ds_store",
-  "thumbs.db",
-  "desktop.ini",
-]);
+const IGNORED_IMPORT_BASENAMES = new Set([".ds_store", "thumbs.db", "desktop.ini"]);
 
 const IGNORED_IMPORT_SEGMENTS = new Set(["__macosx"]);
 
@@ -62,7 +58,8 @@ const getFileExtension = (value) => path.extname(String(value || "")).toLowerCas
 
 const basenameWithoutExt = (value) => path.basename(String(value || ""), getFileExtension(value));
 
-const isSupportedImagePath = (value) => Object.prototype.hasOwnProperty.call(MIME_BY_EXTENSION, getFileExtension(value));
+const isSupportedImagePath = (value) =>
+  Object.prototype.hasOwnProperty.call(MIME_BY_EXTENSION, getFileExtension(value));
 
 const isIgnoredImportPath = (value) => {
   const normalized = normalizeRelativeImportPath(value);
@@ -120,9 +117,7 @@ const parseVolumeNumber = (value) => {
   if (!normalized) {
     return null;
   }
-  const explicitMatch = normalized.match(
-    /\b(?:vol(?:ume)?|tomo|book|livro)\s*[-_ ]*(\d+)\b/i,
-  );
+  const explicitMatch = normalized.match(/\b(?:vol(?:ume)?|tomo|book|livro)\s*[-_ ]*(\d+)\b/i);
   if (explicitMatch?.[1]) {
     return parsePositiveInteger(explicitMatch[1]);
   }
@@ -174,14 +169,11 @@ const buildImageEntryListFromFiles = (files, manifestEntries = []) => {
             file?.relativePath ||
             file?.path ||
             file?.name,
-        ) ||
-        normalizeRelativeImportPath(file?.originalname || file?.name);
+        ) || normalizeRelativeImportPath(file?.originalname || file?.name);
       return {
         name: normalizeText(file?.originalname || file?.name) || path.posix.basename(relativePath),
         relativePath,
-        buffer: Buffer.isBuffer(file?.buffer)
-          ? file.buffer
-          : Buffer.from(file?.buffer || []),
+        buffer: Buffer.isBuffer(file?.buffer) ? file.buffer : Buffer.from(file?.buffer || []),
         mime: resolveMimeFromPath(relativePath, file?.mimetype),
       };
     })
@@ -207,12 +199,7 @@ const buildImageEntryListFromArchive = (buffer, archiveName = "arquivo.zip") => 
     .sort((left, right) => compareNatural(left.relativePath, right.relativePath));
 };
 
-const resolveImportEntries = ({
-  files,
-  manifestEntries,
-  archiveBuffer,
-  archiveName,
-} = {}) => {
+const resolveImportEntries = ({ files, manifestEntries, archiveBuffer, archiveName } = {}) => {
   if (Buffer.isBuffer(archiveBuffer) && archiveBuffer.length > 0) {
     return buildImageEntryListFromArchive(archiveBuffer, archiveName);
   }
@@ -220,7 +207,9 @@ const resolveImportEntries = ({
 };
 
 const detectImportLayout = (entries) => {
-  const hasRootFiles = entries.some((entry) => entry.relativePath.split("/").filter(Boolean).length === 1);
+  const hasRootFiles = entries.some(
+    (entry) => entry.relativePath.split("/").filter(Boolean).length === 1,
+  );
   if (hasRootFiles) {
     return "single";
   }
@@ -230,12 +219,7 @@ const detectImportLayout = (entries) => {
   return hasSecondLevel ? "volumes" : "chapters";
 };
 
-const groupImportEntries = ({
-  entries,
-  archiveName,
-  targetVolume,
-  targetChapterNumber,
-} = {}) => {
+const groupImportEntries = ({ entries, archiveName, targetVolume, targetChapterNumber } = {}) => {
   const layout = detectImportLayout(entries);
   if (layout === "single") {
     return [
@@ -268,7 +252,9 @@ const groupImportEntries = ({
         sourceLabel: chapterLabel,
         volumeLabel,
         volumeHint:
-          layout === "volumes" ? parseVolumeNumber(volumeLabel) : normalizeVolumeValue(targetVolume),
+          layout === "volumes"
+            ? parseVolumeNumber(volumeLabel)
+            : normalizeVolumeValue(targetVolume),
         chapterHint: parseChapterNumber(chapterLabel),
         titleHint: detectChapterTitle(chapterLabel),
         files: [],
@@ -308,7 +294,9 @@ const buildExistingChapterLookup = (project) => {
 const buildNextChapterNumberByVolume = (project) => {
   const nextByVolume = new Map();
   (Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : []).forEach((episode) => {
-    const volumeKey = Number.isFinite(Number(episode?.volume)) ? String(Number(episode.volume)) : "none";
+    const volumeKey = Number.isFinite(Number(episode?.volume))
+      ? String(Number(episode.volume))
+      : "none";
     const current = nextByVolume.get(volumeKey) || 1;
     const number = parsePositiveInteger(episode?.number) || 0;
     if (number >= current) {
@@ -434,9 +422,7 @@ const buildImportedChapterPayload = ({
       existingChapter?.sourceType === "Web" || existingChapter?.sourceType === "Blu-ray"
         ? existingChapter.sourceType
         : "Web",
-    sources: Array.isArray(existingChapter?.sources)
-      ? existingChapter.sources
-      : [],
+    sources: Array.isArray(existingChapter?.sources) ? existingChapter.sources : [],
     completedStages: Array.isArray(existingChapter?.completedStages)
       ? existingChapter.completedStages
       : [],
@@ -591,10 +577,18 @@ export const importProjectImageChapters = async ({
   };
 };
 
-const collectExportableImageChapters = (project, { chapterNumber, volume, includeDrafts = true } = {}) => {
+const collectExportableImageChapters = (
+  project,
+  { chapterNumber, volume, includeDrafts = true } = {},
+) => {
   const episodes = Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : [];
   return episodes
-    .filter((episode) => String(episode?.contentFormat || "").trim().toLowerCase() === "images")
+    .filter(
+      (episode) =>
+        String(episode?.contentFormat || "")
+          .trim()
+          .toLowerCase() === "images",
+    )
     .filter((episode) => Array.isArray(episode?.pages) && episode.pages.length > 0)
     .filter((episode) => (includeDrafts ? true : episode.publicationStatus !== "draft"))
     .filter((episode) =>
@@ -639,7 +633,12 @@ const buildVolumeArchivePath = (chapter, fileName) => {
   return `${sanitizeArchiveSegment(volumeLabel, "Volume")}/${buildChapterArchivePath(chapter, fileName)}`;
 };
 
-const buildProjectArchiveFileMap = ({ project, chapters, uploadsDir, includeManifest = true } = {}) => {
+const buildProjectArchiveFileMap = ({
+  project,
+  chapters,
+  uploadsDir,
+  includeManifest = true,
+} = {}) => {
   const files = {};
   chapters.forEach((chapter) => {
     const normalizedPages = Array.isArray(chapter?.pages) ? chapter.pages : [];
@@ -693,8 +692,7 @@ const buildSingleChapterArchiveFileMap = ({ chapter, uploadsDir, format } = {}) 
         return;
       }
       const fileName = resolvePageExactFileName(pageIndex, uploadUrl);
-      const archivePath =
-        format === "cbz" ? fileName : buildChapterArchivePath(chapter, fileName);
+      const archivePath = format === "cbz" ? fileName : buildChapterArchivePath(chapter, fileName);
       files[archivePath] = readUploadBufferOrThrow({
         uploadsDir,
         uploadUrl,

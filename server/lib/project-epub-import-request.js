@@ -12,7 +12,9 @@ const EPUB_CSS_ENGINE_ERROR_PATTERNS = [
 ];
 
 const isEpubCssEngineFailure = (error) => {
-  const code = String(error?.code || "").trim().toLowerCase();
+  const code = String(error?.code || "")
+    .trim()
+    .toLowerCase();
   if (code === "epub_css_engine_failed") {
     return true;
   }

@@ -31,7 +31,9 @@ const listFiles = (dir, base = "") => {
   return results;
 };
 
-const files = listFiles(uploadsDir).filter((item) => /\.(png|jpe?g|gif|webp|svg)$/i.test(item.relative));
+const files = listFiles(uploadsDir).filter((item) =>
+  /\.(png|jpe?g|gif|webp|svg)$/i.test(item.relative),
+);
 const entries = files
   .map((item) => {
     const stat = fs.statSync(item.full);
@@ -39,7 +41,8 @@ const entries = files
       id: crypto.randomUUID(),
       url: `/uploads/${item.relative}`,
       fileName: path.basename(item.relative),
-      folder: path.dirname(item.relative) === "." ? "" : path.dirname(item.relative).replace(/\\/g, "/"),
+      folder:
+        path.dirname(item.relative) === "." ? "" : path.dirname(item.relative).replace(/\\/g, "/"),
       size: stat.size,
       mime: "",
       createdAt: stat.mtime.toISOString(),

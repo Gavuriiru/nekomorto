@@ -4,10 +4,7 @@ import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getCanonicalPageUrl } from "@/lib/canonical-url";
 import { truncateMetaDescription } from "@/lib/meta-description";
 import { resolveThemeColor } from "@/lib/theme-color";
-import {
-  resolveUploadVariantUrl,
-  type UploadMediaVariantsMap,
-} from "@/lib/upload-variants";
+import { resolveUploadVariantUrl, type UploadMediaVariantsMap } from "@/lib/upload-variants";
 
 type PageMetaOptions = {
   title?: string;
@@ -72,9 +69,10 @@ export const usePageMeta = ({
     if (typeof window === "undefined") {
       return {};
     }
-    const globalWindow = window as Window & typeof globalThis & {
-      __BOOTSTRAP_PUBLIC__?: { mediaVariants?: unknown } | null;
-    };
+    const globalWindow = window as Window &
+      typeof globalThis & {
+        __BOOTSTRAP_PUBLIC__?: { mediaVariants?: unknown } | null;
+      };
     const value = globalWindow.__BOOTSTRAP_PUBLIC__?.mediaVariants;
     return value && typeof value === "object" ? (value as UploadMediaVariantsMap) : {};
   }, []);
@@ -115,7 +113,9 @@ export const usePageMeta = ({
 
     const ogTitle = ensureMeta('meta[property="og:title"]', { property: "og:title" });
     ogTitle?.setAttribute("content", pageTitle);
-    const ogDescription = ensureMeta('meta[property="og:description"]', { property: "og:description" });
+    const ogDescription = ensureMeta('meta[property="og:description"]', {
+      property: "og:description",
+    });
     ogDescription?.setAttribute("content", pageDescription);
     const ogSiteName = ensureMeta('meta[property="og:site_name"]', { property: "og:site_name" });
     ogSiteName?.setAttribute("content", siteName);
@@ -134,7 +134,9 @@ export const usePageMeta = ({
 
     const twitterTitle = ensureMeta('meta[name="twitter:title"]', { name: "twitter:title" });
     twitterTitle?.setAttribute("content", pageTitle);
-    const twitterDescription = ensureMeta('meta[name="twitter:description"]', { name: "twitter:description" });
+    const twitterDescription = ensureMeta('meta[name="twitter:description"]', {
+      name: "twitter:description",
+    });
     twitterDescription?.setAttribute("content", pageDescription);
     const twitterImage = ensureMeta('meta[name="twitter:image"]', { name: "twitter:image" });
     twitterImage?.setAttribute("content", pageImage);

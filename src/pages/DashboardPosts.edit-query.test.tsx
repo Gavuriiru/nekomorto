@@ -163,7 +163,11 @@ const setupApiMock = ({
     if (path === "/api/public/tag-translations" && method === "GET") {
       return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
     }
-    if (path.startsWith("/api/admin/content/post/") && path.includes("/versions") && method === "GET") {
+    if (
+      path.startsWith("/api/admin/content/post/") &&
+      path.includes("/versions") &&
+      method === "GET"
+    ) {
       if (versionsResponse === "error") {
         return mockJsonResponse(false, { error: "versions_failed" }, 500);
       }
@@ -182,7 +186,8 @@ const LocationProbe = () => {
   return <div data-testid="location-search">{location.search}</div>;
 };
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 const createDomRect = (height: number): DOMRect =>
   ({
     bottom: height,
@@ -283,7 +288,9 @@ describe("DashboardPosts edit query", () => {
 
     await waitFor(() => {
       expect(
-        apiFetchMock.mock.calls.some((call) => String(call[1] || "").includes("/api/admin/content/post/post-1/versions")),
+        apiFetchMock.mock.calls.some((call) =>
+          String(call[1] || "").includes("/api/admin/content/post/post-1/versions"),
+        ),
       ).toBe(true);
     });
 
@@ -389,12 +396,11 @@ describe("DashboardPosts edit query", () => {
     expect(classTokens(editorFooter as HTMLElement)).toContain("md:py-2.5");
     expect(classTokens(editorSectionContent as HTMLElement)).toContain("pb-2.5");
     expect(
-      lexicalEditorPropsSpy.mock.calls.some(
-        ([props]) =>
-          Boolean(
-            (props as { followCaretScroll?: boolean; autoFocus?: boolean }).followCaretScroll &&
-              (props as { followCaretScroll?: boolean; autoFocus?: boolean }).autoFocus === false,
-          ),
+      lexicalEditorPropsSpy.mock.calls.some(([props]) =>
+        Boolean(
+          (props as { followCaretScroll?: boolean; autoFocus?: boolean }).followCaretScroll &&
+            (props as { followCaretScroll?: boolean; autoFocus?: boolean }).autoFocus === false,
+        ),
       ),
     ).toBe(true);
     expect(screen.getByText("Postagem em edição")).toBeInTheDocument();
@@ -439,7 +445,9 @@ describe("DashboardPosts edit query", () => {
     await screen.findByRole("heading", { name: "Editar postagem" });
 
     const editorTop = document.querySelector(".project-editor-top") as HTMLElement | null;
-    const lexicalWrapper = document.querySelector(".post-editor-lexical-wrapper") as HTMLElement | null;
+    const lexicalWrapper = document.querySelector(
+      ".post-editor-lexical-wrapper",
+    ) as HTMLElement | null;
 
     expect(editorTop).not.toBeNull();
     expect(lexicalWrapper).not.toBeNull();
@@ -461,7 +469,9 @@ describe("DashboardPosts edit query", () => {
     });
 
     await waitFor(() => {
-      expect(lexicalWrapper.style.getPropertyValue("--post-editor-toolbar-sticky-top")).toBe("101px");
+      expect(lexicalWrapper.style.getPropertyValue("--post-editor-toolbar-sticky-top")).toBe(
+        "101px",
+      );
     });
 
     getBoundingClientRectSpy.mockReturnValue(createDomRect(132));
@@ -474,7 +484,9 @@ describe("DashboardPosts edit query", () => {
     });
 
     await waitFor(() => {
-      expect(lexicalWrapper.style.getPropertyValue("--post-editor-toolbar-sticky-top")).toBe("137px");
+      expect(lexicalWrapper.style.getPropertyValue("--post-editor-toolbar-sticky-top")).toBe(
+        "137px",
+      );
     });
   });
 });

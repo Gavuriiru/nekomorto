@@ -50,7 +50,9 @@ describe("localizeProjectImageFields", () => {
       ],
       volumeCovers: [{ volume: 1, coverImageUrl: "https://cdn.exemplo.com/volume-1.jpg" }],
       relations: [{ anilistId: 777, image: "https://cdn.exemplo.com/relation.jpg" }],
-      episodeDownloads: [{ number: 1, volume: 1, coverImageUrl: "https://cdn.exemplo.com/episode.jpg" }],
+      episodeDownloads: [
+        { number: 1, volume: 1, coverImageUrl: "https://cdn.exemplo.com/episode.jpg" },
+      ],
     };
 
     const importer = createImporterMock();
@@ -109,7 +111,9 @@ describe("localizeProjectImageFields", () => {
     const project = {
       ...buildBaseProject(),
       type: "Manga",
-      episodeDownloads: [{ number: 7, volume: 3, coverImageUrl: "https://cdn.exemplo.com/episode.jpg" }],
+      episodeDownloads: [
+        { number: 7, volume: 3, coverImageUrl: "https://cdn.exemplo.com/episode.jpg" },
+      ],
     };
     const importer = createImporterMock();
 

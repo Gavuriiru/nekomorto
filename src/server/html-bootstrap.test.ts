@@ -58,7 +58,9 @@ describe("html bootstrap injection", () => {
     expect(result).toContain('href="/uploads/_variants/hero-v1.avif"');
     expect(result).toContain('as="image"');
     expect(result).toContain('type="image/avif"');
-    expect(result).toContain('imagesrcset="/uploads/_variants/heroSm-v1.avif 960w, /uploads/_variants/heroMd-v1.avif 1280w, /uploads/_variants/hero-v1.avif 1600w"');
+    expect(result).toContain(
+      'imagesrcset="/uploads/_variants/heroSm-v1.avif 960w, /uploads/_variants/heroMd-v1.avif 1280w, /uploads/_variants/hero-v1.avif 1600w"',
+    );
     expect(result).toContain('imagesizes="100vw"');
     expect(result).toContain('fetchpriority="high"');
   });
@@ -155,8 +157,8 @@ describe("html bootstrap injection", () => {
 
   it("injeta shell estatico da home no marcador dedicado", () => {
     const result = injectHomeHeroShell({
-      html: "<!doctype html><html><body><!-- APP_HOME_HERO_SHELL --><div id=\"root\"></div></body></html>",
-      shellMarkup: "<div id=\"home-hero-shell\"></div>",
+      html: '<!doctype html><html><body><!-- APP_HOME_HERO_SHELL --><div id="root"></div></body></html>',
+      shellMarkup: '<div id="home-hero-shell"></div>',
     });
 
     expect(result).toContain("<!-- APP_HOME_HERO_SHELL -->");

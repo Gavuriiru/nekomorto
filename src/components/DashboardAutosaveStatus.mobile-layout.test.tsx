@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 describe("DashboardAutosaveStatus mobile layout", () => {
   it("usa container em coluna no mobile e linha no desktop", () => {

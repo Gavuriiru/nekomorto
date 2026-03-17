@@ -47,10 +47,12 @@ describe("App toast defer", () => {
 
   it("monta toaster quando o callback idle e executado", async () => {
     let idleCallback: ((deadline: IdleDeadline) => void) | null = null;
-    scheduleOnBrowserLoadIdleMock.mockImplementation((callback: (deadline: IdleDeadline) => void) => {
-      idleCallback = callback;
-      return () => undefined;
-    });
+    scheduleOnBrowserLoadIdleMock.mockImplementation(
+      (callback: (deadline: IdleDeadline) => void) => {
+        idleCallback = callback;
+        return () => undefined;
+      },
+    );
 
     render(<App />);
 

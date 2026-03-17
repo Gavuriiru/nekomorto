@@ -24,9 +24,11 @@ vi.mock("@/hooks/use-site-settings", () => ({
   useSiteSettings: () => useSiteSettingsMock(),
 }));
 
-const createSettings = (override: Partial<SiteSettings> = {}) => mergeSettings(defaultSettings, override);
+const createSettings = (override: Partial<SiteSettings> = {}) =>
+  mergeSettings(defaultSettings, override);
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({
@@ -65,7 +67,9 @@ describe("Recruitment role icon shell", () => {
 
     expect(document.querySelector(".public-page-hero")).not.toBeNull();
     expect(screen.getByText("Recrutamento")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Venha fazer parte da equipe" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Venha fazer parte da equipe" }),
+    ).toBeInTheDocument();
 
     const roleHeading = await screen.findByRole("heading", { name: "Tradutor" });
     const roleHeader = roleHeading.parentElement as HTMLElement | null;
