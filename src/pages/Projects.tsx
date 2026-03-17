@@ -306,7 +306,7 @@ const ProjectCard = ({
   return (
     <Link
       to={`/projeto/${project.id}`}
-      className="projects-public-card group flex h-50 w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-[transform,border-color,box-shadow,color] duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background md:h-60"
+      className="projects-public-card group flex h-50 w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-[transform,border-color,box-shadow,color] duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 md:h-60"
     >
       <div
         className="h-39 shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-50"

@@ -1386,6 +1386,8 @@ const DashboardUsers = () => {
   const editorSectionTriggerClassName =
     "project-editor-section-trigger py-2 text-sm font-semibold hover:no-underline";
   const editorSectionContentClassName = "project-editor-section-content pb-2.5 px-1";
+  const subtleReorderButtonClassName =
+    "h-8 w-8 border-transparent bg-transparent text-muted-foreground/70 shadow-none hover:border-border/60 hover:bg-background/60 hover:text-foreground focus-visible:ring-primary/60 [&_svg]:opacity-70";
   const editorUserLabel = editingUser ? "Usuário em edição" : "Novo usuário";
   const editorUserTitle = formState.name.trim() || "Sem nome";
   const editorUserId = formState.id.trim() || "Será definido ao salvar";
@@ -1581,7 +1583,7 @@ const DashboardUsers = () => {
                                 onMove={(targetIndex) =>
                                   moveUserWithinGroup("active", index, targetIndex)
                                 }
-                                buttonClassName="h-9 w-9"
+                                buttonClassName={subtleReorderButtonClassName}
                               />
                             ) : null}
                           </div>
@@ -1703,7 +1705,7 @@ const DashboardUsers = () => {
                                   onMove={(targetIndex) =>
                                     moveUserWithinGroup("retired", index, targetIndex)
                                   }
-                                  buttonClassName="h-9 w-9"
+                                  buttonClassName={subtleReorderButtonClassName}
                                 />
                               ) : null}
                             </div>
@@ -2052,6 +2054,7 @@ const DashboardUsers = () => {
                                     total={formState.socials.length}
                                     onMove={(targetIndex) => moveSocialLink(index, targetIndex)}
                                     disabled={!canEditBasicFields}
+                                    buttonClassName={subtleReorderButtonClassName}
                                   />
                                   <Select
                                     value={social.label}

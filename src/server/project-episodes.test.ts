@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildEpisodeKey,
   findDuplicateEpisodeKey,
+  findPublishedImageEpisodeWithoutPages,
   resolveEpisodeLookup,
 } from "../../server/lib/project-episodes.js";
 
@@ -46,5 +47,47 @@ describe("project episode helpers", () => {
         title: "Cap 5 v2",
       }),
     });
+  });
+
+  it("detects published image chapters without pages while allowing empty drafts", () => {
+    expect(
+      findPublishedImageEpisodeWithoutPages([
+        {
+          number: 1,
+          volume: 1,
+          contentFormat: "images",
+          pages: [],
+          hasPages: false,
+          publicationStatus: "draft",
+        },
+        {
+          number: 2,
+          volume: 1,
+          contentFormat: "images",
+          pages: [],
+          hasPages: false,
+          publicationStatus: "published",
+        },
+      ]),
+    ).toMatchObject({
+      key: "2:1",
+      episode: expect.objectContaining({
+        number: 2,
+        volume: 1,
+      }),
+    });
+
+    expect(
+      findPublishedImageEpisodeWithoutPages([
+        {
+          number: 3,
+          volume: 1,
+          contentFormat: "images",
+          pages: [{ position: 1, imageUrl: "/uploads/manga/ch3-01.jpg" }],
+          hasPages: true,
+          publicationStatus: "published",
+        },
+      ]),
+    ).toBeNull();
   });
 });

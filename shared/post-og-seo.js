@@ -1,6 +1,6 @@
 import { createStableRevisionToken } from "./stable-revision-token.js";
 
-export const POST_OG_SCENE_VERSION = "post-og-v2";
+export const POST_OG_SCENE_VERSION = "post-og-v3";
 
 const normalizeText = (value) => String(value || "").trim();
 

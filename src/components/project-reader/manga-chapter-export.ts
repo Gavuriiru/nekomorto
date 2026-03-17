@@ -8,7 +8,6 @@ type ExportMangaChapterOptions = {
   projectId: string;
   projectSnapshot: Project;
   chapter: Pick<ProjectEpisode, "number" | "volume">;
-  format: "zip" | "cbz";
 };
 
 export const exportMangaChapter = async ({
@@ -16,7 +15,6 @@ export const exportMangaChapter = async ({
   projectId,
   projectSnapshot,
   chapter,
-  format,
 }: ExportMangaChapterOptions) => {
   const response = await apiFetch(
     apiBase,
@@ -28,7 +26,7 @@ export const exportMangaChapter = async ({
         project: buildProjectSnapshotForMangaExport(projectSnapshot),
         chapterNumber: chapter.number,
         volume: chapter.volume,
-        format,
+        format: "zip",
       },
     },
   );
@@ -37,5 +35,5 @@ export const exportMangaChapter = async ({
     throw new Error("chapter_export_failed");
   }
 
-  await downloadBinaryResponse(response, `capitulo-${Number(chapter.number) || 1}.${format}`);
+  await downloadBinaryResponse(response, `capitulo-${Number(chapter.number) || 1}.zip`);
 };

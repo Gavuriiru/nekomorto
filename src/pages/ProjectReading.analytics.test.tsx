@@ -513,6 +513,53 @@ describe("ProjectReading analytics", () => {
     expect(nextLink.querySelector("svg")).not.toBeNull();
   });
 
+  it("usa hasContent e hasPages do payload publico enxuto na navegacao", async () => {
+    const project = {
+      ...createProjectFixture([
+        {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1",
+          synopsis: "Resumo do capitulo",
+          hasContent: true,
+        },
+        {
+          number: 2,
+          volume: 2,
+          title: "Capitulo 2",
+          synopsis: "Capitulo por imagens",
+          hasPages: true,
+        },
+      ]),
+      type: "Manga",
+    };
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      chapterResponse: {
+        number: 1,
+        volume: 2,
+        title: "Capitulo 1",
+        synopsis: "Resumo do capitulo",
+        contentFormat: "images",
+        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pageCount: 1,
+        hasPages: true,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
+    const chapterNav = screen.getByTestId("project-reading-chapter-nav");
+    const nextLink = within(chapterNav).getByRole("link", { name: /Pr.ximo cap.tulo/i });
+    expect(nextLink).toHaveAttribute("href", "/projeto/projeto-teste/leitura/2?volume=2");
+  });
+
   it("ignora capitulos sem leitura na navegacao publica", async () => {
     setupProjectReadingApiMock([
       {

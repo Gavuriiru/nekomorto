@@ -12,6 +12,7 @@ const {
   lexicalEditorPropsSpy,
   imageLibraryPropsSpy,
   mangaWorkflowPropsSpy,
+  refetchPublicBootstrapCacheMock,
 } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
   asyncStatePropsSpy: vi.fn(),
@@ -19,10 +20,32 @@ const {
   lexicalEditorPropsSpy: vi.fn(),
   imageLibraryPropsSpy: vi.fn(),
   mangaWorkflowPropsSpy: vi.fn(),
+  refetchPublicBootstrapCacheMock: vi.fn(async () => undefined),
 }));
 
+vi.mock("@/hooks/use-public-bootstrap", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/hooks/use-public-bootstrap")>();
+  return {
+    ...actual,
+    refetchPublicBootstrapCache: refetchPublicBootstrapCacheMock,
+  };
+});
+
 vi.mock("@/components/DashboardShell", () => ({
-  default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  default: ({
+    children,
+    onUserCardClick,
+  }: {
+    children: ReactNode;
+    onUserCardClick?: () => void;
+  }) => (
+    <div>
+      <button type="button" data-testid="dashboard-shell-user-card" onClick={onUserCardClick}>
+        Abrir usuario
+      </button>
+      {children}
+    </div>
+  ),
 }));
 
 vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
@@ -37,13 +60,15 @@ vi.mock("@/components/ImageLibraryDialog", () => ({
 }));
 
 vi.mock("@/components/project-reader/MangaWorkflowPanel", async (importOriginal) => {
+  const React = await vi.importActual<typeof import("react")>("react");
   const actual =
     await importOriginal<typeof import("@/components/project-reader/MangaWorkflowPanel")>();
   return {
     ...actual,
-    default: (props: {
+    default: React.forwardRef(function MockMangaWorkflowPanel(props: {
       project?: {
         id?: string;
+        revision?: string;
         title?: string;
         type?: string;
         volumeEntries?: Array<{
@@ -61,13 +86,24 @@ vi.mock("@/components/project-reader/MangaWorkflowPanel", async (importOriginal)
       selectedStageChapterId?: string | null;
       setStagedChapters?: (value: unknown) => void;
       setSelectedStageChapterId?: (value: string | null) => void;
+      onPersistProjectSnapshot?: (
+        snapshot: Record<string, unknown>,
+        options: { context: string },
+      ) => Promise<Record<string, unknown> | null>;
+      onProjectChange?: (project: unknown) => void;
       onSelectedStageChapterChange?: (chapter: unknown) => void;
       onOpenImportedChapter?: (project: unknown, chapters: unknown[]) => void;
-    }) => {
+    }, ref: React.ForwardedRef<{
+      hasUnsavedChanges: () => boolean;
+      savePreparedChaptersAsDraft: () => Promise<boolean>;
+      discardPreparedChapters: () => void;
+    }>) {
+      const [isStageDirty, setIsStageDirty] = React.useState(false);
       mangaWorkflowPropsSpy(props);
       const pendingChapter = {
         id: "stage-1",
         number: 7,
+        synopsis: "",
         volume: 1,
         title: "Capítulo pendente",
         titleDetected: "",
@@ -82,7 +118,11 @@ vi.mock("@/components/project-reader/MangaWorkflowPanel", async (importOriginal)
           },
         ],
         coverPageId: "stage-page-1",
+        entryKind: "main",
+        entrySubtype: "chapter",
         publicationStatus: "draft",
+        progressStage: "aguardando-raw",
+        completedStages: [],
         operation: "create",
         warnings: [],
       };
@@ -92,6 +132,67 @@ vi.mock("@/components/project-reader/MangaWorkflowPanel", async (importOriginal)
         volume: 5,
         title: "Capítulo pendente novo volume",
       };
+      const pristineManualChapter = {
+        ...pendingChapter,
+        id: "stage-pristine",
+        number: 11,
+        title: "CapÃ­tulo manual vazio",
+        pages: [],
+        coverPageId: null,
+        leaveGuardPristine: true,
+      };
+      React.useImperativeHandle(
+        ref,
+        () => ({
+          hasUnsavedChanges: () => isStageDirty,
+          savePreparedChaptersAsDraft: async () => {
+            const nextProject = {
+              ...(props.project || {}),
+              episodeDownloads: [
+                ...((props.project?.episodeDownloads || []) as Array<Record<string, unknown>>),
+                {
+                  number: 7,
+                  volume: 1,
+                  title: "CapÃ­tulo pendente",
+                  synopsis: "",
+                  releaseDate: "",
+                  duration: "",
+                  sourceType: "Web",
+                  sources: [],
+                  content: "",
+                  contentFormat: "images",
+                  pages: [{ position: 1, imageUrl: "/uploads/manga/pending-01.jpg" }],
+                  pageCount: 1,
+                  hasPages: true,
+                  publicationStatus: "draft",
+                  coverImageUrl: "/uploads/manga/pending-01.jpg",
+                  coverImageAlt: "",
+                },
+              ],
+            };
+            const persistedProject =
+              (await props.onPersistProjectSnapshot?.(nextProject, {
+                context: "manga-import",
+              })) || null;
+            if (!persistedProject) {
+              return false;
+            }
+            props.onProjectChange?.(persistedProject);
+            props.setStagedChapters?.([]);
+            props.setSelectedStageChapterId?.(null);
+            props.onSelectedStageChapterChange?.(null);
+            setIsStageDirty(false);
+            return true;
+          },
+          discardPreparedChapters: () => {
+            props.setStagedChapters?.([]);
+            props.setSelectedStageChapterId?.(null);
+            props.onSelectedStageChapterChange?.(null);
+            setIsStageDirty(false);
+          },
+        }),
+        [isStageDirty, props],
+      );
       return (
         <div data-testid="manga-workflow-panel">
           <button
@@ -101,9 +202,44 @@ vi.mock("@/components/project-reader/MangaWorkflowPanel", async (importOriginal)
               props.setStagedChapters?.([pendingChapter]);
               props.setSelectedStageChapterId?.("stage-1");
               props.onSelectedStageChapterChange?.(pendingChapter);
+              setIsStageDirty(true);
             }}
           >
             Adicionar pendente
+          </button>
+          <button
+            type="button"
+            data-testid="mock-stage-add-pristine"
+            onClick={() => {
+              props.setStagedChapters?.([pristineManualChapter]);
+              props.setSelectedStageChapterId?.("stage-pristine");
+              props.onSelectedStageChapterChange?.(pristineManualChapter);
+              setIsStageDirty(false);
+            }}
+          >
+            Adicionar pendente limpo
+          </button>
+          <button
+            type="button"
+            data-testid="mock-stage-edit-selected"
+            onClick={() => {
+              props.setStagedChapters?.([
+                {
+                  ...pristineManualChapter,
+                  volume: 2,
+                  leaveGuardPristine: false,
+                },
+              ]);
+              props.setSelectedStageChapterId?.("stage-pristine");
+              props.onSelectedStageChapterChange?.({
+                ...pristineManualChapter,
+                volume: 2,
+                leaveGuardPristine: false,
+              });
+              setIsStageDirty(true);
+            }}
+          >
+            Editar pendente limpo
           </button>
           <button
             type="button"
@@ -112,6 +248,7 @@ vi.mock("@/components/project-reader/MangaWorkflowPanel", async (importOriginal)
               props.setStagedChapters?.([pendingChapterNewVolume]);
               props.setSelectedStageChapterId?.("stage-2");
               props.onSelectedStageChapterChange?.(pendingChapterNewVolume);
+              setIsStageDirty(true);
             }}
           >
             Adicionar pendente novo volume
@@ -158,11 +295,12 @@ vi.mock("@/components/project-reader/MangaWorkflowPanel", async (importOriginal)
           >
             Abrir importado
           </button>
+          <div data-testid="mock-stage-dirty">{isStageDirty ? "dirty" : "clean"}</div>
           <div data-testid="mock-stage-count">{props.stagedChapters?.length || 0}</div>
           <div data-testid="mock-stage-selected">{props.selectedStageChapterId || ""}</div>
         </div>
       );
-    },
+    }),
   };
 });
 
@@ -418,6 +556,33 @@ const renderEditor = (initialEntry = "/dashboard/projetos/project-ln-1/capitulos
             </>
           }
         />
+        <Route
+          path="/dashboard/projetos/:projectId"
+          element={
+            <>
+              <div data-testid="project-editor-page" />
+              <LocationProbe />
+            </>
+          }
+        />
+        <Route
+          path="/dashboard/projetos"
+          element={
+            <>
+              <div data-testid="project-editor-page" />
+              <LocationProbe />
+            </>
+          }
+        />
+        <Route
+          path="/dashboard/usuarios"
+          element={
+            <>
+              <div data-testid="dashboard-users-page" />
+              <LocationProbe />
+            </>
+          }
+        />
       </Routes>
     </MemoryRouter>,
   );
@@ -459,6 +624,15 @@ const expectStructureGroupNotSelected = (groupKey: string) => {
 const getTopActions = () => within(screen.getByTestId("chapter-editor-top-actions"));
 
 const findLeaveDialog = () => screen.findByTestId("chapter-unsaved-leave-dialog");
+const getStructureGroupChapterOrder = (groupKey: string) => {
+  const group = screen.getByTestId(`chapter-structure-group-${groupKey}`);
+  return Array.from(
+    group.querySelectorAll<HTMLElement>("[data-testid^='chapter-structure-episode-open-']"),
+  )
+    .map((element) => element.dataset.testid || "")
+    .filter((testId) => testId.includes("chapter-structure-episode-open-") && !testId.includes("-icon-"))
+    .map((testId) => testId.replace("chapter-structure-episode-open-", ""));
+};
 
 const setupApiMock = ({
   permissions = ["projetos"],
@@ -467,6 +641,7 @@ const setupApiMock = ({
   contractOk = true,
   capabilities,
   chapterSaveResponse,
+  projectSaveResponse,
   epubImportResponse,
   epubImportJobCreateResponse,
   epubImportJobStatusResponse,
@@ -483,6 +658,7 @@ const setupApiMock = ({
   }>;
   chapterSaveResponse?:
     | Response
+    | Promise<Response>
     | ((context: {
         path: string;
         payload: Record<string, unknown>;
@@ -490,7 +666,15 @@ const setupApiMock = ({
         chapterVolume: number | undefined;
         currentChapter: (typeof project.episodeDownloads)[number];
         nextChapter: Record<string, unknown>;
-      }) => Response);
+      }) => Response | Promise<Response>);
+  projectSaveResponse?:
+    | Response
+    | Promise<Response>
+    | ((context: {
+        path: string;
+        payload: Record<string, unknown>;
+        project: ReturnType<typeof buildProject>;
+      }) => Response | Promise<Response>);
   epubImportResponse?: Response;
   epubImportJobCreateResponse?: Response;
   epubImportJobStatusResponse?: Response | ((jobId: string) => Response);
@@ -590,6 +774,15 @@ const setupApiMock = ({
 
       if (path === "/api/projects/project-ln-1" && method === "PUT") {
         const payload = options?.json || {};
+        if (projectSaveResponse) {
+          return typeof projectSaveResponse === "function"
+            ? projectSaveResponse({
+                path,
+                payload,
+                project,
+              })
+            : projectSaveResponse;
+        }
         return mockJsonResponse(true, {
           project: {
             ...project,
@@ -726,6 +919,8 @@ describe("DashboardProjectChapterEditor", () => {
     lexicalEditorPropsSpy.mockReset();
     imageLibraryPropsSpy.mockReset();
     mangaWorkflowPropsSpy.mockReset();
+    refetchPublicBootstrapCacheMock.mockReset();
+    refetchPublicBootstrapCacheMock.mockResolvedValue(undefined);
     vi.stubGlobal("open", vi.fn());
     vi.stubGlobal(
       "confirm",
@@ -810,6 +1005,9 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.queryByRole("button", { name: /Excluir volume/i })).not.toBeInTheDocument();
     expect(screen.queryByTestId("mock-lexical")).not.toBeInTheDocument();
     expect(screen.queryByTestId("chapter-metadata-accordion")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-editor-status-meta-group")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-editor-status-pill-chapter")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-editor-status-pill-reading")).not.toBeInTheDocument();
   });
 
   it("passa filteredChapters para o workflow neutro de manga e atualiza com a busca", async () => {
@@ -886,10 +1084,7 @@ describe("DashboardProjectChapterEditor", () => {
     });
   });
 
-  it("mostra ZIP de volume e acoes de capitulo apenas para itens exportaveis na estrutura", async () => {
-    const anchorClick = vi.fn();
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(anchorClick);
-
+  it("mostra reordenacao na estrutura e abre a leitura publicada em nova aba", async () => {
     setupApiMock({
       project: buildProject({
         type: "Manga",
@@ -971,6 +1166,8 @@ describe("DashboardProjectChapterEditor", () => {
         ],
       }),
     });
+    const openMock = vi.mocked(window.open);
+    openMock.mockClear();
 
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
 
@@ -984,8 +1181,9 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.getByTestId("chapter-structure-episode-footer-3:1")).toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-meta-3:1")).toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-actions-3:1")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-export-zip-3:1")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-export-cbz-3:1")).toBeInTheDocument();
+    expect(screen.getByTestId("chapter-structure-episode-move-up-3:1")).toBeDisabled();
+    expect(screen.getByTestId("chapter-structure-episode-move-down-3:1")).toBeEnabled();
+    expect(screen.queryByTestId("chapter-structure-episode-export-zip-3:1")).not.toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-open-icon-3:1")).toBeInTheDocument();
     expect(
       within(screen.getByTestId("chapter-structure-episode-header-3:1")).getByText(
@@ -994,10 +1192,29 @@ describe("DashboardProjectChapterEditor", () => {
     ).toHaveClass("line-clamp-2");
     expect(screen.getByTestId("chapter-structure-episode-footer-4:1")).toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-meta-4:1")).toBeInTheDocument();
+    expect(screen.getByTestId("chapter-structure-episode-actions-4:1")).toBeInTheDocument();
+    expect(screen.getByTestId("chapter-structure-episode-move-up-4:1")).toBeEnabled();
+    expect(screen.getByTestId("chapter-structure-episode-move-down-4:1")).toBeEnabled();
+    expect(screen.queryByTestId("chapter-structure-episode-export-zip-4:1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-structure-episode-open-icon-4:1")).not.toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-footer-5:1")).toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-meta-5:1")).toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-structure-episode-actions-4:1")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-structure-episode-actions-5:1")).not.toBeInTheDocument();
+    expect(screen.getByTestId("chapter-structure-episode-actions-5:1")).toBeInTheDocument();
+    expect(screen.getByTestId("chapter-structure-episode-move-up-5:1")).toBeEnabled();
+    expect(screen.getByTestId("chapter-structure-episode-move-down-5:1")).toBeDisabled();
+    expect(screen.queryByTestId("chapter-structure-episode-export-zip-5:1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-structure-episode-open-icon-5:1")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("chapter-structure-group-toggle-2"));
+    expect(screen.getByTestId("chapter-structure-episode-actions-6:2")).toBeInTheDocument();
+    expect(screen.getByTestId("chapter-structure-episode-move-up-6:2")).toBeDisabled();
+    expect(screen.getByTestId("chapter-structure-episode-move-down-6:2")).toBeDisabled();
+    expect(screen.queryByTestId("chapter-structure-episode-export-zip-6:2")).not.toBeInTheDocument();
+    expect(screen.getByTestId("chapter-structure-episode-open-icon-6:2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("mock-stage-add"));
+    await screen.findByTestId("chapter-structure-stage-select-stage-1");
+    expect(screen.queryByTestId("chapter-structure-episode-move-up-7:1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-structure-episode-move-down-7:1")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("chapter-structure-export-volume-1"));
 
@@ -1015,50 +1232,134 @@ describe("DashboardProjectChapterEditor", () => {
       ).toBe(true);
     });
 
-    expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
-    expectStructureGroupNotSelected("1");
     expect(screen.getByTestId("location-pathname")).toHaveTextContent(
       "/dashboard/projetos/project-ln-1/capitulos",
     );
-
-    fireEvent.click(screen.getByTestId("chapter-structure-episode-export-zip-3:1"));
-
-    await waitFor(() => {
-      expect(
-        apiFetchMock.mock.calls.some(
-          ([, path, options]) =>
-            path === "/api/projects/project-ln-1/manga-export/chapter" &&
-            options?.method === "POST",
-        ),
-      ).toBe(true);
-    });
-
-    expect(screen.getByTestId("location-pathname")).toHaveTextContent(
-      "/dashboard/projetos/project-ln-1/capitulos",
-    );
-    expect(anchorClick).toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId("chapter-structure-episode-open-icon-3:1"));
 
-    await waitFor(() => {
-      expect(screen.getByTestId("location-pathname")).toHaveTextContent(
-        "/dashboard/projetos/project-ln-1/capitulos/3",
-      );
-      expect(screen.getByTestId("location-search")).toHaveTextContent("?volume=1");
-    });
-
-    clickSpy.mockRestore();
+    expect(screen.getByTestId("location-pathname")).toHaveTextContent(
+      "/dashboard/projetos/project-ln-1/capitulos",
+    );
+    expect(openMock).toHaveBeenCalledWith(
+      "/projeto/project-ln-1/leitura/3?volume=1",
+      "_blank",
+      "noopener,noreferrer",
+    );
   });
 
-  it("mantem o loading de exportacao isolado por card na estrutura", async () => {
+  it("abre o capitulo ao clicar no rodape do card na sidebar", async () => {
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("chapter-structure-section");
+
+    fireEvent.click(screen.getByTestId("chapter-structure-episode-footer-1:2"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos/1",
+      );
+    });
+    expect(screen.getByTestId("location-search").textContent).toBe("?volume=2");
+  });
+
+  it("reordena capitulos de light novel na sidebar de forma otimista e renormaliza readingOrder", async () => {
+    let capturedProjectPayload: Record<string, unknown> | null = null;
+    let resolveProjectSave: ((value: Response) => void) | null = null;
+    const pendingProjectSave = new Promise<Response>((resolve) => {
+      resolveProjectSave = resolve;
+    });
+    setupApiMock({
+      projectSaveResponse: ({ payload }) => {
+        capturedProjectPayload = payload;
+        return pendingProjectSave;
+      },
+    });
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("chapter-structure-section");
+
+    expect(screen.getByTestId("chapter-structure-episode-move-up-1:2")).toBeDisabled();
+    expect(screen.getByTestId("chapter-structure-episode-move-down-1:2")).toBeEnabled();
+    expect(screen.getByTestId("chapter-structure-episode-move-up-2:2")).toBeEnabled();
+    expect(screen.getByTestId("chapter-structure-episode-move-down-2:2")).toBeDisabled();
+    expect(getStructureGroupChapterOrder("2")).toEqual(["1:2", "2:2"]);
+
+    fireEvent.click(screen.getByTestId("chapter-structure-episode-move-up-2:2"));
+
+    await waitFor(() => {
+      expect(getStructureGroupChapterOrder("2")).toEqual(["2:2", "1:2"]);
+    });
+    expect(screen.getByTestId("location-pathname").textContent).toBe(
+      "/dashboard/projetos/project-ln-1/capitulos",
+    );
+
+    await waitFor(() => {
+      expect(
+        (
+          ((capturedProjectPayload?.episodeDownloads as Array<Record<string, unknown>> | undefined) ||
+            [])
+        ).map((episode) => ({
+          number: episode.number,
+          volume: episode.volume,
+          readingOrder: episode.readingOrder,
+        })),
+      ).toEqual([
+        { number: 2, volume: 2, readingOrder: 1 },
+        { number: 1, volume: 2, readingOrder: 2 },
+      ]);
+    });
+
+    resolveProjectSave?.(
+      mockJsonResponse(true, {
+        project: {
+          ...buildProject(),
+          ...(capturedProjectPayload || {}),
+          revision: "rev-3",
+        },
+      }),
+    );
+
+    await waitFor(() => {
+      expect(getStructureGroupChapterOrder("2")).toEqual(["2:2", "1:2"]);
+    });
+  });
+
+  it("restaura a ordem anterior na sidebar quando a reordenacao falha", async () => {
+    let resolveProjectSave: ((value: Response) => void) | null = null;
+    const pendingProjectSave = new Promise<Response>((resolve) => {
+      resolveProjectSave = resolve;
+    });
+    setupApiMock({
+      projectSaveResponse: pendingProjectSave,
+    });
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("chapter-structure-section");
+
+    expect(getStructureGroupChapterOrder("2")).toEqual(["1:2", "2:2"]);
+
+    fireEvent.click(screen.getByTestId("chapter-structure-episode-move-up-2:2"));
+
+    await waitFor(() => {
+      expect(getStructureGroupChapterOrder("2")).toEqual(["2:2", "1:2"]);
+    });
+
+    resolveProjectSave?.(mockJsonResponse(false, { error: "save_failed" }, 500));
+
+    await waitFor(() => {
+      expect(getStructureGroupChapterOrder("2")).toEqual(["1:2", "2:2"]);
+    });
+  });
+
+  it("reordena capitulos extras de manga na sidebar", async () => {
     setupApiMock({
       project: buildProject({
         type: "Manga",
+        title: "Projeto Manga",
         episodeDownloads: [
           {
-            number: 3,
+            number: 1,
             volume: 1,
-            title: "Capitulo 3",
+            title: "Capitulo 1",
             synopsis: "",
             releaseDate: "",
             duration: "",
@@ -1066,35 +1367,100 @@ describe("DashboardProjectChapterEditor", () => {
             sources: [],
             content: "",
             contentFormat: "images",
-            pages: [{ position: 1, imageUrl: "/uploads/manga/ch3-01.jpg" }],
-            pageCount: 1,
-            hasPages: true,
-            publicationStatus: "published",
-            coverImageUrl: "/uploads/manga/ch3-01.jpg",
-            coverImageAlt: "",
-          },
-          {
-            number: 4,
-            volume: 1,
-            title: "Capitulo 4",
-            synopsis: "",
-            releaseDate: "",
-            duration: "",
-            sourceType: "Web",
-            sources: [],
-            content: "",
-            contentFormat: "images",
-            pages: [{ position: 1, imageUrl: "/uploads/manga/ch4-01.jpg" }],
+            pages: [{ position: 1, imageUrl: "/uploads/manga/ch1-01.jpg" }],
             pageCount: 1,
             hasPages: true,
             publicationStatus: "draft",
-            coverImageUrl: "/uploads/manga/ch4-01.jpg",
+            coverImageUrl: "/uploads/manga/ch1-01.jpg",
             coverImageAlt: "",
           },
           {
-            number: 8,
-            volume: 2,
-            title: "Capitulo 8",
+            number: 99,
+            volume: 1,
+            title: "Side Story",
+            synopsis: "",
+            releaseDate: "",
+            duration: "",
+            sourceType: "Web",
+            sources: [],
+            entryKind: "extra",
+            entrySubtype: "chapter",
+            displayLabel: "Extra",
+            content: "",
+            contentFormat: "images",
+            pages: [{ position: 1, imageUrl: "/uploads/manga/extra-01.jpg" }],
+            pageCount: 1,
+            hasPages: true,
+            publicationStatus: "draft",
+            coverImageUrl: "/uploads/manga/extra-01.jpg",
+            coverImageAlt: "",
+          },
+        ],
+      }),
+    });
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("manga-workflow-panel");
+
+    fireEvent.click(screen.getByTestId("chapter-structure-episode-move-up-99:1"));
+
+    await waitFor(() => {
+      const saveCall = apiFetchMock.mock.calls.find(
+        ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+      );
+      expect(saveCall).toBeDefined();
+      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      expect(
+        ((payload?.episodeDownloads as Array<Record<string, unknown>> | undefined) || []).map(
+          (episode) => ({
+            number: episode.number,
+            volume: episode.volume,
+            readingOrder: episode.readingOrder,
+            entryKind: episode.entryKind,
+          }),
+        ),
+      ).toEqual([
+        { number: 99, volume: 1, readingOrder: 1, entryKind: "extra" },
+        { number: 1, volume: 1, readingOrder: 2, entryKind: "main" },
+      ]);
+    });
+  });
+
+  it("abre o leave guard antes de reordenar capitulos com alteracoes pendentes", async () => {
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
+    await screen.findByTestId("mock-lexical");
+
+    openIdentityAccordion();
+    fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, {
+      target: { value: "Capitulo 2 alterado" },
+    });
+
+    fireEvent.click(screen.getByTestId("chapter-structure-episode-move-up-2:2"));
+
+    const leaveDialog = await findLeaveDialog();
+    expect(leaveDialog).toBeInTheDocument();
+    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Cancelar/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+    });
+    expect(
+      apiFetchMock.mock.calls.some(
+        ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+      ),
+    ).toBe(false);
+  });
+
+  it("reordena capitulos extras de manga na sidebar", async () => {
+    setupApiMock({
+      project: buildProject({
+        type: "Manga",
+        title: "Projeto Manga",
+        episodeDownloads: [
+          {
+            number: 1,
+            volume: 1,
+            title: "Capitulo 1",
             synopsis: "",
             releaseDate: "",
             duration: "",
@@ -1102,11 +1468,32 @@ describe("DashboardProjectChapterEditor", () => {
             sources: [],
             content: "",
             contentFormat: "images",
-            pages: [{ position: 1, imageUrl: "/uploads/manga/ch8-01.jpg" }],
+            pages: [{ position: 1, imageUrl: "/uploads/manga/ch1-01.jpg" }],
             pageCount: 1,
             hasPages: true,
-            publicationStatus: "published",
-            coverImageUrl: "/uploads/manga/ch8-01.jpg",
+            publicationStatus: "draft",
+            coverImageUrl: "/uploads/manga/ch1-01.jpg",
+            coverImageAlt: "",
+          },
+          {
+            number: 99,
+            volume: 1,
+            title: "Side Story",
+            synopsis: "",
+            releaseDate: "",
+            duration: "",
+            sourceType: "Web",
+            sources: [],
+            entryKind: "extra",
+            entrySubtype: "chapter",
+            displayLabel: "Extra",
+            content: "",
+            contentFormat: "images",
+            pages: [{ position: 1, imageUrl: "/uploads/manga/extra-01.jpg" }],
+            pageCount: 1,
+            hasPages: true,
+            publicationStatus: "draft",
+            coverImageUrl: "/uploads/manga/extra-01.jpg",
             coverImageAlt: "",
           },
         ],
@@ -1116,30 +1503,51 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("manga-workflow-panel");
 
-    const defaultImplementation = apiFetchMock.getMockImplementation();
-    apiFetchMock.mockImplementation(async (...args: unknown[]) => {
-      const [, path, options] = args as [string, string, { json?: { volume?: number } }?];
-      if (path === "/api/projects/project-ln-1/manga-export/chapter") {
-        return new Promise<Response>(() => undefined);
-      }
-      if (path === "/api/projects/project-ln-1/manga-export/jobs" && options?.json?.volume === 1) {
-        return new Promise<Response>(() => undefined);
-      }
-      return defaultImplementation?.(...args);
-    });
-
-    fireEvent.click(screen.getByTestId("chapter-structure-episode-export-zip-3:1"));
-    fireEvent.click(screen.getByTestId("chapter-structure-export-volume-1"));
+    fireEvent.click(screen.getByTestId("chapter-structure-episode-move-up-99:1"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("chapter-structure-episode-export-zip-3:1")).toBeDisabled();
-      expect(screen.getByTestId("chapter-structure-episode-export-cbz-3:1")).toBeDisabled();
+      const saveCall = apiFetchMock.mock.calls.find(
+        ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+      );
+      expect(saveCall).toBeDefined();
+      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      expect(
+        ((payload?.episodeDownloads as Array<Record<string, unknown>> | undefined) || []).map(
+          (episode) => ({
+            number: episode.number,
+            volume: episode.volume,
+            readingOrder: episode.readingOrder,
+            entryKind: episode.entryKind,
+          }),
+        ),
+      ).toEqual([
+        { number: 99, volume: 1, readingOrder: 1, entryKind: "extra" },
+        { number: 1, volume: 1, readingOrder: 2, entryKind: "main" },
+      ]);
     });
+  });
 
-    expect(screen.getByTestId("chapter-structure-episode-export-zip-4:1")).not.toBeDisabled();
-    expect(screen.getByTestId("chapter-structure-episode-export-cbz-4:1")).not.toBeDisabled();
-    expect(screen.getByTestId("chapter-structure-export-volume-1")).toBeDisabled();
-    expect(screen.getByTestId("chapter-structure-export-volume-2")).not.toBeDisabled();
+  it("abre a leitura publicada de light novel em nova aba pelo card da sidebar", async () => {
+    setupApiMock();
+    const openMock = vi.mocked(window.open);
+    openMock.mockClear();
+
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("chapter-structure-section");
+
+    expect(screen.getByTestId("chapter-structure-episode-open-icon-1:2")).toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-structure-episode-open-icon-2:2")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("chapter-structure-episode-open-icon-1:2"));
+
+    expect(openMock).toHaveBeenCalledWith(
+      "/projeto/project-ln-1/leitura/1?volume=2",
+      "_blank",
+      "noopener,noreferrer",
+    );
+    expect(screen.getByTestId("location-pathname")).toHaveTextContent(
+      "/dashboard/projetos/project-ln-1/capitulos",
+    );
   });
 
   it("integra capitulos pendentes na sidebar sem navegar de rota", async () => {
@@ -1264,6 +1672,130 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.queryByTestId("chapter-editor-footer-actions")).not.toBeInTheDocument();
   });
 
+  it("nao abre modal ao sair com capitulo manual vazio ainda intocado no workflow de manga", async () => {
+    setupApiMock({
+      project: buildProject({
+        type: "Manga",
+        episodeDownloads: [],
+      }),
+    });
+
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("manga-workflow-panel");
+
+    fireEvent.click(screen.getByTestId("mock-stage-add-pristine"));
+    fireEvent.click(screen.getByTestId("dashboard-shell-user-card"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe("/dashboard/usuarios");
+    });
+    expect(screen.getByTestId("location-search").textContent).toBe("?edit=me");
+    expect(screen.getByTestId("dashboard-users-page")).toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+  });
+
+  it("protege a saida da rota quando o workflow de manga tem alteracoes nao salvas", async () => {
+    setupApiMock({
+      project: buildProject({
+        type: "Manga",
+        episodeDownloads: [],
+      }),
+    });
+
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("manga-workflow-panel");
+
+    fireEvent.click(screen.getByTestId("mock-stage-add"));
+    fireEvent.click(screen.getByTestId("dashboard-shell-user-card"));
+
+    let leaveDialog = await findLeaveDialog();
+    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Cancelar/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("location-pathname")).toHaveTextContent(
+      "/dashboard/projetos/project-ln-1/capitulos",
+    );
+
+    fireEvent.click(screen.getByTestId("dashboard-shell-user-card"));
+    leaveDialog = await findLeaveDialog();
+    fireEvent.click(
+      within(leaveDialog).getByRole("button", { name: /Salvar como rascunho e continuar/i }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe("/dashboard/usuarios");
+    });
+    expect(screen.getByTestId("location-search").textContent).toBe("?edit=me");
+    expect(screen.getByTestId("dashboard-users-page")).toBeInTheDocument();
+
+    const stageSaveCall = apiFetchMock.mock.calls.find(([, path, options]) => {
+      if (path !== "/api/projects/project-ln-1" || options?.method !== "PUT") {
+        return false;
+      }
+      const payload = (options as { json?: Record<string, unknown> } | undefined)?.json;
+      return Array.isArray(payload?.episodeDownloads) && payload.episodeDownloads.length > 0;
+    });
+    expect(stageSaveCall).toBeDefined();
+    const payload = (stageSaveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+    expect(payload?.episodeDownloads).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          number: 7,
+          volume: 1,
+          publicationStatus: "draft",
+        }),
+      ]),
+    );
+  });
+
+  it("descarta o lote preparado ao sair do editor de manga pelo modal", async () => {
+    setupApiMock({
+      project: buildProject({
+        type: "Manga",
+        episodeDownloads: [],
+      }),
+    });
+
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("manga-workflow-panel");
+
+    fireEvent.click(screen.getByTestId("mock-stage-add"));
+    expect(screen.getByTestId("mock-stage-dirty")).toHaveTextContent("dirty");
+
+    fireEvent.click(screen.getByTestId("dashboard-shell-user-card"));
+    const leaveDialog = await findLeaveDialog();
+    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Descartar e continuar/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe("/dashboard/usuarios");
+    });
+    expect(screen.getByTestId("location-search").textContent).toBe("?edit=me");
+    expect(screen.getByTestId("dashboard-users-page")).toBeInTheDocument();
+  });
+
+  it("registra beforeunload quando o workflow de manga esta dirty", async () => {
+    setupApiMock({
+      project: buildProject({
+        type: "Manga",
+        episodeDownloads: [],
+      }),
+    });
+
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("manga-workflow-panel");
+
+    fireEvent.click(screen.getByTestId("mock-stage-add"));
+
+    const beforeUnloadEvent = new Event("beforeunload", {
+      cancelable: true,
+    }) as BeforeUnloadEvent;
+    window.dispatchEvent(beforeUnloadEvent);
+
+    expect(beforeUnloadEvent.defaultPrevented).toBe(true);
+  });
+
   it("renderiza o editor aberto com layout expandido e sidebar alinhada", async () => {
     setupApiMock();
     renderEditor();
@@ -1280,9 +1812,11 @@ describe("DashboardProjectChapterEditor", () => {
     const contentViewport = screen.getByTestId("chapter-content-viewport");
     const contentSection = screen.getByTestId("chapter-content-section");
     const contentTrigger = screen.getByTestId("chapter-content-trigger");
+    const identityCard = screen.getByTestId("chapter-identity-accordion");
     const identitySection = screen.getByTestId("chapter-identity-section");
     const identityTrigger = screen.getByTestId("chapter-identity-trigger");
     const topRow = screen.getByTestId("chapter-workspace-top-row");
+    const asideColumn = screen.queryByTestId("chapter-workspace-aside-column");
     const supportRow = screen.getByTestId("chapter-workspace-support-row");
     const sidebar = screen.getByTestId("chapter-editor-sidebar");
     const actionRail = screen.getByTestId("chapter-editor-action-rail");
@@ -1336,20 +1870,18 @@ describe("DashboardProjectChapterEditor", () => {
       within(statusBar).queryByRole("button", { name: /Excluir cap/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
-    expect(
-      within(screen.getByTestId("chapter-publication-section")).getByText(/^Status atual$/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/ações do topo/i)).toBeInTheDocument();
     expect(structureTrigger).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
     expect(screen.getByText("Estrutura")).toBeInTheDocument();
     expect(screen.getByText(/Volumes, filtros, navega/i)).toBeInTheDocument();
-    expect(screen.getByText(/Identidade do cap/i)).toBeInTheDocument();
+    expect(identityCard).toHaveTextContent(/Dados|Identidade do cap/i);
     expect(screen.getByText(/numera/i)).toBeInTheDocument();
     expect(identityTrigger).toHaveAttribute("aria-expanded", "false");
     expect(identitySection).toHaveAttribute("data-state", "open");
     expect(screen.queryByTestId("chapter-volume-accordion")).not.toBeInTheDocument();
     expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
     expect(screen.queryByTestId("chapter-volume-trigger")).not.toBeInTheDocument();
+    expect(topRow).toContainElement(identityCard);
+    expect(asideColumn).toBeNull();
     expect(contentTrigger).toHaveAttribute("aria-expanded", "true");
     expect(within(contentSection).getByText(/Espa/i)).toBeInTheDocument();
     expect(within(contentSection).getByText(/Ambiente principal de escrita/i)).toBeInTheDocument();
@@ -1396,8 +1928,11 @@ describe("DashboardProjectChapterEditor", () => {
       "w-full",
       "sm:w-[132px]",
     );
+    expect(screen.queryByLabelText(/Ordem de leitura/i)).not.toBeInTheDocument();
     expect(document.getElementById("chapter-synopsis-standard") as HTMLTextAreaElement).toHaveClass(
       "w-full",
+      "app-textarea",
+      "resize-none",
     );
   });
   it("simplifica o workspace para capitulos em imagem", async () => {
@@ -1439,14 +1974,23 @@ describe("DashboardProjectChapterEditor", () => {
     const workspace = screen.getByTestId("chapter-editor-workspace");
     const topRow = screen.getByTestId("chapter-workspace-top-row");
     const identityCard = screen.getByTestId("chapter-identity-accordion");
+    const progressCard = screen.getByTestId("chapter-progress-section");
     const contentCard = screen.getByTestId("chapter-content-accordion");
     expect(Array.from(workspace.children)).toEqual([topRow, contentCard]);
-    expect(Array.from(topRow.children)).toEqual([identityCard]);
+    expect(Array.from(topRow.children)).toEqual([identityCard, progressCard]);
     expect(screen.queryByTestId("chapter-publication-section")).not.toBeInTheDocument();
     expect(screen.queryByTestId("chapter-workspace-support-row")).not.toBeInTheDocument();
     expect(screen.queryByTestId("chapter-cover-section")).not.toBeInTheDocument();
     expect(screen.queryByTestId("chapter-sources-section")).not.toBeInTheDocument();
     expect(within(identityCard).getByText(/Dados do cap/i)).toBeInTheDocument();
+    expect(within(progressCard).getByText("Em progresso")).toBeInTheDocument();
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("0%");
+    expect(screen.getByTestId("chapter-progress-stage-track")).toBeInTheDocument();
+    expect(screen.getByTestId("chapter-progress-stage-list")).toBeInTheDocument();
+    expect(screen.getByTestId("chapter-progress-stage-chip-aguardando-raw")).toHaveAttribute(
+      "aria-label",
+      expect.stringMatching(/Aguardando Raw: atual/i),
+    );
     expect(within(contentCard).getByRole("heading", { name: /Pag/i })).toBeInTheDocument();
     expect(document.getElementById("chapter-volume-image") as HTMLInputElement).toHaveClass(
       "w-full",
@@ -1467,17 +2011,191 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.queryByText("Texto / Lexical")).not.toBeInTheDocument();
     expect(screen.queryByText("Imagem / Manga")).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Ordem de leitura/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/Sinopse/i)).not.toBeInTheDocument();
-    expect(screen.getByTestId("manga-pages-utilities-trigger")).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
+    expect(screen.getByLabelText(/Sinopse/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Sinopse/i)).toHaveValue("");
+    expect(screen.queryByTestId("manga-pages-utilities-trigger")).not.toBeInTheDocument();
+    expect(screen.getByTestId("manga-pages-export-actions")).toBeInTheDocument();
+    expect(screen.getByTestId("manga-pages-sources")).toBeInTheDocument();
     expect(
       getTopActions().getByRole("button", { name: /Salvar como rascunho/i }),
     ).toBeInTheDocument();
     expect(getTopActions().getByRole("button", { name: /Publicar/i })).toBeInTheDocument();
     expect(screen.queryByTestId("chapter-editor-footer-actions")).not.toBeInTheDocument();
   });
+
+  it("renderiza e persiste o progresso no painel de light novel", async () => {
+    setupApiMock({
+      project: buildProject({
+        episodeDownloads: [
+          baseProject.episodeDownloads[0],
+          {
+            ...baseProject.episodeDownloads[1],
+            completedStages: ["aguardando-raw", "traducao"],
+            progressStage: "qualquer-coisa",
+          },
+        ],
+      }),
+    });
+
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
+    await screen.findByTestId("mock-lexical");
+
+    const statusBar = screen.getByTestId("chapter-editor-status-bar");
+    const positionPill = within(statusBar).getByTestId("chapter-editor-status-position-badge");
+    expect(positionPill).toHaveTextContent(/\d+ de \d+/i);
+    expect(within(statusBar).getByTestId("chapter-editor-status-meta-group")).toBeInTheDocument();
+    const chapterPill = within(statusBar).getByTestId("chapter-editor-status-pill-chapter");
+    const readingPill = within(statusBar).getByTestId("chapter-editor-status-pill-reading");
+    expect(within(statusBar).getByTestId("chapter-editor-status-pill-chapter")).toHaveTextContent(
+      /Cap[ií]tulo 2/i,
+    );
+    expect(within(statusBar).getByTestId("chapter-editor-status-pill-reading")).toHaveTextContent(
+      "Sem leitura",
+    );
+    expect(positionPill).toHaveClass(
+      "project-editor-status-bar__pill",
+      "project-editor-status-bar__pill--position",
+    );
+    expect(chapterPill).toHaveClass(
+      "project-editor-status-bar__pill",
+      "project-editor-status-bar__pill--chapter",
+    );
+    expect(readingPill).toHaveClass(
+      "project-editor-status-bar__pill",
+      "project-editor-status-bar__pill--reading",
+    );
+
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("29%");
+    expect(screen.getByTestId("chapter-progress-stage-chip-limpeza")).toHaveAttribute(
+      "aria-label",
+      expect.stringMatching(/Limpeza: atual/i),
+    );
+
+    fireEvent.click(screen.getByTestId("chapter-progress-toggle-limpeza"));
+
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("43%");
+    expect(screen.getByTestId("chapter-progress-stage-chip-redrawing")).toHaveAttribute(
+      "aria-label",
+      expect.stringMatching(/Redrawing: atual/i),
+    );
+
+    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar como rascunho/i }));
+
+    await waitFor(() => {
+      const saveCall = apiFetchMock.mock.calls.find(
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+      );
+      expect(saveCall).toBeDefined();
+      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      expect(payload?.chapter).toEqual(
+        expect.objectContaining({
+          completedStages: ["aguardando-raw", "traducao", "limpeza"],
+          progressStage: "redrawing",
+        }),
+      );
+    });
+    expect(refetchPublicBootstrapCacheMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("renderiza e persiste o progresso no painel de manga em imagem", async () => {
+    setupApiMock({
+      project: buildProject({
+        type: "Manga",
+        title: "Projeto Manga",
+        episodeDownloads: [
+          {
+            number: 3,
+            volume: 1,
+            title: "Capitulo em imagem",
+            synopsis: "",
+            releaseDate: "",
+            duration: "",
+            sourceType: "Web",
+            sources: [],
+            progressStage: "aguardando-raw",
+            completedStages: ["aguardando-raw"],
+            content: "",
+            contentFormat: "images",
+            publicationStatus: "draft",
+            coverImageUrl: "https://cdn.test/page-1.jpg",
+            coverImageAlt: "Capa do capitulo em imagem",
+            pages: [
+              { position: 1, imageUrl: "https://cdn.test/page-1.jpg" },
+              { position: 2, imageUrl: "https://cdn.test/page-2.jpg" },
+            ],
+            pageCount: 2,
+            hasPages: true,
+          },
+        ],
+      }),
+    });
+
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/3?volume=1");
+    await screen.findByTestId("manga-chapter-pages-editor");
+
+    const statusBar = screen.getByTestId("chapter-editor-status-bar");
+    const positionPill = within(statusBar).getByTestId("chapter-editor-status-position-badge");
+    expect(positionPill).toHaveTextContent(/\d+ de \d+/i);
+    expect(within(statusBar).getByTestId("chapter-editor-status-meta-group")).toBeInTheDocument();
+    expect(within(statusBar).getByTestId("chapter-editor-status-pill-chapter")).toHaveTextContent(
+      /Cap[ií]tulo 3/i,
+    );
+    expect(within(statusBar).getByTestId("chapter-editor-status-pill-reading")).toHaveTextContent(
+      "Com leitura",
+    );
+    const chapterPill = within(statusBar).getByTestId("chapter-editor-status-pill-chapter");
+    const readingPill = within(statusBar).getByTestId("chapter-editor-status-pill-reading");
+    expect(positionPill).toHaveClass(
+      "project-editor-status-bar__pill",
+      "project-editor-status-bar__pill--position",
+    );
+    expect(chapterPill).toHaveClass(
+      "project-editor-status-bar__pill",
+      "project-editor-status-bar__pill--chapter",
+    );
+    expect(readingPill).toHaveClass(
+      "project-editor-status-bar__pill",
+      "project-editor-status-bar__pill--reading",
+    );
+
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("14%");
+    expect(screen.getByTestId("chapter-progress-stage-chip-traducao")).toHaveAttribute(
+      "aria-label",
+      expect.stringMatching(/Tradução: atual/i),
+    );
+
+    fireEvent.click(screen.getByTestId("chapter-progress-toggle-traducao"));
+
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("29%");
+    expect(screen.getByTestId("chapter-progress-stage-chip-limpeza")).toHaveAttribute(
+      "aria-label",
+      expect.stringMatching(/Limpeza: atual/i),
+    );
+    fireEvent.change(screen.getByLabelText(/Sinopse/i), {
+      target: { value: "Sinopse opcional do capitulo em imagem" },
+    });
+
+    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar como rascunho/i }));
+
+    await waitFor(() => {
+      const saveCall = apiFetchMock.mock.calls.find(
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1/chapters/3?volume=1" && options?.method === "PUT",
+      );
+      expect(saveCall).toBeDefined();
+      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      expect(payload?.chapter).toEqual(
+        expect.objectContaining({
+          completedStages: ["aguardando-raw", "traducao"],
+          progressStage: "limpeza",
+          synopsis: "Sinopse opcional do capitulo em imagem",
+        }),
+      );
+    });
+    expect(refetchPublicBootstrapCacheMock).toHaveBeenCalledTimes(1);
+  });
+
   it("cria novo capitulo de manga ja em modo imagem por padrao", async () => {
     setupApiMock({
       project: buildProject({
@@ -1818,7 +2536,7 @@ describe("DashboardProjectChapterEditor", () => {
     expect(volumeTwoToggle).toHaveAttribute("aria-expanded", "true");
     expect(noVolumeToggle).toHaveAttribute("aria-expanded", "true");
 
-    fireEvent.click(screen.getByRole("button", { name: /Capítulo 3/i }));
+    fireEvent.click(screen.getByTestId("chapter-structure-episode-open-3:none"));
 
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
@@ -1925,7 +2643,7 @@ describe("DashboardProjectChapterEditor", () => {
     });
 
     fireEvent.click(screen.getByTestId("chapter-structure-group-toggle-2"));
-    fireEvent.click(screen.getByRole("button", { name: /Cap.*1/i }));
+    fireEvent.click(screen.getByTestId("chapter-structure-episode-open-1:2"));
     let leaveDialog = await findLeaveDialog();
     expect(
       within(leaveDialog).getByRole("button", { name: /Salvar volume e continuar/i }),
@@ -1938,7 +2656,7 @@ describe("DashboardProjectChapterEditor", () => {
       "/dashboard/projetos/project-ln-1/capitulos",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Cap.*1/i }));
+    fireEvent.click(screen.getByTestId("chapter-structure-episode-open-1:2"));
     leaveDialog = await findLeaveDialog();
     fireEvent.click(
       within(leaveDialog).getByRole("button", { name: /Salvar volume e continuar/i }),
@@ -2026,6 +2744,9 @@ describe("DashboardProjectChapterEditor", () => {
     expect(
       within(screen.getByTestId("chapter-editor-status-bar")).getByText("Volume 2"),
     ).toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-editor-status-meta-group")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-editor-status-pill-chapter")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-editor-status-pill-reading")).not.toBeInTheDocument();
     fireEvent.click(closeVolumeButton);
     await waitFor(() => {
       expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
@@ -2064,7 +2785,7 @@ describe("DashboardProjectChapterEditor", () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-structure-section");
-    fireEvent.click(screen.getByRole("button", { name: /Capítulo 1/i }));
+    fireEvent.click(screen.getByTestId("chapter-structure-episode-open-1:2"));
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
         "/dashboard/projetos/project-ln-1/capitulos/1",
@@ -2100,7 +2821,7 @@ describe("DashboardProjectChapterEditor", () => {
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Alternar Sem volume/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Capítulo sem volume/i }));
+    fireEvent.click(screen.getByTestId("chapter-structure-episode-open-3:none"));
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
         "/dashboard/projetos/project-ln-1/capitulos/3",
@@ -2360,6 +3081,147 @@ describe("DashboardProjectChapterEditor", () => {
       );
     });
     expect(screen.getByTestId("location-search").textContent).toBe("?volume=2");
+  });
+
+  it("mostra em progresso ao criar capítulo novo de light novel sem conteúdo", async () => {
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("chapter-structure-section");
+
+    fireEvent.click(screen.getByTestId("chapter-structure-add-chapter-2"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos/3",
+      );
+    });
+    expect(screen.getByTestId("location-search").textContent).toBe("?volume=2");
+    expect(screen.getByTestId("chapter-progress-section")).toBeInTheDocument();
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("0%");
+    expect(screen.getByTestId("chapter-progress-stage-list")).toBeInTheDocument();
+    expect(screen.getByTestId("chapter-progress-stage-chip-aguardando-raw")).toHaveAttribute(
+      "aria-label",
+      expect.stringMatching(/Aguardando Raw: atual/i),
+    );
+  });
+
+  it("mostra em progresso ao criar capítulo novo de manga sem páginas", async () => {
+    setupApiMock({
+      project: buildProject({
+        type: "Manga",
+        title: "Projeto Manga",
+        episodeDownloads: [
+          {
+            number: 1,
+            volume: 1,
+            title: "Capítulo 1",
+            synopsis: "",
+            releaseDate: "",
+            duration: "",
+            sourceType: "Web",
+            sources: [],
+            progressStage: "aguardando-raw",
+            completedStages: [],
+            content: "",
+            contentFormat: "images",
+            pages: [{ position: 1, imageUrl: "/uploads/manga/ch1-01.jpg" }],
+            pageCount: 1,
+            hasPages: true,
+            publicationStatus: "draft",
+            coverImageUrl: "/uploads/manga/ch1-01.jpg",
+            coverImageAlt: "",
+          },
+        ],
+      }),
+    });
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("chapter-structure-section");
+
+    fireEvent.click(screen.getByTestId("chapter-structure-add-chapter-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos/2",
+      );
+    });
+    expect(screen.getByTestId("location-search").textContent).toBe("?volume=1");
+    expect(screen.getByTestId("chapter-progress-section")).toBeInTheDocument();
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("0%");
+    expect(screen.getByTestId("chapter-progress-stage-list")).toBeInTheDocument();
+    expect(screen.getByTestId("chapter-progress-stage-chip-aguardando-raw")).toHaveAttribute(
+      "aria-label",
+      expect.stringMatching(/Aguardando Raw: atual/i),
+    );
+  });
+
+  it("mantém em progresso visível ao criar capítulo de manga mesmo se o backend omitir publicationStatus", async () => {
+    const mangaProject = buildProject({
+      type: "Manga",
+      title: "Projeto Manga",
+      episodeDownloads: [
+        {
+          number: 1,
+          volume: 1,
+          title: "Capítulo 1",
+          synopsis: "",
+          releaseDate: "",
+          duration: "",
+          sourceType: "Web",
+          sources: [],
+          progressStage: "aguardando-raw",
+          completedStages: [],
+          content: "",
+          contentFormat: "images",
+          pages: [{ position: 1, imageUrl: "/uploads/manga/ch1-01.jpg" }],
+          pageCount: 1,
+          hasPages: true,
+          publicationStatus: "draft",
+          coverImageUrl: "/uploads/manga/ch1-01.jpg",
+          coverImageAlt: "",
+        },
+      ],
+    });
+
+    setupApiMock({
+      project: mangaProject,
+      projectSaveResponse: ({ payload, project }) => {
+        const incomingEpisodes = (
+          (payload.episodeDownloads as Array<Record<string, unknown>> | undefined) || []
+        ).map((episode) => {
+          if (Number(episode.number) === 2 && Number(episode.volume) === 1) {
+            const { publicationStatus, ...rest } = episode;
+            return rest;
+          }
+          return episode;
+        });
+        return mockJsonResponse(true, {
+          project: {
+            ...project,
+            ...payload,
+            revision: "rev-3",
+            episodeDownloads: incomingEpisodes,
+          },
+        });
+      },
+    });
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("chapter-structure-section");
+
+    fireEvent.click(screen.getByTestId("chapter-structure-add-chapter-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos/2",
+      );
+    });
+    expect(screen.getByTestId("location-search").textContent).toBe("?volume=1");
+    expect(screen.getByTestId("chapter-progress-section")).toBeInTheDocument();
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("0%");
+    expect(screen.getByTestId("chapter-progress-stage-list")).toBeInTheDocument();
+    expect(screen.getByTestId("chapter-progress-stage-chip-aguardando-raw")).toHaveAttribute(
+      "aria-label",
+      expect.stringMatching(/Aguardando Raw: atual/i),
+    );
   });
 
   it("cria um capítulo em sem volume e limpa a busca se o filtro esconder o novo item", async () => {
@@ -3095,5 +3957,69 @@ describe("DashboardProjectChapterEditor", () => {
     expect(scrollByMock).not.toHaveBeenCalled();
 
     rectSpy.mockRestore();
+  });
+
+  it("mantem a ordem manual ao criar capitulo novo em projeto ja reordenado", async () => {
+    setupApiMock({
+      project: buildProject({
+        episodeDownloads: [
+          {
+            ...baseProject.episodeDownloads[0],
+            number: 1,
+            volume: 1,
+            title: "Capitulo 1 V1",
+            readingOrder: 1,
+          },
+          {
+            ...baseProject.episodeDownloads[0],
+            number: 1,
+            volume: 2,
+            title: "Capitulo 1 V2",
+            readingOrder: 2,
+          },
+          {
+            ...baseProject.episodeDownloads[1],
+            number: 2,
+            volume: 2,
+            title: "Capitulo 2 V2",
+            readingOrder: 3,
+          },
+        ],
+      }),
+    });
+
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("chapter-structure-section");
+
+    fireEvent.click(screen.getByTestId("chapter-structure-add-chapter-1"));
+
+    await waitFor(() => {
+      const saveCall = apiFetchMock.mock.calls.find(
+        ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+      );
+      expect(saveCall).toBeDefined();
+      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      expect(
+        ((payload?.episodeDownloads as Array<Record<string, unknown>> | undefined) || []).map(
+          (episode) => ({
+            number: episode.number,
+            volume: episode.volume,
+            readingOrder: episode.readingOrder,
+          }),
+        ),
+      ).toEqual([
+        { number: 1, volume: 1, readingOrder: 1 },
+        { number: 2, volume: 1, readingOrder: 2 },
+        { number: 1, volume: 2, readingOrder: 3 },
+        { number: 2, volume: 2, readingOrder: 4 },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos/2",
+      );
+    });
+    expect(screen.getByTestId("location-search").textContent).toBe("?volume=1");
   });
 });

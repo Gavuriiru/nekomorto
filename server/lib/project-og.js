@@ -1638,8 +1638,10 @@ const buildSubtitleNode = (model) => {
           width: subtitleAvatarSize,
           height: subtitleAvatarSize,
           style: {
+            display: "block",
             width: subtitleAvatarSize,
             height: subtitleAvatarSize,
+            borderRadius: subtitleAvatarSize / 2,
             objectFit: "cover",
           },
         }),

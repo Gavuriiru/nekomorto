@@ -140,7 +140,7 @@ describe("post og helper", () => {
     expect(model.backdropSource).toBe("post-first-image");
     expect(model.backdropUrl).toBe("/uploads/posts/post-1/body.jpg?preset=hero");
     expect(model.subtitleAvatarUrl).toBe("https://cdn.example.com/avatar.png");
-    expect(model.sceneVersion).toBe("post-og-v2");
+    expect(model.sceneVersion).toBe("post-og-v3");
   });
 
   it("falls back from post cover to first post image and then project cover for artwork", () => {
@@ -222,13 +222,28 @@ describe("post og helper", () => {
     });
     const withAvatarScene = buildPostOgScene(withAvatar);
     const withoutAvatarScene = buildPostOgScene(withoutAvatar);
+    const avatarNode = findElement(
+      withAvatarScene,
+      (candidate) => candidate.props?.["data-og-part"] === "subtitle-avatar",
+    );
+    const avatarImageNode = toArray(avatarNode?.props?.children)[0] as
+      | { props?: Record<string, unknown> }
+      | undefined;
 
-    expect(
-      findElement(
-        withAvatarScene,
-        (candidate) => candidate.props?.["data-og-part"] === "subtitle-avatar",
-      ),
-    ).not.toBeNull();
+    expect(avatarNode).not.toBeNull();
+    expect(avatarNode?.props?.style).toEqual(
+      expect.objectContaining({
+        borderRadius: 27 / 2,
+        overflow: "hidden",
+      }),
+    );
+    expect(avatarImageNode?.props?.style).toEqual(
+      expect.objectContaining({
+        display: "block",
+        borderRadius: 27 / 2,
+        objectFit: "cover",
+      }),
+    );
     expect(
       findElement(
         withoutAvatarScene,

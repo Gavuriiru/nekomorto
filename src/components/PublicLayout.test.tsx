@@ -28,6 +28,7 @@ describe("PublicLayout", () => {
     expect(screen.getByTestId("public-footer")).toBeInTheDocument();
     expect(screen.getByTestId("public-outlet")).toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveAttribute("id", "public-main-content");
+    expect(screen.getByRole("main")).toHaveClass("a11y-focus-target");
     expect(
       screen.queryByRole("navigation", { name: /Atalhos de acessibilidade/i }),
     ).not.toBeInTheDocument();

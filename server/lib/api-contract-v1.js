@@ -182,6 +182,7 @@ const CONTRACT_BASE = Object.freeze({
         "Accepts chapter payload in body.chapter.",
         "Supports optional ?volume= to resolve chapters in multivolume projects.",
         "Image chapters accept contentFormat='images', pages[] and pageCount.",
+        "Image chapters can stay empty while in draft, but publication requires at least one page and may return image_pages_required_for_publication.",
       ],
     },
     {

@@ -236,7 +236,7 @@ const PostContentEditor = ({
               }}
               trigger={<Type className="h-4 w-4" />}
               showSwatch={false}
-              buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-secondary/40 text-primary transition hover:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-secondary/40 text-primary transition hover:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/45"
             />
             <ColorPicker
               label="Cor de fundo"
@@ -248,7 +248,7 @@ const PostContentEditor = ({
               }}
               trigger={<PaintBucket className="h-4 w-4" />}
               showSwatch={false}
-              buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-secondary/40 text-primary transition hover:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-secondary/40 text-primary transition hover:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/45"
             />
             <Popover>
               <PopoverTrigger asChild>

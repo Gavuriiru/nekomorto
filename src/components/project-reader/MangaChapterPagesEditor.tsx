@@ -1,14 +1,11 @@
 import { unzipSync } from "fflate";
-import { LayoutGroup, motion, useReducedMotion } from "framer-motion";
+import { LayoutGroup, useReducedMotion } from "framer-motion";
 import {
-  ChevronDown,
   FileArchive,
   FolderOpen,
   ImagePlus,
   Loader2,
   Plus,
-  Star,
-  Trash2,
 } from "lucide-react";
 import {
   useMemo,
@@ -19,7 +16,6 @@ import {
   type MouseEvent,
 } from "react";
 
-import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +34,7 @@ import {
   setDragPreviewFromElement,
 } from "@/components/project-reader/page-reorder";
 import { exportMangaChapter } from "@/components/project-reader/manga-chapter-export";
+import MangaPageTile from "@/components/project-reader/MangaPageTile";
 import { normalizeProjectEpisodePages } from "../../../shared/project-reader.js";
 
 type MangaChapterPagesEditorProps = {
@@ -112,10 +109,9 @@ const MangaChapterPagesEditor = ({
   const { announce } = useAccessibilityAnnouncer();
   const shouldReduceMotion = useReducedMotion();
   const [isUploading, setIsUploading] = useState(false);
-  const [exportingFormat, setExportingFormat] = useState<"zip" | "cbz" | null>(null);
+  const [isExportingZip, setIsExportingZip] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const reorderTransition = useMemo(
     () => getReorderLayoutTransition(!!shouldReduceMotion),
     [shouldReduceMotion],
@@ -366,18 +362,17 @@ const MangaChapterPagesEditor = ({
     });
   };
 
-  const handleExport = async (format: "zip" | "cbz") => {
-    setExportingFormat(format);
+  const handleExport = async () => {
+    setIsExportingZip(true);
     try {
       await exportMangaChapter({
         apiBase,
         projectId: String(projectSnapshot.id || ""),
         projectSnapshot,
         chapter,
-        format,
       });
       toast({
-        title: format === "cbz" ? "CBZ exportado" : "ZIP exportado",
+        title: "ZIP exportado",
         intent: "success",
       });
     } catch {
@@ -386,52 +381,76 @@ const MangaChapterPagesEditor = ({
         variant: "destructive",
       });
     } finally {
-      setExportingFormat(null);
+      setIsExportingZip(false);
     }
   };
 
   return (
     <div className="space-y-4" data-testid="manga-chapter-pages-editor">
-      <div className="flex flex-wrap items-center gap-2" data-testid="manga-pages-actions">
-        <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
-          {pages.length} pagina(s)
-        </Badge>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isUploading}
+      <div
+        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        data-testid="manga-pages-actions"
+      >
+        <div
+          className="flex flex-wrap items-center gap-2"
+          data-testid="manga-pages-upload-actions"
         >
-          <ImagePlus className="h-4 w-4" />
-          <span>Imagens</span>
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => folderInputRef.current?.click()}
-          disabled={isUploading}
+          <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+            {pages.length} pagina(s)
+          </Badge>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+          >
+            <ImagePlus className="h-4 w-4" />
+            <span>Imagens</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => folderInputRef.current?.click()}
+            disabled={isUploading}
+          >
+            <FolderOpen className="h-4 w-4" />
+            <span>Pasta</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => archiveInputRef.current?.click()}
+            disabled={isUploading}
+          >
+            <FileArchive className="h-4 w-4" />
+            <span>ZIP</span>
+          </Button>
+          {isUploading ? (
+            <div className="inline-flex items-center gap-2 rounded-full border border-border/60 px-3 py-1 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>Enviando paginas...</span>
+            </div>
+          ) : null}
+        </div>
+
+        <div
+          className="flex flex-wrap items-center gap-2 sm:justify-end"
+          data-testid="manga-pages-export-actions"
         >
-          <FolderOpen className="h-4 w-4" />
-          <span>Pasta</span>
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => archiveInputRef.current?.click()}
-          disabled={isUploading}
-        >
-          <FileArchive className="h-4 w-4" />
-          <span>ZIP / CBZ</span>
-        </Button>
-        {isUploading ? (
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/60 px-3 py-1 text-xs text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            <span>Enviando paginas...</span>
-          </div>
-        ) : null}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => void handleExport()}
+            disabled={pages.length === 0 || isExportingZip}
+          >
+            {isExportingZip ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            <span>ZIP</span>
+          </Button>
+        </div>
       </div>
 
       <div className="hidden">
@@ -479,91 +498,29 @@ const MangaChapterPagesEditor = ({
               const isDragged = draggedPage === page;
               const isPreviewTarget = dragIndex !== null && dragOverIndex === index;
               return (
-                <motion.article
+                <MangaPageTile
                   key={`${page.imageUrl}-${page.position}`}
-                  layout={!isDragged}
-                  transition={reorderTransition}
-                  className="group"
-                  data-testid={`manga-page-card-${index}`}
-                  data-reorder-layout={!isDragged ? "animated" : "static"}
-                >
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    draggable={!isUploading}
-                    onDragStart={(event) => handlePageDragStart(event, index)}
-                    onDragEnd={clearDragState}
-                    onDragOver={(event) => handlePageDragOver(event, index)}
-                    onDrop={(event) => handlePageDrop(event, index)}
-                    onKeyDown={(event) => handlePageKeyDown(event, index)}
-                    aria-label={`Arrastar pagina ${index + 1} para reordenar. Use Alt+Seta para mover pelo teclado.`}
-                    title={page.displayName}
-                    data-testid={`manga-page-surface-${index}`}
-                    data-reorder-motion={shouldReduceMotion ? "reduced" : "spring"}
-                    data-reorder-state={
-                      isDragged ? "dragging" : isPreviewTarget ? "preview-target" : "idle"
-                    }
-                    className={`relative aspect-[3/4] overflow-hidden rounded-[22px] border bg-card/75 transition ${
-                      isDragged
-                        ? "z-10 cursor-grabbing border-primary/60 opacity-85 ring-2 ring-primary/25 shadow-[0_24px_60px_-30px_rgba(0,0,0,0.45)]"
-                        : isPreviewTarget
-                          ? "cursor-grab border-primary/60 ring-2 ring-primary/15"
-                          : "cursor-grab border-border/50"
-                    } focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30`}
-                  >
-                    <UploadPicture
-                      src={page.imageUrl}
-                      alt={`Pagina ${index + 1}`}
-                      preset="poster"
-                      className="h-full w-full"
-                      imgClassName="h-full w-full object-cover object-top"
-                    />
-                    <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
-                      <span className="rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                      <div className="pointer-events-auto flex items-center gap-2 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
-                        {isCover ? (
-                          <Badge className="rounded-full px-2.5 py-1 text-[10px] uppercase tracking-[0.12em]">
-                            Capa
-                          </Badge>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="icon"
-                            onClick={(event) => setPageAsCover(event, page.imageUrl)}
-                            disabled={isUploading}
-                            className="h-9 w-9 rounded-full border border-border/60 bg-background/90 shadow-sm"
-                          >
-                            <Star className="h-4 w-4" />
-                            <span className="sr-only">Usar capa</span>
-                          </Button>
-                        )}
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="icon"
-                          onClick={(event) => removePage(event, index)}
-                          disabled={isUploading}
-                          className="h-9 w-9 rounded-full border border-border/60 bg-background/90 text-destructive shadow-sm hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Remover</span>
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent px-3 pb-3 pt-12 opacity-0 transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
-                      <span
-                        className="block truncate text-xs font-medium text-white"
-                        title={page.displayName}
-                        data-testid={`manga-page-filename-${index}`}
-                      >
-                        {page.displayName}
-                      </span>
-                    </div>
-                  </div>
-                </motion.article>
+                  testIdPrefix="manga-page"
+                  src={page.imageUrl}
+                  alt={`Pagina ${index + 1}`}
+                  displayName={page.displayName}
+                  index={index}
+                  isCover={isCover}
+                  isDragged={isDragged}
+                  isPreviewTarget={isPreviewTarget}
+                  disabled={isUploading}
+                  reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
+                  reorderTransition={reorderTransition}
+                  onDragStart={(event) => handlePageDragStart(event, index)}
+                  onDragEnd={clearDragState}
+                  onDragOver={(event) => handlePageDragOver(event, index)}
+                  onDrop={(event) => handlePageDrop(event, index)}
+                  onKeyDown={(event) => handlePageKeyDown(event, index)}
+                  onSetCover={
+                    isCover ? undefined : (event) => setPageAsCover(event, page.imageUrl)
+                  }
+                  onRemove={(event) => removePage(event, index)}
+                />
               );
             })}
           </div>
@@ -578,156 +535,80 @@ const MangaChapterPagesEditor = ({
       )}
 
       <section
-        className="overflow-hidden rounded-[22px] border border-border/50 bg-card/55"
-        data-testid="manga-pages-utilities"
+        className="rounded-[22px] border border-border/50 bg-card/55 p-4"
+        data-testid="manga-pages-sources"
       >
-        <button
-          type="button"
-          data-testid="manga-pages-utilities-trigger"
-          aria-expanded={isAdvancedOpen ? "true" : "false"}
-          onClick={() => setIsAdvancedOpen((current) => !current)}
-          className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition hover:bg-background/25"
-        >
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
-            <p className="text-sm font-semibold tracking-tight text-foreground">
-              Utilitarios do capitulo
-            </p>
+            <Label className="text-sm">Fontes de download</Label>
             <p className="text-xs text-muted-foreground">
-              Exportacao rapida e fontes opcionais no mesmo contexto das paginas.
+              Links opcionais para leitura externa ou downloads adicionais.
             </p>
           </div>
-          <ChevronDown
-            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
-              isAdvancedOpen ? "rotate-180" : ""
-            }`}
-          />
-        </button>
-
-        {isAdvancedOpen ? (
-          <div
-            className="grid gap-3 border-t border-border/50 px-4 py-4 xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)]"
-            data-testid="manga-pages-utilities-panel"
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setChapterState({
+                sources: [...(chapter.sources || []), { label: "", url: "" }],
+              })
+            }
           >
-            <div
-              className="rounded-[20px] border border-dashed border-border/50 bg-background/30 p-4"
-              data-testid="manga-pages-export"
-            >
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-sm">Exportacao do capitulo</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Gere um ZIP ou CBZ com as paginas do capitulo atual.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void handleExport("zip")}
-                    disabled={pages.length === 0 || exportingFormat !== null}
-                  >
-                    {exportingFormat === "zip" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : null}
-                    <span>Exportar ZIP</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void handleExport("cbz")}
-                    disabled={pages.length === 0 || exportingFormat !== null}
-                  >
-                    {exportingFormat === "cbz" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : null}
-                    <span>Exportar CBZ</span>
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <Plus className="h-4 w-4" />
+            <span>Adicionar</span>
+          </Button>
+        </div>
 
+        <div className="mt-4 space-y-3">
+          {(chapter.sources || []).map((source, sourceIndex) => (
             <div
-              className="rounded-[20px] border border-border/50 bg-background/35 p-4"
-              data-testid="manga-pages-sources"
+              key={`chapter-source-${sourceIndex}`}
+              className="grid gap-2 rounded-xl border border-border/60 bg-card/70 p-3"
             >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <Label className="text-sm">Fontes de download</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Links opcionais para leitura externa ou downloads adicionais.
-                  </p>
-                </div>
+              <Input
+                value={source.label}
+                onChange={(event) =>
+                  setChapterState({
+                    sources: (chapter.sources || []).map((item, index) =>
+                      index === sourceIndex ? { ...item, label: event.target.value } : item,
+                    ),
+                  })
+                }
+                placeholder="Fonte"
+              />
+              <Input
+                value={source.url}
+                onChange={(event) =>
+                  setChapterState({
+                    sources: (chapter.sources || []).map((item, index) =>
+                      index === sourceIndex ? { ...item, url: event.target.value } : item,
+                    ),
+                  })
+                }
+                placeholder="URL"
+              />
+              <div className="flex justify-end">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={() =>
                     setChapterState({
-                      sources: [...(chapter.sources || []), { label: "", url: "" }],
+                      sources: (chapter.sources || []).filter((_, index) => index !== sourceIndex),
                     })
                   }
                 >
-                  <Plus className="h-4 w-4" />
-                  <span>Adicionar</span>
+                  Remover
                 </Button>
               </div>
-
-              <div className="mt-4 space-y-3">
-                {(chapter.sources || []).map((source, sourceIndex) => (
-                  <div
-                    key={`chapter-source-${sourceIndex}`}
-                    className="grid gap-2 rounded-xl border border-border/60 bg-card/70 p-3"
-                  >
-                    <Input
-                      value={source.label}
-                      onChange={(event) =>
-                        setChapterState({
-                          sources: (chapter.sources || []).map((item, index) =>
-                            index === sourceIndex ? { ...item, label: event.target.value } : item,
-                          ),
-                        })
-                      }
-                      placeholder="Fonte"
-                    />
-                    <Input
-                      value={source.url}
-                      onChange={(event) =>
-                        setChapterState({
-                          sources: (chapter.sources || []).map((item, index) =>
-                            index === sourceIndex ? { ...item, url: event.target.value } : item,
-                          ),
-                        })
-                      }
-                      placeholder="URL"
-                    />
-                    <div className="flex justify-end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          setChapterState({
-                            sources: (chapter.sources || []).filter(
-                              (_, index) => index !== sourceIndex,
-                            ),
-                          })
-                        }
-                      >
-                        Remover
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-
-                {(chapter.sources || []).length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhuma fonte cadastrada.</p>
-                ) : null}
-              </div>
             </div>
-          </div>
-        ) : null}
+          ))}
+
+          {(chapter.sources || []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma fonte cadastrada.</p>
+          ) : null}
+        </div>
       </section>
     </div>
   );

@@ -1,18 +1,19 @@
 import { unzipSync } from "fflate";
-import { LayoutGroup, motion, useReducedMotion } from "framer-motion";
+import { LayoutGroup, useReducedMotion } from "framer-motion";
 import {
   FileArchive,
   FolderOpen,
   ImagePlus,
   Loader2,
   Plus,
-  Star,
   Trash2,
   Upload,
 } from "lucide-react";
 import {
+  forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -23,12 +24,13 @@ import {
   type SetStateAction,
 } from "react";
 
-import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -42,6 +44,8 @@ import type { Project, ProjectEpisode } from "@/data/projects";
 import { apiFetch } from "@/lib/api-client";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
 import { buildChapterFolder, resolveProjectImageFolders } from "@/lib/project-image-folders";
+import { cn } from "@/lib/utils";
+import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
 import {
   buildReorderAnnouncement,
   buildPreviewReorderList,
@@ -51,7 +55,9 @@ import {
   resolvePageDisplayName,
   setDragPreviewFromElement,
 } from "@/components/project-reader/page-reorder";
+import MangaPageTile from "@/components/project-reader/MangaPageTile";
 import { mergeImportedImageChaptersIntoProject } from "@/lib/project-manga";
+import { getProjectProgressState, syncProjectProgress } from "@/lib/project-progress";
 
 type ProjectRecord = Project & { revision?: string };
 type ChapterFilterMode = "all" | "draft" | "published" | "with-content" | "without-content";
@@ -69,13 +75,26 @@ export type StageChapter = {
   number: number;
   volume: number | null;
   title: string;
+  synopsis: string;
   titleDetected: string;
   sourceLabel: string;
   pages: StagePage[];
   coverPageId: string | null;
+  entryKind: "main" | "extra";
+  entrySubtype: string;
+  displayLabel?: string;
   publicationStatus: "draft" | "published";
+  progressStage?: string;
+  completedStages: string[];
   operation: "create" | "update";
   warnings: string[];
+  leaveGuardPristine?: boolean;
+};
+
+export type MangaWorkflowPanelHandle = {
+  hasUnsavedChanges: () => boolean;
+  savePreparedChaptersAsDraft: () => Promise<boolean>;
+  discardPreparedChapters: () => void;
 };
 
 type ImportEntry = {
@@ -111,6 +130,8 @@ const NATURAL_COLLATOR = new Intl.Collator("pt-BR", {
 
 const compareNatural = (left: string, right: string) => NATURAL_COLLATOR.compare(left, right);
 const normalizeText = (value: unknown) => String(value || "").trim();
+const resolveStageEntrySubtype = (entryKind: StageChapter["entryKind"]) =>
+  entryKind === "extra" ? "extra" : "chapter";
 const normalizeRelativeImportPath = (value: unknown) =>
   String(value || "")
     .replace(/\\/g, "/")
@@ -320,11 +341,13 @@ const buildStageChaptersFromEntries = ({
   project,
   entries,
   targetVolume,
+  targetChapter,
   defaultStatus,
 }: {
   project: ProjectRecord;
   entries: ImportEntry[];
   targetVolume: number | null;
+  targetChapter: number | null;
   defaultStatus: "draft" | "published";
 }) => {
   const layout = detectImportLayout(entries);
@@ -383,10 +406,11 @@ const buildStageChaptersFromEntries = ({
       }
       return compareNatural(left.sourceLabel, right.sourceLabel);
     })
-    .map((group) => {
+    .map((group, index) => {
       const volume = group.volumeHint || null;
       const volumeKey = volume !== null ? String(volume) : "none";
-      const chapterNumber = group.chapterHint || nextByVolume.get(volumeKey) || 1;
+      const chapterNumber =
+        (index === 0 ? targetChapter : null) || group.chapterHint || nextByVolume.get(volumeKey) || 1;
       nextByVolume.set(volumeKey, chapterNumber + 1);
       const key = buildEpisodeKey(chapterNumber, volume ?? undefined);
       const existing = existingByKey.get(key);
@@ -394,20 +418,35 @@ const buildStageChaptersFromEntries = ({
         .slice()
         .sort((left, right) => compareNatural(left.relativePath, right.relativePath))
         .map((entry) => createStagePage(entry.file, entry.relativePath));
-      return {
-        id: createStageId(),
-        number: chapterNumber,
-        volume,
-        title: group.titleHint || normalizeText(existing?.title),
-        titleDetected: group.titleHint,
-        sourceLabel: group.sourceLabel,
-        pages,
-        coverPageId: pages[0]?.id || null,
-        publicationStatus:
-          existing?.publicationStatus === "published" ? "published" : defaultStatus,
-        operation: existing ? "update" : "create",
-        warnings: [],
-      } satisfies StageChapter;
+      return syncProjectProgress(
+        {
+          id: createStageId(),
+          number: chapterNumber,
+          volume,
+          title: group.titleHint || normalizeText(existing?.title),
+          synopsis: normalizeText(existing?.synopsis),
+          titleDetected: group.titleHint,
+          sourceLabel: group.sourceLabel,
+          pages,
+          coverPageId: pages[0]?.id || null,
+          entryKind: existing?.entryKind === "extra" ? "extra" : "main",
+          entrySubtype:
+            normalizeText(existing?.entrySubtype) ||
+            resolveStageEntrySubtype(existing?.entryKind === "extra" ? "extra" : "main"),
+          displayLabel:
+            existing?.entryKind === "extra"
+              ? normalizeText(existing?.displayLabel) || "Extra"
+              : undefined,
+          publicationStatus:
+            existing?.publicationStatus === "published" ? "published" : defaultStatus,
+          progressStage: normalizeText(existing?.progressStage) || undefined,
+          completedStages: Array.isArray(existing?.completedStages) ? existing.completedStages : [],
+          operation: existing ? "update" : "create",
+          warnings: [],
+          leaveGuardPristine: false,
+        } satisfies StageChapter,
+        "manga",
+      );
     });
 };
 
@@ -422,41 +461,49 @@ export const reconcileStageChapters = (project: ProjectRecord, chapters: StageCh
     if (!parsePositiveInteger(chapter.number)) {
       warnings.push("Numero de capitulo invalido.");
     }
-    if (chapter.pages.length === 0) {
-      warnings.push("Sem paginas para importar.");
-    }
     if (seenKeys.has(key)) {
-      warnings.push("Outra entrada do lote ja usa esse numero + volume.");
+      warnings.push("Já existe outro capítulo preparado com esse número + volume.");
     }
     seenKeys.add(key);
-    return {
-      ...chapter,
-      coverPageId: chapter.pages.some((page) => page.id === chapter.coverPageId)
-        ? chapter.coverPageId
-        : chapter.pages[0]?.id || null,
-      operation: existing ? "update" : "create",
-      warnings,
-    };
+    return syncProjectProgress(
+      {
+        ...chapter,
+        coverPageId: chapter.pages.some((page) => page.id === chapter.coverPageId)
+          ? chapter.coverPageId
+          : chapter.pages[0]?.id || null,
+        operation: existing ? "update" : "create",
+        warnings,
+        leaveGuardPristine: chapter.leaveGuardPristine === true,
+      },
+      "manga",
+    );
   });
 };
 
-const MangaWorkflowPanel = ({
-  apiBase,
-  project,
-  projectSnapshot,
-  selectedVolume,
-  filterMode,
-  filteredChapters,
-  stagedChapters,
-  setStagedChapters,
-  selectedStageChapterId,
-  setSelectedStageChapterId,
-  onPersistProjectSnapshot,
-  onProjectChange,
-  onNavigateToChapter,
-  onSelectedStageChapterChange,
-  onOpenImportedChapter,
-}: MangaWorkflowPanelProps) => {
+const markStageChapterAsEdited = (chapter: StageChapter): StageChapter =>
+  chapter.leaveGuardPristine === true ? { ...chapter, leaveGuardPristine: false } : chapter;
+
+const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPanelProps>(
+  (
+    {
+      apiBase,
+      project,
+      projectSnapshot,
+      selectedVolume,
+      filterMode,
+      filteredChapters,
+      stagedChapters,
+      setStagedChapters,
+      selectedStageChapterId,
+      setSelectedStageChapterId,
+      onPersistProjectSnapshot,
+      onProjectChange,
+      onNavigateToChapter,
+      onSelectedStageChapterChange,
+      onOpenImportedChapter,
+    },
+    ref,
+  ) => {
   const shouldReduceMotion = useReducedMotion();
   const archiveInputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
@@ -466,6 +513,7 @@ const MangaWorkflowPanel = ({
   const [targetVolumeInput, setTargetVolumeInput] = useState(
     selectedVolume !== null ? String(selectedVolume) : "",
   );
+  const [targetChapterInput, setTargetChapterInput] = useState("");
   const [defaultImportStatus, setDefaultImportStatus] = useState<"draft" | "published">("draft");
   const [isPreparingStage, setIsPreparingStage] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -522,12 +570,25 @@ const MangaWorkflowPanel = ({
     () => ({
       chapters: reconciledStagedChapters.length,
       pages: reconciledStagedChapters.reduce((total, chapter) => total + chapter.pages.length, 0),
-      ready: reconciledStagedChapters.filter((chapter) => chapter.warnings.length === 0).length,
       warnings: reconciledStagedChapters.reduce(
         (total, chapter) => total + chapter.warnings.length,
         0,
       ),
     }),
+    [reconciledStagedChapters],
+  );
+  const selectedStageProgressState = useMemo(
+    () =>
+      selectedStageChapter && selectedStageChapter.publicationStatus === "draft"
+        ? getProjectProgressState({
+            kind: "manga",
+            completedStages: selectedStageChapter.completedStages,
+          })
+        : null,
+    [selectedStageChapter],
+  );
+  const hasUnsavedStageChanges = useMemo(
+    () => reconciledStagedChapters.some((chapter) => chapter.leaveGuardPristine !== true),
     [reconciledStagedChapters],
   );
 
@@ -558,12 +619,13 @@ const MangaWorkflowPanel = ({
         project: projectSnapshot,
         entries,
         targetVolume: parsePositiveInteger(targetVolumeInput),
+        targetChapter: parsePositiveInteger(targetChapterInput),
         defaultStatus: defaultImportStatus,
       });
       setStagedChapters(nextChapters);
       setSelectedStageChapterId(nextChapters[0]?.id || null);
       toast({
-        title: "Lote preparado",
+        title: "Importação preparada",
         description: `${nextChapters.length} capitulo(s) detectado(s).`,
         intent: "success",
       });
@@ -574,6 +636,7 @@ const MangaWorkflowPanel = ({
       projectSnapshot,
       setSelectedStageChapterId,
       setStagedChapters,
+      targetChapterInput,
       targetVolumeInput,
     ],
   );
@@ -586,7 +649,7 @@ const MangaWorkflowPanel = ({
           source === "archive" ? await readArchiveEntries(files[0]) : readDirectEntries(files);
         applyEntriesToStage(entries);
       } catch {
-        toast({ title: "Nao foi possivel preparar o lote", variant: "destructive" });
+        toast({ title: "Não foi possível preparar a importação", variant: "destructive" });
       } finally {
         setIsPreparingStage(false);
         if (archiveInputRef.current) archiveInputRef.current.value = "";
@@ -601,21 +664,28 @@ const MangaWorkflowPanel = ({
     const nextByVolume = buildNextChapterNumberByVolume(projectSnapshot, reconciledStagedChapters);
     const volume = parsePositiveInteger(targetVolumeInput) || selectedVolume || null;
     const volumeKey = volume !== null ? String(volume) : "none";
-    const chapterNumber = nextByVolume.get(volumeKey) || 1;
+    const chapterNumber = parsePositiveInteger(targetChapterInput) || nextByVolume.get(volumeKey) || 1;
     const nextChapter: StageChapter = {
       id: createStageId(),
       number: chapterNumber,
       volume,
       title: "",
+      synopsis: "",
       titleDetected: "",
       sourceLabel: "Capitulo manual",
       pages: [],
       coverPageId: null,
+      entryKind: "main",
+      entrySubtype: "chapter",
+      displayLabel: undefined,
       publicationStatus: defaultImportStatus,
+      progressStage: "aguardando-raw",
+      completedStages: [],
       operation: "create",
       warnings: [],
+      leaveGuardPristine: true,
     };
-    setStagedChapters((current) => [...current, nextChapter]);
+    setStagedChapters((current) => [...current, syncProjectProgress(nextChapter, "manga")]);
     setSelectedStageChapterId(nextChapter.id);
   }, [
     defaultImportStatus,
@@ -624,6 +694,7 @@ const MangaWorkflowPanel = ({
     selectedVolume,
     setSelectedStageChapterId,
     setStagedChapters,
+    targetChapterInput,
     targetVolumeInput,
   ]);
 
@@ -640,6 +711,34 @@ const MangaWorkflowPanel = ({
       setSelectedStageChapterId((current) => (current === chapterId ? null : current));
     },
     [setSelectedStageChapterId, setStagedChapters],
+  );
+  const handleToggleStageProgressStage = useCallback(
+    (stageId: string) => {
+      if (!selectedStageChapter) {
+        return;
+      }
+      updateStageChapter(selectedStageChapter.id, (chapter) => {
+        const completedSet = new Set(
+          getProjectProgressState({
+            kind: "manga",
+            completedStages: chapter.completedStages,
+          }).completedStages,
+        );
+        if (completedSet.has(stageId)) {
+          completedSet.delete(stageId);
+        } else {
+          completedSet.add(stageId);
+        }
+        return syncProjectProgress(
+          {
+            ...markStageChapterAsEdited(chapter),
+            completedStages: Array.from(completedSet),
+          },
+          "manga",
+        );
+      });
+    },
+    [selectedStageChapter, updateStageChapter],
   );
 
   const removeStageChapters = useCallback(
@@ -672,7 +771,7 @@ const MangaWorkflowPanel = ({
         return;
       }
       updateStageChapter(chapterId, (chapter) => ({
-        ...chapter,
+        ...markStageChapterAsEdited(chapter),
         pages: reorderList(chapter.pages, fromIndex, toIndex),
       }));
       announce(buildReorderAnnouncement(`Pagina ${fromIndex + 1}`, toIndex));
@@ -762,7 +861,7 @@ const MangaWorkflowPanel = ({
         }
         const nextPages = chapter.pages.filter((item) => item.id !== pageId);
         return {
-          ...chapter,
+          ...markStageChapterAsEdited(chapter),
           pages: nextPages,
           coverPageId:
             chapter.coverPageId === pageId ? nextPages[0]?.id || null : chapter.coverPageId,
@@ -776,7 +875,7 @@ const MangaWorkflowPanel = ({
     (event: MouseEvent<HTMLButtonElement>, chapterId: string, pageId: string) => {
       event.stopPropagation();
       updateStageChapter(chapterId, (chapter) => ({
-        ...chapter,
+        ...markStageChapterAsEdited(chapter),
         coverPageId: pageId,
       }));
     },
@@ -793,7 +892,7 @@ const MangaWorkflowPanel = ({
       updateStageChapter(chapterId, (chapter) => {
         const nextPages = entries.map((entry) => createStagePage(entry.file, entry.relativePath));
         return {
-          ...chapter,
+          ...markStageChapterAsEdited(chapter),
           pages: [...chapter.pages, ...nextPages],
           coverPageId: chapter.coverPageId || nextPages[0]?.id || null,
         };
@@ -849,6 +948,8 @@ const MangaWorkflowPanel = ({
           ? projectSnapshot.episodeDownloads
           : []
         ).find((episode) => buildEpisodeKey(episode.number, episode.volume) === key) || null;
+      const stageEntryKind = stageChapter.entryKind === "extra" ? "extra" : "main";
+      const stageSynopsis = normalizeText(stageChapter.synopsis);
       const pages = uploadedPageUrls.map((imageUrl, index) => ({ position: index + 1, imageUrl }));
       const coverIndex = Math.max(
         0,
@@ -859,13 +960,19 @@ const MangaWorkflowPanel = ({
         number: stageChapter.number,
         volume: stageChapter.volume ?? undefined,
         title: normalizeText(stageChapter.title) || normalizeText(existing?.title),
-        synopsis: normalizeText(existing?.synopsis),
-        entryKind: existing?.entryKind === "extra" ? "extra" : "main",
-        entrySubtype: normalizeText(existing?.entrySubtype) || "chapter",
+        synopsis: stageSynopsis || normalizeText(existing?.synopsis),
+        entryKind: stageEntryKind,
+        entrySubtype:
+          normalizeText(stageChapter.entrySubtype) || resolveStageEntrySubtype(stageEntryKind),
         readingOrder: Number.isFinite(Number(existing?.readingOrder))
           ? Number(existing?.readingOrder)
           : undefined,
-        displayLabel: normalizeText(existing?.displayLabel) || undefined,
+        displayLabel:
+          stageEntryKind === "extra"
+            ? normalizeText(stageChapter.displayLabel) ||
+              normalizeText(existing?.displayLabel) ||
+              "Extra"
+            : undefined,
         releaseDate: normalizeText(existing?.releaseDate),
         duration: normalizeText(existing?.duration),
         sourceType:
@@ -873,8 +980,13 @@ const MangaWorkflowPanel = ({
             ? existing.sourceType
             : "Web",
         sources: Array.isArray(existing?.sources) ? existing.sources : [],
-        progressStage: normalizeText(existing?.progressStage) || undefined,
-        completedStages: Array.isArray(existing?.completedStages) ? existing.completedStages : [],
+        progressStage:
+          normalizeText(stageChapter.progressStage) || normalizeText(existing?.progressStage) || undefined,
+        completedStages: Array.isArray(stageChapter.completedStages)
+          ? stageChapter.completedStages
+          : Array.isArray(existing?.completedStages)
+            ? existing.completedStages
+            : [],
         content: "",
         contentFormat: "images" as const,
         pages,
@@ -897,6 +1009,7 @@ const MangaWorkflowPanel = ({
         publicationStatusOverride?: "draft" | "published";
         successTitle?: string;
         successDescription?: string;
+        openImportedChapter?: boolean;
       },
     ) => {
       if (!chaptersToImport.length) {
@@ -953,7 +1066,7 @@ const MangaWorkflowPanel = ({
           .find(Boolean);
 
         removeStageChapters(chaptersToImport.map((chapter) => chapter.id));
-        if (onOpenImportedChapter) {
+        if (options?.openImportedChapter !== false && onOpenImportedChapter) {
           onOpenImportedChapter(persistedProject, importedChapters);
         } else {
           onProjectChange(persistedProject);
@@ -967,7 +1080,7 @@ const MangaWorkflowPanel = ({
           intent: "success",
         });
 
-        if (firstImported && !onOpenImportedChapter) {
+        if (firstImported && options?.openImportedChapter !== false && !onOpenImportedChapter) {
           onNavigateToChapter(firstImported);
         }
         return true;
@@ -990,16 +1103,19 @@ const MangaWorkflowPanel = ({
     ],
   );
 
-  const handleConfirmImport = useCallback(async () => {
-    const chaptersToImport = reconciledStagedChapters.filter(
-      (chapter) => chapter.warnings.length === 0,
-    );
-    await importStageChapters(chaptersToImport);
-  }, [importStageChapters, reconciledStagedChapters]);
-
   const handleImportSelectedStageChapter = useCallback(
     async (publicationStatus: "draft" | "published") => {
-      if (!selectedStageChapter || selectedStageChapter.warnings.length > 0) {
+      if (!selectedStageChapter) {
+        return;
+      }
+      if (publicationStatus === "published" && !selectedStageChapter.pages.length) {
+        toast({
+          title: "Adicione imagens antes de publicar o capitulo",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (selectedStageChapter.warnings.length > 0) {
         return;
       }
 
@@ -1018,6 +1134,36 @@ const MangaWorkflowPanel = ({
       }
     },
     [importStageChapters, selectedStageChapter],
+  );
+
+  const savePreparedChaptersAsDraft = useCallback(async () => {
+    if (!hasUnsavedStageChanges) {
+      return true;
+    }
+    if (reconciledStagedChapters.some((chapter) => chapter.warnings.length > 0)) {
+      toast({
+        title: "Ajuste os capitulos preparados antes de sair",
+        description: "Corrija os avisos pendentes ou descarte o lote preparado.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    return await importStageChapters(reconciledStagedChapters, {
+      publicationStatusOverride: "draft",
+      successTitle: "Rascunhos salvos",
+      successDescription: `${reconciledStagedChapters.length} capitulo(s) preparado(s) salvo(s) como rascunho.`,
+      openImportedChapter: false,
+    });
+  }, [hasUnsavedStageChanges, importStageChapters, reconciledStagedChapters]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      hasUnsavedChanges: () => hasUnsavedStageChanges,
+      savePreparedChaptersAsDraft,
+      discardPreparedChapters: clearStage,
+    }),
+    [clearStage, hasUnsavedStageChanges, savePreparedChaptersAsDraft],
   );
 
   useEffect(() => {
@@ -1084,243 +1230,433 @@ const MangaWorkflowPanel = ({
           />
         </div>
 
-        <Card
-          className="border-border/60 bg-background/40"
-          data-testid="manga-workflow-import-card"
-        >
-          <CardContent className="space-y-5 p-4">
+        {reconciledStagedChapters.length === 0 ? (
+          <Card
+            className="border-border/60 bg-background/40"
+            data-testid="manga-workflow-import-card"
+          >
+          <CardContent className="space-y-4 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-1">
                 <h2 className="text-base font-semibold tracking-tight text-foreground">
-                  Importacao em lote
+                  Importação
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Traga paginas, ajuste o lote e importe sem telas extras.
+                  Traga páginas, ajuste os dados iniciais e importe sem telas extras.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">{stageSummary.chapters} capitulo(s)</Badge>
-                <Badge variant="outline">{stageSummary.pages} pagina(s)</Badge>
+                <Badge variant="outline">{stageSummary.chapters} capítulo(s)</Badge>
+                <Badge variant="outline">{stageSummary.pages} página(s)</Badge>
                 {stageSummary.warnings > 0 ? (
                   <Badge variant="destructive">{stageSummary.warnings} aviso(s)</Badge>
                 ) : null}
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => folderInputRef.current?.click()}
-                disabled={isPreparingStage || isImporting}
-              >
-                {isPreparingStage ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FolderOpen className="h-4 w-4" />
-                )}
-                <span>Pasta</span>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isPreparingStage || isImporting}
-              >
-                <ImagePlus className="h-4 w-4" />
-                <span>Imagens</span>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => archiveInputRef.current?.click()}
-                disabled={isPreparingStage || isImporting}
-              >
-                <FileArchive className="h-4 w-4" />
-                <span>ZIP / CBZ</span>
-              </Button>
-            </div>
-
             <div
-              className="flex flex-wrap items-end gap-3"
-              data-testid="manga-workflow-import-fields"
+              className="space-y-3 rounded-xl border border-border/50 bg-background/30 p-3"
+              data-testid="manga-workflow-import-sources"
             >
-              <div className="space-y-2">
-                <Label htmlFor="manga-stage-volume">Volume base</Label>
-                <Input
-                  id="manga-stage-volume"
-                  type="number"
-                  min={1}
-                  value={targetVolumeInput}
-                  onChange={(event) => setTargetVolumeInput(event.target.value)}
-                  placeholder="Sem volume"
-                  className="w-full sm:w-[132px]"
-                />
+              <div className="space-y-1">
+                <h3 className="text-sm font-medium text-foreground">Adicionar arquivos</h3>
+                <p className="text-xs text-muted-foreground">
+                  Pasta, imagens avulsas, ZIP ou um capítulo manual.
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="manga-stage-status">Status inicial</Label>
-                <Select
-                  value={defaultImportStatus}
-                  onValueChange={(value) =>
-                    setDefaultImportStatus(value === "published" ? "published" : "draft")
-                  }
-                >
-                  <SelectTrigger id="manga-stage-status" className="w-full sm:w-[160px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Rascunho</SelectItem>
-                    <SelectItem value="published">Publicado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex min-w-[240px] flex-1 flex-wrap items-end gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="outline"
+                  className="justify-start"
+                  onClick={() => folderInputRef.current?.click()}
+                  disabled={isPreparingStage || isImporting}
+                >
+                  {isPreparingStage ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FolderOpen className="h-4 w-4" />
+                  )}
+                  <span>Pasta</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isPreparingStage || isImporting}
+                >
+                  <ImagePlus className="h-4 w-4" />
+                  <span>Imagens</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => archiveInputRef.current?.click()}
+                  disabled={isPreparingStage || isImporting}
+                >
+                  <FileArchive className="h-4 w-4" />
+                  <span>ZIP</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="justify-start"
                   onClick={addManualStageChapter}
                   disabled={isPreparingStage || isImporting}
                 >
                   <Plus className="h-4 w-4" />
-                  <span>Novo capitulo no lote</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={clearStage}
-                  disabled={isImporting || reconciledStagedChapters.length === 0}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span>Limpar lote</span>
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => void handleConfirmImport()}
-                  disabled={isImporting || stageSummary.ready === 0}
-                >
-                  {isImporting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Upload className="h-4 w-4" />
-                  )}
-                  <span>Importar lote</span>
+                  <span>Novo capítulo</span>
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
 
-        <Card
-          className="border-border/60 bg-background/40"
-          data-testid="manga-workflow-review-card"
-        >
-          <CardContent className="space-y-4 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+            <div
+              className="space-y-3 rounded-xl border border-border/50 bg-background/30 p-3"
+              data-testid="manga-workflow-import-fields"
+            >
               <div className="space-y-1">
-                <h3 className="text-base font-semibold tracking-tight text-foreground">
-                  Revisao do lote
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Capitulo, volume, titulo e paginas do item selecionado.
+                <h3 className="text-sm font-medium text-foreground">Dados iniciais</h3>
+                <p className="text-xs text-muted-foreground">
+                  Defina volume, capítulo e status inicial antes de preparar os arquivos.
                 </p>
               </div>
-              {selectedStageChapter ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge
-                    variant={selectedStageChapter.operation === "update" ? "secondary" : "outline"}
-                  >
-                    {selectedStageChapter.operation === "update"
-                      ? "Atualiza existente"
-                      : "Novo capitulo"}
-                  </Badge>
-                  <Badge
-                    variant={
-                      selectedStageChapter.publicationStatus === "draft" ? "outline" : "secondary"
-                    }
-                  >
-                    {selectedStageChapter.publicationStatus === "draft" ? "Rascunho" : "Publicado"}
-                  </Badge>
-                  <Badge variant="outline">{selectedStageChapter.pages.length} pagina(s)</Badge>
-                </div>
-              ) : null}
-            </div>
-
-            {selectedStageChapter ? (
-              <div className="space-y-4" data-testid="manga-workflow-review-layout">
+              <div className="flex flex-wrap items-end gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="stage-chapter-title">Titulo</Label>
+                  <Label htmlFor="manga-stage-volume">Volume</Label>
                   <Input
-                    id="stage-chapter-title"
-                    value={selectedStageChapter.title}
-                    onChange={(event) =>
-                      updateStageChapter(selectedStageChapter.id, (chapter) => ({
-                        ...chapter,
-                        title: event.target.value,
-                      }))
-                    }
-                    placeholder="Opcional"
-                    className="w-full"
+                    id="manga-stage-volume"
+                    type="number"
+                    min={1}
+                    value={targetVolumeInput}
+                    onChange={(event) => setTargetVolumeInput(event.target.value)}
+                    placeholder="Sem volume"
+                    className="w-full sm:w-[132px]"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="manga-stage-chapter">Capítulo</Label>
+                  <Input
+                    id="manga-stage-chapter"
+                    type="number"
+                    min={1}
+                    value={targetChapterInput}
+                    onChange={(event) => setTargetChapterInput(event.target.value)}
+                    placeholder="Automático"
+                    className="w-full sm:w-[132px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="manga-stage-status">Status inicial</Label>
+                  <Select
+                    value={defaultImportStatus}
+                    onValueChange={(value) =>
+                      setDefaultImportStatus(value === "published" ? "published" : "draft")
+                    }
+                  >
+                    <SelectTrigger id="manga-stage-status" className="w-full sm:w-[160px]">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Rascunho</SelectItem>
+                      <SelectItem value="published">Publicado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
 
-                <div
-                  className="flex flex-wrap items-end gap-3"
-                  data-testid="manga-workflow-review-fields"
-                >
-                  <div className="space-y-2">
-                    <Label htmlFor="stage-chapter-number">Capitulo</Label>
-                    <Input
-                      id="stage-chapter-number"
-                      type="number"
-                      min={1}
-                      value={selectedStageChapter.number}
-                      onChange={(event) =>
-                        updateStageChapter(selectedStageChapter.id, (chapter) => ({
-                          ...chapter,
-                          number: Math.max(1, Number(event.target.value) || chapter.number),
-                        }))
-                      }
-                      className="w-full sm:w-[132px]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="stage-chapter-volume">Volume</Label>
-                    <Input
-                      id="stage-chapter-volume"
-                      type="number"
-                      min={1}
-                      value={selectedStageChapter.volume ?? ""}
-                      onChange={(event) =>
-                        updateStageChapter(selectedStageChapter.id, (chapter) => ({
-                          ...chapter,
-                          volume: event.target.value.trim()
-                            ? Math.max(1, Number(event.target.value) || 1)
-                            : null,
-                        }))
-                      }
-                      placeholder="Sem volume"
-                      className="w-full sm:w-[132px]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Status</Label>
-                    <div className="flex h-10 items-center">
-                      <Badge
-                        variant={
-                          selectedStageChapter.publicationStatus === "draft"
-                            ? "outline"
-                            : "secondary"
-                        }
-                        className="text-[10px] uppercase tracking-[0.12em]"
-                      >
-                        {selectedStageChapter.publicationStatus === "draft"
-                          ? "Rascunho"
-                          : "Publicado"}
+          </CardContent>
+          </Card>
+        ) : null}
+
+        <div className="space-y-4" data-testid="manga-workflow-review-card">
+          {selectedStageChapter ? (
+            <div className="space-y-4" data-testid="manga-workflow-review-layout">
+              <div
+                className={cn(
+                  "grid gap-4",
+                  selectedStageProgressState
+                    ? "xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]"
+                    : "xl:grid-cols-1",
+                )}
+                data-testid="manga-workflow-review-top-row"
+              >
+                <ProjectEditorSectionCard
+                  title="Dados do capitulo"
+                  subtitle="Volume, capitulo, tipo de entrada, titulo e sinopse."
+                  eyebrow="Ficha editorial"
+                  testId="manga-workflow-review-data-card"
+                  actions={
+                    <>
+                      <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                        {selectedStageChapter.entryKind === "extra" ? "Extra" : "Capitulo"}
                       </Badge>
+                      <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                        {selectedStageChapter.volume !== null
+                          ? `Volume ${selectedStageChapter.volume}`
+                          : "Sem volume"}
+                      </Badge>
+                    </>
+                  }
+                >
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <Label htmlFor="stage-chapter-title">Titulo</Label>
+                      <Input
+                        id="stage-chapter-title"
+                        value={selectedStageChapter.title}
+                        onChange={(event) =>
+                          updateStageChapter(selectedStageChapter.id, (chapter) => ({
+                            ...markStageChapterAsEdited(chapter),
+                            title: event.target.value,
+                          }))
+                        }
+                        placeholder="Opcional"
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div
+                      className="grid gap-3 md:grid-cols-3"
+                      data-testid="manga-workflow-review-fields"
+                    >
+                      <div className="space-y-2">
+                        <Label htmlFor="stage-chapter-volume">Volume</Label>
+                        <Input
+                          id="stage-chapter-volume"
+                          type="number"
+                          min={1}
+                          value={selectedStageChapter.volume ?? ""}
+                          onChange={(event) =>
+                            updateStageChapter(selectedStageChapter.id, (chapter) => ({
+                              ...markStageChapterAsEdited(chapter),
+                              volume: event.target.value.trim()
+                                ? Math.max(1, Number(event.target.value) || 1)
+                                : null,
+                            }))
+                          }
+                          placeholder="Sem volume"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="stage-chapter-number">Capitulo</Label>
+                        <Input
+                          id="stage-chapter-number"
+                          type="number"
+                          min={1}
+                          value={selectedStageChapter.number}
+                          onChange={(event) =>
+                            updateStageChapter(selectedStageChapter.id, (chapter) => ({
+                              ...markStageChapterAsEdited(chapter),
+                              number: Math.max(1, Number(event.target.value) || chapter.number),
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="stage-chapter-entry-kind">Tipo de entrada</Label>
+                        <Select
+                          value={selectedStageChapter.entryKind === "extra" ? "extra" : "main"}
+                          onValueChange={(value) =>
+                            updateStageChapter(selectedStageChapter.id, (chapter) => {
+                              const nextEntryKind = value === "extra" ? "extra" : "main";
+                              return {
+                                ...markStageChapterAsEdited(chapter),
+                                entryKind: nextEntryKind,
+                                entrySubtype: resolveStageEntrySubtype(nextEntryKind),
+                                displayLabel:
+                                  nextEntryKind === "extra"
+                                    ? chapter.displayLabel || "Extra"
+                                    : undefined,
+                              };
+                            })
+                          }
+                        >
+                          <SelectTrigger id="stage-chapter-entry-kind">
+                            <SelectValue placeholder="Tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="main">Capitulo</SelectItem>
+                            <SelectItem value="extra">Extra</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {selectedStageChapter.entryKind === "extra" ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="stage-chapter-display-label">Rotulo do extra</Label>
+                        <Input
+                          id="stage-chapter-display-label"
+                          value={selectedStageChapter.displayLabel || ""}
+                          onChange={(event) =>
+                            updateStageChapter(selectedStageChapter.id, (chapter) => ({
+                              ...markStageChapterAsEdited(chapter),
+                              displayLabel: event.target.value,
+                            }))
+                          }
+                          placeholder="Ex.: Side Story"
+                        />
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="stage-chapter-synopsis">Sinopse</Label>
+                      <Textarea
+                        id="stage-chapter-synopsis"
+                        value={selectedStageChapter.synopsis || ""}
+                        onChange={(event) =>
+                          updateStageChapter(selectedStageChapter.id, (chapter) => ({
+                            ...markStageChapterAsEdited(chapter),
+                            synopsis: event.target.value,
+                          }))
+                        }
+                        rows={4}
+                      />
                     </div>
                   </div>
+                </ProjectEditorSectionCard>
+
+                {selectedStageProgressState ? (
+                  <ProjectEditorSectionCard
+                    title="Em progresso"
+                    subtitle="Acompanhe o pipeline editorial do capitulo atual."
+                    eyebrow="Fluxo editorial"
+                    testId="manga-workflow-progress-section"
+                    bodyClassName="space-y-3 py-4"
+                    actions={
+                      <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                        <span data-testid="manga-workflow-progress-percent">
+                          {selectedStageProgressState.progress}%
+                        </span>
+                      </Badge>
+                    }
+                  >
+                    <div className="space-y-3">
+                      <div
+                        className="flex flex-wrap items-center gap-1.5"
+                        data-testid="manga-workflow-progress-stage-track"
+                        role="list"
+                        aria-label="Resumo visual das etapas editoriais"
+                      >
+                        {selectedStageProgressState.stages.map((stage) => {
+                          const isCompleted = selectedStageProgressState.completedStages.includes(
+                            stage.id,
+                          );
+                          const isCurrentStage =
+                            stage.id === selectedStageProgressState.currentStageId;
+                          return (
+                            <span
+                              key={stage.id}
+                              role="listitem"
+                              title={stage.label}
+                              aria-label={`${stage.label}: ${
+                                isCompleted ? "concluida" : isCurrentStage ? "atual" : "pendente"
+                              }`}
+                              data-testid={`manga-workflow-progress-stage-chip-${stage.id}`}
+                              className={cn(
+                                "block h-2.5 rounded-full transition-colors",
+                                isCompleted
+                                  ? "w-6 bg-primary"
+                                  : isCurrentStage
+                                    ? cn(
+                                        "w-10 border border-border/60 bg-background/80",
+                                        stage.indicatorClassName,
+                                      )
+                                    : "w-2.5 bg-muted/55",
+                              )}
+                            />
+                          );
+                        })}
+                      </div>
+
+                      <div
+                        className="space-y-2"
+                        data-testid="manga-workflow-progress-stage-list"
+                        role="group"
+                        aria-label="Etapas concluidas"
+                      >
+                        {selectedStageProgressState.stages.map((stage) => {
+                          const isCompleted = selectedStageProgressState.completedStages.includes(
+                            stage.id,
+                          );
+                          const isCurrentStage =
+                            stage.id === selectedStageProgressState.currentStageId;
+                          return (
+                            <label
+                              key={stage.id}
+                              className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/35 px-3 py-2.5"
+                            >
+                              <div className="flex min-w-0 items-center gap-3">
+                                <Checkbox
+                                  checked={isCompleted}
+                                  onCheckedChange={() => handleToggleStageProgressStage(stage.id)}
+                                  data-testid={`manga-workflow-progress-toggle-${stage.id}`}
+                                  aria-label={stage.label}
+                                />
+                                <span className="truncate text-sm font-medium text-foreground">
+                                  {stage.label}
+                                </span>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-2">
+                                <span className="text-xs text-muted-foreground">
+                                  {isCompleted ? "Concluida" : isCurrentStage ? "Atual" : "Pendente"}
+                                </span>
+                                {isCurrentStage ? (
+                                  <Badge variant="outline" className="shrink-0">
+                                    Atual
+                                  </Badge>
+                                ) : null}
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </ProjectEditorSectionCard>
+                ) : null}
+              </div>
+
+              <ProjectEditorSectionCard
+                title="Paginas"
+                subtitle="Upload, ordem de leitura e capa em um fluxo simples para capitulos em imagem."
+                eyebrow="Leitura em imagem"
+                testId="manga-workflow-pages-card"
+                bodyClassName="space-y-4 py-5"
+              >
+                <div
+                  className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between"
+                  data-testid="manga-workflow-pages-toolbar"
+                >
                   <div
-                    className="flex min-w-[240px] flex-1 flex-wrap items-end gap-2 sm:justify-end"
+                    className="flex flex-wrap items-center gap-2"
+                    data-testid="manga-workflow-pages-badges"
+                  >
+                    <Badge
+                      variant={selectedStageChapter.operation === "update" ? "secondary" : "outline"}
+                    >
+                      {selectedStageChapter.operation === "update"
+                        ? "Atualiza existente"
+                        : "Novo capitulo"}
+                    </Badge>
+                    <Badge
+                      variant={
+                        selectedStageChapter.publicationStatus === "draft"
+                          ? "outline"
+                          : "secondary"
+                      }
+                    >
+                      {selectedStageChapter.publicationStatus === "draft"
+                        ? "Rascunho"
+                        : "Publicado"}
+                    </Badge>
+                    <Badge variant="outline">{selectedStageChapter.pages.length} pagina(s)</Badge>
+                  </div>
+
+                  <div
+                    className="flex flex-wrap items-center gap-2 xl:justify-end"
                     data-testid="manga-workflow-review-actions"
                   >
                     <Button
@@ -1341,7 +1677,11 @@ const MangaWorkflowPanel = ({
                       type="button"
                       size="sm"
                       onClick={() => void handleImportSelectedStageChapter("published")}
-                      disabled={isImporting || selectedStageChapter.warnings.length > 0}
+                      disabled={
+                        isImporting ||
+                        selectedStageChapter.warnings.length > 0 ||
+                        selectedStageChapter.pages.length === 0
+                      }
                     >
                       {reviewImportStatus === "published" ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -1399,100 +1739,46 @@ const MangaWorkflowPanel = ({
                           fallback: `Imagem ${index + 1}`,
                         });
                         return (
-                          <motion.div
+                          <MangaPageTile
                             key={page.id}
-                            layout={!isDragged}
-                            transition={reorderTransition}
-                            className="group relative"
-                            data-testid={`manga-stage-page-card-${index}`}
-                            data-reorder-layout={!isDragged ? "animated" : "static"}
+                            testIdPrefix="manga-stage-page"
+                            src={page.previewUrl}
+                            alt={`Pagina ${index + 1}`}
+                            displayName={pageDisplayName}
+                            index={index}
+                            isCover={isCover}
+                            isDragged={isDragged}
+                            isPreviewTarget={isDropTarget}
+                            disabled={isImporting}
+                            reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
+                            reorderTransition={reorderTransition}
+                            onDragStart={(event) =>
+                              handleStagePageDragStart(event, selectedStageChapter.id, index)
+                            }
+                            onDragEnd={clearStagePageDragState}
                             onDragOver={(event) =>
                               handleStagePageDragOver(event, selectedStageChapter.id, index)
                             }
                             onDrop={(event) =>
                               handleStagePageDrop(event, selectedStageChapter.id, index)
                             }
-                          >
-                            <div
-                              role="button"
-                              tabIndex={0}
-                              draggable={!isImporting}
-                              aria-label={`Arrastar pagina ${index + 1} para reordenar. Use Alt+Seta para mover pelo teclado.`}
-                              title={pageDisplayName}
-                              data-testid={`manga-stage-page-surface-${index}`}
-                              data-reorder-motion={shouldReduceMotion ? "reduced" : "spring"}
-                              data-reorder-state={
-                                isDragged ? "dragging" : isDropTarget ? "preview-target" : "idle"
-                              }
-                              className={[
-                                "relative overflow-hidden rounded-[22px] border border-border/50 bg-background/45 transition focus:outline-none focus:ring-2 focus:ring-primary/50",
-                                isDragged
-                                  ? "z-10 border-primary/60 opacity-85 ring-2 ring-primary/25 shadow-[0_24px_60px_-30px_rgba(0,0,0,0.45)]"
-                                  : "",
-                                isDropTarget ? "border-primary/60 ring-1 ring-primary/40" : "",
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                              onDragStart={(event) =>
-                                handleStagePageDragStart(event, selectedStageChapter.id, index)
-                              }
-                              onDragEnd={clearStagePageDragState}
-                              onKeyDown={(event) =>
-                                handleStagePageKeyDown(event, selectedStageChapter.id, index)
-                              }
-                            >
-                              <div className="aspect-[3/4] bg-muted/30">
-                                <UploadPicture
-                                  src={page.previewUrl}
-                                  alt={`Pagina ${index + 1}`}
-                                  className="h-full w-full object-cover"
-                                />
-                              </div>
-                              {isCover ? (
-                                <Badge className="absolute left-3 top-3">Capa</Badge>
-                              ) : null}
-                              <div
-                                className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 via-black/25 to-transparent px-3 pb-3 pt-10 text-[11px] font-medium text-white opacity-0 transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-                                data-testid={`manga-stage-page-actions-${index}`}
-                              >
-                                <span
-                                  className="min-w-0 truncate pr-2"
-                                  title={pageDisplayName}
-                                  data-testid={`manga-stage-page-filename-${index}`}
-                                >
-                                  {pageDisplayName}
-                                </span>
-                                <div className="pointer-events-auto flex items-center gap-1">
-                                  {!isCover ? (
-                                    <Button
-                                      type="button"
-                                      size="icon"
-                                      variant="secondary"
-                                      className="h-8 w-8 rounded-full"
-                                      aria-label="Usar capa"
-                                      onClick={(event) =>
-                                        setStagePageAsCover(event, selectedStageChapter.id, page.id)
-                                      }
-                                    >
-                                      <Star className="h-4 w-4" />
-                                    </Button>
-                                  ) : null}
-                                  <Button
-                                    type="button"
-                                    size="icon"
-                                    variant="destructive"
-                                    className="h-8 w-8 rounded-full"
-                                    aria-label="Remover"
-                                    onClick={(event) =>
-                                      removeStagePage(event, selectedStageChapter.id, page.id)
-                                    }
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          </motion.div>
+                            onKeyDown={(event) =>
+                              handleStagePageKeyDown(event, selectedStageChapter.id, index)
+                            }
+                            onSetCover={
+                              isCover
+                                ? undefined
+                                : (event) =>
+                                    setStagePageAsCover(
+                                      event,
+                                      selectedStageChapter.id,
+                                      page.id,
+                                    )
+                            }
+                            onRemove={(event) =>
+                              removeStagePage(event, selectedStageChapter.id, page.id)
+                            }
+                          />
                         );
                       })}
                     </div>
@@ -1502,17 +1788,26 @@ const MangaWorkflowPanel = ({
                     Nenhuma pagina neste capitulo. Adicione imagens para continuar.
                   </div>
                 )}
-              </div>
-            ) : (
+              </ProjectEditorSectionCard>
+            </div>
+          ) : (
+            <ProjectEditorSectionCard
+              title="Revisao"
+              subtitle="Capitulo, volume, titulo e paginas do item selecionado."
+              testId="manga-workflow-review-empty-card"
+            >
               <div className="rounded-[18px] border border-dashed border-border/60 bg-background/30 px-4 py-6 text-sm text-muted-foreground">
-                Selecione um capitulo do lote na sidebar ou importe novas paginas para comecar.
+                Selecione um capitulo na sidebar ou importe novas paginas para comecar.
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </ProjectEditorSectionCard>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
-};
+  },
+);
+
+MangaWorkflowPanel.displayName = "MangaWorkflowPanel";
 
 export default MangaWorkflowPanel;

@@ -89,7 +89,9 @@ export class CollapsibleContainerNode extends ElementNode {
     let dom: HTMLElement;
     if (IS_CHROME) {
       dom = document.createElement('div');
-      dom.setAttribute('open', '');
+      if (this.__open) {
+        dom.setAttribute('open', '');
+      }
     } else {
       const detailsDom = document.createElement('details');
       detailsDom.open = this.__open;

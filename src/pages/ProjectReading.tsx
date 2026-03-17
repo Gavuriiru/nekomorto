@@ -27,13 +27,13 @@ import {
   buildProjectPublicReadingHref,
 } from "@/lib/project-editor-routes";
 import { buildEpisodeKey, resolveCanonicalEpisodeRouteTarget } from "@/lib/project-episode-key";
+import { hasPublicEpisodeReadableContent } from "@/lib/public-project-episodes";
 import { isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicBootstrapPayload, PublicBootstrapProject } from "@/types/public-bootstrap";
 import {
-  hasProjectEpisodeReadableContent,
   normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,
   resolveProjectReaderConfig,
@@ -200,7 +200,7 @@ const ProjectReading = () => {
       return [];
     }
     return (project.episodeDownloads || [])
-      .filter((entry) => hasProjectEpisodeReadableContent(entry))
+      .filter((entry) => hasPublicEpisodeReadableContent(entry))
       .sort((a, b) => {
         const leftReadingOrder = Number(a.readingOrder);
         const rightReadingOrder = Number(b.readingOrder);

@@ -95,6 +95,7 @@ describe("DashboardShell menu permissions", () => {
     expect(headerText).toContain("Postagens");
     expect(screen.queryByRole("link", { name: "Pular para a navegação" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Pular para o conteúdo" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-inset").className).toContain("a11y-focus-target");
     expect(screen.getByTestId("sidebar-inset").className).toContain("min-w-0");
     expect(screen.getByTestId("sidebar-inset").className).toContain("overflow-x-hidden");
     expect(screen.getByTestId("sidebar-inset").className).toContain("bg-gradient-surface");

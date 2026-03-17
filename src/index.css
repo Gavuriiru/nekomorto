@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../node_modules/tw-animate-css/dist/tw-animate.css";
 @config "../tailwind.config.ts";
 
 #root {
@@ -13,6 +14,17 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.app-textarea::-webkit-resizer {
+  background: transparent;
+  background-image: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.app-textarea::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 @keyframes search-popover-enter {
@@ -249,6 +261,13 @@
     background-color: hsl(var(--muted));
   }
 
+  html::-webkit-scrollbar-corner,
+  body::-webkit-scrollbar-corner {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
   html::-webkit-scrollbar-thumb,
   body::-webkit-scrollbar-thumb {
     background-color: hsl(var(--accent) / 0.88);
@@ -278,6 +297,12 @@
 
   .a11y-focus-target {
     scroll-margin-top: 6rem;
+  }
+
+  .a11y-focus-target:focus,
+  .a11y-focus-target:focus-visible {
+    outline: none;
+    box-shadow: none;
   }
 
   h1,

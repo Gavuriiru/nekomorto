@@ -170,6 +170,9 @@ export const primePublicBootstrapCache = (value: unknown) => {
   return true;
 };
 
+export const refetchPublicBootstrapCache = async (apiBase = getApiBase()) =>
+  await requestPublicBootstrap(apiBase, { force: true });
+
 export const usePublicBootstrap = () => {
   const apiBase = getApiBase();
   const [snapshot, setSnapshot] = useState<PublicBootstrapSnapshot>(() => buildSnapshot());

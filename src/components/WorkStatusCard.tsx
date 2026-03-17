@@ -6,109 +6,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
-import { isLightNovelType, isMangaType } from "@/lib/project-utils";
-
-type WorkKind = "anime" | "manga";
+import {
+  getProjectProgressKindForPublicCard,
+  getProjectProgressState,
+} from "@/lib/project-progress";
 
 interface WorkItem {
   id: string;
   title: string;
   entry: string;
-  kind: WorkKind;
-  currentStage: string;
-  completedStages: string[];
+  progressState: ReturnType<typeof getProjectProgressState>;
   projectId: string;
 }
-
-const animeStages = [
-  {
-    id: "aguardando-raw",
-    label: "Aguardando Raw",
-    color: "bg-slate-500",
-    badge: "bg-slate-500/20 text-slate-300 border-slate-500/40",
-  },
-  {
-    id: "traducao",
-    label: "Tradução",
-    color: "bg-blue-500",
-    badge: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  },
-  {
-    id: "revisao",
-    label: "Revisão",
-    color: "bg-yellow-500",
-    badge: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  },
-  {
-    id: "timing",
-    label: "Timing",
-    color: "bg-pink-500",
-    badge: "bg-pink-500/20 text-pink-400 border-pink-500/30",
-  },
-  {
-    id: "typesetting",
-    label: "Typesetting",
-    color: "bg-indigo-500",
-    badge: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
-  },
-  {
-    id: "quality-check",
-    label: "Quality Check",
-    color: "bg-orange-500",
-    badge: "bg-orange-500/20 text-orange-400 border-orange-500/30",
-  },
-  {
-    id: "encode",
-    label: "Encode",
-    color: "bg-purple-500",
-    badge: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  },
-];
-
-const mangaStages = [
-  {
-    id: "aguardando-raw",
-    label: "Aguardando Raw",
-    color: "bg-slate-500",
-    badge: "bg-slate-500/20 text-slate-300 border-slate-500/40",
-  },
-  {
-    id: "traducao",
-    label: "Tradução",
-    color: "bg-blue-500",
-    badge: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  },
-  {
-    id: "limpeza",
-    label: "Limpeza",
-    color: "bg-emerald-500",
-    badge: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-  },
-  {
-    id: "redrawing",
-    label: "Redrawing",
-    color: "bg-cyan-500",
-    badge: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
-  },
-  {
-    id: "revisao",
-    label: "Revisão",
-    color: "bg-yellow-500",
-    badge: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  },
-  {
-    id: "typesetting",
-    label: "Typesetting",
-    color: "bg-indigo-500",
-    badge: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
-  },
-  {
-    id: "quality-check",
-    label: "Quality Check",
-    color: "bg-orange-500",
-    badge: "bg-orange-500/20 text-orange-400 border-orange-500/30",
-  },
-];
 
 const themedBadgeClass = "bg-primary text-primary-foreground border-primary/80";
 const themedIndicatorClass = "bg-primary";
@@ -123,12 +32,10 @@ const WorkStatusCard = () => {
     const items: WorkItem[] = [];
     projects.forEach((project) => {
       const typeLabel = project.type || "";
-      const isLightNovel = isLightNovelType(typeLabel);
-      const isManga = isMangaType(typeLabel);
-      if (isLightNovel) {
+      const progressKind = getProjectProgressKindForPublicCard(typeLabel);
+      if (!progressKind) {
         return;
       }
-      const kind: WorkKind = isManga ? "manga" : "anime";
       (project.episodeDownloads || []).forEach((episode) => {
         const sources = Array.isArray(episode.sources)
           ? episode.sources.filter((source) => source.url)
@@ -136,23 +43,17 @@ const WorkStatusCard = () => {
         if (sources.length > 0) {
           return;
         }
-        const entryLabel = isManga
+        const entryLabel = progressKind === "manga"
           ? `Capítulo ${episode.number}${episode.volume ? ` • Vol. ${episode.volume}` : ""}`
           : `Episódio ${episode.number}`;
-        const completedStages = episode.completedStages || [];
-        const stages = kind === "anime" ? animeStages : mangaStages;
-        const completedSet = new Set(completedStages);
-        const currentStage =
-          stages.find((stage) => !completedSet.has(stage.id))?.id ||
-          stages[stages.length - 1]?.id ||
-          "aguardando-raw";
         items.push({
           id: `${project.id}-${episode.number}`,
           title: project.title,
           entry: entryLabel,
-          kind,
-          currentStage,
-          completedStages,
+          progressState: getProjectProgressState({
+            kind: progressKind,
+            completedStages: episode.completedStages,
+          }),
           projectId: project.id,
         });
       });
@@ -187,13 +88,7 @@ const WorkStatusCard = () => {
           </div>
         ) : (
           itemsInProgress.map((item) => {
-            const stages = item.kind === "anime" ? animeStages : mangaStages;
-            const completedSet = new Set(item.completedStages);
-            const completedCount = stages.filter((stage) => completedSet.has(stage.id)).length;
-            const progress = Math.round((completedCount / stages.length) * 100);
-            const currentStage =
-              stages.find((stage) => stage.id === item.currentStage) ?? stages[0];
-            const progressLabel = `${item.title} ${item.entry} ${progress}% concluído`;
+            const progressLabel = `${item.title} ${item.entry} ${item.progressState.progress}% concluído`;
 
             return (
               <Link
@@ -213,20 +108,24 @@ const WorkStatusCard = () => {
                   <Badge
                     variant="outline"
                     className={`shrink-0 flex items-center gap-1 ${
-                      useAccentInProgressCard ? themedBadgeClass : currentStage.badge
+                      useAccentInProgressCard
+                        ? themedBadgeClass
+                        : item.progressState.currentStage.badgeClassName
                     }`}
                   >
-                    {currentStage.label}
+                    {item.progressState.currentStage.label}
                   </Badge>
                 </div>
                 <div className="mt-3">
                   <Progress
-                    value={progress}
+                    value={item.progressState.progress}
                     className="h-2"
                     aria-label={progressLabel}
                     aria-valuetext={progressLabel}
                     indicatorClassName={
-                      useAccentInProgressCard ? themedIndicatorClass : currentStage.color
+                      useAccentInProgressCard
+                        ? themedIndicatorClass
+                        : item.progressState.currentStage.indicatorClassName
                     }
                   />
                 </div>

@@ -108,6 +108,7 @@ import {
 import {
   buildEpisodeKey,
   findDuplicateEpisodeKey,
+  findPublishedImageEpisodeWithoutPages,
   resolveEpisodeLookup,
 } from "./lib/project-episodes.js";
 import { exportProjectEpub } from "./lib/project-epub-export.js";
@@ -12884,6 +12885,15 @@ app.put("/api/projects/:id/chapters/:number", requireAuth, async (req, res) => {
       .status(400)
       .json({ error: "duplicate_volume_cover_key", key: duplicateVolumeCoverKey.key });
   }
+  const publishedImageEpisodeWithoutPages = findPublishedImageEpisodeWithoutPages(
+    mergedNormalized.episodeDownloads,
+  );
+  if (publishedImageEpisodeWithoutPages) {
+    return res.status(400).json({
+      error: "image_pages_required_for_publication",
+      key: publishedImageEpisodeWithoutPages.key,
+    });
+  }
   const merged = applyEpisodePublicationMetadata(existing, mergedNormalized, now);
 
   projects[index] = merged;
@@ -13021,6 +13031,15 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
     return res
       .status(400)
       .json({ error: "duplicate_volume_cover_key", key: duplicateVolumeCoverKey.key });
+  }
+  const publishedImageEpisodeWithoutPages = findPublishedImageEpisodeWithoutPages(
+    mergedNormalized.episodeDownloads,
+  );
+  if (publishedImageEpisodeWithoutPages) {
+    return res.status(400).json({
+      error: "image_pages_required_for_publication",
+      key: publishedImageEpisodeWithoutPages.key,
+    });
   }
   const merged = applyEpisodePublicationMetadata(existing, mergedNormalized, now);
 

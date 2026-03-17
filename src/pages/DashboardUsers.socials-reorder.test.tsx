@@ -118,7 +118,9 @@ describe("DashboardUsers socials reorder", () => {
     expect(screen.queryByRole("button", { name: /Editar usuário Admin/i })).not.toBeInTheDocument();
     fireEvent.click(openEditorButton);
     const dialog = await screen.findByRole("dialog");
-
+    const socialMoveDownButton = within(dialog).getByRole("button", {
+      name: /Mover rede instagram para baixo/i,
+    });
     const dragHandle = within(dialog).getByRole("button", { name: /Arrastar rede discord/i });
     const dropTarget = within(dialog).getByTestId("user-social-row-0");
     expect(dropTarget.className).toContain("overflow-x-auto");
@@ -127,6 +129,8 @@ describe("DashboardUsers socials reorder", () => {
     expect(socialGrid.className).not.toContain("min-w-[720px]");
     const socialSelectTrigger = within(dialog).getByRole("combobox", { name: "Instagram" });
     expect(socialSelectTrigger.className).toContain("w-14");
+    expect(socialMoveDownButton.className).toContain("border-transparent");
+    expect(socialMoveDownButton.className).toContain("bg-transparent");
     const dataTransfer = {
       effectAllowed: "move",
       dropEffect: "move",
@@ -204,7 +208,12 @@ describe("DashboardUsers socials reorder", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: /Mover usuário Beta para cima/i }));
+    const moveBetaUpButton = await screen.findByRole("button", {
+      name: /Mover usuário Beta para cima/i,
+    });
+    expect(moveBetaUpButton.className).toContain("border-transparent");
+    expect(moveBetaUpButton.className).toContain("bg-transparent");
+    fireEvent.click(moveBetaUpButton);
 
     await waitFor(() => {
       const reorderCall = apiFetchMock.mock.calls.find((call) => {
@@ -265,7 +274,11 @@ describe("DashboardUsers socials reorder", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: /Mover usuário Beta para cima/i }));
+    const moveBetaUpButton = await screen.findByRole("button", {
+      name: /Mover usuário Beta para cima/i,
+    });
+    expect(moveBetaUpButton.className).toContain("border-transparent");
+    fireEvent.click(moveBetaUpButton);
 
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(

@@ -67,9 +67,7 @@ import { parseAniListMediaId } from "@/lib/anilist";
 import { deriveAniListMediaOrganization } from "@/lib/anilist-media";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
 import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
-import { formatBuildMetadataLabel, getFrontendBuildMetadata } from "@/lib/frontend-build";
 import {
   DEFAULT_PROJECT_BANNER_ALT,
   DEFAULT_PROJECT_COVER_ALT,
@@ -78,8 +76,6 @@ import {
   resolveAssetAltText,
 } from "@/lib/image-alt";
 import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
-import { createSlug } from "@/lib/post-content";
-import { normalizeEpubImportJob, type EpubImportJob } from "@/lib/project-epub";
 import {
   buildDashboardProjectChapterEditorHref,
   buildDashboardProjectChaptersEditorHref,
@@ -103,14 +99,13 @@ import {
   translateRelation,
   translateTag,
 } from "@/lib/project-taxonomy";
+import {
+  getProjectProgressStagesForEditor,
+  getProjectProgressStateForEditor,
+} from "@/lib/project-progress";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
-import type {
-  ApiContractBuildMetadata,
-  ApiContractCapabilities,
-  ApiContractV1,
-} from "@/types/api-contract";
 import {
   normalizeProjectReaderConfig,
   PROJECT_READER_DIRECTIONS,
@@ -134,16 +129,7 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
-import {
-  type ChangeEvent,
-  Suspense,
-  lazy,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
@@ -172,80 +158,6 @@ const LexicalEditorFallback = () => (
     <span className="sr-only">Carregando editor...</span>
   </div>
 );
-
-const DEFAULT_API_CAPABILITIES: ApiContractCapabilities = {
-  project_epub_import: false,
-  project_epub_export: false,
-  project_epub_import_async: false,
-  project_image_chapters: false,
-  project_manga_import: false,
-  project_manga_import_async: false,
-  project_manga_export: false,
-};
-
-const EPUB_CAPABILITY_UNAVAILABLE_MESSAGE =
-  "Este ambiente está com backend desatualizado e ainda não suporta EPUB.";
-const EPUB_CAPABILITY_UNKNOWN_MESSAGE =
-  "Não foi possível confirmar o suporte EPUB deste ambiente. Os botões ficam desabilitados até o contrato da API responder.";
-const EPUB_IMPORT_ROUTE_MISSING_MESSAGE =
-  "A origem atual não está alcançando a rota EPUB deste backend. Verifique túnel, proxy ou host aberto no navegador.";
-const EPUB_EXPORT_ROUTE_MISSING_MESSAGE =
-  "A origem atual não está alcançando a rota EPUB deste backend. Verifique túnel, proxy ou host aberto no navegador.";
-const EPUB_IMPORT_PROCESSING_MESSAGE = "Não foi possível processar o arquivo informado.";
-const EPUB_EXPORT_GENERIC_MESSAGE = "Não foi possível gerar o arquivo EPUB.";
-const EPUB_NETWORK_ERROR_MESSAGE =
-  "Não foi possível contatar o backend deste ambiente. Verifique a conectividade e tente novamente.";
-const EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE =
-  "O backend tentou resolver um projeto salvo que não existe mais. Recarregue o editor e tente novamente.";
-const EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE =
-  "Não foi possível enviar o snapshot atual do projeto para a importação EPUB.";
-const EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE =
-  "O snapshot atual do projeto excedeu o limite da importação EPUB. Salve o projeto e tente novamente.";
-const EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE =
-  "O formulário possui capítulos duplicados por número + volume. Corrija antes de importar.";
-
-type EpubRouteStatus =
-  | "unknown"
-  | "ok"
-  | "route_unreachable_for_current_origin"
-  | "network_unreachable"
-  | "forbidden"
-  | "legacy_project_not_found";
-
-const normalizeApiContractCapabilities = (
-  capabilities: ApiContractV1["capabilities"],
-): ApiContractCapabilities => ({
-  project_epub_import: capabilities?.project_epub_import === true,
-  project_epub_export: capabilities?.project_epub_export === true,
-  project_epub_import_async: capabilities?.project_epub_import_async === true,
-  project_image_chapters: capabilities?.project_image_chapters === true,
-  project_manga_import: capabilities?.project_manga_import === true,
-  project_manga_import_async: capabilities?.project_manga_import_async === true,
-  project_manga_export: capabilities?.project_manga_export === true,
-});
-
-const normalizeApiContractBuildMetadata = (
-  build: ApiContractV1["build"],
-): ApiContractBuildMetadata | null => {
-  if (!build || typeof build !== "object") {
-    return null;
-  }
-  return {
-    commitSha:
-      typeof build.commitSha === "string" && build.commitSha.trim().length > 0
-        ? build.commitSha.trim()
-        : null,
-    builtAt:
-      typeof build.builtAt === "string" && build.builtAt.trim().length > 0
-        ? build.builtAt.trim()
-        : null,
-  };
-};
-
-const normalizeOriginLabel = (value: unknown) => {
-  const normalized = String(value || "").trim();
-  return normalized || "indisponivel";
-};
 
 type ProjectRelation = {
   relation: string;
@@ -447,146 +359,6 @@ type EpisodeVolumeGroup = {
   episodeItems: SortedEpisodeItem[];
 };
 
-type EpubImportProjectSnapshot = {
-  id: string;
-  title: string;
-  type: string;
-  episodeDownloads: Array<{
-    number: number;
-    volume?: number;
-    title: string;
-    entryKind?: "main" | "extra";
-    entrySubtype?: string;
-    readingOrder?: number;
-    displayLabel?: string;
-    publicationStatus?: "draft" | "published";
-  }>;
-  volumeEntries: Array<{
-    volume: number;
-    coverImageUrl: string;
-    coverImageAlt: string;
-  }>;
-  volumeCovers: Array<{
-    volume?: number;
-    coverImageUrl: string;
-    coverImageAlt: string;
-  }>;
-};
-
-const buildEpubImportProjectSnapshot = (project: ProjectForm): EpubImportProjectSnapshot => {
-  const episodeDownloads = (
-    Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : []
-  )
-    .map((episode): EpubImportProjectSnapshot["episodeDownloads"][number] | null => {
-      const number = Number(episode?.number);
-      if (!Number.isFinite(number)) {
-        return null;
-      }
-      const parsedVolume = Number(episode?.volume);
-      const parsedReadingOrder = Number(episode?.readingOrder);
-      const entryKind: "main" | "extra" = episode?.entryKind === "extra" ? "extra" : "main";
-      return {
-        number,
-        volume: Number.isFinite(parsedVolume) ? parsedVolume : undefined,
-        title: String(episode?.title || "").trim(),
-        entryKind,
-        entrySubtype: String(episode?.entrySubtype || "").trim() || undefined,
-        readingOrder: Number.isFinite(parsedReadingOrder)
-          ? Math.round(parsedReadingOrder)
-          : undefined,
-        displayLabel:
-          entryKind === "extra"
-            ? String(episode?.displayLabel || "").trim() || undefined
-            : undefined,
-        publicationStatus: episode?.publicationStatus === "published" ? "published" : "draft",
-      };
-    })
-    .filter((episode): episode is EpubImportProjectSnapshot["episodeDownloads"][number] =>
-      Boolean(episode),
-    );
-
-  const volumeEntries = (Array.isArray(project?.volumeEntries) ? project.volumeEntries : [])
-    .map((entry) => {
-      const volume = Number(entry?.volume);
-      if (!Number.isFinite(volume)) {
-        return null;
-      }
-      return {
-        volume,
-        coverImageUrl: String(entry?.coverImageUrl || "").trim(),
-        coverImageAlt: String(entry?.coverImageAlt || "").trim(),
-      };
-    })
-    .filter((entry): entry is EpubImportProjectSnapshot["volumeEntries"][number] => Boolean(entry));
-
-  const volumeCovers = (Array.isArray(project?.volumeCovers) ? project.volumeCovers : [])
-    .map((cover) => {
-      const parsedVolume = Number(cover?.volume);
-      return {
-        volume: Number.isFinite(parsedVolume) ? parsedVolume : undefined,
-        coverImageUrl: String(cover?.coverImageUrl || "").trim(),
-        coverImageAlt: String(cover?.coverImageAlt || "").trim(),
-      };
-    })
-    .filter((cover) => cover.coverImageUrl.length > 0 || cover.coverImageAlt.length > 0);
-
-  return {
-    id: String(project?.id || "").trim(),
-    title: String(project?.title || "").trim(),
-    type: String(project?.type || "").trim(),
-    episodeDownloads,
-    volumeEntries,
-    volumeCovers,
-  };
-};
-
-const isLegacyMultipartSnapshotTooLargeError = (errorCode: unknown, detail: unknown) =>
-  String(errorCode || "").trim() === "invalid_multipart_upload" &&
-  /field value too long/i.test(String(detail || ""));
-
-const isEpubCssEngineFailureDetail = (detail: unknown) => {
-  const normalized = String(detail || "").trim();
-  if (!normalized) {
-    return false;
-  }
-  return (
-    /specificity\.max/i.test(normalized) ||
-    /cannot destructure property\s+['"]value['"]/i.test(normalized) ||
-    /@bramus\/specificity/i.test(normalized)
-  );
-};
-
-const EPUB_TEMP_IMPORT_ID_PATTERN = /\/uploads\/tmp\/epub-imports\/[^/]+\/([^/?#"'\s/]+)/gi;
-
-const collectEpubTempImportIds = (value: unknown, bucket: Set<string>) => {
-  if (!value) {
-    return;
-  }
-  if (typeof value === "string") {
-    const matches = String(value).matchAll(EPUB_TEMP_IMPORT_ID_PATTERN);
-    for (const match of matches) {
-      const importId = String(match?.[1] || "").trim();
-      if (importId) {
-        bucket.add(importId);
-      }
-    }
-    return;
-  }
-  if (Array.isArray(value)) {
-    value.forEach((item) => collectEpubTempImportIds(item, bucket));
-    return;
-  }
-  if (typeof value === "object") {
-    Object.values(value).forEach((item) => collectEpubTempImportIds(item, bucket));
-  }
-};
-
-const extractEpubTempImportIdsFromPayload = (value: unknown) => {
-  const bucket = new Set<string>();
-  collectEpubTempImportIds(value, bucket);
-  return Array.from(bucket);
-};
-
 type AniListMedia = {
   id: number;
   title: {
@@ -708,34 +480,6 @@ const fansubRoleOptions = [
   "Karaoke",
   "Editor",
 ];
-
-const animeStages = [
-  { id: "aguardando-raw", label: "Aguardando Raw" },
-  { id: "traducao", label: "Tradução" },
-  { id: "revisao", label: "Revisão" },
-  { id: "timing", label: "Timing" },
-  { id: "typesetting", label: "Typesetting" },
-  { id: "quality-check", label: "Quality Check" },
-  { id: "encode", label: "Encode" },
-];
-
-const mangaStages = [
-  { id: "aguardando-raw", label: "Aguardando Raw" },
-  { id: "traducao", label: "Tradução" },
-  { id: "limpeza", label: "Limpeza" },
-  { id: "redrawing", label: "Redrawing" },
-  { id: "revisao", label: "Revisão" },
-  { id: "typesetting", label: "Typesetting" },
-  { id: "quality-check", label: "Quality Check" },
-];
-
-const getProgressStage = (type: string, completedStages?: string[]) => {
-  const isManga = isMangaType(type);
-  const stages = isManga ? mangaStages : animeStages;
-  const completedSet = new Set((completedStages || []).filter(Boolean));
-  const next = stages.find((stage) => !completedSet.has(stage.id));
-  return next?.id || stages[stages.length - 1]?.id || "aguardando-raw";
-};
 
 const formatSeason = (season?: string | null, seasonYear?: number | null) => {
   if (!season && !seasonYear) {
@@ -1388,21 +1132,6 @@ const DashboardProjectsEditor = () => {
   >("cover");
   const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
   const [volumeCoverTargetVolume, setVolumeCoverTargetVolume] = useState<number | null>(null);
-  const [epubImportFile, setEpubImportFile] = useState<File | null>(null);
-  const [epubImportTargetVolume, setEpubImportTargetVolume] = useState<string>("");
-  const [epubImportAsDraft, setEpubImportAsDraft] = useState(true);
-  const [backendCapabilities, setBackendCapabilities] = useState<ApiContractCapabilities | null>(
-    null,
-  );
-  const [backendBuildMetadata, setBackendBuildMetadata] = useState<ApiContractBuildMetadata | null>(
-    null,
-  );
-  const [backendCapabilitiesError, setBackendCapabilitiesError] = useState<string | null>(null);
-  const [epubRouteStatus, setEpubRouteStatus] = useState<EpubRouteStatus>("unknown");
-  const [isImportingEpub, setIsImportingEpub] = useState(false);
-  const [epubExportVolume, setEpubExportVolume] = useState<string>("");
-  const [epubExportIncludeDrafts, setEpubExportIncludeDrafts] = useState(false);
-  const [isExportingEpub, setIsExportingEpub] = useState(false);
   const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
   const episodeSizeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const pendingAddAutoScrollRef = useRef(false);
@@ -1417,9 +1146,6 @@ const DashboardProjectsEditor = () => {
   );
   const volumeGroupNodeMapRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const contentSectionRef = useRef<HTMLDivElement | null>(null);
-  const epubImportInputRef = useRef<HTMLInputElement | null>(null);
-  const pendingEpubAutoImportRef = useRef(false);
-  const pendingEpubImportIdsRef = useRef<Set<string>>(new Set());
 
   const resetPendingContentNavigation = useCallback(() => {
     pendingVolumeGroupToExpandRef.current = null;
@@ -1427,73 +1153,12 @@ const DashboardProjectsEditor = () => {
     pendingContentSectionScrollRef.current = false;
     volumeGroupNodeMapRef.current.clear();
   }, []);
-  const resetEpubImportSelection = useCallback(() => {
-    pendingEpubAutoImportRef.current = false;
-    setEpubImportFile(null);
-    if (epubImportInputRef.current) {
-      epubImportInputRef.current.value = "";
-    }
-  }, []);
-  const clearPendingEpubImportIds = useCallback(() => {
-    pendingEpubImportIdsRef.current.clear();
-  }, []);
-  const registerPendingEpubImportIds = useCallback((payload: unknown) => {
-    extractEpubTempImportIdsFromPayload(payload).forEach((importId) => {
-      pendingEpubImportIdsRef.current.add(importId);
-    });
-  }, []);
-  const cleanupPendingEpubImports = useCallback(() => {
-    const importIds = Array.from(pendingEpubImportIdsRef.current)
-      .map((importId) => String(importId || "").trim())
-      .filter(Boolean);
-    if (!importIds.length) {
-      return;
-    }
-    pendingEpubImportIdsRef.current.clear();
-    void apiFetch(apiBase, "/api/projects/epub/import/cleanup", {
-      method: "POST",
-      auth: true,
-      keepalive: true,
-      json: { importIds },
-    })
-      .then(async (response) => {
-        if (response.ok) {
-          return;
-        }
-        let detail = "";
-        try {
-          const data = await response.json();
-          detail = String(data?.error || "").trim();
-        } catch {
-          detail = "";
-        }
-        console.warn("epub_import_temp_cleanup_failed", {
-          status: response.status,
-          detail: detail || null,
-          importIds,
-        });
-      })
-      .catch((error) => {
-        console.warn("epub_import_temp_cleanup_failed", {
-          status: "network",
-          detail: String(error?.message || error || "network_error"),
-          importIds,
-        });
-      });
-  }, [apiBase]);
-  const closeEditor = useCallback(
-    ({ skipEpubImportCleanup = false }: { skipEpubImportCleanup?: boolean } = {}) => {
-      pendingEpisodeFocusRef.current = null;
-      resetPendingContentNavigation();
-      resetEpubImportSelection();
-      if (!skipEpubImportCleanup) {
-        cleanupPendingEpubImports();
-      }
-      setIsEditorOpen(false);
-      setEditingProject(null);
-    },
-    [cleanupPendingEpubImports, resetEpubImportSelection, resetPendingContentNavigation],
-  );
+  const closeEditor = useCallback(() => {
+    pendingEpisodeFocusRef.current = null;
+    resetPendingContentNavigation();
+    setIsEditorOpen(false);
+    setEditingProject(null);
+  }, [resetPendingContentNavigation]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("Sair da edição?");
   const [confirmDescription, setConfirmDescription] = useState(
@@ -1521,64 +1186,6 @@ const DashboardProjectsEditor = () => {
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
     return permissions.includes("*") || permissions.includes("projetos");
   }, [currentUser]);
-  const frontendBuildMetadata = useMemo(() => getFrontendBuildMetadata(), []);
-  const locationOrigin = useMemo(
-    () => (typeof window !== "undefined" && window.location ? window.location.origin : ""),
-    [],
-  );
-  const backendSupportsEpubImport = backendCapabilities?.project_epub_import === true;
-  const backendSupportsEpubExport = backendCapabilities?.project_epub_export === true;
-  const backendSupportsEpubImportAsync = backendCapabilities?.project_epub_import_async === true;
-  const epubCapabilityState = useMemo(() => {
-    if (backendCapabilitiesError) {
-      return {
-        message: EPUB_CAPABILITY_UNKNOWN_MESSAGE,
-        variant: "destructive" as const,
-      };
-    }
-    if (
-      backendCapabilities &&
-      (!backendCapabilities.project_epub_import || !backendCapabilities.project_epub_export)
-    ) {
-      return {
-        message: EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
-        variant: "warning" as const,
-      };
-    }
-    return null;
-  }, [backendCapabilities, backendCapabilitiesError]);
-  const backendBuildLabel = useMemo(
-    () => formatBuildMetadataLabel(backendBuildMetadata),
-    [backendBuildMetadata],
-  );
-  const frontendBuildLabel = useMemo(
-    () => formatBuildMetadataLabel(frontendBuildMetadata),
-    [frontendBuildMetadata],
-  );
-  const logEpubParityIssue = useCallback(
-    ({
-      path,
-      status,
-      reason,
-    }: {
-      path: string;
-      status: number | "network" | "blocked";
-      reason: string;
-    }) => {
-      console.warn("epub_backend_parity_mismatch", {
-        reason,
-        path,
-        status,
-        locationOrigin,
-        apiBase,
-        contractVersion: "v1",
-        frontend: frontendBuildMetadata,
-        backend: backendBuildMetadata,
-      });
-    },
-    [apiBase, backendBuildMetadata, frontendBuildMetadata, locationOrigin],
-  );
-
   const handleEditorOpenChange = (next: boolean) => {
     if (!next && isLibraryOpen) {
       return;
@@ -1750,64 +1357,6 @@ const DashboardProjectsEditor = () => {
   }, [formState.genres, genreInput, genreSuggestionOptions]);
 
   useEffect(() => {
-    let isActive = true;
-
-    const loadApiContract = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/contracts/v1.json", {
-          cache: "no-store",
-        });
-        if (!response.ok) {
-          throw new Error(`api_contract_${response.status}`);
-        }
-        const data = (await response.json()) as ApiContractV1;
-        if (!isActive) {
-          return;
-        }
-        setBackendCapabilities(normalizeApiContractCapabilities(data?.capabilities));
-        setBackendBuildMetadata(normalizeApiContractBuildMetadata(data?.build));
-        setBackendCapabilitiesError(null);
-        setEpubRouteStatus("ok");
-      } catch {
-        if (!isActive) {
-          return;
-        }
-        setBackendCapabilities(DEFAULT_API_CAPABILITIES);
-        setBackendBuildMetadata(null);
-        setBackendCapabilitiesError("api_contract_unavailable");
-        setEpubRouteStatus("unknown");
-      }
-    };
-
-    void loadApiContract();
-
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-    const normalizedLocationOrigin = normalizeOriginLabel(locationOrigin);
-    const normalizedApiBase = normalizeOriginLabel(apiBase);
-    if (
-      normalizedLocationOrigin === "indisponivel" ||
-      normalizedApiBase === "indisponivel" ||
-      normalizedLocationOrigin === normalizedApiBase
-    ) {
-      return;
-    }
-    logOriginApiBaseMismatchOnce({
-      locationOrigin: normalizedLocationOrigin,
-      apiBase: normalizedApiBase,
-      frontend: frontendBuildMetadata,
-      backend: backendBuildMetadata,
-    });
-  }, [apiBase, backendBuildMetadata, frontendBuildMetadata, locationOrigin]);
-
-  useEffect(() => {
     queryStateRef.current = {
       sortMode,
       currentPage,
@@ -1891,7 +1440,7 @@ const DashboardProjectsEditor = () => {
     () => normalizeProjectReaderConfig(formState.readerConfig, { projectType: formState.type }),
     [formState.readerConfig, formState.type],
   );
-  const stageOptions = isChapterBased ? mangaStages : animeStages;
+  const stageOptions = getProjectProgressStagesForEditor(formState.type || "");
   const {
     projectRootFolder,
     projectEpisodesFolder,
@@ -2906,15 +2455,9 @@ const DashboardProjectsEditor = () => {
   const openCreate = () => {
     const nextForm = { ...emptyProject };
     resetPendingContentNavigation();
-    clearPendingEpubImportIds();
     setEditingProject(null);
     setFormState(nextForm);
     setAnilistIdInput("");
-    resetEpubImportSelection();
-    setEpubImportTargetVolume("");
-    setEpubImportAsDraft(true);
-    setEpubExportVolume("");
-    setEpubExportIncludeDrafts(false);
     setEditorAccordionValue(["importacao"]);
     setEpisodeDateDraft({});
     setEpisodeTimeDraft({});
@@ -2931,7 +2474,6 @@ const DashboardProjectsEditor = () => {
   const openEdit = useCallback(
     (project: ProjectRecord) => {
       resetPendingContentNavigation();
-      clearPendingEpubImportIds();
       const pendingEpisodeFocus = pendingEpisodeFocusRef.current;
       const shouldOpenEpisodesSection = Boolean(pendingEpisodeFocus);
       const initialEpisodes: EditorProjectEpisode[] = Array.isArray(project.episodeDownloads)
@@ -3061,11 +2603,6 @@ const DashboardProjectsEditor = () => {
       setEditingProject(project);
       setFormState(nextForm);
       setAnilistIdInput(nextAniListInput);
-      resetEpubImportSelection();
-      setEpubImportTargetVolume("");
-      setEpubImportAsDraft(true);
-      setEpubExportVolume("");
-      setEpubExportIncludeDrafts(false);
       setEditorAccordionValue(
         shouldOpenEpisodesSection ? ["informacoes", "episodios"] : ["informacoes"],
       );
@@ -3093,7 +2630,7 @@ const DashboardProjectsEditor = () => {
       );
       setIsEditorOpen(true);
     },
-    [clearPendingEpubImportIds, resetEpubImportSelection, resetPendingContentNavigation],
+    [resetPendingContentNavigation],
   );
 
   useEffect(() => {
@@ -3248,1024 +2785,6 @@ const DashboardProjectsEditor = () => {
     revealEpisodeAtIndex(targetIndex);
     pendingEpisodeFocusRef.current = null;
   }, [isEditorOpen, revealEpisodeAtIndex, sortedEpisodeDownloads]);
-
-  const downloadBinaryResponse = async (response: Response, fallbackName: string) => {
-    const disposition = String(response.headers.get("Content-Disposition") || "");
-    const match = disposition.match(/filename="?([^";]+)"?/i);
-    const fileName = match?.[1] ? decodeURIComponent(match[1]) : fallbackName;
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = fileName;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    window.URL.revokeObjectURL(url);
-  };
-
-  const mergeImportedEpisodesIntoForm = useCallback(
-    (
-      chapters: ProjectEpisode[],
-      options?: {
-        collapseAffectedItems?: boolean;
-        revealFirstAffectedItem?: boolean;
-        scrollToFirstAffectedItem?: boolean;
-      },
-    ) => {
-      const {
-        collapseAffectedItems = false,
-        revealFirstAffectedItem = true,
-        scrollToFirstAffectedItem = true,
-      } = options || {};
-      let firstAffectedIndex = -1;
-      let firstAffectedEpisode: EditorProjectEpisode | null = null;
-      const affectedIndexes = new Set<number>();
-      setFormState((prev) => {
-        const nextEpisodes = [...prev.episodeDownloads];
-        const episodeIndexByKey = new Map(
-          nextEpisodes.map((episode, index) => [
-            buildEpisodeKey(episode.number, episode.volume),
-            index,
-          ]),
-        );
-        chapters.forEach((chapter) => {
-          const key = buildEpisodeKey(chapter.number, chapter.volume);
-          const existingIndex = episodeIndexByKey.get(key);
-          if (existingIndex === undefined) {
-            const chapterWithEditorKey: EditorProjectEpisode = {
-              ...chapter,
-              synopsis: String(chapter.synopsis || "").trim(),
-              entryKind: chapter.entryKind === "extra" ? "extra" : "main",
-              entrySubtype: String(chapter.entrySubtype || "").trim() || undefined,
-              readingOrder: Number.isFinite(Number(chapter.readingOrder))
-                ? Number(chapter.readingOrder)
-                : undefined,
-              displayLabel:
-                chapter.entryKind === "extra"
-                  ? String(chapter.displayLabel || "").trim() || undefined
-                  : undefined,
-              _editorKey: resolveEpisodeEditorKey(chapter),
-            };
-            nextEpisodes.push(chapterWithEditorKey);
-            const createdIndex = nextEpisodes.length - 1;
-            episodeIndexByKey.set(key, createdIndex);
-            affectedIndexes.add(createdIndex);
-            if (firstAffectedIndex === -1) {
-              firstAffectedIndex = createdIndex;
-              firstAffectedEpisode = chapterWithEditorKey;
-            }
-            return;
-          }
-          const currentEpisode = nextEpisodes[existingIndex];
-          const nextEpisode: EditorProjectEpisode = {
-            ...currentEpisode,
-            title: chapter.title,
-            synopsis: String(chapter.synopsis || currentEpisode.synopsis || "").trim(),
-            entryKind: chapter.entryKind === "extra" ? "extra" : "main",
-            entrySubtype: String(chapter.entrySubtype || "").trim() || currentEpisode.entrySubtype,
-            readingOrder: Number.isFinite(Number(chapter.readingOrder))
-              ? Number(chapter.readingOrder)
-              : currentEpisode.readingOrder,
-            displayLabel:
-              chapter.entryKind === "extra"
-                ? String(chapter.displayLabel || "").trim() || currentEpisode.displayLabel
-                : undefined,
-            content: chapter.content,
-            contentFormat: "lexical",
-            publicationStatus:
-              currentEpisode.publicationStatus === "published"
-                ? "published"
-                : chapter.publicationStatus || "draft",
-          };
-          nextEpisodes[existingIndex] = nextEpisode;
-          affectedIndexes.add(existingIndex);
-          if (firstAffectedIndex === -1) {
-            firstAffectedIndex = existingIndex;
-            firstAffectedEpisode = nextEpisode;
-          }
-        });
-        return {
-          ...prev,
-          episodeDownloads: nextEpisodes,
-        };
-      });
-      if (firstAffectedIndex >= 0 || affectedIndexes.size > 0) {
-        if (revealFirstAffectedItem && scrollToFirstAffectedItem && firstAffectedEpisode) {
-          pendingEpisodeToScrollRef.current = firstAffectedEpisode;
-        } else {
-          pendingEpisodeToScrollRef.current = null;
-        }
-        setCollapsedEpisodes((prev) => ({
-          ...prev,
-          ...(collapseAffectedItems
-            ? [...affectedIndexes].reduce<Record<number, boolean>>((entries, index) => {
-                entries[index] = true;
-                return entries;
-              }, {})
-            : firstAffectedIndex >= 0
-              ? { [firstAffectedIndex]: false }
-              : {}),
-        }));
-      }
-    },
-    [],
-  );
-
-  const mergeImportedVolumeCoversIntoForm = useCallback(
-    (
-      importedVolumeCovers: Array<
-        ProjectVolumeCover & { mergeMode?: "create" | "update" | "preserve_existing" }
-      >,
-    ) => {
-      setFormState((prev) => {
-        if (!importedVolumeCovers.length) {
-          return prev;
-        }
-        const nextVolumeEntries = [...prev.volumeEntries];
-        importedVolumeCovers.forEach((cover) => {
-          const parsedVolume = Number(cover.volume);
-          if (!Number.isFinite(parsedVolume)) {
-            return;
-          }
-          const existingIndex = nextVolumeEntries.findIndex((item) => item.volume === parsedVolume);
-          if (cover.mergeMode === "preserve_existing" && existingIndex >= 0) {
-            return;
-          }
-          if (existingIndex >= 0) {
-            nextVolumeEntries[existingIndex] = {
-              ...nextVolumeEntries[existingIndex],
-              volume: parsedVolume,
-              coverImageUrl: String(cover.coverImageUrl || "").trim(),
-              coverImageAlt: String(cover.coverImageAlt || "").trim(),
-            };
-            return;
-          }
-          nextVolumeEntries.push({
-            volume: parsedVolume,
-            synopsis: "",
-            coverImageUrl: String(cover.coverImageUrl || "").trim(),
-            coverImageAlt: String(cover.coverImageAlt || "").trim(),
-          });
-        });
-        nextVolumeEntries.sort((left, right) => left.volume - right.volume);
-        return {
-          ...prev,
-          volumeEntries: nextVolumeEntries,
-        };
-      });
-    },
-    [],
-  );
-
-  const openEpubImportPicker = ({ autoImportAfterSelect }: { autoImportAfterSelect: boolean }) => {
-    const input = epubImportInputRef.current;
-    if (!input || isImportingEpub || !backendSupportsEpubImport) {
-      return;
-    }
-    pendingEpubAutoImportRef.current = autoImportAfterSelect;
-    input.value = "";
-    input.click();
-  };
-
-  const submitEpubImportSyncFallback = async (
-    file: File,
-    options: { skipImportingState?: boolean } = {},
-  ) => {
-    if (isImportingEpub && !options.skipImportingState) {
-      return;
-    }
-    if (!backendSupportsEpubImport) {
-      logEpubParityIssue({
-        path: "/api/projects/epub/import",
-        status: "blocked",
-        reason: backendCapabilitiesError ? "contract_unreachable" : "capability_missing",
-      });
-      toast({
-        title: "Falha ao importar EPUB",
-        description: backendCapabilitiesError
-          ? EPUB_CAPABILITY_UNKNOWN_MESSAGE
-          : EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!options.skipImportingState) {
-      setIsImportingEpub(true);
-    }
-    try {
-      const formData = new FormData();
-      formData.set("file", file);
-      formData.set("project", JSON.stringify(buildEpubImportProjectSnapshot(formState)));
-      if (epubImportTargetVolume.trim()) {
-        formData.set("targetVolume", epubImportTargetVolume.trim());
-      }
-      formData.set("defaultStatus", epubImportAsDraft ? "draft" : "published");
-      const response = await apiFetch(apiBase, "/api/projects/epub/import", {
-        method: "POST",
-        auth: true,
-        body: formData,
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        if (response.status === 404) {
-          if (data?.error === "project_not_found") {
-            setEpubRouteStatus("legacy_project_not_found");
-            logEpubParityIssue({
-              path: "/api/projects/epub/import",
-              status: response.status,
-              reason: "legacy_project_not_found",
-            });
-            toast({
-              title: "Falha ao importar EPUB",
-              description: EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE,
-              variant: "destructive",
-            });
-            return;
-          }
-          setEpubRouteStatus("route_unreachable_for_current_origin");
-          logEpubParityIssue({
-            path: "/api/projects/epub/import",
-            status: response.status,
-            reason: "route_unreachable_for_current_origin",
-          });
-          toast({
-            title: "Falha ao importar EPUB",
-            description: EPUB_IMPORT_ROUTE_MISSING_MESSAGE,
-            variant: "destructive",
-          });
-          return;
-        }
-        if (response.status === 403) {
-          setEpubRouteStatus("forbidden");
-          logEpubParityIssue({
-            path: "/api/projects/epub/import",
-            status: response.status,
-            reason: "forbidden",
-          });
-          toast({
-            title: "Falha ao importar EPUB",
-            description: "Você não tem permissão para importar EPUB.",
-            variant: "destructive",
-          });
-          return;
-        }
-        if (
-          (typeof data?.error === "string" && data.error === "project_snapshot_too_large") ||
-          isLegacyMultipartSnapshotTooLargeError(data?.error, data?.detail)
-        ) {
-          setEpubRouteStatus("ok");
-          toast({
-            title: "Falha ao importar EPUB",
-            description: EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE,
-            variant: "destructive",
-          });
-          return;
-        }
-        if (typeof data?.error === "string" && data.error === "invalid_project_snapshot") {
-          setEpubRouteStatus("ok");
-          toast({
-            title: "Falha ao importar EPUB",
-            description: EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE,
-            variant: "destructive",
-          });
-          return;
-        }
-        if (typeof data?.error === "string" && data.error === "duplicate_episode_key") {
-          setEpubRouteStatus("ok");
-          const duplicateKey = String(data?.key || "");
-          const duplicateIndex = formState.episodeDownloads.findIndex(
-            (episode) => buildEpisodeKey(episode.number, episode.volume) === duplicateKey,
-          );
-          setEditorAccordionValue((prev) =>
-            prev.includes("episodios") ? prev : [...prev, "episodios"],
-          );
-          if (duplicateIndex >= 0) {
-            revealEpisodeAtIndex(duplicateIndex);
-          }
-          toast({
-            title: "Falha ao importar EPUB",
-            description: EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
-            variant: "destructive",
-          });
-          return;
-        }
-        if (
-          typeof data?.error === "string" &&
-          data.error === "epub_import_failed" &&
-          isEpubCssEngineFailureDetail(data?.detail)
-        ) {
-          toast({
-            title: "Falha ao importar EPUB",
-            description: EPUB_IMPORT_PROCESSING_MESSAGE,
-            variant: "destructive",
-          });
-          return;
-        }
-        if (
-          typeof data?.error === "string" &&
-          data.error === "epub_import_failed" &&
-          !(typeof data?.detail === "string" && data.detail.trim().length > 0)
-        ) {
-          toast({
-            title: "Falha ao importar EPUB",
-            description: EPUB_IMPORT_PROCESSING_MESSAGE,
-            variant: "destructive",
-          });
-          return;
-        }
-        toast({
-          title: "Falha ao importar EPUB",
-          description:
-            typeof data?.detail === "string"
-              ? data.detail
-              : "Não foi possível processar o arquivo informado.",
-          variant: "destructive",
-        });
-        return;
-      }
-      setEpubRouteStatus("ok");
-      const data = await response.json();
-      registerPendingEpubImportIds(data);
-      const chapters = Array.isArray(data?.chapters) ? (data.chapters as ProjectEpisode[]) : [];
-      const volumeCovers = Array.isArray(data?.volumeCovers)
-        ? (data.volumeCovers as Array<
-            ProjectVolumeCover & {
-              mergeMode?: "create" | "update" | "preserve_existing";
-            }
-          >)
-        : [];
-      const warnings = Array.isArray(data?.warnings)
-        ? data.warnings
-            .map((warning) => String(warning || "").trim())
-            .filter((warning) => warning.length > 0)
-        : [];
-      const importedChapterCount = Number.isFinite(Number(data?.summary?.chapters))
-        ? Number(data.summary.chapters)
-        : chapters.length;
-      const mainImportedCount = Number.isFinite(Number(data?.summary?.mainImported))
-        ? Number(data.summary.mainImported)
-        : importedChapterCount;
-      const extrasImportedCount = Number.isFinite(Number(data?.summary?.extrasImported))
-        ? Number(data.summary.extrasImported)
-        : 0;
-      const boilerplatePromoted = Number.isFinite(Number(data?.summary?.boilerplatePromoted))
-        ? Number(data.summary.boilerplatePromoted)
-        : 0;
-      const boilerplateDiscarded = Number.isFinite(Number(data?.summary?.boilerplateDiscarded))
-        ? Number(data.summary.boilerplateDiscarded)
-        : 0;
-      const imagesImported = Number.isFinite(Number(data?.summary?.imagesImported))
-        ? Number(data.summary.imagesImported)
-        : 0;
-      const imageImportFailures = Number.isFinite(Number(data?.summary?.imageImportFailures))
-        ? Number(data.summary.imageImportFailures)
-        : 0;
-      const volumeCoverImported = data?.summary?.volumeCoverImported === true;
-      const volumeCoverSkipped = data?.summary?.volumeCoverSkipped === true;
-      const summaryVolume = Number(data?.summary?.volume);
-      const firstChapterVolume = Number(
-        chapters.find((chapter) => Number.isFinite(Number(chapter?.volume)))?.volume,
-      );
-      const firstVolumeCoverVolume = Number(
-        volumeCovers.find((cover) => Number.isFinite(Number(cover?.volume)))?.volume,
-      );
-      const targetVolumeValue = String(epubImportTargetVolume || "").trim();
-      const importTargetVolume = targetVolumeValue === "" ? Number.NaN : Number(targetVolumeValue);
-      const resolvedImportedVolume = [
-        summaryVolume,
-        firstChapterVolume,
-        firstVolumeCoverVolume,
-        importTargetVolume,
-      ].find((value) => Number.isFinite(value));
-      const importedVolumeKey = Number.isFinite(resolvedImportedVolume)
-        ? buildVolumeCoverKey(resolvedImportedVolume)
-        : isChapterBased
-          ? buildVolumeCoverKey(undefined)
-          : null;
-      if (importedVolumeKey) {
-        pendingVolumeGroupToExpandRef.current = importedVolumeKey;
-        pendingVolumeGroupToScrollRef.current = importedVolumeKey;
-      } else {
-        pendingVolumeGroupToScrollRef.current = null;
-      }
-      pendingContentSectionScrollRef.current = true;
-      mergeImportedEpisodesIntoForm(chapters, {
-        collapseAffectedItems: true,
-        revealFirstAffectedItem: false,
-        scrollToFirstAffectedItem: false,
-      });
-      mergeImportedVolumeCoversIntoForm(volumeCovers);
-      setEditorAccordionValue((prev) =>
-        prev.includes("episodios") ? prev : [...prev, "episodios"],
-      );
-      toast({
-        title: "EPUB importado",
-        description: [
-          `${importedChapterCount} capítulo(s) incorporados ao formulário para revisão.`,
-          ...(mainImportedCount > 0
-            ? [`${mainImportedCount} capítulo(s) principais detectados.`]
-            : []),
-          ...(extrasImportedCount > 0 ? [`${extrasImportedCount} extra(s) detectados.`] : []),
-          ...(boilerplatePromoted > 0
-            ? [`${boilerplatePromoted} item(ns) de boilerplate foram promovidos para extras.`]
-            : []),
-          ...(boilerplateDiscarded > 0
-            ? [`${boilerplateDiscarded} item(ns) de boilerplate foram descartados.`]
-            : []),
-          ...(imagesImported > 0
-            ? [`${imagesImported} imagem(ns) interna(s) foram importadas.`]
-            : []),
-          ...(imageImportFailures > 0
-            ? [`${imageImportFailures} imagem(ns) falharam e foram ignoradas.`]
-            : []),
-          ...(volumeCoverImported ? ["A capa do volume foi incorporada ao formulário."] : []),
-          ...(volumeCoverSkipped ? ["A capa do volume existente foi preservada."] : []),
-          ...warnings,
-        ].join(" "),
-        intent: "success",
-      });
-    } catch {
-      setEpubRouteStatus("network_unreachable");
-      logEpubParityIssue({
-        path: "/api/projects/epub/import",
-        status: "network",
-        reason: "network_unreachable",
-      });
-      toast({
-        title: "Falha ao importar EPUB",
-        description: EPUB_NETWORK_ERROR_MESSAGE,
-        variant: "destructive",
-      });
-    } finally {
-      pendingEpubAutoImportRef.current = false;
-      if (!options.skipImportingState) {
-        setIsImportingEpub(false);
-      }
-    }
-  };
-
-  const handleEpubImportFailureResponse = useCallback(
-    (response: Response, data: unknown) => {
-      const payload = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
-      if (response.status === 404) {
-        if (payload?.error === "project_not_found") {
-          setEpubRouteStatus("legacy_project_not_found");
-          logEpubParityIssue({
-            path: "/api/projects/epub/import",
-            status: response.status,
-            reason: "legacy_project_not_found",
-          });
-          toast({
-            title: "Falha ao importar EPUB",
-            description: EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE,
-            variant: "destructive",
-          });
-          return;
-        }
-        setEpubRouteStatus("route_unreachable_for_current_origin");
-        logEpubParityIssue({
-          path: "/api/projects/epub/import",
-          status: response.status,
-          reason: "route_unreachable_for_current_origin",
-        });
-        toast({
-          title: "Falha ao importar EPUB",
-          description: EPUB_IMPORT_ROUTE_MISSING_MESSAGE,
-          variant: "destructive",
-        });
-        return;
-      }
-      if (response.status === 403) {
-        setEpubRouteStatus("forbidden");
-        logEpubParityIssue({
-          path: "/api/projects/epub/import",
-          status: response.status,
-          reason: "forbidden",
-        });
-        toast({
-          title: "Falha ao importar EPUB",
-          description: "Voc? n?o tem permiss?o para importar EPUB.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (
-        (typeof payload?.error === "string" && payload.error === "project_snapshot_too_large") ||
-        isLegacyMultipartSnapshotTooLargeError(payload?.error, payload?.detail)
-      ) {
-        setEpubRouteStatus("ok");
-        toast({
-          title: "Falha ao importar EPUB",
-          description: EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE,
-          variant: "destructive",
-        });
-        return;
-      }
-      if (typeof payload?.error === "string" && payload.error === "invalid_project_snapshot") {
-        setEpubRouteStatus("ok");
-        toast({
-          title: "Falha ao importar EPUB",
-          description: EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE,
-          variant: "destructive",
-        });
-        return;
-      }
-      if (typeof payload?.error === "string" && payload.error === "duplicate_episode_key") {
-        setEpubRouteStatus("ok");
-        const duplicateKey = String(payload?.key || "");
-        const duplicateIndex = formState.episodeDownloads.findIndex(
-          (episode) => buildEpisodeKey(episode.number, episode.volume) === duplicateKey,
-        );
-        setEditorAccordionValue((prev) =>
-          prev.includes("episodios") ? prev : [...prev, "episodios"],
-        );
-        if (duplicateIndex >= 0) {
-          revealEpisodeAtIndex(duplicateIndex);
-        }
-        toast({
-          title: "Falha ao importar EPUB",
-          description: EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
-          variant: "destructive",
-        });
-        return;
-      }
-      if (
-        typeof payload?.error === "string" &&
-        payload.error === "epub_import_failed" &&
-        (isEpubCssEngineFailureDetail(payload?.detail) ||
-          !(typeof payload?.detail === "string" && payload.detail.trim().length > 0))
-      ) {
-        toast({
-          title: "Falha ao importar EPUB",
-          description: EPUB_IMPORT_PROCESSING_MESSAGE,
-          variant: "destructive",
-        });
-        return;
-      }
-      toast({
-        title: "Falha ao importar EPUB",
-        description:
-          typeof payload?.detail === "string"
-            ? payload.detail
-            : "N?o foi poss?vel processar o arquivo informado.",
-        variant: "destructive",
-      });
-    },
-    [formState.episodeDownloads, logEpubParityIssue, revealEpisodeAtIndex],
-  );
-
-  const applyImportedEpubPayload = useCallback(
-    (payload: unknown) => {
-      setEpubRouteStatus("ok");
-      registerPendingEpubImportIds(payload);
-      const data =
-        payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
-      const chapters = Array.isArray(data?.chapters) ? (data.chapters as ProjectEpisode[]) : [];
-      const volumeCovers = Array.isArray(data?.volumeCovers)
-        ? (data.volumeCovers as Array<
-            ProjectVolumeCover & {
-              mergeMode?: "create" | "update" | "preserve_existing";
-            }
-          >)
-        : [];
-      const warnings = Array.isArray(data?.warnings)
-        ? data.warnings
-            .map((warning) => String(warning || "").trim())
-            .filter((warning) => warning.length > 0)
-        : [];
-      const importedChapterCount = Number.isFinite(Number(data?.summary?.chapters))
-        ? Number(data.summary.chapters)
-        : chapters.length;
-      const mainImportedCount = Number.isFinite(Number(data?.summary?.mainImported))
-        ? Number(data.summary.mainImported)
-        : importedChapterCount;
-      const extrasImportedCount = Number.isFinite(Number(data?.summary?.extrasImported))
-        ? Number(data.summary.extrasImported)
-        : 0;
-      const boilerplatePromoted = Number.isFinite(Number(data?.summary?.boilerplatePromoted))
-        ? Number(data.summary.boilerplatePromoted)
-        : 0;
-      const boilerplateDiscarded = Number.isFinite(Number(data?.summary?.boilerplateDiscarded))
-        ? Number(data.summary.boilerplateDiscarded)
-        : 0;
-      const imagesImported = Number.isFinite(Number(data?.summary?.imagesImported))
-        ? Number(data.summary.imagesImported)
-        : 0;
-      const imageImportFailures = Number.isFinite(Number(data?.summary?.imageImportFailures))
-        ? Number(data.summary.imageImportFailures)
-        : 0;
-      const volumeCoverImported = data?.summary?.volumeCoverImported === true;
-      const volumeCoverSkipped = data?.summary?.volumeCoverSkipped === true;
-      const summaryVolume = Number(data?.summary?.volume);
-      const firstChapterVolume = Number(
-        chapters.find((chapter) => Number.isFinite(Number(chapter?.volume)))?.volume,
-      );
-      const firstVolumeCoverVolume = Number(
-        volumeCovers.find((cover) => Number.isFinite(Number(cover?.volume)))?.volume,
-      );
-      const targetVolumeValue = String(epubImportTargetVolume || "").trim();
-      const importTargetVolume = targetVolumeValue === "" ? Number.NaN : Number(targetVolumeValue);
-      const resolvedImportedVolume = [
-        summaryVolume,
-        firstChapterVolume,
-        firstVolumeCoverVolume,
-        importTargetVolume,
-      ].find((value) => Number.isFinite(value));
-      const importedVolumeKey = Number.isFinite(resolvedImportedVolume)
-        ? buildVolumeCoverKey(resolvedImportedVolume)
-        : isChapterBased
-          ? buildVolumeCoverKey(undefined)
-          : null;
-      if (importedVolumeKey) {
-        pendingVolumeGroupToExpandRef.current = importedVolumeKey;
-        pendingVolumeGroupToScrollRef.current = importedVolumeKey;
-      } else {
-        pendingVolumeGroupToScrollRef.current = null;
-      }
-      pendingContentSectionScrollRef.current = true;
-      mergeImportedEpisodesIntoForm(chapters, {
-        collapseAffectedItems: true,
-        revealFirstAffectedItem: false,
-        scrollToFirstAffectedItem: false,
-      });
-      mergeImportedVolumeCoversIntoForm(volumeCovers);
-      setEditorAccordionValue((prev) =>
-        prev.includes("episodios") ? prev : [...prev, "episodios"],
-      );
-      toast({
-        title: "EPUB importado",
-        description: [
-          `${importedChapterCount} cap?tulo(s) incorporados ao formul?rio para revis?o.`,
-          ...(mainImportedCount > 0
-            ? [`${mainImportedCount} cap?tulo(s) principais detectados.`]
-            : []),
-          ...(extrasImportedCount > 0 ? [`${extrasImportedCount} extra(s) detectados.`] : []),
-          ...(boilerplatePromoted > 0
-            ? [`${boilerplatePromoted} item(ns) de boilerplate foram promovidos para extras.`]
-            : []),
-          ...(boilerplateDiscarded > 0
-            ? [`${boilerplateDiscarded} item(ns) de boilerplate foram descartados.`]
-            : []),
-          ...(imagesImported > 0
-            ? [`${imagesImported} imagem(ns) interna(s) foram importadas.`]
-            : []),
-          ...(imageImportFailures > 0
-            ? [`${imageImportFailures} imagem(ns) falharam e foram ignoradas.`]
-            : []),
-          ...(volumeCoverImported ? ["A capa do volume foi incorporada ao formul?rio."] : []),
-          ...(volumeCoverSkipped ? ["A capa do volume existente foi preservada."] : []),
-          ...warnings,
-        ].join(" "),
-        intent: "success",
-      });
-    },
-    [
-      epubImportTargetVolume,
-      isChapterBased,
-      mergeImportedEpisodesIntoForm,
-      mergeImportedVolumeCoversIntoForm,
-      registerPendingEpubImportIds,
-    ],
-  );
-
-  const pollEpubImportJob = useCallback(
-    async (jobId: string) => {
-      while (true) {
-        const response = await apiFetch(apiBase, `/api/projects/epub/import/jobs/${jobId}`, {
-          auth: true,
-          cache: "no-store",
-        });
-        if (!response.ok) {
-          const data = await response.json().catch(() => null);
-          handleEpubImportFailureResponse(response, data);
-          return null;
-        }
-        const data = (await response.json().catch(() => null)) as { job?: EpubImportJob } | null;
-        const job = normalizeEpubImportJob(data?.job);
-        if (!job) {
-          toast({
-            title: "Falha ao importar EPUB",
-            description: EPUB_IMPORT_PROCESSING_MESSAGE,
-            variant: "destructive",
-          });
-          return null;
-        }
-        if (job.status === "queued" || job.status === "processing") {
-          await new Promise((resolve) => window.setTimeout(resolve, 2000));
-          continue;
-        }
-        return job;
-      }
-    },
-    [apiBase, handleEpubImportFailureResponse],
-  );
-
-  const submitEpubImport = useCallback(
-    async (file: File) => {
-      if (isImportingEpub) {
-        return;
-      }
-      if (!backendSupportsEpubImport) {
-        logEpubParityIssue({
-          path: "/api/projects/epub/import",
-          status: "blocked",
-          reason: backendCapabilitiesError ? "contract_unreachable" : "capability_missing",
-        });
-        toast({
-          title: "Falha ao importar EPUB",
-          description: backendCapabilitiesError
-            ? EPUB_CAPABILITY_UNKNOWN_MESSAGE
-            : EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setIsImportingEpub(true);
-      try {
-        const formData = new FormData();
-        formData.set("file", file);
-        formData.set("project", JSON.stringify(buildEpubImportProjectSnapshot(formState)));
-        if (epubImportTargetVolume.trim()) {
-          formData.set("targetVolume", epubImportTargetVolume.trim());
-        }
-        formData.set("defaultStatus", epubImportAsDraft ? "draft" : "published");
-        if (backendSupportsEpubImportAsync) {
-          const jobResponse = await apiFetch(apiBase, "/api/projects/epub/import/jobs", {
-            method: "POST",
-            auth: true,
-            body: formData,
-          });
-          if (jobResponse.status === 404) {
-            logEpubParityIssue({
-              path: "/api/projects/epub/import/jobs",
-              status: jobResponse.status,
-              reason: "route_unreachable_for_current_origin",
-            });
-          } else if (!jobResponse.ok) {
-            const data = await jobResponse.json().catch(() => null);
-            handleEpubImportFailureResponse(jobResponse, data);
-            return;
-          } else {
-            const data = (await jobResponse.json().catch(() => null)) as {
-              job?: EpubImportJob;
-            } | null;
-            const initialJob = normalizeEpubImportJob(data?.job);
-            if (!initialJob) {
-              toast({
-                title: "Falha ao importar EPUB",
-                description: EPUB_IMPORT_PROCESSING_MESSAGE,
-                variant: "destructive",
-              });
-              return;
-            }
-            const finalJob =
-              initialJob.status === "queued" || initialJob.status === "processing"
-                ? await pollEpubImportJob(initialJob.id)
-                : initialJob;
-            if (!finalJob) {
-              return;
-            }
-            if (finalJob.status === "completed" && finalJob.result) {
-              applyImportedEpubPayload(finalJob.result);
-              return;
-            }
-            toast({
-              title: "Falha ao importar EPUB",
-              description: finalJob.error || EPUB_IMPORT_PROCESSING_MESSAGE,
-              variant: "destructive",
-            });
-            return;
-          }
-        }
-
-        await submitEpubImportSyncFallback(file, { skipImportingState: true });
-      } catch {
-        setEpubRouteStatus("network_unreachable");
-        logEpubParityIssue({
-          path: backendSupportsEpubImportAsync
-            ? "/api/projects/epub/import/jobs"
-            : "/api/projects/epub/import",
-          status: "network",
-          reason: "network_unreachable",
-        });
-        toast({
-          title: "Falha ao importar EPUB",
-          description: EPUB_NETWORK_ERROR_MESSAGE,
-          variant: "destructive",
-        });
-      } finally {
-        pendingEpubAutoImportRef.current = false;
-        setIsImportingEpub(false);
-      }
-    },
-    [
-      apiBase,
-      applyImportedEpubPayload,
-      backendCapabilitiesError,
-      backendSupportsEpubImport,
-      backendSupportsEpubImportAsync,
-      epubImportAsDraft,
-      epubImportTargetVolume,
-      formState,
-      handleEpubImportFailureResponse,
-      isImportingEpub,
-      logEpubParityIssue,
-      pollEpubImportJob,
-      submitEpubImportSyncFallback,
-    ],
-  );
-
-  const handleEpubImportFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0] || null;
-    setEpubImportFile(selectedFile);
-    if (!selectedFile) {
-      pendingEpubAutoImportRef.current = false;
-      return;
-    }
-    if (!pendingEpubAutoImportRef.current) {
-      return;
-    }
-    pendingEpubAutoImportRef.current = false;
-    void submitEpubImport(selectedFile);
-  };
-
-  const handleEpubImportFileCancel = () => {
-    pendingEpubAutoImportRef.current = false;
-  };
-
-  const handleImportEpub = async () => {
-    if (isImportingEpub) {
-      return;
-    }
-    if (!backendSupportsEpubImport) {
-      logEpubParityIssue({
-        path: "/api/projects/epub/import",
-        status: "blocked",
-        reason: backendCapabilitiesError ? "contract_unreachable" : "capability_missing",
-      });
-      toast({
-        title: "Falha ao importar EPUB",
-        description: backendCapabilitiesError
-          ? EPUB_CAPABILITY_UNKNOWN_MESSAGE
-          : EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!epubImportFile) {
-      openEpubImportPicker({ autoImportAfterSelect: true });
-      return;
-    }
-    await submitEpubImport(epubImportFile);
-  };
-
-  const handleExportEpub = async () => {
-    if (!backendSupportsEpubExport) {
-      logEpubParityIssue({
-        path: "/api/projects/epub/export",
-        status: "blocked",
-        reason: backendCapabilitiesError ? "contract_unreachable" : "capability_missing",
-      });
-      toast({
-        title: "Falha ao exportar EPUB",
-        description: backendCapabilitiesError
-          ? EPUB_CAPABILITY_UNKNOWN_MESSAGE
-          : EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsExportingEpub(true);
-    try {
-      const supportsVolumeEntriesForExport =
-        isLightNovelType(formState.type || "") || isMangaType(formState.type || "");
-      const normalizedVolumeEntriesForExport = supportsVolumeEntriesForExport
-        ? formState.volumeEntries
-            .map((entry) => {
-              const parsedVolume = Number(entry.volume);
-              if (!Number.isFinite(parsedVolume)) {
-                return null;
-              }
-              const coverImageUrl = String(entry.coverImageUrl || "").trim();
-              return {
-                volume: parsedVolume,
-                synopsis: String(entry.synopsis || "").trim(),
-                coverImageUrl,
-                coverImageAlt: coverImageUrl
-                  ? resolveAssetAltText(entry.coverImageAlt, `Capa do volume ${parsedVolume}`)
-                  : "",
-              };
-            })
-            .filter((entry): entry is ProjectVolumeEntry => Boolean(entry))
-            .sort((left, right) => left.volume - right.volume)
-        : [];
-      const normalizedVolumeCoversForExport = normalizedVolumeEntriesForExport
-        .filter((entry) => String(entry.coverImageUrl || "").trim())
-        .map((entry) => ({
-          volume: entry.volume,
-          coverImageUrl: entry.coverImageUrl,
-          coverImageAlt: entry.coverImageAlt || `Capa do volume ${entry.volume}`,
-        }));
-      const projectSnapshotForExport = {
-        ...formState,
-        volumeEntries: normalizedVolumeEntriesForExport,
-        volumeCovers: normalizedVolumeCoversForExport,
-      };
-      const response = await apiFetch(apiBase, "/api/projects/epub/export", {
-        method: "POST",
-        auth: true,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          project: projectSnapshotForExport,
-          volume: epubExportVolume.trim() ? Number(epubExportVolume) : null,
-          includeDrafts: epubExportIncludeDrafts,
-        }),
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        if (response.status === 404) {
-          setEpubRouteStatus("route_unreachable_for_current_origin");
-          logEpubParityIssue({
-            path: "/api/projects/epub/export",
-            status: response.status,
-            reason: "route_unreachable_for_current_origin",
-          });
-          toast({
-            title: "Falha ao exportar EPUB",
-            description: EPUB_EXPORT_ROUTE_MISSING_MESSAGE,
-            variant: "destructive",
-          });
-          return;
-        }
-        if (response.status === 403) {
-          setEpubRouteStatus("forbidden");
-          logEpubParityIssue({
-            path: "/api/projects/epub/export",
-            status: response.status,
-            reason: "forbidden",
-          });
-          toast({
-            title: "Falha ao exportar EPUB",
-            description: "Você não tem permissão para exportar EPUB.",
-            variant: "destructive",
-          });
-          return;
-        }
-        if (
-          response.status === 422 ||
-          (typeof data?.error === "string" && data.error === "no_eligible_chapters")
-        ) {
-          toast({
-            title: "Falha ao exportar EPUB",
-            description: "Não há capítulos elegíveis para esse volume.",
-            variant: "destructive",
-          });
-          return;
-        }
-        toast({
-          title: "Falha ao exportar EPUB",
-          description:
-            typeof data?.error === "string" && data.error === "no_eligible_chapters"
-              ? "Não há capítulos elegíveis para esse volume."
-              : typeof data?.detail === "string"
-                ? data.detail
-                : "Não foi possível gerar o arquivo EPUB.",
-          variant: "destructive",
-        });
-        return;
-      }
-      setEpubRouteStatus("ok");
-      await downloadBinaryResponse(
-        response,
-        `${createSlug(formState.title || "projeto") || "projeto"}.epub`,
-      );
-      toast({
-        title: "EPUB exportado",
-        description: "O volume foi gerado com o snapshot atual do formulário.",
-        intent: "success",
-      });
-    } catch {
-      setEpubRouteStatus("network_unreachable");
-      logEpubParityIssue({
-        path: "/api/projects/epub/export",
-        status: "network",
-        reason: "network_unreachable",
-      });
-      toast({
-        title: "Falha ao exportar EPUB",
-        description: EPUB_NETWORK_ERROR_MESSAGE,
-        variant: "destructive",
-      });
-    } finally {
-      setIsExportingEpub(false);
-    }
-  };
 
   const handleSave = async () => {
     const trimmedTitle = formState.title.trim();
@@ -4530,6 +3049,10 @@ const DashboardProjectsEditor = () => {
         const parsedSize = Number(episode.sizeBytes);
         const sizeBytes =
           Number.isFinite(parsedSize) && parsedSize > 0 ? Math.round(parsedSize) : undefined;
+        const progressState = getProjectProgressStateForEditor(
+          formState.type || "",
+          episode.completedStages,
+        );
         return {
           ...episodePayload,
           coverImageUrl,
@@ -4551,8 +3074,8 @@ const DashboardProjectsEditor = () => {
               };
             })
             .filter((source) => source.url || source.label),
-          completedStages: episode.completedStages || [],
-          progressStage: getProgressStage(formState.type || "", episode.completedStages),
+          completedStages: progressState.completedStages,
+          progressStage: progressState.currentStageId,
           contentFormat: "lexical",
           publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
           chapterUpdatedAt: prev?.chapterUpdatedAt || episode.chapterUpdatedAt || "",
@@ -4655,8 +3178,7 @@ const DashboardProjectsEditor = () => {
       description: "As alterações foram salvas com sucesso.",
       intent: "success",
     });
-    clearPendingEpubImportIds();
-    closeEditor({ skipEpubImportCleanup: true });
+    closeEditor();
   };
 
   const handleDelete = async () => {
@@ -5726,221 +4248,6 @@ const DashboardProjectsEditor = () => {
                             Importar do AniList
                           </Button>
                         </div>
-
-                        {isLightNovel ? (
-                          <div className="rounded-2xl border border-border/60 bg-background/35 p-4">
-                            <div className="space-y-1">
-                              <h3 className="text-sm font-semibold text-foreground">
-                                Ferramentas EPUB
-                              </h3>
-                              <p className="text-xs text-muted-foreground">
-                                Importe capítulos para o editor Lexical e exporte o snapshot atual
-                                por volume.
-                              </p>
-                              {epubCapabilityState ? (
-                                <p
-                                  className={
-                                    epubCapabilityState.variant === "destructive"
-                                      ? "text-xs text-destructive"
-                                      : "text-xs text-amber-700"
-                                  }
-                                >
-                                  {epubCapabilityState.message}
-                                </p>
-                              ) : null}
-                              {backendBuildLabel ? (
-                                <p className="text-[11px] text-muted-foreground">
-                                  Contrato da API: {backendBuildLabel}
-                                </p>
-                              ) : null}
-                              {frontendBuildLabel ? (
-                                <p className="text-[11px] text-muted-foreground">
-                                  Frontend: {frontendBuildLabel}
-                                </p>
-                              ) : null}
-                            </div>
-
-                            <div className="mt-4 grid gap-6 xl:grid-cols-2">
-                              <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
-                                <div className="space-y-1">
-                                  <h4 className="text-sm font-medium text-foreground">
-                                    Importar EPUB
-                                  </h4>
-                                  <p className="text-xs text-muted-foreground">
-                                    O arquivo é convertido para Lexical e mergeado localmente no
-                                    formulário.
-                                  </p>
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="epub-import-file">Arquivo .epub</Label>
-                                  <Input
-                                    ref={epubImportInputRef}
-                                    id="epub-import-file"
-                                    type="file"
-                                    accept=".epub,application/epub+zip"
-                                    className="sr-only"
-                                    onChange={handleEpubImportFileChange}
-                                    onCancel={handleEpubImportFileCancel}
-                                  />
-                                  {epubImportFile ? (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        openEpubImportPicker({ autoImportAfterSelect: false })
-                                      }
-                                      disabled={isImportingEpub || !backendSupportsEpubImport}
-                                      className="w-full rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-left transition hover:bg-background/70 disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                      <span className="block truncate text-sm font-medium text-foreground">
-                                        {epubImportFile.name}
-                                      </span>
-                                    </button>
-                                  ) : (
-                                    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3">
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() =>
-                                          openEpubImportPicker({ autoImportAfterSelect: false })
-                                        }
-                                        disabled={isImportingEpub || !backendSupportsEpubImport}
-                                      >
-                                        Escolher arquivo
-                                      </Button>
-                                      <span className="text-xs text-muted-foreground">
-                                        Nenhum arquivo selecionado
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="epub-import-volume">Volume de destino</Label>
-                                  <Input
-                                    id="epub-import-volume"
-                                    type="number"
-                                    value={epubImportTargetVolume}
-                                    onChange={(event) =>
-                                      setEpubImportTargetVolume(event.target.value)
-                                    }
-                                    placeholder="Opcional"
-                                  />
-                                </div>
-                                <label className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm">
-                                  <Checkbox
-                                    checked={epubImportAsDraft}
-                                    onCheckedChange={(checked) =>
-                                      setEpubImportAsDraft(checked === true)
-                                    }
-                                  />
-                                  <span className="space-y-1">
-                                    <span className="block font-medium text-foreground">
-                                      Importar como rascunho
-                                    </span>
-                                    <span className="block text-xs text-muted-foreground">
-                                      Capítulos importados ficam ocultos ao público até a
-                                      publicação.
-                                    </span>
-                                  </span>
-                                </label>
-                                <Button
-                                  type="button"
-                                  onClick={handleImportEpub}
-                                  disabled={isImportingEpub || !backendSupportsEpubImport}
-                                  className="gap-2"
-                                >
-                                  {isImportingEpub ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : null}
-                                  Importar EPUB
-                                </Button>
-                              </div>
-
-                              <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
-                                <div className="space-y-1">
-                                  <h4 className="text-sm font-medium text-foreground">
-                                    Exportar EPUB
-                                  </h4>
-                                  <p className="text-xs text-muted-foreground">
-                                    Usa o estado atual do formulário, inclusive alterações ainda não
-                                    salvas.
-                                  </p>
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="epub-export-volume">Volume para exportação</Label>
-                                  <Input
-                                    id="epub-export-volume"
-                                    type="number"
-                                    value={epubExportVolume}
-                                    onChange={(event) => setEpubExportVolume(event.target.value)}
-                                    placeholder="Deixe vazio para Sem volume"
-                                  />
-                                </div>
-                                <label className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm">
-                                  <Checkbox
-                                    checked={epubExportIncludeDrafts}
-                                    onCheckedChange={(checked) =>
-                                      setEpubExportIncludeDrafts(checked === true)
-                                    }
-                                  />
-                                  <span className="space-y-1">
-                                    <span className="block font-medium text-foreground">
-                                      Incluir rascunhos
-                                    </span>
-                                    <span className="block text-xs text-muted-foreground">
-                                      Exporta também capítulos em draft que tenham conteúdo.
-                                    </span>
-                                  </span>
-                                </label>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={handleExportEpub}
-                                  disabled={isExportingEpub || !backendSupportsEpubExport}
-                                  className="gap-2"
-                                >
-                                  {isExportingEpub ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : null}
-                                  Exportar volume em EPUB
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        ) : isManga ? (
-                          <div className="rounded-2xl border border-border/60 bg-background/35 p-4">
-                            <div className="space-y-1">
-                              <h3 className="text-sm font-semibold text-foreground">
-                                Conteúdo dedicado
-                              </h3>
-                              <p className="text-xs text-muted-foreground">
-                                O fluxo de importação, organização, disponibilização e exportação de
-                                mangá/webtoon fica na página dedicada de capítulos.
-                              </p>
-                            </div>
-                            <div className="mt-4 flex flex-wrap items-center gap-3">
-                              {editingProject?.id ? (
-                                <Button type="button" variant="outline" asChild>
-                                  <Link
-                                    to={buildDashboardProjectChaptersEditorHref(editingProject.id)}
-                                  >
-                                    <FileText className="h-4 w-4" />
-                                    Abrir conteúdo
-                                  </Link>
-                                </Button>
-                              ) : (
-                                <Button type="button" variant="outline" disabled>
-                                  <FileText className="h-4 w-4" />
-                                  Salve o projeto para abrir o conteúdo
-                                </Button>
-                              )}
-                              <span className="text-xs text-muted-foreground">
-                                O editor principal fica só com metadados, equipe, assets e
-                                estrutura.
-                              </span>
-                            </div>
-                          </div>
-                        ) : null}
                       </div>
                     </AccordionContent>
                   </AccordionItem>
@@ -7692,14 +5999,10 @@ const DashboardProjectsEditor = () => {
                                             !hasDownloadSource &&
                                             !(isLightNovel && hasEpisodeContent);
                                           const currentProgressStageLabel =
-                                            stageOptions.find(
-                                              (stage) =>
-                                                stage.id ===
-                                                getProgressStage(
-                                                  formState.type || "",
-                                                  episode.completedStages,
-                                                ),
-                                            )?.label || "Aguardando Raw";
+                                            getProjectProgressStateForEditor(
+                                              formState.type || "",
+                                              episode.completedStages,
+                                            ).currentStage.label;
                                           const statusLabel =
                                             publicationStatus === "draft"
                                               ? "Rascunho"

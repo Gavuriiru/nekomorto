@@ -88,6 +88,28 @@ export const findDuplicateEpisodeKey = (episodes) => {
   return null;
 };
 
+export const findPublishedImageEpisodeWithoutPages = (episodes) => {
+  const list = Array.isArray(episodes) ? episodes : [];
+  for (let index = 0; index < list.length; index += 1) {
+    const episode = list[index];
+    if (getEpisodePublicationStatus(episode) !== "published") {
+      continue;
+    }
+    if (getEpisodeContentFormat(episode) !== "images") {
+      continue;
+    }
+    if (hasEpisodePages(episode)) {
+      continue;
+    }
+    return {
+      index,
+      key: buildEpisodeKey(episode?.number, episode?.volume),
+      episode,
+    };
+  }
+  return null;
+};
+
 export const resolveEpisodeLookup = (
   project,
   episodeNumber,

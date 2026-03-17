@@ -82,7 +82,7 @@ describe("post og delivery", () => {
         eyebrow: "Postagem",
         title: String(post?.title || "Postagem"),
         subtitle: String(post?.author || ""),
-        sceneVersion: "post-og-v2",
+        sceneVersion: "post-og-v3",
         artworkUrl: "/uploads/posts/post-1/cover.jpg",
         artworkSource: "post-cover",
         backdropUrl: "/uploads/posts/post-1/body.jpg",

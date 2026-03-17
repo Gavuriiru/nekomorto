@@ -4,10 +4,11 @@ import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDial
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
+import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
 import { exportMangaCollectionZip } from "@/components/project-reader/manga-collection-export";
-import { exportMangaChapter } from "@/components/project-reader/manga-chapter-export";
 import MangaWorkflowPanel, {
   buildStageChapterLabel,
+  type MangaWorkflowPanelHandle,
   reconcileStageChapters,
   revokeStagePages,
   type StageChapter,
@@ -47,6 +48,7 @@ import type {
   ProjectVolumeEntry,
 } from "@/data/projects";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
+import { refetchPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -96,6 +98,11 @@ import {
   buildProjectPublicReadingHref,
 } from "@/lib/project-editor-routes";
 import {
+  getProjectProgressState,
+  syncProjectProgress,
+  type ProjectProgressKind,
+} from "@/lib/project-progress";
+import {
   buildEpisodeKey,
   resolveCanonicalEpisodeRouteTarget,
   resolveEpisodeLookup,
@@ -112,9 +119,11 @@ import type {
 } from "@/types/api-contract";
 import {
   ArrowLeft,
-  FileArchive,
+  ArrowDown,
+  ArrowUp,
   ChevronLeft,
   ChevronRight,
+  FileArchive,
   ExternalLink,
   ImagePlus,
   Loader2,
@@ -122,7 +131,14 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import type { ChangeEvent, Dispatch, ReactNode, RefObject, SetStateAction } from "react";
+import type {
+  ChangeEvent,
+  Dispatch,
+  KeyboardEvent as ReactKeyboardEvent,
+  ReactNode,
+  RefObject,
+  SetStateAction,
+} from "react";
 import {
   Suspense,
   forwardRef,
@@ -214,6 +230,7 @@ type DeleteDialogState =
 type LeaveGuardDialogState = {
   chapterDirty: boolean;
   volumeDirty: boolean;
+  mangaWorkflowDirty: boolean;
 };
 
 type VolumeSelectionOptions = {
@@ -233,7 +250,8 @@ type CurrentUser = {
 };
 
 type ChapterEditorPaneHandle = {
-  requestLeave: () => Promise<boolean>;
+  hasUnsavedChanges: (options?: { nextHref?: string; routeExit?: boolean }) => boolean;
+  requestLeave: (options?: { nextHref?: string; routeExit?: boolean }) => Promise<boolean>;
 };
 
 type EpubCapabilityState = {
@@ -290,6 +308,7 @@ type ChapterEditorPaneProps = {
         | "epub-import"
         | "volume-editor"
         | "chapter-create"
+        | "chapter-reorder"
         | "chapter-delete"
         | "volume-delete"
         | "manga-import"
@@ -365,15 +384,10 @@ const editorialMastheadClassName =
   "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
 const editorialCommandBarClassName =
   "sticky top-3 z-20 overflow-hidden rounded-2xl border border-border/60 bg-background/92 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.72)] backdrop-blur supports-backdrop-filter:bg-background/78";
-const workspaceSectionClassName =
-  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
 const workspaceSectionMutedClassName =
   "overflow-hidden rounded-2xl border border-border/60 bg-card/65";
-const workspaceSectionHeaderClassName =
-  "flex flex-col gap-3 border-b border-border/60 px-5 py-4 md:flex-row md:items-start md:justify-between";
-const workspaceSectionBodyClassName = "space-y-5 px-5 py-5";
-const workspaceSectionTitleClassName = "text-base font-semibold tracking-tight text-foreground";
-const workspaceSectionSubtitleClassName = "text-sm leading-6 text-muted-foreground";
+const IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE =
+  "Capitulos em imagem precisam ter ao menos uma pagina para serem publicados.";
 
 const EditorAccordionHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
   <div className={editorAccordionHeaderTextClassName}>
@@ -382,41 +396,7 @@ const EditorAccordionHeader = ({ title, subtitle }: { title: string; subtitle: s
   </div>
 );
 
-const WorkspaceSectionCard = ({
-  title,
-  subtitle,
-  eyebrow,
-  actions,
-  className,
-  bodyClassName,
-  testId,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  eyebrow?: string;
-  actions?: ReactNode;
-  className?: string;
-  bodyClassName?: string;
-  testId?: string;
-  children: ReactNode;
-}) => (
-  <section className={cn(workspaceSectionClassName, className)} data-testid={testId}>
-    <div className={workspaceSectionHeaderClassName}>
-      <div className="space-y-1">
-        {eyebrow ? (
-          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-            {eyebrow}
-          </p>
-        ) : null}
-        <h2 className={workspaceSectionTitleClassName}>{title}</h2>
-        {subtitle ? <p className={workspaceSectionSubtitleClassName}>{subtitle}</p> : null}
-      </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
-    </div>
-    <div className={cn(workspaceSectionBodyClassName, bodyClassName)}>{children}</div>
-  </section>
-);
+const WorkspaceSectionCard = ProjectEditorSectionCard;
 
 const chapterHasContent = (episode: ProjectEpisode | null | undefined) =>
   hasProjectEpisodeReadableContent(episode);
@@ -582,7 +562,10 @@ const normalizeNonNegativeInteger = (value: unknown, fallback?: number) => {
 const resolveChapterEntrySubtype = (entryKind: ProjectEpisode["entryKind"]) =>
   entryKind === "extra" ? "extra" : "chapter";
 
-const normalizeChapterForSave = (chapter: ProjectEpisode): ProjectEpisode => {
+const normalizeChapterForSave = (
+  chapter: ProjectEpisode,
+  progressKind?: ProjectProgressKind,
+): ProjectEpisode => {
   const parsedNumber = Number(chapter.number);
   const parsedReadingOrder = Number(chapter.readingOrder);
   const parsedSizeBytes = Number(chapter.sizeBytes);
@@ -597,7 +580,7 @@ const normalizeChapterForSave = (chapter: ProjectEpisode): ProjectEpisode => {
     chapter.contentFormat,
     normalizedPages.length > 0 ? "images" : "lexical",
   );
-  return {
+  const normalizedChapter = {
     ...chapter,
     number: normalizePositiveInteger(parsedNumber, 1) ?? 1,
     volume: normalizeNonNegativeInteger(chapter.volume),
@@ -636,9 +619,10 @@ const normalizeChapterForSave = (chapter: ProjectEpisode): ProjectEpisode => {
     pageCount: normalizedPages.length,
     hasPages: normalizedPages.length > 0,
     coverImageUrl: String(chapter.coverImageUrl || "").trim() || normalizedPages[0]?.imageUrl || "",
-    publicationStatus: chapter.publicationStatus === "draft" ? "draft" : "published",
+    publicationStatus: chapter.publicationStatus === "published" ? "published" : "draft",
     chapterUpdatedAt: String(chapter.chapterUpdatedAt || "").trim() || undefined,
   };
+  return progressKind ? syncProjectProgress(normalizedChapter, progressKind) : normalizedChapter;
 };
 
 const buildNewChapterDraft = (
@@ -682,8 +666,8 @@ const normalizeOriginLabel = (value: unknown) => {
   return normalized || "indisponivel";
 };
 
-const buildChapterSnapshot = (chapter: ProjectEpisode | null) =>
-  chapter ? JSON.stringify(normalizeChapterForSave(chapter)) : "";
+const buildChapterSnapshot = (chapter: ProjectEpisode | null, progressKind?: ProjectProgressKind) =>
+  chapter ? JSON.stringify(normalizeChapterForSave(chapter, progressKind)) : "";
 
 const buildVolumeCoverAltFallback = (volume: number) => `Capa do volume ${volume}`;
 
@@ -739,6 +723,176 @@ const buildProjectSnapshotWithVolumeEntries = <T extends ProjectRecord>(
     ...project,
     volumeEntries,
     volumeCovers,
+  };
+};
+
+const supportsStructureChapterReordering = (projectType?: string | null) =>
+  isLightNovelType(projectType) || isMangaType(projectType);
+
+const compareChapterStructureGroupKeys = (leftKey: string, rightKey: string) => {
+  if (leftKey === rightKey) {
+    return 0;
+  }
+  if (leftKey === "none") {
+    return 1;
+  }
+  if (rightKey === "none") {
+    return -1;
+  }
+  return (Number(leftKey) || 0) - (Number(rightKey) || 0);
+};
+
+const hasExplicitReadingOrder = (episodes: ProjectEpisode[]) =>
+  (Array.isArray(episodes) ? episodes : []).some((episode) =>
+    Number.isFinite(Number(episode?.readingOrder)),
+  );
+
+const renumberChapterReadingOrderSequence = (episodes: ProjectEpisode[]) =>
+  episodes.map((episode, index) =>
+    normalizeChapterForSave({
+      ...episode,
+      readingOrder: index + 1,
+    }),
+  );
+
+const insertEpisodesAtGroupBoundary = (
+  orderedEpisodes: ProjectEpisode[],
+  groupKey: string,
+  insertedEpisodes: ProjectEpisode[],
+) => {
+  if (!insertedEpisodes.length) {
+    return orderedEpisodes;
+  }
+
+  const lastGroupIndex = orderedEpisodes.reduce((lastIndex, episode, index) => {
+    return buildChapterStructureGroupKey(episode.volume) === groupKey ? index : lastIndex;
+  }, -1);
+
+  if (lastGroupIndex >= 0) {
+    return [
+      ...orderedEpisodes.slice(0, lastGroupIndex + 1),
+      ...insertedEpisodes,
+      ...orderedEpisodes.slice(lastGroupIndex + 1),
+    ];
+  }
+
+  const nextGroupIndex = orderedEpisodes.findIndex(
+    (episode) =>
+      compareChapterStructureGroupKeys(buildChapterStructureGroupKey(episode.volume), groupKey) > 0,
+  );
+
+  if (nextGroupIndex >= 0) {
+    return [
+      ...orderedEpisodes.slice(0, nextGroupIndex),
+      ...insertedEpisodes,
+      ...orderedEpisodes.slice(nextGroupIndex),
+    ];
+  }
+
+  return [...orderedEpisodes, ...insertedEpisodes];
+};
+
+const preserveManualChapterReadingOrder = (
+  previousEpisodes: ProjectEpisode[],
+  nextEpisodes: ProjectEpisode[],
+) => {
+  const normalizedPreviousEpisodes = sortChapters(previousEpisodes).map((episode) =>
+    normalizeChapterForSave(episode),
+  );
+  if (!hasExplicitReadingOrder(normalizedPreviousEpisodes)) {
+    return nextEpisodes;
+  }
+
+  const normalizedNextEpisodes = (Array.isArray(nextEpisodes) ? nextEpisodes : []).map((episode) =>
+    normalizeChapterForSave(episode),
+  );
+  const nextEpisodeByKey = new Map(
+    normalizedNextEpisodes.map((episode) => [
+      buildEpisodeKey(episode.number, episode.volume),
+      episode,
+    ]),
+  );
+
+  let orderedEpisodes = normalizedPreviousEpisodes
+    .map((episode) => nextEpisodeByKey.get(buildEpisodeKey(episode.number, episode.volume)) || null)
+    .filter((episode): episode is ProjectEpisode => Boolean(episode));
+
+  const existingEpisodeKeySet = new Set(
+    orderedEpisodes.map((episode) => buildEpisodeKey(episode.number, episode.volume)),
+  );
+  const insertedEpisodes = normalizedNextEpisodes.filter(
+    (episode) => !existingEpisodeKeySet.has(buildEpisodeKey(episode.number, episode.volume)),
+  );
+  const insertedEpisodesByGroup = groupChaptersByStructureKey(sortChapters(insertedEpisodes));
+
+  Array.from(insertedEpisodesByGroup.keys())
+    .sort(compareChapterStructureGroupKeys)
+    .forEach((groupKey) => {
+      orderedEpisodes = insertEpisodesAtGroupBoundary(
+        orderedEpisodes,
+        groupKey,
+        insertedEpisodesByGroup.get(groupKey) || [],
+      );
+    });
+
+  return renumberChapterReadingOrderSequence(orderedEpisodes);
+};
+
+const reorderChaptersWithinStructureGroup = (
+  episodes: ProjectEpisode[],
+  chapterKey: string,
+  direction: "up" | "down",
+) => {
+  const orderedEpisodes = sortChapters(episodes).map((episode) => normalizeChapterForSave(episode));
+  const targetIndex = orderedEpisodes.findIndex(
+    (episode) => buildEpisodeKey(episode.number, episode.volume) === chapterKey,
+  );
+  if (targetIndex < 0) {
+    return null;
+  }
+
+  const targetGroupKey = buildChapterStructureGroupKey(orderedEpisodes[targetIndex]?.volume);
+  const groupIndexes = orderedEpisodes.reduce<number[]>((indexes, episode, index) => {
+    if (buildChapterStructureGroupKey(episode.volume) === targetGroupKey) {
+      indexes.push(index);
+    }
+    return indexes;
+  }, []);
+  const currentGroupIndex = groupIndexes.indexOf(targetIndex);
+  const nextGroupIndex =
+    direction === "up" ? currentGroupIndex - 1 : currentGroupIndex + 1;
+
+  if (currentGroupIndex < 0 || nextGroupIndex < 0 || nextGroupIndex >= groupIndexes.length) {
+    return null;
+  }
+
+  const swapTargetIndex = groupIndexes[nextGroupIndex];
+  const reorderedEpisodes = [...orderedEpisodes];
+  const [movedEpisode] = reorderedEpisodes.splice(targetIndex, 1);
+  reorderedEpisodes.splice(swapTargetIndex, 0, movedEpisode);
+  return renumberChapterReadingOrderSequence(reorderedEpisodes);
+};
+
+const normalizeProjectSnapshotChapterOrderForPersist = (
+  previousProject: Pick<ProjectRecord, "episodeDownloads" | "type"> | null | undefined,
+  nextProject: ProjectRecord,
+) => {
+  if (!supportsStructureChapterReordering(nextProject.type || previousProject?.type || "")) {
+    return nextProject;
+  }
+
+  const previousEpisodes = Array.isArray(previousProject?.episodeDownloads)
+    ? previousProject.episodeDownloads
+    : [];
+  const nextEpisodes = Array.isArray(nextProject.episodeDownloads) ? nextProject.episodeDownloads : [];
+
+  if (!hasExplicitReadingOrder(previousEpisodes)) {
+    return nextProject;
+  }
+
+  return {
+    ...nextProject,
+    episodeDownloads: preserveManualChapterReadingOrder(previousEpisodes, nextEpisodes),
   };
 };
 
@@ -862,6 +1016,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
   ) => {
     const apiBase = getApiBase();
     const editorRef = useRef<LexicalEditorHandle | null>(null);
+    const mangaWorkflowRef = useRef<MangaWorkflowPanelHandle | null>(null);
     const bypassNextLeaveGuardRef = useRef(false);
     const leaveDialogResolversRef = useRef<Array<(value: boolean) => void>>([]);
     const [identityError, setIdentityError] = useState<string | null>(null);
@@ -870,33 +1025,56 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       null,
     );
     const [isSavingChapter, setIsSavingChapter] = useState(false);
-    const [structureChapterExportState, setStructureChapterExportState] = useState<{
-      key: string;
-      format: "zip" | "cbz";
-    } | null>(null);
     const [structureVolumeExportKey, setStructureVolumeExportKey] = useState<string | null>(null);
     const [leaveDialogState, setLeaveDialogState] = useState<LeaveGuardDialogState | null>(null);
     const hasActiveChapter = Boolean(activeChapter && activeChapterKey);
+    const normalizeEditorChapter = useCallback(
+      (chapter: ProjectEpisode) => normalizeChapterForSave(chapter, "manga"),
+      [],
+    );
+    const buildEditorChapterSnapshot = useCallback(
+      (chapter: ProjectEpisode | null) => buildChapterSnapshot(chapter, "manga"),
+      [],
+    );
     const draft =
-      activeDraft || (activeChapter ? normalizeChapterForSave(activeChapter) : EMPTY_CHAPTER_DRAFT);
+      activeDraft || (activeChapter ? normalizeEditorChapter(activeChapter) : EMPTY_CHAPTER_DRAFT);
     const supportsEpubTools = isLightNovelType(project.type || "");
     const isMangaProject = isMangaType(project.type || "");
+    const supportsStructureReordering = supportsStructureChapterReordering(project.type || "");
+    const [structureChapterReorderState, setStructureChapterReorderState] = useState<{
+      key: string;
+      direction: "up" | "down";
+    } | null>(null);
+    const structureProjectSnapshot = useMemo(() => {
+      const nextProjectSnapshot = buildProjectSnapshotWithVolumeEntries(project, volumeEntriesDraft);
+      return overlayDraftOnProject(nextProjectSnapshot, activeChapterKey, activeDraft);
+    }, [activeChapterKey, activeDraft, project, volumeEntriesDraft]);
+    const structureProjectSnapshotRef = useRef<ProjectRecord>(structureProjectSnapshot);
+    useEffect(() => {
+      structureProjectSnapshotRef.current = structureProjectSnapshot;
+    }, [structureProjectSnapshot]);
+    const normalizedDraftPages = useMemo(
+      () => normalizeProjectEpisodePages(draft.pages),
+      [draft.pages],
+    );
     const isImageChapter =
       normalizeProjectEpisodeContentFormat(
         draft.contentFormat,
-        normalizeProjectEpisodePages(draft.pages).length > 0 ? "images" : "lexical",
+        normalizedDraftPages.length > 0 ? "images" : "lexical",
       ) === "images";
+    const isPublishedImageChapterMissingPages =
+      isImageChapter && normalizedDraftPages.length === 0;
     const projectSnapshotForImageExport = useMemo(
       () => overlayDraftOnProject(project, activeChapterKey, draft),
       [activeChapterKey, draft, project],
     );
     const activeChapterSnapshot = useMemo(
-      () => buildChapterSnapshot(activeChapter),
-      [activeChapter],
+      () => buildEditorChapterSnapshot(activeChapter),
+      [activeChapter, buildEditorChapterSnapshot],
     );
     const draftSnapshot = useMemo(
-      () => (hasActiveChapter ? buildChapterSnapshot(draft) : ""),
-      [draft, hasActiveChapter],
+      () => (hasActiveChapter ? buildEditorChapterSnapshot(draft) : ""),
+      [buildEditorChapterSnapshot, draft, hasActiveChapter],
     );
     const isDirty = hasActiveChapter && draftSnapshot !== activeChapterSnapshot;
 
@@ -1019,7 +1197,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           return snapshot;
         }
         setIdentityError(null);
-        const normalizedSnapshot = normalizeChapterForSave(snapshot);
+        const normalizedSnapshot = normalizeEditorChapter(snapshot);
         const response = await apiFetch(
           apiBase,
           `/api/projects/${project.id}/chapters/${activeChapter.number}${
@@ -1049,6 +1227,12 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             setIdentityError("Já existe um capítulo com essa combinação de número e volume.");
           } else if (errorCode === "volume_required") {
             setIdentityError("Informe o volume para salvar um capítulo com número ambíguo.");
+          } else if (errorCode === "image_pages_required_for_publication") {
+            toast({
+              title: "Nao foi possivel publicar o capitulo",
+              description: IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
+              variant: "destructive",
+            });
           } else if (errorCode === "not_found") {
             toast({
               title: "Capítulo não encontrado",
@@ -1073,14 +1257,23 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           throw new Error("chapter_save_missing_payload");
         }
 
-        const normalizedSavedChapter = normalizeChapterForSave(data.chapter);
+        const normalizedSavedChapter = normalizeEditorChapter(data.chapter);
         onChapterSaved(data.project, normalizedSavedChapter, {
           number: normalizedSnapshot.number,
           volume: normalizedSnapshot.volume,
         });
+        void refetchPublicBootstrapCache(apiBase).catch(() => undefined);
         return normalizedSavedChapter;
       },
-      [activeChapter, apiBase, onChapterSaved, project.id, project.revision],
+      [
+        activeChapter,
+        apiBase,
+        normalizeEditorChapter,
+        onChapterSaved,
+        project.id,
+        project.revision,
+        refetchPublicBootstrapCache,
+      ],
     );
 
     const handleChapterSave = useCallback(
@@ -1089,6 +1282,14 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           return true;
         }
         const resolvedPublicationStatus = nextPublicationStatus ?? draft.publicationStatus;
+        if (resolvedPublicationStatus === "published" && isPublishedImageChapterMissingPages) {
+          toast({
+            title: "Nao foi possivel publicar o capitulo",
+            description: IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
+            variant: "destructive",
+          });
+          return false;
+        }
         const shouldPersist = isDirty || resolvedPublicationStatus !== draft.publicationStatus;
         if (!shouldPersist) {
           return true;
@@ -1106,7 +1307,14 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           setIsSavingChapter(false);
         }
       },
-      [draft, hasActiveChapter, isDirty, isSavingChapter, persistChapter],
+      [
+        draft,
+        hasActiveChapter,
+        isDirty,
+        isPublishedImageChapterMissingPages,
+        isSavingChapter,
+        persistChapter,
+      ],
     );
 
     const handleManualSave = useCallback(async () => {
@@ -1123,28 +1331,74 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       resolvers.forEach((resolve) => resolve(nextValue));
     }, []);
 
-    const requestLeave = useCallback(async () => {
+    const isEditorRouteHref = useCallback(
+      (href?: string | null) => {
+        const normalizedHref = String(href || "").trim();
+        if (!normalizedHref) {
+          return false;
+        }
+        try {
+          const resolvedUrl = new URL(normalizedHref, window.location.origin);
+          const editorBaseUrl = new URL(neutralHref, window.location.origin);
+          const editorPath = editorBaseUrl.pathname.replace(/\/+$/, "");
+          const candidatePath = resolvedUrl.pathname.replace(/\/+$/, "");
+          return (
+            resolvedUrl.origin === editorBaseUrl.origin &&
+            (candidatePath === editorPath || candidatePath.startsWith(`${editorPath}/`))
+          );
+        } catch {
+          return false;
+        }
+      },
+      [neutralHref],
+    );
+
+    const hasUnsavedChanges = useCallback(
+      (options?: { nextHref?: string; routeExit?: boolean }) => {
+        const chapterDirty = hasActiveChapter && isDirty;
+        const volumeDirty = isVolumeDirty;
+        const shouldCheckMangaWorkflow =
+          Boolean(options?.routeExit) ||
+          (!!options?.nextHref && !isEditorRouteHref(options.nextHref));
+        const mangaWorkflowDirty =
+          shouldCheckMangaWorkflow &&
+          isMangaProject &&
+          Boolean(mangaWorkflowRef.current?.hasUnsavedChanges());
+        return chapterDirty || volumeDirty || mangaWorkflowDirty;
+      },
+      [hasActiveChapter, isDirty, isMangaProject, isVolumeDirty, isEditorRouteHref],
+    );
+
+    const requestLeave = useCallback(async (options?: { nextHref?: string; routeExit?: boolean }) => {
       if (bypassNextLeaveGuardRef.current) {
         bypassNextLeaveGuardRef.current = false;
         return true;
       }
       const chapterDirty = hasActiveChapter && isDirty;
       const volumeDirty = isVolumeDirty;
-      if (!chapterDirty && !volumeDirty) {
+      const mangaWorkflowDirty =
+        (Boolean(options?.routeExit) ||
+          (!!options?.nextHref && !isEditorRouteHref(options.nextHref))) &&
+        isMangaProject &&
+        Boolean(mangaWorkflowRef.current?.hasUnsavedChanges());
+      if (!chapterDirty && !volumeDirty && !mangaWorkflowDirty) {
         return true;
       }
       return await new Promise<boolean>((resolve) => {
         leaveDialogResolversRef.current.push(resolve);
-        setLeaveDialogState({ chapterDirty, volumeDirty });
+        setLeaveDialogState({ chapterDirty, volumeDirty, mangaWorkflowDirty });
       });
-    }, [hasActiveChapter, isDirty, isVolumeDirty]);
+    }, [hasActiveChapter, isDirty, isMangaProject, isVolumeDirty, isEditorRouteHref]);
 
     const handleLeaveDialogSaveAndContinue = useCallback(
       async (publicationStatus: "draft" | "published") => {
         const shouldPersistChapter = Boolean(leaveDialogState?.chapterDirty && hasActiveChapter);
         const shouldPersistVolumes = Boolean(leaveDialogState?.volumeDirty);
+        const shouldPersistMangaWorkflow = Boolean(leaveDialogState?.mangaWorkflowDirty);
         if (shouldPersistChapter) {
-          const didSaveChapter = await handleChapterSave(publicationStatus);
+          const didSaveChapter = await handleChapterSave(
+            shouldPersistMangaWorkflow ? "draft" : publicationStatus,
+          );
           if (!didSaveChapter) {
             return;
           }
@@ -1155,12 +1409,20 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             return;
           }
         }
+        if (shouldPersistMangaWorkflow) {
+          const didSavePreparedChapters =
+            (await mangaWorkflowRef.current?.savePreparedChaptersAsDraft()) ?? true;
+          if (!didSavePreparedChapters) {
+            return;
+          }
+        }
         resolveLeaveDialog(true);
       },
       [
         handleChapterSave,
         hasActiveChapter,
         leaveDialogState?.chapterDirty,
+        leaveDialogState?.mangaWorkflowDirty,
         leaveDialogState?.volumeDirty,
         onSaveVolumes,
         resolveLeaveDialog,
@@ -1168,8 +1430,11 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     );
 
     const handleLeaveDialogDiscardAndContinue = useCallback(() => {
+      if (leaveDialogState?.mangaWorkflowDirty) {
+        mangaWorkflowRef.current?.discardPreparedChapters();
+      }
       resolveLeaveDialog(true);
-    }, [resolveLeaveDialog]);
+    }, [leaveDialogState?.mangaWorkflowDirty, resolveLeaveDialog]);
 
     const handleLeaveDialogCancel = useCallback(() => {
       resolveLeaveDialog(false);
@@ -1189,9 +1454,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     useImperativeHandle(
       ref,
       () => ({
+        hasUnsavedChanges,
         requestLeave,
       }),
-      [requestLeave],
+      [hasUnsavedChanges, requestLeave],
     );
 
     useEffect(
@@ -1206,16 +1472,18 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     );
 
     useEffect(() => {
-      if ((!hasActiveChapter || !isDirty) && !isVolumeDirty) {
-        return;
-      }
       const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+        const mangaWorkflowDirty =
+          isMangaProject && Boolean(mangaWorkflowRef.current?.hasUnsavedChanges());
+        if ((!hasActiveChapter || !isDirty) && !isVolumeDirty && !mangaWorkflowDirty) {
+          return;
+        }
         event.preventDefault();
         event.returnValue = "";
       };
       window.addEventListener("beforeunload", handleBeforeUnload);
       return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-    }, [hasActiveChapter, isDirty, isVolumeDirty]);
+    }, [hasActiveChapter, isDirty, isMangaProject, isVolumeDirty]);
 
     useEffect(() => {
       if (!hasActiveChapter && !isVolumeDirty) {
@@ -1286,8 +1554,20 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     const editorialScopeDescription = supportsEpubTools
       ? "EspaÃ§o editorial para organizar capÃ­tulos, volumes e publicaÃ§Ã£o de light novels com foco em leitura e escrita contÃ­nua."
       : isMangaProject
-        ? "Hub editorial para revisar lotes, organizar pÃ¡ginas, publicar capÃ­tulos e exportar manga/webtoon na mesma rota dedicada."
+        ? "Hub editorial para revisar importações, organizar páginas, publicar capítulos e exportar manga/webtoon na mesma rota dedicada."
         : "EspaÃ§o editorial para organizar capÃ­tulos, volumes e publicaÃ§Ã£o do projeto.";
+    const leaveDialogTitle = leaveDialogState?.mangaWorkflowDirty
+      ? "Ha alteracoes nao salvas no workflow de manga"
+      : leaveDialogState?.chapterDirty
+        ? "Ha alteracoes nao salvas"
+        : "Salvar alteracoes do volume antes de continuar?";
+    const leaveDialogDescription = leaveDialogState?.mangaWorkflowDirty
+      ? leaveDialogState.chapterDirty || leaveDialogState.volumeDirty
+        ? "Voce pode salvar como rascunho para persistir o capitulo atual e o lote preparado antes de sair, descartar as alteracoes ou cancelar."
+        : "Voce pode salvar os capitulos preparados como rascunho, descartar o lote ou cancelar e continuar editando."
+      : leaveDialogState?.chapterDirty
+        ? "Escolha se deseja salvar como rascunho, publicar ou descartar antes de trocar de contexto."
+        : "Voce pode salvar o volume agora, descartar as mudancas ou cancelar e continuar editando.";
     const activeStructureGroupKey = useMemo(() => {
       const activeGroup = activeChapterKey
         ? structureGroups.find((group) =>
@@ -1480,31 +1760,6 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       ],
     );
 
-    const handleStructureChapterExport = useCallback(
-      async (episode: ProjectEpisode, format: "zip" | "cbz") => {
-        const chapterKey = buildEpisodeKey(episode.number, episode.volume);
-        setStructureChapterExportState({ key: chapterKey, format });
-        try {
-          await exportMangaChapter({
-            apiBase,
-            projectId: String(project.id || ""),
-            projectSnapshot: projectSnapshotForImageExport,
-            chapter: episode,
-            format,
-          });
-          toast({
-            title: format === "cbz" ? "CBZ exportado" : "ZIP exportado",
-            intent: "success",
-          });
-        } catch {
-          toast({ title: "Nao foi possivel exportar o capitulo", variant: "destructive" });
-        } finally {
-          setStructureChapterExportState(null);
-        }
-      },
-      [apiBase, project.id, projectSnapshotForImageExport],
-    );
-
     const handleAddChapterRequest = useCallback(
       async (targetVolume: number | null) => {
         const canLeave = await requestLeave();
@@ -1514,6 +1769,80 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         await onAddChapter(targetVolume);
       },
       [onAddChapter, requestLeave],
+    );
+
+    const handleReorderStructureChapter = useCallback(
+      async (chapterKey: string, direction: "up" | "down") => {
+        if (!supportsStructureReordering || structureChapterReorderState || !chapterKey) {
+          return;
+        }
+
+        const canLeave = await requestLeave();
+        if (!canLeave) {
+          return;
+        }
+
+        const latestProjectSnapshot = structureProjectSnapshotRef.current;
+        const reorderedEpisodes = reorderChaptersWithinStructureGroup(
+          Array.isArray(latestProjectSnapshot?.episodeDownloads)
+            ? latestProjectSnapshot.episodeDownloads
+            : [],
+          chapterKey,
+          direction,
+        );
+        if (!reorderedEpisodes) {
+          return;
+        }
+
+        const optimisticProject = {
+          ...latestProjectSnapshot,
+          episodeDownloads: reorderedEpisodes,
+        };
+        setStructureChapterReorderState({ key: chapterKey, direction });
+        onProjectChange(optimisticProject);
+        try {
+          const persistedProject = await onPersistProjectSnapshot(
+            optimisticProject,
+            { context: "chapter-reorder" },
+          );
+          if (!persistedProject) {
+            onProjectChange(latestProjectSnapshot);
+            return;
+          }
+
+          const persistedActiveChapter = activeChapterKey
+            ? (Array.isArray(persistedProject.episodeDownloads)
+                ? persistedProject.episodeDownloads
+                : []
+              ).find(
+                (episode) => buildEpisodeKey(episode.number, episode.volume) === activeChapterKey,
+              ) || null
+            : null;
+
+          if (persistedActiveChapter) {
+            onChapterSaved(persistedProject, persistedActiveChapter, {
+              number: persistedActiveChapter.number,
+              volume: persistedActiveChapter.volume,
+            });
+            return;
+          }
+
+          onProjectChange(persistedProject);
+        } catch {
+          onProjectChange(latestProjectSnapshot);
+        } finally {
+          setStructureChapterReorderState(null);
+        }
+      },
+      [
+        activeChapterKey,
+        onChapterSaved,
+        onPersistProjectSnapshot,
+        onProjectChange,
+        requestLeave,
+        structureChapterReorderState,
+        supportsStructureReordering,
+      ],
     );
 
     const handleStructureVolumeExport = useCallback(
@@ -1546,9 +1875,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         if (!hasActiveChapter) {
           return;
         }
-        onDraftChange(normalizeChapterForSave(recipe(draft)));
+        onDraftChange(normalizeEditorChapter(recipe(draft)));
       },
-      [draft, hasActiveChapter, onDraftChange],
+      [draft, hasActiveChapter, normalizeEditorChapter, onDraftChange],
     );
     const updateSelectedVolumeEntry = useCallback(
       (updater: (entry: ProjectVolumeEntry) => ProjectVolumeEntry) => {
@@ -1607,7 +1936,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
                 <div className="space-y-1">
                   <h4 className="text-sm font-medium text-foreground">Importar EPUB</h4>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="hidden">
                     O arquivo é convertido para Lexical, mergeado no projeto e salvo imediatamente.
                   </p>
                 </div>
@@ -1866,7 +2195,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                   <p className="text-xs leading-5 text-muted-foreground">
                                     {group.chapterCount > 0 || pendingCount > 0
                                       ? `${group.chapterCount} salvo(s)${
-                                          pendingCount > 0 ? ` + ${pendingCount} no lote` : ""
+                                          pendingCount > 0 ? ` + ${pendingCount} em importação` : ""
                                         }`
                                       : "Nenhum capítulo vinculado"}
                                   </p>
@@ -1892,7 +2221,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                               <p className="text-xs leading-5 text-muted-foreground">
                                 {group.chapterCount > 0 || pendingCount > 0
                                   ? `${group.chapterCount} salvo(s)${
-                                      pendingCount > 0 ? ` + ${pendingCount} no lote` : ""
+                                      pendingCount > 0 ? ` + ${pendingCount} em importação` : ""
                                     }`
                                   : "Agrupe aqui capítulos fora de volume"}
                               </p>
@@ -2020,6 +2349,11 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                   episode.number,
                                   episode.volume,
                                 );
+                                const readingHref = buildProjectPublicReadingHref(
+                                  project.id,
+                                  episode.number,
+                                  episode.volume,
+                                );
                                 const isActive = episodeKey === activeChapterKey;
                                 const episodePages = normalizeProjectEpisodePages(
                                   episode.pages || [],
@@ -2029,34 +2363,69 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                     episode.contentFormat,
                                     episodePages.length > 0 ? "images" : "lexical",
                                   ) === "images";
-                                const isExportable =
-                                  isImageEpisode &&
-                                  (episodePages.length > 0 || episode.hasPages === true);
-                                const isExportingEpisode =
-                                  structureChapterExportState?.key === episodeKey;
+                                const groupEpisodeKeys = group.allItems.map((item) =>
+                                  buildEpisodeKey(item.number, item.volume),
+                                );
+                                const structurePosition = groupEpisodeKeys.indexOf(episodeKey);
+                                const canMoveUp =
+                                  supportsStructureReordering && structurePosition > 0;
+                                const canMoveDown =
+                                  supportsStructureReordering &&
+                                  structurePosition >= 0 &&
+                                  structurePosition < groupEpisodeKeys.length - 1;
+                                const hasReadableChapter =
+                                  chapterHasContent(episode) ||
+                                  (isImageEpisode &&
+                                    (episodePages.length > 0 || episode.hasPages === true));
+                                const canOpenReadingPage =
+                                  episode.publicationStatus === "published" && hasReadableChapter;
+                                const isReorderingEpisodeUp =
+                                  structureChapterReorderState?.key === episodeKey &&
+                                  structureChapterReorderState.direction === "up";
+                                const isReorderingEpisodeDown =
+                                  structureChapterReorderState?.key === episodeKey &&
+                                  structureChapterReorderState.direction === "down";
+                                const showStructureActions =
+                                  supportsStructureReordering || canOpenReadingPage;
                                 const handleOpenEpisode = () => void onNavigateToHref(href);
+                                const handleOpenReadingPage = () => {
+                                  if (typeof window === "undefined" || !canOpenReadingPage) {
+                                    return;
+                                  }
+                                  window.open(readingHref, "_blank", "noopener,noreferrer");
+                                };
+                                const handleEpisodeCardKeyDown = (
+                                  event: ReactKeyboardEvent<HTMLDivElement>,
+                                ) => {
+                                  if (event.target !== event.currentTarget) {
+                                    return;
+                                  }
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    handleOpenEpisode();
+                                  }
+                                };
                                 return (
                                   <div
                                     key={episodeKey}
-                                    data-testid={`chapter-structure-episode-card-${episodeKey}`}
+                                    data-testid={`chapter-structure-episode-open-${episodeKey}`}
                                     data-state={isActive ? "active" : "idle"}
-                                    className={`w-full rounded-[18px] border px-3.5 py-3 transition ${
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label={`Abrir capítulo ${episode.number}`}
+                                    onClick={handleOpenEpisode}
+                                    onKeyDown={handleEpisodeCardKeyDown}
+                                    className={`w-full cursor-pointer rounded-[18px] border px-3.5 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45 ${
                                       isActive
                                         ? "border-primary/50 bg-primary/[0.07] shadow-sm"
                                         : "border-border/50 bg-background/55 hover:bg-background/78"
                                     }`}
                                   >
                                     <div className="space-y-3">
-                                      <button
-                                        type="button"
-                                        onClick={handleOpenEpisode}
-                                        data-testid={`chapter-structure-episode-open-${episodeKey}`}
-                                        className="w-full min-w-0 text-left"
+                                      <div
+                                        className="space-y-3"
+                                        data-testid={`chapter-structure-episode-content-${episodeKey}`}
                                       >
-                                        <div
-                                          className="space-y-3"
-                                          data-testid={`chapter-structure-episode-content-${episodeKey}`}
-                                        >
                                           <div
                                             className="flex items-start justify-between gap-3"
                                             data-testid={`chapter-structure-episode-header-${episodeKey}`}
@@ -2081,8 +2450,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                               {chapterStatusLabel(episode)}
                                             </Badge>
                                           </div>
-                                        </div>
-                                      </button>
+                                      </div>
                                       <div
                                         className="flex items-end justify-between gap-3"
                                         data-testid={`chapter-structure-episode-footer-${episodeKey}`}
@@ -2100,61 +2468,80 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                             <span>- {episode.sources.length} fonte(s)</span>
                                           ) : null}
                                         </div>
-                                        {isExportable ? (
+                                        {showStructureActions ? (
                                           <div
                                             className="flex shrink-0 items-center gap-2"
                                             data-testid={`chapter-structure-episode-actions-${episodeKey}`}
                                           >
-                                            <Button
-                                              type="button"
-                                              size="sm"
-                                              variant="outline"
-                                              data-testid={`chapter-structure-episode-export-zip-${episodeKey}`}
-                                              className="h-9 rounded-xl bg-background/92 px-3 font-semibold"
-                                              onClick={(event) => {
-                                                event.stopPropagation();
-                                                void handleStructureChapterExport(episode, "zip");
-                                              }}
-                                              disabled={Boolean(isExportingEpisode)}
-                                            >
-                                              {isExportingEpisode &&
-                                              structureChapterExportState?.format === "zip" ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                              ) : null}
-                                              <span>ZIP</span>
-                                            </Button>
-                                            <Button
-                                              type="button"
-                                              size="sm"
-                                              variant="outline"
-                                              data-testid={`chapter-structure-episode-export-cbz-${episodeKey}`}
-                                              className="h-9 rounded-xl bg-background/92 px-3 font-semibold"
-                                              onClick={(event) => {
-                                                event.stopPropagation();
-                                                void handleStructureChapterExport(episode, "cbz");
-                                              }}
-                                              disabled={Boolean(isExportingEpisode)}
-                                            >
-                                              {isExportingEpisode &&
-                                              structureChapterExportState?.format === "cbz" ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                              ) : null}
-                                              <span>CBZ</span>
-                                            </Button>
-                                            <Button
-                                              type="button"
-                                              size="icon"
-                                              variant="outline"
-                                              data-testid={`chapter-structure-episode-open-icon-${episodeKey}`}
-                                              aria-label={`Abrir capítulo ${episode.number}`}
-                                              className="h-9 w-9 rounded-xl bg-background/92"
-                                              onClick={(event) => {
-                                                event.stopPropagation();
-                                                handleOpenEpisode();
-                                              }}
-                                            >
-                                              <ExternalLink className="h-4 w-4" />
-                                            </Button>
+                                            {supportsStructureReordering ? (
+                                              <>
+                                                <Button
+                                                  type="button"
+                                                  size="icon"
+                                                  variant="outline"
+                                                  data-testid={`chapter-structure-episode-move-up-${episodeKey}`}
+                                                  aria-label="Mover item para cima"
+                                                  className="h-9 w-9 rounded-xl bg-background/92"
+                                                  onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    void handleReorderStructureChapter(
+                                                      episodeKey,
+                                                      "up",
+                                                    );
+                                                  }}
+                                                  disabled={
+                                                    !canMoveUp || Boolean(structureChapterReorderState)
+                                                  }
+                                                >
+                                                  {isReorderingEpisodeUp ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                  ) : (
+                                                    <ArrowUp className="h-4 w-4" />
+                                                  )}
+                                                </Button>
+                                                <Button
+                                                  type="button"
+                                                  size="icon"
+                                                  variant="outline"
+                                                  data-testid={`chapter-structure-episode-move-down-${episodeKey}`}
+                                                  aria-label="Mover item para baixo"
+                                                  className="h-9 w-9 rounded-xl bg-background/92"
+                                                  onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    void handleReorderStructureChapter(
+                                                      episodeKey,
+                                                      "down",
+                                                    );
+                                                  }}
+                                                  disabled={
+                                                    !canMoveDown ||
+                                                    Boolean(structureChapterReorderState)
+                                                  }
+                                                >
+                                                  {isReorderingEpisodeDown ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                  ) : (
+                                                    <ArrowDown className="h-4 w-4" />
+                                                  )}
+                                                </Button>
+                                              </>
+                                            ) : null}
+                                            {canOpenReadingPage ? (
+                                              <Button
+                                                type="button"
+                                                size="icon"
+                                                variant="outline"
+                                                data-testid={`chapter-structure-episode-open-icon-${episodeKey}`}
+                                                aria-label={`Abrir leitura do capítulo ${episode.number} em nova aba`}
+                                                className="h-9 w-9 rounded-xl bg-background/92"
+                                                onClick={(event) => {
+                                                  event.stopPropagation();
+                                                  handleOpenReadingPage();
+                                                }}
+                                              >
+                                                <ExternalLink className="h-4 w-4" />
+                                              </Button>
+                                            ) : null}
                                           </div>
                                         ) : null}
                                       </div>
@@ -2181,8 +2568,12 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     );
     const identitySection = hasActiveChapter ? (
       <WorkspaceSectionCard
-        title="Identidade do capítulo"
-        subtitle="Título, numeração, tipo e resumo"
+        title={supportsEpubTools && !isImageChapter ? "Dados" : "Identidade do capitulo"}
+        subtitle={
+          supportsEpubTools && !isImageChapter
+            ? "Titulo, numeracao, tipo, release e resumo"
+            : "Titulo, numeracao, tipo e resumo"
+        }
         eyebrow="Ficha editorial"
         testId="chapter-identity-accordion"
         actions={
@@ -2193,6 +2584,15 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
               {buildChapterVolumeLabel(draft.volume)}
             </Badge>
+            {supportsEpubTools && !isImageChapter ? (
+              <Badge
+                variant={draft.publicationStatus === "draft" ? "outline" : "default"}
+                className="text-[10px] uppercase tracking-[0.12em]"
+                data-testid="chapter-identity-status-badge"
+              >
+                {chapterStatusLabel(draft)}
+              </Badge>
+            ) : null}
           </>
         }
       >
@@ -2222,7 +2622,12 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             />
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div
+            className={cn(
+              "grid gap-3 md:grid-cols-2",
+              supportsEpubTools && !isImageChapter ? "xl:grid-cols-5" : "xl:grid-cols-4",
+            )}
+          >
             <div className="space-y-2">
               <Label htmlFor="chapter-number">Capítulo</Label>
               <Input
@@ -2286,7 +2691,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 </SelectContent>
               </Select>
             </div>
-            {!isImageChapter ? (
+            {!isImageChapter && !supportsEpubTools ? (
               <div className="space-y-2">
                 <Label htmlFor="chapter-reading-order">Ordem de leitura</Label>
                 <Input
@@ -2303,8 +2708,21 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 />
               </div>
             ) : null}
+            {supportsEpubTools && !isImageChapter ? (
+              <div className="space-y-2">
+                <Label htmlFor="chapter-release-date">Data de release</Label>
+                <Input
+                  id="chapter-release-date"
+                  type="date"
+                  value={draft.releaseDate || ""}
+                  onChange={(event) =>
+                    updateDraft((current) => ({ ...current, releaseDate: event.target.value }))
+                  }
+                />
+              </div>
+            ) : null}
           </div>
-          <div className="space-y-2">
+          <div className="hidden">
             <Label htmlFor="chapter-title">{isImageChapter ? "Titulo" : "TÃ­tulo"}</Label>
             <Input
               id="chapter-title"
@@ -2349,7 +2767,46 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         </div>
       </WorkspaceSectionCard>
     ) : null;
-    const publicationSection = hasActiveChapter ? (
+    const supportsChapterProgress =
+      hasActiveChapter &&
+      draft.publicationStatus === "draft" &&
+      (supportsEpubTools || isMangaProject);
+    const chapterProgressState = useMemo(
+      () =>
+        supportsChapterProgress
+          ? getProjectProgressState({
+              kind: "manga",
+              completedStages: draft.completedStages,
+            })
+          : null,
+      [draft.completedStages, supportsChapterProgress],
+    );
+    const handleToggleChapterProgressStage = useCallback(
+      (stageId: string) => {
+        updateDraft((current) => {
+          const completedSet = new Set(
+            getProjectProgressState({
+              kind: "manga",
+              completedStages: current.completedStages,
+            }).completedStages,
+          );
+          if (completedSet.has(stageId)) {
+            completedSet.delete(stageId);
+          } else {
+            completedSet.add(stageId);
+          }
+          return syncProjectProgress(
+            {
+              ...current,
+              completedStages: Array.from(completedSet),
+            },
+            "manga",
+          );
+        });
+      },
+      [updateDraft],
+    );
+    const publicationSection = hasActiveChapter && !isImageChapter && !supportsEpubTools ? (
       <WorkspaceSectionCard
         title="Publicação"
         subtitle="Release, status atual e visibilidade do capitulo"
@@ -2395,6 +2852,98 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         </div>
       </WorkspaceSectionCard>
     ) : null;
+    const progressSection =
+      supportsChapterProgress && chapterProgressState ? (
+        <WorkspaceSectionCard
+          title="Em progresso"
+          subtitle="Acompanhe o pipeline editorial do capítulo atual."
+          eyebrow="Fluxo editorial"
+          testId="chapter-progress-section"
+          bodyClassName="space-y-3 py-4"
+          actions={
+            <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+              <span data-testid="chapter-progress-percent">{chapterProgressState.progress}%</span>
+            </Badge>
+          }
+        >
+          <div className="space-y-3">
+            <div
+              className="flex flex-wrap items-center gap-1.5"
+              data-testid="chapter-progress-stage-track"
+              role="list"
+              aria-label="Resumo visual das etapas editoriais"
+            >
+              {chapterProgressState.stages.map((stage) => {
+                const isCompleted = chapterProgressState.completedStages.includes(stage.id);
+                const isCurrentStage = stage.id === chapterProgressState.currentStageId;
+                return (
+                  <span
+                    key={stage.id}
+                    role="listitem"
+                    title={stage.label}
+                    aria-label={`${stage.label}: ${
+                      isCompleted ? "concluida" : isCurrentStage ? "atual" : "pendente"
+                    }`}
+                    data-testid={`chapter-progress-stage-chip-${stage.id}`}
+                    className={cn(
+                      "block h-2.5 rounded-full transition-colors",
+                      isCompleted
+                        ? "w-6 bg-primary"
+                        : isCurrentStage
+                          ? cn(
+                              "w-10 border border-border/60 bg-background/80",
+                              stage.indicatorClassName,
+                            )
+                          : "w-2.5 bg-muted/55",
+                    )}
+                  />
+                );
+              })}
+            </div>
+
+            <div
+              className="space-y-2"
+              data-testid="chapter-progress-stage-list"
+              id="chapter-progress-stage-list"
+              role="group"
+              aria-label="Etapas concluídas"
+            >
+              {chapterProgressState.stages.map((stage) => {
+                const isCompleted = chapterProgressState.completedStages.includes(stage.id);
+                const isCurrentStage = stage.id === chapterProgressState.currentStageId;
+                return (
+                  <label
+                    key={stage.id}
+                    className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/35 px-3 py-2.5"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Checkbox
+                        checked={isCompleted}
+                        onCheckedChange={() => handleToggleChapterProgressStage(stage.id)}
+                        data-testid={`chapter-progress-toggle-${stage.id}`}
+                        aria-label={stage.label}
+                      />
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {stage.label}
+                      </span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {isCompleted ? "Concluida" : isCurrentStage ? "Atual" : "Pendente"}
+                      </span>
+                      {isCurrentStage ? (
+                        <Badge variant="outline" className="shrink-0">
+                          Atual
+                        </Badge>
+                      ) : null}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </WorkspaceSectionCard>
+      ) : null;
     const coverSection =
       hasActiveChapter && !isImageChapter ? (
         <WorkspaceSectionCard
@@ -2772,7 +3321,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   projectSnapshot={projectSnapshotForImageExport}
                   chapter={draft}
                   uploadFolder={chapterFolder}
-                  onChange={(nextChapter) => onDraftChange(normalizeChapterForSave(nextChapter))}
+                  onChange={(nextChapter) => onDraftChange(normalizeEditorChapter(nextChapter))}
                 />
               ) : (
                 <>
@@ -2819,7 +3368,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       hasActiveChapter && isImageChapter ? (
         <WorkspaceSectionCard
           title="Dados do capitulo"
-          subtitle="Volume, capitulo, tipo de entrada e titulo."
+          subtitle="Volume, capitulo, tipo de entrada, titulo e sinopse."
           eyebrow="Ficha editorial"
           testId="chapter-identity-accordion"
           actions={
@@ -2946,6 +3495,18 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 </div>
               </div>
             ) : null}
+
+            <div className="space-y-2">
+              <Label htmlFor="chapter-synopsis-image">Sinopse</Label>
+              <Textarea
+                id="chapter-synopsis-image"
+                value={draft.synopsis || ""}
+                onChange={(event) =>
+                  updateDraft((current) => ({ ...current, synopsis: event.target.value }))
+                }
+                rows={4}
+              />
+            </div>
           </div>
         </WorkspaceSectionCard>
       ) : null;
@@ -3060,22 +3621,24 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="chapter-reading-order-standard">Ordem de leitura</Label>
-                <Input
-                  id="chapter-reading-order-standard"
-                  type="number"
-                  value={draft.readingOrder ?? ""}
-                  onChange={(event) =>
-                    updateDraft((current) => ({
-                      ...current,
-                      readingOrder:
-                        event.target.value.trim() === "" ? undefined : Number(event.target.value),
-                    }))
-                  }
-                  className="w-full sm:w-[148px]"
-                />
-              </div>
+              {!supportsEpubTools ? (
+                <div className="space-y-2">
+                  <Label htmlFor="chapter-reading-order-standard">Ordem de leitura</Label>
+                  <Input
+                    id="chapter-reading-order-standard"
+                    type="number"
+                    value={draft.readingOrder ?? ""}
+                    onChange={(event) =>
+                      updateDraft((current) => ({
+                        ...current,
+                        readingOrder:
+                          event.target.value.trim() === "" ? undefined : Number(event.target.value),
+                      }))
+                    }
+                    className="w-full sm:w-[148px]"
+                  />
+                </div>
+              ) : null}
             </div>
 
             {draft.entryKind === "extra" ? (
@@ -3146,13 +3709,25 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   projectSnapshot={projectSnapshotForImageExport}
                   chapter={draft}
                   uploadFolder={chapterFolder}
-                  onChange={(nextChapter) => onDraftChange(normalizeChapterForSave(nextChapter))}
+                  onChange={(nextChapter) => onDraftChange(normalizeEditorChapter(nextChapter))}
                 />
               </div>
             </div>
           </div>
         </WorkspaceSectionCard>
       ) : null;
+    const chapterTopAsideSection = hasActiveChapter
+      ? isImageChapter
+        ? progressSection
+        : publicationSection || progressSection
+          ? (
+              <div className="space-y-4" data-testid="chapter-workspace-aside-column">
+                {publicationSection}
+                {progressSection}
+              </div>
+            )
+          : null
+      : null;
     return (
       <>
         <div className="space-y-3" data-testid="chapter-editor-header-shell">
@@ -3328,18 +3903,29 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 >
                   {hasActiveChapter ? (
                     <>
-                      <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
-                        {chapterPositionLabel}
-                      </Badge>
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] uppercase tracking-[0.12em]"
+                      <div
+                        className="project-editor-status-bar__meta-group"
+                        data-testid="chapter-editor-status-meta-group"
                       >
-                        Capítulo {draft.number}
-                      </Badge>
-                      <span className="text-[11px] text-muted-foreground">
-                        {chapterHasContent(draft) ? "Com leitura" : "Sem leitura"}
-                      </span>
+                        <span
+                          className="project-editor-status-bar__pill project-editor-status-bar__pill--position"
+                          data-testid="chapter-editor-status-position-badge"
+                        >
+                          {chapterPositionLabel}
+                        </span>
+                        <span
+                          className="project-editor-status-bar__pill project-editor-status-bar__pill--chapter"
+                          data-testid="chapter-editor-status-pill-chapter"
+                        >
+                          Capítulo {draft.number}
+                        </span>
+                        <span
+                          className="project-editor-status-bar__pill project-editor-status-bar__pill--reading"
+                          data-testid="chapter-editor-status-pill-reading"
+                        >
+                          {chapterHasContent(draft) ? "Com leitura" : "Sem leitura"}
+                        </span>
+                      </div>
                       {draft.sources?.length ? (
                         <span className="text-[11px] text-muted-foreground">
                           {draft.sources.length} fonte(s)
@@ -3448,14 +4034,14 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   <div
                     className={cn(
                       "grid gap-4",
-                      isImageChapter
-                        ? "xl:grid-cols-1"
-                        : "xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]",
+                      chapterTopAsideSection
+                        ? "xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]"
+                        : "xl:grid-cols-1",
                     )}
                     data-testid="chapter-workspace-top-row"
                   >
                     {isImageChapter ? imageIdentitySection : standardIdentitySection}
-                    {!isImageChapter ? publicationSection : null}
+                    {chapterTopAsideSection}
                   </div>
                   {isImageChapter ? imageContentSection : contentSection}
                   {!isImageChapter ? (
@@ -3473,6 +4059,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   {volumeEditorSection}
                   {isMangaProject ? (
                     <MangaWorkflowPanel
+                      ref={mangaWorkflowRef}
                       apiBase={apiBase}
                       project={project}
                       projectSnapshot={projectSnapshotForImageExport}
@@ -3611,23 +4198,25 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="chapter-reading-order">Ordem de leitura</Label>
-                          <Input
-                            id="chapter-reading-order"
-                            type="number"
-                            value={draft.readingOrder ?? ""}
-                            onChange={(event) =>
-                              updateDraft((current) => ({
-                                ...current,
-                                readingOrder:
-                                  event.target.value.trim() === ""
-                                    ? undefined
-                                    : Number(event.target.value),
-                              }))
-                            }
-                          />
-                        </div>
+                        {!supportsEpubTools ? (
+                          <div className="space-y-2">
+                            <Label htmlFor="chapter-reading-order">Ordem de leitura</Label>
+                            <Input
+                              id="chapter-reading-order"
+                              type="number"
+                              value={draft.readingOrder ?? ""}
+                              onChange={(event) =>
+                                updateDraft((current) => ({
+                                  ...current,
+                                  readingOrder:
+                                    event.target.value.trim() === ""
+                                      ? undefined
+                                      : Number(event.target.value),
+                                }))
+                              }
+                            />
+                          </div>
+                        ) : null}
                       </div>
                       {draft.entryKind === "extra" ? (
                         <div className="grid gap-3 lg:grid-cols-2">
@@ -3667,6 +4256,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             {null}
             {false ? (
               <MangaWorkflowPanel
+                ref={mangaWorkflowRef}
                 apiBase={apiBase}
                 project={project}
                 projectSnapshot={projectSnapshotForImageExport}
@@ -3797,23 +4387,25 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="chapter-reading-order">Ordem de leitura</Label>
-                          <Input
-                            id="chapter-reading-order"
-                            type="number"
-                            value={draft.readingOrder ?? ""}
-                            onChange={(event) =>
-                              updateDraft((current) => ({
-                                ...current,
-                                readingOrder:
-                                  event.target.value.trim() === ""
-                                    ? undefined
-                                    : Number(event.target.value),
-                              }))
-                            }
-                          />
-                        </div>
+                        {!supportsEpubTools ? (
+                          <div className="space-y-2">
+                            <Label htmlFor="chapter-reading-order">Ordem de leitura</Label>
+                            <Input
+                              id="chapter-reading-order"
+                              type="number"
+                              value={draft.readingOrder ?? ""}
+                              onChange={(event) =>
+                                updateDraft((current) => ({
+                                  ...current,
+                                  readingOrder:
+                                    event.target.value.trim() === ""
+                                      ? undefined
+                                      : Number(event.target.value),
+                                }))
+                              }
+                            />
+                          </div>
+                        ) : null}
                       </div>
                       {draft.entryKind === "extra" ? (
                         <div className="grid gap-3 lg:grid-cols-2">
@@ -4076,16 +4668,20 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         >
           <DialogContent className="max-w-lg" data-testid="chapter-unsaved-leave-dialog">
             <DialogHeader>
-              <DialogTitle>
+              <>
+                <DialogTitle>{leaveDialogTitle}</DialogTitle>
+                <DialogDescription>{leaveDialogDescription}</DialogDescription>
+              </>
+              <div className="hidden">
                 {leaveDialogState?.chapterDirty
                   ? "Há alterações não salvas"
                   : "Salvar alterações do volume antes de continuar?"}
-              </DialogTitle>
-              <DialogDescription>
+              </div>
+              <div className="hidden">
                 {leaveDialogState?.chapterDirty
                   ? "Escolha se deseja salvar como rascunho, publicar ou descartar antes de trocar de contexto."
                   : "Você pode salvar o volume agora, descartar as mudanças ou cancelar e continuar editando."}
-              </DialogDescription>
+              </div>
             </DialogHeader>
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
               <Button type="button" variant="ghost" onClick={handleLeaveDialogCancel}>
@@ -4094,7 +4690,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               <Button type="button" variant="outline" onClick={handleLeaveDialogDiscardAndContinue}>
                 Descartar e continuar
               </Button>
-              {leaveDialogState?.chapterDirty ? (
+              {leaveDialogState?.chapterDirty && !leaveDialogState?.mangaWorkflowDirty ? (
                 <>
                   <Button
                     type="button"
@@ -4117,11 +4713,18 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               ) : (
                 <Button
                   type="button"
+                  variant={
+                    leaveDialogState?.mangaWorkflowDirty || leaveDialogState?.chapterDirty
+                      ? "outline"
+                      : "default"
+                  }
                   onClick={() => {
                     void handleLeaveDialogSaveAndContinue("draft");
                   }}
                 >
-                  Salvar volume e continuar
+                  {leaveDialogState?.mangaWorkflowDirty || leaveDialogState?.chapterDirty
+                    ? "Salvar como rascunho e continuar"
+                    : "Salvar volume e continuar"}
                 </Button>
               )}
             </div>
@@ -4528,8 +5131,22 @@ const DashboardProjectChapterEditor = () => {
     activeChapter && chapterNumber
       ? buildEpisodeKey(activeChapter.number, activeChapter.volume)
       : null;
-  const activeChapterSnapshot = useMemo(() => buildChapterSnapshot(activeChapter), [activeChapter]);
-  const activeDraftSnapshot = useMemo(() => buildChapterSnapshot(activeDraft), [activeDraft]);
+  const normalizeChapterForEditor = useCallback(
+    (chapter: ProjectEpisode) => normalizeChapterForSave(chapter, "manga"),
+    [],
+  );
+  const buildChapterSnapshotForEditor = useCallback(
+    (chapter: ProjectEpisode | null) => buildChapterSnapshot(chapter, "manga"),
+    [],
+  );
+  const activeChapterSnapshot = useMemo(
+    () => buildChapterSnapshotForEditor(activeChapter),
+    [activeChapter, buildChapterSnapshotForEditor],
+  );
+  const activeDraftSnapshot = useMemo(
+    () => buildChapterSnapshotForEditor(activeDraft),
+    [activeDraft, buildChapterSnapshotForEditor],
+  );
   const isChapterDirty =
     Boolean(activeChapterKey) &&
     Boolean(activeDraft) &&
@@ -4540,7 +5157,7 @@ const DashboardProjectChapterEditor = () => {
       setActiveDraft(null);
       return;
     }
-    const nextDraft = normalizeChapterForSave(activeChapter);
+    const nextDraft = normalizeChapterForEditor(activeChapter);
     setActiveDraft((current) => {
       if (!current) {
         return nextDraft;
@@ -4549,13 +5166,19 @@ const DashboardProjectChapterEditor = () => {
       if (currentKey !== activeChapterKey) {
         return nextDraft;
       }
-      const currentSnapshot = buildChapterSnapshot(current);
+      const currentSnapshot = buildChapterSnapshotForEditor(current);
       if (currentSnapshot === activeChapterSnapshot) {
         return nextDraft;
       }
       return current;
     });
-  }, [activeChapter, activeChapterKey, activeChapterSnapshot]);
+  }, [
+    activeChapter,
+    activeChapterKey,
+    activeChapterSnapshot,
+    buildChapterSnapshotForEditor,
+    normalizeChapterForEditor,
+  ]);
 
   const normalizedProjectVolumeEntries = useMemo(
     () => normalizeProjectVolumeEntries(project?.volumeEntries),
@@ -4733,6 +5356,11 @@ const DashboardProjectChapterEditor = () => {
     });
     setSelectedVolume(normalizedVolume);
   }, []);
+  const selectVolumeFromStage = useCallback((volume: number | null) => {
+    const normalizedVolume =
+      Number.isFinite(Number(volume)) && Number(volume) > 0 ? Math.floor(Number(volume)) : null;
+    setSelectedVolume(normalizedVolume);
+  }, []);
 
   const addVolumeEntry = useCallback(() => {
     const nextVolume =
@@ -4899,6 +5527,28 @@ const DashboardProjectChapterEditor = () => {
       : null;
   const neutralHref = buildDashboardProjectChaptersEditorHref(project?.id || projectId || "");
 
+  const isChapterEditorRouteHref = useCallback(
+    (href?: string | null) => {
+      const normalizedHref = String(href || "").trim();
+      if (!normalizedHref) {
+        return false;
+      }
+      try {
+        const resolvedUrl = new URL(normalizedHref, window.location.origin);
+        const editorBaseUrl = new URL(neutralHref, window.location.origin);
+        const editorPath = editorBaseUrl.pathname.replace(/\/+$/, "");
+        const candidatePath = resolvedUrl.pathname.replace(/\/+$/, "");
+        return (
+          resolvedUrl.origin === editorBaseUrl.origin &&
+          (candidatePath === editorPath || candidatePath.startsWith(`${editorPath}/`))
+        );
+      } catch {
+        return false;
+      }
+    },
+    [neutralHref],
+  );
+
   const requestNavigateToHref = useCallback(
     async (
       href: string,
@@ -4906,9 +5556,14 @@ const DashboardProjectChapterEditor = () => {
         preserveNeutralSelectedVolume?: number | null;
         preserveScrollAnchor?: StructureScrollAnchor | null;
         preserveScroll?: boolean;
+        forceRouteExit?: boolean;
       },
     ) => {
-      const canLeave = await editorPaneRef.current?.requestLeave?.();
+      const canLeave = await editorPaneRef.current?.requestLeave?.({
+        nextHref: href,
+        routeExit:
+          options?.forceRouteExit === true ? true : !isChapterEditorRouteHref(href),
+      });
       if (canLeave === false) {
         return false;
       }
@@ -4929,12 +5584,67 @@ const DashboardProjectChapterEditor = () => {
       navigate(href, options?.preserveScroll ? { state: { preserveScroll: true } } : undefined);
       return true;
     },
-    [navigate],
+    [isChapterEditorRouteHref, navigate],
   );
   const requestNavigateToUploads = useCallback(
     () => requestNavigateToHref("/dashboard/uploads"),
     [requestNavigateToHref],
   );
+
+  useEffect(() => {
+    const handleDocumentNavigation = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      const anchor = target.closest("a[href]");
+      if (!(anchor instanceof HTMLAnchorElement)) {
+        return;
+      }
+      if (anchor.target && anchor.target !== "_self") {
+        return;
+      }
+      if (anchor.hasAttribute("download")) {
+        return;
+      }
+      const href = String(anchor.getAttribute("href") || "").trim();
+      if (!href || href.startsWith("#")) {
+        return;
+      }
+      let resolvedHref = "";
+      try {
+        const resolvedUrl = new URL(anchor.href || href, window.location.origin);
+        if (resolvedUrl.origin !== window.location.origin) {
+          return;
+        }
+        resolvedHref = `${resolvedUrl.pathname}${resolvedUrl.search}${resolvedUrl.hash}`;
+      } catch {
+        return;
+      }
+      if (!resolvedHref || isChapterEditorRouteHref(resolvedHref)) {
+        return;
+      }
+      if (!editorPaneRef.current?.hasUnsavedChanges?.({ nextHref: resolvedHref, routeExit: true })) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      void requestNavigateToHref(resolvedHref, { forceRouteExit: true });
+    };
+
+    document.addEventListener("click", handleDocumentNavigation, true);
+    return () => document.removeEventListener("click", handleDocumentNavigation, true);
+  }, [isChapterEditorRouteHref, requestNavigateToHref]);
 
   const handleStructureVolumeSelection = useCallback(
     async (nextVolume: number, options?: VolumeSelectionOptions) => {
@@ -4963,7 +5673,7 @@ const DashboardProjectChapterEditor = () => {
       nextChapter: ProjectEpisode,
       routeHint?: { number: number; volume?: number },
     ) => {
-      const normalizedChapter = normalizeChapterForSave(nextChapter);
+      const normalizedChapter = normalizeChapterForEditor(nextChapter);
       const hintedNumber = routeHint?.number ?? normalizedChapter.number;
       const hintedVolume =
         routeHint?.volume === null ||
@@ -4979,7 +5689,7 @@ const DashboardProjectChapterEditor = () => {
         [hintedVolume, normalizedChapter.volume],
         { exactPreferredOnly: true },
       );
-      const resolvedChapter = normalizeChapterForSave(
+      const resolvedChapter = normalizeChapterForEditor(
         canonicalChapter
           ? canonicalChapter
           : {
@@ -5017,7 +5727,13 @@ const DashboardProjectChapterEditor = () => {
         { replace: true },
       );
     },
-    [activeChapter?.volume, activeDraft?.volume, navigate, resolvedVolume],
+    [
+      activeChapter?.volume,
+      activeDraft?.volume,
+      navigate,
+      normalizeChapterForEditor,
+      resolvedVolume,
+    ],
   );
 
   const handleSelectedStageChapterChange = useCallback(
@@ -5028,9 +5744,9 @@ const DashboardProjectChapterEditor = () => {
       if (!chapter) {
         return;
       }
-      ensureVolumeDraftSelection(chapter.volume);
+      selectVolumeFromStage(chapter.volume);
     },
-    [activeChapterKey, chapterNumber, ensureVolumeDraftSelection],
+    [activeChapterKey, chapterNumber, selectVolumeFromStage],
   );
 
   const handleOpenImportedChapter = useCallback(
@@ -5069,14 +5785,19 @@ const DashboardProjectChapterEditor = () => {
           | "epub-import"
           | "volume-editor"
           | "chapter-create"
+          | "chapter-reorder"
           | "chapter-delete"
           | "volume-delete"
           | "manga-import"
           | "manga-publication";
       },
     ) => {
-      const { revision: _ignoredRevision, ...payload } = snapshot;
-      const response = await apiFetch(apiBase, `/api/projects/${snapshot.id}`, {
+      const normalizedSnapshot = normalizeProjectSnapshotChapterOrderForPersist(
+        projectRef.current,
+        snapshot,
+      );
+      const { revision: _ignoredRevision, ...payload } = normalizedSnapshot;
+      const response = await apiFetch(apiBase, `/api/projects/${normalizedSnapshot.id}`, {
         method: "PUT",
         auth: true,
         json: {
@@ -5135,6 +5856,14 @@ const DashboardProjectChapterEditor = () => {
           });
           return null;
         }
+        if (errorCode === "image_pages_required_for_publication") {
+          toast({
+            title: "Nao foi possivel publicar o capitulo",
+            description: IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
+            variant: "destructive",
+          });
+          return null;
+        }
         toast({
           title:
             options.context === "volume-editor"
@@ -5152,6 +5881,9 @@ const DashboardProjectChapterEditor = () => {
         return null;
       }
       const data = (await response.json()) as { project?: ProjectRecord };
+      if (data?.project) {
+        void refetchPublicBootstrapCache(apiBase).catch(() => undefined);
+      }
       return data?.project || null;
     },
     [apiBase],
@@ -5390,11 +6122,23 @@ const DashboardProjectChapterEditor = () => {
             buildEpisodeKey(episode.number, episode.volume) ===
             buildEpisodeKey(nextChapter.number, nextChapter.volume),
         ) || nextChapter;
+      const normalizedPersistedChapter = normalizeChapterForEditor(persistedChapter);
+      const persistedChapterKey = buildEpisodeKey(
+        normalizedPersistedChapter.number,
+        normalizedPersistedChapter.volume,
+      );
+      projectSnapshotRef.current = overlayDraftOnProject(
+        persistedProject,
+        persistedChapterKey,
+        normalizedPersistedChapter,
+      );
+      setSelectedStageChapterId(null);
+      setActiveDraft(normalizedPersistedChapter);
       navigate(
         buildDashboardProjectChapterEditorHref(
           persistedProject.id,
-          persistedChapter.number,
-          persistedChapter.volume,
+          normalizedPersistedChapter.number,
+          normalizedPersistedChapter.volume,
         ),
       );
       toast({
@@ -5403,7 +6147,13 @@ const DashboardProjectChapterEditor = () => {
         intent: "success",
       });
     },
-    [chapterSearchQuery, filterMode, navigate, persistProjectSnapshot],
+    [
+      chapterSearchQuery,
+      filterMode,
+      navigate,
+      normalizeChapterForEditor,
+      persistProjectSnapshot,
+    ],
   );
 
   const openEpubImportPicker = useCallback(
@@ -5543,7 +6293,7 @@ const DashboardProjectChapterEditor = () => {
         importedKeys.includes(buildEpisodeKey(chapter.number, chapter.volume)),
       );
       if (currentPersistedChapter) {
-        setActiveDraft(normalizeChapterForSave(currentPersistedChapter));
+        setActiveDraft(normalizeChapterForEditor(currentPersistedChapter));
       } else if (firstImportedChapter) {
         navigate(
           buildDashboardProjectChapterEditorHref(
@@ -5763,7 +6513,7 @@ const DashboardProjectChapterEditor = () => {
           importedKeys.includes(buildEpisodeKey(chapter.number, chapter.volume)),
         );
         if (currentPersistedChapter) {
-          setActiveDraft(normalizeChapterForSave(currentPersistedChapter));
+          setActiveDraft(normalizeChapterForEditor(currentPersistedChapter));
         } else if (firstImportedChapter) {
           navigate(
             buildDashboardProjectChapterEditorHref(
@@ -6162,7 +6912,9 @@ const DashboardProjectChapterEditor = () => {
     <DashboardShell
       currentUser={currentUser}
       isLoadingUser={!hasLoadedCurrentUser}
-      onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
+      onUserCardClick={() => {
+        void requestNavigateToHref("/dashboard/usuarios?edit=me", { forceRouteExit: true });
+      }}
     >
       <DashboardPageContainer maxWidth="editor" reveal={false}>
         <ChapterEditorPane

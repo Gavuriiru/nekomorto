@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -120,11 +120,42 @@ describe("MangaChapterPagesEditor", () => {
     const { onChangeSpy } = renderEditor();
 
     expect(screen.getByTestId("manga-pages-actions")).toBeInTheDocument();
+    expect(screen.getByTestId("manga-pages-upload-actions")).toBeInTheDocument();
+    expect(screen.getByTestId("manga-pages-export-actions")).toBeInTheDocument();
     expect(screen.getByTestId("manga-pages-grid")).toBeInTheDocument();
     expect(screen.queryByTestId("manga-pages-toolbar")).not.toBeInTheDocument();
     expect(screen.queryByTestId("manga-pages-add-tile")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Trocar/i })).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("manga-pages-upload-actions")).getByRole("button", {
+        name: /^ZIP$/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("manga-pages-export-actions")).getByRole("button", {
+        name: /^ZIP$/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^CBZ$/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId("manga-pages-archive-input")).toHaveAttribute(
+      "accept",
+      ".zip,.cbz,application/zip,application/x-cbz",
+    );
     expect(getPageOrder()).toEqual(["https://cdn.test/page-1.jpg", "https://cdn.test/page-2.jpg"]);
+    expect(screen.getByTestId("manga-page-position-badge-0")).toHaveTextContent("Página 1");
+    expect(screen.getByTestId("manga-page-position-badge-1")).toHaveTextContent("Página 2");
+    expect(screen.getByTestId("manga-page-top-row-0")).toHaveClass("items-start");
+    expect(screen.getByTestId("manga-page-top-actions-0")).toHaveClass(
+      "relative",
+      "flex",
+      "h-7",
+      "justify-end",
+    );
+    expect(screen.getByTestId("manga-page-cover-badge-0")).toBeInTheDocument();
+    expect(screen.getByTestId("manga-page-cover-badge-0")).toHaveClass(
+      "group-hover:opacity-0",
+      "group-focus-within:opacity-0",
+    );
     expect(screen.getByTestId("manga-page-filename-0")).toHaveTextContent("page-1.jpg");
     expect(screen.getByTestId("manga-page-filename-1")).toHaveTextContent("page-2.jpg");
 
@@ -205,21 +236,31 @@ describe("MangaChapterPagesEditor", () => {
     expect(lastCall?.pageCount).toBe(1);
   });
 
-  it("mantem exportacao e fontes no bloco utilitario sem preview publico", () => {
+  it("mantem exportacao curta na barra superior e fontes em secao propria", () => {
     renderEditor();
 
-    expect(screen.getByTestId("manga-pages-utilities-trigger")).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
+    expect(screen.queryByTestId("manga-pages-utilities")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("manga-pages-utilities-trigger")).not.toBeInTheDocument();
     expect(screen.queryByTestId("manga-pages-utilities-panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("manga-pages-export")).not.toBeInTheDocument();
     expect(screen.queryByText(/Preview/i)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId("manga-pages-utilities-trigger"));
-
-    expect(screen.getByTestId("manga-pages-utilities-panel")).toBeInTheDocument();
-    expect(screen.getByTestId("manga-pages-export")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Exportar ZIP/i })).toBeInTheDocument();
+    expect(screen.getByTestId("manga-pages-export-actions")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("manga-pages-upload-actions")).getByRole("button", {
+        name: /^ZIP$/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("manga-pages-export-actions")).getByRole("button", {
+        name: /^ZIP$/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^CBZ$/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId("manga-pages-archive-input")).toHaveAttribute(
+      "accept",
+      ".zip,.cbz,application/zip,application/x-cbz",
+    );
     expect(screen.getByTestId("manga-pages-sources")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Galeria")).toBeInTheDocument();
     expect(screen.getByDisplayValue("https://cdn.test/gallery")).toBeInTheDocument();

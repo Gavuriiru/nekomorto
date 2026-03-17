@@ -33,6 +33,10 @@ import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { getApiBase } from "@/lib/api-base";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
+import {
+  hasPublicEpisodePages,
+  hasPublicEpisodeReadableContent,
+} from "@/lib/public-project-episodes";
 import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
 import { formatDate } from "@/lib/date";
 import { apiFetch } from "@/lib/api-client";
@@ -52,10 +56,6 @@ import { normalizeAssetUrl } from "@/lib/asset-url";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import { buildProjectPublicReadingHref } from "@/lib/project-editor-routes";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
-import {
-  hasProjectEpisodePages,
-  hasProjectEpisodeReadableContent,
-} from "../../shared/project-reader.js";
 import NotFound from "./NotFound";
 import type { Project } from "@/data/projects";
 
@@ -371,8 +371,7 @@ const ProjectPage = () => {
   const readableChapters = useMemo(
     () =>
       (project?.episodeDownloads || []).filter(
-        (episode) =>
-          hasProjectEpisodeReadableContent(episode) || (episode.sources || []).length > 0,
+        (episode) => hasPublicEpisodeReadableContent(episode) || (episode.sources || []).length > 0,
       ),
     [project?.episodeDownloads],
   );
@@ -388,7 +387,7 @@ const ProjectPage = () => {
 
   const filteredReadableChapters = sortedReadableChapters;
   const firstReadableChapter =
-    filteredReadableChapters.find((episode) => hasProjectEpisodeReadableContent(episode)) || null;
+    filteredReadableChapters.find((episode) => hasPublicEpisodeReadableContent(episode)) || null;
 
   const visibleRelations = useMemo(() => {
     if (!project?.relations?.length) {
@@ -658,8 +657,8 @@ const ProjectPage = () => {
       : `Cap ${chapter.number}${chapter.volume ? ` • Vol. ${chapter.volume}` : ""}`;
     const chapterTitle =
       String(chapter.title || "").trim() || (isExtraEntry ? "Extra" : "Capítulo");
-    const hasContent = hasProjectEpisodeReadableContent(chapter);
-    const hasPages = hasProjectEpisodePages(chapter);
+    const hasContent = hasPublicEpisodeReadableContent(chapter);
+    const hasPages = hasPublicEpisodePages(chapter);
     const hasSources = (chapter.sources || []).length > 0;
     const readAction: EpisodeReadAction | null =
       allowReadAction && hasContent
