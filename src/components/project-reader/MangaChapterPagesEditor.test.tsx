@@ -134,6 +134,13 @@ describe("MangaChapterPagesEditor", () => {
     expect(screen.getByTestId("manga-pages-upload-actions")).toBeInTheDocument();
     expect(screen.getByTestId("manga-pages-export-actions")).toBeInTheDocument();
     expect(screen.getByTestId("manga-pages-grid")).toBeInTheDocument();
+    expect(screen.getByTestId("manga-pages-grid")).toHaveClass(
+      "grid",
+      "gap-3",
+      "sm:grid-cols-2",
+      "lg:grid-cols-3",
+      "xl:grid-cols-5",
+    );
     expect(screen.queryByTestId("manga-pages-toolbar")).not.toBeInTheDocument();
     expect(screen.queryByTestId("manga-pages-add-tile")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Trocar/i })).not.toBeInTheDocument();
@@ -155,11 +162,17 @@ describe("MangaChapterPagesEditor", () => {
     expect(getPageOrder()).toEqual(["https://cdn.test/page-1.jpg", "https://cdn.test/page-2.jpg"]);
     expect(screen.getByTestId("manga-page-position-badge-0")).toHaveTextContent(/P.gina 1/i);
     expect(screen.getByTestId("manga-page-position-badge-1")).toHaveTextContent(/P.gina 2/i);
-    expect(screen.getByTestId("manga-page-top-row-0")).toHaveClass("items-start");
+    expect(screen.getByTestId("manga-page-top-row-0")).toHaveClass(
+      "absolute",
+      "left-3",
+      "top-3",
+      "items-start",
+    );
     expect(screen.getByTestId("manga-page-top-actions-0")).toHaveClass(
-      "relative",
+      "absolute",
       "flex",
-      "h-7",
+      "right-3",
+      "top-3",
       "justify-end",
     );
     expect(screen.getByTestId("manga-page-top-actions-0")).toHaveAttribute(
@@ -167,11 +180,16 @@ describe("MangaChapterPagesEditor", () => {
       "false",
     );
     expect(screen.getByTestId("manga-page-cover-badge-0")).toBeInTheDocument();
+    expect(screen.getByTestId("manga-page-surface-0")).toHaveClass("aspect-[1/1.414]");
     expect(screen.getByTestId("manga-page-status-badges-0")).toHaveClass(
       "absolute",
-      "right-0",
-      "top-0",
+      "right-3",
+      "top-3",
       "justify-end",
+    );
+    expect(screen.getByTestId("manga-page-status-badges-0")).toHaveAttribute(
+      "data-status-badges-visible",
+      "true",
     );
     expect(screen.getByTestId("manga-page-filename-0")).toHaveTextContent("page-1.jpg");
     expect(screen.getByTestId("manga-page-filename-1")).toHaveTextContent("page-2.jpg");
@@ -330,20 +348,34 @@ describe("MangaChapterPagesEditor", () => {
     });
   });
 
-  it("mantem os botoes visiveis sem ativar a imagem ao entrar na area de acoes", () => {
+  it("oculta badges no hover e nao trava os botoes apos foco por mouse", () => {
     renderEditor();
 
     const surface = screen.getByTestId("manga-page-surface-0");
     const topActions = screen.getByTestId("manga-page-top-actions-0");
+    const statusBadges = screen.getByTestId("manga-page-status-badges-0");
     const actions = screen.getByTestId("manga-page-actions-0");
+    const joinSpreadButton = screen.getAllByRole("button", { name: /Juntar com a pr/i })[0];
 
+    expect(statusBadges).toHaveAttribute("data-status-badges-visible", "true");
     fireEvent.mouseEnter(surface);
     expect(surface).toHaveAttribute("data-surface-active", "true");
     expect(topActions).toHaveAttribute("data-actions-visible", "true");
+    expect(statusBadges).toHaveAttribute("data-status-badges-visible", "false");
 
     fireEvent.mouseEnter(actions);
     expect(surface).toHaveAttribute("data-surface-active", "false");
     expect(topActions).toHaveAttribute("data-actions-visible", "true");
+    expect(statusBadges).toHaveAttribute("data-status-badges-visible", "false");
+
+    fireEvent.pointerDown(joinSpreadButton);
+    fireEvent.focus(joinSpreadButton);
+    fireEvent.mouseLeave(actions);
+    fireEvent.mouseLeave(surface);
+
+    expect(surface).toHaveAttribute("data-surface-active", "false");
+    expect(topActions).toHaveAttribute("data-actions-visible", "false");
+    expect(statusBadges).toHaveAttribute("data-status-badges-visible", "true");
   });
 
   it("desfaz o spread quando um reorder separa o par", async () => {

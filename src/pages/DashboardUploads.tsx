@@ -774,7 +774,7 @@ const DashboardUploads = () => {
               style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               data-testid="dashboard-uploads-storage-card"
             >
-              <div className="border-b border-border/60 px-5 py-4">
+              <div className="border-b border-border/70 px-5 py-4">
                 <h2 className="text-sm font-semibold text-foreground">Consumo por área</h2>
               </div>
               <div
@@ -817,13 +817,13 @@ const DashboardUploads = () => {
                       ))
                     ) : hasSummaryBlockingError ? (
                       <tr className="border-t border-border/50">
-                        <td colSpan={5} className="px-4 py-10 text-sm text-muted-foreground">
+                        <td colSpan={5} className="px-4 py-10 text-sm text-foreground/70">
                           Nao foi possivel carregar os dados de storage.
                         </td>
                       </tr>
                     ) : summary.areas.length === 0 ? (
                       <tr className="border-t border-border/50">
-                        <td colSpan={5} className="px-4 py-10 text-sm text-muted-foreground">
+                        <td colSpan={5} className="px-4 py-10 text-sm text-foreground/70">
                           Nenhuma area encontrada no inventario.
                         </td>
                       </tr>
@@ -831,16 +831,16 @@ const DashboardUploads = () => {
                       summary.areas.map((area) => (
                         <tr key={area.area} className="border-t border-border/50">
                           <td className="px-4 py-3 font-medium text-foreground">{area.area}</td>
-                          <td className="px-4 py-3 text-right text-muted-foreground">
+                          <td className="px-4 py-3 text-right text-foreground/70">
                             {formatBytes(area.originalBytes)}
                           </td>
-                          <td className="px-4 py-3 text-right text-muted-foreground">
+                          <td className="px-4 py-3 text-right text-foreground/70">
                             {formatBytes(area.variantBytes)}
                           </td>
                           <td className="px-4 py-3 text-right text-foreground">
                             {formatBytes(area.totalBytes)}
                           </td>
-                          <td className="px-4 py-3 text-right text-muted-foreground">
+                          <td className="px-4 py-3 text-right text-foreground/70">
                             {area.totalFiles}
                           </td>
                         </tr>
@@ -858,10 +858,10 @@ const DashboardUploads = () => {
               style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
               data-testid="dashboard-uploads-cleanup-card"
             >
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-5 py-4">
                 <div className="space-y-1">
                   <h2 className="text-sm font-semibold text-foreground">Limpeza</h2>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-foreground/70">
                     Remove uploads sem referência, variantes órfãs e envia originais soltos para
                     _quarantine.
                   </p>
@@ -891,23 +891,19 @@ const DashboardUploads = () => {
                       <p className="text-sm font-medium text-foreground">
                         Analise de limpeza em andamento
                       </p>
-                      <p className="text-sm text-muted-foreground">
-                        -- arquivos de variante orfaos
-                      </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-foreground/70">-- arquivos de variante orfaos</p>
+                      <p className="text-sm text-foreground/70">
                         -- diretorios de variantes orfaos
                       </p>
-                      <p className="text-sm text-muted-foreground">
-                        -- originais soltos (quarentena)
-                      </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-foreground/70">-- originais soltos (quarentena)</p>
+                      <p className="text-sm text-foreground/70">
                         -- arquivos de quarentena vencidos para purga
                       </p>
-                      <p className="text-sm text-muted-foreground">-- recuperaveis no total</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-sm text-foreground/70">-- recuperaveis no total</p>
+                      <p className="text-xs text-foreground/70">
                         -- em originais e -- em variantes.
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-foreground/70">
                         -- em originais soltos e -- em purga pendente da quarentena.
                       </p>
                     </div>
@@ -932,7 +928,7 @@ const DashboardUploads = () => {
                             key={`dashboard-uploads-cleanup-placeholder-${index}`}
                             className="border-t border-border/50"
                           >
-                            <td className="px-4 py-3 text-muted-foreground">Aguardando analise</td>
+                            <td className="px-4 py-3 text-foreground/70">Aguardando analise</td>
                             <td className="px-4 py-3">
                               <Skeleton className="h-4 w-40" />
                             </td>
@@ -958,27 +954,27 @@ const DashboardUploads = () => {
                       <p className="text-sm font-medium text-foreground">
                         {cleanupPreview.unusedUploadCount} uploads sem uso
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-foreground/70">
                         {cleanupPreview.orphanedVariantFilesCount} arquivos de variante órfãos
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-foreground/70">
                         {cleanupPreview.orphanedVariantDirsCount} diretórios de variantes órfãos
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-foreground/70">
                         {cleanupPreview.looseOriginalFilesCount} originais soltos (quarentena)
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-foreground/70">
                         {cleanupPreview.quarantinePendingDeleteCount} arquivos de quarentena
                         vencidos para purga
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-foreground/70">
                         {formatBytes(cleanupPreview.totals.totalBytes)} recuperáveis no total
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-foreground/70">
                         {formatBytes(cleanupPreview.totals.originalBytes)} em originais e{" "}
                         {formatBytes(cleanupPreview.totals.variantBytes)} em variantes.
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-foreground/70">
                         {formatBytes(cleanupPreview.looseOriginalTotals.totalBytes)} em originais
                         soltos e{" "}
                         {formatBytes(cleanupPreview.quarantinePendingDeleteTotals.totalBytes)} em
@@ -1015,7 +1011,7 @@ const DashboardUploads = () => {
                               key={`${item.kind}:${item.id || item.url}`}
                               className="border-t border-border/50"
                             >
-                              <td className="px-4 py-3 text-muted-foreground">
+                              <td className="px-4 py-3 text-foreground/70">
                                 {item.scope === "loose_original"
                                   ? "Original solto"
                                   : item.kind === "variant"
@@ -1026,10 +1022,10 @@ const DashboardUploads = () => {
                                 <p className="font-medium text-foreground">
                                   {item.fileName || item.url}
                                 </p>
-                                <p className="text-xs text-muted-foreground">{item.url}</p>
+                                <p className="text-xs text-foreground/70">{item.url}</p>
                               </td>
-                              <td className="px-4 py-3 text-muted-foreground">{item.area}</td>
-                              <td className="px-4 py-3 text-muted-foreground">
+                              <td className="px-4 py-3 text-foreground/70">{item.area}</td>
+                              <td className="px-4 py-3 text-foreground/70">
                                 {formatDateTime(item.createdAt)}
                               </td>
                               <td className="px-4 py-3 text-right text-foreground">
@@ -1078,37 +1074,37 @@ const DashboardUploads = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-foreground/70">
               Uploads sem uso:{" "}
               <span className="font-semibold text-foreground">
                 {cleanupPreview.unusedUploadCount}
               </span>
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-foreground/70">
               Variantes órfãs:{" "}
               <span className="font-semibold text-foreground">
                 {cleanupPreview.orphanedVariantFilesCount}
               </span>
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-foreground/70">
               Diretórios órfãos:{" "}
               <span className="font-semibold text-foreground">
                 {cleanupPreview.orphanedVariantDirsCount}
               </span>
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-foreground/70">
               Originais soltos (quarentena):{" "}
               <span className="font-semibold text-foreground">
                 {cleanupPreview.looseOriginalFilesCount}
               </span>
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-foreground/70">
               Quarentena vencida para purga:{" "}
               <span className="font-semibold text-foreground">
                 {cleanupPreview.quarantinePendingDeleteCount}
               </span>
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-foreground/70">
               Espaço recuperável:{" "}
               <span className="font-semibold text-foreground">
                 {formatBytes(cleanupPreview.totals.totalBytes)}

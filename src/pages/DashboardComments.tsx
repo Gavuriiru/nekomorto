@@ -596,7 +596,7 @@ const DashboardComments = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-foreground/70">
               Pendentes na fila:{" "}
               <span className="font-semibold text-foreground">{comments.length}</span>
             </p>

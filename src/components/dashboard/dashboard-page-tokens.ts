@@ -5,8 +5,8 @@ export const dashboardPageLayoutTokens = {
   header: "flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between",
   headerActions: "flex flex-wrap items-center gap-3 animate-slide-up opacity-0",
   headerBadge:
-    "inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground",
-  headerDescription: "mt-2 text-sm leading-6 text-muted-foreground animate-slide-up opacity-0",
+    "inline-flex items-center gap-3 rounded-full border border-border/70 bg-background px-4 py-2 text-xs font-medium uppercase tracking-[0.3em] text-foreground/70",
+  headerDescription: "mt-2 text-sm leading-6 text-foreground/70 animate-slide-up opacity-0",
   headerTitle: "mt-4 text-3xl font-semibold text-foreground lg:text-4xl animate-slide-up",
   surfaceDefault: "rounded-2xl border border-border/60 bg-card/60",
   surfaceMuted: "rounded-2xl border border-border/60 bg-card/40",
@@ -18,4 +18,8 @@ export const dashboardPageLayoutTokens = {
     "rounded-2xl border border-border/70 bg-card shadow-[0_20px_40px_-32px_rgba(0,0,0,0.8)]",
   cardMetaText: "text-foreground/70",
   cardActionSurface: "rounded-xl border border-border/70 bg-background",
+  cardChip: "border border-border/70 bg-background text-foreground/70",
+  controlSurface: "rounded-xl border border-border/70 bg-background",
+  groupedFieldSurface: "rounded-2xl border border-border/70 bg-background",
+  tableHeadSurface: "bg-background text-foreground/70",
 } as const;

@@ -626,15 +626,15 @@ const DashboardAnalytics = () => {
                                   aria-label={`Abrir ${formatResourceType(entry.resourceType)} ${entry.title}`}
                                 >
                                   <span className="flex flex-col gap-1 sm:px-4">
-                                    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:hidden">
+                                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/70 sm:hidden">
                                       Tipo
                                     </span>
-                                    <span className="text-muted-foreground">
+                                    <span className="text-foreground/70">
                                       {formatResourceType(entry.resourceType)}
                                     </span>
                                   </span>
                                   <span className="min-w-0 flex flex-col gap-1 sm:px-4">
-                                    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:hidden">
+                                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/70 sm:hidden">
                                       Titulo
                                     </span>
                                     <span className="truncate font-medium text-foreground">
@@ -642,13 +642,13 @@ const DashboardAnalytics = () => {
                                     </span>
                                   </span>
                                   <span className="flex flex-col gap-1 sm:px-4 sm:text-right">
-                                    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:hidden">
+                                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/70 sm:hidden">
                                       Views
                                     </span>
                                     <span className="sm:text-right">{formatInt(entry.views)}</span>
                                   </span>
                                   <span className="flex flex-col gap-1 sm:px-4 sm:text-right">
-                                    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:hidden">
+                                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/70 sm:hidden">
                                       Unicas
                                     </span>
                                     <span className="sm:text-right">

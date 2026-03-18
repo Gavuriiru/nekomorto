@@ -800,7 +800,7 @@ const Dashboard = () => {
               Painel de controle da comunidade
             </h1>
             <p
-              className="max-w-2xl text-sm text-muted-foreground animate-slide-up opacity-0"
+              className="max-w-2xl text-sm text-foreground/70 animate-slide-up opacity-0"
               style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
             >
               Visão geral dos projetos e do conteúdo. Assim que as integrações de analytics e
@@ -813,7 +813,7 @@ const Dashboard = () => {
           >
             <Button
               variant="outline"
-              className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
+              className="border-border/70 bg-background px-4 text-foreground/70 hover:bg-background hover:text-foreground"
               onClick={() => setIsCustomizeOpen(true)}
             >
               <SlidersHorizontal className="mr-2 h-4 w-4" />
@@ -827,7 +827,7 @@ const Dashboard = () => {
             ) : currentUser ? (
               <Button
                 variant="outline"
-                className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
+                className="border-border/70 bg-background px-4 text-foreground/70 hover:bg-background hover:text-foreground"
                 onClick={() => void handleExportReport()}
                 disabled={isExportingReport}
               >
@@ -837,7 +837,7 @@ const Dashboard = () => {
               <Link to="/login">
                 <Button
                   variant="outline"
-                  className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
+                  className="border-border/70 bg-background px-4 text-foreground/70 hover:bg-background hover:text-foreground"
                 >
                   Fazer login
                 </Button>
@@ -1359,7 +1359,7 @@ const Dashboard = () => {
               return (
                 <div
                   key={widgetId}
-                  className="flex items-center justify-between rounded-lg border border-border/70 bg-card/60 px-3 py-2"
+                  className="flex items-center justify-between rounded-lg border border-border/70 bg-background px-3 py-2"
                 >
                   <p className="text-sm">{DASHBOARD_WIDGET_LABELS[widgetId]}</p>
                   <div className="flex items-center gap-1">

@@ -403,11 +403,17 @@ describe("MangaWorkflowPanel", () => {
     expect(screen.getByTestId("manga-stage-page-position-badge-1")).toHaveTextContent(
       /P.gina 2/i,
     );
-    expect(screen.getByTestId("manga-stage-page-top-row-0")).toHaveClass("items-start");
+    expect(screen.getByTestId("manga-stage-page-top-row-0")).toHaveClass(
+      "absolute",
+      "left-3",
+      "top-3",
+      "items-start",
+    );
     expect(screen.getByTestId("manga-stage-page-top-actions-0")).toHaveClass(
-      "relative",
+      "absolute",
       "flex",
-      "h-7",
+      "right-3",
+      "top-3",
       "justify-end",
     );
     expect(screen.getByTestId("manga-stage-page-top-actions-0")).toHaveAttribute(
@@ -415,11 +421,16 @@ describe("MangaWorkflowPanel", () => {
       "false",
     );
     expect(screen.getByTestId("manga-stage-page-cover-badge-0")).toBeInTheDocument();
+    expect(screen.getByTestId("manga-stage-page-surface-0")).toHaveClass("aspect-[1/1.414]");
     expect(screen.getByTestId("manga-stage-page-status-badges-0")).toHaveClass(
       "absolute",
-      "right-0",
-      "top-0",
+      "right-3",
+      "top-3",
       "justify-end",
+    );
+    expect(screen.getByTestId("manga-stage-page-status-badges-0")).toHaveAttribute(
+      "data-status-badges-visible",
+      "true",
     );
     expect(screen.getByTestId("manga-stage-page-filename-0")).toHaveTextContent("001.jpg");
     expect(screen.getByTestId("manga-stage-page-filename-1")).toHaveTextContent("002.jpg");

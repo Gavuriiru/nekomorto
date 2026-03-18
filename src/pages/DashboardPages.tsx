@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardShell from "@/components/DashboardShell";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import ReorderControls from "@/components/ReorderControls";
@@ -393,11 +394,16 @@ const reorder = <T,>(items: T[], from: number, to: number) => {
   return next;
 };
 
+const dashboardPagesCardClassName = dashboardPageLayoutTokens.surfaceSolid;
+const dashboardPagesInsetSurfaceClassName = dashboardPageLayoutTokens.groupedFieldSurface;
+const dashboardPagesControlSurfaceClassName = dashboardPageLayoutTokens.controlSurface;
+const dashboardPagesMetaTextClassName = dashboardPageLayoutTokens.cardMetaText;
+
 const IconSelect = ({ value, onChange }: { value: string; onChange: (next: string) => void }) => {
   const CurrentIcon = editorIconMap[value] || Sparkles;
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-9 bg-background/60">
+      <SelectTrigger className="h-9 border-border/70 bg-background">
         <SelectValue>
           <span className="inline-flex items-center gap-2 text-sm">
             <CurrentIcon className="h-4 w-4 text-primary" />
@@ -784,7 +790,7 @@ const DashboardPages = () => {
                 Gerenciar páginas
               </h1>
               <p
-                className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                className={`mt-2 text-sm ${dashboardPagesMetaTextClassName} animate-slide-up opacity-0`}
                 style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
               >
                 Edite textos e previews de compartilhamento das páginas públicas.
@@ -875,7 +881,8 @@ const DashboardPages = () => {
                 ) : null}
                 {isInitialLoading ? (
                   <Card
-                    className="mt-6 border-border/60 bg-card/80"
+                    lift={false}
+                    className={`mt-6 ${dashboardPagesCardClassName}`}
                     data-testid="dashboard-pages-skeleton-surface"
                   >
                     <CardContent className="space-y-6 p-6">
@@ -887,7 +894,7 @@ const DashboardPages = () => {
                         {Array.from({ length: 4 }).map((_, index) => (
                           <div
                             key={`pages-skeleton-${index}`}
-                            className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3"
+                            className={`${dashboardPagesInsetSurfaceClassName} p-4 space-y-3`}
                           >
                             <Skeleton className="h-5 w-32" />
                             <Skeleton className="h-32 w-full rounded-xl" />
@@ -901,11 +908,11 @@ const DashboardPages = () => {
                 ) : (
                   <>
                     <TabsContent value="preview" className="mt-6 space-y-6">
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="space-y-6 p-6">
                           <div>
                             <h2 className="text-lg font-semibold">Prévias de compartilhamento</h2>
-                            <p className="text-xs text-muted-foreground">
+                            <p className={`text-xs ${dashboardPagesMetaTextClassName}`}>
                               Defina a imagem OG de cada página para links compartilhados.
                             </p>
                           </div>
@@ -916,20 +923,20 @@ const DashboardPages = () => {
                               return (
                                 <div
                                   key={pageKey}
-                                  className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3"
+                                  className={`${dashboardPagesInsetSurfaceClassName} p-4 space-y-3`}
                                 >
                                   <div className="space-y-1">
                                     <p className="text-sm font-semibold">
                                       {shareImagePageLabels[pageKey]}
                                     </p>
-                                    <p className="text-xs text-muted-foreground">
+                                    <p className={`text-xs ${dashboardPagesMetaTextClassName}`}>
                                       Imagem exibida no card social ao compartilhar essa URL.
                                     </p>
                                   </div>
 
                                   {shareImage ? (
                                     <div className="space-y-2">
-                                      <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
+                                      <div className="overflow-hidden rounded-lg border border-border/70 bg-background">
                                         <img
                                           src={normalizeAssetUrl(shareImage)}
                                           alt={`Prévia de ${shareImagePageLabels[pageKey]}`}
@@ -937,12 +944,14 @@ const DashboardPages = () => {
                                           loading="lazy"
                                         />
                                       </div>
-                                      <p className="text-xs text-muted-foreground break-all">
+                                      <p
+                                        className={`text-xs ${dashboardPagesMetaTextClassName} break-all`}
+                                      >
                                         {shareImage}
                                       </p>
                                     </div>
                                   ) : (
-                                    <p className="text-xs text-muted-foreground">
+                                    <p className={`text-xs ${dashboardPagesMetaTextClassName}`}>
                                       Sem imagem de preview definida.
                                     </p>
                                   )}
@@ -992,7 +1001,7 @@ const DashboardPages = () => {
                     </TabsContent>
 
                     <TabsContent value="about" className="mt-6 space-y-6">
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                           <div className="grid gap-2">
                             <Label>Badge</Label>
@@ -1059,10 +1068,12 @@ const DashboardPages = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="space-y-4 p-6">
                           <div className="flex items-center justify-between">
-                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                            <h2
+                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                            >
                               Destaques
                             </h2>
                             <Button
@@ -1089,10 +1100,12 @@ const DashboardPages = () => {
                                 onDragStart={() => handleDragStart("about.highlights", index)}
                                 onDragOver={(event) => event.preventDefault()}
                                 onDrop={() => handleDrop("about.highlights", index)}
-                                className="rounded-xl border border-border/60 bg-background/60 p-4"
+                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
                               >
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <div
+                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                  >
                                     <GripVertical className="h-4 w-4" />
                                     Arraste para reordenar
                                   </div>
@@ -1155,7 +1168,7 @@ const DashboardPages = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="space-y-4 p-6">
                           <div className="grid gap-2">
                             <Label>Título do manifesto</Label>
@@ -1212,10 +1225,12 @@ const DashboardPages = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="space-y-4 p-6">
                           <div className="flex items-center justify-between">
-                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                            <h2
+                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                            >
                               Pilares
                             </h2>
                             <Button
@@ -1242,10 +1257,12 @@ const DashboardPages = () => {
                                 onDragStart={() => handleDragStart("about.pillars", index)}
                                 onDragOver={(event) => event.preventDefault()}
                                 onDrop={() => handleDrop("about.pillars", index)}
-                                className="rounded-xl border border-border/60 bg-background/60 p-4"
+                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
                               >
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <div
+                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                  >
                                     <GripVertical className="h-4 w-4" />
                                     Arraste para reordenar
                                   </div>
@@ -1308,10 +1325,12 @@ const DashboardPages = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="space-y-4 p-6">
                           <div className="flex items-center justify-between">
-                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                            <h2
+                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                            >
                               Valores
                             </h2>
                             <Button
@@ -1338,10 +1357,12 @@ const DashboardPages = () => {
                                 onDragStart={() => handleDragStart("about.values", index)}
                                 onDragOver={(event) => event.preventDefault()}
                                 onDrop={() => handleDrop("about.values", index)}
-                                className="rounded-xl border border-border/60 bg-background/60 p-4"
+                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
                               >
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <div
+                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                  >
                                     <GripVertical className="h-4 w-4" />
                                     Arraste para reordenar
                                   </div>
@@ -1404,7 +1425,7 @@ const DashboardPages = () => {
                     </TabsContent>
 
                     <TabsContent value="donations" className="mt-6 space-y-6">
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                           <div className="grid gap-2">
                             <Label>Título</Label>
@@ -1423,10 +1444,12 @@ const DashboardPages = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="space-y-4 p-6">
                           <div className="flex items-center justify-between">
-                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                            <h2
+                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                            >
                               Custos
                             </h2>
                             <Button
@@ -1453,10 +1476,12 @@ const DashboardPages = () => {
                                 onDragStart={() => handleDragStart("donations.costs", index)}
                                 onDragOver={(event) => event.preventDefault()}
                                 onDrop={() => handleDrop("donations.costs", index)}
-                                className="rounded-xl border border-border/60 bg-background/60 p-4"
+                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
                               >
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <div
+                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                  >
                                     <GripVertical className="h-4 w-4" />
                                     Arraste para reordenar
                                   </div>
@@ -1519,7 +1544,7 @@ const DashboardPages = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                           <div className="grid gap-2">
                             <Label>Título do bloco</Label>
@@ -1552,7 +1577,7 @@ const DashboardPages = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-[1.2fr_0.8fr]">
                           <div className="grid gap-2">
                             <Label>Ícone do Pix</Label>
@@ -1576,7 +1601,7 @@ const DashboardPages = () => {
                               onChange={(e) => updateDonations({ pixCity: e.target.value })}
                               placeholder="CIDADE"
                             />
-                            <p className="text-xs text-muted-foreground">
+                            <p className={`text-xs ${dashboardPagesMetaTextClassName}`}>
                               Se vazio, o QR Pix usa CIDADE como fallback.
                             </p>
                             <Label>QR Code (URL customizada)</Label>
@@ -1586,7 +1611,9 @@ const DashboardPages = () => {
                               placeholder="Opcional"
                             />
                           </div>
-                          <div className="flex items-center justify-center rounded-xl border border-border/60 bg-background/60 p-4">
+                          <div
+                            className={`flex items-center justify-center ${dashboardPagesControlSurfaceClassName} p-4`}
+                          >
                             <img
                               src={qrPreview}
                               alt="Prévia QR Code"
@@ -1596,10 +1623,12 @@ const DashboardPages = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="space-y-4 p-6">
                           <div className="flex flex-wrap items-center justify-between gap-3">
-                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                            <h2
+                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                            >
                               Doadores
                             </h2>
                             <div className="w-full md:w-56">
@@ -1632,10 +1661,12 @@ const DashboardPages = () => {
                                 onDragStart={() => handleDragStart("donations.donors", index)}
                                 onDragOver={(event) => event.preventDefault()}
                                 onDrop={() => handleDrop("donations.donors", index)}
-                                className="rounded-xl border border-border/60 bg-background/60 p-4"
+                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
                               >
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <div
+                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                  >
                                     <GripVertical className="h-4 w-4" />
                                     Arraste para reordenar
                                   </div>
@@ -1709,7 +1740,7 @@ const DashboardPages = () => {
                     </TabsContent>
 
                     <TabsContent value="faq" className="mt-6 space-y-6">
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                           <div className="grid gap-2">
                             <Label>Título</Label>
@@ -1728,10 +1759,12 @@ const DashboardPages = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="space-y-4 p-6">
                           <div className="flex items-center justify-between">
-                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                            <h2
+                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                            >
                               Cards introdutórios
                             </h2>
                             <Button
@@ -1758,10 +1791,12 @@ const DashboardPages = () => {
                                 onDragStart={() => handleDragStart("faq.intro", index)}
                                 onDragOver={(event) => event.preventDefault()}
                                 onDrop={() => handleDrop("faq.intro", index)}
-                                className="rounded-xl border border-border/60 bg-background/60 p-4"
+                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
                               >
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <div
+                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                  >
                                     <GripVertical className="h-4 w-4" />
                                     Arraste para reordenar
                                   </div>
@@ -1829,10 +1864,12 @@ const DashboardPages = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="space-y-4 p-6">
                           <div className="flex items-center justify-between">
-                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                            <h2
+                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                            >
                               Grupos de FAQ
                             </h2>
                             <Button
@@ -1859,10 +1896,12 @@ const DashboardPages = () => {
                                 onDragStart={() => handleDragStart("faq.groups", groupIndex)}
                                 onDragOver={(event) => event.preventDefault()}
                                 onDrop={() => handleDrop("faq.groups", groupIndex)}
-                                className="rounded-xl border border-border/60 bg-background/60 p-4"
+                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
                               >
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <div
+                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                  >
                                     <GripVertical className="h-4 w-4" />
                                     Arraste para reordenar
                                   </div>
@@ -1910,7 +1949,9 @@ const DashboardPages = () => {
                                 </div>
                                 <div className="mt-4 space-y-3">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                                    <span
+                                      className={`text-xs font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                                    >
                                       Perguntas
                                     </span>
                                     <Button
@@ -1946,10 +1987,12 @@ const DashboardPages = () => {
                                         onDrop={() =>
                                           handleDrop(`faq.items.${groupIndex}`, itemIndex)
                                         }
-                                        className="rounded-xl border border-border/60 bg-card/70 p-3"
+                                        className={`${dashboardPagesControlSurfaceClassName} p-3`}
                                       >
                                         <div className="flex items-center justify-between gap-2">
-                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                          <div
+                                            className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                          >
                                             <GripVertical className="h-4 w-4" />
                                             Arraste para reordenar
                                           </div>
@@ -2022,7 +2065,7 @@ const DashboardPages = () => {
                     </TabsContent>
 
                     <TabsContent value="team" className="mt-6 space-y-6">
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                           <div className="grid gap-2">
                             <Label>Badge</Label>
@@ -2064,7 +2107,7 @@ const DashboardPages = () => {
                     </TabsContent>
 
                     <TabsContent value="recruitment" className="mt-6 space-y-6">
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                           <div className="grid gap-2">
                             <Label>Badge</Label>
@@ -2090,10 +2133,12 @@ const DashboardPages = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="space-y-4 p-6">
                           <div className="flex items-center justify-between">
-                            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                            <h2
+                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                            >
                               Funções
                             </h2>
                             <Button
@@ -2120,10 +2165,12 @@ const DashboardPages = () => {
                                 onDragStart={() => handleDragStart("recruitment.roles", index)}
                                 onDragOver={(event) => event.preventDefault()}
                                 onDrop={() => handleDrop("recruitment.roles", index)}
-                                className="rounded-xl border border-border/60 bg-background/60 p-4"
+                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
                               >
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <div
+                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                  >
                                     <GripVertical className="h-4 w-4" />
                                     Arraste para reordenar
                                   </div>
@@ -2184,7 +2231,7 @@ const DashboardPages = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                           <div className="grid gap-2">
                             <Label>Título do CTA</Label>

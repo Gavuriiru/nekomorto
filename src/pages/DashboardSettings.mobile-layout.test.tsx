@@ -210,7 +210,7 @@ describe("DashboardSettings mobile layout", () => {
     const previewRow = findAncestor(
       uploadLabel,
       (candidate) =>
-        classTokens(candidate).includes("text-muted-foreground") &&
+        classTokens(candidate).includes("text-foreground/70") &&
         classTokens(candidate).includes("rounded-xl") &&
         classTokens(candidate).includes("min-w-0"),
     );
@@ -284,7 +284,7 @@ describe("DashboardSettings mobile layout", () => {
     const previewRow = findAncestor(
       uploadLabel,
       (candidate) =>
-        classTokens(candidate).includes("text-muted-foreground") &&
+        classTokens(candidate).includes("text-foreground/70") &&
         classTokens(candidate).includes("rounded-xl") &&
         classTokens(candidate).includes("min-w-0"),
     );
@@ -409,7 +409,7 @@ describe("DashboardSettings mobile layout", () => {
     const columnCard = findAncestor(
       columnTitleInput,
       (candidate) =>
-        classTokens(candidate).includes("bg-background/50") &&
+        classTokens(candidate).includes("bg-background") &&
         classTokens(candidate).includes("rounded-2xl"),
     );
     expect(columnCard).not.toBeNull();

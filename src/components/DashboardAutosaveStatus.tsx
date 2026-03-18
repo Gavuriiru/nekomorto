@@ -1,6 +1,7 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import type { AutosaveStatus } from "@/hooks/use-autosave";
 import { AlertCircle, CheckCircle2, Loader2, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -108,8 +109,8 @@ const DashboardAutosaveStatus = ({
   return (
     <div
       className={cn(
-        "relative flex w-full max-w-full flex-col gap-2 self-start overflow-hidden rounded-xl border bg-card/70 px-3 py-2.5 transition-[border-color,box-shadow,background-color] duration-200 sm:inline-flex sm:w-auto sm:flex-row sm:items-center sm:gap-2.5 sm:self-end",
-        showErrorState ? "border-destructive/70 ring-1 ring-destructive/35" : "border-border/60",
+        `relative flex w-full max-w-full flex-col gap-2 self-start overflow-hidden px-3 py-2.5 transition-[border-color,box-shadow,background-color] duration-200 sm:inline-flex sm:w-auto sm:flex-row sm:items-center sm:gap-2.5 sm:self-end ${dashboardPageLayoutTokens.controlSurface}`,
+        showErrorState ? "border-destructive/70 ring-1 ring-destructive/35" : "border-border/70",
       )}
     >
       <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-start">
@@ -122,7 +123,7 @@ const DashboardAutosaveStatus = ({
             )}
             aria-hidden="true"
           />
-          <p className="truncate text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="truncate text-xs font-semibold uppercase tracking-widest text-foreground/70">
             {title}
           </p>
           <span
@@ -138,7 +139,7 @@ const DashboardAutosaveStatus = ({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <span className="text-xs text-muted-foreground">Ativo</span>
+          <span className="text-xs text-foreground/70">Ativo</span>
           <Switch
             checked={enabled}
             onCheckedChange={onEnabledChange}

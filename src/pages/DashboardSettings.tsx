@@ -11,6 +11,7 @@ import {
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardSeoRedirectsPanel from "@/components/dashboard/DashboardSeoRedirectsPanel";
 import DashboardShell from "@/components/DashboardShell";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
@@ -136,22 +137,22 @@ const socialIconMap: Record<string, typeof Link2> = {
   discord: MessageCircle,
 };
 
-const responsiveSvgCardRowClass =
-  "grid gap-3 rounded-2xl border border-border/60 bg-background/40 p-3 shadow-sm md:items-center md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none";
+const dashboardSettingsCardClassName = dashboardPageLayoutTokens.surfaceSolid;
+const dashboardSettingsInsetSurfaceClassName = dashboardPageLayoutTokens.groupedFieldSurface;
+const dashboardSettingsControlSurfaceClassName = dashboardPageLayoutTokens.controlSurface;
+const dashboardSettingsMetaTextClassName = dashboardPageLayoutTokens.cardMetaText;
+
+const responsiveSvgCardRowClass = `grid gap-3 ${dashboardSettingsInsetSurfaceClassName} p-3 shadow-sm md:items-center md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none`;
 const responsiveSvgCardPickerClusterClass =
   "grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 md:contents";
-const responsiveSvgCardColorClass =
-  "flex w-auto items-center justify-start rounded-xl border border-border/60 bg-background/60 px-2.5 py-1.5 md:w-full md:justify-center md:border-0 md:bg-transparent md:px-0 md:py-0";
-const responsiveSvgCardTintClass =
-  "flex min-w-0 items-center justify-between gap-2 rounded-xl border border-border/60 bg-background/60 px-3 py-1.5 md:w-auto md:justify-center md:gap-2 md:px-3 md:py-2";
-const responsiveSvgCardTintLabelClass =
-  "text-[9px] font-semibold uppercase tracking-[0.24em] text-muted-foreground md:text-[10px] md:tracking-widest";
-const responsiveSvgCardPreviewClass =
-  "flex min-w-0 items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground";
+const responsiveSvgCardColorClass = `flex w-auto items-center justify-start ${dashboardSettingsControlSurfaceClassName} px-2.5 py-1.5 md:w-full md:justify-center md:border-0 md:bg-transparent md:px-0 md:py-0`;
+const responsiveSvgCardTintClass = `flex min-w-0 items-center justify-between gap-2 ${dashboardSettingsControlSurfaceClassName} px-3 py-1.5 md:w-auto md:justify-center md:gap-2 md:px-3 md:py-2`;
+const responsiveSvgCardTintLabelClass = `text-[9px] font-semibold uppercase tracking-[0.24em] ${dashboardSettingsMetaTextClassName} md:text-[10px] md:tracking-widest`;
+const responsiveSvgCardPreviewClass = `flex min-w-0 items-center gap-3 ${dashboardSettingsControlSurfaceClassName} px-3 py-2 text-xs ${dashboardSettingsMetaTextClassName}`;
 const responsiveSvgCardPreviewStatusClass = "min-w-0 flex-1 truncate";
 const responsiveSvgCardUploadActionClass = "ml-auto flex shrink-0 items-center gap-1.5 md:gap-2";
 const responsiveSvgCardUploadLabelClass =
-  "inline-flex h-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border/60 bg-background px-2.5 text-[10px] font-medium text-foreground transition hover:border-primary/50 md:h-8 md:px-3 md:text-[11px]";
+  "inline-flex h-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border/70 bg-background px-2.5 text-[10px] font-medium text-foreground transition hover:border-primary/50 md:h-8 md:px-3 md:text-[11px]";
 const responsiveSvgCardMobileRemoveButtonClass =
   "h-7 w-7 shrink-0 text-destructive hover:text-destructive md:hidden";
 const responsiveSvgCardDesktopRemoveButtonClass =
@@ -160,16 +161,13 @@ const responsiveCompactRowDeleteButtonClass =
   "h-7 w-7 justify-self-end text-destructive hover:text-destructive md:h-10 md:w-10 md:justify-self-auto";
 const responsiveCompactSelfEndDeleteButtonClass =
   "h-7 w-7 self-end text-destructive hover:text-destructive md:h-10 md:w-10 md:self-auto";
-const responsiveCompactTextareaRowClass =
-  "grid gap-3 rounded-2xl border border-border/60 bg-background/40 p-3 shadow-sm md:grid-cols-[1fr_auto] md:items-start md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none";
-const responsiveFooterCardShellClass =
-  "rounded-2xl border border-border/60 bg-background/50 p-3 space-y-3 md:p-4 md:space-y-4";
+const responsiveCompactTextareaRowClass = `grid gap-3 ${dashboardSettingsInsetSurfaceClassName} p-3 shadow-sm md:grid-cols-[1fr_auto] md:items-start md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none`;
+const responsiveFooterCardShellClass = `${dashboardSettingsInsetSurfaceClassName} p-3 space-y-3 md:p-4 md:space-y-4`;
 const responsiveFooterSocialGridClass =
   "grid gap-3 md:min-w-[720px] md:grid-cols-[auto_auto_minmax(180px,0.95fr)_minmax(260px,1.55fr)_auto] md:items-center";
 const responsiveFooterSocialTopRowClass =
   "grid grid-cols-[auto_1fr_auto] items-center gap-2 md:contents";
-const responsiveFooterSocialDragButtonClass =
-  "inline-flex h-7 w-7 cursor-grab items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground transition hover:border-primary/40 hover:text-primary active:cursor-grabbing md:h-9 md:w-9";
+const responsiveFooterSocialDragButtonClass = `inline-flex h-7 w-7 cursor-grab items-center justify-center rounded-md border border-border/70 bg-background text-foreground/70 transition hover:border-primary/40 hover:text-primary active:cursor-grabbing md:h-9 md:w-9`;
 const responsiveFooterSocialDesktopRemoveButtonClass =
   "hidden h-9 w-9 shrink-0 text-destructive hover:text-destructive md:inline-flex";
 const responsiveTranslationTableClass =
@@ -365,7 +363,10 @@ type LogoEditorField = {
   optional?: boolean;
 };
 
-const seoLogoFieldTargets = new Set<LogoLibraryTarget>(["site.faviconUrl", "site.defaultShareImage"]);
+const seoLogoFieldTargets = new Set<LogoLibraryTarget>([
+  "site.faviconUrl",
+  "site.defaultShareImage",
+]);
 
 const logoEditorFields: LogoEditorField[] = [
   {
@@ -373,7 +374,7 @@ const logoEditorFields: LogoEditorField[] = [
     label: "Símbolo da marca",
     description: "Ativo principal usado como base para logo da marca.",
     frameClassName: "h-16",
-    imageClassName: "h-10 w-10 rounded bg-card/70 object-contain",
+    imageClassName: "h-10 w-10 rounded bg-background object-contain",
   },
   {
     target: "branding.assets.wordmarkUrl",
@@ -387,14 +388,14 @@ const logoEditorFields: LogoEditorField[] = [
     label: "Favicon",
     description: "Ícone mostrado na aba do navegador.",
     frameClassName: "h-16",
-    imageClassName: "h-8 w-8 rounded bg-card/70 object-contain",
+    imageClassName: "h-8 w-8 rounded bg-background object-contain",
   },
   {
     target: "site.defaultShareImage",
     label: "Imagem de compartilhamento",
     description: "Imagem padrão de cards sociais quando a página não define uma própria.",
     frameClassName: "h-20",
-    imageClassName: "h-full w-full rounded bg-card/70 object-cover",
+    imageClassName: "h-full w-full rounded bg-background object-cover",
   },
   {
     target: "branding.overrides.navbarWordmarkUrl",
@@ -417,7 +418,7 @@ const logoEditorFields: LogoEditorField[] = [
     label: "Override de símbolo da navbar",
     description: "Opcional. Se vazio, a navbar usa o símbolo principal.",
     frameClassName: "h-16",
-    imageClassName: "h-10 w-10 rounded bg-card/70 object-contain",
+    imageClassName: "h-10 w-10 rounded bg-background object-contain",
     optional: true,
   },
   {
@@ -425,7 +426,7 @@ const logoEditorFields: LogoEditorField[] = [
     label: "Override de símbolo do footer",
     description: "Opcional. Se vazio, o footer usa o símbolo principal.",
     frameClassName: "h-16",
-    imageClassName: "h-10 w-10 rounded bg-card/70 object-contain",
+    imageClassName: "h-10 w-10 rounded bg-background object-contain",
     optional: true,
   },
 ];
@@ -1526,24 +1527,24 @@ const DashboardSettings = () => {
         return (
           <div
             key={field.target}
-            className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3"
+            className="rounded-2xl border border-border/70 bg-background p-4 space-y-3"
           >
             <div>
               <p className="text-sm font-semibold">{field.label}</p>
-              <p className="text-xs text-muted-foreground">{field.description}</p>
+              <p className="text-xs text-foreground/70">{field.description}</p>
             </div>
 
             <div
-              className={`flex items-center justify-center rounded-xl border border-border/60 bg-background/60 p-3 ${field.frameClassName}`}
+              className={`flex items-center justify-center rounded-xl border border-border/70 bg-background p-3 ${field.frameClassName}`}
             >
               {state.preview ? (
                 <img src={state.preview} alt={field.label} className={field.imageClassName} />
               ) : (
-                <span className="text-xs text-muted-foreground">Sem imagem definida</span>
+                <span className="text-xs text-foreground/70">Sem imagem definida</span>
               )}
             </div>
 
-            <p className="text-[11px] text-muted-foreground">{state.status}</p>
+            <p className="text-[11px] text-foreground/70">{state.status}</p>
 
             <div className="flex gap-2">
               <Button
@@ -1681,7 +1682,7 @@ const DashboardSettings = () => {
                 Painel de ajustes
               </h1>
               <p
-                className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                className="mt-2 text-sm text-foreground/70 animate-slide-up opacity-0"
                 style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
               >
                 Atualize identidade, traduções e links globais do site.
@@ -1779,7 +1780,8 @@ const DashboardSettings = () => {
                 ) : null}
                 {isInitialLoading ? (
                   <Card
-                    className="mt-6 border-border/60 bg-card/80"
+                    lift={false}
+                    className={`mt-6 ${dashboardSettingsCardClassName}`}
                     data-testid="dashboard-settings-skeleton-surface"
                   >
                     <CardContent className="space-y-6 p-6">
@@ -1798,7 +1800,7 @@ const DashboardSettings = () => {
                 ) : (
                   <>
                     <TabsContent value="geral" className="mt-6 space-y-6">
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardSettingsCardClassName}>
                         <CardContent className="space-y-6 p-6">
                           <div className="grid gap-4 md:grid-cols-2">
                             <div className="space-y-2">
@@ -1826,7 +1828,7 @@ const DashboardSettings = () => {
                                 }
                                 placeholder=" | "
                               />
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-foreground/70">
                                 Usado entre o título da página e o nome do site.
                               </p>
                             </div>
@@ -1848,7 +1850,7 @@ const DashboardSettings = () => {
                                 <ColorPicker
                                   label=""
                                   showSwatch
-                                  buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-xs transition hover:border-primary/40"
+                                  buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-background shadow-xs transition hover:border-primary/40"
                                   value={settings.theme.accent || "#000000"}
                                   onChange={(color) =>
                                     setSettings((prev) => ({
@@ -1858,13 +1860,13 @@ const DashboardSettings = () => {
                                   }
                                 />
                               </div>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-foreground/70">
                                 Atualiza a cor principal e o accent do site.
                               </p>
                             </div>
                             <div className="space-y-2">
                               <Label>Card Em Progresso</Label>
-                              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2">
+                              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background px-3 py-2">
                                 <span className="text-sm text-foreground">
                                   Usar cor de destaque no card Em Progresso
                                 </span>
@@ -1882,7 +1884,7 @@ const DashboardSettings = () => {
                                   aria-label="Usar cor de destaque no card Em Progresso"
                                 />
                               </div>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-foreground/70">
                                 Quando ativado, barra e badge usam a cor temática em vez da cor da
                                 etapa.
                               </p>
@@ -1909,17 +1911,17 @@ const DashboardSettings = () => {
                                   <SelectItem value="light">Claro</SelectItem>
                                 </SelectContent>
                               </Select>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-foreground/70">
                                 Define o tema padrão global. Cada usuário pode sobrescrever no
                                 cabeçalho.
                               </p>
                             </div>
                           </div>
 
-                          <div className="space-y-4 rounded-2xl border border-border/60 bg-background/50 p-4">
+                          <div className="space-y-4 rounded-2xl border border-border/70 bg-background p-4">
                             <div>
                               <h2 className="text-lg font-semibold">Card de comunidade</h2>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-foreground/70">
                                 Configure os textos e o botão principal do card de Discord.
                               </p>
                             </div>
@@ -2055,7 +2057,7 @@ const DashboardSettings = () => {
                           <div className="space-y-4">
                             <div>
                               <h2 className="text-lg font-semibold">Identidade da marca</h2>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-foreground/70">
                                 Todos os ativos visuais em um só lugar, com fallback e prévia
                                 rápida.
                               </p>
@@ -2064,7 +2066,7 @@ const DashboardSettings = () => {
                             {renderLogoEditorCards(brandingLogoEditorFields)}
 
                             <div className="grid gap-4 md:grid-cols-2">
-                              <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
+                              <div className="rounded-2xl border border-border/70 bg-background p-4 space-y-3">
                                 <Label>Exibição da marca na navbar</Label>
                                 <Select
                                   value={navbarMode}
@@ -2091,12 +2093,12 @@ const DashboardSettings = () => {
                                     <SelectItem value="text">Somente texto</SelectItem>
                                   </SelectContent>
                                 </Select>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-xs text-foreground/70">
                                   Define como a identidade aparece no topo do site.
                                 </p>
                               </div>
 
-                              <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
+                              <div className="rounded-2xl border border-border/70 bg-background p-4 space-y-3">
                                 <Label>Exibição da marca no footer</Label>
                                 <Select
                                   value={footerMode}
@@ -2122,15 +2124,15 @@ const DashboardSettings = () => {
                                     <SelectItem value="text">Somente texto</SelectItem>
                                   </SelectContent>
                                 </Select>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-xs text-foreground/70">
                                   Define como a identidade aparece no rodapé.
                                 </p>
                               </div>
                             </div>
 
                             <div className="grid gap-4 md:grid-cols-2">
-                              <div className="rounded-2xl border border-border/60 bg-background/50 p-4">
-                                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                              <div className="rounded-2xl border border-border/70 bg-background p-4">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-foreground/70">
                                   Prévia navbar
                                 </p>
                                 <div
@@ -2169,11 +2171,11 @@ const DashboardSettings = () => {
                                 </div>
                               </div>
 
-                              <div className="rounded-2xl border border-border/60 bg-background/50 p-4">
-                                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                              <div className="rounded-2xl border border-border/70 bg-background p-4">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-foreground/70">
                                   Prévia footer
                                 </p>
-                                <div className="mt-3 flex min-h-[68px] items-center gap-3 rounded-xl border border-border/60 bg-background/70 px-4 py-3">
+                                <div className="mt-3 flex min-h-[68px] items-center gap-3 rounded-xl border border-border/70 bg-background/70 px-4 py-3">
                                   {showWordmarkInFooterPreview ? (
                                     <img
                                       src={resolvedFooterWordmarkUrl}
@@ -2212,14 +2214,15 @@ const DashboardSettings = () => {
                         return (
                           <Card
                             key={presetMeta.key}
-                            className="border-border/60 bg-card/80"
+                            lift={false}
+                            className={dashboardSettingsCardClassName}
                             data-testid={`reader-preset-${presetMeta.key}`}
                           >
                             <CardContent className="space-y-6 p-4 md:p-6">
                               <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="space-y-1">
                                   <h2 className="text-lg font-semibold">{presetMeta.title}</h2>
-                                  <p className="text-xs text-muted-foreground">
+                                  <p className="text-xs text-foreground/70">
                                     {presetMeta.description}
                                   </p>
                                 </div>
@@ -2339,16 +2342,15 @@ const DashboardSettings = () => {
                                     }
                                   />
                                 </div>
-
                               </div>
 
                               <div className="grid gap-3 md:grid-cols-3">
-                                <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
+                                <label className="flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background px-3 py-3 text-sm">
                                   <span className="space-y-1">
                                     <span className="block font-medium text-foreground">
                                       Primeira página isolada
                                     </span>
-                                    <span className="block text-xs text-muted-foreground">
+                                    <span className="block text-xs text-foreground/70">
                                       Útil para capas e páginas ímpares.
                                     </span>
                                   </span>
@@ -2365,12 +2367,12 @@ const DashboardSettings = () => {
                                   />
                                 </label>
 
-                                <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
+                                <label className="flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background px-3 py-3 text-sm">
                                   <span className="space-y-1">
                                     <span className="block font-medium text-foreground">
                                       Permitir spread
                                     </span>
-                                    <span className="block text-xs text-muted-foreground">
+                                    <span className="block text-xs text-foreground/70">
                                       Junta páginas duplas no modo paginado.
                                     </span>
                                   </span>
@@ -2387,12 +2389,12 @@ const DashboardSettings = () => {
                                   />
                                 </label>
 
-                                <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
+                                <label className="flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background px-3 py-3 text-sm">
                                   <span className="space-y-1">
                                     <span className="block font-medium text-foreground">
                                       Mostrar rodapé
                                     </span>
-                                    <span className="block text-xs text-muted-foreground">
+                                    <span className="block text-xs text-foreground/70">
                                       Mantém os controles inferiores do viewer.
                                     </span>
                                   </span>
@@ -2416,12 +2418,12 @@ const DashboardSettings = () => {
                     </TabsContent>
 
                     <TabsContent value="traducoes" className="mt-6 space-y-6">
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardSettingsCardClassName}>
                         <CardContent className="space-y-6 p-6">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
                               <h2 className="text-lg font-semibold">Tags</h2>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-foreground/70">
                                 Termos em inglês importados do AniList com a tradução exibida no
                                 site.
                               </p>
@@ -2481,9 +2483,9 @@ const DashboardSettings = () => {
                               </Button>
                             </div>
                           </div>
-                          <div className="overflow-hidden rounded-xl border border-border/60">
+                          <div className="overflow-hidden rounded-xl border border-border/70">
                             {filteredTags.length === 0 ? (
-                              <p className="px-4 py-3 text-xs text-muted-foreground">
+                              <p className="px-4 py-3 text-xs text-foreground/70">
                                 Nenhuma tag encontrada.
                               </p>
                             ) : (
@@ -2494,7 +2496,7 @@ const DashboardSettings = () => {
                                     <col className={responsiveTranslationValueColClass} />
                                     <col className={responsiveTranslationActionColClass} />
                                   </colgroup>
-                                  <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
+                                  <thead className="sticky top-0 bg-background text-xs uppercase tracking-wide text-foreground/70">
                                     <tr>
                                       <th className="px-4 py-3 text-left font-medium">
                                         Termo (AniList)
@@ -2505,7 +2507,7 @@ const DashboardSettings = () => {
                                   </thead>
                                   <tbody className="divide-y divide-border/60">
                                     {filteredTags.map((tag) => (
-                                      <tr key={tag} className="bg-background/40">
+                                      <tr key={tag} className="bg-background">
                                         <td className="px-4 py-3 font-medium text-foreground">
                                           {tag}
                                         </td>
@@ -2546,12 +2548,12 @@ const DashboardSettings = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardSettingsCardClassName}>
                         <CardContent className="space-y-6 p-6">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
                               <h2 className="text-lg font-semibold">Gêneros</h2>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-foreground/70">
                                 Termos em inglês importados do AniList com a tradução exibida no
                                 site.
                               </p>
@@ -2611,9 +2613,9 @@ const DashboardSettings = () => {
                               </Button>
                             </div>
                           </div>
-                          <div className="overflow-hidden rounded-xl border border-border/60">
+                          <div className="overflow-hidden rounded-xl border border-border/70">
                             {filteredGenres.length === 0 ? (
-                              <p className="px-4 py-3 text-xs text-muted-foreground">
+                              <p className="px-4 py-3 text-xs text-foreground/70">
                                 Nenhum gênero encontrado.
                               </p>
                             ) : (
@@ -2624,7 +2626,7 @@ const DashboardSettings = () => {
                                     <col className={responsiveTranslationValueColClass} />
                                     <col className={responsiveTranslationActionColClass} />
                                   </colgroup>
-                                  <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
+                                  <thead className="sticky top-0 bg-background text-xs uppercase tracking-wide text-foreground/70">
                                     <tr>
                                       <th className="px-4 py-3 text-left font-medium">
                                         Termo (AniList)
@@ -2635,7 +2637,7 @@ const DashboardSettings = () => {
                                   </thead>
                                   <tbody className="divide-y divide-border/60">
                                     {filteredGenres.map((genre) => (
-                                      <tr key={genre} className="bg-background/40">
+                                      <tr key={genre} className="bg-background">
                                         <td className="px-4 py-3 font-medium text-foreground">
                                           {genre}
                                         </td>
@@ -2676,12 +2678,12 @@ const DashboardSettings = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardSettingsCardClassName}>
                         <CardContent className="space-y-6 p-6">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
                               <h2 className="text-lg font-semibold">Cargos do AniList</h2>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-foreground/70">
                                 Traduza funções da equipe do anime exibidas no projeto.
                               </p>
                             </div>
@@ -2728,9 +2730,9 @@ const DashboardSettings = () => {
                               </Button>
                             </div>
                           </div>
-                          <div className="overflow-hidden rounded-xl border border-border/60">
+                          <div className="overflow-hidden rounded-xl border border-border/70">
                             {filteredStaffRoles.length === 0 ? (
-                              <p className="px-4 py-3 text-xs text-muted-foreground">
+                              <p className="px-4 py-3 text-xs text-foreground/70">
                                 Nenhum cargo encontrado.
                               </p>
                             ) : (
@@ -2741,7 +2743,7 @@ const DashboardSettings = () => {
                                     <col className={responsiveTranslationValueColClass} />
                                     <col className={responsiveTranslationActionColClass} />
                                   </colgroup>
-                                  <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
+                                  <thead className="sticky top-0 bg-background text-xs uppercase tracking-wide text-foreground/70">
                                     <tr>
                                       <th className="px-4 py-3 text-left font-medium">
                                         Termo (AniList)
@@ -2752,7 +2754,7 @@ const DashboardSettings = () => {
                                   </thead>
                                   <tbody className="divide-y divide-border/60">
                                     {filteredStaffRoles.map((role) => (
-                                      <tr key={role} className="bg-background/40">
+                                      <tr key={role} className="bg-background">
                                         <td className="px-4 py-3 font-medium text-foreground">
                                           {role}
                                         </td>
@@ -2795,12 +2797,12 @@ const DashboardSettings = () => {
                     </TabsContent>
 
                     <TabsContent value="downloads" className="mt-6 space-y-6">
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardSettingsCardClassName}>
                         <CardContent className="space-y-6 p-6">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
                               <h2 className="text-lg font-semibold">Fontes de download</h2>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-foreground/70">
                                 Ajuste nome, cor e envie o SVG do serviço para exibição nos
                                 downloads.
                               </p>
@@ -2858,7 +2860,7 @@ const DashboardSettings = () => {
                                       <ColorPicker
                                         label=""
                                         showSwatch
-                                        buttonClassName="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-xs transition hover:border-primary/40 md:h-9 md:w-9"
+                                        buttonClassName="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background shadow-xs transition hover:border-primary/40 md:h-9 md:w-9"
                                         value={source.color}
                                         onChange={(color) =>
                                           setSettings((prev) => {
@@ -2912,7 +2914,7 @@ const DashboardSettings = () => {
                                         />
                                       )
                                     ) : (
-                                      <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-card/80 text-[10px]">
+                                      <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-card text-[10px]">
                                         SVG
                                       </span>
                                     )}
@@ -2988,12 +2990,12 @@ const DashboardSettings = () => {
                     </TabsContent>
 
                     <TabsContent value="equipe" className="mt-6 space-y-6">
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardSettingsCardClassName}>
                         <CardContent className="space-y-6 p-6">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
                               <h2 className="text-lg font-semibold">Funções do time</h2>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-foreground/70">
                                 Ajuste os cargos disponíveis para membros.
                               </p>
                             </div>
@@ -3054,7 +3056,7 @@ const DashboardSettings = () => {
                                       return (
                                         <SelectItem key={option.id} value={option.id}>
                                           <div className="flex items-center gap-2">
-                                            <Icon className="h-4 w-4 text-muted-foreground" />
+                                            <Icon className="h-4 w-4 text-foreground/70" />
                                             <span>{option.label}</span>
                                           </div>
                                         </SelectItem>
@@ -3084,12 +3086,12 @@ const DashboardSettings = () => {
                     </TabsContent>
 
                     <TabsContent value="redes-usuarios" className="mt-6 space-y-6">
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardSettingsCardClassName}>
                         <CardContent className="space-y-6 p-6">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
                               <h2 className="text-lg font-semibold">Redes sociais (Usuários)</h2>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-foreground/70">
                                 Opções exibidas no editor de usuários.
                               </p>
                             </div>
@@ -3127,9 +3129,7 @@ const DashboardSettings = () => {
 
                           <div className="grid gap-3">
                             {linkTypes.length === 0 ? (
-                              <p className="text-xs text-muted-foreground">
-                                Nenhuma rede cadastrada.
-                              </p>
+                              <p className="text-xs text-foreground/70">Nenhuma rede cadastrada.</p>
                             ) : null}
                             {linkTypes.map((link, index) => {
                               const isCustomIcon = isIconUrl(link.icon);
@@ -3157,7 +3157,7 @@ const DashboardSettings = () => {
                                         className="h-6 w-6 text-primary"
                                       />
                                     ) : (
-                                      <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-card/80 text-[10px]">
+                                      <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-card text-[10px]">
                                         SVG
                                       </span>
                                     )}
@@ -3221,17 +3221,17 @@ const DashboardSettings = () => {
                     <TabsContent value="layout" className="mt-6 space-y-6">
                       <div className="space-y-1">
                         <h2 className="text-lg font-semibold">Header / Navegação</h2>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-foreground/70">
                           Links principais e estrutura da moldura pública do site.
                         </p>
                       </div>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardSettingsCardClassName}>
                         <CardContent className="space-y-6 p-6">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
                               <h2 className="text-lg font-semibold">Links do menu</h2>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-foreground/70">
                                 Ordem e URLs usados na navbar do site.
                               </p>
                             </div>
@@ -3283,7 +3283,7 @@ const DashboardSettings = () => {
                                       return (
                                         <SelectItem key={option.id} value={option.id}>
                                           <div className="flex items-center gap-2">
-                                            <OptionIcon className="h-4 w-4 text-muted-foreground" />
+                                            <OptionIcon className="h-4 w-4 text-foreground/70" />
                                             <span>{option.label}</span>
                                           </div>
                                         </SelectItem>
@@ -3351,12 +3351,12 @@ const DashboardSettings = () => {
 
                       <div className="space-y-1">
                         <h2 className="text-lg font-semibold">Footer</h2>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-foreground/70">
                           Conteúdo institucional, redes sociais e textos exibidos no rodapé.
                         </p>
                       </div>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardSettingsCardClassName}>
                         <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
                           <div className="space-y-1">
                             <h2 className="text-lg font-semibold">Conteúdo do footer</h2>
@@ -3376,12 +3376,12 @@ const DashboardSettings = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardSettingsCardClassName}>
                         <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
                               <h2 className="text-lg font-semibold">Colunas de links</h2>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-foreground/70">
                                 Edite as seções do footer.
                               </p>
                             </div>
@@ -3557,12 +3557,12 @@ const DashboardSettings = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardSettingsCardClassName}>
                         <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
                               <h2 className="text-lg font-semibold">Redes sociais</h2>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-foreground/70">
                                 Links exibidos no footer.
                               </p>
                             </div>
@@ -3598,7 +3598,7 @@ const DashboardSettings = () => {
                                 className={`rounded-2xl border p-3 shadow-sm transition md:overflow-x-auto md:rounded-xl md:p-2 md:shadow-none ${
                                   footerSocialDragOverIndex === index
                                     ? "border-primary/40 bg-primary/5"
-                                    : "border-border/60 bg-background/40 md:border-transparent md:bg-transparent"
+                                    : "border-border/70 bg-background md:border-transparent md:bg-transparent"
                                 }`}
                                 onDragOver={(event) => handleFooterSocialDragOver(event, index)}
                                 onDrop={(event) => handleFooterSocialDrop(event, index)}
@@ -3691,7 +3691,7 @@ const DashboardSettings = () => {
                                                   className="h-4 w-4 text-primary"
                                                 />
                                               ) : (
-                                                <Icon className="h-4 w-4 text-muted-foreground" />
+                                                <Icon className="h-4 w-4 text-foreground/70" />
                                               )}
                                               <span>{option.label}</span>
                                             </div>
@@ -3742,11 +3742,11 @@ const DashboardSettings = () => {
                         </CardContent>
                       </Card>
 
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardSettingsCardClassName}>
                         <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
                           <div className="space-y-1">
                             <h2 className="text-lg font-semibold">Textos legais</h2>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-foreground/70">
                               Descrição, aviso e copyright.
                             </p>
                           </div>
@@ -3863,11 +3863,11 @@ const DashboardSettings = () => {
                     </TabsContent>
 
                     <TabsContent value="seo" className="mt-6 space-y-6">
-                      <Card className="border-border/60 bg-card/80">
+                      <Card lift={false} className={dashboardSettingsCardClassName}>
                         <CardContent className="space-y-6 p-6">
                           <div>
                             <h2 className="text-lg font-semibold">Metadados visuais</h2>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-foreground/70">
                               Ativos usados na aba do navegador e nas prévias de compartilhamento.
                             </p>
                           </div>

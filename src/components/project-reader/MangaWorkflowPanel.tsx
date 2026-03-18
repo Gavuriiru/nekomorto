@@ -1726,7 +1726,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
 
                 {previewStagePages.length > 0 ? (
                   <LayoutGroup id={`manga-stage-pages-${selectedStageChapter.id}`}>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                       {previewStagePages.map((page, index) => {
                         const isCover = page.id === selectedStageChapter.coverPageId;
                         const isDragged = draggedStagePage === page;
@@ -1811,4 +1811,3 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
 MangaWorkflowPanel.displayName = "MangaWorkflowPanel";
 
 export default MangaWorkflowPanel;
-

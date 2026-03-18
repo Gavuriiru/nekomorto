@@ -569,7 +569,7 @@ const MangaChapterPagesEditor = ({
           id={`manga-pages-${projectSnapshot.id}-${chapter.number}-${chapter.volume ?? "none"}`}
         >
           <div
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
             data-testid="manga-pages-grid"
           >
             {previewPages.map((page, index) => {

@@ -324,7 +324,7 @@ const DashboardSecurity = () => {
             </DashboardPageBadge>
             <h1 className="mt-4 text-3xl font-semibold animate-slide-up">Sessões Ativas</h1>
             <p
-              className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+              className="mt-2 text-sm text-foreground/70 animate-slide-up opacity-0"
               style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
             >
               Painel somente leitura com sessões ativas e usuário responsável por cada sessão.
@@ -433,7 +433,7 @@ const DashboardSecurity = () => {
               </p>
             ) : sessions.length === 0 ? (
               <p
-                className="text-sm text-muted-foreground animate-slide-up opacity-0"
+                className="text-sm text-foreground/70 animate-slide-up opacity-0"
                 style={dashboardAnimationDelay(
                   dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
                 )}
@@ -462,7 +462,7 @@ const DashboardSecurity = () => {
                             <img
                               src={session.userAvatarUrl}
                               alt={session.userName}
-                              className="h-10 w-10 rounded-full border border-border/60 object-cover"
+                              className="h-10 w-10 rounded-full border border-border/70 object-cover"
                               referrerPolicy="no-referrer"
                             />
                           ) : (

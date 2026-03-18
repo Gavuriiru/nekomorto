@@ -151,12 +151,16 @@ describe("MangaChapterPagesEditor keyboard support", () => {
 
     const surface = screen.getByTestId("manga-page-surface-0");
     const topActions = screen.getByTestId("manga-page-top-actions-0");
+    const statusBadges = screen.getByTestId("manga-page-status-badges-0");
     const joinSpreadButton = screen.getAllByRole("button", { name: /Juntar com a pr/i })[0];
 
+    fireEvent.keyDown(surface, { key: "Tab" });
     fireEvent.focus(surface);
     await waitFor(() => {
       expect(surface).toHaveAttribute("data-surface-active", "true");
     });
+    expect(topActions).toHaveAttribute("data-actions-visible", "true");
+    expect(statusBadges).toHaveAttribute("data-status-badges-visible", "false");
 
     fireEvent.focus(joinSpreadButton);
 
@@ -164,5 +168,6 @@ describe("MangaChapterPagesEditor keyboard support", () => {
       expect(surface).toHaveAttribute("data-surface-active", "false");
     });
     expect(topActions).toHaveAttribute("data-actions-visible", "true");
+    expect(statusBadges).toHaveAttribute("data-status-badges-visible", "false");
   });
 });
