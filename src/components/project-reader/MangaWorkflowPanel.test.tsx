@@ -397,6 +397,13 @@ describe("MangaWorkflowPanel", () => {
     await stageSingleChapter();
 
     expect(getStagePageOrder()).toEqual(["blob:001.jpg", "blob:002.jpg"]);
+    expect(screen.getByTestId("manga-stage-page-surface-0").parentElement?.parentElement).toHaveClass(
+      "grid",
+      "gap-3",
+      "sm:grid-cols-2",
+      "lg:grid-cols-3",
+      "xl:grid-cols-5",
+    );
     expect(screen.getByTestId("manga-stage-page-position-badge-0")).toHaveTextContent(
       /P.gina 1/i,
     );
