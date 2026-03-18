@@ -317,12 +317,15 @@ describe("DashboardUploads cleanup", () => {
       .querySelectorAll("article");
     expect(summaryLoadingCards.length).toBeGreaterThan(0);
     expect(classTokens(summaryLoadingCards[0] as HTMLElement)).toContain("animate-slide-up");
+    expect(classTokens(summaryLoadingCards[0] as HTMLElement)).toContain("bg-card");
     expect(classTokens(screen.getByTestId("dashboard-uploads-storage-card"))).toContain(
       "animate-slide-up",
     );
+    expect(classTokens(screen.getByTestId("dashboard-uploads-storage-card"))).toContain("bg-card");
     expect(classTokens(screen.getByTestId("dashboard-uploads-cleanup-card"))).toContain(
       "animate-slide-up",
     );
+    expect(classTokens(screen.getByTestId("dashboard-uploads-cleanup-card"))).toContain("bg-card");
     expect(screen.getByRole("button", { name: CLEANUP_ACTION_LABEL })).toBeDisabled();
     expect(screen.getByText(/Atualizado:/i)).toBeInTheDocument();
     expect(screen.getByText(/Analise:/i)).toBeInTheDocument();

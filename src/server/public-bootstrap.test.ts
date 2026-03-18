@@ -93,11 +93,11 @@ describe("public bootstrap payload", () => {
           projectTitle: "Projeto",
           episodeNumber: 3,
           volume: 1,
-          kind: "Lançamento",
-          reason: "Novo episódio",
+          kind: "Lan\u00e7amento",
+          reason: "Novo epis\u00f3dio",
           updatedAt: "2026-02-01T00:00:00.000Z",
           image: "/uploads/cover.jpg",
-          unit: "Episódio",
+          unit: "Epis\u00f3dio",
         },
       ],
       teamMembers: [
@@ -128,7 +128,7 @@ describe("public bootstrap payload", () => {
         },
       ],
       tagTranslations: {
-        tags: { acao: "Ação" },
+        tags: { acao: "A\u00e7\u00e3o" },
         genres: { drama: "Drama" },
         staffRoles: { tradutor: "Tradutor" },
       },
@@ -201,6 +201,8 @@ describe("public bootstrap payload", () => {
         number: 3,
         hasContent: true,
         coverImageAlt: "Capa do episodio 3",
+        contentFormat: "lexical",
+        hasPages: false,
       }),
     ]);
     expect((project.episodeDownloads as Array<Record<string, unknown>>)[0]).not.toHaveProperty(
@@ -220,6 +222,93 @@ describe("public bootstrap payload", () => {
       label: "Site",
       icon: "globe",
     });
+  });
+
+  it("preserves lightweight image chapter metadata for public bootstrap consumers", () => {
+    const payload = buildPublicBootstrapPayload({
+      settings: {},
+      pages: {},
+      projects: [
+        {
+          id: "project-manga",
+          title: "Projeto Manga",
+          synopsis: "Sinopse",
+          description: "",
+          type: "Manga",
+          status: "Em andamento",
+          tags: [],
+          genres: [],
+          cover: "/uploads/project-manga-cover.jpg",
+          coverAlt: "Capa do projeto manga",
+          banner: "",
+          bannerAlt: "",
+          heroImageUrl: "",
+          heroImageAlt: "",
+          studio: "",
+          animationStudios: [],
+          episodes: "10 capitulos",
+          producers: [],
+          volumeEntries: [],
+          volumeCovers: [],
+          episodeDownloads: [
+            {
+              number: 7,
+              volume: 2,
+              title: "Capitulo 7",
+              publicationStatus: "published",
+              contentFormat: "images",
+              pages: [
+                { position: 0, imageUrl: "/uploads/project-manga/ch7-1.jpg" },
+                { position: 1, imageUrl: "/uploads/project-manga/ch7-2.jpg" },
+              ],
+              pageCount: 2,
+              sources: [],
+            },
+          ],
+        },
+      ],
+      posts: [],
+      updates: [
+        {
+          id: "update-manga-1",
+          projectId: "project-manga",
+          projectTitle: "Projeto Manga",
+          episodeNumber: 7,
+          volume: 2,
+          kind: "Lan\u00e7amento",
+          reason: "Cap\u00edtulo 7 dispon\u00edvel",
+          updatedAt: "2026-03-12T10:00:00.000Z",
+          image: "/uploads/project-manga-cover.jpg",
+          unit: "Cap\u00edtulo",
+        },
+      ],
+      teamMembers: [],
+      teamLinkTypes: [],
+      tagTranslations: {},
+      generatedAt: "2026-03-12T10:00:00.000Z",
+    });
+
+    const project = payload.projects[0] as Record<string, unknown>;
+    const chapter = (project.episodeDownloads as Array<Record<string, unknown>>)[0];
+
+    expect(payload.updates[0]).toEqual(
+      expect.objectContaining({
+        projectId: "project-manga",
+        unit: "Cap\u00edtulo",
+      }),
+    );
+    expect(chapter).toEqual(
+      expect.objectContaining({
+        number: 7,
+        volume: 2,
+        contentFormat: "images",
+        pageCount: 2,
+        hasPages: true,
+        hasContent: false,
+      }),
+    );
+    expect(chapter).not.toHaveProperty("pages");
+    expect(chapter).not.toHaveProperty("content");
   });
 
   it("falls back to full payload mode when value is missing or invalid", () => {

@@ -1229,7 +1229,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             setIdentityError("Informe o volume para salvar um capítulo com número ambíguo.");
           } else if (errorCode === "image_pages_required_for_publication") {
             toast({
-              title: "Nao foi possivel publicar o capitulo",
+              title: "Não foi possível publicar o capítulo",
               description: IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
               variant: "destructive",
             });
@@ -1284,7 +1284,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         const resolvedPublicationStatus = nextPublicationStatus ?? draft.publicationStatus;
         if (resolvedPublicationStatus === "published" && isPublishedImageChapterMissingPages) {
           toast({
-            title: "Nao foi possivel publicar o capitulo",
+            title: "Não foi possível publicar o capítulo",
             description: IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
             variant: "destructive",
           });
@@ -1552,22 +1552,22 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     const primaryChapterActionLabel = isChapterDraft ? "Salvar como rascunho" : "Salvar alterações";
     const secondaryChapterActionLabel = isChapterDraft ? "Publicar" : "Mover para rascunho";
     const editorialScopeDescription = supportsEpubTools
-      ? "EspaÃ§o editorial para organizar capÃ­tulos, volumes e publicaÃ§Ã£o de light novels com foco em leitura e escrita contÃ­nua."
+      ? "Espaço editorial para organizar capítulos, volumes e publicação de light novels com foco em leitura e escrita contínua."
       : isMangaProject
-        ? "Hub editorial para revisar importações, organizar páginas, publicar capítulos e exportar manga/webtoon na mesma rota dedicada."
-        : "EspaÃ§o editorial para organizar capÃ­tulos, volumes e publicaÃ§Ã£o do projeto.";
+        ? "Hub editorial para revisar importações, organizar páginas, publicar capítulos e exportar mangá/webtoon na mesma rota dedicada."
+        : "Espaço editorial para organizar capítulos, volumes e publicação do projeto.";
     const leaveDialogTitle = leaveDialogState?.mangaWorkflowDirty
-      ? "Ha alteracoes nao salvas no workflow de manga"
+      ? "Há alterações não salvas no workflow de mangá"
       : leaveDialogState?.chapterDirty
-        ? "Ha alteracoes nao salvas"
-        : "Salvar alteracoes do volume antes de continuar?";
+        ? "Há alterações não salvas"
+        : "Salvar alterações do volume antes de continuar?";
     const leaveDialogDescription = leaveDialogState?.mangaWorkflowDirty
       ? leaveDialogState.chapterDirty || leaveDialogState.volumeDirty
-        ? "Voce pode salvar como rascunho para persistir o capitulo atual e o lote preparado antes de sair, descartar as alteracoes ou cancelar."
-        : "Voce pode salvar os capitulos preparados como rascunho, descartar o lote ou cancelar e continuar editando."
+        ? "Você pode salvar como rascunho para persistir o capítulo atual e o lote preparado antes de sair, descartar as alterações ou cancelar."
+        : "Você pode salvar os capítulos preparados como rascunho, descartar o lote ou cancelar e continuar editando."
       : leaveDialogState?.chapterDirty
         ? "Escolha se deseja salvar como rascunho, publicar ou descartar antes de trocar de contexto."
-        : "Voce pode salvar o volume agora, descartar as mudancas ou cancelar e continuar editando.";
+        : "Você pode salvar o volume agora, descartar as mudanças ou cancelar e continuar editando.";
     const activeStructureGroupKey = useMemo(() => {
       const activeGroup = activeChapterKey
         ? structureGroups.find((group) =>
@@ -1862,7 +1862,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             intent: "success",
           });
         } catch {
-          toast({ title: "Nao foi possivel exportar o volume", variant: "destructive" });
+          toast({ title: "Não foi possível exportar o volume", variant: "destructive" });
         } finally {
           setStructureVolumeExportKey(null);
         }
@@ -2571,15 +2571,15 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         title={supportsEpubTools && !isImageChapter ? "Dados" : "Identidade do capitulo"}
         subtitle={
           supportsEpubTools && !isImageChapter
-            ? "Titulo, numeracao, tipo, release e resumo"
-            : "Titulo, numeracao, tipo e resumo"
+            ? "Título, numeração, tipo, release e resumo"
+            : "Título, numeração, tipo e resumo"
         }
         eyebrow="Ficha editorial"
         testId="chapter-identity-accordion"
         actions={
           <>
             <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-              {draft.entryKind === "extra" ? "Extra" : "Capitulo"}
+              {draft.entryKind === "extra" ? "Extra" : "Capítulo"}
             </Badge>
             <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
               {buildChapterVolumeLabel(draft.volume)}
@@ -2686,7 +2686,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="main">Capitulo</SelectItem>
+                  <SelectItem value="main">Capítulo</SelectItem>
                   <SelectItem value="extra">Extra</SelectItem>
                 </SelectContent>
               </Select>
@@ -2723,7 +2723,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             ) : null}
           </div>
           <div className="hidden">
-            <Label htmlFor="chapter-title">{isImageChapter ? "Titulo" : "TÃ­tulo"}</Label>
+            <Label htmlFor="chapter-title">{isImageChapter ? "Título" : "Título"}</Label>
             <Input
               id="chapter-title"
               value={draft.title || ""}
@@ -2882,7 +2882,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     role="listitem"
                     title={stage.label}
                     aria-label={`${stage.label}: ${
-                      isCompleted ? "concluida" : isCurrentStage ? "atual" : "pendente"
+                      isCompleted ? "concluída" : isCurrentStage ? "atual" : "pendente"
                     }`}
                     data-testid={`chapter-progress-stage-chip-${stage.id}`}
                     className={cn(
@@ -3262,9 +3262,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         subtitle={
           isImageChapter
             ? "Gerencie páginas, ordem de leitura e capa para capítulos em imagem."
-            : "Ambiente principal de escrita para o capitulo atual, com foco em leitura, continuidade e edicao longa."
+            : "Ambiente principal de escrita para o capítulo atual, com foco em leitura, continuidade e edição longa."
         }
-        eyebrow="Espaco editorial"
+        eyebrow="Espaço editorial"
         testId="chapter-content-accordion"
         className="chapter-editor-content-shell min-w-0"
       >
@@ -3275,7 +3275,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             data-testid="chapter-content-trigger"
             aria-expanded="true"
           >
-            Alternar conteudo
+            Alternar conteúdo
           </button>
           <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 space-y-1.5">
@@ -3294,7 +3294,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 <p className="max-w-2xl text-xs leading-5 text-muted-foreground md:text-sm">
                   {isImageChapter
                     ? "Gerencie páginas, ordem de leitura e capa para capítulos em imagem."
-                    : "Ambiente principal de escrita para o capitulo atual, com foco em leitura, continuidade e edicao longa."}
+                    : "Ambiente principal de escrita para o capítulo atual, com foco em leitura, continuidade e edição longa."}
                 </p>
               </div>
             </div>
@@ -3353,9 +3353,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-border/50 bg-background/35 px-4 py-3 text-xs text-muted-foreground">
                     <span>
-                      O conteudo usa o snapshot atual da pagina para EPUB e leitura publica.
+                      O conteúdo usa o snapshot atual da página para EPUB e leitura pública.
                     </span>
-                    <span>Escrita continua com layout ampliado para capitulos longos.</span>
+                    <span>Escrita contínua com layout ampliado para capítulos longos.</span>
                   </div>
                 </>
               )}
@@ -3367,14 +3367,14 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     const imageIdentitySection =
       hasActiveChapter && isImageChapter ? (
         <WorkspaceSectionCard
-          title="Dados do capitulo"
-          subtitle="Volume, capitulo, tipo de entrada, titulo e sinopse."
+          title="Dados do capítulo"
+          subtitle="Volume, capítulo, tipo de entrada, título e sinopse."
           eyebrow="Ficha editorial"
           testId="chapter-identity-accordion"
           actions={
             <>
               <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-                {draft.entryKind === "extra" ? "Extra" : "Capitulo"}
+                {draft.entryKind === "extra" ? "Extra" : "Capítulo"}
               </Badge>
               <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
                 {buildChapterVolumeLabel(draft.volume)}
@@ -3398,7 +3398,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             ) : null}
 
             <div className="space-y-2">
-              <Label htmlFor="chapter-title-image">Titulo</Label>
+              <Label htmlFor="chapter-title-image">Título</Label>
               <Input
                 id="chapter-title-image"
                 value={draft.title || ""}
@@ -3432,7 +3432,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="chapter-number-image">Capitulo</Label>
+                <Label htmlFor="chapter-number-image">Capítulo</Label>
                 <Input
                   id="chapter-number-image"
                   type="number"
@@ -3470,7 +3470,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     <SelectValue placeholder="Tipo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="main">Capitulo</SelectItem>
+                    <SelectItem value="main">Capítulo</SelectItem>
                     <SelectItem value="extra">Extra</SelectItem>
                   </SelectContent>
                 </Select>
@@ -3480,7 +3480,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             {draft.entryKind === "extra" ? (
               <div className="grid gap-3 lg:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="chapter-display-label-image">Rotulo do extra</Label>
+                  <Label htmlFor="chapter-display-label-image">Rótulo do extra</Label>
                   <Input
                     id="chapter-display-label-image"
                     value={draft.displayLabel || ""}
@@ -3520,7 +3520,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           actions={
             <>
               <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-                {draft.entryKind === "extra" ? "Extra" : "Capitulo"}
+                {draft.entryKind === "extra" ? "Extra" : "Capítulo"}
               </Badge>
               <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
                 {buildChapterVolumeLabel(draft.volume)}
@@ -3616,7 +3616,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     <SelectValue placeholder="Tipo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="main">Capitulo</SelectItem>
+                    <SelectItem value="main">Capítulo</SelectItem>
                     <SelectItem value="extra">Extra</SelectItem>
                   </SelectContent>
                 </Select>
@@ -3644,7 +3644,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             {draft.entryKind === "extra" ? (
               <div className="grid gap-3 lg:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="chapter-display-label-standard">Rotulo do extra</Label>
+                  <Label htmlFor="chapter-display-label-standard">Rótulo do extra</Label>
                   <Input
                     id="chapter-display-label-standard"
                     value={draft.displayLabel || ""}
@@ -3678,8 +3678,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     const imageContentSection =
       hasActiveChapter && isImageChapter ? (
         <WorkspaceSectionCard
-          title="Paginas"
-          subtitle="Upload, ordem de leitura e capa em um fluxo simples para capitulos em imagem."
+          title="Páginas"
+          subtitle="Upload, ordem de leitura e capa em um fluxo simples para capítulos em imagem."
           eyebrow="Leitura em imagem"
           testId="chapter-content-accordion"
           className="chapter-editor-content-shell min-w-0"
@@ -3691,7 +3691,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               data-testid="chapter-content-trigger"
               aria-expanded="true"
             >
-              Alternar conteudo
+              Alternar conteúdo
             </button>
             <div
               data-testid="chapter-content-viewport"
@@ -4299,11 +4299,11 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     data-testid="chapter-identity-trigger"
                   >
                     <EditorAccordionHeader
-                      title={isImageChapter ? "Dados do capitulo" : "Identidade do capÃ­tulo"}
+                      title={isImageChapter ? "Dados do capítulo" : "Identidade do capítulo"}
                       subtitle={
                         isImageChapter
-                          ? "Volume, capitulo, tipo de entrada e titulo."
-                          : "TÃ­tulo, numeraÃ§Ã£o, tipo e resumo"
+                          ? "Volume, capítulo, tipo de entrada e título."
+                          : "Título, numeração, tipo e resumo"
                       }
                     />
                   </AccordionTrigger>
@@ -4322,7 +4322,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                         )}
                       >
                         <div className="space-y-2">
-                          <Label htmlFor="chapter-number">CapÃ­tulo</Label>
+                          <Label htmlFor="chapter-number">Capítulo</Label>
                           <Input
                             id="chapter-number"
                             type="number"
@@ -4382,7 +4382,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                               <SelectValue placeholder="Tipo" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="main">CapÃ­tulo</SelectItem>
+                              <SelectItem value="main">Capítulo</SelectItem>
                               <SelectItem value="extra">Extra</SelectItem>
                             </SelectContent>
                           </Select>
@@ -4410,7 +4410,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                       {draft.entryKind === "extra" ? (
                         <div className="grid gap-3 lg:grid-cols-2">
                           <div className="space-y-2">
-                            <Label htmlFor="chapter-display-label">RÃ³tulo do extra</Label>
+                            <Label htmlFor="chapter-display-label">Rótulo do extra</Label>
                             <Input
                               id="chapter-display-label"
                               value={draft.displayLabel || ""}
@@ -5858,7 +5858,7 @@ const DashboardProjectChapterEditor = () => {
         }
         if (errorCode === "image_pages_required_for_publication") {
           toast({
-            title: "Nao foi possivel publicar o capitulo",
+            title: "Não foi possível publicar o capítulo",
             description: IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
             variant: "destructive",
           });
@@ -7040,3 +7040,4 @@ const DashboardProjectChapterEditor = () => {
 };
 
 export default DashboardProjectChapterEditor;
+

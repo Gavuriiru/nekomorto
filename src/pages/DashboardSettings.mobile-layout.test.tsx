@@ -361,10 +361,12 @@ describe("DashboardSettings mobile layout", () => {
     expect(teamRemoveTokens).toContain("md:w-10");
     expect(teamRemoveTokens).toContain("md:justify-self-auto");
 
-    fireEvent.mouseDown(screen.getByRole("tab", { name: /Navega/i }));
-    await screen.findByRole("heading", { name: /Links do menu/i });
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Layout/i }));
+    const navbarHeading = await screen.findByRole("heading", { name: /Links do menu/i });
+    const navbarCardContent = navbarHeading.closest("div.space-y-6") as HTMLElement | null;
+    expect(navbarCardContent).not.toBeNull();
 
-    const navbarLabelInput = screen.getByDisplayValue("Projetos");
+    const navbarLabelInput = within(navbarCardContent as HTMLElement).getByDisplayValue("Projetos");
     const navbarCard = findAncestor(navbarLabelInput, (candidate) =>
       classTokens(candidate).includes("md:grid-cols-[0.85fr_1fr_1.6fr_auto]"),
     );
@@ -400,7 +402,7 @@ describe("DashboardSettings mobile layout", () => {
     renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
-    fireEvent.mouseDown(screen.getByRole("tab", { name: /Rodap/i }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Layout/i }));
     await screen.findByRole("heading", { name: /Conte/i });
 
     const columnTitleInput = screen.getByDisplayValue("Nekomata");
@@ -427,7 +429,7 @@ describe("DashboardSettings mobile layout", () => {
     expect(columnHeaderRemoveTokens).toContain("self-end");
     expect(columnHeaderRemoveTokens).toContain("md:self-auto");
 
-    const footerLinkInput = screen.getByDisplayValue("Sobre");
+    const footerLinkInput = within(columnCard as HTMLElement).getByDisplayValue("Sobre");
     const footerLinkCard = findAncestor(footerLinkInput, (candidate) =>
       classTokens(candidate).includes("md:grid-cols-[1fr_1.6fr_auto]"),
     );

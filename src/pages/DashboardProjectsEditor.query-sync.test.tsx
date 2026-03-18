@@ -182,6 +182,41 @@ describe("DashboardProjectsEditor query sync", () => {
     expect(getPreferenceCalls()).toHaveLength(0);
   });
 
+  it("usa janela compacta com reticencias quando ha muitas paginas", async () => {
+    setupApiMock({
+      projects: Array.from({ length: 100 }, (_, index) => createProject(index + 1)),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos?page=5"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    const pagination = screen.getByRole("navigation");
+
+    expect(within(pagination).getByRole("link", { name: "1" })).toBeInTheDocument();
+    expect(within(pagination).getByRole("link", { name: "4" })).toBeInTheDocument();
+    expect(within(pagination).getByRole("link", { name: "5" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(pagination).getByRole("link", { name: "6" })).toBeInTheDocument();
+    expect(within(pagination).getByRole("link", { name: "10" })).toBeInTheDocument();
+    expect(within(pagination).getAllByText("Mais p\u00E1ginas")).toHaveLength(2);
+    expect(within(pagination).queryByRole("link", { name: "2" })).not.toBeInTheDocument();
+    expect(within(pagination).queryByRole("link", { name: "8" })).not.toBeInTheDocument();
+
+    fireEvent.click(within(pagination).getByRole("link", { name: "10" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("?page=10");
+    });
+    expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
   it("aplica filtro de tipo vindo da URL", async () => {
     setupApiMock({
       projects: Array.from({ length: 21 }, (_, index) =>

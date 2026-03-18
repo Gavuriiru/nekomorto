@@ -486,3 +486,4 @@ export const downloadBinaryResponse = async (response: Response, fallbackName: s
   document.body.removeChild(anchor);
   window.URL.revokeObjectURL(url);
 };
+

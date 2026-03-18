@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -155,6 +155,61 @@ describe("DashboardSettings query sync", () => {
     expect(getPreferenceCalls()).toHaveLength(0);
   });
 
+  it("abre a aba Layout diretamente em /dashboard/configuracoes?tab=layout", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/configuracoes?tab=layout"]}>
+        <DashboardSettings />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Painel de ajustes/i });
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /Layout/i })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByTestId("location-path").textContent).toBe("/dashboard/configuracoes");
+      expect(screen.getByTestId("location-search").textContent).toBe("?tab=layout");
+    });
+    expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
+  it("normaliza a aba legada navbar para ?tab=layout", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/configuracoes?tab=navbar"]}>
+        <DashboardSettings />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Painel de ajustes/i });
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /Layout/i })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByTestId("location-search").textContent).toBe("?tab=layout");
+    });
+    expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
+  it("normaliza a aba legada footer para ?tab=layout", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/configuracoes?tab=footer"]}>
+        <DashboardSettings />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Painel de ajustes/i });
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /Layout/i })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByTestId("location-search").textContent).toBe("?tab=layout");
+    });
+    expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
   it("tab invalida cai para default e limpa a URL", async () => {
     setupApiMock();
 
@@ -214,5 +269,75 @@ describe("DashboardSettings query sync", () => {
     });
 
     expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
+  it("mostra favicon e imagem de compartilhamento em SEO, não em Geral", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/configuracoes"]}>
+        <DashboardSettings />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Painel de ajustes/i });
+    expect(screen.getByRole("tab", { name: /Geral/i })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByText(/^Favicon$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Imagem de compartilhamento$/i)).not.toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /SEO/i }));
+
+    expect(await screen.findByRole("heading", { name: /Metadados visuais/i })).toBeInTheDocument();
+    expect(screen.getByText(/^Favicon$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Imagem de compartilhamento$/i)).toBeInTheDocument();
+  });
+
+  it("reúne header e footer na aba Layout", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/configuracoes"]}>
+        <DashboardSettings />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Painel de ajustes/i });
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Layout/i }));
+
+    expect(await screen.findByRole("heading", { name: /Header \/ Navegação/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Footer$/i })).toBeInTheDocument();
+    const menuHeading = screen.getByRole("heading", { name: /Links do menu/i });
+    const menuCardContent = menuHeading.closest("div.space-y-6") as HTMLElement | null;
+    expect(menuCardContent).not.toBeNull();
+    expect(within(menuCardContent as HTMLElement).getByDisplayValue("Projetos")).toBeInTheDocument();
+
+    const footerContentHeading = screen.getByRole("heading", { name: /Conteúdo do footer/i });
+    const footerCardContent = footerContentHeading.closest("div.space-y-4") as HTMLElement | null;
+    expect(footerCardContent).not.toBeNull();
+    expect(
+      within(footerCardContent as HTMLElement).getByDisplayValue(defaultSettings.footer.brandDescription),
+    ).toBeInTheDocument();
+  });
+
+  it("simplifica a aba Leitor e remove o resumo introdutório e campos comerciais", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/configuracoes"]}>
+        <DashboardSettings />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Painel de ajustes/i });
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Leitor/i }));
+
+    expect(await screen.findByRole("heading", { name: /^Mangá$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Webtoon$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Presets globais do leitor/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Precedência: preset global do tipo do projeto/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/URL de compra/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Preço$/i)).not.toBeInTheDocument();
   });
 });

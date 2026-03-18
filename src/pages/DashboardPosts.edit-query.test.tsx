@@ -201,6 +201,51 @@ const createDomRect = (height: number): DOMRect =>
     y: 0,
   }) as DOMRect;
 
+const getEditorSectionByTitle = (dialog: HTMLElement, title: string) => {
+  const sections = Array.from(
+    dialog.querySelectorAll<HTMLElement>("section.project-editor-section"),
+  );
+  const section = sections.find((candidate) =>
+    Array.from(candidate.querySelectorAll<HTMLElement>("span")).some(
+      (element) =>
+        element.textContent?.trim() === title && classTokens(element).includes("text-[15px]"),
+    ),
+  );
+  if (!section) {
+    throw new Error(`Editor section "${title}" not found`);
+  }
+  return section;
+};
+
+const expectEditorSectionHeader = (dialog: HTMLElement, title: string, subtitle: string) => {
+  const section = getEditorSectionByTitle(dialog, title);
+  const titleElement = Array.from(section.querySelectorAll<HTMLElement>("span")).find(
+    (element) =>
+      element.textContent?.trim() === title && classTokens(element).includes("text-[15px]"),
+  );
+  const subtitleElement = Array.from(section.querySelectorAll<HTMLElement>("span")).find(
+    (element) =>
+      element.textContent?.trim() === subtitle && classTokens(element).includes("text-xs"),
+  );
+  const header = section.querySelector<HTMLElement>(".project-editor-section-trigger");
+
+  expect(header).not.toBeNull();
+  expect(titleElement).toBeDefined();
+  expect(subtitleElement).toBeDefined();
+  expect(classTokens(header as HTMLElement)).toContain("items-start");
+  expect(classTokens(header as HTMLElement)).toContain("pt-2.5");
+  expect(classTokens(header as HTMLElement)).toContain("md:pt-2.5");
+  expect(classTokens(header as HTMLElement)).toContain("pb-1");
+  expect(classTokens(header as HTMLElement)).toContain("md:pb-1.5");
+  expect(classTokens(header as HTMLElement)).not.toContain("items-center");
+  expect(classTokens(header as HTMLElement)).not.toContain("justify-between");
+  expect(classTokens(titleElement as HTMLElement)).toContain("text-[15px]");
+  expect(classTokens(titleElement as HTMLElement)).toContain("font-semibold");
+  expect(classTokens(titleElement as HTMLElement)).toContain("leading-tight");
+  expect(classTokens(subtitleElement as HTMLElement)).toContain("text-xs");
+  expect(classTokens(subtitleElement as HTMLElement)).toContain("leading-5");
+};
+
 describe("DashboardPosts edit query", () => {
   it("abre criacao automaticamente com ?edit=new e limpa a query", async () => {
     setupApiMock({ canManagePosts: true });
@@ -414,6 +459,11 @@ describe("DashboardPosts edit query", () => {
     expect(
       within(editorDialog).getByRole("button", { name: "Publicar agora" }),
     ).toBeInTheDocument();
+    expectEditorSectionHeader(editorDialog, "Conteúdo", "Texto principal do post");
+    expectEditorSectionHeader(editorDialog, "Publicação", "Rascunho");
+    expectEditorSectionHeader(editorDialog, "Mídia", "Sem capa");
+    expectEditorSectionHeader(editorDialog, "Relacionamento", "Sem projeto");
+    expectEditorSectionHeader(editorDialog, "Tags", "0 tags");
     expect(editorDialog).not.toHaveClass("editor-modal-scrolled");
 
     editorScrollShell.scrollTop = 24;

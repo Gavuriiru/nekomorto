@@ -1,3 +1,9 @@
+import {
+  getProjectEpisodePageCount,
+  hasProjectEpisodePages,
+  normalizeProjectEpisodeContentFormat,
+} from "../../shared/project-reader.js";
+
 const safeString = (value) => String(value || "");
 const DAY_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const PUBLIC_BOOTSTRAP_PAYLOAD_MODES = new Set(["full", "critical-home"]);
@@ -87,32 +93,42 @@ const sanitizeVolumeEntries = (entries) =>
 
 const sanitizeEpisodeDownloads = (episodes) =>
   Array.isArray(episodes)
-    ? episodes.map((episode) => ({
-        number: Number.isFinite(Number(episode?.number)) ? Number(episode.number) : 0,
-        volume: Number.isFinite(Number(episode?.volume)) ? Number(episode.volume) : undefined,
-        title: safeString(episode?.title),
-        entryKind:
-          String(episode?.entryKind || "")
-            .trim()
-            .toLowerCase() === "extra"
-            ? "extra"
-            : "main",
-        entrySubtype: safeString(episode?.entrySubtype),
-        readingOrder: Number.isFinite(Number(episode?.readingOrder))
-          ? Number(episode.readingOrder)
-          : undefined,
-        displayLabel: safeString(episode?.displayLabel),
-        releaseDate: safeString(episode?.releaseDate),
-        duration: safeString(episode?.duration),
-        coverImageUrl: safeString(episode?.coverImageUrl),
-        coverImageAlt: safeString(episode?.coverImageAlt),
-        sourceType: safeString(episode?.sourceType),
-        sources: safeSources(episode?.sources),
-        progressStage: safeString(episode?.progressStage),
-        completedStages: safeStringArray(episode?.completedStages),
-        chapterUpdatedAt: safeString(episode?.chapterUpdatedAt),
-        hasContent: typeof episode?.content === "string" && episode.content.trim().length > 0,
-      }))
+    ? episodes.map((episode) => {
+        const hasPages = hasProjectEpisodePages(episode);
+        const pageCount = getProjectEpisodePageCount(episode);
+        return {
+          number: Number.isFinite(Number(episode?.number)) ? Number(episode.number) : 0,
+          volume: Number.isFinite(Number(episode?.volume)) ? Number(episode.volume) : undefined,
+          title: safeString(episode?.title),
+          entryKind:
+            String(episode?.entryKind || "")
+              .trim()
+              .toLowerCase() === "extra"
+              ? "extra"
+              : "main",
+          entrySubtype: safeString(episode?.entrySubtype),
+          readingOrder: Number.isFinite(Number(episode?.readingOrder))
+            ? Number(episode.readingOrder)
+            : undefined,
+          displayLabel: safeString(episode?.displayLabel),
+          releaseDate: safeString(episode?.releaseDate),
+          duration: safeString(episode?.duration),
+          coverImageUrl: safeString(episode?.coverImageUrl),
+          coverImageAlt: safeString(episode?.coverImageAlt),
+          sourceType: safeString(episode?.sourceType),
+          sources: safeSources(episode?.sources),
+          progressStage: safeString(episode?.progressStage),
+          completedStages: safeStringArray(episode?.completedStages),
+          chapterUpdatedAt: safeString(episode?.chapterUpdatedAt),
+          contentFormat: normalizeProjectEpisodeContentFormat(
+            episode?.contentFormat,
+            hasPages ? "images" : "lexical",
+          ),
+          pageCount: hasPages || pageCount > 0 ? pageCount : undefined,
+          hasPages,
+          hasContent: typeof episode?.content === "string" && episode.content.trim().length > 0,
+        };
+      })
     : [];
 
 export const toPublicBootstrapProject = (project) => ({

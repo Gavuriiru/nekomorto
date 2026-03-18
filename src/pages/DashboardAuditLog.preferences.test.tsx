@@ -52,7 +52,15 @@ const createDeferredResponse = () => {
   };
 };
 
-const setupApiMock = () => {
+const setupApiMock = ({
+  entries = [],
+  limit = 50,
+  total = 0,
+}: {
+  entries?: unknown[];
+  limit?: number;
+  total?: number;
+} = {}) => {
   apiFetchMock.mockReset();
   toastMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
@@ -61,7 +69,7 @@ const setupApiMock = () => {
       return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
     }
     if (String(path).startsWith("/api/audit-log?") && method === "GET") {
-      return mockJsonResponse(true, { entries: [], page: 1, limit: 50, total: 0 });
+      return mockJsonResponse(true, { entries, page: 1, limit, total });
     }
     return mockJsonResponse(false, { error: "not_found" }, 404);
   });
@@ -88,6 +96,9 @@ const LocationProbe = () => {
   const location = useLocation();
   return <div data-testid="location-search">{location.search}</div>;
 };
+
+const getLocationParams = () =>
+  new URLSearchParams(String(screen.getByTestId("location-search").textContent || "").replace(/^\?/, ""));
 
 const NavigateCleanQuery = () => {
   const navigate = useNavigate();
@@ -262,5 +273,94 @@ describe("DashboardAuditLog query sync", () => {
       expect(params.get("q")).toBeNull();
     });
     expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
+  it("renderiza links numericos e navega para uma pagina especifica", async () => {
+    setupApiMock({ total: 250, limit: 50 });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/audit-log"]}>
+        <DashboardAuditLog />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Registro de Auditoria" });
+    expect(screen.getByText("Página 1 de 5")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "1" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "5" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("link", { name: "3" }));
+
+    await waitFor(() => {
+      expect(getLocationParams().get("page")).toBe("3");
+      expect(getLocationParams().get("limit")).toBe("50");
+    });
+    await waitFor(() => {
+      const params = getLastAuditParams();
+      expect(params.get("page")).toBe("3");
+      expect(params.get("limit")).toBe("50");
+    });
+    expect(screen.getByRole("link", { name: "3" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("usa janela compacta com reticencias quando ha muitas paginas", async () => {
+    setupApiMock({ total: 1000, limit: 50 });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/audit-log?page=10&limit=50"]}>
+        <DashboardAuditLog />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Registro de Auditoria" });
+    expect(screen.getByText("Página 10 de 20")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "1" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "9" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "10" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "11" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "20" })).toBeInTheDocument();
+    expect(screen.getAllByText("Mais páginas")).toHaveLength(2);
+    expect(screen.queryByRole("link", { name: "2" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "15" })).not.toBeInTheDocument();
+  });
+
+  it("desabilita anterior e proxima nas bordas da paginacao", async () => {
+    setupApiMock({ total: 250, limit: 50 });
+
+    const firstPage = render(
+      <MemoryRouter initialEntries={["/dashboard/audit-log?page=1&limit=50"]}>
+        <DashboardAuditLog />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Registro de Auditoria" });
+    const previousLink = screen.getByRole("link", { name: "Ir para a página anterior" });
+    const nextLink = screen.getByRole("link", { name: "Ir para a próxima página" });
+
+    expect(previousLink).toHaveAttribute("aria-disabled", "true");
+    expect(previousLink).toHaveAttribute("tabindex", "-1");
+    expect(nextLink).toHaveAttribute("aria-disabled", "false");
+
+    fireEvent.click(previousLink);
+
+    await waitFor(() => {
+      expect(getLocationParams().get("page")).toBe("1");
+      expect(getLastAuditParams().get("page")).toBe("1");
+    });
+
+    firstPage.unmount();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/audit-log?page=5&limit=50"]}>
+        <DashboardAuditLog />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Página 5 de 5");
+    const lastPageNextLink = screen.getByRole("link", { name: "Ir para a próxima página" });
+    expect(lastPageNextLink).toHaveAttribute("aria-disabled", "true");
+    expect(lastPageNextLink).toHaveAttribute("tabindex", "-1");
   });
 });

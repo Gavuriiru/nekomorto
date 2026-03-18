@@ -97,7 +97,7 @@ const MangaImportExportPanel = ({
       setPreviewPayload(payload);
     } catch {
       toast({
-        title: "Nao foi possivel analisar o lote",
+        title: "Não foi possível analisar o lote",
         variant: "destructive",
       });
     } finally {
@@ -156,7 +156,7 @@ const MangaImportExportPanel = ({
   const applyImportedResult = (payload: ProjectImageImportPreviewPayload | null) => {
     if (!payload?.chapters?.length) {
       toast({
-        title: "Nenhum capitulo importado",
+        title: "Nenhum capítulo importado",
         variant: "destructive",
       });
       return;
@@ -164,8 +164,8 @@ const MangaImportExportPanel = ({
     const nextProject = mergeImportedImageChaptersIntoProject(project, payload.chapters);
     onProjectChange(nextProject);
     toast({
-      title: "Importacao concluida",
-      description: `${payload.summary.chapters} capitulo(s) preparado(s) no formulario.`,
+      title: "Importação concluída",
+      description: `${payload.summary.chapters} capítulo(s) preparado(s) no formulário.`,
       intent: "success",
     });
   };
@@ -211,7 +211,7 @@ const MangaImportExportPanel = ({
       applyImportedResult(finalJob.result);
     } catch {
       toast({
-        title: "Nao foi possivel importar o lote",
+        title: "Não foi possível importar o lote",
         variant: "destructive",
       });
     } finally {
@@ -287,12 +287,12 @@ const MangaImportExportPanel = ({
         `${project.id || "projeto"}-${exportVolume.trim() ? `volume-${exportVolume.trim()}` : "manga"}.zip`,
       );
       toast({
-        title: "Exportacao concluida",
+        title: "Exportação concluída",
         intent: "success",
       });
     } catch {
       toast({
-        title: "Nao foi possivel exportar o lote",
+        title: "Não foi possível exportar o lote",
         variant: "destructive",
       });
     } finally {
@@ -416,7 +416,7 @@ const MangaImportExportPanel = ({
                       <th className="px-3 py-2 font-medium">Capítulo</th>
                       <th className="px-3 py-2 font-medium">Volume</th>
                       <th className="px-3 py-2 font-medium">Páginas</th>
-                      <th className="px-3 py-2 font-medium">Ação</th>
+                      <th className="px-3 py-2 font-medium">A??o</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -514,3 +514,6 @@ const MangaImportExportPanel = ({
 };
 
 export default MangaImportExportPanel;
+
+
+

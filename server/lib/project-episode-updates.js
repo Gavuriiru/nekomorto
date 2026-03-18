@@ -1,10 +1,12 @@
 import {
   buildEpisodeKey,
+  getEpisodeContentFormat,
   getEpisodeEntryKind,
   getEpisodePublicationStatus,
   getEpisodeSourceUrls,
   hasEpisodeContent,
 } from "./project-episodes.js";
+import { normalizeProjectEpisodePages } from "../../shared/project-reader.js";
 
 const sortStrings = (values) => [...values].sort((a, b) => a.localeCompare(b, "en"));
 
@@ -14,11 +16,6 @@ const normalizeType = (type) =>
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase();
-
-const isLightNovelType = (type) => {
-  const normalized = normalizeType(type);
-  return normalized.includes("light") || normalized.includes("novel");
-};
 
 export const isSpecialProjectType = (type) => {
   const normalized = normalizeType(type);
@@ -42,26 +39,54 @@ export const resolveProjectUpdateUnitLabel = (projectType, episode) => {
   if (isSpecialProjectType(projectType)) {
     return "Especial";
   }
-  return isChapterBasedType(projectType) ? "Capítulo" : "Episódio";
+  return isChapterBasedType(projectType) ? "Cap\u00edtulo" : "Epis\u00f3dio";
+};
+
+const getEpisodeSourceSignature = (episode) => sortStrings(getEpisodeSourceUrls(episode)).join("|");
+
+const getEpisodePageSignature = (episode) =>
+  normalizeProjectEpisodePages(episode?.pages)
+    .map((page) => {
+      const imageUrl = String(page?.imageUrl || "").trim();
+      const spreadPairId = String(page?.spreadPairId || "").trim();
+      return spreadPairId ? `${imageUrl}@${spreadPairId}` : imageUrl;
+    })
+    .filter(Boolean)
+    .join("|");
+
+const hasEpisodeReadableContent = (episode) =>
+  hasEpisodeContent(episode) || getEpisodePageSignature(episode).length > 0;
+
+const getEpisodeReadableSignature = (episode) => {
+  const pageSignature = getEpisodePageSignature(episode);
+  if (!hasEpisodeContent(episode) && !pageSignature) {
+    return "";
+  }
+  return [
+    String(episode?.title || "").trim(),
+    String(episode?.releaseDate || "").trim(),
+    pageSignature ? "images" : String(getEpisodeContentFormat(episode) || "").trim(),
+    String(episode?.content || "").trim(),
+    Number.isFinite(Number(episode?.pageCount)) ? String(Number(episode.pageCount)) : "",
+    pageSignature,
+  ].join("||");
 };
 
 export const isEpisodePublic = (projectType, episode) => {
   if (getEpisodePublicationStatus(episode) !== "published") {
     return false;
   }
-  if (!isLightNovelType(projectType || "")) {
-    return getEpisodeSourceUrls(episode).length > 0;
+  if (!isChapterBasedType(projectType || "")) {
+    return getEpisodeSourceSignature(episode).length > 0;
   }
-  return hasEpisodeContent(episode) || getEpisodeSourceUrls(episode).length > 0;
+  return hasEpisodeReadableContent(episode) || getEpisodeSourceSignature(episode).length > 0;
 };
 
-export const getEpisodePublicSignature = (episode) =>
+export const getEpisodePublicSignature = (projectType, episode) =>
   [
     getEpisodePublicationStatus(episode),
-    String(episode?.title || ""),
-    String(episode?.releaseDate || ""),
-    String(episode?.content || "").trim(),
-    sortStrings(getEpisodeSourceUrls(episode)).join("|"),
+    isChapterBasedType(projectType || "") ? getEpisodeReadableSignature(episode) : "",
+    getEpisodeSourceSignature(episode),
   ].join("||");
 
 export const stampEpisodePublicUpdatedAt = (prevEpisode, nextEpisode, now, projectType) => {
@@ -74,7 +99,8 @@ export const stampEpisodePublicUpdatedAt = (prevEpisode, nextEpisode, now, proje
   if (!wasPublic) {
     return now;
   }
-  return getEpisodePublicSignature(prevEpisode) !== getEpisodePublicSignature(nextEpisode)
+  return getEpisodePublicSignature(projectType, prevEpisode) !==
+    getEpisodePublicSignature(projectType, nextEpisode)
     ? now
     : prevStamp || String(nextEpisode?.chapterUpdatedAt || "").trim();
 };
@@ -122,21 +148,22 @@ export const collectEpisodeUpdates = (prevProject, nextProject, now) => {
   nextEpisodes.forEach((episode) => {
     const key = buildEpisodeKey(episode?.number, episode?.volume);
     const prevEpisode = prevMap.get(key) || null;
-    const wasPublic = isEpisodePublic(prevProject?.type || nextProject?.type || "", prevEpisode);
-    const isPublic = isEpisodePublic(nextProject?.type || "", episode);
+    const projectType = nextProject?.type || prevProject?.type || "";
+    const wasPublic = isEpisodePublic(prevProject?.type || projectType, prevEpisode);
+    const isPublic = isEpisodePublic(projectType, episode);
     if (!isPublic) {
       return;
     }
 
     const isExtra = getEpisodeEntryKind(episode) === "extra";
     const safeTitle = String(episode?.title || "").trim() || "Extra";
-    const unitLabel = resolveProjectUpdateUnitLabel(nextProject?.type || "", episode);
+    const unitLabel = resolveProjectUpdateUnitLabel(projectType, episode);
     const updatedAt = String(episode?.chapterUpdatedAt || now).trim() || now;
 
     if (!wasPublic) {
       updates.push({
-        kind: "Lançamento",
-        reason: isExtra ? `${safeTitle} disponível` : `${unitLabel} ${episode.number} disponível`,
+        kind: "Lan\u00e7amento",
+        reason: isExtra ? `${safeTitle} dispon\u00edvel` : `${unitLabel} ${episode.number} dispon\u00edvel`,
         episodeNumber: Number(episode.number),
         volume: Number.isFinite(Number(episode?.volume)) ? Number(episode.volume) : undefined,
         unit: unitLabel,
@@ -145,14 +172,26 @@ export const collectEpisodeUpdates = (prevProject, nextProject, now) => {
       return;
     }
 
-    if (getEpisodePublicSignature(prevEpisode) !== getEpisodePublicSignature(episode)) {
+    const previousPublicSignature = getEpisodePublicSignature(projectType, prevEpisode);
+    const nextPublicSignature = getEpisodePublicSignature(projectType, episode);
+    if (previousPublicSignature !== nextPublicSignature) {
+      const previousReadableSignature = getEpisodeReadableSignature(prevEpisode);
+      const nextReadableSignature = getEpisodeReadableSignature(episode);
+      const readableChanged =
+        previousReadableSignature !== nextReadableSignature &&
+        Boolean(previousReadableSignature || nextReadableSignature);
+      const sourceChanged =
+        getEpisodeSourceSignature(prevEpisode) !== getEpisodeSourceSignature(episode);
+      const adjustmentReason = isExtra
+        ? `Conte\u00fado ajustado no extra "${safeTitle}"`
+        : readableChanged
+          ? `Conte\u00fado ajustado no ${unitLabel.toLowerCase()} ${episode.number}`
+          : sourceChanged
+            ? `Links ajustados no ${unitLabel.toLowerCase()} ${episode.number}`
+            : `Conte\u00fado ajustado no ${unitLabel.toLowerCase()} ${episode.number}`;
       updates.push({
         kind: "Ajuste",
-        reason: isExtra
-          ? `Conteúdo ajustado no extra "${safeTitle}"`
-          : isLightNovelType(nextProject?.type || "")
-            ? `Conteúdo ajustado no ${unitLabel.toLowerCase()} ${episode.number}`
-            : `Links ajustados no ${unitLabel.toLowerCase()} ${episode.number}`,
+        reason: adjustmentReason,
         episodeNumber: Number(episode.number),
         volume: Number.isFinite(Number(episode?.volume)) ? Number(episode.volume) : undefined,
         unit: unitLabel,

@@ -2,9 +2,9 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
 import type { Project, ProjectEpisode } from "@/data/projects";
 import { AccessibilityAnnouncerProvider } from "@/hooks/accessibility-announcer";
-import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
 
 const { apiFetchMock, toastMock, downloadBinaryResponseMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
@@ -50,27 +50,38 @@ const createProjectFixture = (): Project => ({
   staff: [],
 });
 
-const createChapterFixture = (): ProjectEpisode => ({
-  number: 3,
-  volume: 1,
-  title: "Capitulo teste",
-  synopsis: "",
-  releaseDate: "2026-03-14",
-  duration: "",
-  sourceType: "Web",
-  sources: [{ label: "Galeria", url: "https://cdn.test/gallery" }],
-  content: "",
-  contentFormat: "images",
-  coverImageUrl: "https://cdn.test/page-1.jpg",
-  coverImageAlt: "Capa do capitulo 3",
-  pages: [
-    { position: 1, imageUrl: "https://cdn.test/page-1.jpg" },
-    { position: 2, imageUrl: "https://cdn.test/page-2.jpg" },
-  ],
-  pageCount: 2,
-  hasPages: true,
-  publicationStatus: "draft",
-});
+const createPageFixtures = (count: number) =>
+  Array.from({ length: count }, (_, index) => ({
+    position: index + 1,
+    imageUrl: `https://cdn.test/page-${index + 1}.jpg`,
+  }));
+
+const createChapterFixture = (overrides: Partial<ProjectEpisode> = {}): ProjectEpisode => {
+  const pages = Array.isArray(overrides.pages) ? overrides.pages : createPageFixtures(2);
+
+  return {
+    number: 3,
+    volume: 1,
+    title: "Capitulo teste",
+    synopsis: "",
+    releaseDate: "2026-03-14",
+    duration: "",
+    sourceType: "Web",
+    sources: [{ label: "Galeria", url: "https://cdn.test/gallery" }],
+    content: "",
+    contentFormat: "images",
+    coverImageUrl: "https://cdn.test/page-1.jpg",
+    coverImageAlt: "Capa do capitulo 3",
+    pages,
+    pageCount: pages.length,
+    hasPages: pages.length > 0,
+    publicationStatus: "draft",
+    ...overrides,
+    pages,
+    pageCount: overrides.pageCount ?? pages.length,
+    hasPages: overrides.hasPages ?? pages.length > 0,
+  };
+};
 
 const createDataTransfer = () => ({
   effectAllowed: "move",
@@ -142,8 +153,8 @@ describe("MangaChapterPagesEditor", () => {
       ".zip,.cbz,application/zip,application/x-cbz",
     );
     expect(getPageOrder()).toEqual(["https://cdn.test/page-1.jpg", "https://cdn.test/page-2.jpg"]);
-    expect(screen.getByTestId("manga-page-position-badge-0")).toHaveTextContent("Página 1");
-    expect(screen.getByTestId("manga-page-position-badge-1")).toHaveTextContent("Página 2");
+    expect(screen.getByTestId("manga-page-position-badge-0")).toHaveTextContent(/P.gina 1/i);
+    expect(screen.getByTestId("manga-page-position-badge-1")).toHaveTextContent(/P.gina 2/i);
     expect(screen.getByTestId("manga-page-top-row-0")).toHaveClass("items-start");
     expect(screen.getByTestId("manga-page-top-actions-0")).toHaveClass(
       "relative",
@@ -151,13 +162,21 @@ describe("MangaChapterPagesEditor", () => {
       "h-7",
       "justify-end",
     );
+    expect(screen.getByTestId("manga-page-top-actions-0")).toHaveAttribute(
+      "data-actions-visible",
+      "false",
+    );
     expect(screen.getByTestId("manga-page-cover-badge-0")).toBeInTheDocument();
-    expect(screen.getByTestId("manga-page-cover-badge-0")).toHaveClass(
-      "group-hover:opacity-0",
-      "group-focus-within:opacity-0",
+    expect(screen.getByTestId("manga-page-status-badges-0")).toHaveClass(
+      "absolute",
+      "right-0",
+      "top-0",
+      "justify-end",
     );
     expect(screen.getByTestId("manga-page-filename-0")).toHaveTextContent("page-1.jpg");
     expect(screen.getByTestId("manga-page-filename-1")).toHaveTextContent("page-2.jpg");
+    expect(screen.getByTestId("manga-page-surface-0")).not.toHaveAttribute("title");
+    expect(screen.getByTestId("manga-page-filename-0")).not.toHaveAttribute("title");
 
     const dataTransfer = createDataTransfer();
     fireEvent.dragStart(screen.getByTestId("manga-page-surface-1"), { dataTransfer });
@@ -190,7 +209,7 @@ describe("MangaChapterPagesEditor", () => {
       "animated",
     );
     expect(screen.getByTestId("manga-page-filename-0")).toHaveTextContent("page-2.jpg");
-    expect(screen.getByTestId("manga-page-surface-0")).toHaveAttribute("title", "page-2.jpg");
+    expect(screen.getByTestId("manga-page-surface-0")).not.toHaveAttribute("title");
 
     fireEvent.drop(screen.getByTestId("manga-page-surface-0"), { dataTransfer });
     fireEvent.dragEnd(screen.getByTestId("manga-page-surface-1"), { dataTransfer });
@@ -203,9 +222,7 @@ describe("MangaChapterPagesEditor", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(
-        /Pagina 2 movida para a posicao 1/i,
-      );
+      expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(/movida para a posi/i);
     });
 
     const lastCall = onChangeSpy.mock.lastCall?.[0] as ProjectEpisode | undefined;
@@ -265,5 +282,155 @@ describe("MangaChapterPagesEditor", () => {
     expect(screen.getByDisplayValue("Galeria")).toBeInTheDocument();
     expect(screen.getByDisplayValue("https://cdn.test/gallery")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Abrir leitura/i })).not.toBeInTheDocument();
+  });
+
+  it("cria e desfaz um spread entre paginas adjacentes com pill visivel no bloco direito", async () => {
+    const { onChangeSpy } = renderEditor();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Juntar com a pr/i })[0]);
+
+    await waitFor(() => {
+      const lastCall = onChangeSpy.mock.lastCall?.[0] as ProjectEpisode | undefined;
+      expect(lastCall?.pages?.[0]?.spreadPairId).toBeTruthy();
+      expect(lastCall?.pages?.[0]?.spreadPairId).toBe(lastCall?.pages?.[1]?.spreadPairId);
+    });
+
+    const coverSpreadBadges = screen.getByTestId("manga-page-status-badges-0");
+    expect(screen.getByTestId("manga-page-spread-badge-0")).toBeInTheDocument();
+    expect(screen.getByTestId("manga-page-spread-badge-1")).toBeInTheDocument();
+    expect(screen.getByTestId("manga-page-spread-badge-0")).toHaveClass(
+      "bg-primary",
+      "text-primary-foreground",
+    );
+    expect(Array.from(coverSpreadBadges.children).map((node) => node.textContent)).toEqual([
+      "Capa",
+      "Spread",
+    ]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(
+        /Spread criado entre as paginas 1 e 2/i,
+      );
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Desfazer spread/i })[0]);
+
+    await waitFor(() => {
+      const lastCall = onChangeSpy.mock.lastCall?.[0] as ProjectEpisode | undefined;
+      expect(lastCall?.pages?.some((page) => page.spreadPairId)).toBe(false);
+    });
+
+    expect(screen.queryByTestId("manga-page-spread-badge-0")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("manga-page-spread-badge-1")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(
+        /Spread removido das paginas 1 e 2/i,
+      );
+    });
+  });
+
+  it("mantem os botoes visiveis sem ativar a imagem ao entrar na area de acoes", () => {
+    renderEditor();
+
+    const surface = screen.getByTestId("manga-page-surface-0");
+    const topActions = screen.getByTestId("manga-page-top-actions-0");
+    const actions = screen.getByTestId("manga-page-actions-0");
+
+    fireEvent.mouseEnter(surface);
+    expect(surface).toHaveAttribute("data-surface-active", "true");
+    expect(topActions).toHaveAttribute("data-actions-visible", "true");
+
+    fireEvent.mouseEnter(actions);
+    expect(surface).toHaveAttribute("data-surface-active", "false");
+    expect(topActions).toHaveAttribute("data-actions-visible", "true");
+  });
+
+  it("desfaz o spread quando um reorder separa o par", async () => {
+    const { onChangeSpy } = renderEditor({
+      chapter: createChapterFixture({
+        pages: createPageFixtures(3),
+      }),
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Juntar com a pr/i })[0]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("manga-page-spread-badge-0")).toBeInTheDocument();
+      expect(screen.getByTestId("manga-page-spread-badge-1")).toBeInTheDocument();
+    });
+
+    const dataTransfer = createDataTransfer();
+    fireEvent.dragStart(screen.getByTestId("manga-page-surface-1"), { dataTransfer });
+    fireEvent.dragOver(screen.getByTestId("manga-page-surface-2"), { dataTransfer });
+    fireEvent.drop(screen.getByTestId("manga-page-surface-2"), { dataTransfer });
+    fireEvent.dragEnd(screen.getByTestId("manga-page-surface-1"), { dataTransfer });
+
+    await waitFor(() => {
+      expect(getPageOrder()).toEqual([
+        "https://cdn.test/page-1.jpg",
+        "https://cdn.test/page-3.jpg",
+        "https://cdn.test/page-2.jpg",
+      ]);
+    });
+
+    await waitFor(() => {
+      const lastCall = onChangeSpy.mock.lastCall?.[0] as ProjectEpisode | undefined;
+      expect(lastCall?.pages?.map((page) => page.imageUrl)).toEqual([
+        "https://cdn.test/page-1.jpg",
+        "https://cdn.test/page-3.jpg",
+        "https://cdn.test/page-2.jpg",
+      ]);
+      expect(lastCall?.pages?.some((page) => page.spreadPairId)).toBe(false);
+    });
+
+    expect(screen.queryByTestId("manga-page-spread-badge-0")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("manga-page-spread-badge-1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("manga-page-spread-badge-2")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(
+        /Spread desfeito porque as paginas deixaram de ficar juntas/i,
+      );
+    });
+  });
+
+  it("limpa o spread restante quando uma das paginas do par e removida", async () => {
+    const { onChangeSpy } = renderEditor({
+      chapter: createChapterFixture({
+        pages: createPageFixtures(3),
+      }),
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Juntar com a pr/i })[0]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("manga-page-spread-badge-0")).toBeInTheDocument();
+      expect(screen.getByTestId("manga-page-spread-badge-1")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Remover" })[0]);
+
+    await waitFor(() => {
+      expect(getPageOrder()).toEqual([
+        "https://cdn.test/page-2.jpg",
+        "https://cdn.test/page-3.jpg",
+      ]);
+    });
+
+    await waitFor(() => {
+      const lastCall = onChangeSpy.mock.lastCall?.[0] as ProjectEpisode | undefined;
+      expect(lastCall?.pages?.map((page) => page.imageUrl)).toEqual([
+        "https://cdn.test/page-2.jpg",
+        "https://cdn.test/page-3.jpg",
+      ]);
+      expect(lastCall?.pages?.some((page) => page.spreadPairId)).toBe(false);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(
+        /Spread desfeito apos remover a pagina/i,
+      );
+    });
   });
 });

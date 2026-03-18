@@ -32,14 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import CompactPagination from "@/components/ui/compact-pagination";
 import {
   Select,
   SelectContent,
@@ -3810,7 +3803,7 @@ const DashboardProjectsEditor = () => {
             </div>
 
             {hasRetainedLoadError ? (
-              <Alert className={dashboardPageLayoutTokens.surfaceDefault}>
+              <Alert className={dashboardPageLayoutTokens.surfaceSolid}>
                 <AlertTitle>Atualização parcial indisponível</AlertTitle>
                 <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
                   <span>Mantendo a última lista de projetos carregada.</span>
@@ -3828,7 +3821,7 @@ const DashboardProjectsEditor = () => {
                 kind="error"
                 title="Não foi possível carregar os projetos"
                 description="Tente recarregar os dados do painel."
-                className={dashboardPageLayoutTokens.surfaceDefault}
+                className={dashboardPageLayoutTokens.surfaceSolid}
                 action={
                   <Button
                     variant="outline"
@@ -3843,7 +3836,8 @@ const DashboardProjectsEditor = () => {
                 {Array.from({ length: 4 }).map((_, index) => (
                   <Card
                     key={`project-skeleton-${index}`}
-                    className={`${dashboardPageLayoutTokens.listCard} overflow-hidden`}
+                    lift={false}
+                    className={`${dashboardPageLayoutTokens.listCardSolid} overflow-hidden`}
                   >
                     <CardContent className="grid gap-2 p-0 md:gap-6 md:grid-cols-[220px_1fr]">
                       <Skeleton className="aspect-2/3 w-full rounded-none md:min-h-[260px]" />
@@ -3871,7 +3865,7 @@ const DashboardProjectsEditor = () => {
                 kind="empty"
                 title="Nenhum projeto encontrado."
                 description="Ajuste os filtros ou crie um novo projeto."
-                className={dashboardPageLayoutTokens.surfaceMuted}
+                className={dashboardPageLayoutTokens.surfaceInset}
                 action={
                   <Button
                     onClick={openCreate}
@@ -3888,7 +3882,8 @@ const DashboardProjectsEditor = () => {
                   <Card
                     key={project.id}
                     data-testid={`dashboard-project-card-${project.id}`}
-                    className={`${dashboardPageLayoutTokens.listCard} group overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
+                    lift={false}
+                    className={`${dashboardPageLayoutTokens.listCardSolid} group overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
                     style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                   >
                     <CardContent className="relative p-0">
@@ -3929,7 +3924,9 @@ const DashboardProjectsEditor = () => {
                               <h3 className="line-clamp-2 break-words text-lg font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
                                 {project.title}
                               </h3>
-                              <p className="text-xs text-muted-foreground">{project.studio}</p>
+                              <p className={`text-xs ${dashboardPageLayoutTokens.cardMetaText}`}>
+                                {project.studio}
+                              </p>
                             </div>
                             <div className="relative z-20 flex shrink-0 items-center gap-2">
                               <Button variant="ghost" size="icon" title="Visualizar" asChild>
@@ -3974,7 +3971,7 @@ const DashboardProjectsEditor = () => {
                           >
                             <p
                               data-slot="project-card-synopsis"
-                              className="text-sm text-muted-foreground line-clamp-3"
+                              className={`text-sm ${dashboardPageLayoutTokens.cardMetaText} line-clamp-3`}
                             >
                               {project.synopsis}
                             </p>
@@ -4016,7 +4013,7 @@ const DashboardProjectsEditor = () => {
 
                             <div
                               data-slot="project-card-meta"
-                              className="mt-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground"
+                              className={`mt-auto flex flex-wrap items-center gap-4 text-xs ${dashboardPageLayoutTokens.cardMetaText}`}
                             >
                               <span className="inline-flex items-center gap-2">
                                 {project.views} visualizações
@@ -4024,7 +4021,9 @@ const DashboardProjectsEditor = () => {
                               <span className="inline-flex items-center gap-2">
                                 {project.commentsCount} comentários
                               </span>
-                              <span className="ml-auto text-xs text-muted-foreground">
+                              <span
+                                className={`ml-auto text-xs ${dashboardPageLayoutTokens.cardMetaText}`}
+                              >
                                 ID {project.id}
                               </span>
                             </div>
@@ -4038,46 +4037,15 @@ const DashboardProjectsEditor = () => {
             )}
             {sortedProjects.length > projectsPerPage ? (
               <div className="mt-6 flex justify-center">
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        href="#"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          setCurrentPage((page) => Math.max(1, page - 1));
-                        }}
-                      />
-                    </PaginationItem>
-                    {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-                      <PaginationItem key={page}>
-                        <PaginationLink
-                          href="#"
-                          isActive={page === currentPage}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            setCurrentPage(page);
-                          }}
-                        >
-                          {page}
-                        </PaginationLink>
-                      </PaginationItem>
-                    ))}
-                    <PaginationItem>
-                      <PaginationNext
-                        href="#"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          setCurrentPage((page) => Math.min(totalPages, page + 1));
-                        }}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
+                <CompactPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
               </div>
             ) : null}
             {trashedProjects.length > 0 ? (
-              <Card className="mt-8 border-border/60 bg-card/60">
+              <Card lift={false} className={`mt-8 ${dashboardPageLayoutTokens.surfaceSolid}`}>
                 <CardContent className="space-y-4 p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -4094,7 +4062,7 @@ const DashboardProjectsEditor = () => {
                     {trashedProjects.map((project, index) => (
                       <div
                         key={`trash-${project.id}`}
-                        className={`${dashboardPageLayoutTokens.surfaceDefault} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
+                        className={`${dashboardPageLayoutTokens.surfaceInset} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
                         style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                       >
                         <div className="min-w-0">
@@ -4257,7 +4225,7 @@ const DashboardProjectsEditor = () => {
                       <AccordionTrigger className={editorSectionTriggerClassName}>
                         <ProjectEditorAccordionHeader
                           title="Leitor"
-                          subtitle="Direção, modo, preview comercial e overrides do manga/webtoon"
+                          subtitle="Direção, modo e overrides do manga/webtoon"
                         />
                       </AccordionTrigger>
                       <AccordionContent className={editorSectionContentClassName}>
@@ -4372,42 +4340,6 @@ const DashboardProjectsEditor = () => {
                                   }))
                                 }
                                 placeholder="manga, webtoon, custom..."
-                              />
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor="reader-purchase-url">URL de compra</Label>
-                              <Input
-                                id="reader-purchase-url"
-                                value={readerConfigDraft.purchaseUrl || ""}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    readerConfig: {
-                                      ...(prev.readerConfig || {}),
-                                      purchaseUrl: event.target.value,
-                                    },
-                                  }))
-                                }
-                                placeholder="Opcional"
-                              />
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor="reader-purchase-price">Preço</Label>
-                              <Input
-                                id="reader-purchase-price"
-                                value={readerConfigDraft.purchasePrice || ""}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    readerConfig: {
-                                      ...(prev.readerConfig || {}),
-                                      purchasePrice: event.target.value,
-                                    },
-                                  }))
-                                }
-                                placeholder="Ex.: R$ 12,90"
                               />
                             </div>
                           </div>

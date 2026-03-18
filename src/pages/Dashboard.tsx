@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import {
   dashboardAnimationDelay,
   dashboardMotionDelays,
@@ -272,6 +273,16 @@ const normalizeDashboardOverview = (value: unknown) => {
   };
 };
 
+const dashboardOverviewMetricCardClassName = `${dashboardPageLayoutTokens.surfaceSolid} p-5`;
+const dashboardOverviewCardShellClassName = `${dashboardPageLayoutTokens.surfaceSolid} rounded-3xl p-6`;
+const dashboardOverviewInsetClassName = dashboardPageLayoutTokens.surfaceInset;
+const dashboardOverviewInsetDashedClassName =
+  "rounded-2xl border border-dashed border-border/70 bg-background";
+const dashboardOverviewActionButtonClassName =
+  "border-border/70 bg-background text-foreground/70 hover:bg-background hover:text-foreground";
+const dashboardOverviewBadgeClassName = "bg-background text-foreground/70";
+const dashboardOverviewMetaTextClassName = dashboardPageLayoutTokens.cardMetaText;
+
 const DashboardLoadingSkeleton = () => (
   <div
     className="mt-10 space-y-10"
@@ -284,7 +295,7 @@ const DashboardLoadingSkeleton = () => (
       {Array.from({ length: 4 }).map((_, index) => (
         <div
           key={`dashboard-skeleton-metric-${index + 1}`}
-          className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5"
+          className={dashboardOverviewMetricCardClassName}
         >
           <Skeleton className="h-4 w-28" />
           <Skeleton className="mt-4 h-8 w-20" />
@@ -294,13 +305,13 @@ const DashboardLoadingSkeleton = () => (
     </div>
     <section className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       <div className="space-y-6">
-        <div className="rounded-3xl border border-border/60 bg-card/60 p-6">
+        <div className={dashboardOverviewCardShellClassName}>
           <Skeleton className="h-4 w-32" />
           <Skeleton className="mt-4 h-9 w-24" />
           <Skeleton className="mt-3 h-3 w-40" />
           <Skeleton className="mt-6 h-32 w-full rounded-2xl" />
         </div>
-        <div className="rounded-3xl border border-border/60 bg-card/60 p-6">
+        <div className={dashboardOverviewCardShellClassName}>
           <Skeleton className="h-5 w-44" />
           <Skeleton className="mt-2 h-3 w-32" />
           <div className="mt-6 space-y-4">
@@ -312,7 +323,7 @@ const DashboardLoadingSkeleton = () => (
             ))}
           </div>
         </div>
-        <div className="rounded-3xl border border-border/60 bg-card/60 p-6">
+        <div className={dashboardOverviewCardShellClassName}>
           <Skeleton className="h-5 w-36" />
           <Skeleton className="mt-2 h-3 w-40" />
           <div className="mt-6 space-y-4">
@@ -329,7 +340,7 @@ const DashboardLoadingSkeleton = () => (
         {Array.from({ length: 3 }).map((_, index) => (
           <div
             key={`dashboard-skeleton-side-${index + 1}`}
-            className="rounded-3xl border border-border/60 bg-card/60 p-6"
+            className={dashboardOverviewCardShellClassName}
           >
             <Skeleton className="h-5 w-32" />
             <Skeleton className="mt-2 h-3 w-36" />
@@ -853,38 +864,50 @@ const Dashboard = () => {
             {selectedWidgetSet.has("metrics_overview") ? (
               <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <div
-                  className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
+                  className={`${dashboardOverviewMetricCardClassName} animate-slide-up opacity-0`}
                   style={dashboardAnimationDelay(0)}
                 >
-                  <p className="text-sm text-muted-foreground">Projetos cadastrados</p>
+                  <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>
+                    Projetos cadastrados
+                  </p>
                   <div className="mt-3 text-2xl font-semibold">{totalProjects}</div>
-                  <p className="mt-2 text-xs text-muted-foreground">Catálogo completo do site.</p>
+                  <p className={`mt-2 text-xs ${dashboardOverviewMetaTextClassName}`}>
+                    Catálogo completo do site.
+                  </p>
                 </div>
                 <div
-                  className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
+                  className={`${dashboardOverviewMetricCardClassName} animate-slide-up opacity-0`}
                   style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs)}
                 >
-                  <p className="text-sm text-muted-foreground">Mídias disponíveis</p>
+                  <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>
+                    Mídias disponíveis
+                  </p>
                   <div className="mt-3 text-2xl font-semibold">{totalMedia}</div>
-                  <p className="mt-2 text-xs text-muted-foreground">
+                  <p className={`mt-2 text-xs ${dashboardOverviewMetaTextClassName}`}>
                     Downloads ativos nos projetos.
                   </p>
                 </div>
                 <div
-                  className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
+                  className={`${dashboardOverviewMetricCardClassName} animate-slide-up opacity-0`}
                   style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 2)}
                 >
-                  <p className="text-sm text-muted-foreground">Projetos ativos</p>
+                  <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>Projetos ativos</p>
                   <div className="mt-3 text-2xl font-semibold">{activeProjects}</div>
-                  <p className="mt-2 text-xs text-muted-foreground">Em andamento ou produção.</p>
+                  <p className={`mt-2 text-xs ${dashboardOverviewMetaTextClassName}`}>
+                    Em andamento ou produção.
+                  </p>
                 </div>
                 <div
-                  className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
+                  className={`${dashboardOverviewMetricCardClassName} animate-slide-up opacity-0`}
                   style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 3)}
                 >
-                  <p className="text-sm text-muted-foreground">Projetos finalizados</p>
+                  <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>
+                    Projetos finalizados
+                  </p>
                   <div className="mt-3 text-2xl font-semibold">{finishedProjects}</div>
-                  <p className="mt-2 text-xs text-muted-foreground">Completo ou lançado.</p>
+                  <p className={`mt-2 text-xs ${dashboardOverviewMetaTextClassName}`}>
+                    Completo ou lançado.
+                  </p>
                 </div>
               </div>
             ) : null}
@@ -896,33 +919,35 @@ const Dashboard = () => {
               <div className="space-y-6">
                 {selectedWidgetSet.has("analytics_summary") ? (
                   <div
-                    className="rounded-3xl border border-border/60 bg-card/60 p-6 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.8)] animate-slide-up opacity-0"
+                    className={`${dashboardOverviewCardShellClassName} animate-slide-up opacity-0`}
                     style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
                   >
                     <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">Análises de acessos</p>
+                        <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>
+                          Análises de acessos
+                        </p>
                         {hasAnalyticsData ? (
                           <div className="mt-3 flex items-center gap-3">
                             <span className="text-3xl font-semibold">{totalViewsLast7}</span>
-                            <Badge className="bg-card/80 text-muted-foreground">
+                            <Badge className={dashboardOverviewBadgeClassName}>
                               Últimos 7 dias
                             </Badge>
                           </div>
                         ) : (
-                          <p className="mt-3 text-sm text-muted-foreground">
+                          <p className={`mt-3 text-sm ${dashboardOverviewMetaTextClassName}`}>
                             Nenhum dado de acesso foi coletado ainda.
                           </p>
                         )}
                         {hasAnalyticsData ? (
-                          <p className="mt-2 text-xs text-muted-foreground">
+                          <p className={`mt-2 text-xs ${dashboardOverviewMetaTextClassName}`}>
                             {totalProjectViewsLast7} em projetos e {totalPostViewsLast7} em posts
                           </p>
                         ) : null}
                         <div className="mt-4">
                           <Button
                             variant="outline"
-                            className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
+                            className={dashboardOverviewActionButtonClassName}
                             asChild
                           >
                             <Link to={analyticsAllHref}>Ver analytics completos</Link>
@@ -930,7 +955,7 @@ const Dashboard = () => {
                         </div>
                       </div>
                       <div className="w-full max-w-xs">
-                        <div className="h-32 rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-4">
+                        <div className={`h-32 ${dashboardOverviewInsetClassName} p-4`}>
                           {hasAnalyticsData ? (
                             <svg viewBox="0 0 100 40" className="h-full w-full">
                               <defs>
@@ -958,7 +983,9 @@ const Dashboard = () => {
                               />
                             </svg>
                           ) : (
-                            <div className="flex h-full flex-col items-center justify-center text-center text-xs text-muted-foreground">
+                            <div
+                              className={`flex h-full flex-col items-center justify-center text-center text-xs ${dashboardOverviewMetaTextClassName}`}
+                            >
                               <span>Gráfico indisponível</span>
                               <span>Sem dados de projetos ainda</span>
                             </div>
@@ -971,19 +998,19 @@ const Dashboard = () => {
 
                 {selectedWidgetSet.has("projects_rank") ? (
                   <div
-                    className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
+                    className={`${dashboardOverviewCardShellClassName} animate-slide-up opacity-0`}
                     style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
                   >
                     <div className="flex items-center justify-between">
                       <div>
                         <h2 className="text-lg font-semibold">Projetos mais acessados</h2>
-                        <p className="text-sm text-muted-foreground">
+                        <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>
                           Ranking por projetos individuais
                         </p>
                       </div>
                       <Button
                         variant="outline"
-                        className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
+                        className={dashboardOverviewActionButtonClassName}
                         asChild
                       >
                         <Link to={analyticsProjectHref}>Ver analytics de projetos</Link>
@@ -995,13 +1022,15 @@ const Dashboard = () => {
                           <Link
                             key={project.id}
                             to={`/projeto/${project.id}`}
-                            className="block rounded-2xl border border-border/60 bg-card/60 p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                            className={`block ${dashboardOverviewInsetClassName} p-4 transition hover:border-primary/40 hover:bg-primary/5`}
                           >
                             <div className="flex items-center justify-between">
                               <span className="text-sm font-medium">{project.title}</span>
-                              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                              <div
+                                className={`flex items-center gap-3 text-sm ${dashboardOverviewMetaTextClassName}`}
+                              >
                                 <span>{project.views} acessos</span>
-                                <Badge className="bg-card/80 text-muted-foreground">
+                                <Badge className={dashboardOverviewBadgeClassName}>
                                   {project.status}
                                 </Badge>
                               </div>
@@ -1010,7 +1039,9 @@ const Dashboard = () => {
                         ))}
                       </div>
                     ) : (
-                      <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                      <div
+                        className={`mt-6 ${dashboardOverviewInsetDashedClassName} px-4 py-8 text-center text-sm ${dashboardOverviewMetaTextClassName}`}
+                      >
                         Conecte o backend de analytics para ver o ranking de acesso por projeto.
                       </div>
                     )}
@@ -1019,7 +1050,7 @@ const Dashboard = () => {
 
                 {selectedWidgetSet.has("recent_posts") ? (
                   <div
-                    className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
+                    className={`${dashboardOverviewCardShellClassName} animate-slide-up opacity-0`}
                     style={dashboardAnimationDelay(
                       dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
                     )}
@@ -1027,18 +1058,22 @@ const Dashboard = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <h2 className="text-lg font-semibold">Posts mais recentes</h2>
-                        <p className="text-sm text-muted-foreground">Publicações e visualizações</p>
+                        <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>
+                          Publicações e visualizações
+                        </p>
                       </div>
                       <Button
                         variant="outline"
-                        className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
+                        className={dashboardOverviewActionButtonClassName}
                         asChild
                       >
                         <Link to={analyticsPostHref}>Ver analytics de posts</Link>
                       </Button>
                     </div>
                     {recentPosts.length === 0 ? (
-                      <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                      <div
+                        className={`mt-6 ${dashboardOverviewInsetDashedClassName} px-4 py-8 text-center text-sm ${dashboardOverviewMetaTextClassName}`}
+                      >
                         Nenhum post publicado ainda.
                       </div>
                     ) : (
@@ -1047,17 +1082,19 @@ const Dashboard = () => {
                           <Link
                             key={post.id}
                             to={`/postagem/${post.slug}`}
-                            className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/60 p-4 transition hover:border-primary/40 hover:bg-primary/5 md:flex-row md:items-center md:justify-between"
+                            className={`flex flex-col gap-3 ${dashboardOverviewInsetClassName} p-4 transition hover:border-primary/40 hover:bg-primary/5 md:flex-row md:items-center md:justify-between`}
                           >
                             <div>
                               <p className="font-medium">{post.title}</p>
-                              <p className="text-xs text-muted-foreground">Status: {post.status}</p>
+                              <p className={`text-xs ${dashboardOverviewMetaTextClassName}`}>
+                                Status: {post.status}
+                              </p>
                             </div>
                             <div className="flex items-center gap-3 text-sm">
-                              <span className="text-muted-foreground">
+                              <span className={dashboardOverviewMetaTextClassName}>
                                 {post.views} visualizações
                               </span>
-                              <Badge className="bg-card/80 text-muted-foreground">
+                              <Badge className={dashboardOverviewBadgeClassName}>
                                 {formatDateTime(post.updatedAt || post.publishedAt)}
                               </Badge>
                             </div>
@@ -1072,7 +1109,7 @@ const Dashboard = () => {
               <aside className="space-y-6">
                 {selectedWidgetSet.has("ops_status") && !hideOperationalAlertsCard ? (
                   <div
-                    className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
+                    className={`${dashboardOverviewCardShellClassName} animate-slide-up opacity-0`}
                     style={dashboardAnimationDelay(
                       dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
                     )}
@@ -1080,7 +1117,7 @@ const Dashboard = () => {
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <h2 className="text-lg font-semibold">Status operacional</h2>
-                        <p className="text-sm text-muted-foreground">
+                        <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>
                           Healthchecks e alertas internos
                         </p>
                       </div>
@@ -1095,7 +1132,7 @@ const Dashboard = () => {
                     </div>
                     {isLoadingOperationalAlerts ? (
                       <div
-                        className="mt-4 space-y-3 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6"
+                        className={`mt-4 space-y-3 ${dashboardOverviewInsetDashedClassName} px-4 py-6`}
                         data-testid="dashboard-ops-loading"
                         role="status"
                         aria-live="polite"
@@ -1109,7 +1146,9 @@ const Dashboard = () => {
                       </div>
                     ) : operationalAlertsError ? (
                       <div className="mt-4 space-y-3">
-                        <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6 text-sm text-muted-foreground">
+                        <div
+                          className={`${dashboardOverviewInsetDashedClassName} px-4 py-6 text-sm ${dashboardOverviewMetaTextClassName}`}
+                        >
                           {operationalAlertsError}
                         </div>
                         <Button
@@ -1123,20 +1162,22 @@ const Dashboard = () => {
                     ) : (
                       <div className="mt-4 space-y-4">
                         {operationalAlerts?.generatedAt ? (
-                          <p className="text-xs text-muted-foreground">
+                          <p className={`text-xs ${dashboardOverviewMetaTextClassName}`}>
                             Última atualização: {formatDateTime(operationalAlerts.generatedAt)}
                           </p>
                         ) : null}
                         {operationalActiveAlerts.length > 0 ? (
                           <section className="space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            <p
+                              className={`text-xs font-semibold uppercase tracking-wide ${dashboardOverviewMetaTextClassName}`}
+                            >
                               Alertas ativos
                             </p>
                             <div className="space-y-3">
                               {operationalActiveAlerts.map((alert) => (
                                 <div
                                   key={alert.code}
-                                  className="rounded-2xl border border-border/60 bg-card/60 p-3"
+                                  className={`${dashboardOverviewInsetClassName} p-3`}
                                 >
                                   <div className="flex items-center justify-between gap-2">
                                     <p className="text-sm font-medium">{alert.title}</p>
@@ -1145,13 +1186,15 @@ const Dashboard = () => {
                                       className={
                                         alertSeverityVariant(alert.severity)
                                           ? undefined
-                                          : "bg-card/80 text-muted-foreground"
+                                          : dashboardOverviewBadgeClassName
                                       }
                                     >
                                       {operationalSeverityLabel(alert.severity)}
                                     </Badge>
                                   </div>
-                                  <p className="mt-1 text-xs text-muted-foreground">
+                                  <p
+                                    className={`mt-1 text-xs ${dashboardOverviewMetaTextClassName}`}
+                                  >
                                     {alert.description}
                                   </p>
                                 </div>
@@ -1161,14 +1204,16 @@ const Dashboard = () => {
                         ) : null}
                         {operationalCheckFindings.length > 0 ? (
                           <section className="space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            <p
+                              className={`text-xs font-semibold uppercase tracking-wide ${dashboardOverviewMetaTextClassName}`}
+                            >
                               Healthchecks degradados
                             </p>
                             <div className="space-y-3">
                               {operationalCheckFindings.map((check) => (
                                 <div
                                   key={`check-${check.name}`}
-                                  className="rounded-2xl border border-border/60 bg-card/60 p-3"
+                                  className={`${dashboardOverviewInsetClassName} p-3`}
                                 >
                                   <div className="flex items-center justify-between gap-2">
                                     <p className="text-sm font-medium">{check.title}</p>
@@ -1178,7 +1223,9 @@ const Dashboard = () => {
                                       {operationalSeverityLabel(check.severity)}
                                     </Badge>
                                   </div>
-                                  <p className="mt-1 text-xs text-muted-foreground">
+                                  <p
+                                    className={`mt-1 text-xs ${dashboardOverviewMetaTextClassName}`}
+                                  >
                                     {check.description}
                                   </p>
                                 </div>
@@ -1187,7 +1234,9 @@ const Dashboard = () => {
                           </section>
                         ) : null}
                         {!hasOperationalReasons && (
-                          <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6 text-sm text-muted-foreground">
+                          <div
+                            className={`${dashboardOverviewInsetDashedClassName} px-4 py-6 text-sm ${dashboardOverviewMetaTextClassName}`}
+                          >
                             {hasStatusWithoutReason
                               ? "Status operacional degradado sem causa detalhada no payload."
                               : "Nenhum alerta operacional ativo."}
@@ -1196,7 +1245,7 @@ const Dashboard = () => {
                         <div className="pt-1">
                           <Button
                             variant="outline"
-                            className="w-full border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
+                            className={`w-full ${dashboardOverviewActionButtonClassName}`}
                             asChild
                           >
                             <Link to="/dashboard/audit-log">Ver audit log</Link>
@@ -1208,7 +1257,7 @@ const Dashboard = () => {
                 ) : null}
                 {selectedWidgetSet.has("comments_queue") ? (
                   <div
-                    className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
+                    className={`${dashboardOverviewCardShellClassName} animate-slide-up opacity-0`}
                     style={dashboardAnimationDelay(
                       dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 3,
                     )}
@@ -1216,14 +1265,18 @@ const Dashboard = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <h2 className="text-lg font-semibold">Comentários recentes</h2>
-                        <p className="text-sm text-muted-foreground">Sistema por página</p>
+                        <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>
+                          Sistema por página
+                        </p>
                       </div>
-                      <Badge className="bg-card/80 text-muted-foreground">
+                      <Badge className={dashboardOverviewBadgeClassName}>
                         {pendingCommentsCount} pendentes
                       </Badge>
                     </div>
                     {recentComments.length === 0 ? (
-                      <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                      <div
+                        className={`mt-6 ${dashboardOverviewInsetDashedClassName} px-4 py-8 text-center text-sm ${dashboardOverviewMetaTextClassName}`}
+                      >
                         Nenhum comentário registrado ainda.
                       </div>
                     ) : (
@@ -1232,14 +1285,18 @@ const Dashboard = () => {
                           <a
                             key={comment.id}
                             href={comment.url}
-                            className="block rounded-2xl border border-border/60 bg-card/60 p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                            className={`block ${dashboardOverviewInsetClassName} p-4 transition hover:border-primary/40 hover:bg-primary/5`}
                           >
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <div
+                              className={`flex items-center justify-between text-xs ${dashboardOverviewMetaTextClassName}`}
+                            >
                               <span>{comment.author}</span>
                               <span>{formatDateTime(comment.createdAt)}</span>
                             </div>
                             <p className="mt-2 text-sm text-foreground">{comment.message}</p>
-                            <p className="mt-2 text-xs text-muted-foreground">Em: {comment.page}</p>
+                            <p className={`mt-2 text-xs ${dashboardOverviewMetaTextClassName}`}>
+                              Em: {comment.page}
+                            </p>
                           </a>
                         ))}
                       </div>
@@ -1249,22 +1306,24 @@ const Dashboard = () => {
 
                 {selectedWidgetSet.has("projects_quick") ? (
                   <div
-                    className="rounded-3xl border border-border/60 bg-card/60 p-6 overflow-hidden animate-slide-up opacity-0"
+                    className={`${dashboardOverviewCardShellClassName} overflow-hidden animate-slide-up opacity-0`}
                     style={dashboardAnimationDelay(
                       dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 4,
                     )}
                   >
                     <h2 className="text-lg font-semibold">Projetos cadastrados</h2>
-                    <p className="text-sm text-muted-foreground">Acesso rápido ao catálogo.</p>
+                    <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>
+                      Acesso rápido ao catálogo.
+                    </p>
                     <div className="mt-5 space-y-3">
                       {quickProjects.map((project) => (
                         <Link
                           key={project.id}
                           to={`/projeto/${project.id}`}
-                          className="flex items-center justify-between rounded-2xl border border-border/60 bg-card/60 px-4 py-3 text-sm transition hover:border-primary/40 hover:bg-primary/5"
+                          className={`flex items-center justify-between ${dashboardOverviewInsetClassName} px-4 py-3 text-sm transition hover:border-primary/40 hover:bg-primary/5`}
                         >
                           <span className="font-medium">{project.title}</span>
-                          <Badge className="bg-card/80 text-muted-foreground">
+                          <Badge className={dashboardOverviewBadgeClassName}>
                             {project.status}
                           </Badge>
                         </Link>
@@ -1272,7 +1331,7 @@ const Dashboard = () => {
                       {totalProjects > 3 && (
                         <Link
                           to="/projetos"
-                          className="block w-full rounded-xl border border-border/60 bg-card/60 px-4 py-3 text-center text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+                          className={`block w-full ${dashboardPageLayoutTokens.cardActionSurface} px-4 py-3 text-center text-sm ${dashboardOverviewMetaTextClassName} transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground`}
                         >
                           Ver todos os projetos
                         </Link>

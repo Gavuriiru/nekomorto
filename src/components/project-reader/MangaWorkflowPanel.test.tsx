@@ -398,10 +398,10 @@ describe("MangaWorkflowPanel", () => {
 
     expect(getStagePageOrder()).toEqual(["blob:001.jpg", "blob:002.jpg"]);
     expect(screen.getByTestId("manga-stage-page-position-badge-0")).toHaveTextContent(
-      "Página 1",
+      /P.gina 1/i,
     );
     expect(screen.getByTestId("manga-stage-page-position-badge-1")).toHaveTextContent(
-      "Página 2",
+      /P.gina 2/i,
     );
     expect(screen.getByTestId("manga-stage-page-top-row-0")).toHaveClass("items-start");
     expect(screen.getByTestId("manga-stage-page-top-actions-0")).toHaveClass(
@@ -410,13 +410,21 @@ describe("MangaWorkflowPanel", () => {
       "h-7",
       "justify-end",
     );
+    expect(screen.getByTestId("manga-stage-page-top-actions-0")).toHaveAttribute(
+      "data-actions-visible",
+      "false",
+    );
     expect(screen.getByTestId("manga-stage-page-cover-badge-0")).toBeInTheDocument();
-    expect(screen.getByTestId("manga-stage-page-cover-badge-0")).toHaveClass(
-      "group-hover:opacity-0",
-      "group-focus-within:opacity-0",
+    expect(screen.getByTestId("manga-stage-page-status-badges-0")).toHaveClass(
+      "absolute",
+      "right-0",
+      "top-0",
+      "justify-end",
     );
     expect(screen.getByTestId("manga-stage-page-filename-0")).toHaveTextContent("001.jpg");
     expect(screen.getByTestId("manga-stage-page-filename-1")).toHaveTextContent("002.jpg");
+    expect(screen.getByTestId("manga-stage-page-surface-0")).not.toHaveAttribute("title");
+    expect(screen.getByTestId("manga-stage-page-filename-0")).not.toHaveAttribute("title");
 
     const dataTransfer = createDataTransfer();
     fireEvent.dragStart(screen.getByTestId("manga-stage-page-surface-1"), { dataTransfer });
@@ -446,7 +454,7 @@ describe("MangaWorkflowPanel", () => {
       "animated",
     );
     expect(screen.getByTestId("manga-stage-page-filename-0")).toHaveTextContent("002.jpg");
-    expect(screen.getByTestId("manga-stage-page-surface-0")).toHaveAttribute("title", "002.jpg");
+    expect(screen.getByTestId("manga-stage-page-surface-0")).not.toHaveAttribute("title");
 
     fireEvent.drop(screen.getByTestId("manga-stage-page-surface-0"), { dataTransfer });
     fireEvent.dragEnd(screen.getByTestId("manga-stage-page-surface-1"), { dataTransfer });
@@ -456,9 +464,7 @@ describe("MangaWorkflowPanel", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(
-        /Pagina 2 movida para a posicao 1/i,
-      );
+      expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(/movida para a posi/i);
     });
   });
 
@@ -795,7 +801,7 @@ describe("MangaWorkflowPanel", () => {
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: "Nao foi possivel concluir a importacao",
+          title: "Não foi possível concluir a importação",
           variant: "destructive",
         }),
       );

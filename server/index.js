@@ -4,10 +4,7 @@ import fs from "fs";
 import { createServer as createHttpServer } from "node:http";
 import path from "path";
 import { fileURLToPath } from "url";
-import compression from "compression";
 import connectPgSimple from "connect-pg-simple";
-import cookieParser from "cookie-parser";
-import cors from "cors";
 import express from "express";
 import session from "express-session";
 import multer from "multer";
@@ -49,7 +46,6 @@ import {
 import { getBuildMetadata } from "./lib/build-metadata.js";
 import { deriveChapterSynopsis } from "./lib/chapter-synopsis.js";
 import { bulkModeratePendingComments } from "./lib/comments-bulk-moderation.js";
-import { buildCorsOptionsForRequest } from "./lib/cors-policy.js";
 import { createDataRepository } from "./lib/data-repository.js";
 import { proxyDiscordAvatarRequest } from "./lib/discord-avatar-proxy.js";
 import { buildEditorialCalendarItems } from "./lib/editorial-calendar.js";
@@ -65,10 +61,11 @@ import {
   HTML_CACHE_CONTROL_PRIVATE_REVALIDATE,
   resolveHtmlCacheControl,
 } from "./lib/html-cache-control.js";
-import { createIdempotencyFingerprint, createIdempotencyStore } from "./lib/idempotency-store.js";
+import { createIdempotencyStore } from "./lib/idempotency-store.js";
 import { createJobQueue } from "./lib/job-queue.js";
 import { createJsonFileCache } from "./lib/json-file-cache.js";
 import { truncateMetaDescription } from "./lib/meta-description.js";
+import { registerAuthRoutes } from "./lib/register-auth-routes.js";
 import { createMetricsRegistry } from "./lib/metrics.js";
 import { createOgRenderCache } from "./lib/og-render-cache.js";
 import {
@@ -81,13 +78,13 @@ import {
   buildOperationalAlertsResponse,
   buildOperationalAlertsV1,
 } from "./lib/operational-alerts.js";
+import { registerOperationalRoutes } from "./lib/register-operational-routes.js";
 import {
   buildOriginConfig,
   isAllowedOrigin as isAllowedOriginByConfig,
   resolveAuthAppOrigin,
   resolveDiscordRedirectUri as resolveDiscordRedirectUriByConfig,
 } from "./lib/origin-config.js";
-import { canAccessApiDuringPendingMfa } from "./lib/pending-mfa-guard.js";
 import {
   buildPostOgImageAlt,
   buildPostOgRevision,
@@ -203,6 +200,9 @@ import { createResponseCache } from "./lib/response-cache.js";
 import { createRevisionToken } from "./lib/revision-token.js";
 import { resolveThemeColor } from "./lib/theme-color.js";
 import { buildRssXml } from "./lib/rss-xml.js";
+import { registerRuntimeMiddleware } from "./lib/register-runtime-middleware.js";
+import { registerSessionRoutes } from "./lib/register-session-routes.js";
+import { registerSelfServiceRoutes } from "./lib/register-self-service-routes.js";
 import { buildSchemaOrgPayload, serializeSchemaOrgEntry } from "./lib/schema-org.js";
 import {
   decryptStringWithKeyring,
@@ -218,7 +218,7 @@ import {
   getIpv4Network24,
   normalizeSecurityEventStatus,
 } from "./lib/security-events.js";
-import { applySecurityHeaders, injectNonceIntoHtmlScripts } from "./lib/security-headers.js";
+import { injectNonceIntoHtmlScripts } from "./lib/security-headers.js";
 import {
   buildAuthRedirectUrl,
   establishAuthenticatedSession,
@@ -254,7 +254,6 @@ import {
   invalidateUploadsCleanupPreviewCache,
   loadCachedUploadsCleanupPreview,
 } from "./lib/uploads-cleanup-preview-cache.js";
-import { createUploadsDeliveryMiddleware } from "./lib/uploads-delivery.js";
 import {
   createUploadStorageService,
   getUploadAssetDescriptors,
@@ -2875,352 +2874,35 @@ if (isProduction && !OWNER_IDS.length && !BOOTSTRAP_TOKEN) {
   throw new Error("Missing OWNER_IDS or BOOTSTRAP_TOKEN in env.");
 }
 
-app.use((req, res, next) => {
-  if (!isProduction) {
-    return next();
-  }
-  const cspNonce = crypto.randomBytes(16).toString("base64");
-  res.locals.cspNonce = cspNonce;
-  applySecurityHeaders(res, cspNonce);
-  return next();
+registerRuntimeMiddleware({
+  app,
+  apiContractVersion: API_CONTRACT_VERSION,
+  clientDistDir,
+  clientRootDir,
+  getRequestIp,
+  idempotencyStore,
+  idempotencyTtlMs: IDEMPOTENCY_TTL_MS,
+  isAllowedOrigin,
+  isMaintenanceMode,
+  isMetricsEnabled,
+  isProduction,
+  isPwaDevEnabled,
+  loadSiteSettings: () => loadSiteSettings(),
+  loadUploads: () => loadUploads(),
+  maybeEmitAdminActionFromNewNetwork: (req) => maybeEmitAdminActionFromNewNetwork(req),
+  metricsRegistry,
+  pwaManifestBase: PWA_MANIFEST_BASE,
+  pwaManifestCacheControl: PWA_MANIFEST_CACHE_CONTROL,
+  pwaThemeColorDark: PWA_THEME_COLOR_DARK,
+  pwaThemeColorLight: PWA_THEME_COLOR_LIGHT,
+  sessionCookieConfig,
+  sessionStore,
+  setStaticCacheHeaders,
+  staticDefaultCacheControl: STATIC_DEFAULT_CACHE_CONTROL,
+  updateSessionIndexFromRequest: (...args) => updateSessionIndexFromRequest(...args),
+  uploadStorageService,
+  viteDevServer,
 });
-
-app.use(compression());
-app.use(express.json({ limit: "10mb" }));
-app.use(cookieParser());
-const apiCorsMiddleware = cors((req, callback) => {
-  const corsOptions = buildCorsOptionsForRequest({
-    origin: req.headers.origin,
-    method: req.method,
-    isProduction,
-    isAllowedOriginFn: isAllowedOrigin,
-  });
-  if (corsOptions) {
-    callback(null, corsOptions);
-    return;
-  }
-  callback(new Error("Not allowed by CORS"));
-});
-app.use("/api", apiCorsMiddleware);
-app.use("/auth", apiCorsMiddleware);
-
-app.set("trust proxy", 1);
-
-const requireSameOrigin = (req, res, next) => {
-  if (!isProduction) {
-    return next();
-  }
-  const method = req.method.toUpperCase();
-  if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
-    return next();
-  }
-  const originHeader = String(req.headers.origin || "");
-  const refererHeader = String(req.headers.referer || "");
-  let origin = originHeader;
-  if (!origin && refererHeader) {
-    try {
-      origin = new URL(refererHeader).origin;
-    } catch {
-      origin = "";
-    }
-  }
-  if (!origin || !isAllowedOrigin(origin)) {
-    return res.status(403).json({ error: "csrf" });
-  }
-  return next();
-};
-app.use("/api", requireSameOrigin);
-
-app.use(
-  session({
-    name: sessionCookieConfig.name,
-    secret: sessionCookieConfig.secret,
-    resave: false,
-    saveUninitialized: false,
-    store: sessionStore,
-    cookie: sessionCookieConfig.cookie,
-  }),
-);
-
-app.use((req, res, next) => {
-  const requestIdHeader = String(req.headers["x-request-id"] || "").trim();
-  const requestId = /^[a-zA-Z0-9._:-]{6,128}$/.test(requestIdHeader)
-    ? requestIdHeader
-    : crypto.randomUUID();
-  req.requestId = requestId;
-  res.setHeader("X-Request-Id", requestId);
-  res.setHeader("X-API-Version", API_CONTRACT_VERSION);
-  return next();
-});
-app.use((req, res, next) => {
-  const stopTimer = metricsRegistry.createTimer("http_request_duration_ms", {
-    method: String(req.method || "").toUpperCase(),
-    route: String(req.path || ""),
-  });
-  const startedAt = Date.now();
-  res.on("finish", () => {
-    const durationMs = stopTimer();
-    metricsRegistry.inc("http_requests_total", {
-      method: String(req.method || "").toUpperCase(),
-      route: String(req.path || ""),
-      status: String(res.statusCode || 0),
-    });
-    if (isMetricsEnabled) {
-      const log = {
-        level: res.statusCode >= 500 ? "error" : "info",
-        msg: "http_request",
-        ts: new Date().toISOString(),
-        requestId: req.requestId || null,
-        userId: req.session?.user?.id || req.session?.pendingMfaUser?.id || null,
-        method: String(req.method || "").toUpperCase(),
-        route: String(req.path || ""),
-        statusCode: Number(res.statusCode || 0),
-        durationMs: Math.round(durationMs),
-        ip: getRequestIp(req) || "",
-        ua: String(req.headers["user-agent"] || "").slice(0, 200),
-        bytesIn: Number(req.headers["content-length"] || 0) || 0,
-        bytesOut: Number(res.getHeader("content-length") || 0) || 0,
-        elapsedMs: Date.now() - startedAt,
-      };
-      console.log(JSON.stringify(log));
-    }
-  });
-  return next();
-});
-app.use((req, _res, next) => {
-  updateSessionIndexFromRequest(req);
-  return next();
-});
-app.use("/api", (req, res, next) => {
-  const hasPendingMfa = Boolean(req.session?.pendingMfaUser?.id && !req.session?.user?.id);
-  if (!hasPendingMfa) {
-    return next();
-  }
-  if (canAccessApiDuringPendingMfa(req.path)) {
-    return next();
-  }
-  return res.status(401).json({ error: "mfa_required" });
-});
-app.use("/api", (req, _res, next) => {
-  maybeEmitAdminActionFromNewNetwork(req);
-  return next();
-});
-
-const MUTATING_HTTP_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-app.use((req, res, next) => {
-  if (!isMaintenanceMode) {
-    return next();
-  }
-  if (!req.path.startsWith("/api")) {
-    return next();
-  }
-  if (!MUTATING_HTTP_METHODS.has(String(req.method || "").toUpperCase())) {
-    return next();
-  }
-  return res.status(503).json({ error: "maintenance_mode" });
-});
-
-const IDEMPOTENCY_KEY_PATTERN = /^[a-zA-Z0-9:_-]{8,200}$/;
-app.use("/api", (req, res, next) => {
-  if (!MUTATING_HTTP_METHODS.has(String(req.method || "").toUpperCase())) {
-    return next();
-  }
-  const idempotencyKey = String(req.headers["idempotency-key"] || "").trim();
-  if (!idempotencyKey) {
-    return next();
-  }
-  if (!IDEMPOTENCY_KEY_PATTERN.test(idempotencyKey)) {
-    return res.status(400).json({ error: "invalid_idempotency_key" });
-  }
-  const actorId = req.session?.user?.id
-    ? `user:${req.session.user.id}`
-    : `ip:${getRequestIp(req) || "anonymous"}`;
-  const requestPath = String(req.path || "").split("?")[0] || "/";
-  const fingerprint = createIdempotencyFingerprint({
-    method: req.method,
-    path: requestPath,
-    actorId,
-    body: req.body && typeof req.body === "object" ? req.body : null,
-  });
-  const reserveResult = idempotencyStore.reserve({
-    key: idempotencyKey,
-    fingerprint,
-    ttlOverrideMs: IDEMPOTENCY_TTL_MS,
-  });
-
-  if (reserveResult.status === "conflict") {
-    return res.status(409).json({ error: "idempotency_conflict" });
-  }
-  if (reserveResult.status === "in_progress") {
-    return res.status(409).json({ error: "idempotency_in_progress" });
-  }
-  if (reserveResult.status === "replay") {
-    const replay = reserveResult.response || {};
-    res.setHeader("Idempotency-Replayed", "true");
-    res.setHeader("Idempotency-Key", idempotencyKey);
-    return res.status(Number(replay.statusCode || 200)).json(replay.body ?? null);
-  }
-  if (reserveResult.status !== "reserved") {
-    return res.status(400).json({ error: "invalid_idempotency_key" });
-  }
-
-  res.setHeader("Idempotency-Key", idempotencyKey);
-  const originalJson = res.json.bind(res);
-  let capturedJson = null;
-  let hasJsonPayload = false;
-  res.json = (payload) => {
-    capturedJson = payload;
-    hasJsonPayload = true;
-    return originalJson(payload);
-  };
-
-  let done = false;
-  const finalize = () => {
-    if (done) {
-      return;
-    }
-    done = true;
-    if (res.statusCode >= 500 || !hasJsonPayload) {
-      idempotencyStore.release({ key: idempotencyKey, fingerprint });
-      return;
-    }
-    idempotencyStore.complete({
-      key: idempotencyKey,
-      fingerprint,
-      ttlOverrideMs: IDEMPOTENCY_TTL_MS,
-      response: {
-        statusCode: res.statusCode,
-        body: capturedJson,
-      },
-    });
-  };
-
-  res.on("finish", finalize);
-  res.on("close", () => {
-    if (!res.writableEnded) {
-      idempotencyStore.release({ key: idempotencyKey, fingerprint });
-    }
-  });
-  return next();
-});
-
-const PWA_WORKBOX_FILE_PATTERN = /^workbox-[\w-]+\.js$/;
-
-const resolvePwaCriticalAssetPath = (requestPath) => {
-  const normalizedPath = String(requestPath || "").trim();
-  if (!normalizedPath) {
-    return null;
-  }
-  if (normalizedPath === "/manifest.webmanifest") {
-    return path.join(clientDistDir, "manifest.webmanifest");
-  }
-  if (normalizedPath === "/sw.js") {
-    return path.join(clientDistDir, "sw.js");
-  }
-  const fileName = normalizedPath.startsWith("/") ? normalizedPath.slice(1) : normalizedPath;
-  if (PWA_WORKBOX_FILE_PATTERN.test(fileName)) {
-    return path.join(clientDistDir, fileName);
-  }
-  return null;
-};
-
-const resolvePwaThemeColors = (mode) => {
-  if (String(mode || "").toLowerCase() === "light") {
-    return {
-      theme_color: PWA_THEME_COLOR_LIGHT,
-      background_color: PWA_THEME_COLOR_LIGHT,
-    };
-  }
-  return {
-    theme_color: PWA_THEME_COLOR_DARK,
-    background_color: PWA_THEME_COLOR_DARK,
-  };
-};
-
-const buildPwaManifestPayload = () => {
-  let themeMode = "dark";
-  try {
-    const settings = loadSiteSettings();
-    themeMode = settings?.theme?.mode;
-  } catch {
-    themeMode = "dark";
-  }
-  const colors = resolvePwaThemeColors(themeMode);
-  return {
-    ...PWA_MANIFEST_BASE,
-    ...colors,
-  };
-};
-
-app.get("/manifest.webmanifest", (_req, res) => {
-  if (!isProduction && !isPwaDevEnabled) {
-    return res.status(404).json({ error: "pwa_asset_unavailable_in_dev" });
-  }
-  const payload = buildPwaManifestPayload();
-  res.setHeader("Cache-Control", PWA_MANIFEST_CACHE_CONTROL);
-  res.type("application/manifest+json; charset=utf-8");
-  return res.status(200).send(JSON.stringify(payload));
-});
-
-const uploadsPublicDir = path.join(clientRootDir, "public", "uploads");
-app.use("/uploads/_quarantine", (_req, res) => res.status(404).end());
-app.use(
-  createUploadsDeliveryMiddleware({
-    uploadsDir: uploadsPublicDir,
-    loadUploads: () => loadUploads(),
-    storageService: uploadStorageService,
-    defaultCacheControl: STATIC_DEFAULT_CACHE_CONTROL,
-  }),
-);
-app.use(
-  "/uploads",
-  express.static(uploadsPublicDir, {
-    setHeaders: (res) => {
-      res.setHeader("Cache-Control", STATIC_DEFAULT_CACHE_CONTROL);
-    },
-  }),
-);
-if (isProduction) {
-  app.use(
-    express.static(clientDistDir, {
-      index: false,
-      setHeaders: setStaticCacheHeaders,
-    }),
-  );
-  app.use((req, res, next) => {
-    const method = String(req.method || "").toUpperCase();
-    if (method !== "GET" && method !== "HEAD") {
-      return next();
-    }
-    const assetPath = resolvePwaCriticalAssetPath(req.path);
-    if (!assetPath) {
-      return next();
-    }
-    if (fs.existsSync(assetPath)) {
-      return next();
-    }
-    return res.status(404).json({ error: "pwa_asset_not_found" });
-  });
-}
-if (!isProduction) {
-  app.use((req, res, next) => {
-    const method = String(req.method || "").toUpperCase();
-    if (method !== "GET" && method !== "HEAD") {
-      return next();
-    }
-    const assetPath = resolvePwaCriticalAssetPath(req.path);
-    if (!assetPath) {
-      return next();
-    }
-    if (isPwaDevEnabled) {
-      return next();
-    }
-    return res.status(404).json({ error: "pwa_asset_unavailable_in_dev" });
-  });
-}
-if (viteDevServer) {
-  app.use(viteDevServer.middlewares);
-}
 
 const USER_PREFERENCES_MAX_BYTES = 20 * 1024;
 const USER_PREFERENCES_THEME_MODE_SET = new Set(["light", "dark", "system"]);
@@ -7018,372 +6700,6 @@ const syncPersistedDiscordAvatarForLogin = ({ userId, discordAvatarUrl }) => {
   syncAllowedUsers(users);
 };
 
-app.get("/auth/discord", async (req, res) => {
-  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-  if (!(await canAttemptAuth(ip))) {
-    metricsRegistry.inc("auth_login_total", { status: "rate_limited" });
-    appendAuditLog(req, "auth.discord.rate_limited", "auth", {});
-    return res.status(429).json({ error: "rate_limited" });
-  }
-  const state = crypto.randomBytes(16).toString("hex");
-  const loginAppOrigin = resolveAuthAppOrigin({
-    req,
-    sessionOrigin: null,
-    primaryAppOrigin: PRIMARY_APP_ORIGIN,
-    isAllowedOriginFn: isAllowedOrigin,
-  });
-  const loginNext =
-    typeof req.query.next === "string" && req.query.next.trim() ? req.query.next : null;
-  const redirectUri = resolveDiscordRedirectUri(req);
-  if (req.session) {
-    req.session.oauthState = state;
-    req.session.loginNext = loginNext;
-    req.session.discordRedirectUri = redirectUri;
-    req.session.loginAppOrigin = loginAppOrigin;
-  }
-  try {
-    await saveSessionState(req);
-  } catch {
-    metricsRegistry.inc("auth_login_total", { status: "failed" });
-    appendAuditLog(req, "auth.login.failed", "auth", { error: "session_persist_failed" });
-    return res.redirect(
-      buildAuthRedirectUrl({
-        appOrigin: loginAppOrigin,
-        path: "/login",
-        searchParams: { error: "server_error" },
-      }),
-    );
-  }
-
-  const params = new URLSearchParams({
-    client_id: DISCORD_CLIENT_ID || "",
-    response_type: "code",
-    redirect_uri: redirectUri,
-    scope: SCOPES.join(" "),
-    state,
-    prompt: "consent",
-  });
-
-  res.redirect(`https://discord.com/oauth2/authorize?${params.toString()}`);
-});
-
-app.get("/login", async (req, res, next) => {
-  const hasOAuthCallbackParams = Boolean(
-    (typeof req.query?.code === "string" && req.query.code.trim()) ||
-      (typeof req.query?.state === "string" && req.query.state.trim()),
-  );
-  if (!hasOAuthCallbackParams) {
-    return next();
-  }
-  const loginAppOrigin = resolveAuthAppOrigin({
-    req,
-    sessionOrigin: req.session?.loginAppOrigin,
-    primaryAppOrigin: PRIMARY_APP_ORIGIN,
-    isAllowedOriginFn: isAllowedOrigin,
-  });
-
-  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-  if (!(await canAttemptAuth(ip))) {
-    metricsRegistry.inc("auth_login_total", { status: "rate_limited" });
-    appendAuditLog(req, "auth.login.rate_limited", "auth", {});
-    return res.redirect(
-      buildAuthRedirectUrl({
-        appOrigin: loginAppOrigin,
-        path: "/login",
-        searchParams: { error: "rate_limited" },
-      }),
-    );
-  }
-  const { code, state } = req.query;
-
-  if (!code || typeof code !== "string") {
-    metricsRegistry.inc("auth_login_total", { status: "failed" });
-    handleAuthFailureSecuritySignals({ req, error: "missing_code" });
-    appendAuditLog(req, "auth.login.failed", "auth", { error: "missing_code" });
-    return res.redirect(
-      buildAuthRedirectUrl({
-        appOrigin: loginAppOrigin,
-        path: "/login",
-        searchParams: { error: "missing_code" },
-      }),
-    );
-  }
-
-  if (!state || typeof state !== "string" || state !== req.session?.oauthState) {
-    metricsRegistry.inc("auth_login_total", { status: "failed" });
-    handleAuthFailureSecuritySignals({ req, error: "state_mismatch" });
-    appendAuditLog(req, "auth.login.failed", "auth", { error: "state_mismatch" });
-    return res.redirect(
-      buildAuthRedirectUrl({
-        appOrigin: loginAppOrigin,
-        path: "/login",
-        searchParams: { error: "state_mismatch" },
-      }),
-    );
-  }
-
-  if (req.session) {
-    req.session.oauthState = null;
-  }
-
-  try {
-    const redirectToLoginServerError = () =>
-      res.redirect(
-        buildAuthRedirectUrl({
-          appOrigin: loginAppOrigin,
-          path: "/login",
-          searchParams: { error: "server_error" },
-        }),
-      );
-    const redirectUri = req.session?.discordRedirectUri || resolveDiscordRedirectUri(req);
-    if (req.session) {
-      req.session.discordRedirectUri = null;
-    }
-
-    const tokenResponse = await fetch(`${DISCORD_API}/oauth2/token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        client_id: DISCORD_CLIENT_ID || "",
-        client_secret: DISCORD_CLIENT_SECRET || "",
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: redirectUri,
-        scope: SCOPES.join(" "),
-      }),
-    });
-
-    if (!tokenResponse.ok) {
-      metricsRegistry.inc("auth_login_total", { status: "failed" });
-      handleAuthFailureSecuritySignals({ req, error: "token_exchange_failed" });
-      appendAuditLog(req, "auth.login.failed", "auth", { error: "token_exchange_failed" });
-      return res.redirect(
-        buildAuthRedirectUrl({
-          appOrigin: loginAppOrigin,
-          path: "/login",
-          searchParams: { error: "token_exchange_failed" },
-        }),
-      );
-    }
-
-    const tokenData = await tokenResponse.json();
-
-    const userResponse = await fetch(`${DISCORD_API}/users/@me`, {
-      headers: {
-        authorization: `${tokenData.token_type} ${tokenData.access_token}`,
-      },
-    });
-
-    if (!userResponse.ok) {
-      metricsRegistry.inc("auth_login_total", { status: "failed" });
-      handleAuthFailureSecuritySignals({ req, error: "user_fetch_failed" });
-      appendAuditLog(req, "auth.login.failed", "auth", { error: "user_fetch_failed" });
-      return res.redirect(
-        buildAuthRedirectUrl({
-          appOrigin: loginAppOrigin,
-          path: "/login",
-          searchParams: { error: "user_fetch_failed" },
-        }),
-      );
-    }
-
-    const discordUser = await userResponse.json();
-    const allowedUsers = loadAllowedUsers();
-    const isAllowed = allowedUsers.includes(discordUser.id);
-
-    if (!isAllowed) {
-      if (req.session) {
-        req.session.destroy(() => undefined);
-      }
-      metricsRegistry.inc("auth_login_total", { status: "failed" });
-      handleAuthFailureSecuritySignals({ req, error: "unauthorized" });
-      appendAuditLog(req, "auth.login.failed", "auth", { error: "unauthorized" });
-      return res.redirect(
-        buildAuthRedirectUrl({
-          appOrigin: loginAppOrigin,
-          path: "/login",
-          searchParams: { error: "unauthorized" },
-        }),
-      );
-    }
-
-    const next = String(req.session?.loginNext || "").trim();
-    const authenticatedUser = {
-      id: discordUser.id,
-      name: discordUser.global_name || discordUser.username,
-      username: discordUser.username,
-      email: discordUser.email || null,
-      avatarUrl: createDiscordAvatarUrl(discordUser),
-    };
-    syncPersistedDiscordAvatarForLogin({
-      userId: authenticatedUser.id,
-      discordAvatarUrl: authenticatedUser.avatarUrl,
-    });
-    ensureOwnerUser(authenticatedUser);
-    const requiresMfa = isTotpEnabledForUser(authenticatedUser.id);
-    try {
-      await establishAuthenticatedSession({
-        req,
-        user: authenticatedUser,
-        preserved: {
-          loginAppOrigin,
-          loginNext: next || null,
-        },
-      });
-    } catch {
-      metricsRegistry.inc("auth_login_total", { status: "failed" });
-      handleAuthFailureSecuritySignals({ req, error: "session_regenerate_failed" });
-      appendAuditLog(req, "auth.login.failed", "auth", { error: "session_regenerate_failed" });
-      return redirectToLoginServerError();
-    }
-    if (req.session) {
-      req.session.oauthState = null;
-      req.session.discordRedirectUri = null;
-    }
-
-    if (requiresMfa && req.session) {
-      req.session.pendingMfaUser = authenticatedUser;
-      req.session.user = null;
-      req.session.mfaVerifiedAt = null;
-      try {
-        await saveSessionState(req);
-      } catch {
-        metricsRegistry.inc("auth_login_total", { status: "failed" });
-        handleAuthFailureSecuritySignals({ req, error: "session_persist_failed" });
-        appendAuditLog(req, "auth.login.failed", "auth", { error: "session_persist_failed" });
-        return redirectToLoginServerError();
-      }
-      updateSessionIndexFromRequest(req, { force: true });
-      appendAuditLog(req, "auth.login.mfa_required", "auth", { userId: discordUser.id });
-      metricsRegistry.inc("auth_login_total", { status: "mfa_required" });
-      return res.redirect(
-        buildAuthRedirectUrl({
-          appOrigin: loginAppOrigin,
-          path: "/login",
-          searchParams: {
-            mfa: "required",
-            next: next || undefined,
-          },
-        }),
-      );
-    }
-
-    if (req.session) {
-      req.session.loginNext = null;
-      req.session.loginAppOrigin = null;
-      req.session.mfaVerifiedAt = new Date().toISOString();
-    }
-    try {
-      await saveSessionState(req);
-    } catch {
-      metricsRegistry.inc("auth_login_total", { status: "failed" });
-      handleAuthFailureSecuritySignals({ req, error: "session_persist_failed" });
-      appendAuditLog(req, "auth.login.failed", "auth", { error: "session_persist_failed" });
-      return redirectToLoginServerError();
-    }
-    updateSessionIndexFromRequest(req, { force: true });
-    maybeEmitNewNetworkLoginEvent({ req, userId: authenticatedUser.id });
-    maybeEmitExcessiveSessionsEvent({ req, userId: authenticatedUser.id });
-    appendAuditLog(req, "auth.login.success", "auth", { userId: discordUser.id });
-    metricsRegistry.inc("auth_login_total", { status: "success" });
-    return res.redirect(
-      buildAuthRedirectUrl({
-        appOrigin: loginAppOrigin,
-        path: next || "/dashboard",
-      }),
-    );
-  } catch {
-    metricsRegistry.inc("auth_login_total", { status: "failed" });
-    handleAuthFailureSecuritySignals({ req, error: "server_error" });
-    appendAuditLog(req, "auth.login.failed", "auth", { error: "server_error" });
-    return res.redirect(
-      buildAuthRedirectUrl({
-        appOrigin: loginAppOrigin,
-        path: "/login",
-        searchParams: { error: "server_error" },
-      }),
-    );
-  }
-});
-app.post("/api/auth/mfa/verify", async (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  const pendingUser = req.session?.pendingMfaUser || null;
-  if (!pendingUser?.id) {
-    return res.status(401).json({ error: "mfa_not_pending" });
-  }
-
-  const codeOrRecoveryCode = String(req.body?.codeOrRecoveryCode || req.body?.code || "").trim();
-  if (!codeOrRecoveryCode) {
-    return res.status(400).json({ error: "code_required" });
-  }
-
-  const verification = verifyTotpOrRecoveryCode({
-    userId: pendingUser.id,
-    codeOrRecoveryCode,
-    consumeRecoveryCode: true,
-  });
-  if (!verification.ok) {
-    handleMfaFailureSecuritySignals({
-      req,
-      userId: pendingUser.id,
-      error: verification.reason || "invalid_code",
-    });
-    appendAuditLog(req, "auth.mfa.failed", "auth", {
-      userId: pendingUser.id,
-      error: verification.reason || "invalid_code",
-    });
-    return res.status(401).json({ error: "invalid_mfa_code" });
-  }
-
-  const next = String(req.session?.loginNext || "").trim();
-  const loginAppOrigin = resolveAuthAppOrigin({
-    req,
-    sessionOrigin: req.session?.loginAppOrigin,
-    primaryAppOrigin: PRIMARY_APP_ORIGIN,
-    isAllowedOriginFn: isAllowedOrigin,
-  });
-  try {
-    await establishAuthenticatedSession({
-      req,
-      user: pendingUser,
-      preserved: {
-        loginNext: null,
-        loginAppOrigin: null,
-        mfaVerifiedAt: new Date().toISOString(),
-      },
-    });
-  } catch {
-    return res.status(500).json({ error: "session_regenerate_failed" });
-  }
-  if (req.session) {
-    req.session.pendingMfaUser = null;
-  }
-  try {
-    await saveSessionState(req);
-  } catch {
-    return res.status(500).json({ error: "session_regenerate_failed" });
-  }
-  updateSessionIndexFromRequest(req, { force: true });
-  maybeEmitNewNetworkLoginEvent({ req, userId: pendingUser.id });
-  maybeEmitExcessiveSessionsEvent({ req, userId: pendingUser.id });
-  metricsRegistry.inc("auth_mfa_verify_total", { status: "success" });
-  appendAuditLog(req, "auth.mfa.success", "auth", {
-    userId: pendingUser.id,
-    method: verification.method,
-  });
-  return res.json({
-    ok: true,
-    method: verification.method,
-    recoveryCodesRemaining: verification.remainingRecoveryCodes ?? 0,
-    redirect: buildAuthRedirectUrl({
-      appOrigin: loginAppOrigin,
-      path: next || "/dashboard",
-    }),
-  });
-});
-
 const withEffectiveAvatarUrl = (user, fallbackAvatarUrl = null) => {
   if (!user) {
     return user;
@@ -7488,88 +6804,6 @@ const buildUserPayload = (sessionUser) => {
   };
   return withUserProfileRevision(payload, uploads);
 };
-
-app.get("/api/me", (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  if (!req.session?.user) {
-    if (req.session?.pendingMfaUser?.id) {
-      return res.status(401).json({
-        error: "mfa_required",
-        pendingMfa: true,
-        user: {
-          id: req.session.pendingMfaUser.id,
-          name: req.session.pendingMfaUser.name || "",
-          username: req.session.pendingMfaUser.username || "",
-          avatarUrl: req.session.pendingMfaUser.avatarUrl || null,
-        },
-      });
-    }
-    return res.status(401).json({ error: "unauthorized" });
-  }
-
-  return res.json(buildUserPayload(req.session.user));
-});
-
-app.get("/api/public/me", (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  if (!req.session?.user) {
-    return res.json({
-      user: null,
-      pendingMfa: Boolean(req.session?.pendingMfaUser?.id),
-    });
-  }
-
-  return res.json({ user: buildUserPayload(req.session.user) });
-});
-
-app.get("/api/public/discord-avatar/:userId/:avatarFile", async (req, res) => {
-  const result = await proxyDiscordAvatarRequest({
-    userId: req.params.userId,
-    avatarFile: req.params.avatarFile,
-    size: req.query.size,
-  });
-
-  if (!result.ok) {
-    res.setHeader("Cache-Control", "no-store");
-    return res.status(result.status).end();
-  }
-
-  res.setHeader("Cache-Control", result.cacheControl);
-  res.setHeader("Content-Length", String(result.body.length));
-  return res.status(200).type(result.contentType).send(result.body);
-});
-
-app.get("/api/version", (_req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  return res.json({
-    apiVersion: API_CONTRACT_VERSION,
-    contractUrl: `/api/contracts/${API_CONTRACT_VERSION}.json`,
-    build: buildRuntimeMetadata(),
-  });
-});
-
-app.get("/api/contracts", (_req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  return res.json({
-    versions: [API_CONTRACT_VERSION],
-    latest: API_CONTRACT_VERSION,
-    links: {
-      [API_CONTRACT_VERSION]: `/api/contracts/${API_CONTRACT_VERSION}.json`,
-    },
-  });
-});
-
-app.get(["/api/contracts/v1", "/api/contracts/v1.json"], (_req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  return res.json(
-    buildApiContractV1({
-      capabilities: {
-        project_epub_import_async: isEpubImportJobStorageAvailable(),
-        project_manga_import_async: isProjectImageImportJobStorageAvailable(),
-      },
-    }),
-  );
-});
 
 const getRepositoryHealthSnapshot = () => {
   if (!dataRepository || typeof dataRepository.getHealthSnapshot !== "function") {
@@ -7688,13 +6922,13 @@ const probeDbHealthCheck = async () => {
 const probeUploadsDirHealthCheck = async () => {
   const startedAt = Date.now();
   try {
-    await fs.promises.access(uploadsPublicDir, fs.constants.R_OK | fs.constants.W_OK);
+    await fs.promises.access(PUBLIC_UPLOADS_DIR, fs.constants.R_OK | fs.constants.W_OK);
     return {
       name: "uploads_dir",
       status: "ok",
       latencyMs: Date.now() - startedAt,
       message: "Diretório de uploads acessível.",
-      meta: { path: uploadsPublicDir },
+      meta: { path: PUBLIC_UPLOADS_DIR },
     };
   } catch (error) {
     return {
@@ -7702,7 +6936,7 @@ const probeUploadsDirHealthCheck = async () => {
       status: "warning",
       latencyMs: Date.now() - startedAt,
       message: String(error?.message || error || "uploads_dir_unavailable"),
-      meta: { path: uploadsPublicDir },
+      meta: { path: PUBLIC_UPLOADS_DIR },
     };
   }
 };
@@ -7886,59 +7120,31 @@ const buildRuntimeMetadata = () => ({
   ...getBuildMetadata(),
 });
 
-app.get("/api/health/live", (_req, res) => {
-  setNoStoreJson(res);
-  return res.json({
-    ok: true,
-    status: "ok",
-    ts: new Date().toISOString(),
-    build: buildRuntimeMetadata(),
-  });
+registerSessionRoutes({
+  app,
+  apiContractVersion: API_CONTRACT_VERSION,
+  buildApiContractV1Payload: () =>
+    buildApiContractV1({
+      capabilities: {
+        project_epub_import_async: isEpubImportJobStorageAvailable(),
+        project_manga_import_async: isProjectImageImportJobStorageAvailable(),
+      },
+    }),
+  buildRuntimeMetadata,
+  buildUserPayload,
+  proxyDiscordAvatarRequest,
 });
 
-app.get("/api/health/ready", async (_req, res) => {
-  setNoStoreJson(res);
-  const snapshot = await evaluateOperationalMonitoring();
-  const statusCode = snapshot.health.status === "fail" ? 503 : 200;
-  return res.status(statusCode).json({
-    ...snapshot.health,
-    build: buildRuntimeMetadata(),
-  });
-});
-
-app.get("/api/health", async (_req, res) => {
-  setNoStoreJson(res);
-  const snapshot = await evaluateOperationalMonitoring();
-  const statusCode = snapshot.health.status === "fail" ? 503 : 200;
-  return res.status(statusCode).json({
-    ...snapshot.health,
-    build: buildRuntimeMetadata(),
-  });
-});
-app.get("/api/metrics", (req, res) => {
-  if (!isMetricsEnabled || !METRICS_TOKEN_NORMALIZED) {
-    return res.status(404).json({ error: "not_found" });
-  }
-  const authHeader = String(req.headers.authorization || "").trim();
-  const tokenFromHeader = authHeader.toLowerCase().startsWith("bearer ")
-    ? authHeader.slice("bearer ".length).trim()
-    : "";
-  const token = tokenFromHeader || String(req.headers["x-metrics-token"] || "").trim();
-  if (!token || token !== METRICS_TOKEN_NORMALIZED) {
-    return res.status(401).json({ error: "unauthorized" });
-  }
-  const activeSessionsCount = loadUserSessionIndexRecords({ includeRevoked: false }).filter(
-    (entry) => !entry.revokedAt,
-  ).length;
-  metricsRegistry.setGauge("active_sessions_total", {}, activeSessionsCount);
-  const openSecurityEvents = loadSecurityEvents().filter(
-    (entry) => String(entry.status || "").toLowerCase() === SecurityEventStatus.OPEN,
-  ).length;
-  metricsRegistry.setGauge("security_events_open_current", {}, openSecurityEvents);
-
-  res.setHeader("Cache-Control", "no-store");
-  res.setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
-  return res.status(200).send(metricsRegistry.renderPrometheus());
+registerOperationalRoutes({
+  app,
+  buildRuntimeMetadata,
+  evaluateOperationalMonitoring,
+  isMetricsEnabled,
+  loadSecurityEvents,
+  loadUserSessionIndexRecords,
+  metricsRegistry,
+  metricsTokenNormalized: METRICS_TOKEN_NORMALIZED,
+  securityEventStatusOpen: SecurityEventStatus.OPEN,
 });
 
 const operationalAlertsWebhookState = {
@@ -8130,246 +7336,35 @@ const requirePrimaryOwner = (req, res, next) => {
   return next();
 };
 
-app.get("/api/me/preferences", requireAuth, (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  const userId = String(req.session?.user?.id || "").trim();
-  if (!userId) {
-    return res.status(401).json({ error: "unauthorized" });
-  }
-  return res.json({ preferences: loadUserPreferences(userId) });
-});
-
-app.put("/api/me/preferences", requireAuth, (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  const userId = String(req.session?.user?.id || "").trim();
-  if (!userId) {
-    return res.status(401).json({ error: "unauthorized" });
-  }
-  const incoming =
-    isPlainObject(req.body) && isPlainObject(req.body.preferences)
-      ? req.body.preferences
-      : req.body;
-  const normalized = normalizeUserPreferences(incoming);
-  const encoded = Buffer.byteLength(JSON.stringify(normalized), "utf8");
-  if (encoded > USER_PREFERENCES_MAX_BYTES) {
-    return res.status(413).json({ error: "payload_too_large" });
-  }
-  const saved = writeUserPreferences(userId, normalized);
-  appendAuditLog(req, "users.preferences.update", "users", { userId });
-  return res.json({ ok: true, preferences: saved });
-});
-app.get("/api/me/security", requireAuth, (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  const userId = String(req.session?.user?.id || "").trim();
-  if (!userId) {
-    return res.status(401).json({ error: "unauthorized" });
-  }
-  return res.json(buildMySecuritySummary({ req, userId }));
-});
-app.post("/api/me/security/totp/enroll/start", requireAuth, async (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  const userId = String(req.session?.user?.id || "").trim();
-  if (!userId) {
-    return res.status(401).json({ error: "unauthorized" });
-  }
-  if (isTotpEnabledForUser(userId)) {
-    return res.status(409).json({ error: "totp_already_enabled" });
-  }
-  const metadata = resolveMfaMetadata({
-    req,
-    userId,
-    accountName: req.session?.user?.username || req.session?.user?.name || userId,
-  });
-  const enrollment = startTotpEnrollment({
-    req,
-    userId,
-    accountName: metadata.accountLabel,
-    issuer: metadata.issuer,
-    iconUrl: metadata.iconUrl,
-  });
-  if (!enrollment) {
-    return res.status(500).json({ error: "enrollment_unavailable" });
-  }
-  try {
-    await saveSessionState(req);
-  } catch {
-    clearEnrollmentFromSession(req);
-    appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
-      userId,
-      error: "enrollment_persist_failed",
-    });
-    return res.status(500).json({ error: "enrollment_persist_failed" });
-  }
-  appendAuditLog(req, "auth.mfa.enroll.start", "auth", { userId });
-  return res.json({
-    enrollmentToken: enrollment.enrollmentToken,
-    otpauthUrl: enrollment.otpauthUrl,
-    manualSecret: enrollment.secret,
-    issuer: metadata.issuer,
-    accountLabel: metadata.accountLabel,
-    iconUrl: metadata.iconUrl,
-  });
-});
-app.post("/api/me/security/totp/enroll/confirm", requireAuth, (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  const userId = String(req.session?.user?.id || "").trim();
-  if (!userId) {
-    return res.status(401).json({ error: "unauthorized" });
-  }
-  const enrollmentToken = String(req.body?.enrollmentToken || req.body?.token || "").trim();
-  const code = String(req.body?.code || req.body?.codeOrRecoveryCode || "")
-    .trim()
-    .replace(/\s+/g, "");
-  if (!enrollmentToken || !code) {
-    appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
-      userId,
-      error: "enrollment_token_and_code_required",
-    });
-    return res.status(400).json({ error: "enrollment_token_and_code_required" });
-  }
-  const enrollment = resolveEnrollmentFromSession({ req, enrollmentToken, userId });
-  if (!enrollment) {
-    appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
-      userId,
-      error: "invalid_or_expired_enrollment",
-    });
-    return res.status(400).json({ error: "invalid_or_expired_enrollment" });
-  }
-  if (!verifyTotpCode({ secret: enrollment.secret, code })) {
-    handleMfaFailureSecuritySignals({
-      req,
-      userId,
-      error: "enroll_confirm_invalid_code",
-    });
-    appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
-      userId,
-      error: "invalid_totp_code",
-    });
-    return res.status(401).json({ error: "invalid_totp_code" });
-  }
-  const recoveryCodes = generateRecoveryCodes({ count: 8 });
-  const recoveryCodesHashed = recoveryCodes.map((entry) =>
-    hashRecoveryCode({ code: entry, pepper: MFA_RECOVERY_CODE_PEPPER }),
-  );
-  const encryptedSecret = encryptStringWithKeyring({
-    keyring: dataEncryptionKeyring,
-    plaintext: JSON.stringify({ secret: enrollment.secret }),
-  });
-  writeUserMfaTotpRecord(userId, {
-    userId,
-    secretEncrypted: encryptedSecret,
-    secretKeyId: dataEncryptionKeyring.activeKeyId,
-    enabledAt: new Date().toISOString(),
-    disabledAt: null,
-    recoveryCodesHashed,
-  });
-  clearEnrollmentFromSession(req);
-  appendAuditLog(req, "auth.mfa.enroll.success", "auth", { userId });
-  metricsRegistry.inc("auth_mfa_verify_total", { status: "configured" });
-  return res.json({
-    ok: true,
-    recoveryCodes,
-    recoveryCodesRemaining: recoveryCodes.length,
-  });
-});
-app.post("/api/me/security/totp/disable", requireAuth, (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  const userId = String(req.session?.user?.id || "").trim();
-  if (!userId) {
-    return res.status(401).json({ error: "unauthorized" });
-  }
-  if (!isTotpEnabledForUser(userId)) {
-    return res.status(409).json({ error: "totp_not_enabled" });
-  }
-  const codeOrRecoveryCode = String(req.body?.codeOrRecoveryCode || req.body?.code || "").trim();
-  const verification = verifyTotpOrRecoveryCode({
-    userId,
-    codeOrRecoveryCode,
-    consumeRecoveryCode: true,
-  });
-  if (!verification.ok) {
-    handleMfaFailureSecuritySignals({
-      req,
-      userId,
-      error: verification.reason || "disable_invalid_code",
-    });
-    return res.status(401).json({ error: "invalid_mfa_code" });
-  }
-  deleteUserMfaTotpRecord(userId);
-  clearEnrollmentFromSession(req);
-  appendAuditLog(req, "auth.mfa.disable", "auth", { userId, method: verification.method });
-  return res.json({ ok: true });
-});
-app.get("/api/me/sessions", requireAuth, (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  const userId = String(req.session?.user?.id || "").trim();
-  if (!userId) {
-    return res.status(401).json({ error: "unauthorized" });
-  }
-  const currentSid = String(req.sessionID || "");
-  const sessions = listActiveSessionsForUser(userId).map((entry) => ({
-    sid: entry.sid,
-    createdAt: entry.createdAt || null,
-    lastSeenAt: entry.lastSeenAt || null,
-    lastIp: entry.lastIp || "",
-    userAgent: entry.userAgent || "",
-    current: String(entry.sid || "") === currentSid,
-    isCurrent: String(entry.sid || "") === currentSid,
-    revokedAt: entry.revokedAt || null,
-    isPendingMfa: Boolean(entry.isPendingMfa),
-  }));
-  metricsRegistry.setGauge("active_sessions_total", {}, sessions.length);
-  return res.json({ sessions });
-});
-app.delete("/api/me/sessions/others", requireAuth, async (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  const userId = String(req.session?.user?.id || "").trim();
-  const currentSid = String(req.sessionID || "");
-  const sessions = listActiveSessionsForUser(userId).filter(
-    (entry) => String(entry.sid || "") !== currentSid,
-  );
-  await Promise.all(
-    sessions.map((entry) =>
-      revokeSessionBySid({
-        sid: entry.sid,
-        revokedBy: userId,
-        revokeReason: "self_revoke_others",
-      }),
-    ),
-  );
-  appendAuditLog(req, "auth.sessions.revoke_others", "auth", {
-    userId,
-    count: sessions.length,
-  });
-  return res.json({ ok: true, revokedCount: sessions.length });
-});
-app.delete("/api/me/sessions/:sid", requireAuth, async (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  const userId = String(req.session?.user?.id || "").trim();
-  const targetSid = String(req.params.sid || "").trim();
-  const currentSid = String(req.sessionID || "");
-  if (!targetSid) {
-    return res.status(400).json({ error: "invalid_sid" });
-  }
-  if (targetSid === currentSid) {
-    return res.status(400).json({ error: "cannot_revoke_current_session" });
-  }
-  const target = listActiveSessionsForUser(userId).find(
-    (entry) => String(entry.sid || "") === targetSid,
-  );
-  if (!target) {
-    return res.status(404).json({ error: "session_not_found" });
-  }
-  await revokeSessionBySid({
-    sid: targetSid,
-    revokedBy: userId,
-    revokeReason: "self_revoke_single",
-  });
-  appendAuditLog(req, "auth.sessions.revoke_single", "auth", {
-    userId,
-    sid: targetSid,
-  });
-  return res.json({ ok: true });
+registerSelfServiceRoutes({
+  app,
+  appendAuditLog,
+  buildMySecuritySummary,
+  clearEnrollmentFromSession,
+  dataEncryptionKeyring,
+  deleteUserMfaTotpRecord,
+  encryptStringWithKeyring,
+  generateRecoveryCodes,
+  handleMfaFailureSecuritySignals,
+  hashRecoveryCode,
+  isPlainObject,
+  isTotpEnabledForUser,
+  listActiveSessionsForUser,
+  metricsRegistry,
+  mfaRecoveryCodePepper: MFA_RECOVERY_CODE_PEPPER,
+  normalizeUserPreferences,
+  requireAuth,
+  resolveEnrollmentFromSession,
+  resolveMfaMetadata,
+  revokeSessionBySid,
+  saveSessionState,
+  startTotpEnrollment,
+  userPreferencesMaxBytes: USER_PREFERENCES_MAX_BYTES,
+  verifyTotpCode,
+  verifyTotpOrRecoveryCode,
+  loadUserPreferences,
+  writeUserMfaTotpRecord,
+  writeUserPreferences,
 });
 
 app.get("/api/audit-log", requireAuth, (req, res) => {
@@ -10626,6 +9621,39 @@ const ensureOwnerUser = (sessionUser) => {
   writeUsers(users);
   syncAllowedUsers(users);
 };
+
+registerAuthRoutes({
+  app,
+  appendAuditLog,
+  buildAuthRedirectUrl,
+  canAttemptAuth,
+  createDiscordAvatarUrl,
+  discordApi: DISCORD_API,
+  discordClientId: DISCORD_CLIENT_ID,
+  discordClientSecret: DISCORD_CLIENT_SECRET,
+  ensureOwnerUser,
+  establishAuthenticatedSession,
+  getRequestIp,
+  handleAuthFailureSecuritySignals,
+  handleMfaFailureSecuritySignals,
+  isAllowedOrigin,
+  isTotpEnabledForUser,
+  loadAllowedUsers,
+  metricsRegistry,
+  maybeEmitExcessiveSessionsEvent,
+  maybeEmitNewNetworkLoginEvent,
+  primaryAppOrigin: PRIMARY_APP_ORIGIN,
+  resolveAuthAppOrigin,
+  resolveDiscordRedirectUri,
+  revokeUserSessionIndexRecord,
+  saveSessionState,
+  scopes: SCOPES,
+  sessionCookieConfig,
+  sessionIndexTouchTsBySid,
+  syncPersistedDiscordAvatarForLogin,
+  updateSessionIndexFromRequest,
+  verifyTotpOrRecoveryCode,
+});
 
 app.get("/api/users", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
@@ -17092,22 +16120,6 @@ app.put("/api/users/self", requireAuth, (req, res) => {
       responseUploads,
     ),
   });
-});
-
-app.post("/api/logout", (req, res) => {
-  const currentSid = String(req.sessionID || "").trim();
-  const actorId = String(req.session?.user?.id || req.session?.pendingMfaUser?.id || "").trim();
-  appendAuditLog(req, "auth.logout", "auth", {});
-  if (currentSid) {
-    revokeUserSessionIndexRecord(currentSid, {
-      revokedBy: actorId || null,
-      revokeReason: "logout",
-    });
-    sessionIndexTouchTsBySid.delete(currentSid);
-  }
-  req.session?.destroy(() => undefined);
-  res.clearCookie(sessionCookieConfig.name, { path: "/" });
-  res.json({ ok: true });
 });
 
 app.get("/api/og/institutional/:pageKey", async (req, res) => {

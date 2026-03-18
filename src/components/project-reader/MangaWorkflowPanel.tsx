@@ -252,7 +252,7 @@ export const buildStageChapterLabel = (
   chapter: Pick<StageChapter, "number" | "volume" | "title">,
 ) => {
   const title = normalizeText(chapter.title);
-  const baseLabel = `${buildVolumeLabel(chapter.volume)} - Capitulo ${chapter.number}`;
+  const baseLabel = `${buildVolumeLabel(chapter.volume)} - Capítulo ${chapter.number}`;
   return title ? `${baseLabel} - ${title}` : baseLabel;
 };
 
@@ -385,7 +385,7 @@ const buildStageChaptersFromEntries = ({
         sourceLabel:
           chapterLabel ||
           entry.file.name.replace(getFileExtension(entry.file.name), "") ||
-          "Capitulo",
+          "Capítulo",
         entries: [],
       });
     }
@@ -459,7 +459,7 @@ export const reconcileStageChapters = (project: ProjectRecord, chapters: StageCh
     const key = buildEpisodeKey(chapter.number, volume);
     const existing = existingByKey.get(key);
     if (!parsePositiveInteger(chapter.number)) {
-      warnings.push("Numero de capitulo invalido.");
+      warnings.push("Número de capítulo inválido.");
     }
     if (seenKeys.has(key)) {
       warnings.push("Já existe outro capítulo preparado com esse número + volume.");
@@ -611,7 +611,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
   const applyEntriesToStage = useCallback(
     (entries: ImportEntry[]) => {
       if (!entries.length) {
-        toast({ title: "Nenhuma imagem valida encontrada", variant: "destructive" });
+        toast({ title: "Nenhuma imagem válida encontrada", variant: "destructive" });
         return;
       }
       clearStage();
@@ -626,7 +626,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
       setSelectedStageChapterId(nextChapters[0]?.id || null);
       toast({
         title: "Importação preparada",
-        description: `${nextChapters.length} capitulo(s) detectado(s).`,
+        description: `${nextChapters.length} capítulo(s) detectado(s).`,
         intent: "success",
       });
     },
@@ -672,7 +672,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
       title: "",
       synopsis: "",
       titleDetected: "",
-      sourceLabel: "Capitulo manual",
+      sourceLabel: "Capítulo manual",
       pages: [],
       coverPageId: null,
       entryKind: "main",
@@ -774,7 +774,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
         ...markStageChapterAsEdited(chapter),
         pages: reorderList(chapter.pages, fromIndex, toIndex),
       }));
-      announce(buildReorderAnnouncement(`Pagina ${fromIndex + 1}`, toIndex));
+      announce(buildReorderAnnouncement(`Página ${fromIndex + 1}`, toIndex));
     },
     [announce, reconciledStagedChapters, updateStageChapter],
   );
@@ -842,7 +842,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
         event,
         index,
         total,
-        label: `Pagina ${index + 1}`,
+        label: `Página ${index + 1}`,
         disabled: isImporting,
         onMove: (targetIndex) => reorderStagePages(chapterId, index, targetIndex),
         onAnnounce: announce,
@@ -886,7 +886,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
     (chapterId: string, files: File[]) => {
       const entries = readDirectEntries(files);
       if (!entries.length) {
-        toast({ title: "Nenhuma imagem valida encontrada", variant: "destructive" });
+        toast({ title: "Nenhuma imagem válida encontrada", variant: "destructive" });
         return;
       }
       updateStageChapter(chapterId, (chapter) => {
@@ -899,8 +899,8 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
       });
       setSelectedStageChapterId(chapterId);
       toast({
-        title: "Paginas adicionadas",
-        description: `${entries.length} pagina(s) anexada(s).`,
+        title: "Páginas adicionadas",
+        description: `${entries.length} página(s) anexada(s).`,
         intent: "success",
       });
       if (appendInputRef.current) {
@@ -995,7 +995,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
         coverImageUrl: uploadedPageUrls[coverIndex] || uploadedPageUrls[0] || "",
         coverImageAlt:
           normalizeText(existing?.coverImageAlt) ||
-          (uploadedPageUrls[0] ? `Capa do capitulo ${stageChapter.number}` : ""),
+          (uploadedPageUrls[0] ? `Capa do capítulo ${stageChapter.number}` : ""),
         publicationStatus: publicationStatusOverride ?? stageChapter.publicationStatus,
       } satisfies ProjectEpisode;
     },
@@ -1013,7 +1013,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
       },
     ) => {
       if (!chaptersToImport.length) {
-        toast({ title: "Nenhum capitulo pronto para importar", variant: "destructive" });
+        toast({ title: "Nenhum capítulo pronto para importar", variant: "destructive" });
         return false;
       }
 
@@ -1073,10 +1073,10 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
         }
 
         toast({
-          title: options?.successTitle || "Importacao concluida",
+          title: options?.successTitle || "Importação concluída",
           description:
             options?.successDescription ||
-            `${importedChapters.length} capitulo(s) persistido(s) no projeto.`,
+            `${importedChapters.length} capítulo(s) persistido(s) no projeto.`,
           intent: "success",
         });
 
@@ -1085,7 +1085,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
         }
         return true;
       } catch {
-        toast({ title: "Nao foi possivel concluir a importacao", variant: "destructive" });
+        toast({ title: "Não foi possível concluir a importação", variant: "destructive" });
         return false;
       } finally {
         setIsImporting(false);
@@ -1110,7 +1110,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
       }
       if (publicationStatus === "published" && !selectedStageChapter.pages.length) {
         toast({
-          title: "Adicione imagens antes de publicar o capitulo",
+          title: "Adicione imagens antes de publicar o capítulo",
           variant: "destructive",
         });
         return;
@@ -1125,9 +1125,9 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
           publicationStatusOverride: publicationStatus,
           successTitle:
             publicationStatus === "published"
-              ? "Capitulo publicado"
-              : "Capitulo salvo como rascunho",
-          successDescription: "O capitulo selecionado ja abriu no editor.",
+              ? "Capítulo publicado"
+              : "Capítulo salvo como rascunho",
+          successDescription: "O capítulo selecionado já abriu no editor.",
         });
       } finally {
         setReviewImportStatus(null);
@@ -1142,7 +1142,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
     }
     if (reconciledStagedChapters.some((chapter) => chapter.warnings.length > 0)) {
       toast({
-        title: "Ajuste os capitulos preparados antes de sair",
+        title: "Ajuste os capítulos preparados antes de sair",
         description: "Corrija os avisos pendentes ou descarte o lote preparado.",
         variant: "destructive",
       });
@@ -1151,7 +1151,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
     return await importStageChapters(reconciledStagedChapters, {
       publicationStatusOverride: "draft",
       successTitle: "Rascunhos salvos",
-      successDescription: `${reconciledStagedChapters.length} capitulo(s) preparado(s) salvo(s) como rascunho.`,
+      successDescription: `${reconciledStagedChapters.length} capítulo(s) preparado(s) salvo(s) como rascunho.`,
       openImportedChapter: false,
     });
   }, [hasUnsavedStageChanges, importStageChapters, reconciledStagedChapters]);
@@ -1384,14 +1384,14 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                 data-testid="manga-workflow-review-top-row"
               >
                 <ProjectEditorSectionCard
-                  title="Dados do capitulo"
-                  subtitle="Volume, capitulo, tipo de entrada, titulo e sinopse."
+                  title="Dados do capítulo"
+                  subtitle="Volume, capítulo, tipo de entrada, título e sinopse."
                   eyebrow="Ficha editorial"
                   testId="manga-workflow-review-data-card"
                   actions={
                     <>
                       <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-                        {selectedStageChapter.entryKind === "extra" ? "Extra" : "Capitulo"}
+                        {selectedStageChapter.entryKind === "extra" ? "Extra" : "Capítulo"}
                       </Badge>
                       <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
                         {selectedStageChapter.volume !== null
@@ -1403,7 +1403,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                 >
                   <div className="space-y-5">
                     <div className="space-y-2">
-                      <Label htmlFor="stage-chapter-title">Titulo</Label>
+                      <Label htmlFor="stage-chapter-title">Título</Label>
                       <Input
                         id="stage-chapter-title"
                         value={selectedStageChapter.title}
@@ -1441,7 +1441,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="stage-chapter-number">Capitulo</Label>
+                        <Label htmlFor="stage-chapter-number">Capítulo</Label>
                         <Input
                           id="stage-chapter-number"
                           type="number"
@@ -1478,7 +1478,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                             <SelectValue placeholder="Tipo" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="main">Capitulo</SelectItem>
+                            <SelectItem value="main">Capítulo</SelectItem>
                             <SelectItem value="extra">Extra</SelectItem>
                           </SelectContent>
                         </Select>
@@ -1487,7 +1487,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
 
                     {selectedStageChapter.entryKind === "extra" ? (
                       <div className="space-y-2">
-                        <Label htmlFor="stage-chapter-display-label">Rotulo do extra</Label>
+                        <Label htmlFor="stage-chapter-display-label">Rótulo do extra</Label>
                         <Input
                           id="stage-chapter-display-label"
                           value={selectedStageChapter.displayLabel || ""}
@@ -1522,7 +1522,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                 {selectedStageProgressState ? (
                   <ProjectEditorSectionCard
                     title="Em progresso"
-                    subtitle="Acompanhe o pipeline editorial do capitulo atual."
+                    subtitle="Acompanhe o pipeline editorial do capítulo atual."
                     eyebrow="Fluxo editorial"
                     testId="manga-workflow-progress-section"
                     bodyClassName="space-y-3 py-4"
@@ -1553,7 +1553,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                               role="listitem"
                               title={stage.label}
                               aria-label={`${stage.label}: ${
-                                isCompleted ? "concluida" : isCurrentStage ? "atual" : "pendente"
+                                isCompleted ? "concluída" : isCurrentStage ? "atual" : "pendente"
                               }`}
                               data-testid={`manga-workflow-progress-stage-chip-${stage.id}`}
                               className={cn(
@@ -1576,7 +1576,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                         className="space-y-2"
                         data-testid="manga-workflow-progress-stage-list"
                         role="group"
-                        aria-label="Etapas concluidas"
+                        aria-label="Etapas concluídas"
                       >
                         {selectedStageProgressState.stages.map((stage) => {
                           const isCompleted = selectedStageProgressState.completedStages.includes(
@@ -1602,7 +1602,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                               </div>
                               <div className="flex shrink-0 items-center gap-2">
                                 <span className="text-xs text-muted-foreground">
-                                  {isCompleted ? "Concluida" : isCurrentStage ? "Atual" : "Pendente"}
+                                  {isCompleted ? "Concluída" : isCurrentStage ? "Atual" : "Pendente"}
                                 </span>
                                 {isCurrentStage ? (
                                   <Badge variant="outline" className="shrink-0">
@@ -1620,8 +1620,8 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
               </div>
 
               <ProjectEditorSectionCard
-                title="Paginas"
-                subtitle="Upload, ordem de leitura e capa em um fluxo simples para capitulos em imagem."
+                title="Páginas"
+                subtitle="Upload, ordem de leitura e capa em um fluxo simples para capítulos em imagem."
                 eyebrow="Leitura em imagem"
                 testId="manga-workflow-pages-card"
                 bodyClassName="space-y-4 py-5"
@@ -1639,7 +1639,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                     >
                       {selectedStageChapter.operation === "update"
                         ? "Atualiza existente"
-                        : "Novo capitulo"}
+                        : "Novo capítulo"}
                     </Badge>
                     <Badge
                       variant={
@@ -1652,7 +1652,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                         ? "Rascunho"
                         : "Publicado"}
                     </Badge>
-                    <Badge variant="outline">{selectedStageChapter.pages.length} pagina(s)</Badge>
+                    <Badge variant="outline">{selectedStageChapter.pages.length} página(s)</Badge>
                   </div>
 
                   <div
@@ -1698,7 +1698,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                       disabled={isImporting}
                     >
                       <ImagePlus className="h-4 w-4" />
-                      <span>Adicionar paginas</span>
+                      <span>Adicionar páginas</span>
                     </Button>
                     <Button
                       type="button"
@@ -1743,7 +1743,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                             key={page.id}
                             testIdPrefix="manga-stage-page"
                             src={page.previewUrl}
-                            alt={`Pagina ${index + 1}`}
+                            alt={`Página ${index + 1}`}
                             displayName={pageDisplayName}
                             index={index}
                             isCover={isCover}
@@ -1785,19 +1785,19 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                   </LayoutGroup>
                 ) : (
                   <div className="rounded-[18px] border border-dashed border-border/60 bg-background/30 px-4 py-6 text-sm text-muted-foreground">
-                    Nenhuma pagina neste capitulo. Adicione imagens para continuar.
+                    Nenhuma página neste capítulo. Adicione imagens para continuar.
                   </div>
                 )}
               </ProjectEditorSectionCard>
             </div>
           ) : (
             <ProjectEditorSectionCard
-              title="Revisao"
-              subtitle="Capitulo, volume, titulo e paginas do item selecionado."
+              title="Revisão"
+              subtitle="Capítulo, volume, título e páginas do item selecionado."
               testId="manga-workflow-review-empty-card"
             >
               <div className="rounded-[18px] border border-dashed border-border/60 bg-background/30 px-4 py-6 text-sm text-muted-foreground">
-                Selecione um capitulo na sidebar ou importe novas paginas para comecar.
+                Selecione um capítulo na sidebar ou importe novas páginas para começar.
               </div>
             </ProjectEditorSectionCard>
           )}
@@ -1811,3 +1811,4 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
 MangaWorkflowPanel.displayName = "MangaWorkflowPanel";
 
 export default MangaWorkflowPanel;
+

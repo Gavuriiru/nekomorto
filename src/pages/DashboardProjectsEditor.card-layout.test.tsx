@@ -201,6 +201,8 @@ describe("DashboardProjectsEditor card layout", () => {
     const meta = card.querySelector('[data-slot="project-card-meta"]');
 
     expect(cover).not.toBeNull();
+    expect(classTokens(card)).toContain("bg-card");
+    expect(classTokens(card)).not.toContain("lift-hover");
     expect(
       within(cover as HTMLElement).getByRole("img", { name: "Oshi no Ko" }),
     ).toBeInTheDocument();

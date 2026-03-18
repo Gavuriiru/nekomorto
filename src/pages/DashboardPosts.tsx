@@ -87,14 +87,7 @@ import {
   MuiBrazilTimeField,
   MuiDateTimeFieldsProvider,
 } from "@/components/ui/mui-date-time-fields";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import CompactPagination from "@/components/ui/compact-pagination";
 
 const emptyForm = {
   title: "",
@@ -117,6 +110,18 @@ const postStatusLabels = {
   scheduled: "Agendado",
   published: "Publicado",
 } as const;
+
+const postEditorSectionHeaderTextClassName = "min-w-0 flex-1 space-y-1 text-left";
+const postEditorSectionTitleClassName =
+  "block text-[15px] font-semibold leading-tight md:text-base";
+const postEditorSectionSubtitleClassName = "block text-xs leading-5 text-muted-foreground";
+
+const PostEditorSectionHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
+  <div className={postEditorSectionHeaderTextClassName}>
+    <span className={postEditorSectionTitleClassName}>{title}</span>
+    <span className={postEditorSectionSubtitleClassName}>{subtitle}</span>
+  </div>
+);
 
 const pad = (value: number) => String(value).padStart(2, "0");
 
@@ -2008,8 +2013,8 @@ const DashboardPosts = () => {
   const editorSectionClassName =
     "project-editor-section rounded-2xl border border-border/60 bg-card/70 px-4";
   const editorSectionHeaderClassName =
-    "project-editor-section-trigger flex w-full items-center justify-between gap-4 py-2 text-left";
-  const editorSectionContentClassName = "project-editor-section-content px-1 pb-2.5";
+    "project-editor-section-trigger flex w-full items-start gap-4 pb-1 pt-2.5 text-left md:pb-1.5 md:pt-2.5";
+  const editorSectionContentClassName = "project-editor-section-content px-1 pb-2.5 !pt-0";
   const editorPostLabel = editingPost ? "Postagem em edição" : "Nova postagem";
   const editorPostTitle = formState.title.trim() || "Sem título";
   const editorPostId = editingPost?.id || "Será definido ao salvar";
@@ -2021,6 +2026,13 @@ const DashboardPosts = () => {
     ? projectMap.get(formState.projectId)?.title || `ID ${formState.projectId}`
     : "Sem projeto";
   const editorTagCount = mergedTags.length;
+  const editorTagSummary = `${editorTagCount} ${editorTagCount === 1 ? "tag" : "tags"}`;
+  const editorMediaLabel =
+    editorResolvedCover.source === "manual"
+      ? "Capa manual"
+      : editorResolvedCover.coverImageUrl
+        ? "Fallback do conteúdo"
+        : "Sem capa";
   const hasBlockingLoadError = !hasLoadedOnce && hasLoadError;
   const hasRetainedLoadError = hasLoadedOnce && hasLoadError;
   const showPostsSurfaceSkeleton = !hasResolvedPosts && !hasBlockingLoadError;
@@ -2165,7 +2177,7 @@ const DashboardPosts = () => {
                           {editorProjectLabel}
                         </span>
                         <span className="text-[11px] text-muted-foreground">
-                          {editorTagCount} {editorTagCount === 1 ? "tag" : "tags"}
+                          {editorTagSummary}
                         </span>
                       </div>
                     </div>
@@ -2185,12 +2197,10 @@ const DashboardPosts = () => {
                             data-state="open"
                           >
                             <div className={editorSectionHeaderClassName}>
-                              <div className="flex w-full items-center justify-between gap-4 text-left">
-                                <span className="text-sm font-semibold">Conteúdo</span>
-                                <span className="text-xs text-muted-foreground">
-                                  Texto principal do post
-                                </span>
-                              </div>
+                              <PostEditorSectionHeader
+                                title="Conteúdo"
+                                subtitle="Texto principal do post"
+                              />
                             </div>
                             <div className={editorSectionContentClassName}>
                               <div
@@ -2221,12 +2231,10 @@ const DashboardPosts = () => {
                           <aside className="min-w-0 space-y-3.5 md:space-y-4">
                             <section className={editorSectionClassName} data-state="open">
                               <div className={editorSectionHeaderClassName}>
-                                <div className="flex w-full items-center justify-between gap-4 text-left">
-                                  <span className="text-sm font-semibold">Publicação</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {editorStatusLabel}
-                                  </span>
-                                </div>
+                                <PostEditorSectionHeader
+                                  title="Publicação"
+                                  subtitle={editorStatusLabel}
+                                />
                               </div>
                               <div className={`${editorSectionContentClassName} space-y-4`}>
                                 <div className="space-y-2">
@@ -2335,16 +2343,10 @@ const DashboardPosts = () => {
 
                             <section className={editorSectionClassName} data-state="open">
                               <div className={editorSectionHeaderClassName}>
-                                <div className="flex w-full items-center justify-between gap-4 text-left">
-                                  <span className="text-sm font-semibold">Mídia</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {editorResolvedCover.source === "manual"
-                                      ? "Capa manual"
-                                      : editorResolvedCover.coverImageUrl
-                                        ? "Fallback do conteúdo"
-                                        : "Sem capa"}
-                                  </span>
-                                </div>
+                                <PostEditorSectionHeader
+                                  title="Mídia"
+                                  subtitle={editorMediaLabel}
+                                />
                               </div>
                               <div className={`${editorSectionContentClassName} space-y-4`}>
                                 <div className="space-y-2">
@@ -2398,12 +2400,10 @@ const DashboardPosts = () => {
 
                             <section className={editorSectionClassName} data-state="open">
                               <div className={editorSectionHeaderClassName}>
-                                <div className="flex w-full items-center justify-between gap-4 text-left">
-                                  <span className="text-sm font-semibold">Relacionamento</span>
-                                  <span className="max-w-[180px] truncate text-xs text-muted-foreground">
-                                    {editorProjectLabel}
-                                  </span>
-                                </div>
+                                <PostEditorSectionHeader
+                                  title="Relacionamento"
+                                  subtitle={editorProjectLabel}
+                                />
                               </div>
                               <div className={`${editorSectionContentClassName} space-y-2`}>
                                 <Label>Projeto associado</Label>
@@ -2433,12 +2433,7 @@ const DashboardPosts = () => {
 
                             <section className={editorSectionClassName} data-state="open">
                               <div className={editorSectionHeaderClassName}>
-                                <div className="flex w-full items-center justify-between gap-4 text-left">
-                                  <span className="text-sm font-semibold">Tags</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {editorTagCount} {editorTagCount === 1 ? "tag" : "tags"}
-                                  </span>
-                                </div>
+                                <PostEditorSectionHeader title="Tags" subtitle={editorTagSummary} />
                               </div>
                               <div className={`${editorSectionContentClassName} space-y-4`}>
                                 <div className="flex flex-wrap gap-2">
@@ -2644,7 +2639,9 @@ const DashboardPosts = () => {
                 ) : null}
               </div>
               <div className="flex items-center gap-2">
-                <div className="inline-flex items-center rounded-lg border border-border/60 bg-card/70 p-1">
+                <div
+                  className={`inline-flex items-center ${dashboardPageLayoutTokens.cardActionSurface} p-1`}
+                >
                   <Button
                     type="button"
                     size="sm"
@@ -2672,7 +2669,7 @@ const DashboardPosts = () => {
               </div>
             </div>
             {hasRetainedLoadError ? (
-              <Alert className={dashboardPageLayoutTokens.surfaceDefault}>
+              <Alert className={dashboardPageLayoutTokens.surfaceSolid}>
                 <AlertTitle>Atualização parcial indisponível</AlertTitle>
                 <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
                   <span>Mantendo a última lista de posts carregada.</span>
@@ -2690,7 +2687,7 @@ const DashboardPosts = () => {
                 kind="error"
                 title="Não foi possível carregar as postagens"
                 description="Confira a conexao e tente atualizar os dados."
-                className={dashboardPageLayoutTokens.surfaceDefault}
+                className={dashboardPageLayoutTokens.surfaceSolid}
                 action={
                   <Button
                     variant="outline"
@@ -2702,7 +2699,7 @@ const DashboardPosts = () => {
               />
             ) : showPostsSurfaceSkeleton ? (
               <Card
-                className={dashboardPageLayoutTokens.surfaceDefault}
+                className={dashboardPageLayoutTokens.surfaceSolid}
                 data-testid="dashboard-posts-skeleton-surface"
               >
                 <CardContent className="space-y-4 p-4 md:p-6">
@@ -2714,7 +2711,7 @@ const DashboardPosts = () => {
                     {Array.from({ length: 4 }).map((_, index) => (
                       <div
                         key={`post-skeleton-${index}`}
-                        className="rounded-2xl border border-border/60 bg-background/40 p-4"
+                        className={`${dashboardPageLayoutTokens.surfaceInset} p-4`}
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0 flex-1 space-y-2">
@@ -2741,7 +2738,7 @@ const DashboardPosts = () => {
                 kind="empty"
                 title="Nenhuma postagem cadastrada"
                 description="Crie uma nova postagem para iniciar o fluxo editorial."
-                className={dashboardPageLayoutTokens.surfaceMuted}
+                className={dashboardPageLayoutTokens.surfaceInset}
                 action={
                   canManagePosts ? (
                     <Button
@@ -2755,7 +2752,7 @@ const DashboardPosts = () => {
                 }
               />
             ) : listViewMode === "calendar" ? (
-              <Card className={dashboardPageLayoutTokens.surfaceDefault}>
+              <Card lift={false} className={dashboardPageLayoutTokens.surfaceSolid}>
                 <CardContent className="space-y-4 p-4 md:p-6">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -2840,8 +2837,8 @@ const DashboardPosts = () => {
                                   key={dayKey}
                                   className={`min-h-[120px] rounded-lg border p-2 ${
                                     isCurrentMonth
-                                      ? "border-border/60 bg-card/40"
-                                      : "border-border/30 bg-muted/20"
+                                      ? "border-border/70 bg-background"
+                                      : "border-border/40 bg-muted/15"
                                   } ${isToday ? "ring-1 ring-primary/50" : ""}`}
                                 >
                                   <div className="mb-2 flex items-center justify-between gap-2">
@@ -2868,7 +2865,7 @@ const DashboardPosts = () => {
                                         <button
                                           key={item.id}
                                           type="button"
-                                          className="block w-full rounded-md border border-border/60 bg-background/60 px-2 py-1 text-left hover:border-primary/40"
+                                          className="block w-full rounded-md border border-border/70 bg-background px-2 py-1 text-left hover:border-primary/40"
                                           onClick={() => {
                                             const target = posts.find(
                                               (post) => post.id === item.id,
@@ -2948,7 +2945,8 @@ const DashboardPosts = () => {
                     <Card
                       key={post.id}
                       data-testid={`post-card-${post.id}`}
-                      className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
+                      lift={false}
+                      className={`${dashboardPageLayoutTokens.listCardSolid} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
                       style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                       role={canManagePosts ? "button" : undefined}
                       tabIndex={canManagePosts ? 0 : -1}
@@ -3047,12 +3045,14 @@ const DashboardPosts = () => {
                               <h3 className="line-clamp-2 text-lg font-semibold leading-tight text-foreground lg:line-clamp-1">
                                 {post.title}
                               </h3>
-                              <span className="text-xs text-muted-foreground">{formattedDate}</span>
+                              <span className={`text-xs ${dashboardPageLayoutTokens.cardMetaText}`}>
+                                {formattedDate}
+                              </span>
                             </div>
 
                             <p
                               data-slot="excerpt"
-                              className="line-clamp-2 min-h-0 overflow-hidden text-sm text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] lg:line-clamp-1 lg:[-webkit-line-clamp:1]"
+                              className={`line-clamp-2 min-h-0 overflow-hidden text-sm ${dashboardPageLayoutTokens.cardMetaText} [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] lg:line-clamp-1 lg:[-webkit-line-clamp:1]`}
                             >
                               {post.excerpt || "Sem prévia cadastrada."}
                             </p>
@@ -3085,7 +3085,7 @@ const DashboardPosts = () => {
 
                               <div
                                 data-slot="meta"
-                                className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground lg:flex-nowrap lg:gap-y-0"
+                                className={`flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs ${dashboardPageLayoutTokens.cardMetaText} lg:flex-nowrap lg:gap-y-0`}
                               >
                                 <span className="inline-flex min-w-0 max-w-full items-center gap-2">
                                   <UserRound className="h-4 w-4 shrink-0" />
@@ -3103,7 +3103,9 @@ const DashboardPosts = () => {
                                   {post.commentsCount}
                                   {" comentários"}
                                 </span>
-                                <span className="ml-auto hidden max-w-44 truncate text-right text-xs text-muted-foreground lg:block">
+                                <span
+                                  className={`ml-auto hidden max-w-44 truncate text-right text-xs ${dashboardPageLayoutTokens.cardMetaText} lg:block`}
+                                >
                                   /{post.slug}
                                 </span>
                               </div>
@@ -3118,46 +3120,15 @@ const DashboardPosts = () => {
             )}
             {listViewMode === "list" && sortedPosts.length > postsPerPage ? (
               <div className="mt-6 flex justify-center">
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        href="#"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          setCurrentPage((page) => Math.max(1, page - 1));
-                        }}
-                      />
-                    </PaginationItem>
-                    {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-                      <PaginationItem key={page}>
-                        <PaginationLink
-                          href="#"
-                          isActive={page === currentPage}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            setCurrentPage(page);
-                          }}
-                        >
-                          {page}
-                        </PaginationLink>
-                      </PaginationItem>
-                    ))}
-                    <PaginationItem>
-                      <PaginationNext
-                        href="#"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          setCurrentPage((page) => Math.min(totalPages, page + 1));
-                        }}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
+                <CompactPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
               </div>
             ) : null}
             {listViewMode === "list" && trashedPosts.length > 0 ? (
-              <Card className="mt-8 border-border/60 bg-card/60">
+              <Card lift={false} className={`mt-8 ${dashboardPageLayoutTokens.surfaceSolid}`}>
                 <CardContent className="space-y-4 p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -3174,7 +3145,7 @@ const DashboardPosts = () => {
                     {trashedPosts.map((post, index) => (
                       <div
                         key={`trash-${post.id}`}
-                        className={`${dashboardPageLayoutTokens.surfaceDefault} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
+                        className={`${dashboardPageLayoutTokens.surfaceInset} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
                         style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                       >
                         <div className="min-w-0">

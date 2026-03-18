@@ -3,6 +3,7 @@ import { LogOut } from "lucide-react";
 
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import {
   dashboardAnimationDelay,
   dashboardClampedStaggerMs,
@@ -21,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import CompactPagination from "@/components/ui/compact-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
@@ -235,9 +237,6 @@ const DashboardSecurity = () => {
     setPage(pageCount);
   }, [isInitialLoading, isRefreshing, page, pageCount]);
 
-  const hasPrevious = page > 1;
-  const hasNext = page < pageCount;
-
   const requestRevokeSession = useCallback(
     (session: ActiveSessionRow) => {
       const sid = String(session.sid || "").trim();
@@ -333,7 +332,7 @@ const DashboardSecurity = () => {
           </header>
 
           <section
-            className="space-y-4 rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
+            className={`space-y-4 rounded-3xl ${dashboardPageLayoutTokens.surfaceSolid} p-6 animate-slide-up opacity-0`}
             style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
             data-testid="dashboard-security-sessions-card"
           >
@@ -351,14 +350,14 @@ const DashboardSecurity = () => {
                   </>
                 ) : (
                   <>
-                    <Badge className="bg-card/80 text-muted-foreground">Total ativo: {total}</Badge>
-                    <Badge className="bg-card/80 text-muted-foreground">
+                    <Badge className="bg-background text-foreground/70">Total ativo: {total}</Badge>
+                    <Badge className="bg-background text-foreground/70">
                       Página {page} de {pageCount}
                     </Badge>
                   </>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                 <Button
                   size="sm"
                   variant="outline"
@@ -367,31 +366,19 @@ const DashboardSecurity = () => {
                 >
                   Atualizar
                 </Button>
-                {hasPrevious ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                    disabled={isRefreshing}
-                  >
-                    Anterior
-                  </Button>
-                ) : null}
-                {hasNext ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
-                    disabled={isRefreshing}
-                  >
-                    Próxima
-                  </Button>
-                ) : null}
+                <CompactPagination
+                  currentPage={page}
+                  totalPages={pageCount}
+                  disabled={isRefreshing}
+                  className="mx-0 w-full justify-start sm:w-auto sm:justify-end"
+                  contentClassName="flex-wrap justify-start sm:justify-end"
+                  onPageChange={setPage}
+                />
               </div>
             </div>
 
             {hasRetainedLoadError ? (
-              <Alert className="border-border/60 bg-background/50 text-muted-foreground">
+              <Alert className="border-border/70 bg-background text-foreground/70">
                 <AlertDescription>Mantendo as ultimas sessoes carregadas.</AlertDescription>
               </Alert>
             ) : null}
@@ -410,7 +397,7 @@ const DashboardSecurity = () => {
                 {Array.from({ length: 3 }).map((_, index) => (
                   <article
                     key={`dashboard-security-loading-${index}`}
-                    className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4"
+                    className={`space-y-3 ${dashboardPageLayoutTokens.surfaceInset} p-4`}
                   >
                     <div className="flex flex-wrap items-start gap-3 md:flex-nowrap">
                       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -464,7 +451,7 @@ const DashboardSecurity = () => {
                   return (
                     <article
                       key={session.sid}
-                      className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4 animate-slide-up opacity-0"
+                      className={`space-y-3 ${dashboardPageLayoutTokens.surfaceInset} p-4 animate-slide-up opacity-0`}
                       style={dashboardAnimationDelay(
                         dashboardClampedStaggerMs(index, dashboardMotionDelays.sectionLeadMs + 120),
                       )}
@@ -479,13 +466,15 @@ const DashboardSecurity = () => {
                               referrerPolicy="no-referrer"
                             />
                           ) : (
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-card text-xs font-semibold text-muted-foreground">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card text-xs font-semibold text-foreground/70">
                               {userInitials(session.userName)}
                             </div>
                           )}
                           <div className="min-w-0 space-y-1">
                             <p className="break-words text-sm font-medium">{session.userName}</p>
-                            <p className="break-all text-xs text-muted-foreground">
+                            <p
+                              className={`break-all text-xs ${dashboardPageLayoutTokens.cardMetaText}`}
+                            >
                               ID: {session.userId}
                             </p>
                           </div>
@@ -515,7 +504,9 @@ const DashboardSecurity = () => {
                           ) : null}
                         </div>
                       </div>
-                      <div className="grid gap-1 text-xs text-muted-foreground md:grid-cols-2">
+                      <div
+                        className={`grid gap-1 text-xs ${dashboardPageLayoutTokens.cardMetaText} md:grid-cols-2`}
+                      >
                         <p>Criada em: {formatDateTime(session.createdAt)}</p>
                         <p>Última atividade: {formatDateTime(session.lastSeenAt)}</p>
                         <p>IP: {session.lastIp || "-"}</p>

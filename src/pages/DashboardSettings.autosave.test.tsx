@@ -159,7 +159,7 @@ describe("DashboardSettings autosave", () => {
     expect(tablistClasses).toContain("no-scrollbar");
     expect(tablistClasses).toContain("overflow-x-auto");
     expect(tablistClasses).toContain("md:grid");
-    expect(tablistClasses).toContain("md:grid-cols-9");
+    expect(tablistClasses).toContain("md:grid-cols-8");
 
     const tabs = within(tablist).getAllByRole("tab");
     expect(tabs.length).toBeGreaterThan(0);
@@ -301,7 +301,7 @@ describe("DashboardSettings autosave", () => {
     renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
-    fireEvent.mouseDown(screen.getByRole("tab", { name: /Rodapé/i }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Layout/i }));
     await screen.findByRole("heading", { name: /Redes sociais/i });
 
     apiFetchMock.mockClear();

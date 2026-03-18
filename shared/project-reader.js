@@ -40,24 +40,53 @@ export const normalizeProjectEpisodeContentFormat = (value, fallback = "lexical"
 };
 
 export const normalizeProjectEpisodePages = (value) =>
-  (Array.isArray(value) ? value : [])
-    .map((entry, index) => {
-      const position = toFiniteNumber(entry?.position);
-      const imageUrl = normalizeText(entry?.imageUrl);
-      if (!imageUrl) {
-        return null;
+  (() => {
+    const normalizedPages = (Array.isArray(value) ? value : [])
+      .map((entry, index) => {
+        const position = toFiniteNumber(entry?.position);
+        const imageUrl = normalizeText(entry?.imageUrl);
+        if (!imageUrl) {
+          return null;
+        }
+        const spreadPairId = normalizeText(entry?.spreadPairId);
+        return {
+          position: position !== null && position >= 0 ? Math.floor(position) : index,
+          imageUrl,
+          spreadPairId: spreadPairId || undefined,
+        };
+      })
+      .filter(Boolean)
+      .sort((left, right) => left.position - right.position)
+      .map((entry, index) => ({
+        position: index,
+        imageUrl: entry.imageUrl,
+        spreadPairId: entry.spreadPairId,
+      }));
+
+    const spreadPairIndices = new Map();
+    normalizedPages.forEach((page, index) => {
+      if (!page.spreadPairId) {
+        return;
       }
-      return {
-        position: position !== null && position >= 0 ? Math.floor(position) : index,
-        imageUrl,
-      };
-    })
-    .filter(Boolean)
-    .sort((left, right) => left.position - right.position)
-    .map((entry, index) => ({
-      position: index,
-      imageUrl: entry.imageUrl,
+      const bucket = spreadPairIndices.get(page.spreadPairId) || [];
+      bucket.push(index);
+      spreadPairIndices.set(page.spreadPairId, bucket);
+    });
+
+    const validSpreadPairIds = new Set(
+      [...spreadPairIndices.entries()]
+        .filter(([, indices]) => indices.length === 2 && indices[1] - indices[0] === 1)
+        .map(([spreadPairId]) => spreadPairId),
+    );
+
+    return normalizedPages.map((page) => ({
+      position: page.position,
+      imageUrl: page.imageUrl,
+      ...(page.spreadPairId && validSpreadPairIds.has(page.spreadPairId)
+        ? { spreadPairId: page.spreadPairId }
+        : {}),
     }));
+  })();
 
 export const getProjectEpisodePageCount = (episode) => {
   const explicit = toFiniteNumber(episode?.pageCount);

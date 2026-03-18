@@ -8,7 +8,7 @@ type PublicEpisodeLike = {
   hasPages?: boolean;
   content?: string;
   contentFormat?: "lexical" | "images";
-  pages?: Array<{ position?: number; imageUrl?: string }>;
+  pages?: Array<{ position?: number; imageUrl?: string; spreadPairId?: string }>;
   pageCount?: number;
 } | null | undefined;
 

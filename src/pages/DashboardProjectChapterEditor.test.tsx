@@ -136,7 +136,7 @@ vi.mock("@/components/project-reader/MangaWorkflowPanel", async (importOriginal)
         ...pendingChapter,
         id: "stage-pristine",
         number: 11,
-        title: "CapÃ­tulo manual vazio",
+        title: "Capítulo manual vazio",
         pages: [],
         coverPageId: null,
         leaveGuardPristine: true,
@@ -153,7 +153,7 @@ vi.mock("@/components/project-reader/MangaWorkflowPanel", async (importOriginal)
                 {
                   number: 7,
                   volume: 1,
-                  title: "CapÃ­tulo pendente",
+                  title: "Capítulo pendente",
                   synopsis: "",
                   releaseDate: "",
                   duration: "",
@@ -1092,7 +1092,7 @@ describe("DashboardProjectChapterEditor", () => {
           {
             number: 3,
             volume: 1,
-            title: "Capitulo em imagem",
+            title: "Capítulo em imagem",
             synopsis: "",
             releaseDate: "",
             duration: "",
@@ -1110,7 +1110,7 @@ describe("DashboardProjectChapterEditor", () => {
           {
             number: 4,
             volume: 1,
-            title: "Capitulo lexical",
+            title: "Capítulo lexical",
             synopsis: "",
             releaseDate: "",
             duration: "",
@@ -1129,7 +1129,7 @@ describe("DashboardProjectChapterEditor", () => {
           {
             number: 5,
             volume: 1,
-            title: "Capitulo sem paginas",
+            title: "Capítulo sem páginas",
             synopsis: "",
             releaseDate: "",
             duration: "",
@@ -1147,7 +1147,7 @@ describe("DashboardProjectChapterEditor", () => {
           {
             number: 6,
             volume: 2,
-            title: "Capitulo volume 2 sem exportacao",
+            title: "Capítulo volume 2 sem exportação",
             synopsis: "",
             releaseDate: "",
             duration: "",
@@ -1187,7 +1187,7 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.getByTestId("chapter-structure-episode-open-icon-3:1")).toBeInTheDocument();
     expect(
       within(screen.getByTestId("chapter-structure-episode-header-3:1")).getByText(
-        "Capitulo em imagem",
+        "Capítulo em imagem",
       ),
     ).toHaveClass("line-clamp-2");
     expect(screen.getByTestId("chapter-structure-episode-footer-4:1")).toBeInTheDocument();
@@ -1359,7 +1359,7 @@ describe("DashboardProjectChapterEditor", () => {
           {
             number: 1,
             volume: 1,
-            title: "Capitulo 1",
+            title: "Capítulo 1",
             synopsis: "",
             releaseDate: "",
             duration: "",
@@ -1425,14 +1425,14 @@ describe("DashboardProjectChapterEditor", () => {
     });
   });
 
-  it("abre o leave guard antes de reordenar capitulos com alteracoes pendentes", async () => {
+  it("abre o leave guard antes de reordenar capítulos com alterações pendentes", async () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
     await screen.findByTestId("mock-lexical");
 
     openIdentityAccordion();
     fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, {
-      target: { value: "Capitulo 2 alterado" },
+      target: { value: "Capítulo 2 alterado" },
     });
 
     fireEvent.click(screen.getByTestId("chapter-structure-episode-move-up-2:2"));
@@ -1460,7 +1460,7 @@ describe("DashboardProjectChapterEditor", () => {
           {
             number: 1,
             volume: 1,
-            title: "Capitulo 1",
+            title: "Capítulo 1",
             synopsis: "",
             releaseDate: "",
             duration: "",
@@ -1647,7 +1647,7 @@ describe("DashboardProjectChapterEditor", () => {
     expectStructureGroupNotSelected("2");
   });
 
-  it("abre o capitulo importado no editor e mostra as acoes de publicacao", async () => {
+  it("abre o capítulo importado no editor e mostra as ações de publicação", async () => {
     setupApiMock({
       project: buildProject({
         type: "Manga",
@@ -1672,7 +1672,7 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.queryByTestId("chapter-editor-footer-actions")).not.toBeInTheDocument();
   });
 
-  it("nao abre modal ao sair com capitulo manual vazio ainda intocado no workflow de manga", async () => {
+  it("não abre modal ao sair com capítulo manual vazio ainda intocado no workflow de mangá", async () => {
     setupApiMock({
       project: buildProject({
         type: "Manga",
@@ -1694,7 +1694,7 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
   });
 
-  it("protege a saida da rota quando o workflow de manga tem alteracoes nao salvas", async () => {
+  it("protege a saída da rota quando o workflow de mangá tem alterações não salvas", async () => {
     setupApiMock({
       project: buildProject({
         type: "Manga",
@@ -1943,7 +1943,7 @@ describe("DashboardProjectChapterEditor", () => {
         {
           number: 3,
           volume: 1,
-          title: "Capitulo em imagem",
+          title: "Capítulo em imagem",
           synopsis: "",
           releaseDate: "2026-03-10",
           duration: "",
@@ -1955,7 +1955,7 @@ describe("DashboardProjectChapterEditor", () => {
           contentFormat: "images",
           publicationStatus: "draft",
           coverImageUrl: "https://cdn.test/page-1.jpg",
-          coverImageAlt: "Capa do capitulo em imagem",
+          coverImageAlt: "Capa do capítulo em imagem",
           pages: [
             { position: 1, imageUrl: "https://cdn.test/page-1.jpg" },
             { position: 2, imageUrl: "https://cdn.test/page-2.jpg" },
@@ -1991,7 +1991,7 @@ describe("DashboardProjectChapterEditor", () => {
       "aria-label",
       expect.stringMatching(/Aguardando Raw: atual/i),
     );
-    expect(within(contentCard).getByRole("heading", { name: /Pag/i })).toBeInTheDocument();
+    expect(within(contentCard).getByRole("heading", { name: /Páginas/i })).toBeInTheDocument();
     expect(document.getElementById("chapter-volume-image") as HTMLInputElement).toHaveClass(
       "w-full",
       "sm:w-[132px]",
@@ -2107,7 +2107,7 @@ describe("DashboardProjectChapterEditor", () => {
           {
             number: 3,
             volume: 1,
-            title: "Capitulo em imagem",
+            title: "Capítulo em imagem",
             synopsis: "",
             releaseDate: "",
             duration: "",
@@ -2119,7 +2119,7 @@ describe("DashboardProjectChapterEditor", () => {
             contentFormat: "images",
             publicationStatus: "draft",
             coverImageUrl: "https://cdn.test/page-1.jpg",
-            coverImageAlt: "Capa do capitulo em imagem",
+            coverImageAlt: "Capa do capítulo em imagem",
             pages: [
               { position: 1, imageUrl: "https://cdn.test/page-1.jpg" },
               { position: 2, imageUrl: "https://cdn.test/page-2.jpg" },
@@ -2251,7 +2251,7 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.queryByTestId("mock-lexical")).not.toBeInTheDocument();
   });
 
-  it("usa o modal de alteracoes nao salvas antes de navegar para uploads", async () => {
+  it("usa o modal de alterações não salvas antes de navegar para uploads", async () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/1?volume=2");
     await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
@@ -2631,7 +2631,7 @@ describe("DashboardProjectChapterEditor", () => {
     });
   });
 
-  it("usa o modal ao navegar entre volume e capitulo com alteracoes pendentes", async () => {
+  it("usa o modal ao navegar entre volume e capítulo com alterações pendentes", async () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-structure-section");
@@ -2753,7 +2753,7 @@ describe("DashboardProjectChapterEditor", () => {
     });
   });
 
-  it("respeita o modal ao fechar o volume com alteracoes pendentes", async () => {
+  it("respeita o modal ao fechar o volume com alterações pendentes", async () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-structure-section");
@@ -2943,7 +2943,7 @@ describe("DashboardProjectChapterEditor", () => {
     ).toBeInTheDocument();
   });
 
-  it("abre o volume pelo modal de alteracoes nao salvas do capitulo", async () => {
+  it("abre o volume pelo modal de alterações não salvas do capítulo", async () => {
     setupApiMock({
       project: buildProject({
         episodeDownloads: [
@@ -2952,7 +2952,7 @@ describe("DashboardProjectChapterEditor", () => {
             ...baseProject.episodeDownloads[0],
             number: 1,
             volume: 4,
-            title: "Capitulo 1 V4",
+            title: "Capítulo 1 V4",
           },
         ],
       }),
@@ -2961,7 +2961,7 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
     openIdentityAccordion();
     fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, {
-      target: { value: "Capitulo pendente" },
+      target: { value: "Capítulo pendente" },
     });
 
     fireEvent.click(screen.getByTestId("chapter-structure-select-4"));
@@ -2998,17 +2998,17 @@ describe("DashboardProjectChapterEditor", () => {
     expect(payload?.chapter).toEqual(
       expect.objectContaining({
         publicationStatus: "published",
-        title: "Capitulo pendente",
+        title: "Capítulo pendente",
       }),
     );
   });
-  it("mostra o modal ao criar novo capitulo com alteracoes pendentes e preserva o capitulo salvo", async () => {
+  it("mostra o modal ao criar novo capítulo com alterações pendentes e preserva o capítulo salvo", async () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
     await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
     openIdentityAccordion();
     fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, {
-      target: { value: "Capitulo 2 revisado antes do novo" },
+      target: { value: "Capítulo 2 revisado antes do novo" },
     });
 
     fireEvent.click(screen.getByTestId("chapter-structure-add-chapter-2"));
@@ -3039,7 +3039,7 @@ describe("DashboardProjectChapterEditor", () => {
         expect.objectContaining({
           number: 2,
           volume: 2,
-          title: "Capitulo 2 revisado antes do novo",
+          title: "Capítulo 2 revisado antes do novo",
         }),
         expect.objectContaining({
           number: 3,
@@ -3617,13 +3617,13 @@ describe("DashboardProjectChapterEditor", () => {
     });
   });
 
-  it("abre um modal ao fechar capitulo com alteracoes nao salvas", async () => {
+  it("abre um modal ao fechar capítulo com alterações não salvas", async () => {
     setupApiMock();
     renderEditor();
     await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
     openIdentityAccordion();
     fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, {
-      target: { value: "Capitulo pendente" },
+      target: { value: "Capítulo pendente" },
     });
 
     fireEvent.click(screen.getByRole("button", { name: /Fechar cap/i }));
@@ -3967,21 +3967,21 @@ describe("DashboardProjectChapterEditor", () => {
             ...baseProject.episodeDownloads[0],
             number: 1,
             volume: 1,
-            title: "Capitulo 1 V1",
+            title: "Capítulo 1 V1",
             readingOrder: 1,
           },
           {
             ...baseProject.episodeDownloads[0],
             number: 1,
             volume: 2,
-            title: "Capitulo 1 V2",
+            title: "Capítulo 1 V2",
             readingOrder: 2,
           },
           {
             ...baseProject.episodeDownloads[1],
             number: 2,
             volume: 2,
-            title: "Capitulo 2 V2",
+            title: "Capítulo 2 V2",
             readingOrder: 3,
           },
         ],

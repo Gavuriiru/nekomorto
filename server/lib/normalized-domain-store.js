@@ -673,6 +673,7 @@ const projectEpisodePageRowsFromProject = (projectId, project) => {
       .map((entry, index) => ({
         position: toIntegerOrDefault(entry?.position, index),
         imageUrl: String(entry?.imageUrl || "").trim(),
+        spreadPairId: String(entry?.spreadPairId || "").trim() || null,
       }))
       .filter((entry) => entry.imageUrl)
       .sort((left, right) => left.position - right.position)
@@ -682,6 +683,7 @@ const projectEpisodePageRowsFromProject = (projectId, project) => {
           episodeId,
           position: index,
           imageUrl: entry.imageUrl,
+          spreadPairId: entry.spreadPairId,
         });
       });
   });
@@ -777,6 +779,7 @@ export const loadProjectsFromNormalized = async (db) => {
     bucket.push({
       position: Number(row?.position || 0),
       imageUrl: String(row?.imageUrl || ""),
+      spreadPairId: String(row?.spreadPairId || "").trim() || undefined,
     });
     pagesByEpisodeId.set(String(row.episodeId), bucket);
   });

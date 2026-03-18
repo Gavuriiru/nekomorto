@@ -30,6 +30,7 @@ export const uiCopy = {
     analytics: "Análises",
     auditLog: "Auditoria",
     footer: "Rodapé",
+    layout: "Layout",
     navbar: "Navegação",
     preview: "Prévia",
   },

@@ -52,6 +52,31 @@ const NATURAL_COLLATOR = new Intl.Collator("pt-BR", {
 
 const compareNatural = (left: string, right: string) => NATURAL_COLLATOR.compare(left, right);
 
+const buildSpreadPairId = () =>
+  globalThis.crypto?.randomUUID?.() ||
+  `spread-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+const getSpreadPairIds = (pages: ProjectEpisodePage[]) =>
+  new Set(
+    normalizeProjectEpisodePages(
+      (Array.isArray(pages) ? pages : []).map((page, index) => ({
+        ...page,
+        position: index,
+      })),
+    )
+      .map((page) => String(page?.spreadPairId || "").trim())
+      .filter(Boolean),
+  );
+
+const getRemovedSpreadPairIds = (
+  previousPages: ProjectEpisodePage[],
+  nextPages: ProjectEpisodePage[],
+) => {
+  const previousIds = getSpreadPairIds(previousPages);
+  const nextIds = getSpreadPairIds(nextPages);
+  return [...previousIds].filter((spreadPairId) => !nextIds.has(spreadPairId));
+};
+
 const fileToDataUrl = (file: Blob) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -64,6 +89,7 @@ const normalizePagesForEditor = (pages: ProjectEpisodePage[]) =>
   normalizeProjectEpisodePages(pages).map((page, index) => ({
     position: index + 1,
     imageUrl: page.imageUrl,
+    spreadPairId: page.spreadPairId,
     displayName: resolvePageDisplayName({
       imageUrl: page.imageUrl,
       fallback: `Imagem ${index + 1}`,
@@ -71,12 +97,17 @@ const normalizePagesForEditor = (pages: ProjectEpisodePage[]) =>
   }));
 
 const serializePagesForChange = (pages: ProjectEpisodePage[]) =>
-  (Array.isArray(pages) ? pages : [])
-    .map((page, index) => ({
-      position: index + 1,
+  normalizeProjectEpisodePages(
+    (Array.isArray(pages) ? pages : []).map((page, index) => ({
+      position: index,
       imageUrl: String(page.imageUrl || "").trim(),
-    }))
-    .filter((page) => page.imageUrl);
+      spreadPairId: String(page.spreadPairId || "").trim() || undefined,
+    })),
+  ).map((page, index) => ({
+    position: index + 1,
+    imageUrl: page.imageUrl,
+    ...(page.spreadPairId ? { spreadPairId: page.spreadPairId } : {}),
+  }));
 
 const archiveEntriesToFiles = async (file: File) => {
   const archiveBuffer = new Uint8Array(await file.arrayBuffer());
@@ -143,7 +174,7 @@ const MangaChapterPagesEditor = ({
       coverImageUrl: String(coverImageUrl || "").trim() || fallbackCoverImageUrl,
       coverImageAlt:
         String(coverImageAlt || "").trim() ||
-        (fallbackCoverImageUrl ? `Capa do capitulo ${Number(chapter.number) || 1}` : ""),
+        (fallbackCoverImageUrl ? `Capa do capítulo ${Number(chapter.number) || 1}` : ""),
     });
   };
 
@@ -223,12 +254,12 @@ const MangaChapterPagesEditor = ({
       appendUploadedUrls(uploadedUrls);
       toast({
         title:
-          uploadedUrls.length === 1 ? "Pagina enviada" : `${uploadedUrls.length} paginas enviadas`,
+          uploadedUrls.length === 1 ? "Página enviada" : `${uploadedUrls.length} páginas enviadas`,
         intent: "success",
       });
     } catch {
       toast({
-        title: "Nao foi possivel enviar as paginas",
+        title: "Não foi possível enviar as páginas",
         variant: "destructive",
       });
     } finally {
@@ -256,12 +287,12 @@ const MangaChapterPagesEditor = ({
       appendUploadedUrls(uploadedUrls);
       toast({
         title: "Arquivo importado",
-        description: `${uploadedUrls.length} pagina(s) adicionada(s).`,
+        description: `${uploadedUrls.length} página(s) adicionada(s).`,
         intent: "success",
       });
     } catch {
       toast({
-        title: "Nao foi possivel importar o arquivo",
+        title: "Não foi possível importar o arquivo",
         variant: "destructive",
       });
     } finally {
@@ -283,7 +314,12 @@ const MangaChapterPagesEditor = ({
       return;
     }
     setNextChapter(nextPages);
-    announce(buildReorderAnnouncement(`Pagina ${fromIndex + 1}`, toIndex));
+    const removedSpreadPairIds = getRemovedSpreadPairIds(pages, nextPages);
+    announce(
+      removedSpreadPairIds.length > 0
+        ? `${buildReorderAnnouncement(`Pagina ${fromIndex + 1}`, toIndex)} Spread desfeito porque as paginas deixaram de ficar juntas.`
+        : buildReorderAnnouncement(`Pagina ${fromIndex + 1}`, toIndex),
+    );
   };
 
   const handlePageDragStart = (event: DragEvent<HTMLDivElement>, index: number) => {
@@ -332,15 +368,21 @@ const MangaChapterPagesEditor = ({
       event,
       index,
       total: pages.length,
-      label: `Pagina ${index + 1}`,
+      label: `Página ${index + 1}`,
       disabled: isUploading,
       onMove: (targetIndex) => {
         const nextPages = reorderList(pages, index, targetIndex);
         if (nextPages !== pages) {
           setNextChapter(nextPages);
+          const removedSpreadPairIds = getRemovedSpreadPairIds(pages, nextPages);
+          announce(
+            removedSpreadPairIds.length > 0
+              ? `${buildReorderAnnouncement(`Pagina ${index + 1}`, targetIndex)} Spread desfeito porque as paginas deixaram de ficar juntas.`
+              : buildReorderAnnouncement(`Pagina ${index + 1}`, targetIndex),
+          );
         }
       },
-      onAnnounce: announce,
+      onAnnounce: undefined,
     });
   };
 
@@ -351,6 +393,43 @@ const MangaChapterPagesEditor = ({
       coverImageUrl:
         chapter.coverImageUrl === pages[index]?.imageUrl ? nextPages[0]?.imageUrl || "" : undefined,
     });
+    if (getRemovedSpreadPairIds(pages, nextPages).length > 0) {
+      announce("Spread desfeito apos remover a pagina.");
+    }
+  };
+
+  const joinSpreadPair = (event: MouseEvent<HTMLButtonElement>, index: number) => {
+    event.stopPropagation();
+    const nextPage = pages[index + 1];
+    if (!pages[index] || !nextPage || pages[index].spreadPairId || nextPage.spreadPairId) {
+      return;
+    }
+    const spreadPairId = buildSpreadPairId();
+    const nextPages = pages.map((page, pageIndex) =>
+      pageIndex === index || pageIndex === index + 1 ? { ...page, spreadPairId } : page,
+    );
+    setNextChapter(nextPages);
+    announce(`Spread criado entre as paginas ${index + 1} e ${index + 2}.`);
+  };
+
+  const unsetSpreadPair = (event: MouseEvent<HTMLButtonElement>, spreadPairId: string) => {
+    event.stopPropagation();
+    if (!spreadPairId) {
+      return;
+    }
+    const pairedPageIndexes = pages.reduce<number[]>((result, page, index) => {
+      if (page.spreadPairId === spreadPairId) {
+        result.push(index + 1);
+      }
+      return result;
+    }, []);
+    const nextPages = pages.map((page) =>
+      page.spreadPairId === spreadPairId ? { ...page, spreadPairId: undefined } : page,
+    );
+    setNextChapter(nextPages);
+    if (pairedPageIndexes.length >= 2) {
+      announce(`Spread removido das paginas ${pairedPageIndexes[0]} e ${pairedPageIndexes[1]}.`);
+    }
   };
 
   const setPageAsCover = (event: MouseEvent<HTMLButtonElement>, imageUrl: string) => {
@@ -377,7 +456,7 @@ const MangaChapterPagesEditor = ({
       });
     } catch {
       toast({
-        title: "Nao foi possivel exportar o capitulo",
+        title: "Não foi possível exportar o capítulo",
         variant: "destructive",
       });
     } finally {
@@ -396,7 +475,7 @@ const MangaChapterPagesEditor = ({
           data-testid="manga-pages-upload-actions"
         >
           <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
-            {pages.length} pagina(s)
+            {pages.length} página(s)
           </Badge>
           <Button
             type="button"
@@ -431,7 +510,7 @@ const MangaChapterPagesEditor = ({
           {isUploading ? (
             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 px-3 py-1 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              <span>Enviando paginas...</span>
+              <span>Enviando páginas...</span>
             </div>
           ) : null}
         </div>
@@ -495,20 +574,28 @@ const MangaChapterPagesEditor = ({
           >
             {previewPages.map((page, index) => {
               const isCover = chapter.coverImageUrl === page.imageUrl;
+              const isSpread = Boolean(page.spreadPairId);
               const isDragged = draggedPage === page;
               const isPreviewTarget = dragIndex !== null && dragOverIndex === index;
+              const canJoinWithNext = Boolean(
+                !page.spreadPairId &&
+                  previewPages[index + 1] &&
+                  !previewPages[index + 1]?.spreadPairId,
+              );
               return (
                 <MangaPageTile
                   key={`${page.imageUrl}-${page.position}`}
                   testIdPrefix="manga-page"
                   src={page.imageUrl}
-                  alt={`Pagina ${index + 1}`}
+                  alt={`Página ${index + 1}`}
                   displayName={page.displayName}
                   index={index}
                   isCover={isCover}
+                  isSpread={isSpread}
                   isDragged={isDragged}
                   isPreviewTarget={isPreviewTarget}
                   disabled={isUploading}
+                  canJoinWithNext={canJoinWithNext}
                   reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
                   reorderTransition={reorderTransition}
                   onDragStart={(event) => handlePageDragStart(event, index)}
@@ -516,6 +603,14 @@ const MangaChapterPagesEditor = ({
                   onDragOver={(event) => handlePageDragOver(event, index)}
                   onDrop={(event) => handlePageDrop(event, index)}
                   onKeyDown={(event) => handlePageKeyDown(event, index)}
+                  onJoinSpread={
+                    canJoinWithNext ? (event) => joinSpreadPair(event, index) : undefined
+                  }
+                  onUnsetSpread={
+                    isSpread && page.spreadPairId
+                      ? (event) => unsetSpreadPair(event, page.spreadPairId || "")
+                      : undefined
+                  }
                   onSetCover={
                     isCover ? undefined : (event) => setPageAsCover(event, page.imageUrl)
                   }
@@ -530,7 +625,7 @@ const MangaChapterPagesEditor = ({
           className="rounded-[20px] border border-dashed border-border/60 bg-background/35 px-4 py-8 text-center text-sm text-muted-foreground"
           data-testid="manga-pages-empty-state"
         >
-          <p>Nenhuma pagina adicionada ainda.</p>
+          <p>Nenhuma página adicionada ainda.</p>
         </div>
       )}
 

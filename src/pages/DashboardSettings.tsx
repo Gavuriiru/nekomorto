@@ -297,8 +297,7 @@ type SettingsTabKey =
   | "seo"
   | "downloads"
   | "equipe"
-  | "footer"
-  | "navbar"
+  | "layout"
   | "redes-usuarios"
   | "traducoes";
 
@@ -309,8 +308,7 @@ const dashboardSettingsTabSet = new Set<SettingsTabKey>([
   "seo",
   "downloads",
   "equipe",
-  "footer",
-  "navbar",
+  "layout",
   "redes-usuarios",
   "traducoes",
 ]);
@@ -319,6 +317,9 @@ const isDashboardSettingsTab = (value: string): value is SettingsTabKey =>
   dashboardSettingsTabSet.has(value as SettingsTabKey);
 const parseDashboardSettingsTabParam = (value: string | null): SettingsTabKey => {
   const normalized = String(value || "").trim();
+  if (normalized === "navbar" || normalized === "footer") {
+    return "layout";
+  }
   if (isDashboardSettingsTab(normalized)) {
     return normalized;
   }
@@ -355,14 +356,18 @@ const readerProjectTypeMeta: Array<{
   },
 ];
 
-const logoEditorFields: Array<{
+type LogoEditorField = {
   target: LogoLibraryTarget;
   label: string;
   description: string;
   frameClassName: string;
   imageClassName: string;
   optional?: boolean;
-}> = [
+};
+
+const seoLogoFieldTargets = new Set<LogoLibraryTarget>(["site.faviconUrl", "site.defaultShareImage"]);
+
+const logoEditorFields: LogoEditorField[] = [
   {
     target: "branding.assets.symbolUrl",
     label: "Símbolo da marca",
@@ -424,6 +429,14 @@ const logoEditorFields: Array<{
     optional: true,
   },
 ];
+
+const brandingLogoEditorFields = logoEditorFields.filter(
+  (field) => !seoLogoFieldTargets.has(field.target),
+);
+
+const seoLogoEditorFields = logoEditorFields.filter((field) =>
+  seoLogoFieldTargets.has(field.target),
+);
 
 const readLogoField = (nextSettings: SiteSettings, target: LogoLibraryTarget) => {
   if (target === "branding.assets.symbolUrl") {
@@ -604,7 +617,7 @@ const DashboardSettings = () => {
   const requestIdRef = useRef(0);
   const hasLoadedOnceRef = useRef(hasLoadedOnce);
   const rootLibraryFolders = useMemo(() => [""], []);
-  const settingsTabsGridClass = "md:grid-cols-9";
+  const settingsTabsGridClass = "md:grid-cols-8";
 
   useEffect(() => {
     hasLoadedOnceRef.current = hasLoadedOnce;
@@ -1504,6 +1517,60 @@ const DashboardSettings = () => {
           : "Sem símbolo disponível para o footer.",
     },
   };
+
+  const renderLogoEditorCards = (fields: LogoEditorField[]) => (
+    <div className="grid gap-4 lg:grid-cols-2">
+      {fields.map((field) => {
+        const state = logoFieldState[field.target];
+        const hasDirectValue = Boolean(state.value);
+        return (
+          <div
+            key={field.target}
+            className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3"
+          >
+            <div>
+              <p className="text-sm font-semibold">{field.label}</p>
+              <p className="text-xs text-muted-foreground">{field.description}</p>
+            </div>
+
+            <div
+              className={`flex items-center justify-center rounded-xl border border-border/60 bg-background/60 p-3 ${field.frameClassName}`}
+            >
+              {state.preview ? (
+                <img src={state.preview} alt={field.label} className={field.imageClassName} />
+              ) : (
+                <span className="text-xs text-muted-foreground">Sem imagem definida</span>
+              )}
+            </div>
+
+            <p className="text-[11px] text-muted-foreground">{state.status}</p>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => openLibrary(field.target)}
+              >
+                Biblioteca
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={!hasDirectValue}
+                onClick={() => clearLibraryImage(field.target)}
+              >
+                Limpar
+              </Button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   const readerPresets = useMemo(
     () => ({
       manga: normalizeProjectReaderConfig(settings.reader?.projectTypes?.manga, {
@@ -1666,11 +1733,8 @@ const DashboardSettings = () => {
               <TabsTrigger value="equipe" className="shrink-0 md:w-full">
                 Equipe
               </TabsTrigger>
-              <TabsTrigger value="footer" className="shrink-0 md:w-full">
-                Rodapé
-              </TabsTrigger>
-              <TabsTrigger value="navbar" className="shrink-0 md:w-full">
-                Navegação
+              <TabsTrigger value="layout" className="shrink-0 md:w-full">
+                Layout
               </TabsTrigger>
               <TabsTrigger value="redes-usuarios" className="shrink-0 md:w-full">
                 Redes sociais
@@ -1990,73 +2054,14 @@ const DashboardSettings = () => {
 
                           <div className="space-y-4">
                             <div>
-                              <h2 className="text-lg font-semibold">Logos e ícones de marca</h2>
+                              <h2 className="text-lg font-semibold">Identidade da marca</h2>
                               <p className="text-xs text-muted-foreground">
                                 Todos os ativos visuais em um só lugar, com fallback e prévia
                                 rápida.
                               </p>
                             </div>
 
-                            <div className="grid gap-4 lg:grid-cols-2">
-                              {logoEditorFields.map((field) => {
-                                const state = logoFieldState[field.target];
-                                const hasDirectValue = Boolean(state.value);
-                                return (
-                                  <div
-                                    key={field.target}
-                                    className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3"
-                                  >
-                                    <div>
-                                      <p className="text-sm font-semibold">{field.label}</p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {field.description}
-                                      </p>
-                                    </div>
-
-                                    <div
-                                      className={`flex items-center justify-center rounded-xl border border-border/60 bg-background/60 p-3 ${field.frameClassName}`}
-                                    >
-                                      {state.preview ? (
-                                        <img
-                                          src={state.preview}
-                                          alt={field.label}
-                                          className={field.imageClassName}
-                                        />
-                                      ) : (
-                                        <span className="text-xs text-muted-foreground">
-                                          Sem imagem definida
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    <p className="text-[11px] text-muted-foreground">
-                                      {state.status}
-                                    </p>
-
-                                    <div className="flex gap-2">
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="flex-1"
-                                        onClick={() => openLibrary(field.target)}
-                                      >
-                                        Biblioteca
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        disabled={!hasDirectValue}
-                                        onClick={() => clearLibraryImage(field.target)}
-                                      >
-                                        Limpar
-                                      </Button>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
+                            {renderLogoEditorCards(brandingLogoEditorFields)}
 
                             <div className="grid gap-4 md:grid-cols-2">
                               <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
@@ -2202,23 +2207,6 @@ const DashboardSettings = () => {
                     </TabsContent>
 
                     <TabsContent value="leitor" className="mt-6 space-y-6">
-                      <Card className="border-border/60 bg-card/80">
-                        <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
-                          <div className="space-y-1">
-                            <h2 className="text-lg font-semibold">Presets globais do leitor</h2>
-                            <p className="text-xs text-muted-foreground">
-                              Esses presets valem para a leitura pública e para os previews
-                              editoriais de mangá e webtoon. Overrides antigos por projeto continuam
-                              apenas como fallback legado.
-                            </p>
-                          </div>
-                          <div className="rounded-2xl border border-border/60 bg-background/45 p-4 text-sm text-muted-foreground">
-                            Precedência: preset global do tipo do projeto, depois `readerConfig`
-                            legado do projeto e por fim o preset interno padrão.
-                          </div>
-                        </CardContent>
-                      </Card>
-
                       {readerProjectTypeMeta.map((presetMeta) => {
                         const preset = readerPresets[presetMeta.key];
                         return (
@@ -2352,43 +2340,6 @@ const DashboardSettings = () => {
                                   />
                                 </div>
 
-                                <div className="space-y-2">
-                                  <Label htmlFor={`reader-purchase-url-${presetMeta.key}`}>
-                                    URL de compra
-                                  </Label>
-                                  <Input
-                                    id={`reader-purchase-url-${presetMeta.key}`}
-                                    value={preset.purchaseUrl || ""}
-                                    placeholder="Opcional"
-                                    onChange={(event) =>
-                                      updateReaderPreset(presetMeta.key, (current) => ({
-                                        ...normalizeProjectReaderConfig(current, {
-                                          projectType: presetMeta.projectType,
-                                        }),
-                                        purchaseUrl: event.target.value,
-                                      }))
-                                    }
-                                  />
-                                </div>
-
-                                <div className="space-y-2">
-                                  <Label htmlFor={`reader-purchase-price-${presetMeta.key}`}>
-                                    Preço
-                                  </Label>
-                                  <Input
-                                    id={`reader-purchase-price-${presetMeta.key}`}
-                                    value={preset.purchasePrice || ""}
-                                    placeholder="Ex.: R$ 12,90"
-                                    onChange={(event) =>
-                                      updateReaderPreset(presetMeta.key, (current) => ({
-                                        ...normalizeProjectReaderConfig(current, {
-                                          projectType: presetMeta.projectType,
-                                        }),
-                                        purchasePrice: event.target.value,
-                                      }))
-                                    }
-                                  />
-                                </div>
                               </div>
 
                               <div className="grid gap-3 md:grid-cols-3">
@@ -3267,7 +3218,14 @@ const DashboardSettings = () => {
                       </Card>
                     </TabsContent>
 
-                    <TabsContent value="navbar" className="mt-6 space-y-6">
+                    <TabsContent value="layout" className="mt-6 space-y-6">
+                      <div className="space-y-1">
+                        <h2 className="text-lg font-semibold">Header / Navegação</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Links principais e estrutura da moldura pública do site.
+                        </p>
+                      </div>
+
                       <Card className="border-border/60 bg-card/80">
                         <CardContent className="space-y-6 p-6">
                           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -3390,9 +3348,14 @@ const DashboardSettings = () => {
                           </div>
                         </CardContent>
                       </Card>
-                    </TabsContent>
 
-                    <TabsContent value="footer" className="mt-6 space-y-6">
+                      <div className="space-y-1">
+                        <h2 className="text-lg font-semibold">Footer</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Conteúdo institucional, redes sociais e textos exibidos no rodapé.
+                        </p>
+                      </div>
+
                       <Card className="border-border/60 bg-card/80">
                         <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
                           <div className="space-y-1">
@@ -3900,6 +3863,19 @@ const DashboardSettings = () => {
                     </TabsContent>
 
                     <TabsContent value="seo" className="mt-6 space-y-6">
+                      <Card className="border-border/60 bg-card/80">
+                        <CardContent className="space-y-6 p-6">
+                          <div>
+                            <h2 className="text-lg font-semibold">Metadados visuais</h2>
+                            <p className="text-xs text-muted-foreground">
+                              Ativos usados na aba do navegador e nas prévias de compartilhamento.
+                            </p>
+                          </div>
+
+                          {renderLogoEditorCards(seoLogoEditorFields)}
+                        </CardContent>
+                      </Card>
+
                       <DashboardSeoRedirectsPanel />
                     </TabsContent>
                   </>

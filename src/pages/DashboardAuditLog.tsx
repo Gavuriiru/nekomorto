@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import {
   dashboardAnimationDelay,
   dashboardMotionDelays,
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import CompactPagination from "@/components/ui/compact-pagination";
 import {
   Select,
   SelectContent,
@@ -632,7 +634,7 @@ const DashboardAuditLog = () => {
                 className="flex items-center gap-3 animate-slide-up opacity-0"
                 style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               >
-                <Badge className="bg-card/80 text-muted-foreground">{formattedTotal} eventos</Badge>
+                <Badge className="bg-background text-foreground/70">{formattedTotal} eventos</Badge>
                 <Button
                   variant="outline"
                   onClick={() => void handleExportCsv()}
@@ -651,7 +653,7 @@ const DashboardAuditLog = () => {
             </header>
 
             <div
-              className="mt-8 rounded-2xl border border-border/60 bg-card/60 p-4 md:p-5 animate-slide-up opacity-0"
+              className={`mt-8 ${dashboardPageLayoutTokens.surfaceSolid} p-4 md:p-5 animate-slide-up opacity-0`}
               style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
             >
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
@@ -777,13 +779,13 @@ const DashboardAuditLog = () => {
             </div>
 
             <div
-              className="mt-6 rounded-2xl border border-border/60 bg-card/60 p-2 md:p-4 animate-slide-up opacity-0"
+              className={`mt-6 ${dashboardPageLayoutTokens.surfaceSolid} p-2 md:p-4 animate-slide-up opacity-0`}
               style={dashboardAnimationDelay(
                 dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
               )}
             >
               {hasRetainedError ? (
-                <Alert className="mb-3 border-border/60 bg-background/50 text-muted-foreground">
+                <Alert className="mb-3 border-border/70 bg-background text-foreground/70">
                   <AlertDescription>Mantendo os ultimos resultados carregados.</AlertDescription>
                 </Alert>
               ) : null}
@@ -826,7 +828,6 @@ const DashboardAuditLog = () => {
                       <TableHead>Recurso</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>IP</TableHead>
-                      <TableHead>Alvo</TableHead>
                       <TableHead className="text-right">Detalhes</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -860,9 +861,6 @@ const DashboardAuditLog = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="font-mono text-xs">{entry.ip || "-"}</TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {entry.resourceId || "-"}
-                        </TableCell>
                         <TableCell className="text-right">
                           <Button
                             size="sm"
@@ -881,7 +879,7 @@ const DashboardAuditLog = () => {
 
             {!forbidden && !hasBlockingError && !isInitialLoading ? (
               <div
-                className="mt-4 flex items-center justify-between gap-3 animate-slide-up opacity-0"
+                className="mt-4 flex flex-col gap-3 animate-slide-up opacity-0 md:flex-row md:items-center md:justify-between"
                 style={dashboardAnimationDelay(
                   dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
                 )}
@@ -889,24 +887,14 @@ const DashboardAuditLog = () => {
                 <p className="text-sm text-muted-foreground">
                   Página {page} de {totalPages}
                 </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => goToPage(page - 1)}
-                    disabled={page <= 1 || isRefreshing}
-                  >
-                    Anterior
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => goToPage(page + 1)}
-                    disabled={page >= totalPages || isRefreshing}
-                  >
-                    Próxima
-                  </Button>
-                </div>
+                <CompactPagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  disabled={isRefreshing}
+                  className="mx-0 w-full justify-start md:w-auto md:justify-end"
+                  contentClassName="flex-wrap justify-start md:justify-end"
+                  onPageChange={goToPage}
+                />
               </div>
             ) : null}
           </section>

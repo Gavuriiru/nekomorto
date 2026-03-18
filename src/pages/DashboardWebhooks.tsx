@@ -10,6 +10,7 @@ import {
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import {
   dashboardAnimationDelay,
   dashboardMotionDelays,
@@ -401,7 +402,7 @@ const WebhookTypesPlaceholder = () => (
       {Array.from({ length: 3 }).map((_, index) => (
         <div
           key={`dashboard-webhooks-placeholder-type-${index}`}
-          className="grid gap-3 rounded-xl border border-border/60 bg-background/40 p-3 md:grid-cols-[1fr_280px]"
+          className={`grid gap-3 ${dashboardPageLayoutTokens.surfaceInset} rounded-xl p-3 md:grid-cols-[1fr_280px]`}
         >
           <div className="space-y-2">
             <Skeleton className="h-4 w-24" />
@@ -427,7 +428,9 @@ const WebhookChannelPlaceholder = ({
       <WebhookPlaceholderField label="Timeout (ms)" />
       <WebhookPlaceholderField label="Tentativas" />
     </div>
-    <div className="flex w-fit items-center gap-2 rounded-md border border-border/60 px-3 py-2">
+    <div
+      className={`flex w-fit items-center gap-2 ${dashboardPageLayoutTokens.cardActionSurface} px-3 py-2`}
+    >
       <Skeleton className="h-5 w-10 rounded-full" />
       <span className="text-xs text-muted-foreground">Canal ativo</span>
     </div>
@@ -435,7 +438,7 @@ const WebhookChannelPlaceholder = ({
       {CHANNEL_EVENTS[channelKey].map((eventKey) => (
         <section
           key={`dashboard-webhooks-placeholder-${channelKey}-${eventKey}`}
-          className="rounded-xl border border-border/60 bg-background/40 px-3 py-4"
+          className={`${dashboardPageLayoutTokens.surfaceInset} rounded-xl px-3 py-4`}
         >
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold">{EVENT_LABELS[eventKey]}</span>
@@ -953,7 +956,7 @@ const DashboardWebhooks = () => {
           }
         />
         {loadError && !hasBlockingLoadError ? (
-          <Alert className="mb-4 border-border/60 bg-background/50 text-muted-foreground">
+          <Alert className="mb-4 border-border/70 bg-background text-foreground/70">
             <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
               <span>Mantendo os ultimos dados carregados.</span>
               <Button
@@ -986,7 +989,7 @@ const DashboardWebhooks = () => {
           >
             <AccordionItem
               value="types"
-              className="rounded-xl border border-border/60 bg-card/80 px-4 animate-slide-up opacity-0"
+              className={`${dashboardPageLayoutTokens.surfaceSolid} rounded-xl px-4 animate-slide-up opacity-0`}
               style={dashboardAnimationDelay(SECTION_REVEAL_DELAYS.types)}
               data-testid="dashboard-webhooks-section-types"
             >
@@ -1033,7 +1036,7 @@ const DashboardWebhooks = () => {
                       {settings.typeRoles.map((typeRole, index) => (
                         <div
                           key={`${typeRole.type}-${index}`}
-                          className="grid gap-3 rounded-xl border border-border/60 bg-background/40 p-3 md:grid-cols-[1fr_280px]"
+                          className={`grid gap-3 ${dashboardPageLayoutTokens.surfaceInset} rounded-xl p-3 md:grid-cols-[1fr_280px]`}
                         >
                           <div>
                             <p className="text-sm font-medium">{typeRole.type}</p>
@@ -1073,7 +1076,7 @@ const DashboardWebhooks = () => {
                 <AccordionItem
                   key={channelKey}
                   value={channelKey}
-                  className="rounded-xl border border-border/60 bg-card/80 px-4 animate-slide-up opacity-0"
+                  className={`${dashboardPageLayoutTokens.surfaceSolid} rounded-xl px-4 animate-slide-up opacity-0`}
                   style={dashboardAnimationDelay(SECTION_REVEAL_DELAYS[sectionKey])}
                   data-testid={`dashboard-webhooks-section-${sectionKey}`}
                 >
@@ -1153,7 +1156,9 @@ const DashboardWebhooks = () => {
                           </div>
                         </div>
 
-                        <div className="flex w-fit items-center gap-2 rounded-md border border-border/60 px-3 py-2">
+                        <div
+                          className={`flex w-fit items-center gap-2 ${dashboardPageLayoutTokens.cardActionSurface} px-3 py-2`}
+                        >
                           <Switch
                             checked={channel.enabled}
                             onCheckedChange={(checked) =>
@@ -1177,7 +1182,7 @@ const DashboardWebhooks = () => {
                               <AccordionItem
                                 key={eventKey}
                                 value={`${channelKey}-${eventKey}`}
-                                className="rounded-xl border border-border/60 bg-background/40 px-3"
+                                className={`${dashboardPageLayoutTokens.surfaceInset} rounded-xl px-3`}
                                 data-testid={`dashboard-webhooks-event-${channelKey}-${eventKey}`}
                               >
                                 <AccordionTrigger className="hover:no-underline">
@@ -1523,7 +1528,7 @@ const DashboardWebhooks = () => {
                                           aria-label="Selecionar cor da embed"
                                           label=""
                                           showSwatch
-                                          buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-xs transition hover:border-primary/40"
+                                          buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-background shadow-xs transition hover:border-primary/40"
                                           value={displayEmbedColor}
                                           onChange={(color) =>
                                             setEmbedValue(

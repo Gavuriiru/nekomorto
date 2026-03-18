@@ -3,6 +3,7 @@ import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState }
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import {
   dashboardAnimationDelay,
   dashboardClampedStaggerMs,
@@ -375,10 +376,12 @@ const UploadsMetricCard = ({
   delayMs: number;
 }) => (
   <article
-    className="min-h-[8.5rem] rounded-2xl border border-border/60 bg-card/60 p-5 animate-slide-up opacity-0"
+    className={`min-h-[8.5rem] ${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up opacity-0`}
     style={dashboardAnimationDelay(delayMs)}
   >
-    <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">{label}</p>
+    <p className={`text-xs uppercase tracking-[0.22em] ${dashboardPageLayoutTokens.cardMetaText}`}>
+      {label}
+    </p>
     {loading ? (
       <>
         <Skeleton className="mt-3 h-8 w-28" />
@@ -387,7 +390,7 @@ const UploadsMetricCard = ({
     ) : (
       <>
         <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{files} arquivos</p>
+        <p className={`mt-1 text-xs ${dashboardPageLayoutTokens.cardMetaText}`}>{files} arquivos</p>
       </>
     )}
   </article>
@@ -709,7 +712,7 @@ const DashboardUploads = () => {
           description="Consumo real por área com base nos arquivos presentes em disco."
           actions={
             <div className="flex items-center gap-2">
-              <Badge className="bg-card/80 text-muted-foreground">
+              <Badge className="bg-background text-foreground/70">
                 Atualizado: {summaryTimestampLabel}
               </Badge>
               <Button
@@ -728,7 +731,9 @@ const DashboardUploads = () => {
 
         <section className="mt-8 space-y-6">
           {isForbidden ? (
-            <article className="rounded-2xl border border-border/60 bg-card/60 p-5 text-sm text-muted-foreground animate-slide-up opacity-0">
+            <article
+              className={`${dashboardPageLayoutTokens.surfaceSolid} p-5 text-sm text-foreground/70 animate-slide-up opacity-0`}
+            >
               Você não possui permissão para visualizar o painel de uploads.
             </article>
           ) : null}
@@ -736,7 +741,7 @@ const DashboardUploads = () => {
           {!isForbidden ? (
             <div className="space-y-3">
               {summaryError ? (
-                <Alert className="border-border/60 bg-card/60 text-muted-foreground">
+                <Alert className="border-border/70 bg-background text-foreground/70">
                   <AlertDescription>
                     {hasSummaryRetainedError
                       ? "Nao foi possivel atualizar o resumo agora. Mantendo os ultimos dados visiveis."
@@ -765,21 +770,21 @@ const DashboardUploads = () => {
 
           {!isForbidden ? (
             <article
-              className="min-h-[22rem] overflow-hidden rounded-2xl border border-border/60 bg-card/60 animate-slide-up opacity-0"
+              className={`min-h-[22rem] overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
               style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               data-testid="dashboard-uploads-storage-card"
             >
               <div className="border-b border-border/60 px-5 py-4">
-                <h2 className="text-sm font-semibold text-foreground">Consumo por area</h2>
+                <h2 className="text-sm font-semibold text-foreground">Consumo por área</h2>
               </div>
               <div
                 className="min-h-[18rem] overflow-x-auto"
                 aria-busy={showSummaryShell || isSummaryRefreshing ? "true" : "false"}
               >
                 <table className="w-full min-w-[760px] text-sm">
-                  <thead className="bg-background/60 text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                  <thead className="bg-background text-xs uppercase tracking-[0.12em] text-foreground/70">
                     <tr>
-                      <th className="px-4 py-3 text-left">Area</th>
+                      <th className="px-4 py-3 text-left">Área</th>
                       <th className="px-4 py-3 text-right">Originais</th>
                       <th className="px-4 py-3 text-right">Variantes</th>
                       <th className="px-4 py-3 text-right">Total</th>
@@ -849,7 +854,7 @@ const DashboardUploads = () => {
 
           {!isForbidden ? (
             <article
-              className="min-h-[34rem] overflow-hidden rounded-2xl border border-border/60 bg-card/60 animate-slide-up opacity-0"
+              className={`min-h-[34rem] overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
               style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
               data-testid="dashboard-uploads-cleanup-card"
             >
@@ -861,13 +866,13 @@ const DashboardUploads = () => {
                     _quarantine.
                   </p>
                 </div>
-                <Badge className="bg-card/80 text-muted-foreground">
+                <Badge className="bg-background text-foreground/70">
                   Analise: {cleanupTimestampLabel}
                 </Badge>
               </div>
 
               {cleanupError ? (
-                <Alert className="rounded-none border-x-0 border-t-0 border-b border-border/60 bg-background/50 text-muted-foreground">
+                <Alert className="rounded-none border-x-0 border-t-0 border-b border-border/70 bg-background text-foreground/70">
                   <AlertDescription>
                     {hasCleanupRetainedError
                       ? "Nao foi possivel atualizar a analise agora. Mantendo os ultimos dados visiveis."
@@ -912,7 +917,7 @@ const DashboardUploads = () => {
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[820px] text-sm">
-                      <thead className="bg-background/60 text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                      <thead className="bg-background text-xs uppercase tracking-[0.12em] text-foreground/70">
                         <tr>
                           <th className="px-4 py-3 text-left">Tipo</th>
                           <th className="px-4 py-3 text-left">Arquivo</th>
@@ -995,7 +1000,7 @@ const DashboardUploads = () => {
                   {cleanupPreview.examples.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[820px] text-sm">
-                        <thead className="bg-background/60 text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                        <thead className="bg-background text-xs uppercase tracking-[0.12em] text-foreground/70">
                           <tr>
                             <th className="px-4 py-3 text-left">Tipo</th>
                             <th className="px-4 py-3 text-left">Arquivo</th>
@@ -1036,7 +1041,9 @@ const DashboardUploads = () => {
                       </table>
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-6 text-sm text-muted-foreground">
+                    <div
+                      className={`${dashboardPageLayoutTokens.surfaceInset} px-4 py-6 text-sm text-foreground/70`}
+                    >
                       {hasCleanupBlockingError
                         ? "A analise de limpeza ainda nao esta disponivel."
                         : "Nenhum arquivo elegivel para limpeza."}

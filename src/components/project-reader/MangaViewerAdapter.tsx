@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef } from "react";
 import BaseMangaViewer from "@tokagemushi/manga-viewer";
 
+import { buildMangaSpreadSlots } from "@/components/project-reader/manga-spread-slots";
+
 type MangaViewerPage = {
   position: number;
   imageUrl: string;
+  spreadPairId?: string;
 };
 
 type MangaViewerAdapterProps = {
@@ -154,6 +157,14 @@ class NekoMangaViewer extends MangaViewerBase {
 
   _initBookmarks() {}
 
+  _buildSlots() {
+    this._slots = buildMangaSpreadSlots({
+      pages: Array.isArray(this._pages) ? this._pages : [],
+      spreadMode: Boolean(this._spreadMode),
+      firstPageSingle: this.opts.firstPageSingle !== false,
+    });
+  }
+
   _checkOrientation() {
     if (this.opts.viewMode === "scroll" || this.opts.allowSpread === false) {
       const wasSpread = this._spreadMode;
@@ -204,17 +215,27 @@ const MangaViewerAdapter = ({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<any>(null);
 
-  const pageSources = useMemo(() => pages.map((entry) => entry.imageUrl).filter(Boolean), [pages]);
+  const viewerPages = useMemo(
+    () =>
+      pages
+        .filter((entry) => Boolean(entry?.imageUrl))
+        .map((entry) => ({
+          type: "image",
+          src: entry.imageUrl,
+          spreadPairId: entry.spreadPairId,
+        })),
+    [pages],
+  );
 
   useEffect(() => {
     const host = hostRef.current;
-    if (!host || pageSources.length === 0) {
+    if (!host || viewerPages.length === 0) {
       return;
     }
 
     const viewer = new NekoMangaViewer({
       container: host,
-      pages: pageSources,
+      pages: viewerPages,
       title,
       backUrl,
       shareUrl,
@@ -245,7 +266,7 @@ const MangaViewerAdapter = ({
     direction,
     firstPageSingle,
     onPageChange,
-    pageSources,
+    viewerPages,
     previewLimit,
     purchasePrice,
     purchaseUrl,

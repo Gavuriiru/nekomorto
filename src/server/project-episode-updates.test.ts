@@ -80,6 +80,96 @@ describe("project episode updates", () => {
     expect(preservedProject.episodeDownloads[0].chapterUpdatedAt).toBe("2026-02-01T00:00:00.000Z");
   });
 
+  it("updates chapterUpdatedAt when published manga pages change", () => {
+    const now = "2026-03-12T12:00:00.000Z";
+
+    const updatedProject = applyEpisodePublicationMetadata(
+      {
+        type: "Manga",
+        episodeDownloads: [
+          {
+            number: 3,
+            volume: 1,
+            title: "Cap 3",
+            publicationStatus: "published",
+            chapterUpdatedAt: "2026-03-01T00:00:00.000Z",
+            contentFormat: "images",
+            pages: [{ position: 0, imageUrl: "/uploads/ch3-v1-page-1.jpg" }],
+            pageCount: 1,
+            sources: [],
+          },
+        ],
+      },
+      {
+        type: "Manga",
+        episodeDownloads: [
+          {
+            number: 3,
+            volume: 1,
+            title: "Cap 3",
+            publicationStatus: "published",
+            chapterUpdatedAt: "2026-03-01T00:00:00.000Z",
+            contentFormat: "images",
+            pages: [{ position: 0, imageUrl: "/uploads/ch3-v2-page-1.jpg" }],
+            pageCount: 1,
+            sources: [],
+          },
+        ],
+      },
+      now,
+    );
+
+    expect(updatedProject.episodeDownloads[0].chapterUpdatedAt).toBe(now);
+  });
+
+  it("updates chapterUpdatedAt when published manga spread pairing changes", () => {
+    const now = "2026-03-12T13:00:00.000Z";
+
+    const updatedProject = applyEpisodePublicationMetadata(
+      {
+        type: "Manga",
+        episodeDownloads: [
+          {
+            number: 3,
+            volume: 1,
+            title: "Cap 3",
+            publicationStatus: "published",
+            chapterUpdatedAt: "2026-03-01T00:00:00.000Z",
+            contentFormat: "images",
+            pages: [
+              { position: 0, imageUrl: "/uploads/ch3-page-1.jpg" },
+              { position: 1, imageUrl: "/uploads/ch3-page-2.jpg" },
+            ],
+            pageCount: 2,
+            sources: [],
+          },
+        ],
+      },
+      {
+        type: "Manga",
+        episodeDownloads: [
+          {
+            number: 3,
+            volume: 1,
+            title: "Cap 3",
+            publicationStatus: "published",
+            chapterUpdatedAt: "2026-03-01T00:00:00.000Z",
+            contentFormat: "images",
+            pages: [
+              { position: 0, imageUrl: "/uploads/ch3-page-1.jpg", spreadPairId: "spread-1" },
+              { position: 1, imageUrl: "/uploads/ch3-page-2.jpg", spreadPairId: "spread-1" },
+            ],
+            pageCount: 2,
+            sources: [],
+          },
+        ],
+      },
+      now,
+    );
+
+    expect(updatedProject.episodeDownloads[0].chapterUpdatedAt).toBe(now);
+  });
+
   it("creates release and adjustment updates using number+volume keys", () => {
     const updates = collectEpisodeUpdates(
       {
@@ -125,37 +215,145 @@ describe("project episode updates", () => {
     expect(updates).toEqual([
       expect.objectContaining({
         kind: "Ajuste",
-        unit: "Capítulo",
-        reason: "Conteúdo ajustado no capítulo 1",
+        unit: "Cap\u00edtulo",
+        reason: "Conte\u00fado ajustado no cap\u00edtulo 1",
         episodeNumber: 1,
         volume: 1,
       }),
       expect.objectContaining({
-        kind: "Lançamento",
-        unit: "Capítulo",
-        reason: "Capítulo 1 disponível",
+        kind: "Lan\u00e7amento",
+        unit: "Cap\u00edtulo",
+        reason: "Cap\u00edtulo 1 dispon\u00edvel",
         episodeNumber: 1,
         volume: 2,
       }),
     ]);
   });
 
-  it("treats only published readable/downloadable light novel chapters as public", () => {
+  it("creates launches and adjustments for published manga chapters with pages and no sources", () => {
+    const updates = collectEpisodeUpdates(
+      {
+        type: "Manga",
+        episodeDownloads: [
+          {
+            number: 3,
+            volume: 1,
+            title: "Cap 3",
+            publicationStatus: "published",
+            chapterUpdatedAt: "2026-03-10T10:00:00.000Z",
+            contentFormat: "images",
+            pages: [{ position: 0, imageUrl: "/uploads/ch3-v1-page-1.jpg" }],
+            pageCount: 1,
+            sources: [],
+          },
+        ],
+      },
+      {
+        type: "Manga",
+        episodeDownloads: [
+          {
+            number: 3,
+            volume: 1,
+            title: "Cap 3",
+            publicationStatus: "published",
+            chapterUpdatedAt: "2026-03-12T10:00:00.000Z",
+            contentFormat: "images",
+            pages: [{ position: 0, imageUrl: "/uploads/ch3-v2-page-1.jpg" }],
+            pageCount: 1,
+            sources: [],
+          },
+          {
+            number: 4,
+            volume: 1,
+            title: "Cap 4",
+            publicationStatus: "published",
+            chapterUpdatedAt: "2026-03-12T10:05:00.000Z",
+            contentFormat: "images",
+            pages: [{ position: 0, imageUrl: "/uploads/ch4-page-1.jpg" }],
+            pageCount: 1,
+            sources: [],
+          },
+        ],
+      },
+      "2026-03-12T10:05:00.000Z",
+    ).sort((a, b) => Number(a.episodeNumber || 0) - Number(b.episodeNumber || 0));
+
+    expect(updates).toEqual([
+      expect.objectContaining({
+        kind: "Ajuste",
+        unit: "Cap\u00edtulo",
+        reason: "Conte\u00fado ajustado no cap\u00edtulo 3",
+        episodeNumber: 3,
+        volume: 1,
+      }),
+      expect.objectContaining({
+        kind: "Lan\u00e7amento",
+        unit: "Cap\u00edtulo",
+        reason: "Cap\u00edtulo 4 dispon\u00edvel",
+        episodeNumber: 4,
+        volume: 1,
+      }),
+    ]);
+  });
+
+  it("treats published image chapters from manga and webtoon as public even without sources", () => {
     expect(
-      isEpisodePublic("Light Novel", {
+      isEpisodePublic("Manga", {
         publicationStatus: "published",
-        content: "",
-        sources: [{ label: "Drive", url: "https://example.com/file" }],
+        contentFormat: "images",
+        pages: [{ position: 0, imageUrl: "/uploads/ch1-page-1.jpg" }],
+        pageCount: 1,
+        sources: [],
       }),
     ).toBe(true);
 
     expect(
-      isEpisodePublic("Light Novel", {
+      isEpisodePublic("Webtoon", {
+        publicationStatus: "published",
+        contentFormat: "images",
+        pages: [{ position: 0, imageUrl: "/uploads/ch2-page-1.jpg" }],
+        pageCount: 1,
+        sources: [],
+      }),
+    ).toBe(true);
+
+    expect(
+      isEpisodePublic("Manga", {
         publicationStatus: "draft",
-        content: '{"root":{"children":[{"type":"paragraph"}]}}',
+        contentFormat: "images",
+        pages: [{ position: 0, imageUrl: "/uploads/ch1-page-1.jpg" }],
+        pageCount: 1,
         sources: [],
       }),
     ).toBe(false);
+  });
+
+  it("keeps draft manga chapters out of updates", () => {
+    const updates = collectEpisodeUpdates(
+      {
+        type: "Manga",
+        episodeDownloads: [],
+      },
+      {
+        type: "Manga",
+        episodeDownloads: [
+          {
+            number: 5,
+            volume: 1,
+            title: "Cap 5",
+            publicationStatus: "draft",
+            chapterUpdatedAt: "2026-03-12T10:05:00.000Z",
+            contentFormat: "images",
+            pages: [{ position: 0, imageUrl: "/uploads/ch5-page-1.jpg" }],
+            pageCount: 1,
+            sources: [],
+          },
+        ],
+      },
+      "2026-03-12T10:05:00.000Z",
+    );
+
+    expect(updates).toEqual([]);
   });
 
   it("usa Especial como unidade propria para lancamentos e ajustes", () => {
@@ -202,9 +400,9 @@ describe("project episode updates", () => {
         episodeNumber: 1,
       }),
       expect.objectContaining({
-        kind: "Lançamento",
+        kind: "Lan\u00e7amento",
         unit: "Especial",
-        reason: "Especial 2 disponível",
+        reason: "Especial 2 dispon\u00edvel",
         episodeNumber: 2,
       }),
     ]);
@@ -213,8 +411,8 @@ describe("project episode updates", () => {
   it("resolve a unidade textual por tipo e entry kind", () => {
     expect(resolveProjectUpdateUnitLabel("Especial", { number: 1 })).toBe("Especial");
     expect(resolveProjectUpdateUnitLabel("special", { number: 1 })).toBe("Especial");
-    expect(resolveProjectUpdateUnitLabel("Light Novel", { number: 1 })).toBe("Capítulo");
-    expect(resolveProjectUpdateUnitLabel("Anime", { number: 1 })).toBe("Episódio");
+    expect(resolveProjectUpdateUnitLabel("Light Novel", { number: 1 })).toBe("Cap\u00edtulo");
+    expect(resolveProjectUpdateUnitLabel("Anime", { number: 1 })).toBe("Epis\u00f3dio");
     expect(resolveProjectUpdateUnitLabel("Especial", { entryKind: "extra", number: 1 })).toBe(
       "Extra",
     );

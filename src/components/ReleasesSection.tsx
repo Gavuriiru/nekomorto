@@ -2,14 +2,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import CompactPagination from "@/components/ui/compact-pagination";
 import LatestEpisodeCard from "./LatestEpisodeCard";
 import WorkStatusCard from "./WorkStatusCard";
 import DiscordInviteCard from "./DiscordInviteCard";
@@ -146,51 +139,15 @@ const ReleasesSection = () => {
               </div>
             )}
             {showPagination ? (
-              <Pagination className="justify-center pt-4">
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      href="#"
-                      className="text-xs"
-                      aria-disabled={currentPage === 1}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        changePage(currentPage - 1);
-                      }}
-                    />
-                  </PaginationItem>
-                  {Array.from({ length: totalPages }, (_, index) => {
-                    const page = index + 1;
-                    return (
-                      <PaginationItem key={page}>
-                        <PaginationLink
-                          href="#"
-                          size="default"
-                          isActive={page === currentPage}
-                          className="text-xs"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            changePage(page);
-                          }}
-                        >
-                          {page}
-                        </PaginationLink>
-                      </PaginationItem>
-                    );
-                  })}
-                  <PaginationItem>
-                    <PaginationNext
-                      href="#"
-                      className="text-xs"
-                      aria-disabled={currentPage === totalPages}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        changePage(currentPage + 1);
-                      }}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
+              <CompactPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                className="justify-center pt-4"
+                linkClassName="text-xs"
+                previousClassName="text-xs"
+                nextClassName="text-xs"
+                onPageChange={changePage}
+              />
             ) : null}
           </div>
 

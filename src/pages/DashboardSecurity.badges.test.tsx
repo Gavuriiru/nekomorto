@@ -109,17 +109,19 @@ describe("DashboardSecurity semantic badges", () => {
     const sessionsCard = screen.getByTestId("dashboard-security-sessions-card");
     const firstSessionCard = screen.getByText("Admin").closest("article");
 
-    expect(headerBadge).toHaveTextContent("Segurança");
+    expect(headerBadge).toHaveTextContent("Seguran\u00E7a");
     expect(headerBadgeReveal).not.toBeNull();
     expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal");
     expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal-delay-1");
     expect(headerBadgeReveal).toHaveAttribute("data-reveal");
     expect(classTokens(sessionsCard)).toContain("animate-slide-up");
     expect(classTokens(sessionsCard)).toContain("opacity-0");
+    expect(classTokens(sessionsCard)).toContain("bg-card");
     expect(firstSessionCard).not.toBeNull();
     expect(classTokens(firstSessionCard as HTMLElement)).toContain("animate-slide-up");
     expect(classTokens(firstSessionCard as HTMLElement)).toContain("opacity-0");
-    expect(await screen.findByText("Sua sessão atual")).toHaveClass(
+    expect(classTokens(firstSessionCard as HTMLElement)).toContain("bg-background");
+    expect(await screen.findByText("Sua sess\u00E3o atual")).toHaveClass(
       "bg-emerald-500/20",
       "text-emerald-800",
       "dark:text-emerald-200",
@@ -219,7 +221,7 @@ describe("DashboardSecurity semantic badges", () => {
 
     expect(await screen.findByText("Admin")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Próxima" }));
+    fireEvent.click(screen.getByRole("link", { name: /pr.*xima p.*gina/i }));
 
     expect(screen.getByText("Admin")).toBeInTheDocument();
     expect(screen.queryByTestId("dashboard-security-loading")).not.toBeInTheDocument();

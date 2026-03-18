@@ -445,4 +445,66 @@ describe("HeroSection cover fit", () => {
     await screen.findByRole("heading", { name: "Projeto com Hero" });
     expect(screen.queryByTestId("hero-navbar-overlay")).not.toBeInTheDocument();
   });
+
+  it("prioriza o ultimo lancamento de manga quando o bootstrap publico o inclui nos updates", async () => {
+    usePublicBootstrapMock.mockReturnValue({
+      isFetched: true,
+      data: {
+        projects: [
+          {
+            id: "project-anime",
+            title: "Projeto Anime",
+            synopsis: "Sinopse anime",
+            description: "Descricao anime",
+            type: "Anime",
+            status: "Em andamento",
+            heroImageUrl: "/uploads/hero-anime.jpg",
+            banner: "",
+            cover: "",
+            trailerUrl: "",
+            forceHero: false,
+          },
+          {
+            id: "project-manga",
+            title: "Projeto Manga",
+            synopsis: "Sinopse manga",
+            description: "Descricao manga",
+            type: "Manga",
+            status: "Em andamento",
+            heroImageUrl: "/uploads/hero-manga.jpg",
+            banner: "",
+            cover: "",
+            trailerUrl: "",
+            forceHero: false,
+          },
+        ],
+        updates: [
+          {
+            projectId: "project-anime",
+            kind: "lancamento",
+            updatedAt: "2026-02-10T12:00:00.000Z",
+          },
+          {
+            projectId: "project-manga",
+            kind: "lancamento",
+            updatedAt: "2026-02-12T12:00:00.000Z",
+          },
+        ],
+        mediaVariants: {},
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Manga" });
+    expect(
+      screen.getByRole("link", {
+        name: /Acessar p.gina de Projeto Manga/i,
+      }),
+    ).toHaveAttribute("href", "/projeto/project-manga");
+  });
 });

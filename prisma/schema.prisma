@@ -645,6 +645,7 @@ model ProjectEpisodePageRecord {
   episodeId String
   position  Int                  @default(0)
   imageUrl  String
+  spreadPairId String?
   episode   ProjectEpisodeRecord @relation(fields: [episodeId], references: [id], onDelete: Cascade)
 
   @@index([episodeId, position], map: "project_episode_pages_episodeId_position_idx")

@@ -4,6 +4,7 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardShell from "@/components/DashboardShell";
 import {
   dashboardAnimationDelay,
@@ -398,31 +399,41 @@ const DashboardAnalytics = () => {
         ) : (
           <>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card className="animate-slide-up opacity-0" style={dashboardAnimationDelay(0)}>
+              <Card
+                lift={false}
+                className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
+                style={dashboardAnimationDelay(0)}
+              >
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground">Views</CardTitle>
+                  <CardTitle className={`text-sm ${dashboardPageLayoutTokens.cardMetaText}`}>
+                    Views
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="text-3xl font-semibold">
                   {formatInt(metrics.views || 0)}
                 </CardContent>
               </Card>
               <Card
-                className="animate-slide-up opacity-0"
+                lift={false}
+                className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
                 style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs)}
               >
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground">Views únicas</CardTitle>
+                  <CardTitle className={`text-sm ${dashboardPageLayoutTokens.cardMetaText}`}>
+                    Views únicas
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="text-3xl font-semibold">
                   {formatInt(metrics.uniqueViews || 0)}
                 </CardContent>
               </Card>
               <Card
-                className="animate-slide-up opacity-0"
+                lift={false}
+                className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
                 style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 2)}
               >
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground">
+                  <CardTitle className={`text-sm ${dashboardPageLayoutTokens.cardMetaText}`}>
                     Leituras de capítulos
                   </CardTitle>
                 </CardHeader>
@@ -431,11 +442,12 @@ const DashboardAnalytics = () => {
                 </CardContent>
               </Card>
               <Card
-                className="animate-slide-up opacity-0"
+                lift={false}
+                className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
                 style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 3)}
               >
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground">
+                  <CardTitle className={`text-sm ${dashboardPageLayoutTokens.cardMetaText}`}>
                     Cliques em downloads
                   </CardTitle>
                 </CardHeader>
@@ -446,27 +458,34 @@ const DashboardAnalytics = () => {
             </div>
 
             <Card
-              className="animate-slide-up opacity-0"
+              lift={false}
+              className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
               style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
             >
               <CardHeader>
                 <CardTitle>Comunidade e moderação</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-xl border border-border/60 bg-card/60 p-4">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                <div className={`${dashboardPageLayoutTokens.surfaceInset} rounded-xl p-4`}>
+                  <p
+                    className={`text-xs uppercase tracking-wide ${dashboardPageLayoutTokens.cardMetaText}`}
+                  >
                     Comentários criados
                   </p>
                   <p className="mt-2 text-2xl font-semibold">{formatInt(commentsCreated)}</p>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-card/60 p-4">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                <div className={`${dashboardPageLayoutTokens.surfaceInset} rounded-xl p-4`}>
+                  <p
+                    className={`text-xs uppercase tracking-wide ${dashboardPageLayoutTokens.cardMetaText}`}
+                  >
                     Comentários aprovados
                   </p>
                   <p className="mt-2 text-2xl font-semibold">{formatInt(commentsApproved)}</p>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-card/60 p-4">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                <div className={`${dashboardPageLayoutTokens.surfaceInset} rounded-xl p-4`}>
+                  <p
+                    className={`text-xs uppercase tracking-wide ${dashboardPageLayoutTokens.cardMetaText}`}
+                  >
                     Taxa de aprovação
                   </p>
                   <p className="mt-2 text-2xl font-semibold">
@@ -478,7 +497,8 @@ const DashboardAnalytics = () => {
 
             <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
               <Card
-                className="min-w-0 animate-slide-up opacity-0"
+                lift={false}
+                className={`${dashboardPageLayoutTokens.surfaceSolid} min-w-0 animate-slide-up opacity-0`}
                 style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
               >
                 <CardHeader>
@@ -521,14 +541,15 @@ const DashboardAnalytics = () => {
                     <AsyncState
                       kind="empty"
                       title="Sem dados para o período selecionado."
-                      className="border-dashed bg-card/40 py-8"
+                      className="border-dashed border-border/70 bg-background py-8 text-foreground/70"
                     />
                   )}
                 </CardContent>
               </Card>
 
               <Card
-                className="min-w-0 animate-slide-up opacity-0"
+                lift={false}
+                className={`${dashboardPageLayoutTokens.surfaceSolid} min-w-0 animate-slide-up opacity-0`}
                 style={dashboardAnimationDelay(
                   dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
                 )}
@@ -542,7 +563,7 @@ const DashboardAnalytics = () => {
                       <div key={entry.key} className="flex min-w-0 items-center gap-2 text-sm">
                         <span
                           title={formatAcquisitionLabel(entry.key)}
-                          className="min-w-0 flex-1 truncate text-muted-foreground"
+                          className={`min-w-0 flex-1 truncate ${dashboardPageLayoutTokens.cardMetaText}`}
                         >
                           {formatAcquisitionLabel(entry.key)}
                         </span>
@@ -555,7 +576,7 @@ const DashboardAnalytics = () => {
                     <AsyncState
                       kind="empty"
                       title="Sem dados de aquisição."
-                      className="border-dashed bg-card/40 py-8"
+                      className="border-dashed border-border/70 bg-background py-8 text-foreground/70"
                     />
                   )}
                 </CardContent>
@@ -563,7 +584,8 @@ const DashboardAnalytics = () => {
             </div>
 
             <Card
-              className="animate-slide-up opacity-0"
+              lift={false}
+              className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
               style={dashboardAnimationDelay(
                 dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
               )}
@@ -594,13 +616,13 @@ const DashboardAnalytics = () => {
                         return (
                           <TableRow
                             key={`${entry.resourceType}:${entry.resourceId}`}
-                            className={entryHref ? "hover:bg-transparent" : undefined}
+                            className={entryHref ? "[&:hover>td]:!bg-transparent" : undefined}
                           >
                             {entryHref ? (
                               <TableCell colSpan={4} className="p-0">
                                 <Link
                                   to={entryHref}
-                                  className="group grid w-full gap-3 px-4 py-4 text-sm transition hover:bg-muted/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset sm:grid-cols-[140px_minmax(0,1fr)_96px_96px] sm:items-center sm:gap-0 sm:px-0"
+                                  className="group grid w-full gap-3 rounded-lg px-4 py-4 text-sm transition hover:bg-muted/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset sm:grid-cols-[140px_minmax(0,1fr)_96px_96px] sm:items-center sm:gap-0 sm:px-0"
                                   aria-label={`Abrir ${formatResourceType(entry.resourceType)} ${entry.title}`}
                                 >
                                   <span className="flex flex-col gap-1 sm:px-4">
@@ -656,7 +678,7 @@ const DashboardAnalytics = () => {
                   <AsyncState
                     kind="empty"
                     title="Nenhum conteúdo com views no período."
-                    className="border-dashed bg-card/40 py-8"
+                    className="border-dashed border-border/70 bg-background py-8 text-foreground/70"
                   />
                 )}
               </CardContent>

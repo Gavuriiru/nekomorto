@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import QRCode from "qrcode";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import {
   dashboardAnimationDelay,
   dashboardClampedStaggerMs,
@@ -1450,7 +1451,7 @@ const DashboardUsers = () => {
                     style={dashboardAnimationDelay(dashboardMotionDelays.sectionMetaMs)}
                   >
                     <Badge
-                      className="min-w-[2.5rem] justify-center bg-card/80 text-muted-foreground"
+                      className="min-w-[2.5rem] justify-center bg-background text-foreground/70"
                       data-testid="dashboard-users-active-count-badge"
                     >
                       {activeUsers.length}
@@ -1497,7 +1498,7 @@ const DashboardUsers = () => {
                     return (
                       <div
                         key={user.id}
-                        className={`relative rounded-2xl border border-border/60 bg-card/60 p-5 transition hover:border-primary/40 hover:bg-primary/5 animate-slide-up opacity-0 ${
+                        className={`relative ${dashboardPageLayoutTokens.surfaceSolid} p-5 transition hover:border-primary/40 hover:bg-primary/5 animate-slide-up opacity-0 ${
                           isLoneLastActiveCard
                             ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]"
                             : ""
@@ -1533,8 +1534,8 @@ const DashboardUsers = () => {
                                 avatarUrl={toAvatarRenderUrl(user.avatarUrl, user.revision)}
                                 name={user.name}
                                 sizeClassName="h-14 w-14"
-                                frameClassName="border border-border/60 bg-card/60"
-                                fallbackClassName="bg-card/80 text-sm text-foreground"
+                                frameClassName="border border-border/70 bg-background"
+                                fallbackClassName="bg-background text-sm text-foreground"
                                 fallbackText={user.name.slice(0, 2).toUpperCase()}
                               />
                               <div>
@@ -1544,15 +1545,17 @@ const DashboardUsers = () => {
                                     <Badge className="bg-primary/20 text-primary">Dono</Badge>
                                   )}
                                   {!ownerIds.includes(user.id) && isAdminRecord(user) && (
-                                    <Badge className="bg-card/80 text-muted-foreground">
+                                    <Badge className="bg-background text-foreground/70">
                                       Administrador
                                     </Badge>
                                   )}
                                 </div>
-                                <p className="text-sm text-muted-foreground">
+                                <p className={`text-sm ${dashboardPageLayoutTokens.cardMetaText}`}>
                                   {user.phrase || "-"}
                                 </p>
-                                <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                                <p
+                                  className={`mt-2 text-xs ${dashboardPageLayoutTokens.cardMetaText} line-clamp-2`}
+                                >
                                   {user.bio || "Sem biografia cadastrada."}
                                 </p>
                                 {user.roles && user.roles.length > 0 && (
@@ -1604,7 +1607,7 @@ const DashboardUsers = () => {
                       style={dashboardAnimationDelay(dashboardMotionDelays.sectionMetaMs)}
                     >
                       <Badge
-                        className="min-w-[2.5rem] justify-center bg-card/80 text-muted-foreground"
+                        className="min-w-[2.5rem] justify-center bg-background text-foreground/70"
                         data-testid="dashboard-users-retired-count-badge"
                       >
                         {retiredUsers.length}
@@ -1619,7 +1622,7 @@ const DashboardUsers = () => {
                       return (
                         <div
                           key={user.id}
-                          className={`rounded-2xl border border-border/60 bg-card/60 p-5 animate-slide-up opacity-0 ${
+                          className={`${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up opacity-0 ${
                             isLoneLastRetiredCard
                               ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]"
                               : ""
@@ -1655,26 +1658,30 @@ const DashboardUsers = () => {
                                   avatarUrl={toAvatarRenderUrl(user.avatarUrl, user.revision)}
                                   name={user.name}
                                   sizeClassName="h-14 w-14"
-                                  frameClassName="border border-border/60 bg-card/60"
-                                  fallbackClassName="bg-card/80 text-sm text-foreground"
+                                  frameClassName="border border-border/70 bg-background"
+                                  fallbackClassName="bg-background text-sm text-foreground"
                                   fallbackText={user.name.slice(0, 2).toUpperCase()}
                                 />
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <h3 className="text-lg font-semibold">{user.name}</h3>
-                                    <Badge className="bg-card/80 text-muted-foreground">
+                                    <Badge className="bg-background text-foreground/70">
                                       Aposentado
                                     </Badge>
                                     {isAdminRecord(user) ? (
-                                      <Badge className="bg-card/80 text-muted-foreground">
+                                      <Badge className="bg-background text-foreground/70">
                                         Administrador
                                       </Badge>
                                     ) : null}
                                   </div>
-                                  <p className="text-sm text-muted-foreground">
+                                  <p
+                                    className={`text-sm ${dashboardPageLayoutTokens.cardMetaText}`}
+                                  >
                                     {user.phrase || "-"}
                                   </p>
-                                  <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                                  <p
+                                    className={`mt-2 text-xs ${dashboardPageLayoutTokens.cardMetaText} line-clamp-2`}
+                                  >
                                     {user.bio || "Sem biografia cadastrada."}
                                   </p>
                                   {user.roles && user.roles.length > 0 ? (

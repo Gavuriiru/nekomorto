@@ -173,6 +173,16 @@ describe("DashboardAnalytics", () => {
     expect(screen.getByText(/Coment.*criados/i)).toBeInTheDocument();
     expect(screen.getByText(/Coment.*aprovados/i)).toBeInTheDocument();
     expect(screen.getByText(/Taxa de aprova/i)).toBeInTheDocument();
+
+    const viewsMetricCard =
+      screen.getByRole("heading", { name: "Views" }).parentElement?.parentElement || null;
+    const moderationInset = screen.getByText(/Coment.*criados/i).parentElement || null;
+
+    expect(viewsMetricCard).not.toBeNull();
+    expect(classTokens(viewsMetricCard as HTMLElement)).toContain("bg-card");
+    expect(classTokens(viewsMetricCard as HTMLElement)).not.toContain("lift-hover");
+    expect(moderationInset).not.toBeNull();
+    expect(classTokens(moderationInset as HTMLElement)).toContain("bg-background");
   });
 
   it("respeita a metrica selecionada pela query string ao carregar a serie temporal", async () => {
@@ -262,6 +272,7 @@ describe("DashboardAnalytics", () => {
     expect(postLink).not.toHaveAttribute("tabindex", "-1");
     expect(classTokens(projectLink)).toContain("w-full");
     expect(classTokens(projectLink)).toContain("group");
+    expect(classTokens(projectLink)).toContain("rounded-lg");
     expect(classTokens(projectLink)).toContain("sm:grid-cols-[140px_minmax(0,1fr)_96px_96px]");
     expect(classTokens(projectLink)).toContain("sm:px-0");
     expect(classTokens(projectLink)).toContain("sm:gap-0");

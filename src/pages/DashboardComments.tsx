@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, Trash2, ExternalLink, Loader2 } from "lucide-react";
+import { CheckCircle2, ExternalLink, Loader2, Trash2 } from "lucide-react";
 
 import DashboardShell from "@/components/DashboardShell";
-import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
+import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import {
   dashboardAnimationDelay,
   dashboardClampedStaggerMs,
   dashboardMotionDelays,
 } from "@/components/dashboard/dashboard-motion";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,18 +21,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import AsyncState from "@/components/ui/async-state";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import AsyncState from "@/components/ui/async-state";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
-import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
-import { usePageMeta } from "@/hooks/use-page-meta";
 import { cn } from "@/lib/utils";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 type PendingComment = {
   id: string;
@@ -71,6 +74,19 @@ const getCommentTargetTypeLabel = (targetType: string) => {
     return "ITEM";
   }
   return COMMENT_TARGET_TYPE_LABELS[normalizedTargetType] || normalizedTargetType.toUpperCase();
+};
+
+const initialsFromName = (name: string) => {
+  const initials = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return initials || "?";
 };
 
 const DashboardComments = () => {
@@ -279,28 +295,20 @@ const DashboardComments = () => {
       isLoadingUser={isLoadingUser}
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
-      <main className="px-6 pb-20 pt-24 md:px-10">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 reveal" data-reveal>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <DashboardPageBadge data-testid="dashboard-comments-header-badge">
-                Comentários
-              </DashboardPageBadge>
-              <h1 className="mt-4 text-2xl font-semibold text-foreground animate-slide-up">
-                Comentários pendentes
-              </h1>
-              <p
-                className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
-                style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
-              >
-                Aprove ou exclua comentários enviados pelos visitantes.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
+      <DashboardPageContainer>
+        <DashboardPageHeader
+          badge="Comentários"
+          title="Comentários pendentes"
+          description="Aprove ou exclua comentários enviados pelos visitantes."
+          badgeProps={{ "data-testid": "dashboard-comments-header-badge" }}
+          actions={
+            <div
+              className="flex flex-wrap items-center justify-end gap-2"
+              data-testid="dashboard-comments-header-actions"
+            >
               {!isLoading && comments.length > 0 ? (
                 <div
-                  className="flex flex-wrap items-center gap-2 animate-slide-up opacity-0"
-                  style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
+                  className="flex flex-wrap items-center gap-2"
                   data-testid="dashboard-comments-bulk-actions"
                 >
                   <Button
@@ -397,99 +405,146 @@ const DashboardComments = () => {
               ) : null}
               <Badge
                 variant="secondary"
-                className="text-xs uppercase animate-fade-in"
+                className="animate-fade-in text-xs uppercase"
                 style={dashboardAnimationDelay(dashboardMotionDelays.headerMetaMs)}
                 data-testid="dashboard-comments-pending-count-badge"
               >
                 {comments.length} pendentes
               </Badge>
             </div>
-          </div>
+          }
+        />
 
-          {isLoading ? (
-            <AsyncState
-              kind="loading"
-              title="Carregando comentários"
-              description="Buscando a fila de moderação."
-            />
-          ) : hasLoadError ? (
-            <AsyncState
-              kind="error"
-              title="Não foi possível carregar os comentários"
-              description="Tente novamente em alguns instantes."
-              action={
-                <Button variant="outline" onClick={() => void loadComments()}>
-                  Recarregar fila
-                </Button>
-              }
-            />
-          ) : comments.length === 0 ? (
-            <AsyncState
-              kind="empty"
-              title="Nenhum comentário pendente"
-              description="A fila de moderação está em dia."
-            />
-          ) : (
-            <div className="grid gap-4">
-              {comments.map((comment, index) => (
-                <Card
-                  key={comment.id}
-                  className="border-border/60 bg-card/80 shadow-lg animate-slide-up opacity-0"
-                  style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
-                >
-                  <CardContent className="space-y-4 p-6">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-                          <Badge variant="outline" className="shrink-0 text-[10px] uppercase">
-                            {getCommentTargetTypeLabel(comment.targetType)}
-                          </Badge>
-                          <span className="min-w-0 truncate" title={comment.targetLabel}>
-                            {comment.targetLabel}
-                          </span>
-                          <span className="ml-auto shrink-0 whitespace-nowrap">
-                            {formatDateTime(comment.createdAt)}
-                          </span>
-                        </div>
-                        <p className="text-sm font-semibold text-foreground">{comment.name}</p>
-                        <p className="text-sm text-muted-foreground whitespace-pre-line">
-                          {comment.content}
-                        </p>
+        {isLoading ? (
+          <AsyncState
+            kind="loading"
+            title="Carregando comentários"
+            description="Buscando a fila de moderação."
+          />
+        ) : hasLoadError ? (
+          <AsyncState
+            kind="error"
+            title="Não foi possível carregar os comentários"
+            description="Tente novamente em alguns instantes."
+            action={
+              <Button variant="outline" onClick={() => void loadComments()}>
+                Recarregar fila
+              </Button>
+            }
+          />
+        ) : comments.length === 0 ? (
+          <AsyncState
+            kind="empty"
+            title="Nenhum comentário pendente"
+            description="A fila de moderação está em dia."
+          />
+        ) : (
+          <div className="grid gap-4">
+            {comments.map((comment, index) => (
+              <Card
+                key={comment.id}
+                lift={false}
+                data-testid={`pending-comment-card-${comment.id}`}
+                className={`${dashboardPageLayoutTokens.listCard} border-border bg-card shadow-[0_12px_28px_-24px_rgba(0,0,0,0.45)] overflow-hidden transition hover:border-primary/35 animate-slide-up opacity-0`}
+                style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
+              >
+                <CardContent className="p-0">
+                  <div className="grid gap-0 md:grid-cols-[minmax(0,1fr)_220px]">
+                    <div className="min-w-0 space-y-5 p-5 sm:p-6">
+                      <div
+                        className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-foreground/72"
+                        data-testid={`pending-comment-meta-${comment.id}`}
+                      >
+                        <Badge
+                          variant="outline"
+                          className="shrink-0 text-[10px] uppercase tracking-[0.22em]"
+                        >
+                          {getCommentTargetTypeLabel(comment.targetType)}
+                        </Badge>
+                        <span
+                          className="min-w-0 flex-1 truncate text-foreground/72"
+                          title={comment.targetLabel}
+                        >
+                          {comment.targetLabel}
+                        </span>
+                        <span className="ml-auto shrink-0 whitespace-nowrap text-foreground/68">
+                          {formatDateTime(comment.createdAt)}
+                        </span>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          disabled={Boolean(pendingActionById[comment.id]) || isBulkActionLoading}
-                          onClick={() => handleApprove(comment.id)}
+
+                      <div className="flex items-start gap-4">
+                        <Avatar
+                          className="h-11 w-11 border border-border/80 bg-background shadow-none"
+                          data-testid={`pending-comment-avatar-${comment.id}`}
                         >
-                          <CheckCircle2 className="mr-2 h-4 w-4" />
-                          {pendingActionById[comment.id] === "approve" ? "Aprovando..." : "Aprovar"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          disabled={Boolean(pendingActionById[comment.id]) || isBulkActionLoading}
-                          onClick={() => handleDelete(comment)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          {pendingActionById[comment.id] === "delete" ? "Excluindo..." : "Excluir"}
-                        </Button>
-                        <Button size="sm" variant="outline" asChild>
-                          <a href={comment.targetUrl} target="_blank" rel="noreferrer">
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            Ver página
-                          </a>
-                        </Button>
+                          {comment.avatarUrl ? (
+                            <AvatarImage src={comment.avatarUrl} alt={comment.name} />
+                          ) : null}
+                          <AvatarFallback
+                            className="bg-background text-xs font-semibold text-foreground"
+                            data-testid={`pending-comment-avatar-fallback-${comment.id}`}
+                          >
+                            {initialsFromName(comment.name)}
+                          </AvatarFallback>
+                        </Avatar>
+
+                        <div className="min-w-0 flex-1 space-y-3">
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-foreground">{comment.name}</p>
+                            <p className="text-xs uppercase tracking-[0.18em] text-foreground/58">
+                              Aguardando moderação
+                            </p>
+                          </div>
+                          <div
+                            className="rounded-xl border border-border/80 bg-background px-4 py-3"
+                            data-testid={`pending-comment-body-${comment.id}`}
+                          >
+                            <p className="whitespace-pre-line break-words text-sm leading-6 text-foreground">
+                              {comment.content}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      </main>
+
+                    <div
+                      className="flex flex-col gap-2 border-t border-border/70 bg-background p-4 md:justify-center md:border-l md:border-t-0"
+                      data-testid={`pending-comment-actions-${comment.id}`}
+                    >
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="w-full justify-start"
+                        disabled={Boolean(pendingActionById[comment.id]) || isBulkActionLoading}
+                        onClick={() => handleApprove(comment.id)}
+                      >
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                        {pendingActionById[comment.id] === "approve" ? "Aprovando..." : "Aprovar"}
+                      </Button>
+                      <Button size="sm" variant="outline" className="w-full justify-start" asChild>
+                        <a href={comment.targetUrl} target="_blank" rel="noreferrer">
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          Ver página
+                        </a>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="w-full justify-start"
+                        disabled={Boolean(pendingActionById[comment.id]) || isBulkActionLoading}
+                        onClick={() => handleDelete(comment)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {pendingActionById[comment.id] === "delete" ? "Excluindo..." : "Excluir"}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </DashboardPageContainer>
       <AlertDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => {

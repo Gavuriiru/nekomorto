@@ -447,6 +447,39 @@ describe("Projects query sync", () => {
     });
   });
 
+  it("usa janela compacta com reticencias quando ha muitas paginas", async () => {
+    setupApiMock({
+      projects: createProjects(160),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projetos?page=5"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const pagination = await screen.findByRole("navigation");
+
+    expect(within(pagination).getByRole("link", { name: "1" })).toBeInTheDocument();
+    expect(within(pagination).getByRole("link", { name: "4" })).toBeInTheDocument();
+    expect(within(pagination).getByRole("link", { name: "5" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(pagination).getByRole("link", { name: "6" })).toBeInTheDocument();
+    expect(within(pagination).getByRole("link", { name: "10" })).toBeInTheDocument();
+    expect(within(pagination).getAllByText("Mais p\u00E1ginas")).toHaveLength(2);
+    expect(within(pagination).queryByRole("link", { name: "2" })).not.toBeInTheDocument();
+    expect(within(pagination).queryByRole("link", { name: "8" })).not.toBeInTheDocument();
+
+    fireEvent.click(within(pagination).getByRole("link", { name: "10" }));
+
+    await waitFor(() => {
+      expect(getSearchParams().get("page")).toBe("10");
+    });
+  });
+
   it("type invalido cai para Todos e URL canonica remove type", async () => {
     setupApiMock({
       projects: createProjects(12, {

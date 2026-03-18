@@ -19,6 +19,7 @@ export type ProjectVolumeEntry = {
 export type ProjectEpisodePage = {
   position: number;
   imageUrl: string;
+  spreadPairId?: string;
 };
 
 export type ProjectReaderConfig = {

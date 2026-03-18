@@ -5,7 +5,14 @@ import { cn } from "@/lib/utils";
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
     <div className="relative w-full overflow-auto">
-      <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
+      <table
+        ref={ref}
+        className={cn(
+          "w-full caption-bottom text-sm [&_tbody_tr:hover_td]:bg-muted/50 [&_tbody_tr:hover_td:first-child]:rounded-l-lg [&_tbody_tr:hover_td:last-child]:rounded-r-lg [&_tbody_tr[data-state=selected]_td]:bg-muted [&_tbody_tr[data-state=selected]_td:first-child]:rounded-l-lg [&_tbody_tr[data-state=selected]_td:last-child]:rounded-r-lg",
+          className,
+        )}
+        {...props}
+      />
     </div>
   ),
 );
@@ -43,10 +50,7 @@ const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTML
   ({ className, ...props }, ref) => (
     <tr
       ref={ref}
-      className={cn(
-        "border-b transition-colors data-[state=selected]:bg-muted hover:bg-muted/50",
-        className,
-      )}
+      className={cn("border-b transition-colors", className)}
       {...props}
     />
   ),
@@ -74,7 +78,7 @@ const TableCell = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <td
     ref={ref}
-    className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", className)}
+    className={cn("p-4 align-middle transition-colors [&:has([role=checkbox])]:pr-0", className)}
     {...props}
   />
 ));

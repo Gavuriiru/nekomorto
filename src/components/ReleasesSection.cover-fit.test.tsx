@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -26,23 +26,39 @@ vi.mock("@/components/DiscordInviteCard", () => ({
   default: () => <section data-testid="sidebar-discord-card" />,
 }));
 
-const setupBootstrapMock = () => {
+const createPost = (index: number) => ({
+  id: `post-${index}`,
+  slug: `post-${index}`,
+  title: `Post ${index}`,
+  excerpt: `Resumo ${index}`,
+  author: "Equipe",
+  publishedAt: "2026-02-10T12:00:00.000Z",
+  coverImageUrl: "/uploads/capa-card.jpg",
+  tags: ["acao"],
+  projectId: "project-1",
+});
+
+const setupBootstrapMock = ({
+  posts = [
+    {
+      id: "post-1",
+      slug: "post-teste",
+      title: "Post de Teste",
+      excerpt: "Resumo",
+      author: "Equipe",
+      publishedAt: "2026-02-10T12:00:00.000Z",
+      coverImageUrl: "/uploads/capa-card.jpg",
+      tags: ["acao"],
+      projectId: "project-1",
+    },
+  ],
+}: {
+  posts?: Array<ReturnType<typeof createPost>>;
+} = {}) => {
   usePublicBootstrapMock.mockReturnValue({
     isLoading: false,
     data: {
-      posts: [
-        {
-          id: "post-1",
-          slug: "post-teste",
-          title: "Post de Teste",
-          excerpt: "Resumo",
-          author: "Equipe",
-          publishedAt: "2026-02-10T12:00:00.000Z",
-          coverImageUrl: "/uploads/capa-card.jpg",
-          tags: ["acao"],
-          projectId: "project-1",
-        },
-      ],
+      posts,
       projects: [
         {
           id: "project-1",
@@ -71,6 +87,11 @@ const setupBootstrapMock = () => {
 describe("ReleasesSection cover fit", () => {
   beforeEach(() => {
     usePublicBootstrapMock.mockReset();
+    window.scrollTo = vi.fn();
+    window.requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+      callback(0);
+      return 0;
+    }) as typeof window.requestAnimationFrame;
   });
 
   it("renderiza capa do card com preenchimento total e wrapper 3:2", async () => {
@@ -158,5 +179,32 @@ describe("ReleasesSection cover fit", () => {
       "sidebar-top-projects-card",
       "sidebar-discord-card",
     ]);
+  });
+
+  it("usa paginacao compacta e troca de pagina sem perder o scroll da secao", async () => {
+    setupBootstrapMock({
+      posts: Array.from({ length: 64 }, (_, index) => createPost(index + 1)),
+    });
+
+    render(
+      <MemoryRouter>
+        <ReleasesSection />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("heading", { level: 3, name: "Post 1" })).toBeInTheDocument();
+
+    const pagination = screen.getByRole("navigation");
+    expect(within(pagination).getByRole("link", { name: "8" })).toBeInTheDocument();
+    expect(within(pagination).getAllByText("Mais p\u00E1ginas")).toHaveLength(1);
+
+    fireEvent.click(within(pagination).getByRole("link", { name: "5" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { level: 3, name: "Post 33" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("heading", { level: 3, name: "Post 1" })).not.toBeInTheDocument();
+    expect(window.requestAnimationFrame).toHaveBeenCalled();
+    expect(window.scrollTo).toHaveBeenCalled();
   });
 });

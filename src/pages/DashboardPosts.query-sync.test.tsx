@@ -82,16 +82,18 @@ const createPost = (index: number) => ({
 });
 
 const setupApiMock = ({
+  posts = Array.from({ length: 21 }, (_, index) => createPost(index + 1)),
   includeTrashedPost = false,
   calendarItems = [],
 }: {
+  posts?: ReturnType<typeof createPost>[];
   includeTrashedPost?: boolean;
   calendarItems?: Array<Record<string, unknown>>;
 } = {}) => {
-  let posts = Array.from({ length: 21 }, (_, index) => createPost(index + 1));
+  let nextPosts = posts;
   if (includeTrashedPost) {
-    posts = [
-      ...posts,
+    nextPosts = [
+      ...nextPosts,
       {
         ...createPost(999),
         id: "post-trash",
@@ -107,12 +109,12 @@ const setupApiMock = ({
     const method = String(options?.method || "GET").toUpperCase();
 
     if (path === "/api/posts" && method === "GET") {
-      return mockJsonResponse(true, { posts });
+      return mockJsonResponse(true, { posts: nextPosts });
     }
     if (path === "/api/posts/post-1" && method === "PUT") {
       const body = JSON.parse(String(options?.body || "{}"));
-      posts = posts.map((post) => (post.id === "post-1" ? { ...post, ...body } : post));
-      const post = posts.find((item) => item.id === "post-1");
+      nextPosts = nextPosts.map((post) => (post.id === "post-1" ? { ...post, ...body } : post));
+      const post = nextPosts.find((item) => item.id === "post-1");
       return mockJsonResponse(true, { post });
     }
     if (path === "/api/users" && method === "GET") {
@@ -197,6 +199,40 @@ describe("DashboardPosts query sync", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("?page=2");
+    });
+  });
+
+  it("usa janela compacta com reticencias quando ha muitas paginas", async () => {
+    setupApiMock({
+      posts: Array.from({ length: 100 }, (_, index) => createPost(index + 1)),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts?page=5"]}>
+        <DashboardPosts />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    const pagination = screen.getByRole("navigation");
+
+    expect(within(pagination).getByRole("link", { name: "1" })).toBeInTheDocument();
+    expect(within(pagination).getByRole("link", { name: "4" })).toBeInTheDocument();
+    expect(within(pagination).getByRole("link", { name: "5" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(pagination).getByRole("link", { name: "6" })).toBeInTheDocument();
+    expect(within(pagination).getByRole("link", { name: "10" })).toBeInTheDocument();
+    expect(within(pagination).getAllByText("Mais p\u00E1ginas")).toHaveLength(2);
+    expect(within(pagination).queryByRole("link", { name: "2" })).not.toBeInTheDocument();
+    expect(within(pagination).queryByRole("link", { name: "8" })).not.toBeInTheDocument();
+
+    fireEvent.click(within(pagination).getByRole("link", { name: "10" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("?page=10");
     });
   });
 

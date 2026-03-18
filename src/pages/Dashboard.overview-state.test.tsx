@@ -180,6 +180,11 @@ const countApiCalls = (path: string, method = "GET") =>
     return requestPath === path && String(requestOptions.method || "GET").toUpperCase() === method;
   }).length;
 
+const classTokens = (element: Element | null) =>
+  String((element as HTMLElement | null)?.className || "")
+    .split(/\s+/)
+    .filter(Boolean);
+
 describe("Dashboard overview async states", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
@@ -457,5 +462,26 @@ describe("Dashboard overview async states", () => {
     await waitFor(() => {
       expect(screen.queryByTestId("dashboard-ops-loading")).not.toBeInTheDocument();
     });
+  });
+
+  it("usa shells solidos nos principais cards do overview", async () => {
+    installDashboardApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Painel de controle da comunidade/i });
+
+    const metricsCardLabel = screen.getAllByText("Projetos cadastrados")[0];
+    const metricsCard = metricsCardLabel.closest(".rounded-2xl");
+    const analyticsCard = screen.getByText(/Análises de acessos/i).closest(".rounded-3xl");
+
+    expect(classTokens(metricsCard)).toContain("bg-card");
+    expect(classTokens(metricsCard)).not.toContain("bg-card/60");
+    expect(classTokens(analyticsCard)).toContain("bg-card");
+    expect(classTokens(analyticsCard)).not.toContain("bg-card/60");
   });
 });

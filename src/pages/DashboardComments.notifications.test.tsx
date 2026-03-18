@@ -4,8 +4,8 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dashboardMotionDelays } from "@/components/dashboard/dashboard-motion";
-import DashboardComments from "@/pages/DashboardComments";
 import { formatDateTime } from "@/lib/date";
+import DashboardComments from "@/pages/DashboardComments";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
@@ -36,6 +36,7 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     status,
     json: async () => payload,
   }) as Response;
+
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
@@ -73,6 +74,7 @@ const setupApi = (options?: {
     bulkDeleteOk = true,
     pendingComments = [pendingCommentFixture],
   } = options || {};
+
   apiFetchMock.mockImplementation(async (_base: string, path: string, request?: RequestInit) => {
     const method = String(request?.method || "GET").toUpperCase();
     if (path === "/api/comments/pending" && method === "GET") {
@@ -312,9 +314,9 @@ describe("DashboardComments notifications", () => {
     );
   });
 
-  it("renderiza o alvo no header com truncamento entre badge e data", async () => {
+  it("renderiza a faixa superior do card com truncamento entre badge e data", async () => {
     const longTargetLabel =
-      "Post de teste com um titulo bem longo para validar truncamento visual no header da fila";
+      "Post de teste com um título bem longo para validar truncamento visual no header da fila";
     setupApi({
       pendingComments: [
         {
@@ -331,10 +333,12 @@ describe("DashboardComments notifications", () => {
     );
 
     await screen.findByText("Comentário pendente");
+    const meta = screen.getByTestId("pending-comment-meta-comment-1");
     const targetLabel = screen.getByTitle(longTargetLabel);
 
+    expect(classTokens(meta)).toContain("flex-wrap");
     expect(targetLabel.className).toContain("truncate");
-    expect(targetLabel.className).toContain("min-w-0");
+    expect(targetLabel.className).toContain("flex-1");
     expect(screen.getByText(formatDateTime(pendingCommentFixture.createdAt))).toBeInTheDocument();
   });
 
@@ -400,7 +404,7 @@ describe("DashboardComments notifications", () => {
     });
   });
 
-  it("aplica reveal ao container das acoes em massa", async () => {
+  it("aplica animação ao wrapper das ações em massa no header padrão", async () => {
     setupApi({
       pendingComments: [pendingCommentFixture, secondPendingCommentFixture],
     });
@@ -412,13 +416,73 @@ describe("DashboardComments notifications", () => {
     );
 
     await screen.findByText(pendingCommentFixture.content);
-    const bulkActions = screen.getByTestId("dashboard-comments-bulk-actions");
+    const headerActions = screen.getByTestId("dashboard-comments-header-actions");
+    const headerActionsWrapper = headerActions.parentElement;
 
-    expect(classTokens(bulkActions)).toContain("animate-slide-up");
-    expect(classTokens(bulkActions)).toContain("opacity-0");
+    expect(headerActionsWrapper).not.toBeNull();
+    expect(classTokens(headerActionsWrapper as HTMLElement)).toContain("animate-slide-up");
+    expect(classTokens(headerActionsWrapper as HTMLElement)).toContain("opacity-0");
   });
 
-  it("mostra spinner ao aprovar todos enquanto a request em massa esta pendente", async () => {
+  it("usa fallback com iniciais quando o comentário não tem avatar", async () => {
+    setupApi({
+      pendingComments: [
+        {
+          ...pendingCommentFixture,
+          avatarUrl: "",
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/comentarios"]}>
+        <DashboardComments />
+      </MemoryRouter>,
+    );
+
+    const fallback = await screen.findByTestId("pending-comment-avatar-fallback-comment-1");
+    expect(fallback).toHaveTextContent("V");
+  });
+
+  it("renderiza um bloco interno para o comentário com mais respiro", async () => {
+    setupApi();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/comentarios"]}>
+        <DashboardComments />
+      </MemoryRouter>,
+    );
+
+    const commentBody = await screen.findByTestId("pending-comment-body-comment-1");
+
+    expect(classTokens(commentBody)).toContain("rounded-xl");
+    expect(classTokens(commentBody)).toContain("border");
+    expect(classTokens(commentBody)).toContain("bg-background");
+    expect(classTokens(commentBody)).toContain("px-4");
+    expect(classTokens(commentBody)).toContain("py-3");
+    expect(within(commentBody).getByText("Comentário pendente")).toBeInTheDocument();
+  });
+
+  it("separa as ações em uma action rail própria", async () => {
+    setupApi();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/comentarios"]}>
+        <DashboardComments />
+      </MemoryRouter>,
+    );
+
+    const actionRail = await screen.findByTestId("pending-comment-actions-comment-1");
+
+    expect(classTokens(actionRail)).toContain("border-t");
+    expect(classTokens(actionRail)).toContain("bg-background");
+    expect(classTokens(actionRail)).toContain("md:border-l");
+    expect(within(actionRail).getByRole("button", { name: "Aprovar" })).toBeInTheDocument();
+    expect(within(actionRail).getByRole("link", { name: "Ver página" })).toBeInTheDocument();
+    expect(within(actionRail).getByRole("button", { name: "Excluir" })).toBeInTheDocument();
+  });
+
+  it("mostra spinner ao aprovar todos enquanto a request em massa está pendente", async () => {
     apiFetchMock.mockImplementation(async (_base: string, path: string, request?: RequestInit) => {
       const method = String(request?.method || "GET").toUpperCase();
       if (path === "/api/comments/pending" && method === "GET") {
@@ -450,7 +514,7 @@ describe("DashboardComments notifications", () => {
     expect(approvingButton.querySelector(".animate-spin")).not.toBeNull();
   });
 
-  it("mostra spinner ao excluir todos enquanto a request em massa esta pendente", async () => {
+  it("mostra spinner ao excluir todos enquanto a request em massa está pendente", async () => {
     apiFetchMock.mockImplementation(async (_base: string, path: string, request?: RequestInit) => {
       const method = String(request?.method || "GET").toUpperCase();
       if (path === "/api/comments/pending" && method === "GET") {

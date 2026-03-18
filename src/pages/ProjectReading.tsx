@@ -115,7 +115,7 @@ const ProjectReading = () => {
     synopsis?: string;
     content?: string;
     contentFormat?: "lexical" | "images";
-    pages?: Array<{ position: number; imageUrl: string }>;
+    pages?: Array<{ position: number; imageUrl: string; spreadPairId?: string }>;
     pageCount?: number;
     hasPages?: boolean;
     coverImageUrl?: string;

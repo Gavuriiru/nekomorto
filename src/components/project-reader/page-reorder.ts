@@ -135,7 +135,7 @@ export const setDragPreviewFromElement = (
 };
 
 export const buildReorderAnnouncement = (label: string, targetIndex: number) =>
-  `${label} movida para a posicao ${targetIndex + 1}.`;
+  `${label} movida para a posição ${targetIndex + 1}.`;
 
 export const handleAltArrowReorder = ({
   event,

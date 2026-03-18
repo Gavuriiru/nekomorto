@@ -116,6 +116,11 @@ describe("DashboardAuditLog semantic badges", () => {
 
     await screen.findByRole("heading", { name: /Registro de Auditoria/i });
 
+    expect(screen.getByRole("columnheader", { name: "Recurso" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Detalhes" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Alvo" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("login-1")).toHaveLength(1);
+
     expect(getStatusBadges("Sucesso")[0]).toHaveClass(
       "bg-emerald-500/20",
       "text-emerald-800",

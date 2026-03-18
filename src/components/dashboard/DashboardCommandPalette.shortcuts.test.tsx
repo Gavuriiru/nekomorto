@@ -147,6 +147,15 @@ describe("DashboardCommandPalette shortcuts", () => {
     expect(onNavigate).toHaveBeenCalledWith("/dashboard/configuracoes?tab=seo");
   });
 
+  it("inclui a aba de Layout nas acoes de configuracoes", () => {
+    const { onOpenChange, onNavigate } = renderPalette();
+
+    fireEvent.click(screen.getByText("Layout"));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onNavigate).toHaveBeenCalledWith("/dashboard/configuracoes?tab=layout");
+  });
+
   it("abre notificacoes e fecha a palette sem navegar", () => {
     const { onOpenChange, onNavigate, onOpenNotifications } = renderPalette();
 
@@ -163,11 +172,13 @@ describe("DashboardCommandPalette shortcuts", () => {
     const input = screen.getByRole("combobox");
     const generalItem = screen.getByText("Geral").closest("[cmdk-item]");
     const donationsItem = screen.getByText("Doações").closest("[cmdk-item]");
+    const layoutItem = screen.getByText("Layout").closest("[cmdk-item]");
     const newPostItem = screen.getByText("Novo post").closest("[cmdk-item]");
     const seoItem = screen.getByText("SEO").closest("[cmdk-item]");
 
     expect(generalItem?.getAttribute("data-value")?.split(" ")).toContain("sg");
     expect(donationsItem?.getAttribute("data-value")?.split(" ")).toContain("pd");
+    expect(layoutItem?.getAttribute("data-value")?.split(" ")).toContain("sl");
     expect(newPostItem?.getAttribute("data-value")?.split(" ")).toContain("np");
     expect(seoItem?.getAttribute("data-value")?.split(" ")).toContain("ss");
 

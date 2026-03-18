@@ -259,6 +259,9 @@ describe("DashboardWebhooks layout", () => {
     expect(screen.getByTestId("dashboard-webhooks-section-posts")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-webhooks-section-projects")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-webhooks-placeholder-types")).toBeInTheDocument();
+    expect(classTokens(screen.getByTestId("dashboard-webhooks-section-types"))).toContain(
+      "bg-card",
+    );
     expect(
       classTokens(screen.getByTestId("dashboard-webhooks-general-role-placeholder-field")),
     ).toContain("space-y-2.5");
@@ -271,6 +274,11 @@ describe("DashboardWebhooks layout", () => {
     ).toContain("leading-tight");
     expect(screen.getByTestId("dashboard-webhooks-placeholder-posts")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-webhooks-placeholder-projects")).toBeInTheDocument();
+    const placeholderTypeCard = screen
+      .getByTestId("dashboard-webhooks-placeholder-types")
+      .querySelector(".rounded-xl");
+    expect(placeholderTypeCard).not.toBeNull();
+    expect(classTokens(placeholderTypeCard as HTMLElement)).toContain("bg-background");
     expect(screen.queryByTestId("dashboard-webhooks-refresh-status")).not.toBeInTheDocument();
     expect(screen.queryByText(/Carregando webhooks/i)).not.toBeInTheDocument();
     expect(toastMock).not.toHaveBeenCalled();
