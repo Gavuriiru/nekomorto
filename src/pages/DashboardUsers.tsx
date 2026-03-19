@@ -2,6 +2,7 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 import QRCode from "qrcode";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import {
@@ -1865,7 +1866,7 @@ const DashboardUsers = () => {
                   </AccordionTrigger>
                   <AccordionContent className={editorSectionContentClassName}>
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div className="grid gap-2">
+                      <DashboardFieldStack>
                         <Label htmlFor="user-id">ID do Discord</Label>
                         <Input
                           id="user-id"
@@ -1876,8 +1877,8 @@ const DashboardUsers = () => {
                           placeholder="Ex.: 380305493391966208"
                           disabled={Boolean(editingUser) || !canManageUsers}
                         />
-                      </div>
-                      <div className="grid gap-2">
+                      </DashboardFieldStack>
+                      <DashboardFieldStack>
                         <Label htmlFor="user-name">Nome</Label>
                         <Input
                           id="user-name"
@@ -1888,8 +1889,8 @@ const DashboardUsers = () => {
                           placeholder="Nome exibido"
                           disabled={!canEditBasicFields}
                         />
-                      </div>
-                      <div className="grid gap-2">
+                      </DashboardFieldStack>
+                      <DashboardFieldStack>
                         <Label htmlFor="user-phrase">Frase</Label>
                         <Input
                           id="user-phrase"
@@ -1900,8 +1901,8 @@ const DashboardUsers = () => {
                           placeholder="Frase curta"
                           disabled={!canEditBasicFields}
                         />
-                      </div>
-                      <div className="grid gap-2 md:col-span-2">
+                      </DashboardFieldStack>
+                      <DashboardFieldStack className="md:col-span-2">
                         <Label htmlFor="user-bio">Bio</Label>
                         <Textarea
                           id="user-bio"
@@ -1913,7 +1914,7 @@ const DashboardUsers = () => {
                           rows={4}
                           disabled={!canEditBasicFields}
                         />
-                      </div>
+                      </DashboardFieldStack>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -1978,7 +1979,7 @@ const DashboardUsers = () => {
                           ocorre ao salvar.
                         </p>
                       </div>
-                      <div className="grid gap-2">
+                      <DashboardFieldStack>
                         <Label>Avatar</Label>
                         <div className="flex flex-wrap items-center gap-3">
                           {formState.avatarUrl ? (
@@ -2008,8 +2009,8 @@ const DashboardUsers = () => {
                             Biblioteca
                           </Button>
                         </div>
-                      </div>
-                      <div className="grid gap-2">
+                      </DashboardFieldStack>
+                      <DashboardFieldStack>
                         <Label>Links e redes</Label>
                         <div className="grid gap-3">
                           {formState.socials.length === 0 ? (
@@ -2174,7 +2175,7 @@ const DashboardUsers = () => {
                             Adicionar link
                           </Button>
                         </div>
-                      </div>
+                      </DashboardFieldStack>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -2503,51 +2504,53 @@ const DashboardUsers = () => {
                           </p>
                         )}
                       </div>
-                      <div className="grid gap-2">
+                      <DashboardFieldStack>
                         <Label>Papel de acesso</Label>
-                        <Select
-                          value={formState.accessRole}
-                          onValueChange={(value) =>
-                            setFormState((prev) => ({
-                              ...prev,
-                              accessRole: value === "admin" ? "admin" : "normal",
-                              permissions:
-                                value === "admin"
-                                  ? permissionOptions
-                                      .filter((option) =>
-                                        [
-                                          "posts",
-                                          "projetos",
-                                          "comentarios",
-                                          "paginas",
-                                          "uploads",
-                                          "analytics",
-                                          "usuarios_basico",
-                                        ].includes(option.id),
-                                      )
-                                      .map((option) => option.id)
-                                  : prev.permissions,
-                            }))
-                          }
-                          disabled={!canEditAccessControls || isOwnerRecord}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione um papel" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {accessRoleOptions.map((option) => (
-                              <SelectItem key={option.id} value={option.id}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {isOwnerRecord ? (
-                          <p className="text-xs text-muted-foreground">
-                            O papel de dono é definido pela governança de owners.
-                          </p>
-                        ) : null}
-                      </div>
+                        <DashboardFieldStack density="compact">
+                          <Select
+                            value={formState.accessRole}
+                            onValueChange={(value) =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                accessRole: value === "admin" ? "admin" : "normal",
+                                permissions:
+                                  value === "admin"
+                                    ? permissionOptions
+                                        .filter((option) =>
+                                          [
+                                            "posts",
+                                            "projetos",
+                                            "comentarios",
+                                            "paginas",
+                                            "uploads",
+                                            "analytics",
+                                            "usuarios_basico",
+                                          ].includes(option.id),
+                                        )
+                                        .map((option) => option.id)
+                                    : prev.permissions,
+                              }))
+                            }
+                            disabled={!canEditAccessControls || isOwnerRecord}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um papel" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {accessRoleOptions.map((option) => (
+                                <SelectItem key={option.id} value={option.id}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {isOwnerRecord ? (
+                            <p className="text-xs text-muted-foreground">
+                              O papel de dono é definido pela governança de owners.
+                            </p>
+                          ) : null}
+                        </DashboardFieldStack>
+                      </DashboardFieldStack>
                       <div className="grid gap-2">
                         <Label>Permissões</Label>
                         {isOwnerRecord && (
@@ -2586,31 +2589,33 @@ const DashboardUsers = () => {
                         )}
                       </div>
                       {canManageUsers ? (
-                        <div className="grid gap-2">
+                        <DashboardFieldStack>
                           <Label>Dono</Label>
-                          <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
-                            <span className="text-sm text-muted-foreground">
-                              Permite acesso total ao painel e às configurações críticas.
-                            </span>
-                            <Switch
-                              checked={ownerToggle}
-                              onCheckedChange={setOwnerToggle}
-                              disabled={!canManageOwners || isPrimaryOwnerRecord}
-                            />
-                          </div>
-                          {!canManageOwners ? (
-                            <p className="text-xs text-muted-foreground">
-                              Apenas o primeiro dono pode promover ou rebaixar outros donos.
-                            </p>
-                          ) : null}
-                          {isPrimaryOwnerRecord ? (
-                            <p className="text-xs text-muted-foreground">
-                              O primeiro dono não pode ser rebaixado.
-                            </p>
-                          ) : null}
-                        </div>
+                          <DashboardFieldStack density="compact">
+                            <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
+                              <span className="text-sm text-muted-foreground">
+                                Permite acesso total ao painel e às configurações críticas.
+                              </span>
+                              <Switch
+                                checked={ownerToggle}
+                                onCheckedChange={setOwnerToggle}
+                                disabled={!canManageOwners || isPrimaryOwnerRecord}
+                              />
+                            </div>
+                            {!canManageOwners ? (
+                              <p className="text-xs text-muted-foreground">
+                                Apenas o primeiro dono pode promover ou rebaixar outros donos.
+                              </p>
+                            ) : null}
+                            {isPrimaryOwnerRecord ? (
+                              <p className="text-xs text-muted-foreground">
+                                O primeiro dono não pode ser rebaixado.
+                              </p>
+                            ) : null}
+                          </DashboardFieldStack>
+                        </DashboardFieldStack>
                       ) : null}
-                      <div className="grid gap-2">
+                      <DashboardFieldStack>
                         <Label>Status</Label>
                         <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
                           <span className="text-sm text-muted-foreground">
@@ -2627,7 +2632,7 @@ const DashboardUsers = () => {
                             disabled={!canEditStatus}
                           />
                         </div>
-                      </div>
+                      </DashboardFieldStack>
                     </div>
                   </AccordionContent>
                 </AccordionItem>

@@ -8,6 +8,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
@@ -386,18 +387,18 @@ const normalizeHexColor = (value: string, fallback: string) => {
 };
 
 const WebhookPlaceholderField = ({ label, wide = false }: { label: string; wide?: boolean }) => (
-  <div className={wide ? "space-y-2 md:col-span-2" : "space-y-2"}>
+  <DashboardFieldStack className={wide ? "md:col-span-2" : undefined}>
     <Label>{label}</Label>
     <Skeleton className="h-10 w-full" />
-  </div>
+  </DashboardFieldStack>
 );
 
 const WebhookTypesPlaceholder = () => (
   <div className="space-y-4 min-h-[19rem]" data-testid="dashboard-webhooks-placeholder-types">
-    <div className="space-y-2.5" data-testid="dashboard-webhooks-general-role-placeholder-field">
-      <Label className="leading-tight">Role geral de lancamentos (ID)</Label>
+    <DashboardFieldStack data-testid="dashboard-webhooks-general-role-placeholder-field">
+      <Label>Role geral de lancamentos (ID)</Label>
       <Skeleton className="h-10 w-full" />
-    </div>
+    </DashboardFieldStack>
     <div className="space-y-3">
       {Array.from({ length: 3 }).map((_, index) => (
         <div
@@ -583,7 +584,7 @@ const DashboardWebhooks = () => {
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
-        setLoadError("Nao foi possivel atualizar os webhooks editoriais.");
+        setLoadError("Nao foi possivel atualizar os Webhooks.");
       } finally {
         if (loadRequestIdRef.current !== requestId) {
           return;
@@ -865,7 +866,7 @@ const DashboardWebhooks = () => {
       });
       toast({
         title: "Configurações salvas",
-        description: "Webhooks editoriais atualizados com sucesso.",
+        description: "Webhooks atualizados com sucesso.",
         intent: "success",
       });
     } finally {
@@ -909,8 +910,8 @@ const DashboardWebhooks = () => {
 
   useDashboardRefreshToast({
     active: isRefreshing && hasLoadedOnce,
-    title: "Atualizando webhooks editoriais",
-    description: "Buscando a configuracao mais recente dos webhooks editoriais.",
+    title: "Atualizando Webhooks",
+    description: "Buscando a configuracao mais recente dos Webhooks.",
   });
 
   if (!isLoadingUser && !canManageIntegrations) {
@@ -941,7 +942,7 @@ const DashboardWebhooks = () => {
       <DashboardPageContainer maxWidth="7xl" reveal={false}>
         <DashboardPageHeader
           badge="Integrações"
-          title="Webhooks editoriais"
+          title="Webhooks"
           description="Configure canais para posts e projetos com templates por evento."
           actions={
             <Button
@@ -973,7 +974,7 @@ const DashboardWebhooks = () => {
           <AsyncState
             kind="error"
             title="Falha ao carregar"
-            description="Não foi possível buscar os webhooks editoriais."
+            description="Não foi possível buscar os Webhooks."
             action={
               <Button onClick={() => void loadSettings({ background: false })}>
                 Tentar novamente
@@ -1015,11 +1016,8 @@ const DashboardWebhooks = () => {
                   <WebhookTypesPlaceholder />
                 ) : (
                   <div className="space-y-4" data-testid="dashboard-webhooks-section-content-types">
-                    <div
-                      className="space-y-2.5"
-                      data-testid="dashboard-webhooks-general-role-field"
-                    >
-                      <Label className="leading-tight">Role geral de lançamentos (ID)</Label>
+                    <DashboardFieldStack data-testid="dashboard-webhooks-general-role-field">
+                      <Label>Role geral de lançamentos (ID)</Label>
                       <Input
                         value={settings.generalReleaseRoleId}
                         onChange={(event) =>
@@ -1030,7 +1028,7 @@ const DashboardWebhooks = () => {
                         }
                         placeholder="Opcional: usada em project_release"
                       />
-                    </div>
+                    </DashboardFieldStack>
 
                     <div className="space-y-3">
                       {settings.typeRoles.map((typeRole, index) => (
@@ -1111,7 +1109,7 @@ const DashboardWebhooks = () => {
                         data-testid={`dashboard-webhooks-section-content-${sectionKey}`}
                       >
                         <div className="grid gap-3 md:grid-cols-3">
-                          <div className="space-y-2 md:col-span-2">
+                          <DashboardFieldStack className="md:col-span-2">
                             <Label>Webhook URL</Label>
                             <Input
                               value={channel.webhookUrl}
@@ -1123,8 +1121,8 @@ const DashboardWebhooks = () => {
                               }
                               placeholder="https://discord.com/api/webhooks/..."
                             />
-                          </div>
-                          <div className="space-y-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack>
                             <Label>Timeout (ms)</Label>
                             <Input
                               type="number"
@@ -1138,8 +1136,8 @@ const DashboardWebhooks = () => {
                                 }))
                               }
                             />
-                          </div>
-                          <div className="space-y-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack>
                             <Label>Tentativas</Label>
                             <Input
                               type="number"
@@ -1153,7 +1151,7 @@ const DashboardWebhooks = () => {
                                 }))
                               }
                             />
-                          </div>
+                          </DashboardFieldStack>
                         </div>
 
                         <div
@@ -1232,7 +1230,7 @@ const DashboardWebhooks = () => {
                                       </Button>
                                     </div>
 
-                                    <div className="space-y-2">
+                                    <DashboardFieldStack>
                                       <Label>Conteúdo da mensagem</Label>
                                       <Textarea
                                         value={template.content}
@@ -1244,14 +1242,14 @@ const DashboardWebhooks = () => {
                                         }
                                         placeholder="{{mention.all}}"
                                       />
-                                    </div>
+                                    </DashboardFieldStack>
 
                                     <div className="space-y-2">
                                       <h4 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                                         Autor e miniatura
                                       </h4>
                                       <div className="grid gap-2 md:grid-cols-3">
-                                        <div className="space-y-2">
+                                        <DashboardFieldStack>
                                           <Label>URL do ícone do autor</Label>
                                           <Input
                                             value={template.embed.authorIconUrl}
@@ -1264,8 +1262,8 @@ const DashboardWebhooks = () => {
                                               )
                                             }
                                           />
-                                        </div>
-                                        <div className="space-y-2">
+                                        </DashboardFieldStack>
+                                        <DashboardFieldStack>
                                           <Label>Nome do autor</Label>
                                           <Input
                                             value={template.embed.authorName}
@@ -1278,8 +1276,8 @@ const DashboardWebhooks = () => {
                                               )
                                             }
                                           />
-                                        </div>
-                                        <div className="space-y-2">
+                                        </DashboardFieldStack>
+                                        <DashboardFieldStack>
                                           <Label>URL da miniatura</Label>
                                           <Input
                                             value={template.embed.thumbnailUrl}
@@ -1292,8 +1290,8 @@ const DashboardWebhooks = () => {
                                               )
                                             }
                                           />
-                                        </div>
-                                        <div className="space-y-2 md:col-span-2">
+                                        </DashboardFieldStack>
+                                        <DashboardFieldStack className="md:col-span-2">
                                           <Label>URL do autor</Label>
                                           <Input
                                             value={template.embed.authorUrl}
@@ -1306,7 +1304,7 @@ const DashboardWebhooks = () => {
                                               )
                                             }
                                           />
-                                        </div>
+                                        </DashboardFieldStack>
                                       </div>
                                     </div>
 
@@ -1315,7 +1313,7 @@ const DashboardWebhooks = () => {
                                         Título e URL da embed
                                       </h4>
                                       <div className="grid gap-2 md:grid-cols-2">
-                                        <div className="space-y-2">
+                                        <DashboardFieldStack>
                                           <Label>Título</Label>
                                           <Input
                                             value={template.embed.title}
@@ -1328,8 +1326,8 @@ const DashboardWebhooks = () => {
                                               )
                                             }
                                           />
-                                        </div>
-                                        <div className="space-y-2">
+                                        </DashboardFieldStack>
+                                        <DashboardFieldStack>
                                           <Label>URL da embed</Label>
                                           <Input
                                             value={template.embed.url}
@@ -1342,11 +1340,11 @@ const DashboardWebhooks = () => {
                                               )
                                             }
                                           />
-                                        </div>
+                                        </DashboardFieldStack>
                                       </div>
                                     </div>
 
-                                    <div className="space-y-2">
+                                    <DashboardFieldStack>
                                       <Label>Descrição</Label>
                                       <Textarea
                                         value={template.embed.description}
@@ -1359,9 +1357,9 @@ const DashboardWebhooks = () => {
                                           )
                                         }
                                       />
-                                    </div>
+                                    </DashboardFieldStack>
 
-                                    <div className="space-y-2">
+                                    <DashboardFieldStack>
                                       <div className="flex items-center justify-between">
                                         <Label>Campos da embed</Label>
                                         <Button
@@ -1468,9 +1466,9 @@ const DashboardWebhooks = () => {
                                           </Button>
                                         </div>
                                       ))}
-                                    </div>
+                                    </DashboardFieldStack>
 
-                                    <div className="space-y-2">
+                                    <DashboardFieldStack>
                                       <Label>URL da imagem</Label>
                                       <Input
                                         value={template.embed.imageUrl}
@@ -1483,14 +1481,14 @@ const DashboardWebhooks = () => {
                                           )
                                         }
                                       />
-                                    </div>
+                                    </DashboardFieldStack>
 
                                     <div className="space-y-2">
                                       <h4 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                                         Rodapé
                                       </h4>
                                       <div className="grid gap-2 md:grid-cols-2">
-                                        <div className="space-y-2">
+                                        <DashboardFieldStack>
                                           <Label>URL do ícone do rodapé</Label>
                                           <Input
                                             value={template.embed.footerIconUrl}
@@ -1503,8 +1501,8 @@ const DashboardWebhooks = () => {
                                               )
                                             }
                                           />
-                                        </div>
-                                        <div className="space-y-2">
+                                        </DashboardFieldStack>
+                                        <DashboardFieldStack>
                                           <Label>Texto do rodapé</Label>
                                           <Input
                                             value={template.embed.footerText}
@@ -1517,11 +1515,11 @@ const DashboardWebhooks = () => {
                                               )
                                             }
                                           />
-                                        </div>
+                                        </DashboardFieldStack>
                                       </div>
                                     </div>
 
-                                    <div className="space-y-2 md:max-w-xs">
+                                    <DashboardFieldStack className="md:max-w-xs">
                                       <Label>Cor da embed (#RRGGBB)</Label>
                                       <div className="flex items-center gap-3">
                                         <ColorPicker
@@ -1546,7 +1544,7 @@ const DashboardWebhooks = () => {
                                           {displayEmbedColor.toUpperCase()}
                                         </p>
                                       </div>
-                                    </div>
+                                    </DashboardFieldStack>
 
                                     <div className="space-y-2">
                                       <h4 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">

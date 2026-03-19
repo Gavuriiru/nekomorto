@@ -1,6 +1,7 @@
 import DashboardShell from "@/components/DashboardShell";
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
+import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
 import AsyncState from "@/components/ui/async-state";
@@ -63,15 +64,7 @@ import {
 } from "@/lib/project-progress";
 import { resolveProjectImageFolders } from "@/lib/project-image-folders";
 import { isChapterBasedType } from "@/lib/project-utils";
-import {
-  Search,
-  ArrowLeft,
-  ExternalLink,
-  ImagePlus,
-  Loader2,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { Search, ArrowLeft, ExternalLink, ImagePlus, Loader2, Plus, Trash2 } from "lucide-react";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -251,7 +244,9 @@ const sortEpisodes = (episodes: ProjectEpisode[]) =>
   });
 
 const matchesEpisodeSearch = (episode: ProjectEpisode, query: string) => {
-  const normalizedQuery = String(query || "").trim().toLowerCase();
+  const normalizedQuery = String(query || "")
+    .trim()
+    .toLowerCase();
   if (!normalizedQuery) {
     return true;
   }
@@ -457,8 +452,9 @@ const DashboardProjectEpisodeEditor = () => {
     [activeEpisode],
   );
   const activeDraftSnapshot = useMemo(() => buildEpisodeSnapshot(activeDraft), [activeDraft]);
-  const isDirty =
-    Boolean(activeEpisode && activeDraft && activeEpisodeSnapshot !== activeDraftSnapshot);
+  const isDirty = Boolean(
+    activeEpisode && activeDraft && activeEpisodeSnapshot !== activeDraftSnapshot,
+  );
 
   useEffect(() => {
     if (!activeEpisode) {
@@ -475,7 +471,8 @@ const DashboardProjectEpisodeEditor = () => {
         return nextDraft;
       }
       const currentKey = buildEpisodeKey(current.number, current.volume);
-      return currentKey === activeEpisodeKey && buildEpisodeSnapshot(current) !== activeEpisodeSnapshot
+      return currentKey === activeEpisodeKey &&
+        buildEpisodeSnapshot(current) !== activeEpisodeSnapshot
         ? current
         : nextDraft;
     });
@@ -531,8 +528,7 @@ const DashboardProjectEpisodeEditor = () => {
   const publicProjectHref = project ? buildProjectPublicHref(project.id) : "";
   const stageOptions = getProjectProgressStagesForEditor(project?.type || "Anime");
   const progressState = useMemo(
-    () =>
-      getProjectProgressStateForEditor(project?.type || "Anime", activeDraft?.completedStages),
+    () => getProjectProgressStateForEditor(project?.type || "Anime", activeDraft?.completedStages),
     [activeDraft?.completedStages, project?.type],
   );
   const projectImageFolders = useMemo(
@@ -944,14 +940,14 @@ const DashboardProjectEpisodeEditor = () => {
                       {episode.title || "Sem título"}
                     </p>
                   </div>
-                  <Badge
-                    variant={episode.publicationStatus === "draft" ? "outline" : "secondary"}
-                  >
+                  <Badge variant={episode.publicationStatus === "draft" ? "outline" : "secondary"}>
                     {episode.publicationStatus === "draft" ? "Rascunho" : "Publicado"}
                   </Badge>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  {episode.releaseDate ? <span>{isoToDisplayDate(episode.releaseDate)}</span> : null}
+                  {episode.releaseDate ? (
+                    <span>{isoToDisplayDate(episode.releaseDate)}</span>
+                  ) : null}
                   {episode.sources?.length ? (
                     <span>{formatCountLabel(episode.sources.length, "fonte", "fontes")}</span>
                   ) : null}
@@ -990,7 +986,10 @@ const DashboardProjectEpisodeEditor = () => {
       >
         <DashboardPageContainer maxWidth="editor" reveal={false}>
           <div className="space-y-4 pb-8">
-            <section className={editorMastheadClassName} data-testid="anime-episode-editor-masthead">
+            <section
+              className={editorMastheadClassName}
+              data-testid="anime-episode-editor-masthead"
+            >
               <div className="grid gap-5 px-4 py-5 md:px-6 md:py-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:px-8">
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center gap-2">
@@ -1028,13 +1027,20 @@ const DashboardProjectEpisodeEditor = () => {
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
                     {activeDraft
                       ? `Episódio ${activeDraft.number} - ${activeDraft.title || "Sem título"}`
-                      : formatCountLabel(episodes.length, "episódio disponível", "episódios disponíveis")}
+                      : formatCountLabel(
+                          episodes.length,
+                          "episódio disponível",
+                          "episódios disponíveis",
+                        )}
                   </p>
                 </div>
               </div>
             </section>
 
-            <div className={editorCommandBarClassName} data-testid="anime-episode-editor-command-bar">
+            <div
+              className={editorCommandBarClassName}
+              data-testid="anime-episode-editor-command-bar"
+            >
               <div className="space-y-3 px-4 py-3 md:px-6 lg:px-8">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex flex-wrap items-center gap-2">
@@ -1046,12 +1052,18 @@ const DashboardProjectEpisodeEditor = () => {
                         >
                           {isDirty ? "Alterações pendentes" : "Tudo salvo"}
                         </Badge>
-                        <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] uppercase tracking-[0.12em]"
+                        >
                           {progressState.currentStage.label}
                         </Badge>
                       </>
                     ) : (
-                      <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] uppercase tracking-[0.12em]"
+                      >
                         Adicione um episódio ou escolha um item na lista.
                       </Badge>
                     )}
@@ -1063,7 +1075,11 @@ const DashboardProjectEpisodeEditor = () => {
                       onClick={() => void handleAddEpisode()}
                       disabled={isCreating || isSaving}
                     >
-                      {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                      {isCreating ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
                       <span>Adicionar episódio</span>
                     </Button>
                     {activeDraft ? (
@@ -1138,13 +1154,16 @@ const DashboardProjectEpisodeEditor = () => {
                       eyebrow="Edição"
                       testId="anime-episode-identity-section"
                       actions={
-                        <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] uppercase tracking-[0.12em]"
+                        >
                           Episódio {activeDraft.number}
                         </Badge>
                       }
                     >
                       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.8fr)_repeat(3,minmax(140px,0.85fr))]">
-                        <div className="space-y-2">
+                        <DashboardFieldStack>
                           <Label htmlFor="anime-episode-title">Título</Label>
                           <Input
                             id="anime-episode-title"
@@ -1155,8 +1174,8 @@ const DashboardProjectEpisodeEditor = () => {
                             }
                             placeholder="Título do episódio"
                           />
-                        </div>
-                        <div className="space-y-2">
+                        </DashboardFieldStack>
+                        <DashboardFieldStack>
                           <Label htmlFor="anime-episode-number">Episódio</Label>
                           <Input
                             id="anime-episode-number"
@@ -1171,11 +1190,13 @@ const DashboardProjectEpisodeEditor = () => {
                               }))
                             }
                           />
-                        </div>
-                        <div className="space-y-2">
+                        </DashboardFieldStack>
+                        <DashboardFieldStack>
                           <Label htmlFor="anime-episode-publication-status">Status</Label>
                           <Select
-                            value={activeDraft.publicationStatus === "draft" ? "draft" : "published"}
+                            value={
+                              activeDraft.publicationStatus === "draft" ? "draft" : "published"
+                            }
                             onValueChange={(value) =>
                               updateDraft((current) => ({
                                 ...current,
@@ -1191,8 +1212,8 @@ const DashboardProjectEpisodeEditor = () => {
                               <SelectItem value="published">Publicado</SelectItem>
                             </SelectContent>
                           </Select>
-                        </div>
-                        <div className="space-y-2">
+                        </DashboardFieldStack>
+                        <DashboardFieldStack>
                           <Label htmlFor="anime-episode-date">Release</Label>
                           <Input
                             id="anime-episode-date"
@@ -1217,7 +1238,7 @@ const DashboardProjectEpisodeEditor = () => {
                             }}
                             placeholder="DD/MM/AAAA"
                           />
-                        </div>
+                        </DashboardFieldStack>
                       </div>
                     </ProjectEditorSectionCard>
 
@@ -1225,14 +1246,20 @@ const DashboardProjectEpisodeEditor = () => {
                       className="grid gap-5 xl:grid-cols-2 xl:items-start"
                       data-testid="anime-episode-secondary-grid"
                     >
-                      <div className="space-y-5" data-testid="anime-episode-secondary-primary-column">
+                      <div
+                        className="space-y-5"
+                        data-testid="anime-episode-secondary-primary-column"
+                      >
                         <ProjectEditorSectionCard
                           title="Etapas editoriais"
                           subtitle="Acompanhe o andamento e ajuste as etapas concluídas do episódio."
                           eyebrow="Pipeline"
                           testId="anime-episode-progress-section"
                           actions={
-                            <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] uppercase tracking-[0.12em]"
+                            >
                               {progressState.progress}%
                             </Badge>
                           }
@@ -1248,7 +1275,9 @@ const DashboardProjectEpisodeEditor = () => {
                               aria-label="Etapas editoriais"
                             >
                               {progressState.stages.map((stage) => {
-                                const isCompleted = progressState.completedStages.includes(stage.id);
+                                const isCompleted = progressState.completedStages.includes(
+                                  stage.id,
+                                );
                                 const isCurrentStage = stage.id === progressState.currentStageId;
                                 return (
                                   <span
@@ -1273,7 +1302,9 @@ const DashboardProjectEpisodeEditor = () => {
                               aria-label="Etapas concluídas"
                             >
                               {stageOptions.map((stage) => {
-                                const isCompleted = (activeDraft.completedStages || []).includes(stage.id);
+                                const isCompleted = (activeDraft.completedStages || []).includes(
+                                  stage.id,
+                                );
                                 const isCurrentStage = stage.id === progressState.currentStageId;
                                 return (
                                   <label
@@ -1285,7 +1316,9 @@ const DashboardProjectEpisodeEditor = () => {
                                         checked={isCompleted}
                                         onCheckedChange={() =>
                                           updateDraft((current) => {
-                                            const completedStages = new Set(current.completedStages || []);
+                                            const completedStages = new Set(
+                                              current.completedStages || [],
+                                            );
                                             if (completedStages.has(stage.id)) {
                                               completedStages.delete(stage.id);
                                             } else {
@@ -1307,9 +1340,15 @@ const DashboardProjectEpisodeEditor = () => {
                                     </div>
                                     <div className="flex shrink-0 items-center gap-2">
                                       <span className="text-xs text-muted-foreground">
-                                        {isCompleted ? "Concluída" : isCurrentStage ? "Atual" : "Pendente"}
+                                        {isCompleted
+                                          ? "Concluída"
+                                          : isCurrentStage
+                                            ? "Atual"
+                                            : "Pendente"}
                                       </span>
-                                      {isCurrentStage ? <Badge variant="outline">Atual</Badge> : null}
+                                      {isCurrentStage ? (
+                                        <Badge variant="outline">Atual</Badge>
+                                      ) : null}
                                     </div>
                                   </label>
                                 );
@@ -1338,7 +1377,9 @@ const DashboardProjectEpisodeEditor = () => {
                                       <>
                                         <img
                                           src={activeDraft.coverImageUrl}
-                                          alt={activeDraft.coverImageAlt || DEFAULT_PROJECT_COVER_ALT}
+                                          alt={
+                                            activeDraft.coverImageAlt || DEFAULT_PROJECT_COVER_ALT
+                                          }
                                           className="absolute inset-0 h-full w-full object-cover"
                                         />
                                         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent p-3">
@@ -1360,7 +1401,8 @@ const DashboardProjectEpisodeEditor = () => {
                                             Escolha uma capa
                                           </p>
                                           <p className="max-w-sm text-xs leading-5 text-muted-foreground">
-                                            Use a biblioteca para selecionar um banner 16:9 do episódio.
+                                            Use a biblioteca para selecionar um banner 16:9 do
+                                            episódio.
                                           </p>
                                         </div>
                                       </div>
@@ -1368,11 +1410,13 @@ const DashboardProjectEpisodeEditor = () => {
                                   </div>
                                 </div>
                               </div>
-                              <div
-                                className="space-y-3 lg:self-center"
+                              <DashboardFieldStack
+                                className="lg:self-center"
                                 data-testid="anime-episode-cover-controls"
                               >
-                                <Label htmlFor="anime-episode-cover-alt">Texto alternativo da capa</Label>
+                                <Label htmlFor="anime-episode-cover-alt">
+                                  Texto alternativo da capa
+                                </Label>
                                 <Input
                                   id="anime-episode-cover-alt"
                                   value={activeDraft.coverImageAlt || ""}
@@ -1393,7 +1437,7 @@ const DashboardProjectEpisodeEditor = () => {
                                   <ImagePlus className="h-4 w-4" />
                                   <span>Biblioteca</span>
                                 </Button>
-                              </div>
+                              </DashboardFieldStack>
                             </div>
                           </div>
                         </ProjectEditorSectionCard>
@@ -1422,15 +1466,14 @@ const DashboardProjectEpisodeEditor = () => {
                         }
                       >
                         <div className="grid gap-4 md:grid-cols-2">
-                          <div className="space-y-2">
+                          <DashboardFieldStack>
                             <Label htmlFor="anime-episode-source-type">Origem</Label>
                             <Select
                               value={activeDraft.sourceType}
                               onValueChange={(value) =>
                                 updateDraft((current) => ({
                                   ...current,
-                                  sourceType:
-                                    value === "Blu-ray" || value === "Web" ? value : "TV",
+                                  sourceType: value === "Blu-ray" || value === "Web" ? value : "TV",
                                 }))
                               }
                             >
@@ -1443,8 +1486,8 @@ const DashboardProjectEpisodeEditor = () => {
                                 <SelectItem value="Blu-ray">Blu-ray</SelectItem>
                               </SelectContent>
                             </Select>
-                          </div>
-                          <div className="space-y-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack>
                             <Label htmlFor="anime-episode-duration">Duração</Label>
                             <Input
                               id="anime-episode-duration"
@@ -1477,44 +1520,49 @@ const DashboardProjectEpisodeEditor = () => {
                               }}
                               placeholder="MM:SS ou H:MM:SS"
                             />
-                          </div>
-                          <div className="space-y-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack>
                             <Label htmlFor="anime-episode-size">Tamanho</Label>
-                            <Input
-                              id="anime-episode-size"
-                              value={sizeInput}
-                              onChange={(event) => {
-                                setSizeInput(event.target.value);
-                                setSizeInputError("");
-                              }}
-                              onBlur={() => {
-                                const trimmed = String(sizeInput || "").trim();
-                                if (!trimmed) {
-                                  updateDraft((current) => ({ ...current, sizeBytes: undefined }));
-                                  setSizeInput("");
+                            <DashboardFieldStack density="compact">
+                              <Input
+                                id="anime-episode-size"
+                                value={sizeInput}
+                                onChange={(event) => {
+                                  setSizeInput(event.target.value);
                                   setSizeInputError("");
-                                  return;
-                                }
-                                const parsedSize = parseHumanSizeToBytes(trimmed);
-                                if (!parsedSize) {
-                                  setSizeInputError("Use formatos como 700 MB ou 1.4 GB.");
-                                  return;
-                                }
-                                updateDraft((current) => ({ ...current, sizeBytes: parsedSize }));
-                                setSizeInput(formatBytesCompact(parsedSize));
-                                setSizeInputError("");
-                              }}
-                              placeholder="Ex.: 700 MB ou 1.4 GB"
-                            />
-                            {sizeInputError ? (
-                              <p className="text-[11px] text-destructive">{sizeInputError}</p>
-                            ) : (
-                              <p className="text-[11px] text-muted-foreground">
-                                Campo opcional salvo em bytes.
-                              </p>
-                            )}
-                          </div>
-                          <div className="space-y-2">
+                                }}
+                                onBlur={() => {
+                                  const trimmed = String(sizeInput || "").trim();
+                                  if (!trimmed) {
+                                    updateDraft((current) => ({
+                                      ...current,
+                                      sizeBytes: undefined,
+                                    }));
+                                    setSizeInput("");
+                                    setSizeInputError("");
+                                    return;
+                                  }
+                                  const parsedSize = parseHumanSizeToBytes(trimmed);
+                                  if (!parsedSize) {
+                                    setSizeInputError("Use formatos como 700 MB ou 1.4 GB.");
+                                    return;
+                                  }
+                                  updateDraft((current) => ({ ...current, sizeBytes: parsedSize }));
+                                  setSizeInput(formatBytesCompact(parsedSize));
+                                  setSizeInputError("");
+                                }}
+                                placeholder="Ex.: 700 MB ou 1.4 GB"
+                              />
+                              {sizeInputError ? (
+                                <p className="text-[11px] text-destructive">{sizeInputError}</p>
+                              ) : (
+                                <p className="text-[11px] text-muted-foreground">
+                                  Campo opcional salvo em bytes.
+                                </p>
+                              )}
+                            </DashboardFieldStack>
+                          </DashboardFieldStack>
+                          <DashboardFieldStack>
                             <Label htmlFor="anime-episode-hash">Hash</Label>
                             <Input
                               id="anime-episode-hash"
@@ -1527,72 +1575,76 @@ const DashboardProjectEpisodeEditor = () => {
                               }
                               placeholder="Ex.: SHA-256: ..."
                             />
-                          </div>
+                          </DashboardFieldStack>
                         </div>
-                        <div className="space-y-2">
+                        <DashboardFieldStack>
                           <Label className="text-sm">Fontes de download</Label>
                           <div className="space-y-3">
-                          {(activeDraft.sources || []).map((source, sourceIndex) => (
-                            <div
-                              key={`anime-episode-source-${sourceIndex}`}
-                              className="grid gap-2 rounded-xl border border-border/60 bg-background/40 p-3"
-                            >
-                              <Input
-                                value={source.label}
-                                onChange={(event) =>
-                                  updateDraft((current) => ({
-                                    ...current,
-                                    sources: (current.sources || []).map((item, index) =>
-                                      index === sourceIndex
-                                        ? { ...item, label: event.target.value }
-                                        : item,
-                                    ),
-                                  }))
-                                }
-                                placeholder="Fonte"
-                              />
-                              <Input
-                                value={source.url}
-                                onChange={(event) =>
-                                  updateDraft((current) => ({
-                                    ...current,
-                                    sources: (current.sources || []).map((item, index) =>
-                                      index === sourceIndex
-                                        ? { ...item, url: event.target.value }
-                                        : item,
-                                    ),
-                                  }))
-                                }
-                                placeholder="URL"
-                              />
-                              <div className="flex justify-end">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() =>
+                            {(activeDraft.sources || []).map((source, sourceIndex) => (
+                              <div
+                                key={`anime-episode-source-${sourceIndex}`}
+                                className="grid gap-2 rounded-xl border border-border/60 bg-background/40 p-3"
+                              >
+                                <Input
+                                  value={source.label}
+                                  onChange={(event) =>
                                     updateDraft((current) => ({
                                       ...current,
-                                      sources: (current.sources || []).filter(
-                                        (_, index) => index !== sourceIndex,
+                                      sources: (current.sources || []).map((item, index) =>
+                                        index === sourceIndex
+                                          ? { ...item, label: event.target.value }
+                                          : item,
                                       ),
                                     }))
                                   }
-                                >
-                                  Remover
-                                </Button>
+                                  placeholder="Fonte"
+                                />
+                                <Input
+                                  value={source.url}
+                                  onChange={(event) =>
+                                    updateDraft((current) => ({
+                                      ...current,
+                                      sources: (current.sources || []).map((item, index) =>
+                                        index === sourceIndex
+                                          ? { ...item, url: event.target.value }
+                                          : item,
+                                      ),
+                                    }))
+                                  }
+                                  placeholder="URL"
+                                />
+                                <div className="flex justify-end">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      updateDraft((current) => ({
+                                        ...current,
+                                        sources: (current.sources || []).filter(
+                                          (_, index) => index !== sourceIndex,
+                                        ),
+                                      }))
+                                    }
+                                  >
+                                    Remover
+                                  </Button>
+                                </div>
                               </div>
-                            </div>
-                          ))}
-                          {(activeDraft.sources || []).length === 0 ? (
-                            <p className="text-sm text-muted-foreground">Nenhuma fonte cadastrada.</p>
-                          ) : null}
-                        </div>
-                        </div>
+                            ))}
+                            {(activeDraft.sources || []).length === 0 ? (
+                              <p className="text-sm text-muted-foreground">
+                                Nenhuma fonte cadastrada.
+                              </p>
+                            ) : null}
+                          </div>
+                        </DashboardFieldStack>
                       </ProjectEditorSectionCard>
                     </div>
                   </>
-                ) : episodeNavigationPanel}
+                ) : (
+                  episodeNavigationPanel
+                )}
               </div>
 
               {activeDraft ? (
@@ -1620,7 +1672,8 @@ const DashboardProjectEpisodeEditor = () => {
           <DialogHeader>
             <DialogTitle>Sair da edição?</DialogTitle>
             <DialogDescription>
-              Você tem alterações não salvas. Salve o episódio antes de continuar ou descarte as mudanças.
+              Você tem alterações não salvas. Salve o episódio antes de continuar ou descarte as
+              mudanças.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
@@ -1640,7 +1693,11 @@ const DashboardProjectEpisodeEditor = () => {
             >
               Descartar e continuar
             </Button>
-            <Button type="button" onClick={() => void handleLeaveSaveAndContinue()} disabled={isSaving}>
+            <Button
+              type="button"
+              onClick={() => void handleLeaveSaveAndContinue()}
+              disabled={isSaving}
+            >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Salvar e continuar
             </Button>

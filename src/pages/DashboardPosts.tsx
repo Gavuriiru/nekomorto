@@ -12,6 +12,7 @@ import {
 } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import {
@@ -2237,7 +2238,7 @@ const DashboardPosts = () => {
                                 />
                               </div>
                               <div className={`${editorSectionContentClassName} space-y-4`}>
-                                <div className="space-y-2">
+                                <DashboardFieldStack>
                                   <Label htmlFor="post-title">Título</Label>
                                   <Input
                                     id="post-title"
@@ -2249,8 +2250,8 @@ const DashboardPosts = () => {
                                       }))
                                     }
                                   />
-                                </div>
-                                <div className="space-y-2">
+                                </DashboardFieldStack>
+                                <DashboardFieldStack>
                                   <div className="flex items-center justify-between gap-2">
                                     <Label htmlFor="post-slug">Link</Label>
                                     <Button
@@ -2274,8 +2275,8 @@ const DashboardPosts = () => {
                                     }}
                                     disabled={!isSlugCustom}
                                   />
-                                </div>
-                                <div className="space-y-2">
+                                </DashboardFieldStack>
+                                <DashboardFieldStack>
                                   <Label htmlFor="post-author">Autor</Label>
                                   <Input
                                     id="post-author"
@@ -2287,8 +2288,8 @@ const DashboardPosts = () => {
                                       }))
                                     }
                                   />
-                                </div>
-                                <div className="space-y-2">
+                                </DashboardFieldStack>
+                                <DashboardFieldStack>
                                   <Label htmlFor="post-status">Status</Label>
                                   <Select
                                     value={formState.status}
@@ -2308,8 +2309,8 @@ const DashboardPosts = () => {
                                       <SelectItem value="published">Publicado</SelectItem>
                                     </SelectContent>
                                   </Select>
-                                </div>
-                                <div className="space-y-2">
+                                </DashboardFieldStack>
+                                <DashboardFieldStack>
                                   <Label htmlFor="post-date">Publicação</Label>
                                   <MuiDateTimeFieldsProvider>
                                     <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
@@ -2337,7 +2338,7 @@ const DashboardPosts = () => {
                                       </div>
                                     </div>
                                   </MuiDateTimeFieldsProvider>
-                                </div>
+                                </DashboardFieldStack>
                               </div>
                             </section>
 
@@ -2349,7 +2350,7 @@ const DashboardPosts = () => {
                                 />
                               </div>
                               <div className={`${editorSectionContentClassName} space-y-4`}>
-                                <div className="space-y-2">
+                                <DashboardFieldStack>
                                   <Label>Capa</Label>
                                   {editorResolvedCover.coverImageUrl ? (
                                     <div className="space-y-2">
@@ -2386,7 +2387,7 @@ const DashboardPosts = () => {
                                       Sem capa definida.
                                     </p>
                                   )}
-                                </div>
+                                </DashboardFieldStack>
                                 <Button
                                   type="button"
                                   variant="outline"
@@ -2405,7 +2406,7 @@ const DashboardPosts = () => {
                                   subtitle={editorProjectLabel}
                                 />
                               </div>
-                              <div className={`${editorSectionContentClassName} space-y-2`}>
+                              <DashboardFieldStack className={editorSectionContentClassName}>
                                 <Label>Projeto associado</Label>
                                 <Select
                                   value={formState.projectId || "none"}
@@ -2428,7 +2429,7 @@ const DashboardPosts = () => {
                                     ))}
                                   </SelectContent>
                                 </Select>
-                              </div>
+                              </DashboardFieldStack>
                             </section>
 
                             <section className={editorSectionClassName} data-state="open">

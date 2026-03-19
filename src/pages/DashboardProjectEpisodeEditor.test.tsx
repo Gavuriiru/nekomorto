@@ -219,7 +219,8 @@ const setupApiMock = (projectFixture: ProjectRecord = animeProjectFixture) => {
 
     if (path === `/api/projects/${currentProject.id}` && method === "PUT") {
       const nextProject = structuredClone(
-        ((options as { json?: ProjectRecord } | undefined)?.json || currentProject) as ProjectRecord,
+        ((options as { json?: ProjectRecord } | undefined)?.json ||
+          currentProject) as ProjectRecord,
       );
       persistedProjects.push(nextProject);
       currentProject = nextProject;
@@ -271,6 +272,7 @@ describe("DashboardProjectEpisodeEditor", () => {
     renderEditor();
 
     await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
+    expect(screen.getByLabelText(/^Título$/i).parentElement?.className).toContain("gap-2");
 
     fireEvent.change(screen.getByLabelText(/^Título$/i), {
       target: { value: "Primeiro episodio revisado" },
@@ -317,9 +319,7 @@ describe("DashboardProjectEpisodeEditor", () => {
     expect(screen.queryByTestId("anime-episode-editor-sidebar")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Duplicar/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Anterior/i })).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /Pr(?:o|\u00f3)ximo/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Pr(?:o|\u00f3)ximo/i })).not.toBeInTheDocument();
   });
 
   it("navega pela lista integrada no estado neutro e volta a exibir a sidebar no episódio ativo", async () => {
@@ -328,7 +328,8 @@ describe("DashboardProjectEpisodeEditor", () => {
     await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
 
     fireEvent.click(
-      within(screen.getByTestId("anime-episode-empty-state")).getByText(/Segundo episodio/i)
+      within(screen.getByTestId("anime-episode-empty-state"))
+        .getByText(/Segundo episodio/i)
         .closest("button") as HTMLButtonElement,
     );
 
@@ -483,9 +484,13 @@ describe("DashboardProjectEpisodeEditor", () => {
     const stageList = within(progressSection).getByTestId("anime-episode-progress-stage-list");
 
     expect(within(identitySection).queryByLabelText(/Sinopse/i)).not.toBeInTheDocument();
-    expect(within(identitySection).queryByRole("combobox", { name: /Origem/i })).not.toBeInTheDocument();
+    expect(
+      within(identitySection).queryByRole("combobox", { name: /Origem/i }),
+    ).not.toBeInTheDocument();
     expect(within(identitySection).queryByLabelText(/Duração/i)).not.toBeInTheDocument();
-    expect(within(identitySection).queryByTestId("anime-episode-cover-preview")).not.toBeInTheDocument();
+    expect(
+      within(identitySection).queryByTestId("anime-episode-cover-preview"),
+    ).not.toBeInTheDocument();
     expect(
       within(coverSection).queryByText(/Banner 16:9 selecionado pela biblioteca do projeto/i),
     ).not.toBeInTheDocument();
@@ -496,16 +501,27 @@ describe("DashboardProjectEpisodeEditor", () => {
     expect(within(coverSection).getByRole("img")).toBeInTheDocument();
     expect(sourceTrigger).toHaveTextContent("Web");
     expect(durationInput).toHaveValue("24:00");
-    expect((altInput.compareDocumentPosition(libraryButton) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(true);
-    expect(within(primaryColumn).getByTestId("anime-episode-progress-section")).toBe(progressSection);
+    expect(
+      (altInput.compareDocumentPosition(libraryButton) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+    ).toBe(true);
+    expect(within(primaryColumn).getByTestId("anime-episode-progress-section")).toBe(
+      progressSection,
+    );
     expect(within(primaryColumn).getByTestId("anime-episode-cover-section")).toBe(coverSection);
-    expect((progressSection.compareDocumentPosition(coverSection) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(true);
-    expect(within(secondaryGrid).getByTestId("anime-episode-progress-section")).toBe(progressSection);
+    expect(
+      (progressSection.compareDocumentPosition(coverSection) & Node.DOCUMENT_POSITION_FOLLOWING) !==
+        0,
+    ).toBe(true);
+    expect(within(secondaryGrid).getByTestId("anime-episode-progress-section")).toBe(
+      progressSection,
+    );
     expect(within(secondaryGrid).getByTestId("anime-episode-cover-section")).toBe(coverSection);
     expect(within(secondaryGrid).getByTestId("anime-episode-file-section")).toBe(fileSection);
     expect(within(progressSection).getByText(/Etapas editoriais/i)).toBeInTheDocument();
     expect(within(progressSection).getByText(/Etapa atual/i)).toBeInTheDocument();
-    expect(within(progressSection).getByRole("list", { name: /Etapas editoriais/i })).toBeInTheDocument();
+    expect(
+      within(progressSection).getByRole("list", { name: /Etapas editoriais/i }),
+    ).toBeInTheDocument();
     expect(within(stageList).getAllByRole("checkbox").length).toBeGreaterThan(0);
   });
 

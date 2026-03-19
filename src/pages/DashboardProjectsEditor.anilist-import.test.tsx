@@ -205,6 +205,9 @@ describe("DashboardProjectsEditor AniList import", () => {
     fireEvent.click(screen.getByRole("button", { name: "Novo projeto" }));
 
     await screen.findByRole("heading", { name: "Novo projeto" });
+    expect(screen.getByLabelText(/ID ou URL do AniList/i).parentElement?.className).toContain(
+      "gap-2",
+    );
     fireEvent.change(screen.getByLabelText(/ID ou URL do AniList/i), {
       target: { value: "21878" },
     });

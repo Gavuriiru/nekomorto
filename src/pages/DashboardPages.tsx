@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardShell from "@/components/DashboardShell";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
@@ -1003,28 +1004,28 @@ const DashboardPages = () => {
                     <TabsContent value="about" className="mt-6 space-y-6">
                       <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                          <div className="grid gap-2">
+                          <DashboardFieldStack>
                             <Label>Badge</Label>
                             <Input
                               value={pages.about.heroBadge}
                               onChange={(e) => updateAbout({ heroBadge: e.target.value })}
                             />
-                          </div>
-                          <div className="grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack>
                             <Label>Título</Label>
                             <Input
                               value={pages.about.heroTitle}
                               onChange={(e) => updateAbout({ heroTitle: e.target.value })}
                             />
-                          </div>
-                          <div className="md:col-span-2 grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack className="md:col-span-2">
                             <Label>Subtítulo</Label>
                             <Textarea
                               value={pages.about.heroSubtitle}
                               onChange={(e) => updateAbout({ heroSubtitle: e.target.value })}
                             />
-                          </div>
-                          <div className="md:col-span-2 space-y-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack className="md:col-span-2">
                             <Label>Badges do topo</Label>
                             <div className="flex flex-wrap gap-2">
                               {pages.about.heroBadges.map((badge, index) => (
@@ -1064,7 +1065,7 @@ const DashboardPages = () => {
                                 Adicionar badge
                               </Button>
                             </div>
-                          </div>
+                          </DashboardFieldStack>
                         </CardContent>
                       </Card>
 
@@ -1170,20 +1171,20 @@ const DashboardPages = () => {
 
                       <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="space-y-4 p-6">
-                          <div className="grid gap-2">
+                          <DashboardFieldStack>
                             <Label>Título do manifesto</Label>
                             <Input
                               value={pages.about.manifestoTitle}
                               onChange={(e) => updateAbout({ manifestoTitle: e.target.value })}
                             />
-                          </div>
-                          <div className="grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack>
                             <Label>Ícone do manifesto</Label>
                             <IconSelect
                               value={pages.about.manifestoIcon || "Flame"}
                               onChange={(nextIcon) => updateAbout({ manifestoIcon: nextIcon })}
                             />
-                          </div>
+                          </DashboardFieldStack>
                           <div className="grid gap-3">
                             {pages.about.manifestoParagraphs.map((paragraph, index) => (
                               <div key={`${paragraph}-${index}`} className="flex gap-2">
@@ -1307,7 +1308,7 @@ const DashboardPages = () => {
                                       updateAbout({ pillars: next });
                                     }}
                                   />
-                                  <div className="grid gap-2">
+                                  <DashboardFieldStack>
                                     <Label>Ícone</Label>
                                     <IconSelect
                                       value={item.icon}
@@ -1317,7 +1318,7 @@ const DashboardPages = () => {
                                         updateAbout({ pillars: next });
                                       }}
                                     />
-                                  </div>
+                                  </DashboardFieldStack>
                                 </div>
                               </div>
                             ))}
@@ -1405,7 +1406,7 @@ const DashboardPages = () => {
                                       updateAbout({ values: next });
                                     }}
                                   />
-                                  <div className="grid gap-2">
+                                  <DashboardFieldStack>
                                     <Label>Ícone</Label>
                                     <IconSelect
                                       value={item.icon}
@@ -1415,7 +1416,7 @@ const DashboardPages = () => {
                                         updateAbout({ values: next });
                                       }}
                                     />
-                                  </div>
+                                  </DashboardFieldStack>
                                 </div>
                               </div>
                             ))}
@@ -1427,20 +1428,20 @@ const DashboardPages = () => {
                     <TabsContent value="donations" className="mt-6 space-y-6">
                       <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                          <div className="grid gap-2">
+                          <DashboardFieldStack>
                             <Label>Título</Label>
                             <Input
                               value={pages.donations.heroTitle}
                               onChange={(e) => updateDonations({ heroTitle: e.target.value })}
                             />
-                          </div>
-                          <div className="md:col-span-2 grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack className="md:col-span-2">
                             <Label>Subtítulo</Label>
                             <Textarea
                               value={pages.donations.heroSubtitle}
                               onChange={(e) => updateDonations({ heroSubtitle: e.target.value })}
                             />
-                          </div>
+                          </DashboardFieldStack>
                         </CardContent>
                       </Card>
 
@@ -1526,7 +1527,7 @@ const DashboardPages = () => {
                                       updateDonations({ costs: next });
                                     }}
                                   />
-                                  <div className="grid gap-2">
+                                  <DashboardFieldStack>
                                     <Label>Ícone</Label>
                                     <IconSelect
                                       value={item.icon}
@@ -1536,7 +1537,7 @@ const DashboardPages = () => {
                                         updateDonations({ costs: next });
                                       }}
                                     />
-                                  </div>
+                                  </DashboardFieldStack>
                                 </div>
                               </div>
                             ))}
@@ -1546,70 +1547,82 @@ const DashboardPages = () => {
 
                       <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                          <div className="grid gap-2">
+                          <DashboardFieldStack>
                             <Label>Título do bloco</Label>
                             <Input
                               value={pages.donations.reasonTitle}
                               onChange={(e) => updateDonations({ reasonTitle: e.target.value })}
                             />
-                          </div>
-                          <div className="grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack>
                             <Label>Ícone do bloco</Label>
                             <IconSelect
                               value={pages.donations.reasonIcon || "HeartHandshake"}
                               onChange={(nextIcon) => updateDonations({ reasonIcon: nextIcon })}
                             />
-                          </div>
-                          <div className="md:col-span-2 grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack className="md:col-span-2">
                             <Label>Texto</Label>
                             <Textarea
                               value={pages.donations.reasonText}
                               onChange={(e) => updateDonations({ reasonText: e.target.value })}
                             />
-                          </div>
-                          <div className="md:col-span-2 grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack className="md:col-span-2">
                             <Label>Nota</Label>
                             <Textarea
                               value={pages.donations.reasonNote}
                               onChange={(e) => updateDonations({ reasonNote: e.target.value })}
                             />
-                          </div>
+                          </DashboardFieldStack>
                         </CardContent>
                       </Card>
 
                       <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-[1.2fr_0.8fr]">
-                          <div className="grid gap-2">
-                            <Label>Ícone do Pix</Label>
-                            <IconSelect
-                              value={pages.donations.pixIcon || "QrCode"}
-                              onChange={(nextIcon) => updateDonations({ pixIcon: nextIcon })}
-                            />
-                            <Label>Chave Pix</Label>
-                            <Input
-                              value={pages.donations.pixKey}
-                              onChange={(e) => updateDonations({ pixKey: e.target.value })}
-                            />
-                            <Label>Descrição no QR (opcional)</Label>
-                            <Input
-                              value={pages.donations.pixNote}
-                              onChange={(e) => updateDonations({ pixNote: e.target.value })}
-                            />
-                            <Label>Cidade do recebedor (opcional)</Label>
-                            <Input
-                              value={pages.donations.pixCity}
-                              onChange={(e) => updateDonations({ pixCity: e.target.value })}
-                              placeholder="CIDADE"
-                            />
-                            <p className={`text-xs ${dashboardPagesMetaTextClassName}`}>
-                              Se vazio, o QR Pix usa CIDADE como fallback.
-                            </p>
-                            <Label>QR Code (URL customizada)</Label>
-                            <Input
-                              value={pages.donations.qrCustomUrl}
-                              onChange={(e) => updateDonations({ qrCustomUrl: e.target.value })}
-                              placeholder="Opcional"
-                            />
+                          <div className="space-y-4">
+                            <DashboardFieldStack>
+                              <Label>Ícone do Pix</Label>
+                              <IconSelect
+                                value={pages.donations.pixIcon || "QrCode"}
+                                onChange={(nextIcon) => updateDonations({ pixIcon: nextIcon })}
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
+                              <Label>Chave Pix</Label>
+                              <Input
+                                value={pages.donations.pixKey}
+                                onChange={(e) => updateDonations({ pixKey: e.target.value })}
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
+                              <Label>Descrição no QR (opcional)</Label>
+                              <Input
+                                value={pages.donations.pixNote}
+                                onChange={(e) => updateDonations({ pixNote: e.target.value })}
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
+                              <Label>Cidade do recebedor (opcional)</Label>
+                              <DashboardFieldStack density="compact">
+                                <Input
+                                  value={pages.donations.pixCity}
+                                  onChange={(e) => updateDonations({ pixCity: e.target.value })}
+                                  placeholder="CIDADE"
+                                />
+                                <p className={`text-xs ${dashboardPagesMetaTextClassName}`}>
+                                  Se vazio, o QR Pix usa CIDADE como fallback.
+                                </p>
+                              </DashboardFieldStack>
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
+                              <Label>QR Code (URL customizada)</Label>
+                              <Input
+                                value={pages.donations.qrCustomUrl}
+                                onChange={(e) => updateDonations({ qrCustomUrl: e.target.value })}
+                                placeholder="Opcional"
+                              />
+                            </DashboardFieldStack>
                           </div>
                           <div
                             className={`flex items-center justify-center ${dashboardPagesControlSurfaceClassName} p-4`}
@@ -1742,20 +1755,20 @@ const DashboardPages = () => {
                     <TabsContent value="faq" className="mt-6 space-y-6">
                       <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                          <div className="grid gap-2">
+                          <DashboardFieldStack>
                             <Label>Título</Label>
                             <Input
                               value={pages.faq.heroTitle}
                               onChange={(e) => updateFaq({ heroTitle: e.target.value })}
                             />
-                          </div>
-                          <div className="md:col-span-2 grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack className="md:col-span-2">
                             <Label>Subtítulo</Label>
                             <Textarea
                               value={pages.faq.heroSubtitle}
                               onChange={(e) => updateFaq({ heroSubtitle: e.target.value })}
                             />
-                          </div>
+                          </DashboardFieldStack>
                         </CardContent>
                       </Card>
 
@@ -2067,41 +2080,41 @@ const DashboardPages = () => {
                     <TabsContent value="team" className="mt-6 space-y-6">
                       <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                          <div className="grid gap-2">
+                          <DashboardFieldStack>
                             <Label>Badge</Label>
                             <Input
                               value={pages.team.heroBadge}
                               onChange={(e) => updateTeam({ heroBadge: e.target.value })}
                             />
-                          </div>
-                          <div className="grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack>
                             <Label>Título</Label>
                             <Input
                               value={pages.team.heroTitle}
                               onChange={(e) => updateTeam({ heroTitle: e.target.value })}
                             />
-                          </div>
-                          <div className="md:col-span-2 grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack className="md:col-span-2">
                             <Label>Subtítulo</Label>
                             <Textarea
                               value={pages.team.heroSubtitle}
                               onChange={(e) => updateTeam({ heroSubtitle: e.target.value })}
                             />
-                          </div>
-                          <div className="grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack>
                             <Label>Título aposentados</Label>
                             <Input
                               value={pages.team.retiredTitle}
                               onChange={(e) => updateTeam({ retiredTitle: e.target.value })}
                             />
-                          </div>
-                          <div className="md:col-span-2 grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack className="md:col-span-2">
                             <Label>Subtítulo aposentados</Label>
                             <Textarea
                               value={pages.team.retiredSubtitle}
                               onChange={(e) => updateTeam({ retiredSubtitle: e.target.value })}
                             />
-                          </div>
+                          </DashboardFieldStack>
                         </CardContent>
                       </Card>
                     </TabsContent>
@@ -2109,27 +2122,27 @@ const DashboardPages = () => {
                     <TabsContent value="recruitment" className="mt-6 space-y-6">
                       <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                          <div className="grid gap-2">
+                          <DashboardFieldStack>
                             <Label>Badge</Label>
                             <Input
                               value={pages.recruitment.heroBadge}
                               onChange={(e) => updateRecruitment({ heroBadge: e.target.value })}
                             />
-                          </div>
-                          <div className="grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack>
                             <Label>Título</Label>
                             <Input
                               value={pages.recruitment.heroTitle}
                               onChange={(e) => updateRecruitment({ heroTitle: e.target.value })}
                             />
-                          </div>
-                          <div className="md:col-span-2 grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack className="md:col-span-2">
                             <Label>Subtítulo</Label>
                             <Textarea
                               value={pages.recruitment.heroSubtitle}
                               onChange={(e) => updateRecruitment({ heroSubtitle: e.target.value })}
                             />
-                          </div>
+                          </DashboardFieldStack>
                         </CardContent>
                       </Card>
 
@@ -2233,21 +2246,21 @@ const DashboardPages = () => {
 
                       <Card lift={false} className={dashboardPagesCardClassName}>
                         <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                          <div className="grid gap-2">
+                          <DashboardFieldStack>
                             <Label>Título do CTA</Label>
                             <Input
                               value={pages.recruitment.ctaTitle}
                               onChange={(e) => updateRecruitment({ ctaTitle: e.target.value })}
                             />
-                          </div>
-                          <div className="grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack>
                             <Label>Texto do CTA</Label>
                             <Input
                               value={pages.recruitment.ctaSubtitle}
                               onChange={(e) => updateRecruitment({ ctaSubtitle: e.target.value })}
                             />
-                          </div>
-                          <div className="md:col-span-2 grid gap-2">
+                          </DashboardFieldStack>
+                          <DashboardFieldStack className="md:col-span-2">
                             <Label>Texto do botão</Label>
                             <Input
                               value={pages.recruitment.ctaButtonLabel}
@@ -2255,7 +2268,7 @@ const DashboardPages = () => {
                                 updateRecruitment({ ctaButtonLabel: e.target.value })
                               }
                             />
-                          </div>
+                          </DashboardFieldStack>
                         </CardContent>
                       </Card>
                     </TabsContent>

@@ -65,39 +65,42 @@ vi.mock("@/components/project-reader/MangaWorkflowPanel", async (importOriginal)
     await importOriginal<typeof import("@/components/project-reader/MangaWorkflowPanel")>();
   return {
     ...actual,
-    default: React.forwardRef(function MockMangaWorkflowPanel(props: {
-      project?: {
-        id?: string;
-        revision?: string;
-        title?: string;
-        type?: string;
-        volumeEntries?: Array<{
-          volume: number;
-          synopsis?: string;
-          coverImageUrl?: string;
-          coverImageAlt?: string;
+    default: React.forwardRef(function MockMangaWorkflowPanel(
+      props: {
+        project?: {
+          id?: string;
+          revision?: string;
+          title?: string;
+          type?: string;
+          volumeEntries?: Array<{
+            volume: number;
+            synopsis?: string;
+            coverImageUrl?: string;
+            coverImageAlt?: string;
+          }>;
+          episodeDownloads?: Array<Record<string, unknown>>;
+        };
+        stagedChapters?: Array<{
+          id: string;
+          title?: string;
         }>;
-        episodeDownloads?: Array<Record<string, unknown>>;
-      };
-      stagedChapters?: Array<{
-        id: string;
-        title?: string;
-      }>;
-      selectedStageChapterId?: string | null;
-      setStagedChapters?: (value: unknown) => void;
-      setSelectedStageChapterId?: (value: string | null) => void;
-      onPersistProjectSnapshot?: (
-        snapshot: Record<string, unknown>,
-        options: { context: string },
-      ) => Promise<Record<string, unknown> | null>;
-      onProjectChange?: (project: unknown) => void;
-      onSelectedStageChapterChange?: (chapter: unknown) => void;
-      onOpenImportedChapter?: (project: unknown, chapters: unknown[]) => void;
-    }, ref: React.ForwardedRef<{
-      hasUnsavedChanges: () => boolean;
-      savePreparedChaptersAsDraft: () => Promise<boolean>;
-      discardPreparedChapters: () => void;
-    }>) {
+        selectedStageChapterId?: string | null;
+        setStagedChapters?: (value: unknown) => void;
+        setSelectedStageChapterId?: (value: string | null) => void;
+        onPersistProjectSnapshot?: (
+          snapshot: Record<string, unknown>,
+          options: { context: string },
+        ) => Promise<Record<string, unknown> | null>;
+        onProjectChange?: (project: unknown) => void;
+        onSelectedStageChapterChange?: (chapter: unknown) => void;
+        onOpenImportedChapter?: (project: unknown, chapters: unknown[]) => void;
+      },
+      ref: React.ForwardedRef<{
+        hasUnsavedChanges: () => boolean;
+        savePreparedChaptersAsDraft: () => Promise<boolean>;
+        discardPreparedChapters: () => void;
+      }>,
+    ) {
       const [isStageDirty, setIsStageDirty] = React.useState(false);
       mangaWorkflowPropsSpy(props);
       const pendingChapter = {
@@ -630,7 +633,9 @@ const getStructureGroupChapterOrder = (groupKey: string) => {
     group.querySelectorAll<HTMLElement>("[data-testid^='chapter-structure-episode-open-']"),
   )
     .map((element) => element.dataset.testid || "")
-    .filter((testId) => testId.includes("chapter-structure-episode-open-") && !testId.includes("-icon-"))
+    .filter(
+      (testId) => testId.includes("chapter-structure-episode-open-") && !testId.includes("-icon-"),
+    )
     .map((testId) => testId.replace("chapter-structure-episode-open-", ""));
 };
 
@@ -1183,7 +1188,9 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.getByTestId("chapter-structure-episode-actions-3:1")).toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-move-up-3:1")).toBeDisabled();
     expect(screen.getByTestId("chapter-structure-episode-move-down-3:1")).toBeEnabled();
-    expect(screen.queryByTestId("chapter-structure-episode-export-zip-3:1")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-structure-episode-export-zip-3:1"),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-open-icon-3:1")).toBeInTheDocument();
     expect(
       within(screen.getByTestId("chapter-structure-episode-header-3:1")).getByText(
@@ -1195,20 +1202,26 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.getByTestId("chapter-structure-episode-actions-4:1")).toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-move-up-4:1")).toBeEnabled();
     expect(screen.getByTestId("chapter-structure-episode-move-down-4:1")).toBeEnabled();
-    expect(screen.queryByTestId("chapter-structure-episode-export-zip-4:1")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-structure-episode-export-zip-4:1"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByTestId("chapter-structure-episode-open-icon-4:1")).not.toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-footer-5:1")).toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-meta-5:1")).toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-actions-5:1")).toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-move-up-5:1")).toBeEnabled();
     expect(screen.getByTestId("chapter-structure-episode-move-down-5:1")).toBeDisabled();
-    expect(screen.queryByTestId("chapter-structure-episode-export-zip-5:1")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-structure-episode-export-zip-5:1"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByTestId("chapter-structure-episode-open-icon-5:1")).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId("chapter-structure-group-toggle-2"));
     expect(screen.getByTestId("chapter-structure-episode-actions-6:2")).toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-move-up-6:2")).toBeDisabled();
     expect(screen.getByTestId("chapter-structure-episode-move-down-6:2")).toBeDisabled();
-    expect(screen.queryByTestId("chapter-structure-episode-export-zip-6:2")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-structure-episode-export-zip-6:2"),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-episode-open-icon-6:2")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("mock-stage-add"));
@@ -1296,8 +1309,9 @@ describe("DashboardProjectChapterEditor", () => {
     await waitFor(() => {
       expect(
         (
-          ((capturedProjectPayload?.episodeDownloads as Array<Record<string, unknown>> | undefined) ||
-            [])
+          (capturedProjectPayload?.episodeDownloads as
+            | Array<Record<string, unknown>>
+            | undefined) || []
         ).map((episode) => ({
           number: episode.number,
           volume: episode.volume,
@@ -3599,6 +3613,7 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
     openIdentityAccordion();
+    expect(screen.getByLabelText("Título").parentElement?.className).toContain("gap-2");
     fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Capítulo revisado" } });
     fireEvent.keyDown(window, { key: "s", ctrlKey: true });
     await waitFor(() => {

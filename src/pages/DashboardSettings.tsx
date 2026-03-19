@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
+import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardSeoRedirectsPanel from "@/components/dashboard/DashboardSeoRedirectsPanel";
@@ -1803,7 +1804,7 @@ const DashboardSettings = () => {
                       <Card lift={false} className={dashboardSettingsCardClassName}>
                         <CardContent className="space-y-6 p-6">
                           <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
+                            <DashboardFieldStack>
                               <Label>Nome do site</Label>
                               <Input
                                 value={settings.site.name}
@@ -1815,24 +1816,26 @@ const DashboardSettings = () => {
                                   }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Separador do título</Label>
-                              <Input
-                                value={settings.site.titleSeparator || " | "}
-                                onChange={(event) =>
-                                  setSettings((prev) => ({
-                                    ...prev,
-                                    site: { ...prev.site, titleSeparator: event.target.value },
-                                  }))
-                                }
-                                placeholder=" | "
-                              />
-                              <p className="text-xs text-foreground/70">
-                                Usado entre o título da página e o nome do site.
-                              </p>
-                            </div>
-                            <div className="space-y-2">
+                              <DashboardFieldStack density="compact">
+                                <Input
+                                  value={settings.site.titleSeparator || " | "}
+                                  onChange={(event) =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      site: { ...prev.site, titleSeparator: event.target.value },
+                                    }))
+                                  }
+                                  placeholder=" | "
+                                />
+                                <p className="text-xs text-foreground/70">
+                                  Usado entre o título da página e o nome do site.
+                                </p>
+                              </DashboardFieldStack>
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Descrição curta</Label>
                               <Textarea
                                 value={settings.site.description}
@@ -1843,79 +1846,85 @@ const DashboardSettings = () => {
                                   }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Cor de destaque</Label>
-                              <div className="flex items-center gap-3">
-                                <ColorPicker
-                                  label=""
-                                  showSwatch
-                                  buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-background shadow-xs transition hover:border-primary/40"
-                                  value={settings.theme.accent || "#000000"}
-                                  onChange={(color) =>
-                                    setSettings((prev) => ({
-                                      ...prev,
-                                      theme: { ...prev.theme, accent: color.toString("hex") },
-                                    }))
-                                  }
-                                />
-                              </div>
-                              <p className="text-xs text-foreground/70">
-                                Atualiza a cor principal e o accent do site.
-                              </p>
-                            </div>
-                            <div className="space-y-2">
+                              <DashboardFieldStack density="compact">
+                                <div className="flex items-center gap-3">
+                                  <ColorPicker
+                                    label=""
+                                    showSwatch
+                                    buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-background shadow-xs transition hover:border-primary/40"
+                                    value={settings.theme.accent || "#000000"}
+                                    onChange={(color) =>
+                                      setSettings((prev) => ({
+                                        ...prev,
+                                        theme: { ...prev.theme, accent: color.toString("hex") },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <p className="text-xs text-foreground/70">
+                                  Atualiza a cor principal e o accent do site.
+                                </p>
+                              </DashboardFieldStack>
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Card Em Progresso</Label>
-                              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background px-3 py-2">
-                                <span className="text-sm text-foreground">
-                                  Usar cor de destaque no card Em Progresso
-                                </span>
-                                <Switch
-                                  checked={Boolean(settings.theme.useAccentInProgressCard)}
-                                  onCheckedChange={(checked) =>
+                              <DashboardFieldStack density="compact">
+                                <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background px-3 py-2">
+                                  <span className="text-sm text-foreground">
+                                    Usar cor de destaque no card Em Progresso
+                                  </span>
+                                  <Switch
+                                    checked={Boolean(settings.theme.useAccentInProgressCard)}
+                                    onCheckedChange={(checked) =>
+                                      setSettings((prev) => ({
+                                        ...prev,
+                                        theme: {
+                                          ...prev.theme,
+                                          useAccentInProgressCard: checked,
+                                        },
+                                      }))
+                                    }
+                                    aria-label="Usar cor de destaque no card Em Progresso"
+                                  />
+                                </div>
+                                <p className="text-xs text-foreground/70">
+                                  Quando ativado, barra e badge usam a cor temática em vez da cor da
+                                  etapa.
+                                </p>
+                              </DashboardFieldStack>
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
+                              <Label>Tema padrão do site</Label>
+                              <DashboardFieldStack density="compact">
+                                <Select
+                                  value={settings.theme.mode || "dark"}
+                                  onValueChange={(value) =>
                                     setSettings((prev) => ({
                                       ...prev,
                                       theme: {
                                         ...prev.theme,
-                                        useAccentInProgressCard: checked,
+                                        mode: value === "light" ? "light" : "dark",
                                       },
                                     }))
                                   }
-                                  aria-label="Usar cor de destaque no card Em Progresso"
-                                />
-                              </div>
-                              <p className="text-xs text-foreground/70">
-                                Quando ativado, barra e badge usam a cor temática em vez da cor da
-                                etapa.
-                              </p>
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Tema padrão do site</Label>
-                              <Select
-                                value={settings.theme.mode || "dark"}
-                                onValueChange={(value) =>
-                                  setSettings((prev) => ({
-                                    ...prev,
-                                    theme: {
-                                      ...prev.theme,
-                                      mode: value === "light" ? "light" : "dark",
-                                    },
-                                  }))
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione o tema padrão" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="dark">Escuro</SelectItem>
-                                  <SelectItem value="light">Claro</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <p className="text-xs text-foreground/70">
-                                Define o tema padrão global. Cada usuário pode sobrescrever no
-                                cabeçalho.
-                              </p>
-                            </div>
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecione o tema padrão" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="dark">Escuro</SelectItem>
+                                    <SelectItem value="light">Claro</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-xs text-foreground/70">
+                                  Define o tema padrão global. Cada usuário pode sobrescrever no
+                                  cabeçalho.
+                                </p>
+                              </DashboardFieldStack>
+                            </DashboardFieldStack>
                           </div>
 
                           <div className="space-y-4 rounded-2xl border border-border/70 bg-background p-4">
@@ -1927,7 +1936,7 @@ const DashboardSettings = () => {
                             </div>
 
                             <div className="grid gap-4 md:grid-cols-2">
-                              <div className="space-y-2">
+                              <DashboardFieldStack>
                                 <Label htmlFor="community-card-title">Título do card</Label>
                                 <Input
                                   id="community-card-title"
@@ -1945,9 +1954,9 @@ const DashboardSettings = () => {
                                     }))
                                   }
                                 />
-                              </div>
+                              </DashboardFieldStack>
 
-                              <div className="space-y-2">
+                              <DashboardFieldStack>
                                 <Label htmlFor="community-card-button-label">Texto do botão</Label>
                                 <Input
                                   id="community-card-button-label"
@@ -1965,9 +1974,9 @@ const DashboardSettings = () => {
                                     }))
                                   }
                                 />
-                              </div>
+                              </DashboardFieldStack>
 
-                              <div className="space-y-2 md:col-span-2">
+                              <DashboardFieldStack className="md:col-span-2">
                                 <Label htmlFor="community-card-subtitle">Subtítulo</Label>
                                 <Textarea
                                   id="community-card-subtitle"
@@ -1985,9 +1994,9 @@ const DashboardSettings = () => {
                                     }))
                                   }
                                 />
-                              </div>
+                              </DashboardFieldStack>
 
-                              <div className="space-y-2">
+                              <DashboardFieldStack>
                                 <Label htmlFor="community-card-panel-title">
                                   Título do bloco interno
                                 </Label>
@@ -2007,9 +2016,9 @@ const DashboardSettings = () => {
                                     }))
                                   }
                                 />
-                              </div>
+                              </DashboardFieldStack>
 
-                              <div className="space-y-2">
+                              <DashboardFieldStack>
                                 <Label htmlFor="community-card-cta-url">URL do botão</Label>
                                 <Input
                                   id="community-card-cta-url"
@@ -2028,9 +2037,9 @@ const DashboardSettings = () => {
                                   }
                                   placeholder="https://discord.com/invite/..."
                                 />
-                              </div>
+                              </DashboardFieldStack>
 
-                              <div className="space-y-2 md:col-span-2">
+                              <DashboardFieldStack className="md:col-span-2">
                                 <Label htmlFor="community-card-panel-description">
                                   Texto do bloco interno
                                 </Label>
@@ -2050,7 +2059,7 @@ const DashboardSettings = () => {
                                     }))
                                   }
                                 />
-                              </div>
+                              </DashboardFieldStack>
                             </div>
                           </div>
 
@@ -2241,7 +2250,7 @@ const DashboardSettings = () => {
                               </div>
 
                               <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
+                                <DashboardFieldStack>
                                   <Label>Direção</Label>
                                   <Select
                                     value={preset.direction}
@@ -2269,9 +2278,9 @@ const DashboardSettings = () => {
                                       </SelectItem>
                                     </SelectContent>
                                   </Select>
-                                </div>
+                                </DashboardFieldStack>
 
-                                <div className="space-y-2">
+                                <DashboardFieldStack>
                                   <Label>Modo de leitura</Label>
                                   <Select
                                     value={preset.viewMode}
@@ -2299,9 +2308,9 @@ const DashboardSettings = () => {
                                       </SelectItem>
                                     </SelectContent>
                                   </Select>
-                                </div>
+                                </DashboardFieldStack>
 
-                                <div className="space-y-2">
+                                <DashboardFieldStack>
                                   <Label htmlFor={`reader-preview-limit-${presetMeta.key}`}>
                                     Limite de preview
                                   </Label>
@@ -2322,9 +2331,9 @@ const DashboardSettings = () => {
                                       }))
                                     }
                                   />
-                                </div>
+                                </DashboardFieldStack>
 
-                                <div className="space-y-2">
+                                <DashboardFieldStack>
                                   <Label htmlFor={`reader-theme-${presetMeta.key}`}>
                                     Preset visual
                                   </Label>
@@ -2341,7 +2350,7 @@ const DashboardSettings = () => {
                                       }))
                                     }
                                   />
-                                </div>
+                                </DashboardFieldStack>
                               </div>
 
                               <div className="grid gap-3 md:grid-cols-3">
@@ -3361,7 +3370,7 @@ const DashboardSettings = () => {
                           <div className="space-y-1">
                             <h2 className="text-lg font-semibold">Conteúdo do footer</h2>
                           </div>
-                          <div className="space-y-2">
+                          <DashboardFieldStack>
                             <Label>Descrição</Label>
                             <Textarea
                               value={settings.footer.brandDescription}
@@ -3372,7 +3381,7 @@ const DashboardSettings = () => {
                                 }))
                               }
                             />
-                          </div>
+                          </DashboardFieldStack>
                         </CardContent>
                       </Card>
 
@@ -3814,7 +3823,7 @@ const DashboardSettings = () => {
                               </Button>
                             </div>
                             <div className="grid gap-3 md:grid-cols-2 md:gap-4">
-                              <div className="space-y-2">
+                              <DashboardFieldStack>
                                 <Label>Título do destaque</Label>
                                 <Input
                                   value={settings.footer.highlightTitle}
@@ -3828,8 +3837,8 @@ const DashboardSettings = () => {
                                     }))
                                   }
                                 />
-                              </div>
-                              <div className="space-y-2">
+                              </DashboardFieldStack>
+                              <DashboardFieldStack>
                                 <Label>Descrição do destaque</Label>
                                 <Textarea
                                   value={settings.footer.highlightDescription}
@@ -3843,9 +3852,9 @@ const DashboardSettings = () => {
                                     }))
                                   }
                                 />
-                              </div>
+                              </DashboardFieldStack>
                             </div>
-                            <div className="space-y-2">
+                            <DashboardFieldStack>
                               <Label>Copyright</Label>
                               <Input
                                 value={settings.footer.copyright}
@@ -3856,7 +3865,7 @@ const DashboardSettings = () => {
                                   }))
                                 }
                               />
-                            </div>
+                            </DashboardFieldStack>
                           </div>
                         </CardContent>
                       </Card>

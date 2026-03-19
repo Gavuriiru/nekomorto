@@ -109,6 +109,7 @@ describe("DashboardUsers edit query", () => {
     await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
     await screen.findByRole("heading", { name: /adicionar usu.rio/i });
     expect(document.querySelector(".project-editor-dialog")).not.toBeNull();
+    expect(screen.getByLabelText(/ID do Discord/i).parentElement?.className).toContain("gap-2");
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });

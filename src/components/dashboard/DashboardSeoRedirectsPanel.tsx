@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import AsyncState from "@/components/ui/async-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -342,47 +343,51 @@ const DashboardSeoRedirectsPanel = () => {
                   }`}
                 >
                   <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] lg:items-start">
-                    <div className="space-y-1.5">
+                    <DashboardFieldStack>
                       <Label htmlFor={`settings-redirect-from-${rule.id}`}>Origem</Label>
-                      <Input
-                        id={`settings-redirect-from-${rule.id}`}
-                        value={rule.from}
-                        placeholder="/url-antiga"
-                        onChange={(event) =>
-                          updateSeoRedirectRule(rule.id, { from: event.target.value })
-                        }
-                        onBlur={(event) =>
-                          updateSeoRedirectRule(rule.id, {
-                            from: normalizeSeoRedirectFromDraft(event.target.value),
-                          })
-                        }
-                      />
-                      {validation.from ? (
-                        <p className="text-xs text-destructive">{validation.from}</p>
-                      ) : null}
-                    </div>
+                      <DashboardFieldStack density="compact">
+                        <Input
+                          id={`settings-redirect-from-${rule.id}`}
+                          value={rule.from}
+                          placeholder="/url-antiga"
+                          onChange={(event) =>
+                            updateSeoRedirectRule(rule.id, { from: event.target.value })
+                          }
+                          onBlur={(event) =>
+                            updateSeoRedirectRule(rule.id, {
+                              from: normalizeSeoRedirectFromDraft(event.target.value),
+                            })
+                          }
+                        />
+                        {validation.from ? (
+                          <p className="text-xs text-destructive">{validation.from}</p>
+                        ) : null}
+                      </DashboardFieldStack>
+                    </DashboardFieldStack>
 
-                    <div className="space-y-1.5">
+                    <DashboardFieldStack>
                       <Label htmlFor={`settings-redirect-to-${rule.id}`}>Destino</Label>
-                      <Input
-                        id={`settings-redirect-to-${rule.id}`}
-                        value={rule.to}
-                        placeholder="/url-nova ou https://dominio.com/pagina"
-                        onChange={(event) =>
-                          updateSeoRedirectRule(rule.id, { to: event.target.value })
-                        }
-                        onBlur={(event) =>
-                          updateSeoRedirectRule(rule.id, {
-                            to: String(event.target.value || "").trim(),
-                          })
-                        }
-                      />
-                      {validation.to ? (
-                        <p className="text-xs text-destructive">{validation.to}</p>
-                      ) : null}
-                    </div>
+                      <DashboardFieldStack density="compact">
+                        <Input
+                          id={`settings-redirect-to-${rule.id}`}
+                          value={rule.to}
+                          placeholder="/url-nova ou https://dominio.com/pagina"
+                          onChange={(event) =>
+                            updateSeoRedirectRule(rule.id, { to: event.target.value })
+                          }
+                          onBlur={(event) =>
+                            updateSeoRedirectRule(rule.id, {
+                              to: String(event.target.value || "").trim(),
+                            })
+                          }
+                        />
+                        {validation.to ? (
+                          <p className="text-xs text-destructive">{validation.to}</p>
+                        ) : null}
+                      </DashboardFieldStack>
+                    </DashboardFieldStack>
 
-                    <div className="space-y-1.5 lg:justify-self-center">
+                    <DashboardFieldStack className="lg:justify-self-center">
                       <Label htmlFor={`settings-redirect-enabled-${rule.id}`}>Ativo</Label>
                       <div className="flex h-9 items-center">
                         <Switch
@@ -394,7 +399,7 @@ const DashboardSeoRedirectsPanel = () => {
                           aria-label={`Ativar redirecionamento ${index + 1}`}
                         />
                       </div>
-                    </div>
+                    </DashboardFieldStack>
 
                     <div className="flex h-9 items-center lg:justify-self-end">
                       <Button

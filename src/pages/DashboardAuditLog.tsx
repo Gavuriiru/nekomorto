@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import {
@@ -657,7 +658,7 @@ const DashboardAuditLog = () => {
               style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
             >
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-                <div className="grid gap-2">
+                <DashboardFieldStack>
                   <Label htmlFor="audit-q">Busca</Label>
                   <Input
                     id="audit-q"
@@ -665,8 +666,8 @@ const DashboardAuditLog = () => {
                     onChange={(event) => setForm((prev) => ({ ...prev, q: event.target.value }))}
                     placeholder="ator, IP, meta..."
                   />
-                </div>
-                <div className="grid gap-2">
+                </DashboardFieldStack>
+                <DashboardFieldStack>
                   <Label htmlFor="audit-action">Ação</Label>
                   <Input
                     id="audit-action"
@@ -676,8 +677,8 @@ const DashboardAuditLog = () => {
                     }
                     placeholder="ex.: posts.update"
                   />
-                </div>
-                <div className="grid gap-2">
+                </DashboardFieldStack>
+                <DashboardFieldStack>
                   <Label htmlFor="audit-resource">Recurso</Label>
                   <Input
                     id="audit-resource"
@@ -687,8 +688,8 @@ const DashboardAuditLog = () => {
                     }
                     placeholder="ex.: posts"
                   />
-                </div>
-                <div className="grid gap-2">
+                </DashboardFieldStack>
+                <DashboardFieldStack>
                   <Label htmlFor="audit-actor">Actor ID</Label>
                   <Input
                     id="audit-actor"
@@ -698,8 +699,8 @@ const DashboardAuditLog = () => {
                     }
                     placeholder="ID do Discord"
                   />
-                </div>
-                <div className="grid gap-2">
+                </DashboardFieldStack>
+                <DashboardFieldStack>
                   <Label>Status</Label>
                   <Select
                     value={form.status}
@@ -715,8 +716,8 @@ const DashboardAuditLog = () => {
                       <SelectItem value="denied">Negado</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="grid gap-2">
+                </DashboardFieldStack>
+                <DashboardFieldStack>
                   <Label htmlFor="audit-date-from">Data inicial</Label>
                   <MuiDateTimeFieldsProvider>
                     <div className="grid gap-2 sm:grid-cols-2">
@@ -733,8 +734,8 @@ const DashboardAuditLog = () => {
                       />
                     </div>
                   </MuiDateTimeFieldsProvider>
-                </div>
-                <div className="grid gap-2">
+                </DashboardFieldStack>
+                <DashboardFieldStack>
                   <Label htmlFor="audit-date-to">Data final</Label>
                   <MuiDateTimeFieldsProvider>
                     <div className="grid gap-2 sm:grid-cols-2">
@@ -751,8 +752,8 @@ const DashboardAuditLog = () => {
                       />
                     </div>
                   </MuiDateTimeFieldsProvider>
-                </div>
-                <div className="grid gap-2">
+                </DashboardFieldStack>
+                <DashboardFieldStack>
                   <Label>Itens por página</Label>
                   <Select
                     value={form.limit}
@@ -768,7 +769,7 @@ const DashboardAuditLog = () => {
                       <SelectItem value="100">100</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+                </DashboardFieldStack>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <Button onClick={applyFilters}>Aplicar filtros</Button>

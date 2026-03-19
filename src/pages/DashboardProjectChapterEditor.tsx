@@ -1,6 +1,7 @@
 import DashboardShell from "@/components/DashboardShell";
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
+import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
@@ -666,8 +667,10 @@ const normalizeOriginLabel = (value: unknown) => {
   return normalized || "indisponivel";
 };
 
-const buildChapterSnapshot = (chapter: ProjectEpisode | null, progressKind?: ProjectProgressKind) =>
-  chapter ? JSON.stringify(normalizeChapterForSave(chapter, progressKind)) : "";
+const buildChapterSnapshot = (
+  chapter: ProjectEpisode | null,
+  progressKind?: ProjectProgressKind,
+) => (chapter ? JSON.stringify(normalizeChapterForSave(chapter, progressKind)) : "");
 
 const buildVolumeCoverAltFallback = (volume: number) => `Capa do volume ${volume}`;
 
@@ -859,8 +862,7 @@ const reorderChaptersWithinStructureGroup = (
     return indexes;
   }, []);
   const currentGroupIndex = groupIndexes.indexOf(targetIndex);
-  const nextGroupIndex =
-    direction === "up" ? currentGroupIndex - 1 : currentGroupIndex + 1;
+  const nextGroupIndex = direction === "up" ? currentGroupIndex - 1 : currentGroupIndex + 1;
 
   if (currentGroupIndex < 0 || nextGroupIndex < 0 || nextGroupIndex >= groupIndexes.length) {
     return null;
@@ -884,7 +886,9 @@ const normalizeProjectSnapshotChapterOrderForPersist = (
   const previousEpisodes = Array.isArray(previousProject?.episodeDownloads)
     ? previousProject.episodeDownloads
     : [];
-  const nextEpisodes = Array.isArray(nextProject.episodeDownloads) ? nextProject.episodeDownloads : [];
+  const nextEpisodes = Array.isArray(nextProject.episodeDownloads)
+    ? nextProject.episodeDownloads
+    : [];
 
   if (!hasExplicitReadingOrder(previousEpisodes)) {
     return nextProject;
@@ -1046,7 +1050,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       direction: "up" | "down";
     } | null>(null);
     const structureProjectSnapshot = useMemo(() => {
-      const nextProjectSnapshot = buildProjectSnapshotWithVolumeEntries(project, volumeEntriesDraft);
+      const nextProjectSnapshot = buildProjectSnapshotWithVolumeEntries(
+        project,
+        volumeEntriesDraft,
+      );
       return overlayDraftOnProject(nextProjectSnapshot, activeChapterKey, activeDraft);
     }, [activeChapterKey, activeDraft, project, volumeEntriesDraft]);
     const structureProjectSnapshotRef = useRef<ProjectRecord>(structureProjectSnapshot);
@@ -1062,8 +1069,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         draft.contentFormat,
         normalizedDraftPages.length > 0 ? "images" : "lexical",
       ) === "images";
-    const isPublishedImageChapterMissingPages =
-      isImageChapter && normalizedDraftPages.length === 0;
+    const isPublishedImageChapterMissingPages = isImageChapter && normalizedDraftPages.length === 0;
     const projectSnapshotForImageExport = useMemo(
       () => overlayDraftOnProject(project, activeChapterKey, draft),
       [activeChapterKey, draft, project],
@@ -1369,26 +1375,29 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       [hasActiveChapter, isDirty, isMangaProject, isVolumeDirty, isEditorRouteHref],
     );
 
-    const requestLeave = useCallback(async (options?: { nextHref?: string; routeExit?: boolean }) => {
-      if (bypassNextLeaveGuardRef.current) {
-        bypassNextLeaveGuardRef.current = false;
-        return true;
-      }
-      const chapterDirty = hasActiveChapter && isDirty;
-      const volumeDirty = isVolumeDirty;
-      const mangaWorkflowDirty =
-        (Boolean(options?.routeExit) ||
-          (!!options?.nextHref && !isEditorRouteHref(options.nextHref))) &&
-        isMangaProject &&
-        Boolean(mangaWorkflowRef.current?.hasUnsavedChanges());
-      if (!chapterDirty && !volumeDirty && !mangaWorkflowDirty) {
-        return true;
-      }
-      return await new Promise<boolean>((resolve) => {
-        leaveDialogResolversRef.current.push(resolve);
-        setLeaveDialogState({ chapterDirty, volumeDirty, mangaWorkflowDirty });
-      });
-    }, [hasActiveChapter, isDirty, isMangaProject, isVolumeDirty, isEditorRouteHref]);
+    const requestLeave = useCallback(
+      async (options?: { nextHref?: string; routeExit?: boolean }) => {
+        if (bypassNextLeaveGuardRef.current) {
+          bypassNextLeaveGuardRef.current = false;
+          return true;
+        }
+        const chapterDirty = hasActiveChapter && isDirty;
+        const volumeDirty = isVolumeDirty;
+        const mangaWorkflowDirty =
+          (Boolean(options?.routeExit) ||
+            (!!options?.nextHref && !isEditorRouteHref(options.nextHref))) &&
+          isMangaProject &&
+          Boolean(mangaWorkflowRef.current?.hasUnsavedChanges());
+        if (!chapterDirty && !volumeDirty && !mangaWorkflowDirty) {
+          return true;
+        }
+        return await new Promise<boolean>((resolve) => {
+          leaveDialogResolversRef.current.push(resolve);
+          setLeaveDialogState({ chapterDirty, volumeDirty, mangaWorkflowDirty });
+        });
+      },
+      [hasActiveChapter, isDirty, isMangaProject, isVolumeDirty, isEditorRouteHref],
+    );
 
     const handleLeaveDialogSaveAndContinue = useCallback(
       async (publicationStatus: "draft" | "published") => {
@@ -1801,10 +1810,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         setStructureChapterReorderState({ key: chapterKey, direction });
         onProjectChange(optimisticProject);
         try {
-          const persistedProject = await onPersistProjectSnapshot(
-            optimisticProject,
-            { context: "chapter-reorder" },
-          );
+          const persistedProject = await onPersistProjectSnapshot(optimisticProject, {
+            context: "chapter-reorder",
+          });
           if (!persistedProject) {
             onProjectChange(latestProjectSnapshot);
             return;
@@ -2426,30 +2434,30 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                         className="space-y-3"
                                         data-testid={`chapter-structure-episode-content-${episodeKey}`}
                                       >
-                                          <div
-                                            className="flex items-start justify-between gap-3"
-                                            data-testid={`chapter-structure-episode-header-${episodeKey}`}
-                                          >
-                                            <div className="min-w-0 space-y-1">
-                                              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                                Capítulo {episode.number}
-                                              </p>
-                                              <p className="line-clamp-2 text-sm font-semibold text-foreground">
-                                                {String(episode.title || "").trim() ||
-                                                  `Capítulo ${episode.number}`}
-                                              </p>
-                                            </div>
-                                            <Badge
-                                              variant={
-                                                episode.publicationStatus === "draft"
-                                                  ? "outline"
-                                                  : "secondary"
-                                              }
-                                              className="shrink-0 self-start"
-                                            >
-                                              {chapterStatusLabel(episode)}
-                                            </Badge>
+                                        <div
+                                          className="flex items-start justify-between gap-3"
+                                          data-testid={`chapter-structure-episode-header-${episodeKey}`}
+                                        >
+                                          <div className="min-w-0 space-y-1">
+                                            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                                              Capítulo {episode.number}
+                                            </p>
+                                            <p className="line-clamp-2 text-sm font-semibold text-foreground">
+                                              {String(episode.title || "").trim() ||
+                                                `Capítulo ${episode.number}`}
+                                            </p>
                                           </div>
+                                          <Badge
+                                            variant={
+                                              episode.publicationStatus === "draft"
+                                                ? "outline"
+                                                : "secondary"
+                                            }
+                                            className="shrink-0 self-start"
+                                          >
+                                            {chapterStatusLabel(episode)}
+                                          </Badge>
+                                        </div>
                                       </div>
                                       <div
                                         className="flex items-end justify-between gap-3"
@@ -2490,7 +2498,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                                     );
                                                   }}
                                                   disabled={
-                                                    !canMoveUp || Boolean(structureChapterReorderState)
+                                                    !canMoveUp ||
+                                                    Boolean(structureChapterReorderState)
                                                   }
                                                 >
                                                   {isReorderingEpisodeUp ? (
@@ -2611,7 +2620,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             </div>
           ) : null}
 
-          <div className="space-y-2">
+          <DashboardFieldStack>
             <Label htmlFor="chapter-title">Título</Label>
             <Input
               id="chapter-title"
@@ -2620,7 +2629,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 updateDraft((current) => ({ ...current, title: event.target.value }))
               }
             />
-          </div>
+          </DashboardFieldStack>
 
           <div
             className={cn(
@@ -2628,7 +2637,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               supportsEpubTools && !isImageChapter ? "xl:grid-cols-5" : "xl:grid-cols-4",
             )}
           >
-            <div className="space-y-2">
+            <DashboardFieldStack>
               <Label htmlFor="chapter-number">Capítulo</Label>
               <Input
                 id="chapter-number"
@@ -2644,8 +2653,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   }))
                 }
               />
-            </div>
-            <div className="space-y-2">
+            </DashboardFieldStack>
+            <DashboardFieldStack>
               <Label htmlFor="chapter-volume">Volume</Label>
               <Input
                 id="chapter-volume"
@@ -2664,8 +2673,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 }
                 placeholder="Sem volume"
               />
-            </div>
-            <div className="space-y-2">
+            </DashboardFieldStack>
+            <DashboardFieldStack>
               <Label>Tipo de entrada</Label>
               <Select
                 value={draft.entryKind === "extra" ? "extra" : "main"}
@@ -2690,9 +2699,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   <SelectItem value="extra">Extra</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </DashboardFieldStack>
             {!isImageChapter && !supportsEpubTools ? (
-              <div className="space-y-2">
+              <DashboardFieldStack>
                 <Label htmlFor="chapter-reading-order">Ordem de leitura</Label>
                 <Input
                   id="chapter-reading-order"
@@ -2706,10 +2715,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     }))
                   }
                 />
-              </div>
+              </DashboardFieldStack>
             ) : null}
             {supportsEpubTools && !isImageChapter ? (
-              <div className="space-y-2">
+              <DashboardFieldStack>
                 <Label htmlFor="chapter-release-date">Data de release</Label>
                 <Input
                   id="chapter-release-date"
@@ -2719,7 +2728,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     updateDraft((current) => ({ ...current, releaseDate: event.target.value }))
                   }
                 />
-              </div>
+              </DashboardFieldStack>
             ) : null}
           </div>
           <div className="hidden">
@@ -2734,7 +2743,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           </div>
           {draft.entryKind === "extra" ? (
             <div className="grid gap-3 lg:grid-cols-2">
-              <div className="space-y-2">
+              <DashboardFieldStack>
                 <Label htmlFor="chapter-display-label">Rótulo do extra</Label>
                 <Input
                   id="chapter-display-label"
@@ -2747,12 +2756,12 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   }
                   placeholder="Ex.: Side Story"
                 />
-              </div>
+              </DashboardFieldStack>
             </div>
           ) : null}
 
           {!isImageChapter ? (
-            <div className="space-y-2">
+            <DashboardFieldStack>
               <Label htmlFor="chapter-synopsis">Sinopse</Label>
               <Textarea
                 id="chapter-synopsis"
@@ -2762,7 +2771,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 }
                 rows={5}
               />
-            </div>
+            </DashboardFieldStack>
           ) : null}
         </div>
       </WorkspaceSectionCard>
@@ -2806,52 +2815,53 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       },
       [updateDraft],
     );
-    const publicationSection = hasActiveChapter && !isImageChapter && !supportsEpubTools ? (
-      <WorkspaceSectionCard
-        title="Publicação"
-        subtitle="Release, status atual e visibilidade do capitulo"
-        eyebrow="Operacao"
-        testId="chapter-publication-section"
-        actions={
-          <Badge
-            variant={draft.publicationStatus === "draft" ? "outline" : "default"}
-            className="text-[10px] uppercase tracking-[0.12em]"
-          >
-            {chapterStatusLabel(draft)}
-          </Badge>
-        }
-      >
-        <div className="grid gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="chapter-release-date">Data de release</Label>
-            <Input
-              id="chapter-release-date"
-              type="date"
-              value={draft.releaseDate || ""}
-              onChange={(event) =>
-                updateDraft((current) => ({ ...current, releaseDate: event.target.value }))
-              }
-            />
-          </div>
-          <div className="rounded-2xl border border-border/60 bg-background/40 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <Label className="text-sm">Status atual</Label>
-                <p className="text-xs text-muted-foreground">
-                  Use as ações do topo para publicar este capítulo ou voltar para rascunho.
-                </p>
+    const publicationSection =
+      hasActiveChapter && !isImageChapter && !supportsEpubTools ? (
+        <WorkspaceSectionCard
+          title="Publicação"
+          subtitle="Release, status atual e visibilidade do capitulo"
+          eyebrow="Operacao"
+          testId="chapter-publication-section"
+          actions={
+            <Badge
+              variant={draft.publicationStatus === "draft" ? "outline" : "default"}
+              className="text-[10px] uppercase tracking-[0.12em]"
+            >
+              {chapterStatusLabel(draft)}
+            </Badge>
+          }
+        >
+          <div className="grid gap-4">
+            <DashboardFieldStack>
+              <Label htmlFor="chapter-release-date">Data de release</Label>
+              <Input
+                id="chapter-release-date"
+                type="date"
+                value={draft.releaseDate || ""}
+                onChange={(event) =>
+                  updateDraft((current) => ({ ...current, releaseDate: event.target.value }))
+                }
+              />
+            </DashboardFieldStack>
+            <div className="rounded-2xl border border-border/60 bg-background/40 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <Label className="text-sm">Status atual</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Use as ações do topo para publicar este capítulo ou voltar para rascunho.
+                  </p>
+                </div>
+                <Badge
+                  variant={draft.publicationStatus === "draft" ? "outline" : "default"}
+                  className="text-[10px] uppercase tracking-[0.12em]"
+                >
+                  {chapterStatusLabel(draft)}
+                </Badge>
               </div>
-              <Badge
-                variant={draft.publicationStatus === "draft" ? "outline" : "default"}
-                className="text-[10px] uppercase tracking-[0.12em]"
-              >
-                {chapterStatusLabel(draft)}
-              </Badge>
             </div>
           </div>
-        </div>
-      </WorkspaceSectionCard>
-    ) : null;
+        </WorkspaceSectionCard>
+      ) : null;
     const progressSection =
       supportsChapterProgress && chapterProgressState ? (
         <WorkspaceSectionCard
@@ -3180,7 +3190,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     Selecione a capa do volume pela biblioteca para manter a pasta dedicada
                     organizada.
                   </p>
-                  <div className="space-y-2">
+                  <DashboardFieldStack>
                     <Label htmlFor="chapter-volume-cover-alt">Texto alternativo</Label>
                     <Input
                       id="chapter-volume-cover-alt"
@@ -3193,10 +3203,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                       }
                       placeholder={buildVolumeCoverAltFallback(selectedVolumeNumber)}
                     />
-                  </div>
+                  </DashboardFieldStack>
                 </div>
               </div>
-              <div className="space-y-2">
+              <DashboardFieldStack>
                 <Label htmlFor="chapter-volume-synopsis">Sinopse do volume</Label>
                 <Textarea
                   id="chapter-volume-synopsis"
@@ -3210,7 +3220,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   rows={5}
                   placeholder="Resumo exibido nas páginas públicas para este volume"
                 />
-              </div>
+              </DashboardFieldStack>
               {selectedVolumeChapterCount === 0 ? (
                 <div className="rounded-[20px] border border-dashed border-border/60 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
                   Nenhum capítulo vinculado a este volume.
@@ -3397,7 +3407,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               </div>
             ) : null}
 
-            <div className="space-y-2">
+            <DashboardFieldStack>
               <Label htmlFor="chapter-title-image">Título</Label>
               <Input
                 id="chapter-title-image"
@@ -3407,10 +3417,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 }
                 className="w-full"
               />
-            </div>
+            </DashboardFieldStack>
 
             <div className="flex flex-wrap gap-3" data-testid="chapter-image-compact-fields">
-              <div className="space-y-2">
+              <DashboardFieldStack>
                 <Label htmlFor="chapter-volume-image">Volume</Label>
                 <Input
                   id="chapter-volume-image"
@@ -3430,8 +3440,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   placeholder="Sem volume"
                   className="w-full sm:w-[132px]"
                 />
-              </div>
-              <div className="space-y-2">
+              </DashboardFieldStack>
+              <DashboardFieldStack>
                 <Label htmlFor="chapter-number-image">Capítulo</Label>
                 <Input
                   id="chapter-number-image"
@@ -3448,8 +3458,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   }
                   className="w-full sm:w-[132px]"
                 />
-              </div>
-              <div className="space-y-2 sm:min-w-[180px]">
+              </DashboardFieldStack>
+              <DashboardFieldStack className="sm:min-w-[180px]">
                 <Label>Tipo de entrada</Label>
                 <Select
                   value={draft.entryKind === "extra" ? "extra" : "main"}
@@ -3474,12 +3484,12 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     <SelectItem value="extra">Extra</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </DashboardFieldStack>
             </div>
 
             {draft.entryKind === "extra" ? (
               <div className="grid gap-3 lg:grid-cols-2">
-                <div className="space-y-2">
+                <DashboardFieldStack>
                   <Label htmlFor="chapter-display-label-image">Rótulo do extra</Label>
                   <Input
                     id="chapter-display-label-image"
@@ -3492,11 +3502,11 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     }
                     placeholder="Ex.: Side Story"
                   />
-                </div>
+                </DashboardFieldStack>
               </div>
             ) : null}
 
-            <div className="space-y-2">
+            <DashboardFieldStack>
               <Label htmlFor="chapter-synopsis-image">Sinopse</Label>
               <Textarea
                 id="chapter-synopsis-image"
@@ -3506,7 +3516,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 }
                 rows={4}
               />
-            </div>
+            </DashboardFieldStack>
           </div>
         </WorkspaceSectionCard>
       ) : null;
@@ -3543,7 +3553,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               </div>
             ) : null}
 
-            <div className="space-y-2">
+            <DashboardFieldStack>
               <Label htmlFor="chapter-title-standard">Título</Label>
               <Input
                 id="chapter-title-standard"
@@ -3553,10 +3563,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 }
                 className="w-full"
               />
-            </div>
+            </DashboardFieldStack>
 
             <div className="flex flex-wrap gap-3" data-testid="chapter-standard-compact-fields">
-              <div className="space-y-2">
+              <DashboardFieldStack>
                 <Label htmlFor="chapter-number-standard">Capítulo</Label>
                 <Input
                   id="chapter-number-standard"
@@ -3573,8 +3583,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   }
                   className="w-full sm:w-[132px]"
                 />
-              </div>
-              <div className="space-y-2">
+              </DashboardFieldStack>
+              <DashboardFieldStack>
                 <Label htmlFor="chapter-volume-standard">Volume</Label>
                 <Input
                   id="chapter-volume-standard"
@@ -3594,8 +3604,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   placeholder="Sem volume"
                   className="w-full sm:w-[132px]"
                 />
-              </div>
-              <div className="space-y-2 sm:min-w-[180px]">
+              </DashboardFieldStack>
+              <DashboardFieldStack className="sm:min-w-[180px]">
                 <Label>Tipo de entrada</Label>
                 <Select
                   value={draft.entryKind === "extra" ? "extra" : "main"}
@@ -3620,9 +3630,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     <SelectItem value="extra">Extra</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </DashboardFieldStack>
               {!supportsEpubTools ? (
-                <div className="space-y-2">
+                <DashboardFieldStack>
                   <Label htmlFor="chapter-reading-order-standard">Ordem de leitura</Label>
                   <Input
                     id="chapter-reading-order-standard"
@@ -3637,13 +3647,13 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     }
                     className="w-full sm:w-[148px]"
                   />
-                </div>
+                </DashboardFieldStack>
               ) : null}
             </div>
 
             {draft.entryKind === "extra" ? (
               <div className="grid gap-3 lg:grid-cols-2">
-                <div className="space-y-2">
+                <DashboardFieldStack>
                   <Label htmlFor="chapter-display-label-standard">Rótulo do extra</Label>
                   <Input
                     id="chapter-display-label-standard"
@@ -3656,11 +3666,11 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     }
                     placeholder="Ex.: Side Story"
                   />
-                </div>
+                </DashboardFieldStack>
               </div>
             ) : null}
 
-            <div className="space-y-2">
+            <DashboardFieldStack>
               <Label htmlFor="chapter-synopsis-standard">Sinopse</Label>
               <Textarea
                 id="chapter-synopsis-standard"
@@ -3671,7 +3681,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 rows={5}
                 className="w-full"
               />
-            </div>
+            </DashboardFieldStack>
           </div>
         </WorkspaceSectionCard>
       ) : null;
@@ -3716,18 +3726,16 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           </div>
         </WorkspaceSectionCard>
       ) : null;
-    const chapterTopAsideSection = hasActiveChapter
-      ? isImageChapter
-        ? progressSection
-        : publicationSection || progressSection
-          ? (
-              <div className="space-y-4" data-testid="chapter-workspace-aside-column">
-                {publicationSection}
-                {progressSection}
-              </div>
-            )
-          : null
-      : null;
+    const chapterTopAsideSection = hasActiveChapter ? (
+      isImageChapter ? (
+        progressSection
+      ) : publicationSection || progressSection ? (
+        <div className="space-y-4" data-testid="chapter-workspace-aside-column">
+          {publicationSection}
+          {progressSection}
+        </div>
+      ) : null
+    ) : null;
     return (
       <>
         <div className="space-y-3" data-testid="chapter-editor-header-shell">
@@ -5561,8 +5569,7 @@ const DashboardProjectChapterEditor = () => {
     ) => {
       const canLeave = await editorPaneRef.current?.requestLeave?.({
         nextHref: href,
-        routeExit:
-          options?.forceRouteExit === true ? true : !isChapterEditorRouteHref(href),
+        routeExit: options?.forceRouteExit === true ? true : !isChapterEditorRouteHref(href),
       });
       if (canLeave === false) {
         return false;
@@ -5634,7 +5641,9 @@ const DashboardProjectChapterEditor = () => {
       if (!resolvedHref || isChapterEditorRouteHref(resolvedHref)) {
         return;
       }
-      if (!editorPaneRef.current?.hasUnsavedChanges?.({ nextHref: resolvedHref, routeExit: true })) {
+      if (
+        !editorPaneRef.current?.hasUnsavedChanges?.({ nextHref: resolvedHref, routeExit: true })
+      ) {
         return;
       }
       event.preventDefault();
@@ -6147,13 +6156,7 @@ const DashboardProjectChapterEditor = () => {
         intent: "success",
       });
     },
-    [
-      chapterSearchQuery,
-      filterMode,
-      navigate,
-      normalizeChapterForEditor,
-      persistProjectSnapshot,
-    ],
+    [chapterSearchQuery, filterMode, navigate, normalizeChapterForEditor, persistProjectSnapshot],
   );
 
   const openEpubImportPicker = useCallback(
@@ -7040,4 +7043,3 @@ const DashboardProjectChapterEditor = () => {
 };
 
 export default DashboardProjectChapterEditor;
-

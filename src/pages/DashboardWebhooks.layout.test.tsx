@@ -254,7 +254,7 @@ describe("DashboardWebhooks layout", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("heading", { name: /Webhooks editoriais/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Webhooks/i })).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-webhooks-section-types")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-webhooks-section-posts")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-webhooks-section-projects")).toBeInTheDocument();
@@ -264,14 +264,7 @@ describe("DashboardWebhooks layout", () => {
     );
     expect(
       classTokens(screen.getByTestId("dashboard-webhooks-general-role-placeholder-field")),
-    ).toContain("space-y-2.5");
-    expect(
-      classTokens(
-        within(screen.getByTestId("dashboard-webhooks-general-role-placeholder-field")).getByText(
-          /Role geral de lan/i,
-        ),
-      ),
-    ).toContain("leading-tight");
+    ).toContain("gap-2");
     expect(screen.getByTestId("dashboard-webhooks-placeholder-posts")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-webhooks-placeholder-projects")).toBeInTheDocument();
     const placeholderTypeCard = screen
@@ -302,15 +295,8 @@ describe("DashboardWebhooks layout", () => {
     });
     expect(screen.getByTestId("dashboard-webhooks-section-content-types")).toBeInTheDocument();
     expect(classTokens(screen.getByTestId("dashboard-webhooks-general-role-field"))).toContain(
-      "space-y-2.5",
+      "gap-2",
     );
-    expect(
-      classTokens(
-        within(screen.getByTestId("dashboard-webhooks-general-role-field")).getByText(
-          /Role geral de lan/i,
-        ),
-      ),
-    ).toContain("leading-tight");
   });
 
   it("reabre com cache quente e preserva o editor quando o refresh falha", async () => {
@@ -355,7 +341,7 @@ describe("DashboardWebhooks layout", () => {
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: "Atualizando webhooks editoriais",
+          title: "Atualizando Webhooks",
           intent: "info",
         }),
       );
@@ -380,7 +366,7 @@ describe("DashboardWebhooks layout", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: /Webhooks editoriais/i });
+    await screen.findByRole("heading", { name: /Webhooks/i });
     await screen.findByText(/Role geral de lan/i);
 
     expect(screen.getByRole("button", { name: /^Salvar$/i })).toBeInTheDocument();
@@ -458,7 +444,7 @@ describe("DashboardWebhooks layout", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: /Webhooks editoriais/i });
+    await screen.findByRole("heading", { name: /Webhooks/i });
     expect(screen.queryByText(/Acesso negado/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Role geral de lan/i)).toBeInTheDocument();
   });
@@ -472,7 +458,7 @@ describe("DashboardWebhooks layout", () => {
       </MemoryRouter>,
     );
 
-    const heading = await screen.findByRole("heading", { name: /Webhooks editoriais/i });
+    const heading = await screen.findByRole("heading", { name: /Webhooks/i });
     await screen.findByText(/Role geral de lan/i);
 
     const rootSection = heading.closest("section");
@@ -505,7 +491,7 @@ describe("DashboardWebhooks layout", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: /Webhooks editoriais/i });
+    await screen.findByRole("heading", { name: /Webhooks/i });
     await screen.findByText(/Role geral de lan/i);
 
     const typesSection = screen.getByTestId("dashboard-webhooks-section-types");
@@ -547,7 +533,7 @@ describe("DashboardWebhooks layout", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: /Webhooks editoriais/i });
+    await screen.findByRole("heading", { name: /Webhooks/i });
 
     const roleInputs = screen.getAllByPlaceholderText("ID do cargo do Discord");
     fireEvent.change(roleInputs[0], { target: { value: "123456" } });
@@ -607,7 +593,7 @@ describe("DashboardWebhooks layout", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: /Webhooks editoriais/i });
+    await screen.findByRole("heading", { name: /Webhooks/i });
     fireEvent.click(screen.getByRole("button", { name: /Novo lan/i }));
     fireEvent.click(screen.getByRole("button", { name: /Enviar teste/i }));
 

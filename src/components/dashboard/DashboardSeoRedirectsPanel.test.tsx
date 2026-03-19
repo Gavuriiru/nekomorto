@@ -133,6 +133,25 @@ describe("DashboardSeoRedirectsPanel", () => {
     });
     expect(getPutCalls()).toHaveLength(0);
   });
+
+  it("mantem o label no stack default e a mensagem de erro no stack compacto", async () => {
+    render(<DashboardSeoRedirectsPanel />);
+
+    await screen.findByRole("heading", { name: /SEO e redirecionamentos/i });
+
+    fireEvent.click(screen.getByRole("button", { name: /Nova regra/i }));
+    const fromInput = await screen.findByPlaceholderText("/url-antiga");
+    fireEvent.change(fromInput, { target: { value: "url-invalida" } });
+    fireEvent.click(screen.getByRole("button", { name: /Salvar SEO/i }));
+
+    const errorMessage = await screen.findByText(
+      /A origem precisa ser um caminho interno iniciado por/i,
+    );
+
+    expect(fromInput.parentElement?.className).toContain("gap-2");
+    expect(fromInput.parentElement?.parentElement?.className).toContain("gap-2");
+    expect(errorMessage.parentElement).toBe(fromInput.parentElement);
+  });
 });
 
 type SeoRedirectLike = {

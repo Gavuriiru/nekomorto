@@ -3,6 +3,7 @@ import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import ReorderControls from "@/components/ReorderControls";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import ProjectMemberCombobox from "@/components/dashboard/ProjectMemberCombobox";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
@@ -4386,12 +4387,7 @@ const DashboardProjectsEditor = () => {
                                 </p>
                               </div>
                               <div className="relative z-20 flex shrink-0 flex-wrap items-center justify-end gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title="Editor dedicado"
-                                  asChild
-                                >
+                                <Button variant="ghost" size="icon" title="Editor dedicado" asChild>
                                   <Link
                                     to={dedicatedEditorHref}
                                     aria-label={`Abrir editor dedicado de ${project.title}`}
@@ -4677,7 +4673,7 @@ const DashboardProjectsEditor = () => {
                     <AccordionContent className={editorSectionContentClassName}>
                       <div className="space-y-5">
                         <div className="grid gap-4 md:grid-cols-[1fr_auto]">
-                          <div className="space-y-2">
+                          <DashboardFieldStack>
                             <Label htmlFor="anilist-id-input">ID ou URL do AniList</Label>
                             <Input
                               id="anilist-id-input"
@@ -4685,7 +4681,7 @@ const DashboardProjectsEditor = () => {
                               onChange={(event) => setAnilistIdInput(event.target.value)}
                               placeholder="Ex.: 21366 ou https://anilist.co/manga/97894/..."
                             />
-                          </div>
+                          </DashboardFieldStack>
                           <Button className="self-end" onClick={handleImportAniList}>
                             Importar do AniList
                           </Button>
@@ -4714,7 +4710,7 @@ const DashboardProjectsEditor = () => {
                           </div>
 
                           <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
+                            <DashboardFieldStack>
                               <Label>Direção</Label>
                               <Select
                                 value={readerConfigDraft.direction}
@@ -4743,9 +4739,9 @@ const DashboardProjectsEditor = () => {
                                   </SelectItem>
                                 </SelectContent>
                               </Select>
-                            </div>
+                            </DashboardFieldStack>
 
-                            <div className="space-y-2">
+                            <DashboardFieldStack>
                               <Label>Modo de leitura</Label>
                               <Select
                                 value={readerConfigDraft.viewMode}
@@ -4774,9 +4770,9 @@ const DashboardProjectsEditor = () => {
                                   </SelectItem>
                                 </SelectContent>
                               </Select>
-                            </div>
+                            </DashboardFieldStack>
 
-                            <div className="space-y-2">
+                            <DashboardFieldStack>
                               <Label htmlFor="reader-preview-limit">Limite de preview</Label>
                               <Input
                                 id="reader-preview-limit"
@@ -4797,9 +4793,9 @@ const DashboardProjectsEditor = () => {
                                 }}
                                 placeholder="Opcional"
                               />
-                            </div>
+                            </DashboardFieldStack>
 
-                            <div className="space-y-2">
+                            <DashboardFieldStack>
                               <Label htmlFor="reader-theme-preset">Preset visual</Label>
                               <Input
                                 id="reader-theme-preset"
@@ -4815,7 +4811,7 @@ const DashboardProjectsEditor = () => {
                                 }
                                 placeholder="manga, webtoon, custom..."
                               />
-                            </div>
+                            </DashboardFieldStack>
                           </div>
 
                           <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -4914,7 +4910,7 @@ const DashboardProjectsEditor = () => {
                             </p>
                           </div>
                           <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
+                            <DashboardFieldStack>
                               <Label>ID do projeto</Label>
                               <Input
                                 value={formState.id}
@@ -4931,8 +4927,8 @@ const DashboardProjectsEditor = () => {
                                 }}
                                 placeholder="Mesmo ID do AniList ou slug manual"
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Título</Label>
                               <Input
                                 value={formState.title}
@@ -4940,8 +4936,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, title: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Título original</Label>
                               <Input
                                 value={formState.titleOriginal}
@@ -4952,8 +4948,8 @@ const DashboardProjectsEditor = () => {
                                   }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Título em inglês</Label>
                               <Input
                                 value={formState.titleEnglish}
@@ -4964,7 +4960,7 @@ const DashboardProjectsEditor = () => {
                                   }))
                                 }
                               />
-                            </div>
+                            </DashboardFieldStack>
                             <div className="flex items-center justify-between gap-4">
                               <Label htmlFor="force-hero-switch">Forçar no carrossel</Label>
                               <Switch
@@ -4975,7 +4971,7 @@ const DashboardProjectsEditor = () => {
                                 }
                               />
                             </div>
-                            <div className="space-y-2 md:col-span-2">
+                            <DashboardFieldStack className="md:col-span-2">
                               <Label>Sinopse</Label>
                               <Textarea
                                 value={formState.synopsis}
@@ -4987,7 +4983,7 @@ const DashboardProjectsEditor = () => {
                                 }
                                 rows={6}
                               />
-                            </div>
+                            </DashboardFieldStack>
                           </div>
                         </section>
 
@@ -5001,7 +4997,7 @@ const DashboardProjectsEditor = () => {
                             </p>
                           </div>
                           <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
+                            <DashboardFieldStack>
                               <Label>Tags</Label>
                               <div className="flex flex-wrap items-center gap-2">
                                 <Input
@@ -5047,8 +5043,8 @@ const DashboardProjectsEditor = () => {
                                   </Badge>
                                 ))}
                               </div>
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Gêneros</Label>
                               <div className="flex flex-wrap items-center gap-2">
                                 <Input
@@ -5094,7 +5090,7 @@ const DashboardProjectsEditor = () => {
                                   </Badge>
                                 ))}
                               </div>
-                            </div>
+                            </DashboardFieldStack>
                           </div>
                         </section>
 
@@ -5108,7 +5104,7 @@ const DashboardProjectsEditor = () => {
                             </p>
                           </div>
                           <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
+                            <DashboardFieldStack>
                               <Label>Formato</Label>
                               <Select
                                 value={formState.type}
@@ -5127,8 +5123,8 @@ const DashboardProjectsEditor = () => {
                                   ))}
                                 </SelectContent>
                               </Select>
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Status</Label>
                               <Select
                                 value={formState.status}
@@ -5147,8 +5143,8 @@ const DashboardProjectsEditor = () => {
                                   ))}
                                 </SelectContent>
                               </Select>
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Ano</Label>
                               <Input
                                 value={formState.year}
@@ -5156,8 +5152,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, year: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Temporada</Label>
                               <Input
                                 value={formState.season}
@@ -5165,8 +5161,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, season: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Estúdio</Label>
                               <Input
                                 value={formState.studio}
@@ -5174,8 +5170,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, studio: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Episódios/Capítulos</Label>
                               <Input
                                 value={formState.episodes}
@@ -5186,8 +5182,8 @@ const DashboardProjectsEditor = () => {
                                   }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>País de origem</Label>
                               <Input
                                 value={formState.country}
@@ -5195,8 +5191,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, country: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Fonte</Label>
                               <Input
                                 value={formState.source}
@@ -5204,8 +5200,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, source: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Cargo Discord (ID)</Label>
                               <Input
                                 value={formState.discordRoleId || ""}
@@ -5217,7 +5213,7 @@ const DashboardProjectsEditor = () => {
                                 }
                                 placeholder="Opcional: ID numerico do cargo"
                               />
-                            </div>
+                            </DashboardFieldStack>
                           </div>
                         </section>
                         <section
@@ -5232,7 +5228,7 @@ const DashboardProjectsEditor = () => {
                             </p>
                           </div>
                           <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
+                            <DashboardFieldStack>
                               <Label>Estúdio principal</Label>
                               <Input
                                 className={adjacentMetadataInputClassName}
@@ -5241,8 +5237,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, studio: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Produtoras</Label>
                               <Input
                                 className={adjacentMetadataInputClassName}
@@ -5256,8 +5252,8 @@ const DashboardProjectsEditor = () => {
                                 }}
                                 placeholder="Adicionar produtora e pressionar Enter"
                               />
-                            </div>
-                            <div className="space-y-2 md:col-span-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack className="md:col-span-2">
                               <Label>Estúdios de animação</Label>
                               <Input
                                 className={adjacentMetadataInputClassName}
@@ -5283,7 +5279,7 @@ const DashboardProjectsEditor = () => {
                                   </Badge>
                                 ))}
                               </div>
-                            </div>
+                            </DashboardFieldStack>
                             <div className="space-y-2 md:col-span-2">
                               <Label>Lista atual de produtoras</Label>
                               <div className="flex flex-wrap gap-2">
@@ -5315,7 +5311,7 @@ const DashboardProjectsEditor = () => {
                     </AccordionTrigger>
                     <AccordionContent className={editorSectionContentClassName}>
                       <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
+                        <DashboardFieldStack>
                           <Label>Tags</Label>
                           <div className="flex flex-wrap items-center gap-2">
                             <Input
@@ -5361,8 +5357,8 @@ const DashboardProjectsEditor = () => {
                               </Badge>
                             ))}
                           </div>
-                        </div>
-                        <div className="space-y-2">
+                        </DashboardFieldStack>
+                        <DashboardFieldStack>
                           <Label>Gêneros</Label>
                           <div className="flex flex-wrap items-center gap-2">
                             <Input
@@ -5408,7 +5404,7 @@ const DashboardProjectsEditor = () => {
                               </Badge>
                             ))}
                           </div>
-                        </div>
+                        </DashboardFieldStack>
                           </div>
                         </section>
 
@@ -5422,7 +5418,7 @@ const DashboardProjectsEditor = () => {
                             </p>
                           </div>
                           <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
+                            <DashboardFieldStack>
                               <Label>Tags</Label>
                               <div className="flex flex-wrap items-center gap-2">
                                 <Input
@@ -5468,8 +5464,8 @@ const DashboardProjectsEditor = () => {
                                   </Badge>
                                 ))}
                               </div>
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Gêneros</Label>
                               <div className="flex flex-wrap items-center gap-2">
                                 <Input
@@ -5515,7 +5511,7 @@ const DashboardProjectsEditor = () => {
                                   </Badge>
                                 ))}
                               </div>
-                            </div>
+                            </DashboardFieldStack>
                           </div>
                         </section>
 
@@ -5529,7 +5525,7 @@ const DashboardProjectsEditor = () => {
                             </p>
                           </div>
                           <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
+                            <DashboardFieldStack>
                               <Label>Formato</Label>
                               <Select
                                 value={formState.type}
@@ -5548,8 +5544,8 @@ const DashboardProjectsEditor = () => {
                                   ))}
                                 </SelectContent>
                               </Select>
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Status</Label>
                               <Select
                                 value={formState.status}
@@ -5568,8 +5564,8 @@ const DashboardProjectsEditor = () => {
                                   ))}
                                 </SelectContent>
                               </Select>
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Ano</Label>
                               <Input
                                 value={formState.year}
@@ -5577,8 +5573,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, year: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Temporada</Label>
                               <Input
                                 value={formState.season}
@@ -5586,8 +5582,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, season: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Estúdio</Label>
                               <Input
                                 value={formState.studio}
@@ -5595,8 +5591,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, studio: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Episódios/Capítulos</Label>
                               <Input
                                 value={formState.episodes}
@@ -5604,8 +5600,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, episodes: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>País de origem</Label>
                               <Input
                                 value={formState.country}
@@ -5613,8 +5609,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, country: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Fonte</Label>
                               <Input
                                 value={formState.source}
@@ -5622,8 +5618,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, source: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Cargo Discord (ID)</Label>
                               <Input
                                 value={formState.discordRoleId || ""}
@@ -5635,7 +5631,7 @@ const DashboardProjectsEditor = () => {
                                 }
                                 placeholder="Opcional: ID numerico do cargo"
                               />
-                            </div>
+                            </DashboardFieldStack>
                           </div>
                         </section>
                           </div>
@@ -5651,7 +5647,7 @@ const DashboardProjectsEditor = () => {
                             </p>
                           </div>
                           <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
+                            <DashboardFieldStack>
                               <Label>Tags</Label>
                               <div className="flex flex-wrap items-center gap-2">
                                 <Input
@@ -5697,8 +5693,8 @@ const DashboardProjectsEditor = () => {
                                   </Badge>
                                 ))}
                               </div>
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Gêneros</Label>
                               <div className="flex flex-wrap items-center gap-2">
                                 <Input
@@ -5744,7 +5740,7 @@ const DashboardProjectsEditor = () => {
                                   </Badge>
                                 ))}
                               </div>
-                            </div>
+                            </DashboardFieldStack>
                           </div>
                         </section>
 
@@ -5758,7 +5754,7 @@ const DashboardProjectsEditor = () => {
                             </p>
                           </div>
                           <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
+                            <DashboardFieldStack>
                               <Label>Formato</Label>
                               <Select
                                 value={formState.type}
@@ -5777,8 +5773,8 @@ const DashboardProjectsEditor = () => {
                                   ))}
                                 </SelectContent>
                               </Select>
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Status</Label>
                               <Select
                                 value={formState.status}
@@ -5797,8 +5793,8 @@ const DashboardProjectsEditor = () => {
                                   ))}
                                 </SelectContent>
                               </Select>
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Ano</Label>
                               <Input
                                 value={formState.year}
@@ -5806,8 +5802,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, year: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Temporada</Label>
                               <Input
                                 value={formState.season}
@@ -5815,8 +5811,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, season: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Estúdio</Label>
                               <Input
                                 value={formState.studio}
@@ -5824,8 +5820,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, studio: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Episódios/Capítulos</Label>
                               <Input
                                 value={formState.episodes}
@@ -5833,8 +5829,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, episodes: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>País de origem</Label>
                               <Input
                                 value={formState.country}
@@ -5842,8 +5838,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, country: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Fonte</Label>
                               <Input
                                 value={formState.source}
@@ -5851,8 +5847,8 @@ const DashboardProjectsEditor = () => {
                                   setFormState((prev) => ({ ...prev, source: event.target.value }))
                                 }
                               />
-                            </div>
-                            <div className="space-y-2">
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
                               <Label>Cargo Discord (ID)</Label>
                               <Input
                                 value={formState.discordRoleId || ""}
@@ -5864,7 +5860,7 @@ const DashboardProjectsEditor = () => {
                                 }
                                 placeholder="Opcional: ID numerico do cargo"
                               />
-                            </div>
+                            </DashboardFieldStack>
                           </div>
                         </section>
                       </div>
@@ -5882,7 +5878,7 @@ const DashboardProjectsEditor = () => {
                     </AccordionTrigger>
                     <AccordionContent className={editorSectionContentClassName}>
                       <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
+                        <DashboardFieldStack>
                           <Label>Formato</Label>
                           <Select
                             value={formState.type}
@@ -5901,8 +5897,8 @@ const DashboardProjectsEditor = () => {
                               ))}
                             </SelectContent>
                           </Select>
-                        </div>
-                        <div className="space-y-2">
+                        </DashboardFieldStack>
+                        <DashboardFieldStack>
                           <Label>Status</Label>
                           <Select
                             value={formState.status}
@@ -5921,8 +5917,8 @@ const DashboardProjectsEditor = () => {
                               ))}
                             </SelectContent>
                           </Select>
-                        </div>
-                        <div className="space-y-2">
+                        </DashboardFieldStack>
+                        <DashboardFieldStack>
                           <Label>Ano</Label>
                           <Input
                             value={formState.year}
@@ -5930,8 +5926,8 @@ const DashboardProjectsEditor = () => {
                               setFormState((prev) => ({ ...prev, year: event.target.value }))
                             }
                           />
-                        </div>
-                        <div className="space-y-2">
+                        </DashboardFieldStack>
+                        <DashboardFieldStack>
                           <Label>Temporada</Label>
                           <Input
                             value={formState.season}
@@ -5939,8 +5935,8 @@ const DashboardProjectsEditor = () => {
                               setFormState((prev) => ({ ...prev, season: event.target.value }))
                             }
                           />
-                        </div>
-                        <div className="space-y-2">
+                        </DashboardFieldStack>
+                        <DashboardFieldStack>
                           <Label>Estúdio</Label>
                           <Input
                             value={formState.studio}
@@ -5948,8 +5944,8 @@ const DashboardProjectsEditor = () => {
                               setFormState((prev) => ({ ...prev, studio: event.target.value }))
                             }
                           />
-                        </div>
-                        <div className="space-y-2">
+                        </DashboardFieldStack>
+                        <DashboardFieldStack>
                           <Label>Episódios/Capítulos</Label>
                           <Input
                             value={formState.episodes}
@@ -5957,8 +5953,8 @@ const DashboardProjectsEditor = () => {
                               setFormState((prev) => ({ ...prev, episodes: event.target.value }))
                             }
                           />
-                        </div>
-                        <div className="space-y-2">
+                        </DashboardFieldStack>
+                        <DashboardFieldStack>
                           <Label>País de origem</Label>
                           <Input
                             value={formState.country}
@@ -5966,8 +5962,8 @@ const DashboardProjectsEditor = () => {
                               setFormState((prev) => ({ ...prev, country: event.target.value }))
                             }
                           />
-                        </div>
-                        <div className="space-y-2">
+                        </DashboardFieldStack>
+                        <DashboardFieldStack>
                           <Label>Fonte</Label>
                           <Input
                             value={formState.source}
@@ -5975,8 +5971,8 @@ const DashboardProjectsEditor = () => {
                               setFormState((prev) => ({ ...prev, source: event.target.value }))
                             }
                           />
-                        </div>
-                        <div className="space-y-2">
+                        </DashboardFieldStack>
+                        <DashboardFieldStack>
                           <Label>Cargo Discord (ID)</Label>
                           <Input
                             value={formState.discordRoleId || ""}
@@ -5988,7 +5984,7 @@ const DashboardProjectsEditor = () => {
                             }
                             placeholder="Opcional: ID numerico do cargo"
                           />
-                        </div>
+                        </DashboardFieldStack>
                       </div>
                     </AccordionContent>
                   </AccordionItem>
@@ -6315,7 +6311,7 @@ const DashboardProjectsEditor = () => {
                                   </div>
                                   <div className="grid gap-3 xl:grid-cols-2">
                                     <div className="flex flex-wrap items-end gap-2">
-                                      <div className="space-y-2">
+                                      <DashboardFieldStack>
                                         <Label className="text-xs">Origem</Label>
                                         <Select
                                           value={animeBatchOperationSourceType}
@@ -6334,7 +6330,7 @@ const DashboardProjectsEditor = () => {
                                             <SelectItem value="Blu-ray">Blu-ray</SelectItem>
                                           </SelectContent>
                                         </Select>
-                                      </div>
+                                      </DashboardFieldStack>
                                       <Button
                                         type="button"
                                         size="sm"
@@ -6343,7 +6339,7 @@ const DashboardProjectsEditor = () => {
                                       >
                                         Aplicar origem
                                       </Button>
-                                      <div className="space-y-2">
+                                      <DashboardFieldStack>
                                         <Label className="text-xs">Status</Label>
                                         <Select
                                           value={animeBatchOperationPublicationStatus}
@@ -6361,7 +6357,7 @@ const DashboardProjectsEditor = () => {
                                             <SelectItem value="published">Publicado</SelectItem>
                                           </SelectContent>
                                         </Select>
-                                      </div>
+                                      </DashboardFieldStack>
                                       <Button
                                         type="button"
                                         size="sm"
@@ -6372,7 +6368,7 @@ const DashboardProjectsEditor = () => {
                                       </Button>
                                     </div>
                                     <div className="flex flex-wrap items-end gap-2">
-                                      <div className="space-y-2">
+                                      <DashboardFieldStack>
                                         <Label className="text-xs">DuraÃ§Ã£o</Label>
                                         <Input
                                           value={animeBatchOperationDuration}
@@ -6384,7 +6380,7 @@ const DashboardProjectsEditor = () => {
                                           placeholder="MM:SS ou H:MM:SS"
                                           className="w-[180px]"
                                         />
-                                      </div>
+                                      </DashboardFieldStack>
                                       <Button
                                         type="button"
                                         size="sm"
@@ -6393,7 +6389,7 @@ const DashboardProjectsEditor = () => {
                                       >
                                         Aplicar duraÃ§Ã£o
                                       </Button>
-                                      <div className="space-y-2">
+                                      <DashboardFieldStack>
                                         <Label className="text-xs">Deslocar datas</Label>
                                         <Input
                                           type="number"
@@ -6404,7 +6400,7 @@ const DashboardProjectsEditor = () => {
                                           placeholder="Dias"
                                           className="w-[110px]"
                                         />
-                                      </div>
+                                      </DashboardFieldStack>
                                       <Button
                                         type="button"
                                         size="sm"
@@ -6415,7 +6411,7 @@ const DashboardProjectsEditor = () => {
                                       </Button>
                                     </div>
                                   </div>
-                                  <div className="space-y-2">
+                                  <DashboardFieldStack>
                                     <Label className="text-xs">Etapas concluÃ­das</Label>
                                     <div className="flex flex-wrap gap-2">
                                       {stageOptions.map((stage) => {
@@ -6456,7 +6452,7 @@ const DashboardProjectsEditor = () => {
                                         Replicar fontes
                                       </Button>
                                     </div>
-                                  </div>
+                                  </DashboardFieldStack>
                                 </div>
                               ) : null}
                               {removedAnimeEpisode ? (
@@ -6590,7 +6586,7 @@ const DashboardProjectsEditor = () => {
                                               Biblioteca
                                             </Button>
                                           </div>
-                                          <div className="space-y-2">
+                                          <DashboardFieldStack>
                                             <Label className="text-xs">Alt</Label>
                                             <Input
                                               value={groupVolumeEntry?.coverImageAlt || ""}
@@ -6605,8 +6601,8 @@ const DashboardProjectsEditor = () => {
                                               }
                                               placeholder="Texto alternativo da capa"
                                             />
-                                          </div>
-                                          <div className="space-y-2">
+                                          </DashboardFieldStack>
+                                          <DashboardFieldStack>
                                             <Label className="text-xs">Sinopse do volume</Label>
                                             <Textarea
                                               value={groupVolumeEntry?.synopsis || ""}
@@ -6622,7 +6618,7 @@ const DashboardProjectsEditor = () => {
                                               rows={3}
                                               placeholder="Resumo exibido nas páginas públicas para este volume"
                                             />
-                                          </div>
+                                          </DashboardFieldStack>
                                         </div>
                                       ) : null}
                                       {!groupHasEpisodes ? (
@@ -7808,7 +7804,9 @@ const DashboardProjectsEditor = () => {
                                       ...prev,
                                       staff: prev.staff.filter((_, idx) => idx !== index),
                                     }));
-                                    setStaffMemberInput((prev) => shiftDraftAfterRemoval(prev, index));
+                                    setStaffMemberInput((prev) =>
+                                      shiftDraftAfterRemoval(prev, index),
+                                    );
                                   }}
                                 >
                                   Remover
@@ -8087,7 +8085,7 @@ const DashboardProjectsEditor = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
+            <DashboardFieldStack>
               <Label htmlFor="anime-batch-start-number">EpisÃ³dio inicial</Label>
               <Input
                 id="anime-batch-start-number"
@@ -8096,8 +8094,8 @@ const DashboardProjectsEditor = () => {
                 value={animeBatchStartNumber}
                 onChange={(event) => setAnimeBatchStartNumber(event.target.value)}
               />
-            </div>
-            <div className="space-y-2">
+            </DashboardFieldStack>
+            <DashboardFieldStack>
               <Label htmlFor="anime-batch-quantity">Quantidade</Label>
               <Input
                 id="anime-batch-quantity"
@@ -8106,8 +8104,8 @@ const DashboardProjectsEditor = () => {
                 value={animeBatchQuantity}
                 onChange={(event) => setAnimeBatchQuantity(event.target.value)}
               />
-            </div>
-            <div className="space-y-2">
+            </DashboardFieldStack>
+            <DashboardFieldStack>
               <Label htmlFor="anime-batch-cadence">CadÃªncia de datas</Label>
               <Input
                 id="anime-batch-cadence"
@@ -8117,8 +8115,8 @@ const DashboardProjectsEditor = () => {
                 onChange={(event) => setAnimeBatchCadenceDays(event.target.value)}
                 placeholder="Dias"
               />
-            </div>
-            <div className="space-y-2">
+            </DashboardFieldStack>
+            <DashboardFieldStack>
               <Label htmlFor="anime-batch-duration">DuraÃ§Ã£o padrÃ£o</Label>
               <Input
                 id="anime-batch-duration"
@@ -8128,8 +8126,8 @@ const DashboardProjectsEditor = () => {
                 }
                 placeholder="MM:SS ou H:MM:SS"
               />
-            </div>
-            <div className="space-y-2">
+            </DashboardFieldStack>
+            <DashboardFieldStack>
               <Label htmlFor="anime-batch-source-type">Origem padrÃ£o</Label>
               <Select
                 value={animeBatchSourceType}
@@ -8146,8 +8144,8 @@ const DashboardProjectsEditor = () => {
                   <SelectItem value="Blu-ray">Blu-ray</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
+            </DashboardFieldStack>
+            <DashboardFieldStack>
               <Label htmlFor="anime-batch-status">Status inicial</Label>
               <Select
                 value={animeBatchPublicationStatus}
@@ -8163,7 +8161,7 @@ const DashboardProjectsEditor = () => {
                   <SelectItem value="published">Publicado</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </DashboardFieldStack>
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" onClick={() => setAnimeBatchCreateOpen(false)}>
