@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import DashboardProjectsEditor from "@/pages/DashboardProjectsEditor";
 
@@ -155,9 +155,11 @@ const scrollIntoViewMock = vi.fn();
 const setupApiMock = ({
   canManageProjects,
   projects,
+  users = [],
 }: {
   canManageProjects: boolean;
   projects: (typeof projectFixture)[];
+  users?: Array<{ name?: string; status?: string }>;
 }) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
@@ -175,7 +177,7 @@ const setupApiMock = ({
       return mockJsonResponse(true, { projects });
     }
     if (path === "/api/users" && method === "GET") {
-      return mockJsonResponse(true, { users: [] });
+      return mockJsonResponse(true, { users });
     }
     if (path === "/api/public/tag-translations" && method === "GET") {
       return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
@@ -200,6 +202,26 @@ const setupApiMock = ({
   });
 };
 
+const projectWithStaffFixture = {
+  ...projectFixture,
+  staff: [{ role: "Revisao", members: [] }],
+  animeStaff: [{ role: "Director", members: [] }],
+};
+
+const resizeObserverObserveMock = vi.fn();
+const resizeObserverUnobserveMock = vi.fn();
+const resizeObserverDisconnectMock = vi.fn();
+const originalResizeObserver = globalThis.ResizeObserver;
+class ResizeObserverMock {
+  constructor(_callback: ResizeObserverCallback) {}
+
+  observe = resizeObserverObserveMock;
+
+  unobserve = resizeObserverUnobserveMock;
+
+  disconnect = resizeObserverDisconnectMock;
+}
+
 const LocationProbe = () => {
   const location = useLocation();
   return (
@@ -213,11 +235,110 @@ const LocationProbe = () => {
 describe("DashboardProjectsEditor edit query", () => {
   beforeEach(() => {
     scrollIntoViewMock.mockReset();
+    resizeObserverObserveMock.mockReset();
+    resizeObserverUnobserveMock.mockReset();
+    resizeObserverDisconnectMock.mockReset();
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      writable: true,
+      value: ResizeObserverMock,
+    });
     Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
       configurable: true,
       writable: true,
       value: scrollIntoViewMock,
     });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      writable: true,
+      value: originalResizeObserver,
+    });
+  });
+
+  it("usa dropdown pesquisavel para membros, aceita texto livre e aplica foco insetado no bloco local", async () => {
+    setupApiMock({
+      canManageProjects: true,
+      projects: [projectWithStaffFixture],
+      users: [
+        { name: "Jose Gabriel", status: "active" },
+        { name: "Pitas", status: "active" },
+        { name: "Inativo", status: "inactive" },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos?edit=project-1"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    await screen.findByText("Editar projeto");
+
+    const editorDialog = await waitFor(() => {
+      const node = document.querySelector(".project-editor-dialog");
+      expect(node).not.toBeNull();
+      return node as HTMLElement;
+    });
+
+    expect(document.querySelector("datalist#staff-directory")).toBeNull();
+
+    fireEvent.click(within(editorDialog).getByRole("button", { name: /Equipe da fansub/i }));
+
+    const fansubMemberInput = within(editorDialog).getByPlaceholderText(
+      "Adicionar membro",
+    ) as HTMLInputElement;
+    fireEvent.focus(fansubMemberInput);
+
+    expect(await screen.findByText("Jose Gabriel")).toBeInTheDocument();
+    expect(screen.getByText("Pitas")).toBeInTheDocument();
+    expect(screen.queryByText("Inativo")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Jose Gabriel"));
+
+    expect(fansubMemberInput.value).toBe("");
+    expect(within(editorDialog).getByText("Jose Gabriel")).toBeInTheDocument();
+
+    fireEvent.click(within(editorDialog).getByRole("button", { name: /Staff do anime/i }));
+
+    const animeMemberInput = within(editorDialog).getAllByPlaceholderText(
+      "Adicionar membro",
+    )[1] as HTMLInputElement;
+    fireEvent.change(animeMemberInput, { target: { value: "Vulcao Custom" } });
+
+    expect(await screen.findByText('Adicionar "Vulcao Custom"')).toBeInTheDocument();
+
+    fireEvent.keyDown(animeMemberInput, { key: "Enter" });
+
+    expect(animeMemberInput.value).toBe("");
+    expect(within(editorDialog).getByText("Vulcao Custom")).toBeInTheDocument();
+
+    const producerInput = within(editorDialog).getByPlaceholderText(
+      "Adicionar produtora e pressionar Enter",
+    ) as HTMLInputElement;
+    const animationStudioInput = within(editorDialog).getByPlaceholderText(
+      /Adicionar est.*dio de anima.*o e pressionar Enter/i,
+    ) as HTMLInputElement;
+    const studioProducerSection = producerInput.closest("section") as HTMLElement | null;
+
+    expect(studioProducerSection).not.toBeNull();
+    if (!studioProducerSection) {
+      throw new Error("Bloco de estudios e produtoras nao encontrado");
+    }
+
+    const studioPrincipalInput = within(studioProducerSection).getByDisplayValue(
+      "Studio Teste",
+    ) as HTMLInputElement;
+    expect(studioPrincipalInput.className).toContain("focus-visible:ring-inset");
+    expect(studioPrincipalInput.className).toContain("focus-visible:ring-primary");
+    expect(producerInput.className).toContain("focus-visible:ring-inset");
+    expect(producerInput.className).toContain("focus-visible:ring-primary");
+    expect(animationStudioInput.className).toContain("focus-visible:ring-inset");
+    expect(animationStudioInput.className).toContain("focus-visible:ring-primary");
   });
 
   it("abre criacao automaticamente com ?edit=new e limpa a query", async () => {
@@ -394,9 +515,7 @@ describe("DashboardProjectsEditor edit query", () => {
       expect(node).not.toBeNull();
       return node as HTMLElement;
     });
-    expect(
-      within(editorDialog).queryByRole("button", { name: /Conte.do.*cap.tulos/i }),
-    ).not.toBeInTheDocument();
+    expect(within(editorDialog).getByRole("button", { name: /Conte.do.*cap.tulos/i })).toBeInTheDocument();
     expect(within(editorDialog).queryByText("Abrir editor dedicado")).not.toBeInTheDocument();
     expect(within(editorDialog).getByRole("link", { name: "Conteúdo" })).toHaveAttribute(
       "href",
@@ -410,13 +529,18 @@ describe("DashboardProjectsEditor edit query", () => {
         .replace(/\s+/g, " ")
         .trim(),
     );
-    expect(sectionTitles).toHaveLength(6);
+    expect(sectionTitles).toHaveLength(7);
     expect(sectionTitles[0]).toContain("Importação");
     expect(sectionTitles[1]).toContain("Informações do projeto");
     expect(sectionTitles[2]).toContain("Mídias");
     expect(sectionTitles[3]).toContain("Relações");
-    expect(sectionTitles[4]).toContain("Equipe da fansub");
-    expect(sectionTitles[5]).toContain("Staff do anime");
+    expect(sectionTitles).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Equipe da fansub"),
+        expect.stringContaining("Staff do anime"),
+      ]),
+    );
+    expect(sectionTitles[6]).toContain("ConteÃºdo");
     expect(sectionTriggers[1]).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
   });
 

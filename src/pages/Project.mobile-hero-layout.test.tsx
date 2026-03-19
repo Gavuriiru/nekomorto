@@ -453,9 +453,18 @@ describe("Project mobile hero layout", () => {
 
     const relationImage = await screen.findByRole("img", { name: "Projeto Relacionado" });
     const relationCover = relationImage.parentElement as HTMLElement | null;
+    const relationLink = relationImage.closest("a") as HTMLElement | null;
+    const relationContent = relationCover?.nextElementSibling as HTMLElement | null;
     expect(relationCover).not.toBeNull();
-    expect(classTokens(relationCover as HTMLElement)).toContain("w-16");
+    expect(relationLink).not.toBeNull();
+    expect(relationContent).not.toBeNull();
+    expect(classTokens(relationLink as HTMLElement)).toContain("overflow-hidden");
+    expect(classTokens(relationCover as HTMLElement)).toContain("w-[4.5rem]");
+    expect(classTokens(relationCover as HTMLElement)).toContain("sm:w-20");
+    expect(classTokens(relationCover as HTMLElement)).not.toContain("rounded-lg");
+    expect(classTokens(relationContent as HTMLElement)).toContain("p-[1.125rem]");
     expect(classTokens(relationCover as HTMLElement)).not.toContain("aspect-2/3");
+    expect(classTokens(relationImage as HTMLElement)).not.toContain("scale-110");
     expect(relationCover?.style.aspectRatio).toBe("9 / 14");
   });
 

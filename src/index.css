@@ -327,6 +327,12 @@
 }
 
 @layer components {
+  .project-editor-dialog
+    :where(input:not([type="checkbox"]):not([type="radio"]), textarea, [role="combobox"]):focus-visible {
+    border-color: hsl(var(--primary)) !important;
+    box-shadow: 0 0 0 1px hsl(var(--primary)) !important;
+  }
+
   .text-gradient-rainbow {
     background: var(--gradient-rainbow);
     -webkit-background-clip: text;

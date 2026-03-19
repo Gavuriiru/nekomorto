@@ -67,6 +67,12 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
+const expectLinkIconClass = (link: HTMLElement, iconClassName: string) => {
+  const icon = link.querySelector("svg");
+  expect(icon).not.toBeNull();
+  expect(icon).toHaveClass(iconClassName);
+};
+
 const animeProjectFixture = {
   id: "project-1",
   anilistId: 1001,
@@ -256,10 +262,9 @@ describe("DashboardProjectsEditor episode accordion", () => {
       throw new Error("Footer do editor não encontrado");
     }
 
-    expect(within(footer).getByRole("link", { name: "Episódios" })).toHaveAttribute(
-      "href",
-      "/dashboard/projetos/project-1/episodios",
-    );
+    const dedicatedEditorLink = within(footer).getByRole("link", { name: "Episódios" });
+    expect(dedicatedEditorLink).toHaveAttribute("href", "/dashboard/projetos/project-1/episodios");
+    expectLinkIconClass(dedicatedEditorLink, "lucide-clapperboard");
   });
 
   it("mantém a seção de capítulos e o CTA de conteúdo para light novel", async () => {
@@ -276,10 +281,9 @@ describe("DashboardProjectsEditor episode accordion", () => {
       throw new Error("Footer do editor não encontrado");
     }
 
-    expect(within(footer).getByRole("link", { name: /Conte/i })).toHaveAttribute(
-      "href",
-      "/dashboard/projetos/project-ln-1/capitulos",
-    );
+    const dedicatedEditorLink = within(footer).getByRole("link", { name: /Conte/i });
+    expect(dedicatedEditorLink).toHaveAttribute("href", "/dashboard/projetos/project-ln-1/capitulos");
+    expectLinkIconClass(dedicatedEditorLink, "lucide-file-text");
   });
 
   it("mantém a seção de capítulos e o CTA de conteúdo para manga", async () => {
@@ -296,9 +300,11 @@ describe("DashboardProjectsEditor episode accordion", () => {
       throw new Error("Footer do editor não encontrado");
     }
 
-    expect(within(footer).getByRole("link", { name: /Conte/i })).toHaveAttribute(
+    const dedicatedEditorLink = within(footer).getByRole("link", { name: /Conte/i });
+    expect(dedicatedEditorLink).toHaveAttribute(
       "href",
       "/dashboard/projetos/project-manga-1/capitulos",
     );
+    expectLinkIconClass(dedicatedEditorLink, "lucide-file-image");
   });
 });

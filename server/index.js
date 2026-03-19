@@ -6045,6 +6045,12 @@ const normalizeProjects = (projects) =>
                 : undefined,
             releaseDate: String(episode?.releaseDate || ""),
             duration: String(episode?.duration || ""),
+            sourceType:
+              episodeObject?.sourceType === "Blu-ray" || episodeObject?.sourceType === "Web"
+                ? episodeObject.sourceType
+                : episodeObject?.sourceType === "Blu-Ray"
+                  ? "Blu-ray"
+                  : "TV",
             coverImageUrl: coverImageUrl || undefined,
             content: typeof episode?.content === "string" ? episode.content : "",
             contentFormat,

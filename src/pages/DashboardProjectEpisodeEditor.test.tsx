@@ -23,7 +23,7 @@ vi.mock("@/components/DashboardShell", () => ({
   }) => (
     <div>
       <button type="button" data-testid="dashboard-shell-user-card" onClick={onUserCardClick}>
-        Abrir usuario
+        Abrir usuário
       </button>
       {children}
     </div>
@@ -109,6 +109,14 @@ type ProjectRecord = {
   type: string;
   episodeDownloads: Array<Record<string, unknown>>;
   [key: string]: unknown;
+};
+
+const formatLocalIsoDate = (timestampMs: number) => {
+  const current = new Date(timestampMs);
+  const year = current.getFullYear();
+  const month = String(current.getMonth() + 1).padStart(2, "0");
+  const day = String(current.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
@@ -251,23 +259,27 @@ const renderEditor = (initialEntry = "/dashboard/projetos/project-1/episodios/1"
 
 describe("DashboardProjectEpisodeEditor", () => {
   beforeEach(() => {
+    Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: vi.fn(),
+    });
     setupApiMock();
   });
 
-  it("salva o episodio ativo e envia o snapshot completo do projeto", async () => {
+  it("salva o episódio ativo e envia o snapshot completo do projeto", async () => {
     const apiState = setupApiMock();
     renderEditor();
 
-    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
 
-    fireEvent.change(screen.getByLabelText(/^Titulo$/i), {
+    fireEvent.change(screen.getByLabelText(/^Título$/i), {
       target: { value: "Primeiro episodio revisado" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Salvar episodio/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Salvar episódio/i }));
 
     await waitFor(() =>
       expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Episodio salvo", intent: "success" }),
+        expect.objectContaining({ title: "Episódio salvo", intent: "success" }),
       ),
     );
 
@@ -291,16 +303,16 @@ describe("DashboardProjectEpisodeEditor", () => {
   it("mostra o estado neutro com listagem unificada e sem controles legados", async () => {
     renderEditor("/dashboard/projetos/project-1/episodios");
 
-    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
 
     const emptyState = screen.getByTestId("anime-episode-empty-state");
     expect(
       within(emptyState).getByRole("button", {
-        name: /Adicionar episodio/i,
+        name: /Adicionar episódio/i,
       }),
     ).toBeInTheDocument();
-    expect(within(emptyState).getByPlaceholderText(/Buscar episodio/i)).toBeInTheDocument();
-    expect(within(emptyState).getByText(/Nenhum episodio aberto/i)).toBeInTheDocument();
+    expect(within(emptyState).getByPlaceholderText(/Buscar episódio/i)).toBeInTheDocument();
+    expect(within(emptyState).getByText(/Nenhum episódio aberto/i)).toBeInTheDocument();
     expect(within(emptyState).getByText(/Primeiro episodio/i)).toBeInTheDocument();
     expect(screen.queryByTestId("anime-episode-editor-sidebar")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Duplicar/i })).not.toBeInTheDocument();
@@ -310,10 +322,10 @@ describe("DashboardProjectEpisodeEditor", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("navega pela lista integrada no estado neutro e volta a exibir a sidebar no episodio ativo", async () => {
+  it("navega pela lista integrada no estado neutro e volta a exibir a sidebar no episódio ativo", async () => {
     renderEditor("/dashboard/projetos/project-1/episodios");
 
-    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
 
     fireEvent.click(
       within(screen.getByTestId("anime-episode-empty-state")).getByText(/Segundo episodio/i)
@@ -329,14 +341,16 @@ describe("DashboardProjectEpisodeEditor", () => {
     expect(screen.getByTestId("anime-episode-editor-sidebar")).toBeInTheDocument();
   });
 
-  it("adiciona o proximo episodio, persiste o snapshot e navega para a nova rota", async () => {
+  it("adiciona o próximo episódio, persiste o snapshot e navega para a nova rota", async () => {
     const apiState = setupApiMock();
+    const mockedNowMs = new Date("2026-04-02T15:00:00.000Z").getTime();
+    const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(mockedNowMs);
     renderEditor("/dashboard/projetos/project-1/episodios");
 
-    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
     fireEvent.click(
       within(screen.getByTestId("anime-episode-empty-state")).getByRole("button", {
-        name: /Adicionar episodio/i,
+        name: /Adicionar episódio/i,
       }),
     );
 
@@ -358,6 +372,7 @@ describe("DashboardProjectEpisodeEditor", () => {
         number: 3,
         title: "",
         sourceType: "TV",
+        releaseDate: formatLocalIsoDate(mockedNowMs),
         duration: "",
         synopsis: "",
         sources: [],
@@ -367,22 +382,23 @@ describe("DashboardProjectEpisodeEditor", () => {
     expect(createdEpisode?.hash).toBeUndefined();
     expect(createdEpisode?.sizeBytes).toBeUndefined();
     expect(toastMock).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Episodio criado", intent: "success" }),
+      expect.objectContaining({ title: "Episódio criado", intent: "success" }),
     );
+    dateNowSpy.mockRestore();
   });
 
-  it("abre o leave guard ao adicionar com alteracoes pendentes e permite descartar", async () => {
+  it("abre o leave guard ao adicionar com alterações pendentes e permite descartar", async () => {
     const apiState = setupApiMock();
     renderEditor();
 
-    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
 
-    fireEvent.change(screen.getByLabelText(/^Titulo$/i), {
+    fireEvent.change(screen.getByLabelText(/^Título$/i), {
       target: { value: "Primeiro episodio alterado" },
     });
     fireEvent.click(
       within(screen.getByTestId("anime-episode-editor-command-bar")).getByRole("button", {
-        name: /^Adicionar episodio$/i,
+        name: /^Adicionar episódio$/i,
       }),
     );
 
@@ -395,12 +411,14 @@ describe("DashboardProjectEpisodeEditor", () => {
         "/dashboard/projetos/project-1/episodios/3",
       ),
     );
+
     const createdEpisode = apiState
       .getPersistedProjects()
       .at(-1)
       ?.episodeDownloads.find((episode) => Number((episode as { number?: number }).number) === 3) as
       | Record<string, unknown>
       | undefined;
+
     expect(createdEpisode).toEqual(expect.objectContaining({ number: 3, title: "" }));
     expect(
       apiState
@@ -410,18 +428,18 @@ describe("DashboardProjectEpisodeEditor", () => {
     ).toEqual(expect.objectContaining({ title: "Primeiro episodio" }));
   });
 
-  it("salva o rascunho atual antes de adicionar um novo episodio quando o usuario escolhe continuar salvando", async () => {
+  it("salva o rascunho atual antes de adicionar um novo episódio quando o usuário escolhe continuar salvando", async () => {
     const apiState = setupApiMock();
     renderEditor();
 
-    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
 
-    fireEvent.change(screen.getByLabelText(/^Titulo$/i), {
+    fireEvent.change(screen.getByLabelText(/^Título$/i), {
       target: { value: "Primeiro episodio revisado" },
     });
     fireEvent.click(
       within(screen.getByTestId("anime-episode-editor-command-bar")).getByRole("button", {
-        name: /^Adicionar episodio$/i,
+        name: /^Adicionar episódio$/i,
       }),
     );
 
@@ -444,35 +462,123 @@ describe("DashboardProjectEpisodeEditor", () => {
     );
   });
 
-  it("simplifica o card de capa para biblioteca, alt e preview", async () => {
+  it("move a capa para um card próprio abaixo do pipeline e mantém origem e duração em arquivo e fontes", async () => {
     renderEditor("/dashboard/projetos/project-1/episodios/2");
 
-    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
 
+    const identitySection = screen.getByTestId("anime-episode-identity-section");
+    const progressSection = screen.getByTestId("anime-episode-progress-section");
     const coverSection = screen.getByTestId("anime-episode-cover-section");
+    const fileSection = screen.getByTestId("anime-episode-file-section");
+    const secondaryGrid = screen.getByTestId("anime-episode-secondary-grid");
+    const primaryColumn = screen.getByTestId("anime-episode-secondary-primary-column");
+    const coverLayout = screen.getByTestId("anime-episode-cover-layout");
+    const coverControls = screen.getByTestId("anime-episode-cover-controls");
     const coverPreview = within(coverSection).getByTestId("anime-episode-cover-preview");
+    const altInput = within(coverControls).getByLabelText(/Texto alternativo da capa/i);
+    const libraryButton = within(coverControls).getByRole("button", { name: /Biblioteca/i });
+    const durationInput = within(fileSection).getByLabelText(/Duração/i);
+    const sourceTrigger = within(fileSection).getByRole("combobox", { name: /Origem/i });
+    const stageList = within(progressSection).getByTestId("anime-episode-progress-stage-list");
 
-    expect(within(coverSection).getByRole("button", { name: /Biblioteca/i })).toBeInTheDocument();
+    expect(within(identitySection).queryByLabelText(/Sinopse/i)).not.toBeInTheDocument();
+    expect(within(identitySection).queryByRole("combobox", { name: /Origem/i })).not.toBeInTheDocument();
+    expect(within(identitySection).queryByLabelText(/Duração/i)).not.toBeInTheDocument();
+    expect(within(identitySection).queryByTestId("anime-episode-cover-preview")).not.toBeInTheDocument();
     expect(
-      within(coverSection).getByLabelText(/Texto alternativo da capa/i),
-    ).toBeInTheDocument();
-    expect(within(coverSection).queryByText(/Biblioteca da capa/i)).not.toBeInTheDocument();
+      within(coverSection).queryByText(/Banner 16:9 selecionado pela biblioteca do projeto/i),
+    ).not.toBeInTheDocument();
     expect(within(coverSection).queryByPlaceholderText(/URL da capa/i)).not.toBeInTheDocument();
-    expect(coverPreview).toBeInTheDocument();
+    expect(coverLayout.className).not.toContain("ml-auto");
+    expect(coverPreview.className).toContain("max-w-[24rem]");
     expect(coverPreview.querySelector(".aspect-video")).not.toBeNull();
     expect(within(coverSection).getByRole("img")).toBeInTheDocument();
+    expect(sourceTrigger).toHaveTextContent("Web");
+    expect(durationInput).toHaveValue("24:00");
+    expect((altInput.compareDocumentPosition(libraryButton) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(true);
+    expect(within(primaryColumn).getByTestId("anime-episode-progress-section")).toBe(progressSection);
+    expect(within(primaryColumn).getByTestId("anime-episode-cover-section")).toBe(coverSection);
+    expect((progressSection.compareDocumentPosition(coverSection) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(true);
+    expect(within(secondaryGrid).getByTestId("anime-episode-progress-section")).toBe(progressSection);
+    expect(within(secondaryGrid).getByTestId("anime-episode-cover-section")).toBe(coverSection);
+    expect(within(secondaryGrid).getByTestId("anime-episode-file-section")).toBe(fileSection);
+    expect(within(progressSection).getByText(/Etapas editoriais/i)).toBeInTheDocument();
+    expect(within(progressSection).getByText(/Etapa atual/i)).toBeInTheDocument();
+    expect(within(progressSection).getByRole("list", { name: /Etapas editoriais/i })).toBeInTheDocument();
+    expect(within(stageList).getAllByRole("checkbox").length).toBeGreaterThan(0);
   });
 
-  it("remove o episodio ativo e retorna para a rota neutra", async () => {
+  it("persiste a origem selecionada ao salvar o episódio", async () => {
+    const apiState = setupApiMock();
+    renderEditor("/dashboard/projetos/project-1/episodios/2");
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
+
+    const fileSection = screen.getByTestId("anime-episode-file-section");
+    fireEvent.click(within(fileSection).getByRole("combobox", { name: /Origem/i }));
+    fireEvent.click(await screen.findByRole("option", { name: /^Blu-ray$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Salvar episódio/i }));
+
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Episódio salvo", intent: "success" }),
+      ),
+    );
+
+    const persistedProject = apiState.getPersistedProjects().at(-1);
+    expect(persistedProject?.episodeDownloads).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          number: 2,
+          sourceType: "Blu-ray",
+        }),
+      ]),
+    );
+  });
+
+  it("usa a data atual no release ao salvar episódio com release vazio", async () => {
+    const apiState = setupApiMock();
+    const mockedNowMs = new Date("2026-04-02T15:00:00.000Z").getTime();
+    const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(mockedNowMs);
+    renderEditor("/dashboard/projetos/project-1/episodios/2");
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
+
+    fireEvent.change(screen.getByLabelText(/^Título$/i), {
+      target: { value: "Segundo episodio ajustado" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Salvar episódio/i }));
+
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Episódio salvo", intent: "success" }),
+      ),
+    );
+
+    const persistedProject = apiState.getPersistedProjects().at(-1);
+    expect(persistedProject?.episodeDownloads).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          number: 2,
+          title: "Segundo episodio ajustado",
+          releaseDate: formatLocalIsoDate(mockedNowMs),
+        }),
+      ]),
+    );
+    dateNowSpy.mockRestore();
+  });
+
+  it("remove o episódio ativo e retorna para a rota neutra", async () => {
     const apiState = setupApiMock();
     renderEditor();
 
-    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
 
     fireEvent.click(screen.getByRole("button", { name: /Excluir/i }));
     expect(await screen.findByTestId("anime-episode-delete-dialog")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Excluir episodio/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Excluir episódio/i }));
 
     await waitFor(() =>
       expect(screen.getByTestId("location")).toHaveTextContent(
@@ -486,11 +592,11 @@ describe("DashboardProjectEpisodeEditor", () => {
       expect.arrayContaining([expect.objectContaining({ number: 2 })]),
     );
     expect(toastMock).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Episodio removido", intent: "success" }),
+      expect.objectContaining({ title: "Episódio removido", intent: "success" }),
     );
   });
 
-  it("retorna not found para projetos baseados em capitulos", async () => {
+  it("retorna not found para projetos baseados em capítulos", async () => {
     setupApiMock({
       ...animeProjectFixture,
       id: "project-ln-1",

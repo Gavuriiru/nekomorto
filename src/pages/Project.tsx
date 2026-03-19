@@ -334,6 +334,28 @@ const ProjectPage = () => {
     };
   };
 
+  const getEpisodeSourceTypeLabel = (value: unknown) => {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) {
+      return "";
+    }
+    const normalized = trimmed
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z]/g, "")
+      .toLowerCase();
+    if (normalized === "tv") {
+      return "TV";
+    }
+    if (normalized === "web") {
+      return "Web";
+    }
+    if (normalized === "bluray") {
+      return "Blu-ray";
+    }
+    return trimmed;
+  };
+
   const getEpisodeEntryKind = (episode: { entryKind?: string } | null | undefined) =>
     episode?.entryKind === "extra" ? "extra" : "main";
 
@@ -493,6 +515,7 @@ const ProjectPage = () => {
     const sources = episode.sources || [];
     const hasReadAction = Boolean(readAction?.href && readAction.label);
     const hasSources = sources.length > 0;
+    const sourceTypeLabel = getEpisodeSourceTypeLabel(episode.sourceType);
     const episodeBadgeLabel = isExtraEntry
       ? String(episode.displayLabel || "Extra").trim() || "Extra"
       : isChapterBased
@@ -526,13 +549,13 @@ const ProjectPage = () => {
                 >
                   {episodeBadgeLabel}
                 </Badge>
-                {showRawBadge ? (
+                {showRawBadge && sourceTypeLabel ? (
                   <Badge
                     variant="outline"
                     className="inline-flex items-center gap-1 rounded-full border-primary/25 bg-background/70 text-[10px] uppercase tracking-wide md:absolute md:right-0 md:top-0"
                   >
                     <HardDrive className="h-3 w-3" />
-                    {episode.sourceType}
+                    {sourceTypeLabel}
                   </Badge>
                 ) : null}
                 <p className="min-w-0 flex-1 basis-full text-base font-semibold text-foreground md:basis-auto md:truncate md:text-lg">
@@ -1176,10 +1199,10 @@ const ProjectPage = () => {
                           <Link
                             key={`${relation.relation}-${relation.title}`}
                             to={targetId ? `/projeto/${targetId}` : "#"}
-                            className="group flex gap-4 rounded-xl border border-border/50 bg-background/60 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
+                            className="group flex overflow-hidden rounded-xl border border-border/50 bg-background/60 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
                           >
                             <div
-                              className="w-16 shrink-0 overflow-hidden rounded-lg bg-secondary"
+                              className="w-[4.5rem] shrink-0 overflow-hidden bg-secondary sm:w-20"
                               style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
                             >
                               <img
@@ -1188,7 +1211,7 @@ const ProjectPage = () => {
                                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                               />
                             </div>
-                            <div className="min-w-0 space-y-2">
+                            <div className="min-w-0 space-y-2 p-[1.125rem]">
                               <p className="text-xs font-semibold uppercase tracking-widest text-primary/80">
                                 {translateRelation(relation.relation)}
                               </p>

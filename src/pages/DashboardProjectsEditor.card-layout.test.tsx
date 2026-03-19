@@ -65,6 +65,12 @@ const classTokens = (element: Element | null) =>
     .split(/\s+/)
     .filter(Boolean);
 
+const expectLinkIconClass = (link: HTMLElement, iconClassName: string) => {
+  const icon = link.querySelector("svg");
+  expect(icon).not.toBeNull();
+  expect(icon).toHaveClass(iconClassName);
+};
+
 const createProject = (
   overrides: Partial<{
     id: string;
@@ -311,5 +317,52 @@ describe("DashboardProjectsEditor card layout", () => {
     expect(within(card).getByTitle("Excluir")).toBeInTheDocument();
     expect(within(meta as HTMLElement).getByText("7 comentários")).toBeInTheDocument();
     expect(within(meta as HTMLElement).getByText("ID project-long")).toBeInTheDocument();
+  });
+
+  it("usa icone do editor dedicado conforme o tipo do projeto", async () => {
+    setupApiMock({
+      projects: [
+        createProject({
+          id: "project-anime",
+          title: "Projeto Anime",
+          type: "Anime",
+        }),
+        createProject({
+          id: "project-ln",
+          title: "Projeto Light Novel",
+          type: "Light Novel",
+        }),
+        createProject({
+          id: "project-manga",
+          title: "Projeto Manga",
+          type: "Manga",
+        }),
+      ],
+    });
+
+    renderEditor();
+
+    const animeCard = await screen.findByTestId("dashboard-project-card-project-anime");
+    const lightNovelCard = await screen.findByTestId("dashboard-project-card-project-ln");
+    const mangaCard = await screen.findByTestId("dashboard-project-card-project-manga");
+
+    const animeLink = within(animeCard).getByRole("link", {
+      name: "Abrir editor dedicado de Projeto Anime",
+    });
+    const lightNovelLink = within(lightNovelCard).getByRole("link", {
+      name: "Abrir editor dedicado de Projeto Light Novel",
+    });
+    const mangaLink = within(mangaCard).getByRole("link", {
+      name: "Abrir editor dedicado de Projeto Manga",
+    });
+
+    expect(animeLink).toHaveAttribute("href", "/dashboard/projetos/project-anime/episodios");
+    expectLinkIconClass(animeLink, "lucide-clapperboard");
+
+    expect(lightNovelLink).toHaveAttribute("href", "/dashboard/projetos/project-ln/capitulos");
+    expectLinkIconClass(lightNovelLink, "lucide-file-text");
+
+    expect(mangaLink).toHaveAttribute("href", "/dashboard/projetos/project-manga/capitulos");
+    expectLinkIconClass(mangaLink, "lucide-file-image");
   });
 });

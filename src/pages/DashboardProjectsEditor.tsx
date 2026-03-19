@@ -3,6 +3,7 @@ import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import ReorderControls from "@/components/ReorderControls";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import ProjectMemberCombobox from "@/components/dashboard/ProjectMemberCombobox";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import {
@@ -121,10 +122,12 @@ import {
   Copy,
   Download,
   Eye,
+  FileImage,
   FileText,
   HardDrive,
   LayoutGrid,
   Link2,
+  type LucideIcon,
   Loader2,
   MessageSquare,
   PencilLine,
@@ -189,6 +192,20 @@ type TaxonomySuggestionOption = {
 
 type EditorProjectEpisode = ProjectEpisode & {
   _editorKey?: string;
+};
+
+const getDedicatedEditorCtaIcon = (projectType?: string | null): LucideIcon => {
+  const normalizedType = String(projectType || "").trim();
+  if (!normalizedType) {
+    return PencilLine;
+  }
+  if (isMangaType(normalizedType)) {
+    return FileImage;
+  }
+  if (isLightNovelType(normalizedType)) {
+    return FileText;
+  }
+  return Clapperboard;
 };
 
 type ProjectRecord = {
@@ -838,6 +855,15 @@ const shiftDraftAfterRemoval = (draft: Record<number, string>, removedIndex: num
     }
     next[index > removedIndex ? index - 1 : index] = value;
   });
+  return next;
+};
+
+const clearIndexedDraftValue = (draft: Record<number, string>, index: number) => {
+  if (!Object.prototype.hasOwnProperty.call(draft, index)) {
+    return draft;
+  }
+  const next = { ...draft };
+  delete next[index];
   return next;
 };
 
@@ -2545,6 +2571,7 @@ const DashboardProjectsEditor = () => {
     setAnimeBatchOperationShiftDays("");
     setAnimeBatchOperationCompletedStages([]);
     episodeSizeInputRefs.current = {};
+    setStaffMemberInput({});
     setAnimeStaffMemberInput({});
     editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, "");
     setCollapsedEpisodes({});
@@ -2702,6 +2729,7 @@ const DashboardProjectsEditor = () => {
       setAnimeBatchOperationShiftDays("");
       setAnimeBatchOperationCompletedStages([]);
       episodeSizeInputRefs.current = {};
+      setStaffMemberInput({});
       setAnimeStaffMemberInput({});
       editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, nextAniListInput);
       pendingEpisodeToScrollRef.current = focusedEpisode;
@@ -3602,6 +3630,54 @@ const DashboardProjectsEditor = () => {
     }));
   };
 
+  const commitStaffMember = useCallback(
+    (index: number, rawValue?: string) => {
+      const name = String(rawValue ?? staffMemberInput[index] ?? "").trim();
+      if (!name) {
+        return;
+      }
+      setFormState((prev) => {
+        const next = [...prev.staff];
+        const currentRole = next[index];
+        if (!currentRole) {
+          return prev;
+        }
+        const members = currentRole.members || [];
+        next[index] = {
+          ...currentRole,
+          members: members.includes(name) ? members : [...members, name],
+        };
+        return { ...prev, staff: next };
+      });
+      setStaffMemberInput((prev) => clearIndexedDraftValue(prev, index));
+    },
+    [staffMemberInput],
+  );
+
+  const commitAnimeStaffMember = useCallback(
+    (index: number, rawValue?: string) => {
+      const name = String(rawValue ?? animeStaffMemberInput[index] ?? "").trim();
+      if (!name) {
+        return;
+      }
+      setFormState((prev) => {
+        const next = [...prev.animeStaff];
+        const currentRole = next[index];
+        if (!currentRole) {
+          return prev;
+        }
+        const members = currentRole.members || [];
+        next[index] = {
+          ...currentRole,
+          members: members.includes(name) ? members : [...members, name],
+        };
+        return { ...prev, animeStaff: next };
+      });
+      setAnimeStaffMemberInput((prev) => clearIndexedDraftValue(prev, index));
+    },
+    [animeStaffMemberInput],
+  );
+
   const setEpisodeEntryKind = useCallback(
     (index: number, nextKind: "main" | "extra") => {
       setFormState((prev) => {
@@ -3997,6 +4073,7 @@ const DashboardProjectsEditor = () => {
       ...prev,
       staff: moveIndexedItem(prev.staff, from, to),
     }));
+    setStaffMemberInput({});
   }, []);
 
   const moveAnimeStaffItem = useCallback((from: number, to: number) => {
@@ -4076,6 +4153,8 @@ const DashboardProjectsEditor = () => {
   const editorSectionTriggerClassName =
     "project-editor-section-trigger flex w-full items-start gap-4 py-3.5 text-left hover:no-underline md:py-4";
   const editorSectionContentClassName = "project-editor-section-content pb-2.5 px-1";
+  const adjacentMetadataInputClassName =
+    "focus-visible:border-primary focus-visible:ring-primary focus-visible:ring-inset";
   const editorSectionBlockClassName = "space-y-4";
   const editorSectionBlockTitleClassName = "text-sm font-semibold text-foreground";
   const editorSectionBlockDividerClassName = "border-t border-border/50 pt-5";
@@ -4086,6 +4165,7 @@ const DashboardProjectsEditor = () => {
   const editorTypeLabel = formState.type || "Formato";
   const editorStatusLabel = formState.status || "Status";
   const editorEpisodeCount = formState.episodeDownloads.length;
+  const DedicatedEditorFooterIcon = getDedicatedEditorCtaIcon(formState.type);
   const lightNovelContentHref = editingProject?.id
     ? buildDashboardProjectChaptersEditorHref(editingProject.id)
     : "";
@@ -4250,6 +4330,7 @@ const DashboardProjectsEditor = () => {
                   const dedicatedEditorHref = isChapterBasedType(project.type || "")
                     ? buildDashboardProjectChaptersEditorHref(project.id)
                     : buildDashboardProjectEpisodesEditorHref(project.id);
+                  const DedicatedEditorIcon = getDedicatedEditorCtaIcon(project.type);
 
                   return (
                     <Card
@@ -4315,7 +4396,7 @@ const DashboardProjectsEditor = () => {
                                     to={dedicatedEditorHref}
                                     aria-label={`Abrir editor dedicado de ${project.title}`}
                                   >
-                                    <PencilLine className="h-4 w-4" aria-hidden="true" />
+                                    <DedicatedEditorIcon className="h-4 w-4" aria-hidden="true" />
                                   </Link>
                                 </Button>
                                 <Button variant="ghost" size="icon" title="Visualizar" asChild>
@@ -5154,6 +5235,7 @@ const DashboardProjectsEditor = () => {
                             <div className="space-y-2">
                               <Label>Estúdio principal</Label>
                               <Input
+                                className={adjacentMetadataInputClassName}
                                 value={formState.studio}
                                 onChange={(event) =>
                                   setFormState((prev) => ({ ...prev, studio: event.target.value }))
@@ -5163,6 +5245,7 @@ const DashboardProjectsEditor = () => {
                             <div className="space-y-2">
                               <Label>Produtoras</Label>
                               <Input
+                                className={adjacentMetadataInputClassName}
                                 value={producerInput}
                                 onChange={(event) => setProducerInput(event.target.value)}
                                 onKeyDown={(event) => {
@@ -5177,6 +5260,7 @@ const DashboardProjectsEditor = () => {
                             <div className="space-y-2 md:col-span-2">
                               <Label>Estúdios de animação</Label>
                               <Input
+                                className={adjacentMetadataInputClassName}
                                 value={animationStudioInput}
                                 onChange={(event) => setAnimationStudioInput(event.target.value)}
                                 onKeyDown={(event) => {
@@ -7719,48 +7803,34 @@ const DashboardProjectsEditor = () => {
                                 <Button
                                   type="button"
                                   variant="ghost"
-                                  onClick={() =>
+                                  onClick={() => {
                                     setFormState((prev) => ({
                                       ...prev,
                                       staff: prev.staff.filter((_, idx) => idx !== index),
-                                    }))
-                                  }
+                                    }));
+                                    setStaffMemberInput((prev) => shiftDraftAfterRemoval(prev, index));
+                                  }}
                                 >
                                   Remover
                                 </Button>
                               </div>
                               <div className="mt-3 flex flex-wrap items-center gap-2">
-                                <Input
-                                  list="staff-directory"
+                                <ProjectMemberCombobox
                                   value={staffMemberInput[index] || ""}
-                                  onChange={(event) =>
+                                  options={memberDirectory}
+                                  onValueChange={(nextValue) =>
                                     setStaffMemberInput((prev) => ({
                                       ...prev,
-                                      [index]: event.target.value,
+                                      [index]: nextValue,
                                     }))
                                   }
+                                  onCommit={(member) => commitStaffMember(index, member)}
                                   placeholder="Adicionar membro"
                                 />
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  onClick={() =>
-                                    setFormState((prev) => {
-                                      const next = [...prev.staff];
-                                      const name = (staffMemberInput[index] || "").trim();
-                                      if (!name) {
-                                        return prev;
-                                      }
-                                      const members = next[index].members || [];
-                                      next[index] = {
-                                        ...next[index],
-                                        members: members.includes(name)
-                                          ? members
-                                          : [...members, name],
-                                      };
-                                      return { ...prev, staff: next };
-                                    })
-                                  }
+                                  onClick={() => commitStaffMember(index)}
                                 >
                                   Adicionar
                                 </Button>
@@ -7855,38 +7925,22 @@ const DashboardProjectsEditor = () => {
                                 </Button>
                               </div>
                               <div className="mt-3 flex flex-wrap items-center gap-2">
-                                <Input
-                                  list="staff-directory"
+                                <ProjectMemberCombobox
                                   value={animeStaffMemberInput[index] || ""}
-                                  onChange={(event) =>
+                                  options={memberDirectory}
+                                  onValueChange={(nextValue) =>
                                     setAnimeStaffMemberInput((prev) => ({
                                       ...prev,
-                                      [index]: event.target.value,
+                                      [index]: nextValue,
                                     }))
                                   }
+                                  onCommit={(member) => commitAnimeStaffMember(index, member)}
                                   placeholder="Adicionar membro"
                                 />
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  onClick={() => {
-                                    const name = (animeStaffMemberInput[index] || "").trim();
-                                    if (!name) {
-                                      return;
-                                    }
-                                    setFormState((prev) => {
-                                      const next = [...prev.animeStaff];
-                                      const members = next[index].members || [];
-                                      next[index] = {
-                                        ...next[index],
-                                        members: members.includes(name)
-                                          ? members
-                                          : [...members, name],
-                                      };
-                                      return { ...prev, animeStaff: next };
-                                    });
-                                    setAnimeStaffMemberInput((prev) => ({ ...prev, [index]: "" }));
-                                  }}
+                                  onClick={() => commitAnimeStaffMember(index)}
                                 >
                                   Adicionar
                                 </Button>
@@ -7928,11 +7982,6 @@ const DashboardProjectsEditor = () => {
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
-                <datalist id="staff-directory">
-                  {memberDirectory.map((name) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
               </div>
             </div>
             <div className="project-editor-footer flex items-center justify-between gap-3 border-t border-border/60 bg-background/95 px-4 py-1.5 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2 lg:px-8">
@@ -7946,7 +7995,7 @@ const DashboardProjectsEditor = () => {
                       asChild
                     >
                       <Link to={lightNovelContentHref}>
-                        <FileText className="h-4 w-4" aria-hidden="true" />
+                        <DedicatedEditorFooterIcon className="h-4 w-4" aria-hidden="true" />
                         <span className="sr-only md:not-sr-only">Conteúdo</span>
                       </Link>
                     </Button>
@@ -7957,7 +8006,7 @@ const DashboardProjectsEditor = () => {
                       className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
                       disabled
                     >
-                      <FileText className="h-4 w-4" aria-hidden="true" />
+                      <DedicatedEditorFooterIcon className="h-4 w-4" aria-hidden="true" />
                       <span className="sr-only md:not-sr-only">Conteúdo</span>
                     </Button>
                   )

@@ -323,4 +323,71 @@ describe("Project mobile download card layout", () => {
     expect(classTokens(secondCard as HTMLElement)).toContain("md:h-[210px]");
     expect(classTokens(secondCard as HTMLElement)).not.toContain("md:min-h-[185px]");
   });
+
+  it("normalizes legacy Blu-Ray values in the source badge", async () => {
+    const project = {
+      id: "projeto-teste",
+      title: "Projeto Teste",
+      synopsis: "Sinopse",
+      description: "Descricao",
+      type: "Anime",
+      status: "Em andamento",
+      year: "2025",
+      studio: "Studio Teste",
+      episodes: "12 episodios",
+      tags: [],
+      genres: [],
+      cover: "/placeholder.svg",
+      banner: "/placeholder.svg",
+      season: "Temporada 1",
+      schedule: "Sabado",
+      rating: "14",
+      episodeDownloads: [
+        {
+          number: 1,
+          title: "Episodio 1",
+          releaseDate: "2025-01-01",
+          duration: "24 min",
+          sourceType: "Blu-Ray",
+          sources: [
+            {
+              label: "Google Drive",
+              url: "https://example.com/source-1",
+            },
+          ],
+        },
+      ],
+      staff: [],
+      animeStaff: [],
+      relations: [],
+    };
+
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: { method?: string }) => {
+        if (endpoint === "/api/public/projects/projeto-teste") {
+          return { ok: true, json: async () => ({ project }) };
+        }
+        if (endpoint === "/api/public/projects") {
+          return { ok: true, json: async () => ({ projects: [project] }) };
+        }
+        if (endpoint === "/api/public/tag-translations") {
+          return { ok: true, json: async () => ({ tags: {}, genres: {}, staffRoles: {} }) };
+        }
+        if (endpoint === `/api/public/projects/${project.id}/view` && options?.method === "POST") {
+          return { ok: true, json: async () => ({ ok: true }) };
+        }
+        return { ok: false, json: async () => ({}) };
+      },
+    );
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Projeto Teste" })).toBeInTheDocument();
+    expect(screen.getByText("Blu-ray")).toBeInTheDocument();
+    expect(screen.queryByText("Blu-Ray")).not.toBeInTheDocument();
+  });
 });
