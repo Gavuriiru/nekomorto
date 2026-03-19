@@ -12,7 +12,7 @@ export const dashboardPageLayoutTokens = {
   surfaceMuted: "rounded-2xl border border-border/60 bg-card/40",
   listCard: "rounded-2xl border border-border/60 bg-card/80 shadow-lg",
   surfaceSolid:
-    "rounded-2xl border border-border/70 bg-card shadow-[0_18px_38px_-30px_rgba(0,0,0,0.82)]",
+    "rounded-2xl border border-border/70 bg-card shadow-[0_18px_38px_-30px_rgba(0,0,0,0.82)] transition-[border-color] duration-200 hover:border-accent",
   surfaceInset: "rounded-2xl border border-border/70 bg-background",
   listCardSolid:
     "rounded-2xl border border-border/70 bg-card shadow-[0_20px_40px_-32px_rgba(0,0,0,0.8)]",

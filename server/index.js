@@ -46,6 +46,7 @@ import {
 import { getBuildMetadata } from "./lib/build-metadata.js";
 import { deriveChapterSynopsis } from "./lib/chapter-synopsis.js";
 import { bulkModeratePendingComments } from "./lib/comments-bulk-moderation.js";
+import { selectRecentApprovedComments } from "./lib/dashboard-recent-comments.js";
 import { createDataRepository } from "./lib/data-repository.js";
 import { proxyDiscordAvatarRequest } from "./lib/discord-avatar-proxy.js";
 import { buildEditorialCalendarItems } from "./lib/editorial-calendar.js";
@@ -9179,10 +9180,7 @@ const buildDashboardOverviewResponsePayload = (userId) => {
       updatedAt: String(post.updatedAt || post.publishedAt || ""),
     }));
   const pendingCommentsCount = comments.filter((comment) => comment.status === "pending").length;
-  const recentComments = comments
-    .slice()
-    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-    .slice(0, 3)
+  const recentComments = selectRecentApprovedComments(comments, 3)
     .map((comment) => {
       const target = buildCommentTargetInfo(comment, posts, projects);
       return {

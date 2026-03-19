@@ -11,6 +11,7 @@ const DashboardUsers = lazy(() => import("@/pages/DashboardUsers"));
 const DashboardPosts = lazy(() => import("@/pages/DashboardPosts"));
 const DashboardProjectsEditor = lazy(() => import("@/pages/DashboardProjectsEditor"));
 const DashboardProjectChapterEditor = lazy(() => import("@/pages/DashboardProjectChapterEditor"));
+const DashboardProjectEpisodeEditor = lazy(() => import("@/pages/DashboardProjectEpisodeEditor"));
 const DashboardComments = lazy(() => import("@/pages/DashboardComments"));
 const DashboardUploads = lazy(() => import("@/pages/DashboardUploads"));
 const DashboardAuditLog = lazy(() => import("@/pages/DashboardAuditLog"));
@@ -40,6 +41,14 @@ const DashboardRoutes = () => (
         <Route path="usuarios" element={withAuth(<DashboardUsers />)} />
         <Route path="posts" element={withAuth(<DashboardPosts />)} />
         <Route path="projetos" element={withAuth(<DashboardProjectsEditor />)} />
+        <Route
+          path="projetos/:projectId/episodios"
+          element={withAuth(<DashboardProjectEpisodeEditor />)}
+        />
+        <Route
+          path="projetos/:projectId/episodios/:episodeNumber"
+          element={withAuth(<DashboardProjectEpisodeEditor />)}
+        />
         <Route
           path="projetos/:projectId/capitulos"
           element={withAuth(<DashboardProjectChapterEditor />)}

@@ -291,6 +291,50 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(screen.queryByText("Editar projeto")).not.toBeInTheDocument();
   });
 
+  it("expõe o CTA do editor dedicado para anime e mantém o clique do card abrindo o modal", async () => {
+    setupApiMock({ canManageProjects: true, projects: [projectFixture] });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+
+    const dedicatedEditorLink = await screen.findByRole("link", {
+      name: "Abrir editor dedicado de Projeto Teste",
+    });
+    expect(dedicatedEditorLink).toHaveAttribute("href", "/dashboard/projetos/project-1/episodios");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Abrir projeto Projeto Teste" }));
+
+    await screen.findByText("Editar projeto");
+    expect(screen.getByTestId("location-pathname").textContent).toBe("/dashboard/projetos");
+  });
+
+  it("expõe o CTA do editor dedicado para projetos baseados em capítulos", async () => {
+    setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+
+    const dedicatedEditorLink = await screen.findByRole("link", {
+      name: "Abrir editor dedicado de Projeto Light Novel",
+    });
+    expect(dedicatedEditorLink).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/project-ln-1/capitulos",
+    );
+  });
+
   it("redireciona para o editor dedicado ao receber deep link unico com chapter e volume", async () => {
     setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
 

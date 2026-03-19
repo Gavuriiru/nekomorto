@@ -1,0 +1,504 @@
+import type { ReactNode } from "react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import DashboardProjectEpisodeEditor from "@/pages/DashboardProjectEpisodeEditor";
+
+const { apiFetchMock, toastMock, refetchPublicBootstrapCacheMock, imageLibraryPropsSpy } =
+  vi.hoisted(() => ({
+    apiFetchMock: vi.fn(),
+    toastMock: vi.fn(),
+    refetchPublicBootstrapCacheMock: vi.fn(async () => undefined),
+    imageLibraryPropsSpy: vi.fn(),
+  }));
+
+vi.mock("@/components/DashboardShell", () => ({
+  default: ({
+    children,
+    onUserCardClick,
+  }: {
+    children: ReactNode;
+    onUserCardClick?: () => void;
+  }) => (
+    <div>
+      <button type="button" data-testid="dashboard-shell-user-card" onClick={onUserCardClick}>
+        Abrir usuario
+      </button>
+      {children}
+    </div>
+  ),
+}));
+
+vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
+  default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("@/components/ImageLibraryDialog", () => ({
+  default: (props: unknown) => {
+    imageLibraryPropsSpy(props);
+    return <div data-testid="image-library-dialog" />;
+  },
+}));
+
+vi.mock("@/components/ImageLibraryDialogLoading", () => ({
+  ImageLibraryDialogLoadingFallback: () => <div data-testid="image-library-loading" />,
+}));
+
+vi.mock("@/components/ui/async-state", () => ({
+  default: ({
+    kind,
+    title,
+    description,
+    action,
+  }: {
+    kind?: string;
+    title?: string;
+    description?: string;
+    action?: ReactNode;
+  }) => (
+    <div data-testid="async-state">
+      {kind ? <div>{kind}</div> : null}
+      {title ? <div>{title}</div> : null}
+      {description ? <div>{description}</div> : null}
+      {action}
+    </div>
+  ),
+}));
+
+vi.mock("@/hooks/use-dashboard-current-user", () => ({
+  useDashboardCurrentUser: () => ({
+    currentUser: {
+      id: "user-1",
+      name: "Admin",
+      username: "admin",
+      permissions: ["*"],
+    },
+    isLoadingUser: false,
+  }),
+}));
+
+vi.mock("@/hooks/use-page-meta", () => ({
+  usePageMeta: () => undefined,
+}));
+
+vi.mock("@/hooks/use-public-bootstrap", () => ({
+  refetchPublicBootstrapCache: () => refetchPublicBootstrapCacheMock(),
+}));
+
+vi.mock("@/lib/api-base", () => ({
+  getApiBase: () => "http://api.local",
+}));
+
+vi.mock("@/lib/api-client", () => ({
+  apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+}));
+
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: (...args: unknown[]) => toastMock(...args),
+}));
+
+vi.mock("@/pages/NotFound", () => ({
+  default: () => <div data-testid="not-found" />,
+}));
+
+type ProjectRecord = {
+  id: string;
+  revision?: string;
+  title: string;
+  type: string;
+  episodeDownloads: Array<Record<string, unknown>>;
+  [key: string]: unknown;
+};
+
+const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
+  ({
+    ok,
+    status,
+    json: async () => payload,
+  }) as Response;
+
+const animeProjectFixture: ProjectRecord = {
+  id: "project-1",
+  revision: "rev-1",
+  title: "Projeto Teste",
+  titleOriginal: "",
+  titleEnglish: "",
+  synopsis: "Sinopse",
+  description: "Sinopse",
+  type: "Anime",
+  status: "Em andamento",
+  year: "2026",
+  studio: "Studio Teste",
+  episodes: "2 episodios",
+  tags: [],
+  genres: [],
+  cover: "",
+  banner: "",
+  season: "",
+  schedule: "",
+  rating: "",
+  country: "",
+  source: "",
+  producers: [],
+  score: null,
+  startDate: "",
+  endDate: "",
+  relations: [],
+  staff: [],
+  animeStaff: [],
+  trailerUrl: "",
+  forceHero: false,
+  heroImageUrl: "",
+  volumeEntries: [],
+  views: 0,
+  commentsCount: 0,
+  order: 0,
+  episodeDownloads: [
+    {
+      number: 1,
+      title: "Primeiro episodio",
+      synopsis: "",
+      releaseDate: "2026-03-10",
+      duration: "00:24:10",
+      sourceType: "TV",
+      sources: [{ label: "Google Drive", url: "https://example.com/1" }],
+      progressStage: "aguardando-raw",
+      completedStages: ["aguardando-raw"],
+      content: "",
+      contentFormat: "lexical",
+      publicationStatus: "draft",
+      coverImageUrl: "",
+      coverImageAlt: "",
+      hash: "hash-1",
+      sizeBytes: 1024,
+    },
+    {
+      number: 2,
+      title: "Segundo episodio",
+      synopsis: "",
+      releaseDate: "",
+      duration: "00:24:00",
+      sourceType: "Web",
+      sources: [],
+      progressStage: "aguardando-raw",
+      completedStages: [],
+      content: "",
+      contentFormat: "lexical",
+      publicationStatus: "published",
+      coverImageUrl: "/uploads/episodios/2.jpg",
+      coverImageAlt: "",
+      hash: "",
+    },
+  ],
+};
+
+const setupApiMock = (projectFixture: ProjectRecord = animeProjectFixture) => {
+  let currentProject = structuredClone(projectFixture);
+  const persistedProjects: ProjectRecord[] = [];
+
+  apiFetchMock.mockReset();
+  toastMock.mockReset();
+  refetchPublicBootstrapCacheMock.mockReset();
+  imageLibraryPropsSpy.mockReset();
+
+  apiFetchMock.mockImplementation(async (_base, path, options) => {
+    const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+
+    if (path === `/api/projects/${currentProject.id}` && method === "GET") {
+      return mockJsonResponse(true, { project: currentProject });
+    }
+
+    if (path === `/api/projects/${currentProject.id}` && method === "PUT") {
+      const nextProject = structuredClone(
+        ((options as { json?: ProjectRecord } | undefined)?.json || currentProject) as ProjectRecord,
+      );
+      persistedProjects.push(nextProject);
+      currentProject = nextProject;
+      return mockJsonResponse(true, { project: currentProject });
+    }
+
+    return mockJsonResponse(false, { error: "not_found" }, 404);
+  });
+
+  return {
+    getPersistedProjects: () => persistedProjects,
+    getCurrentProject: () => currentProject,
+  };
+};
+
+const LocationProbe = () => {
+  const location = useLocation();
+  return <div data-testid="location">{location.pathname}</div>;
+};
+
+const renderEditor = (initialEntry = "/dashboard/projetos/project-1/episodios/1") =>
+  render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <LocationProbe />
+      <Routes>
+        <Route
+          path="/dashboard/projetos/:projectId/episodios"
+          element={<DashboardProjectEpisodeEditor />}
+        />
+        <Route
+          path="/dashboard/projetos/:projectId/episodios/:episodeNumber"
+          element={<DashboardProjectEpisodeEditor />}
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+describe("DashboardProjectEpisodeEditor", () => {
+  beforeEach(() => {
+    setupApiMock();
+  });
+
+  it("salva o episodio ativo e envia o snapshot completo do projeto", async () => {
+    const apiState = setupApiMock();
+    renderEditor();
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+
+    fireEvent.change(screen.getByLabelText(/^Titulo$/i), {
+      target: { value: "Primeiro episodio revisado" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Salvar episodio/i }));
+
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Episodio salvo", intent: "success" }),
+      ),
+    );
+
+    const persistedProject = apiState.getPersistedProjects().at(-1);
+    expect(persistedProject?.episodeDownloads).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          number: 1,
+          title: "Primeiro episodio revisado",
+          releaseDate: "2026-03-10",
+          duration: "00:24:10",
+        }),
+      ]),
+    );
+    expect(refetchPublicBootstrapCacheMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      "/dashboard/projetos/project-1/episodios/1",
+    );
+  });
+
+  it("mostra o estado neutro com listagem unificada e sem controles legados", async () => {
+    renderEditor("/dashboard/projetos/project-1/episodios");
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+
+    const emptyState = screen.getByTestId("anime-episode-empty-state");
+    expect(
+      within(emptyState).getByRole("button", {
+        name: /Adicionar episodio/i,
+      }),
+    ).toBeInTheDocument();
+    expect(within(emptyState).getByPlaceholderText(/Buscar episodio/i)).toBeInTheDocument();
+    expect(within(emptyState).getByText(/Nenhum episodio aberto/i)).toBeInTheDocument();
+    expect(within(emptyState).getByText(/Primeiro episodio/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("anime-episode-editor-sidebar")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Duplicar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Anterior/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Pr(?:o|\u00f3)ximo/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("navega pela lista integrada no estado neutro e volta a exibir a sidebar no episodio ativo", async () => {
+    renderEditor("/dashboard/projetos/project-1/episodios");
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+
+    fireEvent.click(
+      within(screen.getByTestId("anime-episode-empty-state")).getByText(/Segundo episodio/i)
+        .closest("button") as HTMLButtonElement,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        "/dashboard/projetos/project-1/episodios/2",
+      ),
+    );
+
+    expect(screen.getByTestId("anime-episode-editor-sidebar")).toBeInTheDocument();
+  });
+
+  it("adiciona o proximo episodio, persiste o snapshot e navega para a nova rota", async () => {
+    const apiState = setupApiMock();
+    renderEditor("/dashboard/projetos/project-1/episodios");
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+    fireEvent.click(
+      within(screen.getByTestId("anime-episode-empty-state")).getByRole("button", {
+        name: /Adicionar episodio/i,
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        "/dashboard/projetos/project-1/episodios/3",
+      ),
+    );
+
+    const createdEpisode = apiState
+      .getPersistedProjects()
+      .at(-1)
+      ?.episodeDownloads.find((episode) => Number((episode as { number?: number }).number) === 3) as
+      | Record<string, unknown>
+      | undefined;
+
+    expect(createdEpisode).toEqual(
+      expect.objectContaining({
+        number: 3,
+        title: "",
+        sourceType: "TV",
+        duration: "",
+        synopsis: "",
+        sources: [],
+        publicationStatus: "draft",
+      }),
+    );
+    expect(createdEpisode?.hash).toBeUndefined();
+    expect(createdEpisode?.sizeBytes).toBeUndefined();
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Episodio criado", intent: "success" }),
+    );
+  });
+
+  it("abre o leave guard ao adicionar com alteracoes pendentes e permite descartar", async () => {
+    const apiState = setupApiMock();
+    renderEditor();
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+
+    fireEvent.change(screen.getByLabelText(/^Titulo$/i), {
+      target: { value: "Primeiro episodio alterado" },
+    });
+    fireEvent.click(
+      within(screen.getByTestId("anime-episode-editor-command-bar")).getByRole("button", {
+        name: /^Adicionar episodio$/i,
+      }),
+    );
+
+    expect(await screen.findByTestId("anime-episode-unsaved-leave-dialog")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Descartar e continuar/i }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        "/dashboard/projetos/project-1/episodios/3",
+      ),
+    );
+    const createdEpisode = apiState
+      .getPersistedProjects()
+      .at(-1)
+      ?.episodeDownloads.find((episode) => Number((episode as { number?: number }).number) === 3) as
+      | Record<string, unknown>
+      | undefined;
+    expect(createdEpisode).toEqual(expect.objectContaining({ number: 3, title: "" }));
+    expect(
+      apiState
+        .getPersistedProjects()
+        .at(-1)
+        ?.episodeDownloads.find((episode) => Number((episode as { number?: number }).number) === 1),
+    ).toEqual(expect.objectContaining({ title: "Primeiro episodio" }));
+  });
+
+  it("salva o rascunho atual antes de adicionar um novo episodio quando o usuario escolhe continuar salvando", async () => {
+    const apiState = setupApiMock();
+    renderEditor();
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+
+    fireEvent.change(screen.getByLabelText(/^Titulo$/i), {
+      target: { value: "Primeiro episodio revisado" },
+    });
+    fireEvent.click(
+      within(screen.getByTestId("anime-episode-editor-command-bar")).getByRole("button", {
+        name: /^Adicionar episodio$/i,
+      }),
+    );
+
+    expect(await screen.findByTestId("anime-episode-unsaved-leave-dialog")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Salvar e continuar/i }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        "/dashboard/projetos/project-1/episodios/3",
+      ),
+    );
+
+    const persistedProject = apiState.getPersistedProjects().at(-1);
+    expect(persistedProject?.episodeDownloads).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ number: 1, title: "Primeiro episodio revisado" }),
+        expect.objectContaining({ number: 3, title: "", publicationStatus: "draft" }),
+      ]),
+    );
+  });
+
+  it("simplifica o card de capa para biblioteca, alt e preview", async () => {
+    renderEditor("/dashboard/projetos/project-1/episodios/2");
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+
+    const coverSection = screen.getByTestId("anime-episode-cover-section");
+    const coverPreview = within(coverSection).getByTestId("anime-episode-cover-preview");
+
+    expect(within(coverSection).getByRole("button", { name: /Biblioteca/i })).toBeInTheDocument();
+    expect(
+      within(coverSection).getByLabelText(/Texto alternativo da capa/i),
+    ).toBeInTheDocument();
+    expect(within(coverSection).queryByText(/Biblioteca da capa/i)).not.toBeInTheDocument();
+    expect(within(coverSection).queryByPlaceholderText(/URL da capa/i)).not.toBeInTheDocument();
+    expect(coverPreview).toBeInTheDocument();
+    expect(coverPreview.querySelector(".aspect-video")).not.toBeNull();
+    expect(within(coverSection).getByRole("img")).toBeInTheDocument();
+  });
+
+  it("remove o episodio ativo e retorna para a rota neutra", async () => {
+    const apiState = setupApiMock();
+    renderEditor();
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episodios/i });
+
+    fireEvent.click(screen.getByRole("button", { name: /Excluir/i }));
+    expect(await screen.findByTestId("anime-episode-delete-dialog")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Excluir episodio/i }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        "/dashboard/projetos/project-1/episodios",
+      ),
+    );
+
+    const persistedProject = apiState.getPersistedProjects().at(-1);
+    expect(persistedProject?.episodeDownloads).toHaveLength(1);
+    expect(persistedProject?.episodeDownloads).toEqual(
+      expect.arrayContaining([expect.objectContaining({ number: 2 })]),
+    );
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Episodio removido", intent: "success" }),
+    );
+  });
+
+  it("retorna not found para projetos baseados em capitulos", async () => {
+    setupApiMock({
+      ...animeProjectFixture,
+      id: "project-ln-1",
+      type: "Light Novel",
+    });
+
+    renderEditor("/dashboard/projetos/project-ln-1/episodios/1");
+
+    expect(await screen.findByTestId("not-found")).toBeInTheDocument();
+  });
+});

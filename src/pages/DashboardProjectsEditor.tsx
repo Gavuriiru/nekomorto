@@ -60,6 +60,15 @@ import { parseAniListMediaId } from "@/lib/anilist";
 import { deriveAniListMediaOrganization } from "@/lib/anilist-media";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import {
+  buildDuplicatedAnimeEpisode,
+  cloneEpisodeSources,
+  getAnimeEpisodeCompletionIssues,
+  getAnimeEpisodeCompletionLabel,
+  matchesAnimeEpisodeQuickFilter,
+  shiftIsoDateByDays,
+  type AnimeEpisodeQuickFilter,
+} from "@/lib/project-anime-episodes";
 import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
 import {
   DEFAULT_PROJECT_BANNER_ALT,
@@ -72,6 +81,8 @@ import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 import {
   buildDashboardProjectChapterEditorHref,
   buildDashboardProjectChaptersEditorHref,
+  buildDashboardProjectEpisodeEditorHref,
+  buildDashboardProjectEpisodesEditorHref,
   buildProjectPublicHref,
 } from "@/lib/project-editor-routes";
 import {
@@ -105,6 +116,7 @@ import {
   PROJECT_READER_VIEW_MODES,
 } from "../../shared/project-reader.js";
 import {
+  Clapperboard,
   Cloud,
   Copy,
   Download,
@@ -115,6 +127,7 @@ import {
   Link2,
   Loader2,
   MessageSquare,
+  PencilLine,
   Plus,
   Send,
   Settings,
@@ -875,6 +888,12 @@ const resolveEpisodeEditorKey = (episode: Partial<EditorProjectEpisode> | null |
   return currentKey || generateLocalId();
 };
 
+const buildCompletionBadges = (episode: Partial<ProjectEpisode> | null | undefined) =>
+  getAnimeEpisodeCompletionIssues(episode).map((issue) => ({
+    issue,
+    label: getAnimeEpisodeCompletionLabel(issue),
+  }));
+
 const moveIndexedItem = <T,>(items: T[], from: number, to: number) => {
   if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) {
     return items;
@@ -1113,6 +1132,32 @@ const DashboardProjectsEditor = () => {
   const [episodeTimeDraft, setEpisodeTimeDraft] = useState<Record<number, string>>({});
   const [episodeSizeDrafts, setEpisodeSizeDrafts] = useState<Record<number, string>>({});
   const [episodeSizeErrors, setEpisodeSizeErrors] = useState<Record<number, string>>({});
+  const [animeEpisodeFilter, setAnimeEpisodeFilter] = useState<AnimeEpisodeQuickFilter>("all");
+  const [selectedAnimeEpisodeKeys, setSelectedAnimeEpisodeKeys] = useState<string[]>([]);
+  const [removedAnimeEpisode, setRemovedAnimeEpisode] = useState<{
+    episode: EditorProjectEpisode;
+    index: number;
+  } | null>(null);
+  const [animeBatchCreateOpen, setAnimeBatchCreateOpen] = useState(false);
+  const [animeBatchStartNumber, setAnimeBatchStartNumber] = useState("");
+  const [animeBatchQuantity, setAnimeBatchQuantity] = useState("3");
+  const [animeBatchCadenceDays, setAnimeBatchCadenceDays] = useState("");
+  const [animeBatchDurationInput, setAnimeBatchDurationInput] = useState("");
+  const [animeBatchSourceType, setAnimeBatchSourceType] =
+    useState<EditorProjectEpisode["sourceType"]>("TV");
+  const [animeBatchPublicationStatus, setAnimeBatchPublicationStatus] = useState<
+    "draft" | "published"
+  >("draft");
+  const [animeBatchOperationDuration, setAnimeBatchOperationDuration] = useState("");
+  const [animeBatchOperationSourceType, setAnimeBatchOperationSourceType] =
+    useState<EditorProjectEpisode["sourceType"]>("TV");
+  const [animeBatchOperationPublicationStatus, setAnimeBatchOperationPublicationStatus] = useState<
+    "draft" | "published"
+  >("draft");
+  const [animeBatchOperationShiftDays, setAnimeBatchOperationShiftDays] = useState("");
+  const [animeBatchOperationCompletedStages, setAnimeBatchOperationCompletedStages] = useState<
+    string[]
+  >([]);
   const [memberDirectory, setMemberDirectory] = useState<string[]>(
     initialCacheRef.current?.memberDirectory ?? [],
   );
@@ -1608,6 +1653,26 @@ const DashboardProjectsEditor = () => {
       .sort((a, b) => compareEpisodeOrdering(a.episode, b.episode));
   }, [compareEpisodeOrdering, formState.episodeDownloads, isChapterBased]);
 
+  const filteredAnimeEpisodeItems = useMemo(
+    () =>
+      isChapterBased
+        ? []
+        : sortedEpisodeDownloads.filter(({ episode }) =>
+            matchesAnimeEpisodeQuickFilter(episode, animeEpisodeFilter),
+          ),
+    [animeEpisodeFilter, isChapterBased, sortedEpisodeDownloads],
+  );
+
+  const filteredAnimeEpisodeKeySet = useMemo(
+    () => new Set(filteredAnimeEpisodeItems.map(({ episode }) => String(episode._editorKey || ""))),
+    [filteredAnimeEpisodeItems],
+  );
+
+  const selectedAnimeEpisodeKeySet = useMemo(
+    () => new Set(selectedAnimeEpisodeKeys),
+    [selectedAnimeEpisodeKeys],
+  );
+
   const resolveVolumeEntryIndexByVolume = useCallback(
     (entries: ProjectVolumeEntry[], volume?: number) => {
       if (!Number.isFinite(Number(volume))) {
@@ -1819,6 +1884,18 @@ const DashboardProjectsEditor = () => {
     },
     [sortedEpisodeDownloads],
   );
+
+  useEffect(() => {
+    if (isChapterBased) {
+      setSelectedAnimeEpisodeKeys([]);
+      setRemovedAnimeEpisode(null);
+      return;
+    }
+    const availableKeys = new Set(
+      formState.episodeDownloads.map((episode) => String(episode._editorKey || "")),
+    );
+    setSelectedAnimeEpisodeKeys((current) => current.filter((key) => availableKeys.has(key)));
+  }, [formState.episodeDownloads, isChapterBased]);
 
   const toggleEpisodeCollapsed = useCallback((index: number) => {
     setCollapsedEpisodes((prev) => ({
@@ -2456,6 +2533,17 @@ const DashboardProjectsEditor = () => {
     setEpisodeTimeDraft({});
     setEpisodeSizeDrafts({});
     setEpisodeSizeErrors({});
+    setAnimeEpisodeFilter("all");
+    setSelectedAnimeEpisodeKeys([]);
+    setRemovedAnimeEpisode(null);
+    setAnimeBatchCreateOpen(false);
+    setAnimeBatchStartNumber("");
+    setAnimeBatchQuantity("3");
+    setAnimeBatchCadenceDays("");
+    setAnimeBatchDurationInput("");
+    setAnimeBatchOperationDuration("");
+    setAnimeBatchOperationShiftDays("");
+    setAnimeBatchOperationCompletedStages([]);
     episodeSizeInputRefs.current = {};
     setAnimeStaffMemberInput({});
     editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, "");
@@ -2603,6 +2691,16 @@ const DashboardProjectsEditor = () => {
       setEpisodeTimeDraft({});
       setEpisodeSizeDrafts({});
       setEpisodeSizeErrors({});
+      setAnimeEpisodeFilter("all");
+      setSelectedAnimeEpisodeKeys([]);
+      setRemovedAnimeEpisode(null);
+      setAnimeBatchCreateOpen(false);
+      setAnimeBatchQuantity("3");
+      setAnimeBatchCadenceDays("");
+      setAnimeBatchDurationInput("");
+      setAnimeBatchOperationDuration("");
+      setAnimeBatchOperationShiftDays("");
+      setAnimeBatchOperationCompletedStages([]);
       episodeSizeInputRefs.current = {};
       setAnimeStaffMemberInput({});
       editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, nextAniListInput);
@@ -3614,6 +3712,273 @@ const DashboardProjectsEditor = () => {
     });
   };
 
+  const toggleAnimeEpisodeSelection = useCallback((episodeKey: string) => {
+    if (!episodeKey) {
+      return;
+    }
+    setSelectedAnimeEpisodeKeys((current) =>
+      current.includes(episodeKey)
+        ? current.filter((item) => item !== episodeKey)
+        : [...current, episodeKey],
+    );
+  }, []);
+
+  const selectAllFilteredAnimeEpisodes = useCallback(() => {
+    setSelectedAnimeEpisodeKeys(
+      filteredAnimeEpisodeItems
+        .map(({ episode }) => String(episode._editorKey || ""))
+        .filter(Boolean),
+    );
+  }, [filteredAnimeEpisodeItems]);
+
+  const clearSelectedAnimeEpisodes = useCallback(() => {
+    setSelectedAnimeEpisodeKeys([]);
+  }, []);
+
+  const applyAnimeBatchUpdate = useCallback(
+    (updater: (episode: EditorProjectEpisode) => EditorProjectEpisode) => {
+      if (!selectedAnimeEpisodeKeys.length) {
+        return;
+      }
+      const selectedSet = new Set(selectedAnimeEpisodeKeys);
+      setFormState((prev) => ({
+        ...prev,
+        episodeDownloads: prev.episodeDownloads.map((episode) =>
+          selectedSet.has(String(episode._editorKey || "")) ? updater(episode) : episode,
+        ),
+      }));
+    },
+    [selectedAnimeEpisodeKeys],
+  );
+
+  const removeAnimeEpisodeAtIndex = useCallback((index: number) => {
+    setFormState((prev) => {
+      const removed = prev.episodeDownloads[index];
+      if (!removed) {
+        return prev;
+      }
+      const nextEpisodes = prev.episodeDownloads.filter((_, idx) => idx !== index);
+      setRemovedAnimeEpisode({
+        episode: {
+          ...removed,
+          _editorKey: removed._editorKey || generateLocalId(),
+        },
+        index,
+      });
+      setSelectedAnimeEpisodeKeys((current) =>
+        current.filter((key) => key !== String(removed._editorKey || "")),
+      );
+      return {
+        ...prev,
+        episodeDownloads: nextEpisodes,
+      };
+    });
+    setEpisodeDateDraft((prev) => shiftDraftAfterRemoval(prev, index));
+    setEpisodeTimeDraft((prev) => shiftDraftAfterRemoval(prev, index));
+    setEpisodeSizeDrafts((prev) => shiftDraftAfterRemoval(prev, index));
+    setEpisodeSizeErrors((prev) => shiftDraftAfterRemoval(prev, index));
+    setCollapsedEpisodes((prev) => shiftCollapsedEpisodesAfterRemoval(prev, index));
+  }, []);
+
+  const undoRemoveAnimeEpisode = useCallback(() => {
+    if (!removedAnimeEpisode) {
+      return;
+    }
+    const { episode, index } = removedAnimeEpisode;
+    pendingEpisodeToScrollRef.current = episode;
+    setFormState((prev) => {
+      const nextEpisodes = [...prev.episodeDownloads];
+      nextEpisodes.splice(Math.min(index, nextEpisodes.length), 0, episode);
+      return {
+        ...prev,
+        episodeDownloads: nextEpisodes,
+      };
+    });
+    setCollapsedEpisodes((prev) => ({
+      ...prev,
+      [index]: false,
+    }));
+    setRemovedAnimeEpisode(null);
+  }, [removedAnimeEpisode]);
+
+  const duplicateAnimeEpisode = useCallback(
+    (episode: EditorProjectEpisode) => {
+      const duplicatedEpisode = buildDuplicatedAnimeEpisode(episode, formState.episodeDownloads);
+      pendingEpisodeToScrollRef.current = duplicatedEpisode;
+      setFormState((prev) => ({
+        ...prev,
+        episodeDownloads: [...prev.episodeDownloads, duplicatedEpisode],
+      }));
+      setCollapsedEpisodes((prev) => ({
+        ...prev,
+        [formState.episodeDownloads.length]: false,
+      }));
+    },
+    [formState.episodeDownloads],
+  );
+
+  const createAnimeEpisodeBatch = useCallback(() => {
+    const startNumber = Math.max(1, Number(animeBatchStartNumber) || 0);
+    const quantity = Math.max(1, Number(animeBatchQuantity) || 0);
+    if (!startNumber || !quantity) {
+      toast({
+        title: "Parametros invalidos",
+        description: "Informe episodio inicial e quantidade validos.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const durationValue = displayTimeToCanonical(animeBatchDurationInput);
+    const cadenceDays = Math.max(0, Number(animeBatchCadenceDays) || 0);
+    const existingNumbers = new Set(
+      formState.episodeDownloads.map((episode) => Number(episode.number)),
+    );
+    const duplicatedNumbers = Array.from(
+      { length: quantity },
+      (_, index) => startNumber + index,
+    ).filter((value) => existingNumbers.has(value));
+    if (duplicatedNumbers.length > 0) {
+      toast({
+        title: "Faixa ocupada",
+        description: "A faixa escolhida conflita com episodios ja existentes.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const latestDatedEpisode = [...sortedEpisodeDownloads]
+      .map(({ episode }) => episode)
+      .reverse()
+      .find((episode) => String(episode.releaseDate || "").trim());
+    const initialDate = latestDatedEpisode?.releaseDate || "";
+    const createdEpisodes = Array.from({ length: quantity }, (_, index) => {
+      const episodeNumber = startNumber + index;
+      const releaseDate =
+        cadenceDays > 0 && initialDate
+          ? shiftIsoDateByDays(initialDate, cadenceDays * (index + 1))
+          : "";
+      return {
+        _editorKey: generateLocalId(),
+        number: episodeNumber,
+        title: "",
+        synopsis: "",
+        releaseDate,
+        duration: durationValue,
+        sourceType: animeBatchSourceType,
+        sources: [],
+        progressStage: "aguardando-raw",
+        completedStages: [],
+        content: "",
+        contentFormat: "lexical" as const,
+        publicationStatus: animeBatchPublicationStatus,
+        coverImageUrl: "",
+        coverImageAlt: "",
+      } satisfies EditorProjectEpisode;
+    });
+    const lastCreatedEpisode = createdEpisodes[createdEpisodes.length - 1] || null;
+    if (lastCreatedEpisode) {
+      pendingEpisodeToScrollRef.current = lastCreatedEpisode;
+    }
+    setFormState((prev) => ({
+      ...prev,
+      episodeDownloads: [...prev.episodeDownloads, ...createdEpisodes],
+    }));
+    setCollapsedEpisodes((prev) => {
+      const next = { ...prev };
+      createdEpisodes.forEach((_, offset) => {
+        next[formState.episodeDownloads.length + offset] = false;
+      });
+      return next;
+    });
+    setAnimeBatchCreateOpen(false);
+    setAnimeBatchQuantity("3");
+    setAnimeBatchCadenceDays("");
+    setAnimeBatchDurationInput("");
+    setAnimeBatchPublicationStatus("draft");
+    setAnimeBatchSourceType("TV");
+    toast({
+      title: "Episodios criados",
+      description: `${createdEpisodes.length} episodio(s) adicionados ao formulario.`,
+      intent: "success",
+    });
+  }, [
+    animeBatchCadenceDays,
+    animeBatchDurationInput,
+    animeBatchPublicationStatus,
+    animeBatchQuantity,
+    animeBatchSourceType,
+    animeBatchStartNumber,
+    formState.episodeDownloads,
+    sortedEpisodeDownloads,
+  ]);
+
+  const applyAnimeBatchDuration = useCallback(() => {
+    const canonicalDuration = displayTimeToCanonical(animeBatchOperationDuration);
+    if (!canonicalDuration) {
+      toast({
+        title: "Duracao invalida",
+        description: "Use MM:SS ou H:MM:SS para aplicar a duracao em lote.",
+        variant: "destructive",
+      });
+      return;
+    }
+    applyAnimeBatchUpdate((episode) => ({
+      ...episode,
+      duration: canonicalDuration,
+    }));
+  }, [animeBatchOperationDuration, applyAnimeBatchUpdate]);
+
+  const applyAnimeBatchSourceType = useCallback(() => {
+    applyAnimeBatchUpdate((episode) => ({
+      ...episode,
+      sourceType: animeBatchOperationSourceType,
+    }));
+  }, [animeBatchOperationSourceType, applyAnimeBatchUpdate]);
+
+  const applyAnimeBatchPublicationStatus = useCallback(() => {
+    applyAnimeBatchUpdate((episode) => ({
+      ...episode,
+      publicationStatus: animeBatchOperationPublicationStatus,
+    }));
+  }, [animeBatchOperationPublicationStatus, applyAnimeBatchUpdate]);
+
+  const applyAnimeBatchCompletedStages = useCallback(() => {
+    applyAnimeBatchUpdate((episode) => ({
+      ...episode,
+      completedStages: [...animeBatchOperationCompletedStages],
+    }));
+  }, [animeBatchOperationCompletedStages, applyAnimeBatchUpdate]);
+
+  const applyAnimeBatchShiftReleaseDates = useCallback(() => {
+    const dayOffset = Number(animeBatchOperationShiftDays);
+    if (!Number.isFinite(dayOffset) || dayOffset === 0) {
+      toast({
+        title: "Deslocamento invalido",
+        description: "Informe um numero inteiro de dias para deslocar as datas.",
+        variant: "destructive",
+      });
+      return;
+    }
+    applyAnimeBatchUpdate((episode) => ({
+      ...episode,
+      releaseDate: shiftIsoDateByDays(episode.releaseDate, dayOffset),
+    }));
+  }, [animeBatchOperationShiftDays, applyAnimeBatchUpdate]);
+
+  const applyAnimeBatchReplicateSources = useCallback(() => {
+    const sourceEpisode =
+      sortedEpisodeDownloads.find(({ episode }) =>
+        selectedAnimeEpisodeKeySet.has(String(episode._editorKey || "")),
+      )?.episode || null;
+    if (!sourceEpisode) {
+      return;
+    }
+    const nextSources = cloneEpisodeSources(sourceEpisode.sources);
+    applyAnimeBatchUpdate((episode) => ({
+      ...episode,
+      sources: cloneEpisodeSources(nextSources),
+    }));
+  }, [applyAnimeBatchUpdate, selectedAnimeEpisodeKeySet, sortedEpisodeDownloads]);
+
   const moveRelationItem = useCallback((from: number, to: number) => {
     if (from === to) {
       return;
@@ -3723,6 +4088,9 @@ const DashboardProjectsEditor = () => {
   const editorEpisodeCount = formState.episodeDownloads.length;
   const lightNovelContentHref = editingProject?.id
     ? buildDashboardProjectChaptersEditorHref(editingProject.id)
+    : "";
+  const animeContentHref = editingProject?.id
+    ? buildDashboardProjectEpisodesEditorHref(editingProject.id)
     : "";
   const publicProjectHref = editingProject?.id ? buildProjectPublicHref(editingProject.id) : "";
   const hasBlockingLoadError = !hasLoadedOnce && hasLoadError;
@@ -3878,161 +4246,186 @@ const DashboardProjectsEditor = () => {
               />
             ) : (
               <div className="grid gap-6">
-                {paginatedProjects.map((project, index) => (
-                  <Card
-                    key={project.id}
-                    data-testid={`dashboard-project-card-${project.id}`}
-                    lift={false}
-                    className={`${dashboardPageLayoutTokens.listCardSolid} group overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
-                    style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
-                  >
-                    <CardContent className="relative p-0">
-                      <button
-                        type="button"
-                        className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
-                        aria-label={`Abrir projeto ${project.title}`}
-                        onClick={() => openEdit(project)}
-                      >
-                        <span className="sr-only">{`Abrir projeto ${project.title}`}</span>
-                      </button>
-                      <div className="grid gap-2 md:gap-6 md:grid-cols-[220px_1fr]">
-                        <div data-slot="project-card-cover" className="relative aspect-2/3 w-full">
-                          <img
-                            src={project.cover || "/placeholder.svg"}
-                            alt={project.title}
-                            className="pointer-events-none h-full w-full object-cover object-center"
-                            loading="lazy"
-                          />
-                        </div>
-                        <div
-                          data-slot="project-card-content"
-                          className="flex h-full min-h-0 flex-1 flex-col p-6"
+                {paginatedProjects.map((project, index) => {
+                  const dedicatedEditorHref = isChapterBasedType(project.type || "")
+                    ? buildDashboardProjectChaptersEditorHref(project.id)
+                    : buildDashboardProjectEpisodesEditorHref(project.id);
+
+                  return (
+                    <Card
+                      key={project.id}
+                      data-testid={`dashboard-project-card-${project.id}`}
+                      lift={false}
+                      className={`${dashboardPageLayoutTokens.listCardSolid} group overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
+                      style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
+                    >
+                      <CardContent className="relative p-0">
+                        <button
+                          type="button"
+                          className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
+                          aria-label={`Abrir projeto ${project.title}`}
+                          onClick={() => openEdit(project)}
                         >
+                          <span className="sr-only">{`Abrir projeto ${project.title}`}</span>
+                        </button>
+                        <div className="grid gap-2 md:gap-6 md:grid-cols-[220px_1fr]">
                           <div
-                            data-slot="project-card-top"
-                            className="flex flex-col items-start gap-4 md:flex-row md:items-start md:justify-between"
+                            data-slot="project-card-cover"
+                            className="relative aspect-2/3 w-full"
                           >
-                            <div className="min-w-0 flex-1 space-y-2">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Badge variant="outline" className="text-[10px] uppercase">
-                                  {project.status}
-                                </Badge>
-                                <Badge variant="secondary" className="text-[10px] uppercase">
-                                  {project.type}
-                                </Badge>
-                              </div>
-                              <h3 className="line-clamp-2 break-words text-lg font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
-                                {project.title}
-                              </h3>
-                              <p className={`text-xs ${dashboardPageLayoutTokens.cardMetaText}`}>
-                                {project.studio}
-                              </p>
-                            </div>
-                            <div className="relative z-20 flex shrink-0 items-center gap-2">
-                              <Button variant="ghost" size="icon" title="Visualizar" asChild>
-                                <Link to={buildProjectPublicHref(project.id)}>
-                                  <Eye className="h-4 w-4" />
-                                </Link>
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="Copiar link"
-                                onClick={() => {
-                                  const url = `${window.location.origin}${buildProjectPublicHref(project.id)}`;
-                                  navigator.clipboard.writeText(url).catch(() => {
-                                    const textarea = document.createElement("textarea");
-                                    textarea.value = url;
-                                    document.body.appendChild(textarea);
-                                    textarea.select();
-                                    document.execCommand("copy");
-                                    document.body.removeChild(textarea);
-                                  });
-                                }}
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="Excluir"
-                                onClick={() => {
-                                  setDeleteTarget(project);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
+                            <img
+                              src={project.cover || "/placeholder.svg"}
+                              alt={project.title}
+                              className="pointer-events-none h-full w-full object-cover object-center"
+                              loading="lazy"
+                            />
                           </div>
-
                           <div
-                            data-slot="project-card-middle"
-                            className="mt-4 flex min-h-0 flex-1 flex-col gap-4"
+                            data-slot="project-card-content"
+                            className="flex h-full min-h-0 flex-1 flex-col p-6"
                           >
-                            <p
-                              data-slot="project-card-synopsis"
-                              className={`text-sm ${dashboardPageLayoutTokens.cardMetaText} line-clamp-3`}
+                            <div
+                              data-slot="project-card-top"
+                              className="flex flex-col items-start gap-4 md:flex-row md:items-start md:justify-between"
                             >
-                              {project.synopsis}
-                            </p>
-
-                            {project.tags.length > 0 ? (
-                              <div data-slot="project-card-tags" className="flex flex-wrap gap-2">
-                                {sortByTranslatedLabel(project.tags || [], (tag) =>
-                                  translateTag(tag, tagTranslationMap),
-                                )
-                                  .slice(0, 4)
-                                  .map((tag) => (
-                                    <Badge
-                                      key={tag}
-                                      variant="secondary"
-                                      className="text-[10px] uppercase"
-                                    >
-                                      {translateTag(tag, tagTranslationMap)}
-                                    </Badge>
-                                  ))}
+                              <div className="min-w-0 flex-1 space-y-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Badge variant="outline" className="text-[10px] uppercase">
+                                    {project.status}
+                                  </Badge>
+                                  <Badge variant="secondary" className="text-[10px] uppercase">
+                                    {project.type}
+                                  </Badge>
+                                </div>
+                                <h3 className="line-clamp-2 break-words text-lg font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
+                                  {project.title}
+                                </h3>
+                                <p className={`text-xs ${dashboardPageLayoutTokens.cardMetaText}`}>
+                                  {project.studio}
+                                </p>
                               </div>
-                            ) : null}
-                            {project.genres?.length ? (
-                              <div data-slot="project-card-genres" className="flex flex-wrap gap-2">
-                                {sortByTranslatedLabel(project.genres || [], (genre) =>
-                                  translateGenre(genre, genreTranslationMap),
-                                )
-                                  .slice(0, 4)
-                                  .map((genre) => (
-                                    <Badge
-                                      key={genre}
-                                      variant="outline"
-                                      className="text-[10px] uppercase"
-                                    >
-                                      {translateGenre(genre, genreTranslationMap)}
-                                    </Badge>
-                                  ))}
+                              <div className="relative z-20 flex shrink-0 flex-wrap items-center justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Editor dedicado"
+                                  asChild
+                                >
+                                  <Link
+                                    to={dedicatedEditorHref}
+                                    aria-label={`Abrir editor dedicado de ${project.title}`}
+                                  >
+                                    <PencilLine className="h-4 w-4" aria-hidden="true" />
+                                  </Link>
+                                </Button>
+                                <Button variant="ghost" size="icon" title="Visualizar" asChild>
+                                  <Link to={buildProjectPublicHref(project.id)}>
+                                    <Eye className="h-4 w-4" />
+                                  </Link>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Copiar link"
+                                  onClick={() => {
+                                    const url = `${window.location.origin}${buildProjectPublicHref(project.id)}`;
+                                    navigator.clipboard.writeText(url).catch(() => {
+                                      const textarea = document.createElement("textarea");
+                                      textarea.value = url;
+                                      document.body.appendChild(textarea);
+                                      textarea.select();
+                                      document.execCommand("copy");
+                                      document.body.removeChild(textarea);
+                                    });
+                                  }}
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Excluir"
+                                  onClick={() => {
+                                    setDeleteTarget(project);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
                               </div>
-                            ) : null}
+                            </div>
 
                             <div
-                              data-slot="project-card-meta"
-                              className={`mt-auto flex flex-wrap items-center gap-4 text-xs ${dashboardPageLayoutTokens.cardMetaText}`}
+                              data-slot="project-card-middle"
+                              className="mt-4 flex min-h-0 flex-1 flex-col gap-4"
                             >
-                              <span className="inline-flex items-center gap-2">
-                                {project.views} visualizações
-                              </span>
-                              <span className="inline-flex items-center gap-2">
-                                {project.commentsCount} comentários
-                              </span>
-                              <span
-                                className={`ml-auto text-xs ${dashboardPageLayoutTokens.cardMetaText}`}
+                              <p
+                                data-slot="project-card-synopsis"
+                                className={`text-sm ${dashboardPageLayoutTokens.cardMetaText} line-clamp-3`}
                               >
-                                ID {project.id}
-                              </span>
+                                {project.synopsis}
+                              </p>
+
+                              {project.tags.length > 0 ? (
+                                <div data-slot="project-card-tags" className="flex flex-wrap gap-2">
+                                  {sortByTranslatedLabel(project.tags || [], (tag) =>
+                                    translateTag(tag, tagTranslationMap),
+                                  )
+                                    .slice(0, 4)
+                                    .map((tag) => (
+                                      <Badge
+                                        key={tag}
+                                        variant="secondary"
+                                        className="text-[10px] uppercase"
+                                      >
+                                        {translateTag(tag, tagTranslationMap)}
+                                      </Badge>
+                                    ))}
+                                </div>
+                              ) : null}
+                              {project.genres?.length ? (
+                                <div
+                                  data-slot="project-card-genres"
+                                  className="flex flex-wrap gap-2"
+                                >
+                                  {sortByTranslatedLabel(project.genres || [], (genre) =>
+                                    translateGenre(genre, genreTranslationMap),
+                                  )
+                                    .slice(0, 4)
+                                    .map((genre) => (
+                                      <Badge
+                                        key={genre}
+                                        variant="outline"
+                                        className="text-[10px] uppercase"
+                                      >
+                                        {translateGenre(genre, genreTranslationMap)}
+                                      </Badge>
+                                    ))}
+                                </div>
+                              ) : null}
+
+                              <div
+                                data-slot="project-card-meta"
+                                className={`mt-auto flex flex-wrap items-center gap-4 text-xs ${dashboardPageLayoutTokens.cardMetaText}`}
+                              >
+                                <span className="inline-flex items-center gap-2">
+                                  {project.views} visualizações
+                                </span>
+                                <span className="inline-flex items-center gap-2">
+                                  {project.commentsCount} comentários
+                                </span>
+                                <span
+                                  className={`ml-auto text-xs ${dashboardPageLayoutTokens.cardMetaText}`}
+                                >
+                                  ID {project.id}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
             {sortedProjects.length > projectsPerPage ? (
@@ -5712,7 +6105,7 @@ const DashboardProjectsEditor = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  {!isLightNovel ? (
+                  {isChapterBased ? (
                     <AccordionItem value="episodios" className={editorSectionClassName}>
                       <AccordionTrigger className={editorSectionTriggerClassName}>
                         <ProjectEditorAccordionHeader
@@ -5746,7 +6139,260 @@ const DashboardProjectsEditor = () => {
                             >
                               {isChapterBased ? "Adicionar capítulo" : "Adicionar episódio"}
                             </Button>
+                            {!isChapterBased ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setAnimeBatchStartNumber(
+                                    String(
+                                      resolveNextMainEpisodeNumber(formState.episodeDownloads, {
+                                        isExtra: (episode) =>
+                                          getEpisodeEntryKind(episode) === "extra",
+                                      }),
+                                    ),
+                                  );
+                                  setAnimeBatchCreateOpen(true);
+                                }}
+                              >
+                                Criar lote
+                              </Button>
+                            ) : null}
+                            {!isChapterBased && animeContentHref ? (
+                              <Button type="button" size="sm" variant="outline" asChild>
+                                <Link to={animeContentHref}>Abrir editor dedicado</Link>
+                              </Button>
+                            ) : null}
                           </div>
+                          {!isChapterBased ? (
+                            <div className="space-y-3 rounded-2xl border border-border/60 bg-background/35 p-3">
+                              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-[10px] uppercase tracking-[0.12em]"
+                                  >
+                                    GestÃ£o rÃ¡pida
+                                  </Badge>
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] uppercase tracking-[0.12em]"
+                                  >
+                                    {filteredAnimeEpisodeItems.length} no filtro
+                                  </Badge>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Select
+                                    value={animeEpisodeFilter}
+                                    onValueChange={(value) =>
+                                      setAnimeEpisodeFilter(value as AnimeEpisodeQuickFilter)
+                                    }
+                                  >
+                                    <SelectTrigger className="w-[220px]">
+                                      <SelectValue placeholder="Filtrar episÃ³dios" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="all">Todos</SelectItem>
+                                      <SelectItem value="published">Publicados</SelectItem>
+                                      <SelectItem value="draft">Rascunhos</SelectItem>
+                                      <SelectItem value="missing-links">Sem links</SelectItem>
+                                      <SelectItem value="missing-date">Sem data</SelectItem>
+                                      <SelectItem value="incomplete">Incompletos</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={selectAllFilteredAnimeEpisodes}
+                                    disabled={filteredAnimeEpisodeItems.length === 0}
+                                  >
+                                    Selecionar visÃ­veis
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={clearSelectedAnimeEpisodes}
+                                    disabled={selectedAnimeEpisodeKeys.length === 0}
+                                  >
+                                    Limpar seleÃ§Ã£o
+                                  </Button>
+                                </div>
+                              </div>
+                              {selectedAnimeEpisodeKeys.length > 0 ? (
+                                <div className="grid gap-3 rounded-xl border border-border/60 bg-card/70 p-3">
+                                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                    <span>
+                                      {selectedAnimeEpisodeKeys.length} episÃ³dio(s) selecionado(s)
+                                    </span>
+                                    <Badge variant="outline">AÃ§Ãµes em lote</Badge>
+                                  </div>
+                                  <div className="grid gap-3 xl:grid-cols-2">
+                                    <div className="flex flex-wrap items-end gap-2">
+                                      <div className="space-y-2">
+                                        <Label className="text-xs">Origem</Label>
+                                        <Select
+                                          value={animeBatchOperationSourceType}
+                                          onValueChange={(value) =>
+                                            setAnimeBatchOperationSourceType(
+                                              value as EditorProjectEpisode["sourceType"],
+                                            )
+                                          }
+                                        >
+                                          <SelectTrigger className="w-[140px]">
+                                            <SelectValue placeholder="Origem" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="TV">TV</SelectItem>
+                                            <SelectItem value="Web">Web</SelectItem>
+                                            <SelectItem value="Blu-ray">Blu-ray</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={applyAnimeBatchSourceType}
+                                      >
+                                        Aplicar origem
+                                      </Button>
+                                      <div className="space-y-2">
+                                        <Label className="text-xs">Status</Label>
+                                        <Select
+                                          value={animeBatchOperationPublicationStatus}
+                                          onValueChange={(value) =>
+                                            setAnimeBatchOperationPublicationStatus(
+                                              value === "draft" ? "draft" : "published",
+                                            )
+                                          }
+                                        >
+                                          <SelectTrigger className="w-[140px]">
+                                            <SelectValue placeholder="Status" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="draft">Rascunho</SelectItem>
+                                            <SelectItem value="published">Publicado</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={applyAnimeBatchPublicationStatus}
+                                      >
+                                        Aplicar status
+                                      </Button>
+                                    </div>
+                                    <div className="flex flex-wrap items-end gap-2">
+                                      <div className="space-y-2">
+                                        <Label className="text-xs">DuraÃ§Ã£o</Label>
+                                        <Input
+                                          value={animeBatchOperationDuration}
+                                          onChange={(event) =>
+                                            setAnimeBatchOperationDuration(
+                                              formatTimeDigitsToDisplay(event.target.value),
+                                            )
+                                          }
+                                          placeholder="MM:SS ou H:MM:SS"
+                                          className="w-[180px]"
+                                        />
+                                      </div>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={applyAnimeBatchDuration}
+                                      >
+                                        Aplicar duraÃ§Ã£o
+                                      </Button>
+                                      <div className="space-y-2">
+                                        <Label className="text-xs">Deslocar datas</Label>
+                                        <Input
+                                          type="number"
+                                          value={animeBatchOperationShiftDays}
+                                          onChange={(event) =>
+                                            setAnimeBatchOperationShiftDays(event.target.value)
+                                          }
+                                          placeholder="Dias"
+                                          className="w-[110px]"
+                                        />
+                                      </div>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={applyAnimeBatchShiftReleaseDates}
+                                      >
+                                        Aplicar datas
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label className="text-xs">Etapas concluÃ­das</Label>
+                                    <div className="flex flex-wrap gap-2">
+                                      {stageOptions.map((stage) => {
+                                        const isSelected =
+                                          animeBatchOperationCompletedStages.includes(stage.id);
+                                        return (
+                                          <Button
+                                            key={`anime-batch-stage-${stage.id}`}
+                                            type="button"
+                                            size="sm"
+                                            variant={isSelected ? "default" : "outline"}
+                                            onClick={() =>
+                                              setAnimeBatchOperationCompletedStages((current) =>
+                                                current.includes(stage.id)
+                                                  ? current.filter((item) => item !== stage.id)
+                                                  : [...current, stage.id],
+                                              )
+                                            }
+                                          >
+                                            {stage.label}
+                                          </Button>
+                                        );
+                                      })}
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={applyAnimeBatchCompletedStages}
+                                      >
+                                        Aplicar etapas
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={applyAnimeBatchReplicateSources}
+                                      >
+                                        Replicar fontes
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : null}
+                              {removedAnimeEpisode ? (
+                                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-card/70 px-3 py-2">
+                                  <div className="text-sm text-muted-foreground">
+                                    EpisÃ³dio removido do formulÃ¡rio. VocÃª pode desfazer antes de
+                                    salvar.
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={undoRemoveAnimeEpisode}
+                                  >
+                                    Desfazer
+                                  </Button>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
                           <div
                             className={isChapterBased && supportsVolumeEntries ? "space-y-4" : ""}
                           >
@@ -5757,11 +6403,16 @@ const DashboardProjectsEditor = () => {
                               className="space-y-4"
                             >
                               {episodeGroupsForRender.map((group, groupIndex) => {
+                                const visibleEpisodeItems = !isChapterBased
+                                  ? group.episodeItems.filter(({ episode }) =>
+                                      matchesAnimeEpisodeQuickFilter(episode, animeEpisodeFilter),
+                                    )
+                                  : group.episodeItems;
                                 const groupVolumeEntry =
                                   group.volumeEntryIndex !== null
                                     ? formState.volumeEntries[group.volumeEntryIndex] || null
                                     : null;
-                                const groupHasEpisodes = group.episodeItems.length > 0;
+                                const groupHasEpisodes = visibleEpisodeItems.length > 0;
                                 const volumeLabel = group.hasNumericVolume
                                   ? `Volume ${group.volume}`
                                   : "Sem volume";
@@ -5901,7 +6552,7 @@ const DashboardProjectsEditor = () => {
                                         onValueChange={handleEpisodeAccordionChange}
                                         className="space-y-3"
                                       >
-                                        {group.episodeItems.map(({ episode, index }) => {
+                                        {visibleEpisodeItems.map(({ episode, index }) => {
                                           const isEpisodeCollapsed =
                                             collapsedEpisodes[index] ?? false;
                                           const entryKind = getEpisodeEntryKind(episode);
@@ -5951,6 +6602,29 @@ const DashboardProjectsEditor = () => {
                                               ? "Download"
                                               : currentProgressStageLabel;
                                           const statusVisibilitySummary = `${statusLabel} • ${availabilityLabel}`;
+                                          const animeCompletionBadges = !isChapterBased
+                                            ? buildCompletionBadges(episode)
+                                            : [];
+                                          const isAnimeEpisodeSelected =
+                                            !isChapterBased &&
+                                            selectedAnimeEpisodeKeySet.has(
+                                              String(episode._editorKey || ""),
+                                            );
+                                          const animeEpisodeEditorHref =
+                                            !isChapterBased && editingProject?.id
+                                              ? buildDashboardProjectEpisodeEditorHref(
+                                                  editingProject.id,
+                                                  episode.number,
+                                                )
+                                              : "";
+                                          const chapterEditorHref =
+                                            isLightNovel && editingProject?.id
+                                              ? buildDashboardProjectChapterEditorHref(
+                                                  editingProject.id,
+                                                  episode.number,
+                                                  episode.volume,
+                                                )
+                                              : "";
 
                                           return (
                                             <AccordionItem
@@ -6005,7 +6679,18 @@ const DashboardProjectsEditor = () => {
                                                       handleEpisodeHeaderClick(index, event)
                                                     }
                                                   >
-                                                    <div className="min-w-0 flex-1">
+                                                    <div className="min-w-0 flex flex-1 items-start gap-2">
+                                                      {!isChapterBased ? (
+                                                        <Checkbox
+                                                          checked={isAnimeEpisodeSelected}
+                                                          onCheckedChange={() =>
+                                                            toggleAnimeEpisodeSelection(
+                                                              String(episode._editorKey || ""),
+                                                            )
+                                                          }
+                                                          aria-label={`Selecionar episódio ${episode.number || index + 1}`}
+                                                        />
+                                                      ) : null}
                                                       <AccordionTrigger
                                                         data-episode-accordion-trigger
                                                         className="project-editor-episode-trigger gap-3 py-0 text-left text-foreground hover:no-underline [&>svg]:mt-0 [&>svg]:self-center [&>svg]:shrink-0"
@@ -6035,6 +6720,45 @@ const DashboardProjectsEditor = () => {
                                                       >
                                                         {statusVisibilitySummary}
                                                       </span>
+                                                      {!isChapterBased
+                                                        ? animeCompletionBadges.map((badge) => (
+                                                            <Badge
+                                                              key={`${episode._editorKey || index}-${badge.issue}`}
+                                                              variant="outline"
+                                                              className="text-[10px] uppercase tracking-[0.08em]"
+                                                            >
+                                                              {badge.label}
+                                                            </Badge>
+                                                          ))
+                                                        : null}
+                                                      {!isChapterBased && animeEpisodeEditorHref ? (
+                                                        <Button
+                                                          type="button"
+                                                          size="sm"
+                                                          variant="outline"
+                                                          className="h-7 px-2 text-[11px]"
+                                                          data-no-toggle
+                                                          asChild
+                                                        >
+                                                          <Link to={animeEpisodeEditorHref}>
+                                                            Abrir
+                                                          </Link>
+                                                        </Button>
+                                                      ) : null}
+                                                      {!isChapterBased ? (
+                                                        <Button
+                                                          type="button"
+                                                          size="sm"
+                                                          variant="outline"
+                                                          className="h-7 px-2 text-[11px]"
+                                                          data-no-toggle
+                                                          onClick={() =>
+                                                            duplicateAnimeEpisode(episode)
+                                                          }
+                                                        >
+                                                          Duplicar
+                                                        </Button>
+                                                      ) : null}
                                                       <ReorderControls
                                                         label={`item ${isExtraEntry ? "extra" : episode.number || index + 1}`}
                                                         index={index}
@@ -6051,6 +6775,10 @@ const DashboardProjectsEditor = () => {
                                                         className="h-7 px-2 text-[11px] text-destructive hover:text-destructive"
                                                         data-no-toggle
                                                         onClick={() => {
+                                                          if (!isChapterBased) {
+                                                            removeAnimeEpisodeAtIndex(index);
+                                                            return;
+                                                          }
                                                           setFormState((prev) => ({
                                                             ...prev,
                                                             episodeDownloads:
@@ -7233,6 +7961,18 @@ const DashboardProjectsEditor = () => {
                       <span className="sr-only md:not-sr-only">Conteúdo</span>
                     </Button>
                   )
+                ) : animeContentHref ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
+                    asChild
+                  >
+                    <Link to={animeContentHref}>
+                      <Clapperboard className="h-4 w-4" aria-hidden="true" />
+                      <span className="sr-only md:not-sr-only">Episódios</span>
+                    </Link>
+                  </Button>
                 ) : null}
                 {publicProjectHref ? (
                   <Button
@@ -7284,6 +8024,103 @@ const DashboardProjectsEditor = () => {
             >
               Sair
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={animeBatchCreateOpen} onOpenChange={setAnimeBatchCreateOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Criar lote de episÃ³dios</DialogTitle>
+            <DialogDescription>
+              Adiciona vÃ¡rios episÃ³dios sequenciais ao formulÃ¡rio com defaults de data,
+              duraÃ§Ã£o, origem e status.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="anime-batch-start-number">EpisÃ³dio inicial</Label>
+              <Input
+                id="anime-batch-start-number"
+                type="number"
+                min={1}
+                value={animeBatchStartNumber}
+                onChange={(event) => setAnimeBatchStartNumber(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="anime-batch-quantity">Quantidade</Label>
+              <Input
+                id="anime-batch-quantity"
+                type="number"
+                min={1}
+                value={animeBatchQuantity}
+                onChange={(event) => setAnimeBatchQuantity(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="anime-batch-cadence">CadÃªncia de datas</Label>
+              <Input
+                id="anime-batch-cadence"
+                type="number"
+                min={0}
+                value={animeBatchCadenceDays}
+                onChange={(event) => setAnimeBatchCadenceDays(event.target.value)}
+                placeholder="Dias"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="anime-batch-duration">DuraÃ§Ã£o padrÃ£o</Label>
+              <Input
+                id="anime-batch-duration"
+                value={animeBatchDurationInput}
+                onChange={(event) =>
+                  setAnimeBatchDurationInput(formatTimeDigitsToDisplay(event.target.value))
+                }
+                placeholder="MM:SS ou H:MM:SS"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="anime-batch-source-type">Origem padrÃ£o</Label>
+              <Select
+                value={animeBatchSourceType}
+                onValueChange={(value) =>
+                  setAnimeBatchSourceType(value as EditorProjectEpisode["sourceType"])
+                }
+              >
+                <SelectTrigger id="anime-batch-source-type">
+                  <SelectValue placeholder="Origem" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TV">TV</SelectItem>
+                  <SelectItem value="Web">Web</SelectItem>
+                  <SelectItem value="Blu-ray">Blu-ray</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="anime-batch-status">Status inicial</Label>
+              <Select
+                value={animeBatchPublicationStatus}
+                onValueChange={(value) =>
+                  setAnimeBatchPublicationStatus(value === "draft" ? "draft" : "published")
+                }
+              >
+                <SelectTrigger id="anime-batch-status">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Rascunho</SelectItem>
+                  <SelectItem value="published">Publicado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setAnimeBatchCreateOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={createAnimeEpisodeBatch}>Criar lote</Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -2013,8 +2013,8 @@ const DashboardPosts = () => {
   const editorSectionClassName =
     "project-editor-section rounded-2xl border border-border/60 bg-card/70 px-4";
   const editorSectionHeaderClassName =
-    "project-editor-section-trigger flex w-full items-start gap-4 pb-1 pt-2.5 text-left md:pb-1.5 md:pt-2.5";
-  const editorSectionContentClassName = "project-editor-section-content px-1 pb-2.5 !pt-0";
+    "project-editor-section-trigger flex w-full items-start gap-4 pb-1 pt-3 text-left md:pb-1.5 md:pt-3";
+  const editorSectionContentClassName = "project-editor-section-content px-1 pb-3.5 !pt-0";
   const editorPostLabel = editingPost ? "Postagem em edição" : "Nova postagem";
   const editorPostTitle = formState.title.trim() || "Sem título";
   const editorPostId = editingPost?.id || "Será definido ao salvar";

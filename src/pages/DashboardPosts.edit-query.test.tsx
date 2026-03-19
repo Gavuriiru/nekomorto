@@ -233,8 +233,8 @@ const expectEditorSectionHeader = (dialog: HTMLElement, title: string, subtitle:
   expect(titleElement).toBeDefined();
   expect(subtitleElement).toBeDefined();
   expect(classTokens(header as HTMLElement)).toContain("items-start");
-  expect(classTokens(header as HTMLElement)).toContain("pt-2.5");
-  expect(classTokens(header as HTMLElement)).toContain("md:pt-2.5");
+  expect(classTokens(header as HTMLElement)).toContain("pt-3");
+  expect(classTokens(header as HTMLElement)).toContain("md:pt-3");
   expect(classTokens(header as HTMLElement)).toContain("pb-1");
   expect(classTokens(header as HTMLElement)).toContain("md:pb-1.5");
   expect(classTokens(header as HTMLElement)).not.toContain("items-center");
@@ -439,7 +439,7 @@ describe("DashboardPosts edit query", () => {
     expect(classTokens(editorLayout as HTMLElement)).toContain("pb-4");
     expect(classTokens(editorFooter as HTMLElement)).toContain("py-2");
     expect(classTokens(editorFooter as HTMLElement)).toContain("md:py-2.5");
-    expect(classTokens(editorSectionContent as HTMLElement)).toContain("pb-2.5");
+    expect(classTokens(editorSectionContent as HTMLElement)).toContain("pb-3.5");
     expect(
       lexicalEditorPropsSpy.mock.calls.some(([props]) =>
         Boolean(

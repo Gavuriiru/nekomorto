@@ -417,6 +417,30 @@ describe("Dashboard overview async states", () => {
     expect(await screen.findByText("Nenhum alerta operacional ativo.")).toBeInTheDocument();
   });
 
+  it("mantem o badge de pendentes e esconde a lista quando ainda nao ha comentarios aprovados", async () => {
+    installDashboardApiMock({
+      overviewResponse: mockJsonResponse(
+        true,
+        buildOverviewPayload({
+          recentComments: [],
+          pendingCommentsCount: 2,
+        }),
+      ),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Painel de controle da comunidade/i });
+
+    expect(screen.getByText("2 pendentes")).toBeInTheDocument();
+    expect(await screen.findByText("Nenhum comentário aprovado ainda.")).toBeInTheDocument();
+    expect(screen.queryByText("Nenhum comentário registrado ainda.")).not.toBeInTheDocument();
+  });
+
   it("exibe fallback explicito quando status degradado nao traz motivos", async () => {
     installDashboardApiMock({
       operationalAlertsResponse: mockJsonResponse(

@@ -274,9 +274,15 @@ describe("DashboardProjectsEditor card layout", () => {
     const top = card.querySelector('[data-slot="project-card-top"]');
     const synopsis = card.querySelector('[data-slot="project-card-synopsis"]');
     const meta = card.querySelector('[data-slot="project-card-meta"]');
-    const title = within(card).getByRole("heading", { level: 3, name: /Rekishi ni Nokoru Akujo/i });
+    const title = within(card).getByRole("heading", {
+      level: 3,
+      name: /Rekishi ni Nokoru Akujo/i,
+    });
     const titleBlock = title.parentElement;
-    const actions = within(card).getByTitle("Visualizar").parentElement;
+    const dedicatedEditorLink = within(card).getByRole("link", {
+      name: /Abrir editor dedicado de Rekishi ni Nokoru Akujo/i,
+    });
+    const actions = dedicatedEditorLink.parentElement;
 
     expect(top).not.toBeNull();
     expect(classTokens(top)).toContain("flex-col");
@@ -292,6 +298,14 @@ describe("DashboardProjectsEditor card layout", () => {
     expect(classTokens(title)).toContain("break-words");
     expect(actions).not.toBeNull();
     expect(classTokens(actions)).toContain("shrink-0");
+    expect(classTokens(actions)).toContain("flex-wrap");
+    expect(classTokens(actions)).toContain("justify-end");
+    expect(dedicatedEditorLink).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/project-long/episodios",
+    );
+    expect(within(card).getByTitle("Editor dedicado")).toBeInTheDocument();
+    expect(within(card).queryByText("Editor dedicado")).not.toBeInTheDocument();
     expect(within(card).getByTitle("Visualizar")).toBeInTheDocument();
     expect(within(card).getByTitle("Copiar link")).toBeInTheDocument();
     expect(within(card).getByTitle("Excluir")).toBeInTheDocument();

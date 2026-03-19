@@ -39,19 +39,98 @@ const ChartContainer = React.forwardRef<
     children: React.ComponentProps<typeof RechartsPrimitive.ResponsiveContainer>["children"];
   }
 >(({ id, className, children, config, ...props }, ref) => {
+  const {
+    onFocusCapture,
+    onKeyDownCapture,
+    onPointerDownCapture,
+    onTouchStartCapture,
+    ...divProps
+  } = props;
   const uniqueId = React.useId();
   const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const pointerFocusRef = React.useRef(false);
+  const blurFrameRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    const handleWindowKeyDown = () => {
+      pointerFocusRef.current = false;
+    };
+
+    window.addEventListener("keydown", handleWindowKeyDown, true);
+
+    return () => {
+      window.removeEventListener("keydown", handleWindowKeyDown, true);
+      if (blurFrameRef.current !== null) {
+        cancelAnimationFrame(blurFrameRef.current);
+      }
+    };
+  }, []);
+
+  const handlePointerDownCapture = React.useCallback<
+    React.PointerEventHandler<HTMLDivElement>
+  >(
+    (event) => {
+      pointerFocusRef.current = true;
+      onPointerDownCapture?.(event);
+    },
+    [onPointerDownCapture],
+  );
+
+  const handleTouchStartCapture = React.useCallback<React.TouchEventHandler<HTMLDivElement>>(
+    (event) => {
+      pointerFocusRef.current = true;
+      onTouchStartCapture?.(event);
+    },
+    [onTouchStartCapture],
+  );
+
+  const handleKeyDownCapture = React.useCallback<React.KeyboardEventHandler<HTMLDivElement>>(
+    (event) => {
+      pointerFocusRef.current = false;
+      onKeyDownCapture?.(event);
+    },
+    [onKeyDownCapture],
+  );
+
+  const handleFocusCapture = React.useCallback<React.FocusEventHandler<HTMLDivElement>>(
+    (event) => {
+      const target = event.target;
+      const shouldBlurSurface =
+        pointerFocusRef.current &&
+        target instanceof Element &&
+        target.classList.contains("recharts-surface") &&
+        typeof (target as { blur?: () => void }).blur === "function";
+
+      if (shouldBlurSurface) {
+        pointerFocusRef.current = false;
+        if (blurFrameRef.current !== null) {
+          cancelAnimationFrame(blurFrameRef.current);
+        }
+        blurFrameRef.current = requestAnimationFrame(() => {
+          blurFrameRef.current = null;
+          (target as { blur: () => void }).blur();
+        });
+      }
+
+      onFocusCapture?.(event);
+    },
+    [onFocusCapture],
+  );
 
   return (
     <ChartContext.Provider value={{ config }}>
       <div
         data-chart={chartId}
         ref={ref}
+        onPointerDownCapture={handlePointerDownCapture}
+        onTouchStartCapture={handleTouchStartCapture}
+        onKeyDownCapture={handleKeyDownCapture}
+        onFocusCapture={handleFocusCapture}
         className={cn(
           "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-hidden [&_.recharts-surface]:outline-hidden",
           className,
         )}
-        {...props}
+        {...divProps}
       >
         <ChartStyle id={chartId} config={config} />
         <RechartsPrimitive.ResponsiveContainer>{children}</RechartsPrimitive.ResponsiveContainer>

@@ -34,6 +34,14 @@ export const buildDashboardProjectChaptersEditorHref = (projectId: string) => {
   return `/dashboard/projetos/${encodeURIComponent(normalizedProjectId)}/capitulos`;
 };
 
+export const buildDashboardProjectEpisodesEditorHref = (projectId: string) => {
+  const normalizedProjectId = String(projectId || "").trim();
+  if (!normalizedProjectId) {
+    return buildDashboardProjectEditorHref(projectId);
+  }
+  return `/dashboard/projetos/${encodeURIComponent(normalizedProjectId)}/episodios`;
+};
+
 export const buildDashboardProjectChapterEditorHref = (
   projectId: string,
   chapterNumber: unknown,
@@ -51,6 +59,18 @@ export const buildDashboardProjectChapterEditorHref = (
   }
   const query = params.toString();
   return `/dashboard/projetos/${encodeURIComponent(normalizedProjectId)}/capitulos/${normalizedChapterNumber}${query ? `?${query}` : ""}`;
+};
+
+export const buildDashboardProjectEpisodeEditorHref = (
+  projectId: string,
+  episodeNumber: unknown,
+) => {
+  const normalizedProjectId = String(projectId || "").trim();
+  const normalizedEpisodeNumber = normalizeChapterNumber(episodeNumber);
+  if (!normalizedProjectId || normalizedEpisodeNumber === null) {
+    return buildDashboardProjectEditorHref(projectId);
+  }
+  return `/dashboard/projetos/${encodeURIComponent(normalizedProjectId)}/episodios/${normalizedEpisodeNumber}`;
 };
 
 export const buildProjectPublicHref = (projectIdOrSlug: string) => {

@@ -520,6 +520,10 @@ const Dashboard = () => {
   const recentPosts = overview.recentPosts;
   const recentComments = overview.recentComments;
   const pendingCommentsCount = overview.pendingCommentsCount;
+  const recentCommentsEmptyMessage =
+    pendingCommentsCount > 0
+      ? "Nenhum comentário aprovado ainda."
+      : "Nenhum comentário registrado ainda.";
   const quickProjects = overview.quickProjects;
 
   const chartWidth = 100;
@@ -1277,7 +1281,7 @@ const Dashboard = () => {
                       <div
                         className={`mt-6 ${dashboardOverviewInsetDashedClassName} px-4 py-8 text-center text-sm ${dashboardOverviewMetaTextClassName}`}
                       >
-                        Nenhum comentário registrado ainda.
+                        {recentCommentsEmptyMessage}
                       </div>
                     ) : (
                       <div className="mt-6 space-y-4">

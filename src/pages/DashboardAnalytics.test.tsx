@@ -180,6 +180,7 @@ describe("DashboardAnalytics", () => {
 
     expect(viewsMetricCard).not.toBeNull();
     expect(classTokens(viewsMetricCard as HTMLElement)).toContain("bg-card");
+    expect(classTokens(viewsMetricCard as HTMLElement)).toContain("hover:border-accent");
     expect(classTokens(viewsMetricCard as HTMLElement)).not.toContain("lift-hover");
     expect(moderationInset).not.toBeNull();
     expect(classTokens(moderationInset as HTMLElement)).toContain("bg-background");
