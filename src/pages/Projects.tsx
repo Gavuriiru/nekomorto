@@ -20,6 +20,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import "@/styles/projects-public.css";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import {
   prepareProjectBadges,

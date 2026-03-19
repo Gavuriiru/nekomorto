@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardSecurity, { __testing } from "@/pages/DashboardSecurity";
@@ -254,8 +254,11 @@ describe("DashboardSecurity semantic badges", () => {
     );
 
     expect(await screen.findByText("Moderator")).toBeInTheDocument();
-    expect(dismissToastMock).toHaveBeenCalledWith("dashboard-security-refresh-toast");
-    expect(screen.queryByText("Admin")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(dismissToastMock).toHaveBeenCalledWith("dashboard-security-refresh-toast");
+      expect(screen.queryByText("Admin")).not.toBeInTheDocument();
+    });
   });
 
   it("shows loading placeholders before the session payload resolves", () => {

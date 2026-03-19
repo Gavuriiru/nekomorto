@@ -216,7 +216,7 @@ const MangaPageTile = ({
         onMouseLeave={() => setIsSurfaceHovered(false)}
         onFocus={handleSurfaceFocus}
         onBlur={handleSurfaceBlur}
-        aria-label={`Arrastar p\u00E1gina ${index + 1} para reordenar. Use Alt+Seta para mover pelo teclado.`}
+        aria-label={`Arrastar página ${index + 1} para reordenar. Use Alt+Seta para mover pelo teclado.`}
         data-testid={`${testIdPrefix}-surface-${index}`}
         data-reorder-motion={reorderMotion}
         data-reorder-state={isDragged ? "dragging" : isPreviewTarget ? "preview-target" : "idle"}
@@ -248,7 +248,7 @@ const MangaPageTile = ({
             className="shrink-0 rounded-full px-2.5 py-1 text-[10px] uppercase leading-none tracking-[0.12em] shadow-sm"
             data-testid={`${testIdPrefix}-position-badge-${index}`}
           >
-            {"P\u00E1gina "}
+            {"Página "}
             {index + 1}
           </Badge>
         </div>
@@ -287,7 +287,9 @@ const MangaPageTile = ({
           <div
             className={cn(
               "flex items-start gap-2 transition-opacity duration-150",
-              areActionsVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0",
+              areActionsVisible
+                ? "pointer-events-auto opacity-100"
+                : "pointer-events-none opacity-0",
             )}
             data-testid={`${testIdPrefix}-actions-${index}`}
             onMouseEnter={() => setIsActionsHovered(true)}
@@ -321,7 +323,7 @@ const MangaPageTile = ({
                 className="h-9 w-9 rounded-full border border-border/60 bg-background/90 shadow-sm"
               >
                 <Columns2 className="h-4 w-4" />
-                <span className="sr-only">Juntar com a pr\u00F3xima</span>
+                <span className="sr-only">Juntar com a próxima</span>
               </Button>
             ) : null}
             {!isCover && onSetCover ? (

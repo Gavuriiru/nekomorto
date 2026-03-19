@@ -1,6 +1,86 @@
 @import "tailwindcss";
-@import "../node_modules/tw-animate-css/dist/tw-animate.css";
-@config "../tailwind.config.ts";
+@import "./styles/vendor/tw-animate.css";
+
+@theme inline {
+  --font-sans: "Inter", sans-serif;
+
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-sidebar: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+
+  --animate-fade-in: fade-in var(--dashboard-motion-enter-duration, 0.8s) ease-out forwards;
+  --animate-slide-up: slide-up var(--dashboard-motion-enter-duration, 0.8s) ease-out forwards;
+  --animate-spin-slow: spin-slow 14s linear infinite;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes spin-slow {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
 
 #root {
   position: relative;
@@ -327,12 +407,6 @@
 }
 
 @layer components {
-  .project-editor-dialog
-    :where(input:not([type="checkbox"]):not([type="radio"]), textarea, [role="combobox"]):focus-visible {
-    border-color: hsl(var(--primary)) !important;
-    box-shadow: 0 0 0 1px hsl(var(--primary)) !important;
-  }
-
   .text-gradient-rainbow {
     background: var(--gradient-rainbow);
     -webkit-background-clip: text;
@@ -352,118 +426,6 @@
     background-color: hsl(var(--background));
     background-image: var(--gradient-surface);
     background-repeat: no-repeat;
-  }
-
-  .public-page-hero {
-    position: relative;
-    overflow: hidden;
-    background-color: hsl(var(--background));
-    background-image: var(--gradient-public-hero);
-    background-repeat: no-repeat;
-  }
-
-  .public-page-hero__inner {
-    position: relative;
-  }
-
-  .public-page-hero__copy {
-    max-width: 48rem;
-  }
-
-  .team-member-frame {
-    border-color: hsl(0 0% 0% / 0.15);
-    background-color: hsl(0 0% 0% / 0.15);
-  }
-
-  .team-member-panel-shell {
-    position: relative;
-    flex: 1;
-    min-height: 12.5rem;
-  }
-
-  .team-member-panel {
-    transition:
-      opacity 200ms ease,
-      transform 200ms ease;
-  }
-
-  .team-member-panel--bio {
-    display: flex;
-  }
-
-  .team-member-panel--favorites {
-    display: none;
-  }
-
-  .team-member-frame[data-mobile-favorites-open="true"] .team-member-panel--bio {
-    display: none;
-  }
-
-  .team-member-frame[data-mobile-favorites-open="true"] .team-member-panel--favorites {
-    display: flex;
-  }
-
-  @media (min-width: 768px) {
-    .team-member-frame--has-favorites .team-member-panel-shell {
-      min-height: 12.5rem;
-    }
-
-    .team-member-frame--has-favorites .team-member-panel {
-      position: absolute;
-      inset: 0;
-      display: flex;
-    }
-
-    .team-member-frame--has-favorites .team-member-panel--bio {
-      opacity: 1;
-      transform: translateY(0);
-      pointer-events: auto;
-    }
-
-    .group:hover .team-member-frame--has-favorites .team-member-panel--bio,
-    .group:focus-within .team-member-frame--has-favorites .team-member-panel--bio {
-      opacity: 0;
-      transform: translateY(-4px);
-      pointer-events: none;
-    }
-
-    .team-member-frame--has-favorites .team-member-panel--favorites {
-      opacity: 0;
-      transform: translateY(4px);
-      pointer-events: none;
-    }
-
-    .group:hover .team-member-frame--has-favorites .team-member-panel--favorites,
-    .group:focus-within .team-member-frame--has-favorites .team-member-panel--favorites {
-      opacity: 1;
-      transform: translateY(0);
-      pointer-events: auto;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .team-member-panel {
-      transition: none;
-    }
-  }
-
-  .team-member-frame--retired {
-    border-color: hsl(0 0% 0% / 0.1);
-    background-color: hsl(0 0% 0% / 0.1);
-  }
-
-  :root[data-theme-mode="light"] .team-member-frame {
-    border-color: hsl(var(--muted) / 0.62);
-    background: linear-gradient(160deg, hsl(var(--card) / 0.88), hsl(var(--muted) / 0.62));
-  }
-
-  :root[data-theme-mode="light"] .team-member-frame--retired {
-    border-color: hsl(var(--muted) / 0.56);
-    background: linear-gradient(160deg, hsl(var(--card) / 0.86), hsl(var(--muted) / 0.56));
-  }
-
-  :root[data-theme-mode="light"] .projects-public-card {
-    background: hsl(var(--card));
   }
 
   .border-rainbow {
@@ -499,18 +461,6 @@
 }
 
 @layer utilities {
-  .animate-fade-in {
-    animation: fadeIn var(--dashboard-motion-enter-duration, 0.8s) ease-out forwards;
-  }
-
-  .animate-slide-up {
-    animation: slideUp var(--dashboard-motion-enter-duration, 0.8s) ease-out forwards;
-  }
-
-  .animate-spin-slow {
-    animation: spinSlow 14s linear infinite;
-  }
-
   .page-transition {
     opacity: 1;
     transform: none;
@@ -614,34 +564,5 @@
     border-top: 1px solid hsl(var(--border) / 0.2);
     margin-top: 0.75rem;
     padding-top: 0.75rem;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(30px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes spinSlow {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
   }
 }

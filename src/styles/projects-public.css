@@ -1,0 +1,5 @@
+@layer components {
+  :root[data-theme-mode="light"] .projects-public-card {
+    background: hsl(var(--card));
+  }
+}

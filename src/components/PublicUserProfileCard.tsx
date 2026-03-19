@@ -27,6 +27,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { resolveDiscordAvatarRenderUrl } from "@/lib/discord-avatar";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import "@/styles/public-user-profile-card.css";
 import type {
   FavoriteWorkCategory,
   FavoriteWorksByCategory,

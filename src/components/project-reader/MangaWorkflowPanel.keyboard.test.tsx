@@ -80,6 +80,12 @@ describe("MangaWorkflowPanel keyboard support", () => {
       writable: true,
       value: vi.fn(),
     });
+    Object.defineProperty(window, "requestAnimationFrame", {
+      configurable: true,
+      writable: true,
+      value: (callback: FrameRequestCallback) =>
+        window.setTimeout(() => callback(performance.now()), 0),
+    });
   });
 
   it("reordena paginas do lote com Alt+seta e anuncia a nova posicao", async () => {
@@ -133,7 +139,7 @@ describe("MangaWorkflowPanel keyboard support", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(
-        /Pagina 1 movida para a posicao 2/i,
+        /Página 1 movida para a posição 2/i,
       );
     });
   });

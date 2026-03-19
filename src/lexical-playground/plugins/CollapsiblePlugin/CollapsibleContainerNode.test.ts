@@ -1,17 +1,28 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-vi.mock("@lexical/utils", () => ({
-  IS_CHROME: true,
-}));
+let CollapsibleContainerNode: typeof import("@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleContainerNode").CollapsibleContainerNode;
 
-import { CollapsibleContainerNode } from "@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleContainerNode";
+beforeAll(async () => {
+  vi.resetModules();
+  vi.doMock("@lexical/utils", () => ({
+    IS_CHROME: true,
+  }));
+  ({ CollapsibleContainerNode } = await import(
+    "@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleContainerNode"
+  ));
+});
+
+afterAll(() => {
+  vi.doUnmock("@lexical/utils");
+  vi.resetModules();
+});
 
 describe("CollapsibleContainerNode", () => {
   it("nao aplica o atributo open no createDOM quando o colapsavel nasce fechado no chrome", () => {
     const element = CollapsibleContainerNode.prototype.createDOM.call(
       {
         __open: false,
-      } as CollapsibleContainerNode,
+      } as never,
       {} as never,
       {} as never,
     );
@@ -24,7 +35,7 @@ describe("CollapsibleContainerNode", () => {
     const element = CollapsibleContainerNode.prototype.createDOM.call(
       {
         __open: true,
-      } as CollapsibleContainerNode,
+      } as never,
       {} as never,
       {} as never,
     );
@@ -36,7 +47,7 @@ describe("CollapsibleContainerNode", () => {
   it("omite o atributo open quando o colapsavel esta fechado", () => {
     const element = CollapsibleContainerNode.prototype.exportDOM.call({
       __open: false,
-    } as CollapsibleContainerNode).element;
+    } as never).element;
 
     expect(element.hasAttribute("open")).toBe(false);
   });
@@ -44,7 +55,7 @@ describe("CollapsibleContainerNode", () => {
   it("mantem o atributo open quando o colapsavel esta aberto", () => {
     const element = CollapsibleContainerNode.prototype.exportDOM.call({
       __open: true,
-    } as CollapsibleContainerNode).element;
+    } as never).element;
 
     expect(element.hasAttribute("open")).toBe(true);
   });

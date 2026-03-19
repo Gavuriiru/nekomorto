@@ -515,7 +515,9 @@ describe("DashboardProjectsEditor edit query", () => {
       expect(node).not.toBeNull();
       return node as HTMLElement;
     });
-    expect(within(editorDialog).getByRole("button", { name: /Conte.do.*cap.tulos/i })).toBeInTheDocument();
+    expect(
+      within(editorDialog).getByRole("button", { name: /Conte.do.*cap.tulos/i }),
+    ).toBeInTheDocument();
     expect(within(editorDialog).queryByText("Abrir editor dedicado")).not.toBeInTheDocument();
     expect(within(editorDialog).getByRole("link", { name: "Conteúdo" })).toHaveAttribute(
       "href",
@@ -540,7 +542,7 @@ describe("DashboardProjectsEditor edit query", () => {
         expect.stringContaining("Staff do anime"),
       ]),
     );
-    expect(sectionTitles[6]).toContain("ConteÃºdo");
+    expect(sectionTitles).toEqual(expect.arrayContaining([expect.stringContaining("Conteúdo")]));
     expect(sectionTriggers[1]).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
   });
 

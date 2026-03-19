@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { Badge } from "@/components/ui/badge";
+import "@/styles/public-page-hero.css";
 
 type PublicPageHeroProps = {
   badge?: string;

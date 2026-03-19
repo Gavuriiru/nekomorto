@@ -801,6 +801,24 @@ const DashboardSettings = () => {
     if (!hasResolvedSettings) {
       return;
     }
+    const rawTab = String(searchParams.get("tab") || "").trim();
+    if (rawTab !== "navbar" && rawTab !== "footer") {
+      return;
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("tab", "layout");
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [hasResolvedSettings, location.pathname, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!location.pathname.startsWith("/dashboard/configuracoes")) {
+      return;
+    }
+    if (!hasResolvedSettings) {
+      return;
+    }
     const nextParams = new URLSearchParams(searchParams);
     if (activeTab === DASHBOARD_SETTINGS_DEFAULT_TAB) {
       nextParams.delete("tab");
