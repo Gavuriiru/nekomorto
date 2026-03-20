@@ -38,10 +38,7 @@ const HookHarness = ({
       <button type="button" onClick={() => void updateConfig({ layout: "double" })}>
         set-double
       </button>
-      <button
-        type="button"
-        onClick={() => void updateConfig({ layout: "scroll-horizontal" })}
-      >
+      <button type="button" onClick={() => void updateConfig({ layout: "scroll-horizontal" })}>
         set-horizontal
       </button>
     </div>
@@ -67,6 +64,7 @@ describe("useProjectReaderPreferences", () => {
             manga: {
               layout: "double",
               direction: "rtl",
+              progressStyle: "glow",
             },
           },
         },
@@ -79,23 +77,24 @@ describe("useProjectReaderPreferences", () => {
 
     await waitFor(() => expect(screen.getByTestId("loaded")).toHaveTextContent("true"));
     expect(screen.getByTestId("layout")).toHaveTextContent("double");
+    expect(screen.getByTestId("progress-style")).toHaveTextContent("default");
 
     fireEvent.click(screen.getByRole("button", { name: "set-horizontal" }));
 
-    await waitFor(() => expect(screen.getByTestId("layout")).toHaveTextContent("scroll-horizontal"));
+    await waitFor(() =>
+      expect(screen.getByTestId("layout")).toHaveTextContent("scroll-horizontal"),
+    );
 
     const storedValue = JSON.parse(String(window.localStorage.getItem(STORAGE_KEY) || "{}"));
     expect(storedValue.reader.projectTypes.manga.layout).toBe("scroll-horizontal");
+    expect(storedValue.reader.projectTypes.manga.progressStyle).toBe("default");
 
     rerender(
-      <HookHarness
-        projectType="manga"
-        baseConfig={{ layout: "single", progressStyle: "glow" }}
-      />,
+      <HookHarness projectType="manga" baseConfig={{ layout: "single", progressStyle: "glow" }} />,
     );
 
     expect(screen.getByTestId("layout")).toHaveTextContent("scroll-horizontal");
-    expect(screen.getByTestId("progress-style")).toHaveTextContent("bar");
+    expect(screen.getByTestId("progress-style")).toHaveTextContent("default");
   });
 
   it("usa /api/me/preferences para usuarios autenticados", async () => {

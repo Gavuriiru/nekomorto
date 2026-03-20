@@ -53,7 +53,7 @@ describe("normalizeProjectReaderConfig", () => {
       layout: "single",
       imageFit: "both",
       background: "theme",
-      progressStyle: "bar",
+      progressStyle: "default",
       progressPosition: "bottom",
       firstPageSingle: true,
     });
@@ -63,9 +63,29 @@ describe("normalizeProjectReaderConfig", () => {
       layout: "scroll-vertical",
       imageFit: "width",
       background: "theme",
-      progressStyle: "bar",
+      progressStyle: "default",
       progressPosition: "bottom",
       firstPageSingle: false,
+    });
+  });
+
+  it("normaliza estilos legados de progresso para o contrato novo", () => {
+    expect(
+      normalizeProjectReaderConfig({ progressStyle: "bar" }, { projectType: "manga" }),
+    ).toMatchObject({
+      progressStyle: "default",
+    });
+
+    expect(
+      normalizeProjectReaderConfig({ progressStyle: "glow" }, { projectType: "manga" }),
+    ).toMatchObject({
+      progressStyle: "default",
+    });
+
+    expect(
+      normalizeProjectReaderConfig({ progressStyle: "hidden" }, { projectType: "manga" }),
+    ).toMatchObject({
+      progressStyle: "hidden",
     });
   });
 

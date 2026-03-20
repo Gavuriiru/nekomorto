@@ -13,6 +13,7 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { normalizeAssetUrl } from "@/lib/asset-url";
+import { cn } from "@/lib/utils";
 import {
   readWindowPublicBootstrap,
   readWindowPublicBootstrapCurrentUser,
@@ -604,6 +605,8 @@ const ProjectReading = () => {
     siteReaderConfig: chapterReaderConfig,
     projectReaderConfig: project?.readerConfig,
   });
+  const isVerticalImageReaderLayout =
+    String(chapterReaderConfigResolved.layout || "single") === "scroll-vertical";
   const currentUserId = String(currentUser?.id || "").trim() || null;
   const currentChapterValue = buildEpisodeKey(
     chapterData?.number ?? chapterContent?.number ?? chapterNumber,
@@ -630,7 +633,10 @@ const ProjectReading = () => {
       {isImageReader ? (
         <div
           data-testid="project-reading-images-layout"
-          className="flex min-h-0 flex-1 flex-col"
+          className={cn(
+            "flex flex-col",
+            isVerticalImageReaderLayout ? "min-h-screen" : "min-h-0 flex-1",
+          )}
         >
           <PublicProjectReader
             projectTitle={project.title}
@@ -718,7 +724,21 @@ const ProjectReading = () => {
         </main>
       )}
 
-      <div ref={commentsSentinelRef} aria-hidden="true" className="h-px w-full" />
+      {isImageReader ? (
+        <div
+          data-testid="project-reading-comments-handoff"
+          aria-hidden="true"
+          className="w-full bg-background"
+          style={{ minHeight: "5rem" }}
+        />
+      ) : null}
+
+      <div
+        ref={commentsSentinelRef}
+        data-testid="project-reading-comments-sentinel"
+        aria-hidden="true"
+        className="h-px w-full"
+      />
 
       {isCommentsVisible ? (
         <section className="mx-auto w-full max-w-5xl px-4 pb-16 md:px-6">

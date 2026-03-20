@@ -63,7 +63,7 @@ export type PublicBootstrapProject = {
     layout?: "single" | "double" | "scroll-vertical" | "scroll-horizontal";
     imageFit?: "both" | "none" | "width" | "height";
     background?: "theme" | "black" | "white";
-    progressStyle?: "hidden" | "bar" | "glow";
+    progressStyle?: "default" | "hidden";
     progressPosition?: "bottom" | "left" | "right";
     firstPageSingle?: boolean;
     previewLimit?: number | null;

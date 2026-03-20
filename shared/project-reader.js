@@ -36,9 +36,8 @@ export const PROJECT_READER_BACKGROUNDS = Object.freeze({
 });
 
 export const PROJECT_READER_PROGRESS_STYLES = Object.freeze({
+  DEFAULT: "default",
   HIDDEN: "hidden",
-  BAR: "bar",
-  GLOW: "glow",
 });
 
 export const PROJECT_READER_PROGRESS_POSITIONS = Object.freeze({
@@ -199,12 +198,15 @@ const normalizeReaderBackground = (value) => {
 
 const normalizeReaderProgressStyle = (value) => {
   const normalized = normalizeText(value).toLowerCase();
+  if (normalized === PROJECT_READER_PROGRESS_STYLES.HIDDEN) {
+    return PROJECT_READER_PROGRESS_STYLES.HIDDEN;
+  }
   if (
-    normalized === PROJECT_READER_PROGRESS_STYLES.HIDDEN ||
-    normalized === PROJECT_READER_PROGRESS_STYLES.BAR ||
-    normalized === PROJECT_READER_PROGRESS_STYLES.GLOW
+    normalized === PROJECT_READER_PROGRESS_STYLES.DEFAULT ||
+    normalized === "bar" ||
+    normalized === "glow"
   ) {
-    return normalized;
+    return PROJECT_READER_PROGRESS_STYLES.DEFAULT;
   }
   return "";
 };
@@ -274,7 +276,7 @@ export const getProjectReaderPresetByType = (projectType) => {
       layout: PROJECT_READER_LAYOUTS.SCROLL_VERTICAL,
       imageFit: PROJECT_READER_IMAGE_FITS.WIDTH,
       background: PROJECT_READER_BACKGROUNDS.THEME,
-      progressStyle: PROJECT_READER_PROGRESS_STYLES.BAR,
+      progressStyle: PROJECT_READER_PROGRESS_STYLES.DEFAULT,
       progressPosition: PROJECT_READER_PROGRESS_POSITIONS.BOTTOM,
       firstPageSingle: false,
       previewLimit: null,
@@ -288,7 +290,7 @@ export const getProjectReaderPresetByType = (projectType) => {
       layout: PROJECT_READER_LAYOUTS.SINGLE,
       imageFit: PROJECT_READER_IMAGE_FITS.BOTH,
       background: PROJECT_READER_BACKGROUNDS.THEME,
-      progressStyle: PROJECT_READER_PROGRESS_STYLES.BAR,
+      progressStyle: PROJECT_READER_PROGRESS_STYLES.DEFAULT,
       progressPosition: PROJECT_READER_PROGRESS_POSITIONS.BOTTOM,
       firstPageSingle: true,
       previewLimit: null,
@@ -301,7 +303,7 @@ export const getProjectReaderPresetByType = (projectType) => {
     layout: PROJECT_READER_LAYOUTS.SINGLE,
     imageFit: PROJECT_READER_IMAGE_FITS.BOTH,
     background: PROJECT_READER_BACKGROUNDS.THEME,
-    progressStyle: PROJECT_READER_PROGRESS_STYLES.BAR,
+    progressStyle: PROJECT_READER_PROGRESS_STYLES.DEFAULT,
     progressPosition: PROJECT_READER_PROGRESS_POSITIONS.BOTTOM,
     firstPageSingle: true,
     previewLimit: null,

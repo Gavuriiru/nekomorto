@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PublicProjectReader from "@/components/project-reader/PublicProjectReader";
 
 const useProjectReaderPreferencesMock = vi.hoisted(() => vi.fn());
+const PROGRESS_OVERLAY_TRANSITION_MS = 180;
 
 vi.mock("@/components/project-reader/use-project-reader-preferences", () => ({
   useProjectReaderPreferences: (...args: unknown[]) => useProjectReaderPreferencesMock(...args),
@@ -40,7 +41,7 @@ const setReaderConfig = (config: Record<string, unknown>) => {
       layout: "single",
       imageFit: "both",
       background: "theme",
-      progressStyle: "bar",
+      progressStyle: "default",
       progressPosition: "bottom",
       firstPageSingle: true,
       ...config,
@@ -130,6 +131,71 @@ const mockElementRect = (
       }) as DOMRect,
   );
 
+const setElementSize = (
+  element: Element,
+  {
+    clientWidth,
+    scrollWidth,
+  }: {
+    clientWidth?: number;
+    scrollWidth?: number;
+  },
+) => {
+  if (typeof clientWidth === "number") {
+    Object.defineProperty(element, "clientWidth", {
+      configurable: true,
+      value: clientWidth,
+    });
+  }
+
+  if (typeof scrollWidth === "number") {
+    Object.defineProperty(element, "scrollWidth", {
+      configurable: true,
+      value: scrollWidth,
+    });
+  }
+};
+
+const goToNextPaginatedPage = () => {
+  const stageButton = screen.getByRole("button", { name: /paginada/i });
+  setElementSize(stageButton, { clientWidth: 1000 });
+  fireEvent.click(stageButton, { offsetX: 100 });
+};
+
+const goToLastPaginatedPage = () => {
+  goToNextPaginatedPage();
+};
+
+const getRootFontSizePx = () =>
+  Number.parseFloat(window.getComputedStyle(document.documentElement).fontSize || "16") || 16;
+
+const getProgressContainerLength = (progressPosition: "bottom" | "left" | "right") =>
+  progressPosition === "bottom" ? window.innerWidth - 24 : window.innerHeight - 24;
+
+const getProgressLabelInsetPx = (progressPosition: "bottom" | "left" | "right") =>
+  progressPosition === "bottom" ? 20 : 14;
+
+const mockProgressTrackRect = (
+  element: Element,
+  progressPosition: "bottom" | "left" | "right",
+) =>
+  mockElementRect(
+    element,
+    progressPosition === "bottom"
+      ? {
+          left: 12,
+          right: window.innerWidth - 12,
+          top: window.innerHeight - 80,
+          bottom: window.innerHeight,
+        }
+      : {
+          left: progressPosition === "left" ? 12 : window.innerWidth - 100,
+          right: progressPosition === "left" ? 100 : window.innerWidth - 12,
+          top: 12,
+          bottom: window.innerHeight - 12,
+        },
+  );
+
 describe("PublicProjectReader", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -138,6 +204,7 @@ describe("PublicProjectReader", () => {
 
   beforeEach(() => {
     useProjectReaderPreferencesMock.mockReset();
+    HTMLElement.prototype.scrollIntoView = vi.fn();
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
       writable: true,
@@ -219,8 +286,6 @@ describe("PublicProjectReader", () => {
   it.each([
     { layout: "scroll-horizontal", imageFit: "both" },
     { layout: "scroll-horizontal", imageFit: "height" },
-    { layout: "scroll-vertical", imageFit: "both" },
-    { layout: "scroll-vertical", imageFit: "height" },
   ])("uses the visible viewport height in cinema mode for $layout with fit $imageFit", async ({
     layout,
     imageFit,
@@ -242,10 +307,30 @@ describe("PublicProjectReader", () => {
   });
 
   it.each([
-    "scroll-horizontal",
-    "scroll-vertical",
-  ])("falls back to innerHeight in cinema mode for %s scroll layout", async (layout) => {
-    renderReader({ layout, imageFit: "both" }, { chromeMode: "cinema" });
+    { imageFit: "both" },
+    { imageFit: "height" },
+  ])(
+    "keeps scroll-vertical cinema mode with viewport min-height but no fixed shell height for fit $imageFit",
+    async ({ imageFit }) => {
+      setVisualViewport({ height: 640 });
+      renderReader({ layout: "scroll-vertical", imageFit }, { chromeMode: "cinema" });
+
+      const shell = screen.getByTestId("project-reading-full-bleed-shell");
+      const stage = screen.getByTestId("project-reading-stage");
+      const surface = screen.getByTestId("reader-page-surface-0");
+
+      await waitFor(() => {
+        expect(shell.style.minHeight).toBe("640px");
+        expect(shell.style.height).toBe("");
+        expect(stage.style.minHeight).toBe("640px");
+        expect(stage.style.height).toBe("");
+        expect(surface.style.height).toBe("640px");
+      });
+    },
+  );
+
+  it("falls back to innerHeight in cinema mode for scroll-horizontal", async () => {
+    renderReader({ layout: "scroll-horizontal", imageFit: "both" }, { chromeMode: "cinema" });
 
     const shell = screen.getByTestId("project-reading-full-bleed-shell");
     const stage = screen.getByTestId("project-reading-stage");
@@ -256,6 +341,22 @@ describe("PublicProjectReader", () => {
       expect(shell.style.height).toBe("900px");
       expect(stage.style.minHeight).toBe("900px");
       expect(stage.style.height).toBe("900px");
+      expect(surface.style.height).toBe("900px");
+    });
+  });
+
+  it("falls back to innerHeight in cinema mode for scroll-vertical without fixing shell height", async () => {
+    renderReader({ layout: "scroll-vertical", imageFit: "both" }, { chromeMode: "cinema" });
+
+    const shell = screen.getByTestId("project-reading-full-bleed-shell");
+    const stage = screen.getByTestId("project-reading-stage");
+    const surface = screen.getByTestId("reader-page-surface-0");
+
+    await waitFor(() => {
+      expect(shell.style.minHeight).toBe("900px");
+      expect(shell.style.height).toBe("");
+      expect(stage.style.minHeight).toBe("900px");
+      expect(stage.style.height).toBe("");
       expect(surface.style.height).toBe("900px");
     });
   });
@@ -304,16 +405,23 @@ describe("PublicProjectReader", () => {
   ])("renders scroll-horizontal as a continuous strip without reserved page width for fit %s", (imageFit) => {
     renderReader({ layout: "scroll-horizontal", imageFit });
 
+    const stage = screen.getByTestId("project-reading-stage");
     const horizontalReader = screen.getByTestId("project-reading-horizontal-scroll");
-    const strip = horizontalReader.firstElementChild as HTMLElement | null;
+    const externalScrollbarHost = screen.getByTestId("project-reading-horizontal-scrollbar-host");
+    const externalScrollbar = screen.getByTestId("project-reading-horizontal-scrollbar");
+    const spacer = screen.getByTestId("project-reading-horizontal-scrollbar-spacer");
+    const strip = screen.getByTestId("project-reading-horizontal-strip");
     const page0 = screen.getByTestId("reader-page-0");
     const page1 = screen.getByTestId("reader-page-1");
     const surface0 = screen.getByTestId("reader-page-surface-0");
 
-    expect(strip).not.toBeNull();
+    expect(stage).not.toContain(externalScrollbar);
     expect(horizontalReader).toHaveClass("overflow-x-auto", "overflow-y-hidden");
+    expect(horizontalReader).toHaveClass("no-scrollbar");
     expect(horizontalReader).not.toHaveClass("fixed", "sticky");
-    expect(horizontalReader.style.scrollbarGutter).toBe("stable both-edges");
+    expect(externalScrollbarHost).toBeInTheDocument();
+    expect(externalScrollbar).toHaveClass("reader-external-scrollbar");
+    expect(spacer.style.minWidth).toBe("100%");
     expect(strip).toHaveClass("gap-0");
     expect(page0).toHaveClass("w-auto", "max-w-none", "shrink-0");
     expect(page1).toHaveClass("w-auto", "max-w-none", "shrink-0");
@@ -326,6 +434,32 @@ describe("PublicProjectReader", () => {
     } else {
       expect(surface0).toHaveClass("inline-flex", "h-auto", "w-auto", "max-w-none", "shrink-0");
     }
+  });
+
+  it("syncs scrollLeft between the hidden viewport scrollbar and the external native scrollbar", async () => {
+    renderReader({ layout: "scroll-horizontal", imageFit: "both" });
+
+    const horizontalReader = screen.getByTestId("project-reading-horizontal-scroll");
+    const externalScrollbar = screen.getByTestId("project-reading-horizontal-scrollbar");
+    const strip = screen.getByTestId("project-reading-horizontal-strip");
+    const spacer = screen.getByTestId("project-reading-horizontal-scrollbar-spacer");
+
+    setElementSize(horizontalReader, { clientWidth: 900, scrollWidth: 1800 });
+    setElementSize(strip, { scrollWidth: 1800 });
+
+    fireEvent(window, new Event("resize"));
+
+    await waitFor(() => {
+      expect(spacer.style.width).toBe("1800px");
+    });
+
+    horizontalReader.scrollLeft = 320;
+    fireEvent.scroll(horizontalReader);
+    expect(externalScrollbar.scrollLeft).toBe(320);
+
+    externalScrollbar.scrollLeft = 640;
+    fireEvent.scroll(externalScrollbar);
+    expect(horizontalReader.scrollLeft).toBe(640);
   });
 
   it("renders the reader shell with the stable full-bleed info bar", async () => {
@@ -382,36 +516,240 @@ describe("PublicProjectReader", () => {
     { progressPosition: "bottom", edge: "bottom" },
     { progressPosition: "left", edge: "left" },
     { progressPosition: "right", edge: "right" },
-  ])("renders the fixed %s progress bar with safe-area inset", ({ progressPosition, edge }) => {
-    renderReader({ progressStyle: "bar", progressPosition });
+  ])("renders the fixed %s default progress overlay with safe-area inset", async ({
+    progressPosition,
+    edge,
+  }) => {
+    renderReader({ progressStyle: "default", progressPosition });
 
-    const overlay = screen.getByTestId("project-reader-progress-overlay");
+    const overlay = await screen.findByTestId("project-reader-progress-overlay");
     const progressTrack = screen.getByTestId("project-reader-progress-track");
+    const indicator = screen.getByTestId("project-reader-progress-indicator");
+    const label = screen.getByTestId("project-reader-progress-label");
+    const hitArea = screen.getByTestId("project-reader-progress-hit-area");
 
     expect(overlay).toHaveClass("fixed");
     expect(overlay.style[edge as "bottom" | "left" | "right"]).toContain(`safe-area-inset-${edge}`);
     expect(overlay.style[edge as "bottom" | "left" | "right"]).toContain("12px");
     expect(progressTrack).toBeInTheDocument();
-    expect(screen.queryByTestId("project-reader-progress-label")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("project-reader-progress-beam")).not.toBeInTheDocument();
+    expect(indicator).toBeInTheDocument();
+    expect(indicator).toHaveClass("bg-accent");
+    expect(label).toHaveClass("bg-accent", "text-accent-foreground", "py-0.5", "opacity-0");
+    expect(label).toHaveClass(progressPosition === "bottom" ? "bottom-2" : "min-h-7");
+    await waitFor(() => {
+      expect(overlay).toHaveAttribute("data-state", "visible");
+    });
+
+    fireEvent.mouseEnter(hitArea);
+    expect(label).toHaveTextContent("1");
+    expect(label).toHaveClass("opacity-100");
+    if (progressPosition === "left") {
+      expect(label).toHaveClass("left-5");
+    }
+    if (progressPosition === "right") {
+      expect(label).toHaveClass("right-5");
+    }
   });
 
   it.each([
     "bottom",
     "left",
     "right",
-  ])("renders glow progress with a localized indicator and current page label on %s", (progressPosition) => {
-    renderReader({ progressStyle: "glow", progressPosition });
+  ])("keeps the bullet centered in the %s progress track", async (progressPosition) => {
+    renderReader(
+      { progressStyle: "default", progressPosition },
+      {
+        pages: [
+          { position: 0, imageUrl: "/page-1.jpg" },
+          { position: 1, imageUrl: "/page-2.jpg" },
+          { position: 2, imageUrl: "/page-3.jpg" },
+        ],
+      },
+    );
 
-    const overlay = screen.getByTestId("project-reader-progress-overlay");
-    const indicator = screen.getByTestId("project-reader-progress-indicator");
-    const label = screen.getByTestId("project-reader-progress-label");
+    goToNextPaginatedPage();
 
-    expect(overlay).toHaveClass("fixed");
-    expect(indicator).toBeInTheDocument();
-    expect(label).toHaveTextContent("1");
+    await waitFor(() => {
+      const indicator = screen.getByTestId("project-reader-progress-indicator");
+      const expectedClassName =
+        progressPosition === "bottom" ? "-translate-x-1/2" : "-translate-y-1/2";
+      const styleKey = progressPosition === "bottom" ? "left" : "top";
+      const expectedMiddlePosition = getProgressContainerLength(progressPosition) / 2;
+
+      expect(indicator).toHaveClass(expectedClassName);
+      expect(Number.parseFloat(indicator.style[styleKey as "left" | "top"])).toBeCloseTo(
+        expectedMiddlePosition,
+        4,
+      );
+    });
   });
 
-  it("reveals hidden progress on mouse proximity and hides it after the delay", async () => {
+  it.each([
+    "bottom",
+    "left",
+    "right",
+  ])("keeps the first and last bullet positions contained for %s", async (progressPosition) => {
+    renderReader({ progressStyle: "default", progressPosition });
+
+    const indicator = await screen.findByTestId("project-reader-progress-indicator");
+    const label = screen.getByTestId("project-reader-progress-label");
+    const expectedClassName =
+      progressPosition === "bottom" ? "-translate-x-1/2" : "-translate-y-1/2";
+    const styleKey = progressPosition === "bottom" ? "left" : "top";
+    const rootFontSizePx = getRootFontSizePx();
+    const indicatorInsetPx = rootFontSizePx * (progressPosition === "bottom" ? 3 : 2.25);
+    const labelInsetPx = getProgressLabelInsetPx(progressPosition);
+    const containerLength = getProgressContainerLength(progressPosition);
+
+    expect(indicator).toHaveClass(expectedClassName);
+    expect(Number.parseFloat(indicator.style[styleKey as "left" | "top"])).toBeCloseTo(
+      indicatorInsetPx,
+      4,
+    );
+    expect(label).toHaveClass(expectedClassName);
+    expect(Number.parseFloat(label.style[styleKey as "left" | "top"])).toBeCloseTo(
+      labelInsetPx,
+      4,
+    );
+    if (progressPosition !== "bottom") {
+      expect(indicator.style.bottom).toBe("");
+      expect(label.style.bottom).toBe("");
+    }
+
+    goToLastPaginatedPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("project-reader-progress-indicator")).toHaveClass(
+        expectedClassName,
+      );
+      expect(
+        Number.parseFloat(
+          screen.getByTestId("project-reader-progress-indicator").style[
+            styleKey as "left" | "top"
+          ],
+        ),
+      ).toBeCloseTo(containerLength - indicatorInsetPx, 4);
+      expect(screen.getByTestId("project-reader-progress-label")).toHaveClass(expectedClassName);
+      expect(
+        Number.parseFloat(
+          screen.getByTestId("project-reader-progress-label").style[styleKey as "left" | "top"],
+        ),
+      ).toBeCloseTo(containerLength - labelInsetPx, 4);
+    });
+  });
+
+  it.each([
+    "bottom",
+    "left",
+    "right",
+  ])("navigates to the clicked page through the %s progress track", async (progressPosition) => {
+    renderReader(
+      { progressStyle: "default", progressPosition },
+      {
+        pages: [
+          { position: 0, imageUrl: "/page-1.jpg" },
+          { position: 1, imageUrl: "/page-2.jpg" },
+          { position: 2, imageUrl: "/page-3.jpg" },
+        ],
+      },
+    );
+
+    const progressTrack = await screen.findByTestId("project-reader-progress-track");
+    const hitArea = screen.getByTestId("project-reader-progress-hit-area");
+    const rectSpy = mockProgressTrackRect(progressTrack, progressPosition);
+
+    fireEvent.pointerDown(hitArea, {
+      pointerId: 1,
+      pointerType: "mouse",
+      clientX:
+        progressPosition === "bottom"
+          ? window.innerWidth - 40
+          : progressPosition === "left"
+            ? 24
+            : window.innerWidth - 24,
+      clientY: progressPosition === "bottom" ? window.innerHeight - 24 : window.innerHeight - 24,
+    });
+    fireEvent.pointerUp(hitArea, {
+      pointerId: 1,
+      pointerType: "mouse",
+      clientX:
+        progressPosition === "bottom"
+          ? window.innerWidth - 40
+          : progressPosition === "left"
+            ? 24
+            : window.innerWidth - 24,
+      clientY: progressPosition === "bottom" ? window.innerHeight - 24 : window.innerHeight - 24,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("project-reader-progress-label")).toHaveTextContent("3");
+    });
+
+    rectSpy.mockRestore();
+  });
+
+  it("updates paginated progress live while dragging the progress track", async () => {
+    renderReader(
+      { progressStyle: "default", progressPosition: "bottom" },
+      {
+        pages: [
+          { position: 0, imageUrl: "/page-1.jpg" },
+          { position: 1, imageUrl: "/page-2.jpg" },
+          { position: 2, imageUrl: "/page-3.jpg" },
+          { position: 3, imageUrl: "/page-4.jpg" },
+        ],
+      },
+    );
+
+    const progressTrack = await screen.findByTestId("project-reader-progress-track");
+    const hitArea = screen.getByTestId("project-reader-progress-hit-area");
+    const rectSpy = mockProgressTrackRect(progressTrack, "bottom");
+
+    fireEvent.pointerDown(hitArea, {
+      pointerId: 2,
+      pointerType: "mouse",
+      clientX: 24,
+      clientY: window.innerHeight - 24,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("project-reader-progress-label")).toHaveTextContent("1");
+    });
+
+    fireEvent.pointerMove(hitArea, {
+      pointerId: 2,
+      pointerType: "mouse",
+      clientX: window.innerWidth * 0.66,
+      clientY: window.innerHeight - 24,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("project-reader-progress-label")).toHaveTextContent("3");
+    });
+
+    fireEvent.pointerMove(hitArea, {
+      pointerId: 2,
+      pointerType: "mouse",
+      clientX: window.innerWidth - 32,
+      clientY: window.innerHeight - 24,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("project-reader-progress-label")).toHaveTextContent("4");
+    });
+
+    fireEvent.pointerUp(hitArea, {
+      pointerId: 2,
+      pointerType: "mouse",
+      clientX: window.innerWidth - 32,
+      clientY: window.innerHeight - 24,
+    });
+
+    rectSpy.mockRestore();
+  });
+
+  it("reveals hidden progress on mouse proximity and hides it after the delay and transition", async () => {
     renderReader({ progressStyle: "hidden", progressPosition: "bottom" });
     vi.useFakeTimers();
 
@@ -420,34 +758,187 @@ describe("PublicProjectReader", () => {
     expect(screen.queryByTestId("project-reader-progress-overlay")).not.toBeInTheDocument();
 
     fireEvent.mouseEnter(zone);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20);
+    });
+
+    const overlay = screen.getByTestId("project-reader-progress-overlay");
+    const indicator = screen.getByTestId("project-reader-progress-indicator");
+    const label = screen.getByTestId("project-reader-progress-label");
+
     expect(screen.getByTestId("project-reader-progress-track")).toBeInTheDocument();
+    expect(screen.queryByTestId("project-reader-progress-beam")).not.toBeInTheDocument();
+    expect(overlay).toHaveAttribute("data-state", "visible");
+    expect(indicator).toBeInTheDocument();
+    expect(indicator).toHaveClass("bg-accent");
+    expect(label).toHaveClass("bg-accent", "text-accent-foreground");
+    expect(label).toHaveTextContent("1");
 
     fireEvent.mouseLeave(zone);
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(PROGRESS_OVERLAY_TRANSITION_MS);
+    });
+
+    expect(screen.getByTestId("project-reader-progress-overlay")).toHaveAttribute("data-state", "hidden");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PROGRESS_OVERLAY_TRANSITION_MS);
     });
 
     expect(screen.queryByTestId("project-reader-progress-overlay")).not.toBeInTheDocument();
   });
 
-  it("reveals hidden progress on touch proximity and hides it after the delay", async () => {
-    renderReader({ progressStyle: "hidden", progressPosition: "right" });
-    vi.useFakeTimers();
+  it("reveals hidden progress and scrubs top-down from the hidden side zone", async () => {
+    renderReader(
+      { progressStyle: "hidden", progressPosition: "right" },
+      {
+        pages: [
+          { position: 0, imageUrl: "/page-1.jpg" },
+          { position: 1, imageUrl: "/page-2.jpg" },
+          { position: 2, imageUrl: "/page-3.jpg" },
+        ],
+      },
+    );
 
     const zone = screen.getByTestId("project-reader-progress-activation-zone");
 
-    fireEvent.touchStart(zone);
-    expect(screen.getByTestId("project-reader-progress-track")).toBeInTheDocument();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1000);
+    fireEvent.pointerDown(zone, {
+      pointerId: 3,
+      pointerType: "mouse",
+      clientX: window.innerWidth - 24,
+      clientY: 24,
     });
 
-    expect(screen.queryByTestId("project-reader-progress-overlay")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("project-reader-progress-overlay")).toHaveAttribute(
+        "data-state",
+        "visible",
+      );
+      expect(screen.getByTestId("project-reader-progress-label")).toHaveTextContent("1");
+    });
+
+    fireEvent.pointerMove(zone, {
+      pointerId: 3,
+      pointerType: "mouse",
+      clientX: window.innerWidth - 24,
+      clientY: window.innerHeight - 24,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("project-reader-progress-label")).toHaveTextContent("3");
+    });
+
+    fireEvent.pointerUp(zone, {
+      pointerId: 3,
+      pointerType: "mouse",
+      clientX: window.innerWidth - 24,
+      clientY: 24,
+    });
+  });
+
+  it("uses scrollIntoView when scrubbing in continuous mode", async () => {
+    renderReader(
+      { progressStyle: "default", progressPosition: "bottom", layout: "scroll-vertical" },
+      {
+        pages: [
+          { position: 0, imageUrl: "/page-1.jpg" },
+          { position: 1, imageUrl: "/page-2.jpg" },
+          { position: 2, imageUrl: "/page-3.jpg" },
+        ],
+      },
+    );
+
+    const targetPage = await screen.findByTestId("reader-page-2");
+    const targetScrollSpy = vi.fn();
+    Object.defineProperty(targetPage, "scrollIntoView", {
+      configurable: true,
+      value: targetScrollSpy,
+    });
+
+    const progressTrack = screen.getByTestId("project-reader-progress-track");
+    const hitArea = screen.getByTestId("project-reader-progress-hit-area");
+    const rectSpy = mockProgressTrackRect(progressTrack, "bottom");
+
+    fireEvent.pointerDown(hitArea, {
+      pointerId: 4,
+      pointerType: "mouse",
+      clientX: window.innerWidth - 32,
+      clientY: window.innerHeight - 24,
+    });
+    fireEvent.pointerUp(hitArea, {
+      pointerId: 4,
+      pointerType: "mouse",
+      clientX: window.innerWidth - 32,
+      clientY: window.innerHeight - 24,
+    });
+
+    await waitFor(() => {
+      expect(targetScrollSpy).toHaveBeenCalledWith({
+        behavior: "smooth",
+        block: "start",
+        inline: "nearest",
+      });
+    });
+
+    rectSpy.mockRestore();
+  });
+
+  it("deduplicates repeated scrubs within the same page range", async () => {
+    renderReader(
+      { progressStyle: "default", progressPosition: "right", layout: "scroll-vertical" },
+      {
+        pages: [
+          { position: 0, imageUrl: "/page-1.jpg" },
+          { position: 1, imageUrl: "/page-2.jpg" },
+        ],
+      },
+    );
+
+    const targetPage = await screen.findByTestId("reader-page-1");
+    const targetScrollSpy = vi.fn();
+    Object.defineProperty(targetPage, "scrollIntoView", {
+      configurable: true,
+      value: targetScrollSpy,
+    });
+
+    const progressTrack = screen.getByTestId("project-reader-progress-track");
+    const hitArea = screen.getByTestId("project-reader-progress-hit-area");
+    const rectSpy = mockProgressTrackRect(progressTrack, "right");
+
+    fireEvent.pointerDown(hitArea, {
+      pointerId: 5,
+      pointerType: "mouse",
+      clientX: window.innerWidth - 24,
+      clientY: window.innerHeight / 2,
+    });
+    fireEvent.pointerMove(hitArea, {
+      pointerId: 5,
+      pointerType: "mouse",
+      clientX: window.innerWidth - 24,
+      clientY: window.innerHeight / 2 + 10,
+    });
+    fireEvent.pointerMove(hitArea, {
+      pointerId: 5,
+      pointerType: "mouse",
+      clientX: window.innerWidth - 24,
+      clientY: window.innerHeight / 2 + 16,
+    });
+    fireEvent.pointerUp(hitArea, {
+      pointerId: 5,
+      pointerType: "mouse",
+      clientX: window.innerWidth - 24,
+      clientY: window.innerHeight / 2 + 16,
+    });
+
+    await waitFor(() => {
+      expect(targetScrollSpy).toHaveBeenCalledTimes(1);
+    });
+
+    rectSpy.mockRestore();
   });
 
   it("hides the fixed progress overlay when the stage leaves the viewport", async () => {
-    renderReader({ progressStyle: "bar", progressPosition: "bottom" });
+    renderReader({ progressStyle: "default", progressPosition: "bottom" });
 
     const stage = screen.getByTestId("project-reading-stage");
     const rectSpy = mockElementRect(stage, {
@@ -456,9 +947,17 @@ describe("PublicProjectReader", () => {
       height: 800,
     });
 
-    expect(screen.getByTestId("project-reader-progress-overlay")).toBeInTheDocument();
+    const overlay = await screen.findByTestId("project-reader-progress-overlay");
+    expect(overlay).toBeInTheDocument();
 
     fireEvent.scroll(window);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("project-reader-progress-overlay")).toHaveAttribute(
+        "data-state",
+        "hidden",
+      );
+    });
 
     await waitFor(() => {
       expect(screen.queryByTestId("project-reader-progress-overlay")).not.toBeInTheDocument();
@@ -475,5 +974,22 @@ describe("PublicProjectReader", () => {
     const sidebar = await screen.findByTestId("project-reader-sidebar");
     expect(sidebar.tagName).toBe("ASIDE");
     expect(screen.getByText("Menu do leitor")).toBeInTheDocument();
+  });
+
+  it("shows only the default and hidden progress options in the reader menu", async () => {
+    renderReader({ imageFit: "both" });
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+    const trigger = await screen.findByRole("combobox", {
+      name: "Selecionar estilo do progresso",
+    });
+
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
+
+    expect(await screen.findByRole("option", { name: /Padr/i })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Oculto" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Barra/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Brilho|Glow/i })).not.toBeInTheDocument();
   });
 });

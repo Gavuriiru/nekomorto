@@ -96,6 +96,47 @@
   scrollbar-width: none;
 }
 
+.reader-external-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--accent) / 0.72) transparent;
+}
+
+.reader-external-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.reader-external-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reader-external-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.reader-external-scrollbar::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.reader-external-scrollbar::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--accent) / 0.68);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.reader-external-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--accent) / 0.82);
+}
+
+.reader-external-scrollbar::-webkit-scrollbar-thumb:active {
+  background-color: hsl(var(--accent) / 0.9);
+}
+
 .app-textarea::-webkit-resizer {
   background: transparent;
   background-image: none;

@@ -69,11 +69,7 @@ const DashboardReaderPresetCard = ({
     }));
 
   return (
-    <Card
-      lift={false}
-      className={cardClassName}
-      data-testid={`reader-preset-${presetMeta.key}`}
-    >
+    <Card lift={false} className={cardClassName} data-testid={`reader-preset-${presetMeta.key}`}>
       <CardContent className="space-y-6 p-4 md:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
@@ -84,7 +80,9 @@ const DashboardReaderPresetCard = ({
             <DashboardPageBadge>
               {preset.direction === PROJECT_READER_DIRECTIONS.RTL ? "RTL" : "LTR"}
             </DashboardPageBadge>
-            <DashboardPageBadge>{resolveLayoutBadgeLabel(String(preset.layout || ""))}</DashboardPageBadge>
+            <DashboardPageBadge>
+              {resolveLayoutBadgeLabel(String(preset.layout || ""))}
+            </DashboardPageBadge>
           </div>
         </div>
 
@@ -106,12 +104,8 @@ const DashboardReaderPresetCard = ({
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={PROJECT_READER_DIRECTIONS.RTL}>
-                  Direita para esquerda
-                </SelectItem>
-                <SelectItem value={PROJECT_READER_DIRECTIONS.LTR}>
-                  Esquerda para direita
-                </SelectItem>
+                <SelectItem value={PROJECT_READER_DIRECTIONS.RTL}>Direita para esquerda</SelectItem>
+                <SelectItem value={PROJECT_READER_DIRECTIONS.LTR}>Esquerda para direita</SelectItem>
               </SelectContent>
             </Select>
           </DashboardFieldStack>
@@ -170,9 +164,7 @@ const DashboardReaderPresetCard = ({
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={PROJECT_READER_IMAGE_FITS.BOTH}>
-                  Largura e altura
-                </SelectItem>
+                <SelectItem value={PROJECT_READER_IMAGE_FITS.BOTH}>Largura e altura</SelectItem>
                 <SelectItem value={PROJECT_READER_IMAGE_FITS.WIDTH}>Ajustar à largura</SelectItem>
                 <SelectItem value={PROJECT_READER_IMAGE_FITS.HEIGHT}>Ajustar à altura</SelectItem>
                 <SelectItem value={PROJECT_READER_IMAGE_FITS.NONE}>Tamanho natural</SelectItem>
@@ -215,18 +207,15 @@ const DashboardReaderPresetCard = ({
                   progressStyle:
                     value === PROJECT_READER_PROGRESS_STYLES.HIDDEN
                       ? PROJECT_READER_PROGRESS_STYLES.HIDDEN
-                      : value === PROJECT_READER_PROGRESS_STYLES.GLOW
-                        ? PROJECT_READER_PROGRESS_STYLES.GLOW
-                        : PROJECT_READER_PROGRESS_STYLES.BAR,
+                      : PROJECT_READER_PROGRESS_STYLES.DEFAULT,
                 })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Selecionar estilo do progresso">
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={PROJECT_READER_PROGRESS_STYLES.BAR}>Barra</SelectItem>
-                <SelectItem value={PROJECT_READER_PROGRESS_STYLES.GLOW}>Glow</SelectItem>
+                <SelectItem value={PROJECT_READER_PROGRESS_STYLES.DEFAULT}>PadrÃ£o</SelectItem>
                 <SelectItem value={PROJECT_READER_PROGRESS_STYLES.HIDDEN}>Oculto</SelectItem>
               </SelectContent>
             </Select>
@@ -251,9 +240,7 @@ const DashboardReaderPresetCard = ({
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={PROJECT_READER_PROGRESS_POSITIONS.BOTTOM}>
-                  Inferior
-                </SelectItem>
+                <SelectItem value={PROJECT_READER_PROGRESS_POSITIONS.BOTTOM}>Inferior</SelectItem>
                 <SelectItem value={PROJECT_READER_PROGRESS_POSITIONS.LEFT}>Esquerda</SelectItem>
                 <SelectItem value={PROJECT_READER_PROGRESS_POSITIONS.RIGHT}>Direita</SelectItem>
               </SelectContent>

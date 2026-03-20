@@ -80,6 +80,7 @@ const setupProjectReadingApiMock = (
     project?: ReturnType<typeof createProjectFixture>;
     chapterEndpoint?: string;
     chapterResponse?: Record<string, unknown> | null;
+    readerConfig?: Record<string, unknown> | null;
   },
 ) => {
   const project = options?.project || createProjectFixture(episodeDownloads);
@@ -175,6 +176,8 @@ const setupProjectReadingApiMock = (
           : [],
         views: 0,
         viewsDaily: {},
+        readerConfig:
+          (project as { readerConfig?: Record<string, unknown> }).readerConfig || undefined,
       },
     ],
     posts: [],
@@ -210,6 +213,7 @@ const setupProjectReadingApiMock = (
       if (endpoint === chapterEndpoint && (!options?.method || options.method === "GET")) {
         return mockJsonResponse(true, {
           chapter: chapterResponse,
+          readerConfig: options?.readerConfig || undefined,
         });
       }
       if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
@@ -504,6 +508,10 @@ describe("ProjectReading analytics", () => {
 
     setupProjectReadingApiMock(undefined, null, {
       project,
+      readerConfig: {
+        layout: "scroll-vertical",
+        imageFit: "both",
+      },
       chapterResponse: {
         number: 1,
         volume: 2,
@@ -527,6 +535,8 @@ describe("ProjectReading analytics", () => {
     const readerShell = screen.getByTestId("project-reading-full-bleed-shell");
     const readerBar = screen.getByTestId("project-reading-reader-bar");
     const infoBar = screen.getByTestId("project-reading-info-bar");
+    const commentsHandoff = screen.getByTestId("project-reading-comments-handoff");
+    const commentsSentinel = screen.getByTestId("project-reading-comments-sentinel");
 
     expect(imageLayout).toHaveClass("flex", "min-h-0", "flex-1", "flex-col");
     expect(imageLayout).not.toHaveClass("pb-16");
@@ -538,6 +548,13 @@ describe("ProjectReading analytics", () => {
     expect(infoBar).toHaveAttribute("data-variant", "reader-cinema");
     expect(within(infoBar).getByText("Resumo do capitulo")).toBeInTheDocument();
     expect(within(readerBar).getByRole("heading", { name: /Cap.*tulo 1/i })).toBeInTheDocument();
+    expect(commentsHandoff.style.minHeight).toBe("5rem");
+    expect(
+      imageLayout.compareDocumentPosition(commentsHandoff) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      commentsHandoff.compareDocumentPosition(commentsSentinel) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     await waitFor(() => {
       expect(readerShell.style.minHeight).toMatch(/px$/);
@@ -601,6 +618,79 @@ describe("ProjectReading analytics", () => {
     fireEvent.click(chapterTrigger);
 
     expect(await screen.findByRole("option", { name: /Cap.*tulo 2/i })).toBeInTheDocument();
+  });
+
+  it("keeps vertical image reader chapters in natural document flow so deferred comments stay after the stack", async () => {
+    const project = {
+      ...createProjectFixture([
+        {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1",
+          synopsis: "Resumo do capitulo",
+          hasPages: true,
+        },
+      ]),
+      type: "Webtoon",
+    };
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      chapterResponse: {
+        number: 1,
+        volume: 2,
+        title: "Capitulo 1",
+        synopsis: "Resumo do capitulo",
+        contentFormat: "images",
+        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pageCount: 1,
+        hasPages: true,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    const imageLayout = await screen.findByTestId("project-reading-images-layout");
+    const readerShell = screen.getByTestId("project-reading-full-bleed-shell");
+    const stage = screen.getByTestId("project-reading-stage");
+    const commentsHandoff = screen.getByTestId("project-reading-comments-handoff");
+    const commentsSentinel = screen.getByTestId("project-reading-comments-sentinel");
+
+    expect(imageLayout).toHaveClass("flex", "flex-col", "min-h-screen");
+    expect(imageLayout).not.toHaveClass("flex-1", "min-h-0");
+    expect(commentsHandoff.style.minHeight).toBe("5rem");
+    expect(
+      imageLayout.compareDocumentPosition(commentsHandoff) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      commentsHandoff.compareDocumentPosition(commentsSentinel) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    await waitFor(() => {
+      expect(readerShell.style.minHeight).toMatch(/px$/);
+      expect(readerShell.style.height).toBe("");
+      expect(stage.style.minHeight).toMatch(/px$/);
+      expect(stage.style.height).toBe("");
+    });
+  });
+
+  it("keeps lexical chapters without the image-reader comments handoff spacer", async () => {
+    setupProjectReadingApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId("lexical-viewer");
+
+    expect(screen.queryByTestId("project-reading-comments-handoff")).not.toBeInTheDocument();
+    expect(screen.getByTestId("project-reading-comments-sentinel")).toBeInTheDocument();
   });
 
   it("ignora capitulos sem leitura na navegacao publica", async () => {

@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { ArrowLeft, ArrowRight, BookOpenText, Menu, PencilLine, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -42,6 +50,8 @@ type ReaderChapterOption = {
 };
 
 type ReaderChromeMode = "default" | "cinema";
+type ReaderProgressStyle = "default" | "hidden";
+type ReaderProgressPosition = "bottom" | "left" | "right";
 
 type PublicProjectReaderProps = {
   projectTitle: string;
@@ -68,7 +78,13 @@ const SIDEBAR_SECTION_ICON_CLASS_NAME =
   "mt-0.5 h-9 w-9 shrink-0 rounded-2xl border border-border/70 bg-background/40 p-2 text-primary";
 const PROGRESS_EDGE_OFFSET_PX = 12;
 const HIDDEN_PROGRESS_ZONE_SIZE_PX = 48;
-const HIDDEN_PROGRESS_HIDE_DELAY_MS = 1000;
+const HIDDEN_PROGRESS_HIDE_DELAY_MS = 180;
+const PROGRESS_OVERLAY_TRANSITION_MS = 180;
+const PROGRESS_TOUCH_FEEDBACK_MS = 900;
+const PROGRESS_BOTTOM_OVERLAY_HEIGHT_PX = 80;
+const PROGRESS_VERTICAL_OVERLAY_WIDTH_PX = 88;
+const PROGRESS_CHIP_MIN_WIDTH_PX = 40;
+const PROGRESS_CHIP_MIN_HEIGHT_PX = 28;
 
 const getVisibleViewportMetrics = () => {
   if (typeof window === "undefined") {
@@ -142,13 +158,13 @@ const resolveEffectiveImageFit = (imageFit: string) => (imageFit === "width" ? "
 const getSafeAreaInset = (edge: "top" | "right" | "bottom" | "left") =>
   `calc(env(safe-area-inset-${edge}, 0px) + ${PROGRESS_EDGE_OFFSET_PX}px)`;
 
-const getProgressOverlayContainerStyle = (position: "bottom" | "left" | "right"): CSSProperties => {
+const getProgressOverlayContainerStyle = (position: ReaderProgressPosition): CSSProperties => {
   if (position === "bottom") {
     return {
       left: getSafeAreaInset("left"),
       right: getSafeAreaInset("right"),
       bottom: getSafeAreaInset("bottom"),
-      height: "2.5rem",
+      height: "5rem",
     };
   }
 
@@ -157,17 +173,64 @@ const getProgressOverlayContainerStyle = (position: "bottom" | "left" | "right")
         left: getSafeAreaInset("left"),
         top: getSafeAreaInset("top"),
         bottom: getSafeAreaInset("bottom"),
-        width: "4.5rem",
+        width: "5.5rem",
       }
     : {
         right: getSafeAreaInset("right"),
         top: getSafeAreaInset("top"),
         bottom: getSafeAreaInset("bottom"),
-        width: "4.5rem",
+        width: "5.5rem",
       };
 };
 
-const getHiddenProgressZoneStyle = (position: "bottom" | "left" | "right"): CSSProperties => {
+const clampProgressRatio = (value: number) => Math.min(Math.max(value, 0), 1);
+const getRootFontSizePx = () => {
+  if (typeof window === "undefined") {
+    return 16;
+  }
+  const computedSize = Number.parseFloat(
+    window.getComputedStyle(document.documentElement).fontSize,
+  );
+  return Number.isFinite(computedSize) && computedSize > 0 ? computedSize : 16;
+};
+
+const getSafeCenteredProgressPlacement = ({
+  position,
+  ratio,
+  edgeInsetPx,
+}: {
+  position: ReaderProgressPosition;
+  ratio: number;
+  edgeInsetPx: number;
+}): {
+  className: string;
+  style: CSSProperties;
+} => {
+  const clampedRatio = clampProgressRatio(ratio);
+  const viewportMetrics = getVisibleViewportMetrics();
+  const containerLength =
+    position === "bottom"
+      ? Math.max(viewportMetrics.width - PROGRESS_EDGE_OFFSET_PX * 2, 0)
+      : Math.max(viewportMetrics.height - PROGRESS_EDGE_OFFSET_PX * 2, 0);
+  const clampedPosition = Math.min(
+    Math.max(containerLength * clampedRatio, edgeInsetPx),
+    Math.max(containerLength - edgeInsetPx, edgeInsetPx),
+  );
+
+  if (position === "bottom") {
+    return {
+      className: "-translate-x-1/2",
+      style: { left: `${clampedPosition}px` },
+    };
+  }
+
+  return {
+    className: "-translate-y-1/2",
+    style: { top: `${clampedPosition}px` },
+  };
+};
+
+const getHiddenProgressZoneStyle = (position: ReaderProgressPosition): CSSProperties => {
   if (position === "bottom") {
     return {
       left: 0,
@@ -191,6 +254,69 @@ const getHiddenProgressZoneStyle = (position: "bottom" | "left" | "right"): CSSP
         width: `${HIDDEN_PROGRESS_ZONE_SIZE_PX}px`,
       };
 };
+
+const getProgressOverlayMotionClassName = ({
+  position,
+  isVisible,
+}: {
+  position: ReaderProgressPosition;
+  isVisible: boolean;
+}) => {
+  if (position === "bottom") {
+    return isVisible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0";
+  }
+  if (position === "left") {
+    return isVisible ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0";
+  }
+  return isVisible ? "translate-x-0 opacity-100" : "translate-x-2 opacity-0";
+};
+
+const getFallbackProgressTrackRect = (position: ReaderProgressPosition) => {
+  const viewportMetrics = getVisibleViewportMetrics();
+  const viewportWidth = Math.max(viewportMetrics.width, PROGRESS_EDGE_OFFSET_PX * 2 + 1);
+  const viewportHeight = Math.max(viewportMetrics.height, PROGRESS_EDGE_OFFSET_PX * 2 + 1);
+
+  if (position === "bottom") {
+    return {
+      left: PROGRESS_EDGE_OFFSET_PX,
+      right: viewportWidth - PROGRESS_EDGE_OFFSET_PX,
+      top: viewportMetrics.offsetTop + viewportHeight - PROGRESS_BOTTOM_OVERLAY_HEIGHT_PX,
+      bottom: viewportMetrics.offsetTop + viewportHeight,
+      width: Math.max(viewportWidth - PROGRESS_EDGE_OFFSET_PX * 2, 1),
+      height: PROGRESS_BOTTOM_OVERLAY_HEIGHT_PX,
+    };
+  }
+
+  if (position === "left") {
+    return {
+      left: PROGRESS_EDGE_OFFSET_PX,
+      right: PROGRESS_EDGE_OFFSET_PX + PROGRESS_VERTICAL_OVERLAY_WIDTH_PX,
+      top: viewportMetrics.offsetTop + PROGRESS_EDGE_OFFSET_PX,
+      bottom: viewportMetrics.offsetTop + viewportHeight - PROGRESS_EDGE_OFFSET_PX,
+      width: PROGRESS_VERTICAL_OVERLAY_WIDTH_PX,
+      height: Math.max(viewportHeight - PROGRESS_EDGE_OFFSET_PX * 2, 1),
+    };
+  }
+
+  return {
+    left: viewportWidth - PROGRESS_EDGE_OFFSET_PX - PROGRESS_VERTICAL_OVERLAY_WIDTH_PX,
+    right: viewportWidth - PROGRESS_EDGE_OFFSET_PX,
+    top: viewportMetrics.offsetTop + PROGRESS_EDGE_OFFSET_PX,
+    bottom: viewportMetrics.offsetTop + viewportHeight - PROGRESS_EDGE_OFFSET_PX,
+    width: PROGRESS_VERTICAL_OVERLAY_WIDTH_PX,
+    height: Math.max(viewportHeight - PROGRESS_EDGE_OFFSET_PX * 2, 1),
+  };
+};
+
+const isPointWithinRect = ({
+  x,
+  y,
+  rect,
+}: {
+  x: number;
+  y: number;
+  rect: Pick<DOMRect, "left" | "right" | "top" | "bottom">;
+}) => x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
 
 const getHorizontalAlignmentClassName = (alignment: "center" | "start" | "end") => {
   if (alignment === "start") {
@@ -300,12 +426,33 @@ const PublicProjectReader = ({
   const [stageViewportHeight, setStageViewportHeight] = useState<number | null>(null);
   const [isStageInViewport, setIsStageInViewport] = useState(true);
   const [isHiddenProgressRevealed, setIsHiddenProgressRevealed] = useState(false);
+  const [isProgressInteracting, setIsProgressInteracting] = useState(false);
+  const [isProgressOverlayMounted, setIsProgressOverlayMounted] = useState(false);
+  const [isProgressOverlayVisible, setIsProgressOverlayVisible] = useState(false);
+  const [progressLabelSize, setProgressLabelSize] = useState({
+    width: PROGRESS_CHIP_MIN_WIDTH_PX,
+    height: PROGRESS_CHIP_MIN_HEIGHT_PX,
+  });
+  const [horizontalScrollMetrics, setHorizontalScrollMetrics] = useState({
+    clientWidth: 0,
+    scrollWidth: 0,
+  });
   const horizontalScrollRef = useRef<HTMLDivElement | null>(null);
+  const horizontalScrollRailHostRef = useRef<HTMLDivElement | null>(null);
+  const horizontalScrollRailRef = useRef<HTMLDivElement | null>(null);
+  const horizontalScrollStripRef = useRef<HTMLDivElement | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
   const infoBarRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLElement | null>(null);
+  const progressTrackRef = useRef<HTMLDivElement | null>(null);
+  const progressLabelRef = useRef<HTMLDivElement | null>(null);
   const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
   const hideHiddenProgressTimeoutRef = useRef<number | null>(null);
+  const progressInteractionTimeoutRef = useRef<number | null>(null);
+  const progressOverlayUnmountTimeoutRef = useRef<number | null>(null);
+  const activeProgressPointerIdRef = useRef<number | null>(null);
+  const isProgressPointerDraggingRef = useRef(false);
+  const lastScrubbedProgressPageRef = useRef<number | null>(null);
 
   const { originalPages, renderablePages, accessiblePageCount, hasPurchaseGate } = useMemo(
     () =>
@@ -336,7 +483,7 @@ const PublicProjectReader = ({
   const visualState = getReaderVisualState({
     imageFit: String(resolvedConfig.imageFit || "both"),
     background: String(resolvedConfig.background || "theme"),
-    progressStyle: String(resolvedConfig.progressStyle || "bar"),
+    progressStyle: String(resolvedConfig.progressStyle || "default"),
     progressPosition: String(resolvedConfig.progressPosition || "bottom"),
   });
 
@@ -375,24 +522,75 @@ const PublicProjectReader = ({
     }
   }, []);
 
+  const clearProgressInteractionTimer = useCallback(() => {
+    if (progressInteractionTimeoutRef.current !== null) {
+      window.clearTimeout(progressInteractionTimeoutRef.current);
+      progressInteractionTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearProgressOverlayUnmountTimer = useCallback(() => {
+    if (progressOverlayUnmountTimeoutRef.current !== null) {
+      window.clearTimeout(progressOverlayUnmountTimeoutRef.current);
+      progressOverlayUnmountTimeoutRef.current = null;
+    }
+  }, []);
+
   const revealHiddenProgress = useCallback(() => {
     clearHiddenProgressHideTimer();
+    clearProgressInteractionTimer();
     setIsHiddenProgressRevealed(true);
-  }, [clearHiddenProgressHideTimer]);
+    setIsProgressInteracting(true);
+  }, [clearHiddenProgressHideTimer, clearProgressInteractionTimer]);
 
   const scheduleHiddenProgressHide = useCallback(() => {
     clearHiddenProgressHideTimer();
     hideHiddenProgressTimeoutRef.current = window.setTimeout(() => {
       setIsHiddenProgressRevealed(false);
+      setIsProgressInteracting(false);
       hideHiddenProgressTimeoutRef.current = null;
     }, HIDDEN_PROGRESS_HIDE_DELAY_MS);
   }, [clearHiddenProgressHideTimer]);
-  const handleHiddenProgressTouchStart = useCallback(() => {
-    revealHiddenProgress();
-    scheduleHiddenProgressHide();
-  }, [revealHiddenProgress, scheduleHiddenProgressHide]);
 
-  useEffect(() => () => clearHiddenProgressHideTimer(), [clearHiddenProgressHideTimer]);
+  const scheduleProgressInteractionReset = useCallback(
+    (delayMs = PROGRESS_TOUCH_FEEDBACK_MS) => {
+      clearProgressInteractionTimer();
+      progressInteractionTimeoutRef.current = window.setTimeout(() => {
+        setIsProgressInteracting(false);
+        progressInteractionTimeoutRef.current = null;
+      }, delayMs);
+    },
+    [clearProgressInteractionTimer],
+  );
+
+  const handleProgressPointerEnter = useCallback(() => {
+    clearHiddenProgressHideTimer();
+    clearProgressInteractionTimer();
+    setIsProgressInteracting(true);
+  }, [clearHiddenProgressHideTimer, clearProgressInteractionTimer]);
+
+  const handleProgressPointerLeave = useCallback(() => {
+    if (isProgressPointerDraggingRef.current) {
+      return;
+    }
+
+    if (visualState.progressStyle === "hidden") {
+      scheduleHiddenProgressHide();
+      return;
+    }
+
+    clearProgressInteractionTimer();
+    setIsProgressInteracting(false);
+  }, [clearProgressInteractionTimer, scheduleHiddenProgressHide, visualState.progressStyle]);
+
+  useEffect(
+    () => () => {
+      clearHiddenProgressHideTimer();
+      clearProgressOverlayUnmountTimer();
+      clearProgressInteractionTimer();
+    },
+    [clearHiddenProgressHideTimer, clearProgressInteractionTimer, clearProgressOverlayUnmountTimer],
+  );
 
   useEffect(() => {
     setIsMenuOpen(false);
@@ -409,17 +607,20 @@ const PublicProjectReader = ({
       const shellRect = shell.getBoundingClientRect();
       const stageRect = node.getBoundingClientRect();
       const infoBarRect = infoBar?.getBoundingClientRect();
+      const scrollbarHostRect = horizontalScrollRailHostRef.current?.getBoundingClientRect();
       const viewportMetrics = getVisibleViewportMetrics();
       const topOffset = Math.max(Math.round(shellRect.top - viewportMetrics.offsetTop), 0);
       const nextReaderHeight = Math.max(Math.round(viewportMetrics.height - topOffset), 320);
       const infoBarHeight = isCinemaMode ? 0 : Math.round(infoBarRect?.height || 0);
+      const scrollbarHostHeight =
+        layout === "scroll-horizontal" ? Math.round(scrollbarHostRect?.height || 0) : 0;
       const gapHeight =
         isCinemaMode || !infoBarRect
           ? 0
           : Math.max(Math.round(stageRect.top - infoBarRect.bottom), 0);
       const nextStageHeight = isCinemaMode
-        ? Math.max(nextReaderHeight, 240)
-        : Math.max(nextReaderHeight - infoBarHeight - gapHeight, 240);
+        ? Math.max(nextReaderHeight - scrollbarHostHeight, 240)
+        : Math.max(nextReaderHeight - infoBarHeight - gapHeight - scrollbarHostHeight, 240);
       setReaderViewportHeight(nextReaderHeight);
       setStageViewportHeight(nextStageHeight);
     };
@@ -436,6 +637,9 @@ const PublicProjectReader = ({
     }
     if (stageRef.current) {
       resizeObserver?.observe(stageRef.current);
+    }
+    if (horizontalScrollRailHostRef.current) {
+      resizeObserver?.observe(horizontalScrollRailHostRef.current);
     }
     window.addEventListener("resize", updateStageHeight, { passive: true });
     viewport?.addEventListener("resize", updateStageHeight);
@@ -495,6 +699,84 @@ const PublicProjectReader = ({
       viewport?.removeEventListener("scroll", updateStageVisibility);
     };
   }, [chapterTitle, layout, projectTitle, visualState.imageFit]);
+
+  const syncHorizontalScrollMetrics = useCallback(() => {
+    if (layout !== "scroll-horizontal") {
+      setHorizontalScrollMetrics((current) =>
+        current.clientWidth === 0 && current.scrollWidth === 0
+          ? current
+          : { clientWidth: 0, scrollWidth: 0 },
+      );
+      return;
+    }
+
+    const viewport = horizontalScrollRef.current;
+    const strip = horizontalScrollStripRef.current;
+    const rail = horizontalScrollRailRef.current;
+    const nextClientWidth = Math.max(viewport?.clientWidth || 0, 0);
+    const nextScrollWidth = Math.max(
+      strip?.scrollWidth || 0,
+      viewport?.scrollWidth || 0,
+      nextClientWidth,
+    );
+
+    setHorizontalScrollMetrics((current) =>
+      current.clientWidth === nextClientWidth && current.scrollWidth === nextScrollWidth
+        ? current
+        : { clientWidth: nextClientWidth, scrollWidth: nextScrollWidth },
+    );
+
+    if (viewport && rail && Math.abs(rail.scrollLeft - viewport.scrollLeft) > 1) {
+      rail.scrollLeft = viewport.scrollLeft;
+    }
+  }, [layout]);
+
+  const syncHorizontalScrollPosition = useCallback((source: "viewport" | "rail") => {
+    const viewport = horizontalScrollRef.current;
+    const rail = horizontalScrollRailRef.current;
+    if (!viewport || !rail) {
+      return;
+    }
+
+    const sourceNode = source === "viewport" ? viewport : rail;
+    const targetNode = source === "viewport" ? rail : viewport;
+    const nextScrollLeft = sourceNode.scrollLeft;
+    if (Math.abs(targetNode.scrollLeft - nextScrollLeft) <= 1) {
+      return;
+    }
+
+    targetNode.scrollLeft = nextScrollLeft;
+  }, []);
+
+  useEffect(() => {
+    syncHorizontalScrollMetrics();
+    const viewport = horizontalScrollRef.current;
+    const strip = horizontalScrollStripRef.current;
+    const rail = horizontalScrollRailRef.current;
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => syncHorizontalScrollMetrics())
+        : null;
+
+    if (viewport) {
+      resizeObserver?.observe(viewport);
+    }
+    if (strip) {
+      resizeObserver?.observe(strip);
+    }
+    if (rail) {
+      resizeObserver?.observe(rail);
+    }
+
+    window.addEventListener("resize", syncHorizontalScrollMetrics, { passive: true });
+    window.visualViewport?.addEventListener("resize", syncHorizontalScrollMetrics);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", syncHorizontalScrollMetrics);
+      window.visualViewport?.removeEventListener("resize", syncHorizontalScrollMetrics);
+    };
+  }, [layout, renderablePages.length, syncHorizontalScrollMetrics]);
 
   useEffect(() => {
     if (paginated) {
@@ -578,12 +860,24 @@ const PublicProjectReader = ({
 
     if (layout === "scroll-horizontal") {
       const container = horizontalScrollRef.current;
-      container?.addEventListener("scroll", handleScroll, { passive: true });
+      const rail = horizontalScrollRailRef.current;
+      const handleViewportScroll = () => {
+        syncHorizontalScrollPosition("viewport");
+        updateContinuousActivePage();
+      };
+      const handleRailScroll = () => {
+        syncHorizontalScrollPosition("rail");
+        updateContinuousActivePage();
+      };
+
+      container?.addEventListener("scroll", handleViewportScroll, { passive: true });
+      rail?.addEventListener("scroll", handleRailScroll, { passive: true });
       window.addEventListener("resize", handleResize, { passive: true });
       viewport?.addEventListener("resize", handleResize);
       viewport?.addEventListener("scroll", handleResize);
       return () => {
-        container?.removeEventListener("scroll", handleScroll);
+        container?.removeEventListener("scroll", handleViewportScroll);
+        rail?.removeEventListener("scroll", handleRailScroll);
         window.removeEventListener("resize", handleResize);
         viewport?.removeEventListener("resize", handleResize);
         viewport?.removeEventListener("scroll", handleResize);
@@ -600,7 +894,7 @@ const PublicProjectReader = ({
       viewport?.removeEventListener("resize", handleResize);
       viewport?.removeEventListener("scroll", handleResize);
     };
-  }, [layout, paginated, updateContinuousActivePage]);
+  }, [layout, paginated, syncHorizontalScrollPosition, updateContinuousActivePage]);
 
   const goToSlot = useCallback(
     (nextSlotIndex: number) => {
@@ -696,8 +990,15 @@ const PublicProjectReader = ({
     }
 
     clearHiddenProgressHideTimer();
+    clearProgressInteractionTimer();
     setIsHiddenProgressRevealed(false);
-  }, [clearHiddenProgressHideTimer, isStageInViewport, visualState.progressStyle]);
+    setIsProgressInteracting(false);
+  }, [
+    clearHiddenProgressHideTimer,
+    clearProgressInteractionTimer,
+    isStageInViewport,
+    visualState.progressStyle,
+  ]);
 
   const pageSummary = useMemo(
     () =>
@@ -715,10 +1016,18 @@ const PublicProjectReader = ({
     Math.max(activePageIndex + 1, 1),
     accessiblePageCount || originalPages.length || 1,
   );
-  const progressPercent =
-    originalPages.length > 0 ? (progressPageIndex / originalPages.length) * 100 : 0;
-  const clampedProgressPercent = Math.min(Math.max(progressPercent, 0), 100);
+  const progressAnchorIndex = Math.min(
+    Math.max(activePageIndex, 0),
+    Math.max(originalPages.length - 1, 0),
+  );
+  const progressPositionRatio =
+    originalPages.length > 1 ? progressAnchorIndex / (originalPages.length - 1) : 0;
   const isViewportBoundedReader = usesViewportBoundedHeight(effectiveImageFit);
+  const shouldUseFixedViewportHeight = isViewportBoundedReader && layout !== "scroll-vertical";
+  const horizontalScrollbarSpacerWidth = Math.max(
+    horizontalScrollMetrics.scrollWidth,
+    horizontalScrollMetrics.clientWidth,
+  );
   const pageItems = useMemo(
     () =>
       buildReaderPageItems({
@@ -731,7 +1040,7 @@ const PublicProjectReader = ({
     if (!stageViewportHeight) {
       return undefined;
     }
-    return isViewportBoundedReader
+    return shouldUseFixedViewportHeight
       ? {
           minHeight: `${stageViewportHeight}px`,
           height: `${stageViewportHeight}px`,
@@ -739,12 +1048,12 @@ const PublicProjectReader = ({
       : {
           minHeight: `${stageViewportHeight}px`,
         };
-  }, [isViewportBoundedReader, stageViewportHeight]);
+  }, [shouldUseFixedViewportHeight, stageViewportHeight]);
   const readerViewportStyle = useMemo(() => {
     if (!readerViewportHeight) {
       return undefined;
     }
-    return isViewportBoundedReader
+    return shouldUseFixedViewportHeight
       ? {
           minHeight: `${readerViewportHeight}px`,
           height: `${readerViewportHeight}px`,
@@ -752,7 +1061,7 @@ const PublicProjectReader = ({
       : {
           minHeight: `${readerViewportHeight}px`,
         };
-  }, [isViewportBoundedReader, readerViewportHeight]);
+  }, [readerViewportHeight, shouldUseFixedViewportHeight]);
   const viewportBoundedSurfaceStyle = useMemo(() => {
     if (!stageViewportHeight || !isViewportBoundedReader) {
       return undefined;
@@ -761,10 +1070,14 @@ const PublicProjectReader = ({
       height: `${stageViewportHeight}px`,
     };
   }, [isViewportBoundedReader, stageViewportHeight]);
-  const progressPosition =
+  const progressPosition: ReaderProgressPosition =
     visualState.progressPosition === "left" || visualState.progressPosition === "right"
       ? visualState.progressPosition
       : "bottom";
+  const progressStyle: ReaderProgressStyle =
+    visualState.progressStyle === "hidden" ? "hidden" : "default";
+  const renderedProgressStyle =
+    progressStyle === "hidden" ? (isHiddenProgressRevealed ? "default" : null) : "default";
   const progressOverlayContainerStyle = useMemo(
     () => getProgressOverlayContainerStyle(progressPosition),
     [progressPosition],
@@ -773,97 +1086,402 @@ const PublicProjectReader = ({
     () => getHiddenProgressZoneStyle(progressPosition),
     [progressPosition],
   );
-  const renderedProgressStyle =
-    visualState.progressStyle === "hidden"
-      ? isHiddenProgressRevealed
-        ? "bar"
-        : null
-      : visualState.progressStyle;
-  const shouldRenderProgressOverlay = isStageInViewport && renderedProgressStyle !== null;
+  const shouldDisplayProgressOverlay = isStageInViewport && renderedProgressStyle !== null;
+  const shouldShowProgressChip =
+    renderedProgressStyle !== null &&
+    (progressStyle === "hidden" ? isHiddenProgressRevealed : isProgressInteracting);
+  const shouldEmphasizeProgress =
+    progressStyle === "hidden" ? isHiddenProgressRevealed : isProgressInteracting;
+
+  useEffect(() => {
+    clearProgressOverlayUnmountTimer();
+
+    if (shouldDisplayProgressOverlay) {
+      setIsProgressOverlayMounted(true);
+      return;
+    }
+
+    setIsProgressOverlayVisible(false);
+    if (!isProgressOverlayMounted) {
+      return;
+    }
+
+    progressOverlayUnmountTimeoutRef.current = window.setTimeout(() => {
+      setIsProgressOverlayMounted(false);
+      progressOverlayUnmountTimeoutRef.current = null;
+    }, PROGRESS_OVERLAY_TRANSITION_MS);
+  }, [
+    clearProgressOverlayUnmountTimer,
+    isProgressOverlayMounted,
+    shouldDisplayProgressOverlay,
+  ]);
+
+  useEffect(() => {
+    if (!shouldDisplayProgressOverlay || !isProgressOverlayMounted) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      setIsProgressOverlayVisible(true);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [isProgressOverlayMounted, shouldDisplayProgressOverlay]);
+
+  useEffect(() => {
+    const node = progressLabelRef.current;
+    if (!node) {
+      return;
+    }
+
+    const updateLabelSize = () => {
+      const rect = node.getBoundingClientRect();
+      const nextWidth = Math.max(
+        rect.width || 0,
+        node.offsetWidth || 0,
+        PROGRESS_CHIP_MIN_WIDTH_PX,
+      );
+      const nextHeight = Math.max(
+        rect.height || 0,
+        node.offsetHeight || 0,
+        PROGRESS_CHIP_MIN_HEIGHT_PX,
+      );
+
+      setProgressLabelSize((current) =>
+        current.width === nextWidth && current.height === nextHeight
+          ? current
+          : {
+              width: nextWidth,
+              height: nextHeight,
+            },
+      );
+    };
+
+    updateLabelSize();
+
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      updateLabelSize();
+    });
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+    };
+  }, [isProgressOverlayMounted, progressPageIndex, progressPosition, shouldShowProgressChip]);
+
+  const getProgressInteractionRect = useCallback(
+    () => {
+      const preferredNode = progressTrackRef.current;
+      const rect = preferredNode?.getBoundingClientRect();
+
+      if (rect && rect.width > 0 && rect.height > 0) {
+        return rect;
+      }
+
+      return getFallbackProgressTrackRect(progressPosition);
+    },
+    [progressPosition],
+  );
+
+  const getProgressPageIndexFromClientPosition = useCallback(
+    ({
+      clientX,
+      clientY,
+    }: {
+      clientX: number;
+      clientY: number;
+    }) => {
+      if (originalPages.length <= 1) {
+        return 0;
+      }
+
+      const rect = getProgressInteractionRect();
+      const ratio =
+        progressPosition === "bottom"
+          ? clampProgressRatio((clientX - rect.left) / Math.max(rect.width, 1))
+          : clampProgressRatio((clientY - rect.top) / Math.max(rect.height, 1));
+
+      return Math.round(ratio * (originalPages.length - 1));
+    },
+    [getProgressInteractionRect, originalPages.length, progressPosition],
+  );
+
+  const scrubToProgressClientPosition = useCallback(
+    ({
+      clientX,
+      clientY,
+    }: {
+      clientX: number;
+      clientY: number;
+    }) => {
+      const nextPageIndex = getProgressPageIndexFromClientPosition({
+        clientX,
+        clientY,
+      });
+
+      if (lastScrubbedProgressPageRef.current === nextPageIndex) {
+        return;
+      }
+
+      lastScrubbedProgressPageRef.current = nextPageIndex;
+      goToPage(nextPageIndex);
+    },
+    [getProgressPageIndexFromClientPosition, goToPage],
+  );
+
+  const beginProgressScrub = useCallback(
+    (
+      event: ReactPointerEvent<HTMLElement>,
+      { revealOnStart = false }: { revealOnStart?: boolean } = {},
+    ) => {
+      event.preventDefault();
+      clearHiddenProgressHideTimer();
+      clearProgressInteractionTimer();
+
+      if (revealOnStart) {
+        revealHiddenProgress();
+      } else {
+        setIsProgressInteracting(true);
+      }
+
+      isProgressPointerDraggingRef.current = true;
+      activeProgressPointerIdRef.current = event.pointerId;
+      lastScrubbedProgressPageRef.current = null;
+
+      const target = event.currentTarget;
+      if ("setPointerCapture" in target) {
+        try {
+          target.setPointerCapture(event.pointerId);
+        } catch {
+          // Ignore environments that do not fully support pointer capture.
+        }
+      }
+
+      scrubToProgressClientPosition({
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    },
+    [
+      clearHiddenProgressHideTimer,
+      clearProgressInteractionTimer,
+      revealHiddenProgress,
+      scrubToProgressClientPosition,
+    ],
+  );
+
+  const handleProgressScrubMove = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      if (
+        !isProgressPointerDraggingRef.current ||
+        activeProgressPointerIdRef.current !== event.pointerId
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      scrubToProgressClientPosition({
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    },
+    [scrubToProgressClientPosition],
+  );
+
+  const finishProgressScrub = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      if (activeProgressPointerIdRef.current !== event.pointerId) {
+        return;
+      }
+
+      const target = event.currentTarget;
+      if ("releasePointerCapture" in target) {
+        try {
+          target.releasePointerCapture(event.pointerId);
+        } catch {
+          // Ignore environments that do not fully support pointer capture.
+        }
+      }
+
+      activeProgressPointerIdRef.current = null;
+      isProgressPointerDraggingRef.current = false;
+      lastScrubbedProgressPageRef.current = null;
+
+      if (progressStyle === "hidden") {
+        scheduleHiddenProgressHide();
+        return;
+      }
+
+      if (event.pointerType === "mouse") {
+        const rect = target.getBoundingClientRect();
+        if (
+          rect.width > 0 &&
+          rect.height > 0 &&
+          isPointWithinRect({
+            x: event.clientX,
+            y: event.clientY,
+            rect,
+          })
+        ) {
+          setIsProgressInteracting(true);
+          return;
+        }
+
+        setIsProgressInteracting(false);
+        return;
+      }
+
+      scheduleProgressInteractionReset();
+    },
+    [progressStyle, scheduleHiddenProgressHide, scheduleProgressInteractionReset],
+  );
 
   const renderProgressOverlay = () => {
-    if (!shouldRenderProgressOverlay) {
+    if (!isProgressOverlayMounted || !progressOverlayContainerStyle) {
       return null;
     }
 
     const isBottomProgress = progressPosition === "bottom";
-    const interactiveProgress = visualState.progressStyle === "hidden";
+    const rootFontSizePx = getRootFontSizePx();
+    const indicatorPlacement = getSafeCenteredProgressPlacement({
+      position: progressPosition,
+      ratio: progressPositionRatio,
+      edgeInsetPx: rootFontSizePx * (isBottomProgress ? 3 : 2.25),
+    });
+    const labelPlacement = getSafeCenteredProgressPlacement({
+      position: progressPosition,
+      ratio: progressPositionRatio,
+      edgeInsetPx: Math.max(
+        isBottomProgress ? progressLabelSize.width / 2 : progressLabelSize.height / 2,
+        isBottomProgress ? PROGRESS_CHIP_MIN_WIDTH_PX / 2 : PROGRESS_CHIP_MIN_HEIGHT_PX / 2,
+      ),
+    });
+    const hitAreaClassName = isBottomProgress
+      ? "absolute inset-x-0 bottom-0 h-16"
+      : cn("absolute inset-y-0 bottom-0 w-16", progressPosition === "left" ? "left-0" : "right-0");
+    const chipClassName = isBottomProgress
+      ? cn(
+          "absolute bottom-2 flex min-w-10 items-center justify-center rounded-full border border-accent/35 bg-accent px-3 py-0.5 text-xs font-semibold text-accent-foreground shadow-lg shadow-accent/20 transition-all duration-200",
+          labelPlacement.className,
+          shouldShowProgressChip
+            ? "translate-y-0 scale-100 opacity-100"
+            : "translate-y-2 scale-95 opacity-0",
+        )
+      : cn(
+          "absolute flex min-h-7 min-w-8 items-center justify-center rounded-full border border-accent/35 bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-foreground shadow-lg shadow-accent/20 transition-all duration-200",
+          labelPlacement.className,
+          progressPosition === "left"
+            ? shouldShowProgressChip
+              ? "left-5 translate-x-0 scale-100 opacity-100"
+              : "left-3 -translate-x-1 scale-95 opacity-0"
+            : shouldShowProgressChip
+              ? "right-5 translate-x-0 scale-100 opacity-100"
+              : "right-3 translate-x-1 scale-95 opacity-0",
+        );
 
     return (
       <div
         data-testid="project-reader-progress-overlay"
-        className="pointer-events-none fixed z-10"
-        style={progressOverlayContainerStyle}
+        data-state={isProgressOverlayVisible ? "visible" : "hidden"}
+        className={cn(
+          "pointer-events-none fixed z-10 transition-all ease-out",
+          getProgressOverlayMotionClassName({
+            position: progressPosition,
+            isVisible: isProgressOverlayVisible,
+          }),
+        )}
+        style={{
+          ...progressOverlayContainerStyle,
+          transitionDuration: `${PROGRESS_OVERLAY_TRANSITION_MS}ms`,
+        }}
       >
-        <div
-          className={cn(
-            "relative h-full w-full overflow-visible",
-            interactiveProgress ? "pointer-events-auto" : "pointer-events-none",
-          )}
-          onMouseEnter={interactiveProgress ? revealHiddenProgress : undefined}
-          onMouseLeave={interactiveProgress ? scheduleHiddenProgressHide : undefined}
-        >
-          {renderedProgressStyle === "bar" ? (
-            isBottomProgress ? (
-              <div
-                data-testid="project-reader-progress-track"
-                className="absolute inset-x-0 bottom-0 h-1.5 overflow-hidden rounded-full bg-white/10"
-              >
-                <div
-                  className="h-full bg-primary transition-all duration-200"
-                  style={{ width: `${clampedProgressPercent}%` }}
-                />
-              </div>
-            ) : (
-              <div
-                data-testid="project-reader-progress-track"
-                className={cn(
-                  "absolute bottom-0 top-0 w-1.5 overflow-hidden rounded-full bg-white/10",
-                  progressPosition === "left" ? "left-0" : "right-0",
-                )}
-              >
-                <div
-                  className="absolute bottom-0 left-0 right-0 bg-primary transition-all duration-200"
-                  style={{ height: `${clampedProgressPercent}%` }}
-                />
-              </div>
-            )
-          ) : isBottomProgress ? (
+        <div className="relative h-full w-full overflow-visible pointer-events-none">
+          <div
+            data-testid="project-reader-progress-hit-area"
+            className={cn(
+              hitAreaClassName,
+              isProgressOverlayVisible ? "pointer-events-auto touch-none" : "pointer-events-none",
+            )}
+            onMouseEnter={handleProgressPointerEnter}
+            onMouseLeave={handleProgressPointerLeave}
+            onPointerDown={(event) => beginProgressScrub(event)}
+            onPointerMove={handleProgressScrubMove}
+            onPointerUp={finishProgressScrub}
+            onPointerCancel={finishProgressScrub}
+          />
+
+          {isBottomProgress ? (
             <div
+              ref={progressTrackRef}
               data-testid="project-reader-progress-track"
-              className="absolute inset-x-0 bottom-0 h-full"
+              className="absolute inset-x-0 bottom-0 h-full overflow-visible"
             >
-              <div className="absolute inset-x-0 bottom-0 h-1 rounded-full bg-white/10" />
+              <div className="absolute inset-x-0 bottom-0 h-1 rounded-full bg-white/12" />
               <div
                 data-testid="project-reader-progress-indicator"
-                className="absolute bottom-0 flex min-w-10 -translate-x-1/2 translate-y-1/3 items-center justify-center rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground ring-4 ring-primary/20 shadow-lg transition-all duration-200"
-                style={{ left: `${clampedProgressPercent}%` }}
+                className={cn(
+                  "absolute bottom-0 h-1 rounded-full bg-accent transition-all duration-300",
+                  indicatorPlacement.className,
+                  shouldEmphasizeProgress ? "w-24" : "",
+                )}
+                style={{
+                  ...indicatorPlacement.style,
+                  width: shouldEmphasizeProgress ? "6rem" : "4.5rem",
+                  boxShadow: shouldEmphasizeProgress
+                    ? "0 0 28px hsl(var(--accent) / 0.65)"
+                    : "0 0 20px hsl(var(--accent) / 0.45)",
+                }}
+              />
+              <div
+                data-testid="project-reader-progress-label"
+                ref={progressLabelRef}
+                className={chipClassName}
+                style={labelPlacement.style}
               >
-                <span data-testid="project-reader-progress-label">{progressPageIndex}</span>
+                {progressPageIndex}
               </div>
             </div>
           ) : (
             <div
+              ref={progressTrackRef}
               data-testid="project-reader-progress-track"
-              className="absolute inset-y-0 h-full w-full"
+              className="absolute inset-y-0 h-full w-full overflow-visible"
             >
               <div
                 className={cn(
-                  "absolute bottom-0 top-0 w-1 rounded-full bg-white/10",
+                  "absolute bottom-0 top-0 w-1 rounded-full bg-white/12",
                   progressPosition === "left" ? "left-0" : "right-0",
                 )}
               />
               <div
                 data-testid="project-reader-progress-indicator"
                 className={cn(
-                  "absolute flex min-h-8 min-w-8 items-center justify-center rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground ring-4 ring-primary/20 shadow-lg transition-all duration-200",
-                  progressPosition === "left"
-                    ? "left-4 translate-y-1/2"
-                    : "right-4 translate-y-1/2",
+                  "absolute w-1 rounded-full bg-accent transition-all duration-300",
+                  indicatorPlacement.className,
+                  progressPosition === "left" ? "left-0" : "right-0",
                 )}
-                style={{ bottom: `${clampedProgressPercent}%` }}
+                style={{
+                  ...indicatorPlacement.style,
+                  height: "4.5rem",
+                  boxShadow: shouldEmphasizeProgress
+                    ? "0 0 28px hsl(var(--accent) / 0.65)"
+                    : "0 0 20px hsl(var(--accent) / 0.45)",
+                }}
               >
-                <span data-testid="project-reader-progress-label">{progressPageIndex}</span>
+                <span className="sr-only">Progresso da leitura</span>
+              </div>
+              <div
+                data-testid="project-reader-progress-label"
+                ref={progressLabelRef}
+                className={chipClassName}
+                style={labelPlacement.style}
+              >
+                {progressPageIndex}
               </div>
             </div>
           )}
@@ -880,11 +1498,14 @@ const PublicProjectReader = ({
     return (
       <div
         data-testid="project-reader-progress-activation-zone"
-        className="fixed z-10 bg-transparent"
+        className="fixed z-10 touch-none bg-transparent"
         style={hiddenProgressZoneStyle}
         onMouseEnter={revealHiddenProgress}
-        onMouseLeave={scheduleHiddenProgressHide}
-        onTouchStart={handleHiddenProgressTouchStart}
+        onMouseLeave={handleProgressPointerLeave}
+        onPointerDown={(event) => beginProgressScrub(event, { revealOnStart: true })}
+        onPointerMove={handleProgressScrubMove}
+        onPointerUp={finishProgressScrub}
+        onPointerCancel={finishProgressScrub}
       />
     );
   };
@@ -1061,14 +1682,15 @@ const PublicProjectReader = ({
         ref={horizontalScrollRef}
         data-testid="project-reading-horizontal-scroll"
         className={cn(
-          "w-full min-w-0 overflow-x-auto overflow-y-hidden",
+          "no-scrollbar w-full min-w-0 overflow-x-auto overflow-y-hidden",
           isViewportBoundedReader ? "min-h-0 flex-1" : "",
           isCinemaMode ? "px-0 py-0" : "px-2 py-2 md:px-4 md:py-4",
         )}
-        style={{ scrollbarGutter: "stable both-edges" }}
         aria-label="Leitura com rolagem horizontal"
       >
         <div
+          ref={horizontalScrollStripRef}
+          data-testid="project-reading-horizontal-strip"
           className={cn(
             "flex w-max min-w-full items-start gap-0",
             isViewportBoundedReader ? "min-h-full" : "",
@@ -1310,16 +1932,15 @@ const PublicProjectReader = ({
           <div className="space-y-2">
             <Label>Estilo do progresso</Label>
             <Select
-              value={String(resolvedConfig.progressStyle || "bar")}
+              value={String(resolvedConfig.progressStyle || "default")}
               onValueChange={(value) => updateConfig({ progressStyle: value })}
             >
               <SelectTrigger aria-label="Selecionar estilo do progresso">
                 <SelectValue placeholder="Selecione o progresso" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="default">PadrÃ£o</SelectItem>
                 <SelectItem value="hidden">Oculto</SelectItem>
-                <SelectItem value="bar">Barra</SelectItem>
-                <SelectItem value="glow">Brilho</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1401,7 +2022,7 @@ const PublicProjectReader = ({
         />
       </div>
 
-      <div className="relative min-h-0 w-full flex-1">
+      <div className="relative flex min-h-0 w-full flex-1 flex-col">
         <section
           ref={stageRef}
           data-testid="project-reading-stage"
@@ -1419,6 +2040,33 @@ const PublicProjectReader = ({
         >
           {stageContent}
         </section>
+
+        {layout === "scroll-horizontal" ? (
+          <div
+            ref={horizontalScrollRailHostRef}
+            data-testid="project-reading-horizontal-scrollbar-host"
+            className={cn(
+              "pointer-events-none shrink-0",
+              isCinemaMode ? "px-0 pt-1" : "px-2 pt-1 md:px-4",
+            )}
+          >
+            <div
+              ref={horizontalScrollRailRef}
+              data-testid="project-reading-horizontal-scrollbar"
+              className="reader-external-scrollbar pointer-events-auto h-4 w-full overflow-x-auto overflow-y-hidden"
+              aria-label="Scrollbar horizontal do leitor"
+            >
+              <div
+                data-testid="project-reading-horizontal-scrollbar-spacer"
+                style={{
+                  width: `${horizontalScrollbarSpacerWidth}px`,
+                  minWidth: "100%",
+                  height: "1px",
+                }}
+              />
+            </div>
+          </div>
+        ) : null}
 
         {renderHiddenProgressZone()}
         {renderProgressOverlay()}
