@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ArrowLeft, ArrowRight, BookOpenText, Menu, PencilLine, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -62,11 +62,13 @@ type PublicProjectReaderProps = {
 };
 
 const PAGE_WRAPPER_BASE_CLASS = "relative flex min-w-0 justify-center";
-const SIDEBAR_SECTION_CLASS_NAME =
-  "rounded-3xl border border-border/70 bg-card/40 p-4 shadow-sm";
+const SIDEBAR_SECTION_CLASS_NAME = "rounded-3xl border border-border/70 bg-card/40 p-4 shadow-sm";
 const SIDEBAR_SECTION_HEADER_CLASS_NAME = "flex items-start gap-3";
 const SIDEBAR_SECTION_ICON_CLASS_NAME =
   "mt-0.5 h-9 w-9 shrink-0 rounded-2xl border border-border/70 bg-background/40 p-2 text-primary";
+const PROGRESS_EDGE_OFFSET_PX = 12;
+const HIDDEN_PROGRESS_ZONE_SIZE_PX = 48;
+const HIDDEN_PROGRESS_HIDE_DELAY_MS = 1000;
 
 const getVisibleViewportMetrics = () => {
   if (typeof window === "undefined") {
@@ -109,9 +111,6 @@ const getPurchaseToneClassName = (background: string) => {
 };
 
 const getImageClassName = (imageFit: string) => {
-  if (imageFit === "width") {
-    return "block h-auto w-full max-h-none max-w-none object-contain";
-  }
   if (imageFit === "height") {
     return "block h-full w-auto max-h-full max-w-none object-contain";
   }
@@ -125,9 +124,6 @@ const getPageWrapperClassName = (imageFit: string) => {
   if (imageFit === "none") {
     return "w-auto max-w-none shrink-0 items-start";
   }
-  if (imageFit === "width") {
-    return "w-full items-start";
-  }
   return "w-full items-center";
 };
 
@@ -135,14 +131,103 @@ const getPageSurfaceClassName = (imageFit: string) => {
   if (imageFit === "none") {
     return "inline-flex h-auto w-auto max-w-none shrink-0 items-start justify-center";
   }
-  if (imageFit === "width") {
-    return "flex w-full items-start justify-center";
-  }
   return "flex w-full items-center justify-center";
 };
 
 const usesViewportBoundedHeight = (imageFit: string) =>
   imageFit === "both" || imageFit === "height";
+
+const resolveEffectiveImageFit = (imageFit: string) => (imageFit === "width" ? "none" : imageFit);
+
+const getSafeAreaInset = (edge: "top" | "right" | "bottom" | "left") =>
+  `calc(env(safe-area-inset-${edge}, 0px) + ${PROGRESS_EDGE_OFFSET_PX}px)`;
+
+const getProgressOverlayContainerStyle = (position: "bottom" | "left" | "right"): CSSProperties => {
+  if (position === "bottom") {
+    return {
+      left: getSafeAreaInset("left"),
+      right: getSafeAreaInset("right"),
+      bottom: getSafeAreaInset("bottom"),
+      height: "2.5rem",
+    };
+  }
+
+  return position === "left"
+    ? {
+        left: getSafeAreaInset("left"),
+        top: getSafeAreaInset("top"),
+        bottom: getSafeAreaInset("bottom"),
+        width: "4.5rem",
+      }
+    : {
+        right: getSafeAreaInset("right"),
+        top: getSafeAreaInset("top"),
+        bottom: getSafeAreaInset("bottom"),
+        width: "4.5rem",
+      };
+};
+
+const getHiddenProgressZoneStyle = (position: "bottom" | "left" | "right"): CSSProperties => {
+  if (position === "bottom") {
+    return {
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: `${HIDDEN_PROGRESS_ZONE_SIZE_PX}px`,
+    };
+  }
+
+  return position === "left"
+    ? {
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: `${HIDDEN_PROGRESS_ZONE_SIZE_PX}px`,
+      }
+    : {
+        right: 0,
+        top: 0,
+        bottom: 0,
+        width: `${HIDDEN_PROGRESS_ZONE_SIZE_PX}px`,
+      };
+};
+
+const getHorizontalAlignmentClassName = (alignment: "center" | "start" | "end") => {
+  if (alignment === "start") {
+    return "justify-start";
+  }
+  if (alignment === "end") {
+    return "justify-end";
+  }
+  return "justify-center";
+};
+
+const getDoublePageInnerAlignment = ({
+  direction,
+  pagePosition,
+}: {
+  direction: "rtl" | "ltr";
+  pagePosition: number;
+}) => {
+  if (direction === "rtl") {
+    return pagePosition === 0 ? "start" : "end";
+  }
+  return pagePosition === 0 ? "end" : "start";
+};
+
+const getContinuousHorizontalPageClassName = (imageFit: string) => {
+  if (imageFit === "none") {
+    return getPageWrapperClassName(imageFit);
+  }
+  return "w-auto max-w-none shrink-0 items-center";
+};
+
+const getContinuousHorizontalSurfaceClassName = (imageFit: string) => {
+  if (imageFit === "none") {
+    return getPageSurfaceClassName(imageFit);
+  }
+  return "inline-flex h-full w-auto max-w-none shrink-0 items-center justify-center";
+};
 
 const getPaginatedSlotClassName = ({
   layout,
@@ -155,18 +240,18 @@ const getPaginatedSlotClassName = ({
   direction: "rtl" | "ltr";
   pagePosition: number;
 }) => {
-  const doubleAlignmentClassName =
-    direction === "rtl"
-      ? pagePosition === 0
-        ? "justify-start"
-        : "justify-end"
-      : pagePosition === 0
-        ? "justify-end"
-        : "justify-start";
+  const doubleAlignmentClassName = getHorizontalAlignmentClassName(
+    getDoublePageInnerAlignment({
+      direction,
+      pagePosition,
+    }),
+  );
 
   if (layout === "double") {
     return cn(
-      imageFit === "none" ? "flex shrink-0 flex-none items-start" : "flex min-w-0 flex-1 items-center",
+      imageFit === "none"
+        ? "flex shrink-0 flex-none items-start"
+        : "flex min-w-0 flex-1 items-center",
       doubleAlignmentClassName,
     );
   }
@@ -200,7 +285,11 @@ const PublicProjectReader = ({
   backHref,
   chromeMode = "default",
 }: PublicProjectReaderProps) => {
-  const { isLoaded: hasLoadedPreferences, resolvedConfig, updateConfig } = useProjectReaderPreferences({
+  const {
+    isLoaded: hasLoadedPreferences,
+    resolvedConfig,
+    updateConfig,
+  } = useProjectReaderPreferences({
     projectType,
     baseConfig,
     currentUserId,
@@ -209,11 +298,14 @@ const PublicProjectReader = ({
   const [viewportWidth, setViewportWidth] = useState(getWindowWidth);
   const [readerViewportHeight, setReaderViewportHeight] = useState<number | null>(null);
   const [stageViewportHeight, setStageViewportHeight] = useState<number | null>(null);
+  const [isStageInViewport, setIsStageInViewport] = useState(true);
+  const [isHiddenProgressRevealed, setIsHiddenProgressRevealed] = useState(false);
   const horizontalScrollRef = useRef<HTMLDivElement | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
   const infoBarRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLElement | null>(null);
   const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const hideHiddenProgressTimeoutRef = useRef<number | null>(null);
 
   const { originalPages, renderablePages, accessiblePageCount, hasPurchaseGate } = useMemo(
     () =>
@@ -248,6 +340,7 @@ const PublicProjectReader = ({
     progressPosition: String(resolvedConfig.progressPosition || "bottom"),
   });
 
+  const effectiveImageFit = resolveEffectiveImageFit(visualState.imageFit);
   const stageToneClassName = getStageToneClassName(visualState.background);
   const purchaseToneClassName = getPurchaseToneClassName(visualState.background);
   const sidebarToneClassName = cn(
@@ -258,7 +351,7 @@ const PublicProjectReader = ({
         ? "border-white/10 bg-black/80"
         : "border-slate-200 bg-white",
   );
-  const imageClassName = getImageClassName(visualState.imageFit);
+  const imageClassName = getImageClassName(effectiveImageFit);
 
   useEffect(() => {
     const handleResize = () => setViewportWidth(getWindowWidth());
@@ -274,6 +367,32 @@ const PublicProjectReader = ({
   useEffect(() => {
     pageRefs.current = [];
   }, [renderablePages.length]);
+
+  const clearHiddenProgressHideTimer = useCallback(() => {
+    if (hideHiddenProgressTimeoutRef.current !== null) {
+      window.clearTimeout(hideHiddenProgressTimeoutRef.current);
+      hideHiddenProgressTimeoutRef.current = null;
+    }
+  }, []);
+
+  const revealHiddenProgress = useCallback(() => {
+    clearHiddenProgressHideTimer();
+    setIsHiddenProgressRevealed(true);
+  }, [clearHiddenProgressHideTimer]);
+
+  const scheduleHiddenProgressHide = useCallback(() => {
+    clearHiddenProgressHideTimer();
+    hideHiddenProgressTimeoutRef.current = window.setTimeout(() => {
+      setIsHiddenProgressRevealed(false);
+      hideHiddenProgressTimeoutRef.current = null;
+    }, HIDDEN_PROGRESS_HIDE_DELAY_MS);
+  }, [clearHiddenProgressHideTimer]);
+  const handleHiddenProgressTouchStart = useCallback(() => {
+    revealHiddenProgress();
+    scheduleHiddenProgressHide();
+  }, [revealHiddenProgress, scheduleHiddenProgressHide]);
+
+  useEffect(() => () => clearHiddenProgressHideTimer(), [clearHiddenProgressHideTimer]);
 
   useEffect(() => {
     setIsMenuOpen(false);
@@ -331,6 +450,53 @@ const PublicProjectReader = ({
   }, [chapterTitle, isCinemaMode, layout, paginated, projectTitle, synopsis, visualState.imageFit]);
 
   useEffect(() => {
+    const updateStageVisibility = () => {
+      const node = stageRef.current;
+      if (!node) {
+        return;
+      }
+
+      const stageRect = node.getBoundingClientRect();
+      if (stageRect.height <= 0 && stageRect.width <= 0) {
+        setIsStageInViewport(true);
+        return;
+      }
+
+      const viewportMetrics = getVisibleViewportMetrics();
+      const viewportTop = viewportMetrics.offsetTop;
+      const viewportBottom = viewportTop + viewportMetrics.height;
+      const nextVisible = stageRect.bottom > viewportTop && stageRect.top < viewportBottom;
+
+      setIsStageInViewport((current) => (current === nextVisible ? current : nextVisible));
+    };
+
+    const frame = window.requestAnimationFrame(updateStageVisibility);
+    const viewport = window.visualViewport;
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => updateStageVisibility())
+        : null;
+
+    if (stageRef.current) {
+      resizeObserver?.observe(stageRef.current);
+    }
+
+    window.addEventListener("scroll", updateStageVisibility, { passive: true });
+    window.addEventListener("resize", updateStageVisibility, { passive: true });
+    viewport?.addEventListener("resize", updateStageVisibility);
+    viewport?.addEventListener("scroll", updateStageVisibility);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      resizeObserver?.disconnect();
+      window.removeEventListener("scroll", updateStageVisibility);
+      window.removeEventListener("resize", updateStageVisibility);
+      viewport?.removeEventListener("resize", updateStageVisibility);
+      viewport?.removeEventListener("scroll", updateStageVisibility);
+    };
+  }, [chapterTitle, layout, projectTitle, visualState.imageFit]);
+
+  useEffect(() => {
     if (paginated) {
       setActiveSlotIndex((current) => clampIndex(current, slots.length));
       return;
@@ -343,7 +509,8 @@ const PublicProjectReader = ({
       return;
     }
     const slot = slots[activeSlotIndex] || slots[0];
-    const visiblePage = (slot?.pages || []).find((pageIndex) => pageIndex < accessiblePageCount) ?? 0;
+    const visiblePage =
+      (slot?.pages || []).find((pageIndex) => pageIndex < accessiblePageCount) ?? 0;
     setActivePageIndex(visiblePage);
   }, [accessiblePageCount, activeSlotIndex, paginated, slots]);
 
@@ -523,6 +690,15 @@ const PublicProjectReader = ({
     };
   }, [direction, goToNext, goToPrevious, paginated]);
 
+  useEffect(() => {
+    if (visualState.progressStyle === "hidden" && isStageInViewport) {
+      return;
+    }
+
+    clearHiddenProgressHideTimer();
+    setIsHiddenProgressRevealed(false);
+  }, [clearHiddenProgressHideTimer, isStageInViewport, visualState.progressStyle]);
+
   const pageSummary = useMemo(
     () =>
       formatVisiblePageLabel({
@@ -541,7 +717,8 @@ const PublicProjectReader = ({
   );
   const progressPercent =
     originalPages.length > 0 ? (progressPageIndex / originalPages.length) * 100 : 0;
-  const isViewportBoundedPaginated = paginated && usesViewportBoundedHeight(visualState.imageFit);
+  const clampedProgressPercent = Math.min(Math.max(progressPercent, 0), 100);
+  const isViewportBoundedReader = usesViewportBoundedHeight(effectiveImageFit);
   const pageItems = useMemo(
     () =>
       buildReaderPageItems({
@@ -554,7 +731,7 @@ const PublicProjectReader = ({
     if (!stageViewportHeight) {
       return undefined;
     }
-    return isViewportBoundedPaginated
+    return isViewportBoundedReader
       ? {
           minHeight: `${stageViewportHeight}px`,
           height: `${stageViewportHeight}px`,
@@ -562,12 +739,12 @@ const PublicProjectReader = ({
       : {
           minHeight: `${stageViewportHeight}px`,
         };
-  }, [isViewportBoundedPaginated, stageViewportHeight]);
+  }, [isViewportBoundedReader, stageViewportHeight]);
   const readerViewportStyle = useMemo(() => {
     if (!readerViewportHeight) {
       return undefined;
     }
-    return isViewportBoundedPaginated
+    return isViewportBoundedReader
       ? {
           minHeight: `${readerViewportHeight}px`,
           height: `${readerViewportHeight}px`,
@@ -575,46 +752,168 @@ const PublicProjectReader = ({
       : {
           minHeight: `${readerViewportHeight}px`,
         };
-  }, [isViewportBoundedPaginated, readerViewportHeight]);
-  const paginatedSurfaceStyle = useMemo(() => {
-    if (!paginated || !stageViewportHeight) {
-      return undefined;
-    }
-    if (!usesViewportBoundedHeight(visualState.imageFit)) {
+  }, [isViewportBoundedReader, readerViewportHeight]);
+  const viewportBoundedSurfaceStyle = useMemo(() => {
+    if (!stageViewportHeight || !isViewportBoundedReader) {
       return undefined;
     }
     return {
       height: `${stageViewportHeight}px`,
     };
-  }, [paginated, stageViewportHeight, visualState.imageFit]);
+  }, [isViewportBoundedReader, stageViewportHeight]);
+  const progressPosition =
+    visualState.progressPosition === "left" || visualState.progressPosition === "right"
+      ? visualState.progressPosition
+      : "bottom";
+  const progressOverlayContainerStyle = useMemo(
+    () => getProgressOverlayContainerStyle(progressPosition),
+    [progressPosition],
+  );
+  const hiddenProgressZoneStyle = useMemo(
+    () => getHiddenProgressZoneStyle(progressPosition),
+    [progressPosition],
+  );
+  const renderedProgressStyle =
+    visualState.progressStyle === "hidden"
+      ? isHiddenProgressRevealed
+        ? "bar"
+        : null
+      : visualState.progressStyle;
+  const shouldRenderProgressOverlay = isStageInViewport && renderedProgressStyle !== null;
 
-  const renderPurchaseCard = (pageIndex: number, className?: string) => (
+  const renderProgressOverlay = () => {
+    if (!shouldRenderProgressOverlay) {
+      return null;
+    }
+
+    const isBottomProgress = progressPosition === "bottom";
+    const interactiveProgress = visualState.progressStyle === "hidden";
+
+    return (
+      <div
+        data-testid="project-reader-progress-overlay"
+        className="pointer-events-none fixed z-10"
+        style={progressOverlayContainerStyle}
+      >
+        <div
+          className={cn(
+            "relative h-full w-full overflow-visible",
+            interactiveProgress ? "pointer-events-auto" : "pointer-events-none",
+          )}
+          onMouseEnter={interactiveProgress ? revealHiddenProgress : undefined}
+          onMouseLeave={interactiveProgress ? scheduleHiddenProgressHide : undefined}
+        >
+          {renderedProgressStyle === "bar" ? (
+            isBottomProgress ? (
+              <div
+                data-testid="project-reader-progress-track"
+                className="absolute inset-x-0 bottom-0 h-1.5 overflow-hidden rounded-full bg-white/10"
+              >
+                <div
+                  className="h-full bg-primary transition-all duration-200"
+                  style={{ width: `${clampedProgressPercent}%` }}
+                />
+              </div>
+            ) : (
+              <div
+                data-testid="project-reader-progress-track"
+                className={cn(
+                  "absolute bottom-0 top-0 w-1.5 overflow-hidden rounded-full bg-white/10",
+                  progressPosition === "left" ? "left-0" : "right-0",
+                )}
+              >
+                <div
+                  className="absolute bottom-0 left-0 right-0 bg-primary transition-all duration-200"
+                  style={{ height: `${clampedProgressPercent}%` }}
+                />
+              </div>
+            )
+          ) : isBottomProgress ? (
+            <div
+              data-testid="project-reader-progress-track"
+              className="absolute inset-x-0 bottom-0 h-full"
+            >
+              <div className="absolute inset-x-0 bottom-0 h-1 rounded-full bg-white/10" />
+              <div
+                data-testid="project-reader-progress-indicator"
+                className="absolute bottom-0 flex min-w-10 -translate-x-1/2 translate-y-1/3 items-center justify-center rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground ring-4 ring-primary/20 shadow-lg transition-all duration-200"
+                style={{ left: `${clampedProgressPercent}%` }}
+              >
+                <span data-testid="project-reader-progress-label">{progressPageIndex}</span>
+              </div>
+            </div>
+          ) : (
+            <div
+              data-testid="project-reader-progress-track"
+              className="absolute inset-y-0 h-full w-full"
+            >
+              <div
+                className={cn(
+                  "absolute bottom-0 top-0 w-1 rounded-full bg-white/10",
+                  progressPosition === "left" ? "left-0" : "right-0",
+                )}
+              />
+              <div
+                data-testid="project-reader-progress-indicator"
+                className={cn(
+                  "absolute flex min-h-8 min-w-8 items-center justify-center rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground ring-4 ring-primary/20 shadow-lg transition-all duration-200",
+                  progressPosition === "left"
+                    ? "left-4 translate-y-1/2"
+                    : "right-4 translate-y-1/2",
+                )}
+                style={{ bottom: `${clampedProgressPercent}%` }}
+              >
+                <span data-testid="project-reader-progress-label">{progressPageIndex}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderHiddenProgressZone = () => {
+    if (!isStageInViewport || visualState.progressStyle !== "hidden") {
+      return null;
+    }
+
+    return (
+      <div
+        data-testid="project-reader-progress-activation-zone"
+        className="fixed z-10 bg-transparent"
+        style={hiddenProgressZoneStyle}
+        onMouseEnter={revealHiddenProgress}
+        onMouseLeave={scheduleHiddenProgressHide}
+        onTouchStart={handleHiddenProgressTouchStart}
+      />
+    );
+  };
+
+  const renderPurchaseCard = (pageIndex: number, className?: string, surfaceClassName?: string) => (
     <div
+      key={`reader-page-node-${pageIndex}`}
       ref={(node) => {
         pageRefs.current[pageIndex] = node;
       }}
       data-testid={`reader-page-${pageIndex}`}
-      className={cn(
-        PAGE_WRAPPER_BASE_CLASS,
-        "w-full items-center",
-        className,
-      )}
+      className={cn(PAGE_WRAPPER_BASE_CLASS, "w-full items-center", className)}
     >
       <div
         data-testid={`reader-page-surface-${pageIndex}`}
         className={cn(
           "mx-auto flex w-full max-w-xl flex-col items-center justify-center rounded-3xl border px-6 py-10 text-center shadow-lg",
           purchaseToneClassName,
+          surfaceClassName,
         )}
-        style={paginatedSurfaceStyle}
+        style={viewportBoundedSurfaceStyle}
       >
         <p className="text-xs font-semibold uppercase tracking-widest text-primary/80">
           Prévia limitada
         </p>
         <h2 className="mt-3 text-3xl font-semibold tracking-tight">A prévia termina aqui</h2>
         <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
-          Este capítulo tem {originalPages.length} páginas no total e libera {accessiblePageCount} na
-          prévia.
+          Este capítulo tem {originalPages.length} páginas no total e libera {accessiblePageCount}{" "}
+          na prévia.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           {resolvedConfig.purchaseUrl ? (
@@ -634,27 +933,33 @@ const PublicProjectReader = ({
     </div>
   );
 
-  const renderImagePage = (page: ReaderRenderablePage, pageIndex: number, className?: string) => {
+  const renderImagePage = (
+    page: ReaderRenderablePage,
+    pageIndex: number,
+    className?: string,
+    surfaceClassName?: string,
+  ) => {
     if (page.type === "purchase" || page.isPurchasePage) {
-      return renderPurchaseCard(pageIndex, className);
+      return renderPurchaseCard(pageIndex, className, surfaceClassName);
     }
 
     return (
       <div
+        key={`reader-image-node-${pageIndex}`}
         ref={(node) => {
           pageRefs.current[pageIndex] = node;
         }}
         data-testid={`reader-page-${pageIndex}`}
         className={cn(
           PAGE_WRAPPER_BASE_CLASS,
-          getPageWrapperClassName(visualState.imageFit),
+          getPageWrapperClassName(effectiveImageFit),
           className,
         )}
       >
         <div
           data-testid={`reader-page-surface-${pageIndex}`}
-          className={getPageSurfaceClassName(visualState.imageFit)}
-          style={paginatedSurfaceStyle}
+          className={cn(getPageSurfaceClassName(effectiveImageFit), surfaceClassName)}
+          style={viewportBoundedSurfaceStyle}
         >
           <img
             src={page.imageUrl || ""}
@@ -707,7 +1012,11 @@ const PublicProjectReader = ({
           )}
         >
           {layout === "double" && activeSlot?.hasBlank ? (
-            <div aria-hidden="true" data-testid="reader-spread-blank" className="hidden md:block md:flex-1" />
+            <div
+              aria-hidden="true"
+              data-testid="reader-spread-blank"
+              className="hidden md:block md:flex-1"
+            />
           ) : null}
 
           {(activeSlot?.pages || []).map((pageIndex, pagePosition) => {
@@ -715,17 +1024,26 @@ const PublicProjectReader = ({
             if (!page) {
               return null;
             }
+            const spreadAlignmentClassName =
+              layout === "double" && effectiveImageFit !== "none"
+                ? getHorizontalAlignmentClassName(
+                    getDoublePageInnerAlignment({
+                      direction,
+                      pagePosition,
+                    }),
+                  )
+                : undefined;
             return (
               <div
                 key={`slot-page-${pageIndex}`}
                 className={getPaginatedSlotClassName({
                   layout,
-                  imageFit: visualState.imageFit,
+                  imageFit: effectiveImageFit,
                   direction,
                   pagePosition,
                 })}
               >
-                {renderImagePage(page, pageIndex)}
+                {renderImagePage(page, pageIndex, undefined, spreadAlignmentClassName)}
               </div>
             );
           })}
@@ -734,36 +1052,37 @@ const PublicProjectReader = ({
     </button>
   ) : layout === "scroll-horizontal" ? (
     <div
-      ref={horizontalScrollRef}
       className={cn(
-        "overflow-x-auto overflow-y-visible",
-        isCinemaMode ? "px-0 py-0" : "px-2 py-2 md:px-4 md:py-4",
+        "flex w-full min-w-0 flex-col",
+        isViewportBoundedReader ? "h-full min-h-0" : "",
       )}
-      aria-label="Leitura com rolagem horizontal"
     >
-      <div className="flex min-w-full items-start gap-0">
-        {renderablePages.map((page, pageIndex) => (
-          <div
-            key={`horizontal-page-${pageIndex}`}
-            className={cn(
-              "shrink-0",
-              visualState.imageFit === "none"
-                ? "w-auto max-w-none"
-                : isCinemaMode
-                  ? ""
-                  : "",
-            )}
-            style={
-              visualState.imageFit === "none"
-                ? undefined
-                : isCinemaMode
-                  ? { width: "100vw" }
-                  : { width: "min(96vw, 1240px)" }
-            }
-          >
-            {renderImagePage(page, pageIndex)}
-          </div>
-        ))}
+      <div
+        ref={horizontalScrollRef}
+        data-testid="project-reading-horizontal-scroll"
+        className={cn(
+          "w-full min-w-0 overflow-x-auto overflow-y-hidden",
+          isViewportBoundedReader ? "min-h-0 flex-1" : "",
+          isCinemaMode ? "px-0 py-0" : "px-2 py-2 md:px-4 md:py-4",
+        )}
+        style={{ scrollbarGutter: "stable both-edges" }}
+        aria-label="Leitura com rolagem horizontal"
+      >
+        <div
+          className={cn(
+            "flex w-max min-w-full items-start gap-0",
+            isViewportBoundedReader ? "min-h-full" : "",
+          )}
+        >
+          {renderablePages.map((page, pageIndex) =>
+            renderImagePage(
+              page,
+              pageIndex,
+              getContinuousHorizontalPageClassName(effectiveImageFit),
+              getContinuousHorizontalSurfaceClassName(effectiveImageFit),
+            ),
+          )}
+        </div>
       </div>
     </div>
   ) : (
@@ -774,7 +1093,10 @@ const PublicProjectReader = ({
       )}
     >
       {renderablePages.map((page, pageIndex) => (
-        <div key={`vertical-page-${pageIndex}`} className="w-full">
+        <div
+          key={`vertical-page-${pageIndex}`}
+          className={effectiveImageFit === "none" ? "w-auto max-w-none" : "w-full"}
+        >
           {renderImagePage(page, pageIndex)}
         </div>
       ))}
@@ -1050,10 +1372,7 @@ const PublicProjectReader = ({
     >
       <div
         ref={infoBarRef}
-        className={cn(
-          "w-full",
-          isCinemaMode ? "absolute inset-x-0 top-0 z-20" : "relative z-10",
-        )}
+        className={cn("w-full", isCinemaMode ? "absolute inset-x-0 top-0 z-20" : "relative z-10")}
       >
         <ProjectReadingInfoBar
           projectTitle={projectTitle}
@@ -1099,61 +1418,10 @@ const PublicProjectReader = ({
           style={stageViewportStyle}
         >
           {stageContent}
-
-          {visualState.progressStyle !== "hidden" ? (
-            <div className="pointer-events-none absolute inset-0">
-              {visualState.progressStyle === "bar" ? (
-                visualState.progressPosition === "bottom" ? (
-                  <div
-                    data-testid="project-reader-progress-track"
-                    className="absolute bottom-2 left-2 right-2 h-1.5 bg-white/10"
-                  >
-                    <div
-                      className="h-full bg-primary transition-all duration-200"
-                      style={{ width: `${progressPercent}%` }}
-                    />
-                  </div>
-                ) : (
-                  <div
-                    data-testid="project-reader-progress-track"
-                    className={cn(
-                      "absolute bottom-2 top-2 w-1.5 bg-white/10",
-                      visualState.progressPosition === "left" ? "left-2" : "right-2",
-                    )}
-                  >
-                    <div
-                      className="absolute bottom-0 left-0 right-0 bg-primary transition-all duration-200"
-                      style={{ height: `${progressPercent}%` }}
-                    />
-                  </div>
-                )
-              ) : visualState.progressPosition === "bottom" ? (
-                <div
-                  data-testid="project-reader-progress-track"
-                  className="absolute bottom-2 left-2 right-2 h-6"
-                >
-                  <div
-                    className="h-full rounded-full bg-primary/65 blur-2xl"
-                    style={{ width: `${Math.max(progressPercent, 8)}%` }}
-                  />
-                </div>
-              ) : (
-                <div
-                  data-testid="project-reader-progress-track"
-                  className={cn(
-                    "absolute bottom-2 top-2 w-6",
-                    visualState.progressPosition === "left" ? "left-2" : "right-2",
-                  )}
-                >
-                  <div
-                    className="absolute bottom-0 left-0 right-0 rounded-full bg-primary/65 blur-2xl"
-                    style={{ height: `${Math.max(progressPercent, 8)}%` }}
-                  />
-                </div>
-              )}
-            </div>
-          ) : null}
         </section>
+
+        {renderHiddenProgressZone()}
+        {renderProgressOverlay()}
 
         {isDesktopMenu && isMenuOpen ? (
           <>
@@ -1189,11 +1457,11 @@ const PublicProjectReader = ({
 
       {!isDesktopMenu ? (
         <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-        <SheetContent
-          side="right"
-          data-testid="project-reader-sidebar"
-          className={cn("w-full max-w-sm p-0", sidebarToneClassName)}
-        >
+          <SheetContent
+            side="right"
+            data-testid="project-reader-sidebar"
+            className={cn("w-full max-w-sm p-0", sidebarToneClassName)}
+          >
             {sidebarContent}
           </SheetContent>
         </Sheet>
