@@ -70,6 +70,8 @@ describe("WorkStatusCard accent mode", () => {
       .closest<HTMLElement>("[data-reveal]");
     expect(cardRoot).not.toBeNull();
     expect(cardRoot).not.toHaveClass("lift-hover");
+    expect(cardRoot).toHaveClass("shadow-none");
+    expect(cardRoot).not.toHaveClass("shadow-xs");
 
     const badge = await screen.findByText("Timing");
     expect(badge).toHaveClass("bg-pink-500/20", "text-pink-400", "border-pink-500/30");
@@ -101,6 +103,8 @@ describe("WorkStatusCard accent mode", () => {
       .closest<HTMLElement>("[data-reveal]");
     expect(cardRoot).not.toBeNull();
     expect(cardRoot).not.toHaveClass("lift-hover");
+    expect(cardRoot).toHaveClass("shadow-none");
+    expect(cardRoot).not.toHaveClass("shadow-xs");
 
     const badge = await screen.findByText("Timing");
     expect(badge).toHaveClass("bg-primary", "text-primary-foreground", "border-primary/80");

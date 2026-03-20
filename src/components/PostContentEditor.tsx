@@ -362,7 +362,7 @@ const PostContentEditor = ({
             onDrop={onDrop}
             onDragOver={(event) => event.preventDefault()}
             placeholder="Escreva o conteúdo do post..."
-            className="min-h-[320px]"
+            className="min-h-80"
           />
         </TabsContent>
       </Tabs>

@@ -1,36 +1,30 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { PencilLine } from "lucide-react";
 
 import CommentsSection from "@/components/CommentsSection";
-import MangaViewerAdapter from "@/components/project-reader/MangaViewerAdapter";
-import UploadPicture from "@/components/UploadPicture";
-import { publicPageLayoutTokens } from "@/components/public-page-tokens";
-import { Badge } from "@/components/ui/badge";
+import ProjectReadingInfoBar from "@/components/project-reader/ProjectReadingInfoBar";
+import PublicProjectReader from "@/components/project-reader/PublicProjectReader";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import type { Project } from "@/data/projects";
-import { useSiteSettings } from "@/hooks/use-site-settings";
-import { usePageMeta } from "@/hooks/use-page-meta";
 import { useDeferredVisibility } from "@/hooks/use-deferred-visibility";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 import { getApiBase } from "@/lib/api-base";
-import { normalizeAssetUrl } from "@/lib/asset-url";
 import { apiFetch } from "@/lib/api-client";
-import { createSlug } from "@/lib/post-content";
+import { normalizeAssetUrl } from "@/lib/asset-url";
 import {
   readWindowPublicBootstrap,
   readWindowPublicBootstrapCurrentUser,
   type PublicBootstrapCurrentUser,
 } from "@/lib/public-bootstrap-global";
-import {
-  buildDashboardProjectChapterEditorHref,
-  buildProjectPublicReadingHref,
-} from "@/lib/project-editor-routes";
+import { buildDashboardProjectChapterEditorHref, buildProjectPublicReadingHref } from "@/lib/project-editor-routes";
 import { buildEpisodeKey, resolveCanonicalEpisodeRouteTarget } from "@/lib/project-episode-key";
+import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
+import { createSlug } from "@/lib/post-content";
 import { hasPublicEpisodeReadableContent } from "@/lib/public-project-episodes";
 import { isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
-import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicBootstrapPayload, PublicBootstrapProject } from "@/types/public-bootstrap";
 import {
@@ -38,7 +32,6 @@ import {
   normalizeProjectEpisodePages,
   resolveProjectReaderConfig,
 } from "../../shared/project-reader.js";
-import "@/styles/project-reading.css";
 import {
   buildProjectReadingOgImagePath,
   buildProjectReadingOgRevision,
@@ -49,7 +42,7 @@ import NotFound from "./NotFound";
 const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
 
 const LexicalViewerFallback = () => (
-  <div className="min-h-[320px] w-full rounded-xl border border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
+  <div className="min-h-80 w-full rounded-xl border border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
     Carregando conteúdo...
   </div>
 );
@@ -90,12 +83,11 @@ const mergeMediaVariants = (base: UploadMediaVariantsMap, nextValue: unknown) =>
 const ProjectReading = () => {
   const { slug, chapter } = useParams<{ slug: string; chapter: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const apiBase = getApiBase();
   const { settings } = useSiteSettings();
-  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() =>
-    readWindowPublicBootstrap(),
-  );
+  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() => readWindowPublicBootstrap());
   const [currentUser] = useState<PublicBootstrapCurrentUser | null>(() =>
     readWindowPublicBootstrapCurrentUser(),
   );
@@ -284,14 +276,14 @@ const ProjectReading = () => {
       project?.banner ||
       "/placeholder.svg",
     [
-      chapterContent?.pages,
       chapterContent?.coverImageUrl,
+      chapterContent?.pages,
       chapterData?.coverImageUrl,
       project?.banner,
       project?.cover,
       project?.heroImageUrl,
-      volumeEntry?.coverImageUrl,
       volumeCover?.coverImageUrl,
+      volumeEntry?.coverImageUrl,
     ],
   );
 
@@ -310,8 +302,8 @@ const ProjectReading = () => {
       project?.coverAlt,
       project?.heroImageAlt,
       project?.title,
-      volumeEntry?.coverImageAlt,
       volumeCover?.coverImageAlt,
+      volumeEntry?.coverImageAlt,
     ],
   );
 
@@ -413,14 +405,14 @@ const ProjectReading = () => {
   }, [chapterNumber, project?.id, readingOgRevision, readingOgSnapshot]);
 
   const projectOgImage = useMemo(
-    () =>
-      project?.id ? normalizeAssetUrl(`/api/og/project/${encodeURIComponent(project.id)}`) : "",
+    () => (project?.id ? normalizeAssetUrl(`/api/og/project/${encodeURIComponent(project.id)}`) : ""),
     [project?.id],
   );
 
-  const readingOgImageAlt = useMemo(() => {
-    return String(readingOgSnapshot?.imageAlt || "").trim();
-  }, [readingOgSnapshot]);
+  const readingOgImageAlt = useMemo(
+    () => String(readingOgSnapshot?.imageAlt || "").trim(),
+    [readingOgSnapshot],
+  );
 
   usePageMeta({
     title: pageTitle,
@@ -434,22 +426,6 @@ const ProjectReading = () => {
     mediaVariants,
     type: "article",
   });
-
-  const currentIndex = useMemo(() => {
-    if (!chapterData) {
-      return -1;
-    }
-    const activeKey = buildEpisodeKey(chapterData.number, chapterData.volume);
-    return sortedChapters.findIndex(
-      (entry) => buildEpisodeKey(entry.number, entry.volume) === activeKey,
-    );
-  }, [chapterData, sortedChapters]);
-
-  const previousChapter = currentIndex > 0 ? sortedChapters[currentIndex - 1] : null;
-  const nextChapter =
-    currentIndex >= 0 && currentIndex < sortedChapters.length - 1
-      ? sortedChapters[currentIndex + 1]
-      : null;
 
   const chapterBadgeLabel = useMemo(() => {
     const isExtra = chapterContent?.entryKind === "extra" || chapterData?.entryKind === "extra";
@@ -486,9 +462,7 @@ const ProjectReading = () => {
       sortedChapters,
       chapterNumberValue,
       [chapterContent?.volume, chapterData?.volume, volumeParam],
-      {
-        exactPreferredOnly: true,
-      },
+      { exactPreferredOnly: true },
     );
     if (!canonicalChapter) {
       return "";
@@ -540,13 +514,14 @@ const ProjectReading = () => {
           return;
         }
         const data = await response.json();
-        if (isActive) {
-          setChapterContent(data.chapter || null);
-          setChapterReaderConfig(
-            data?.readerConfig && typeof data.readerConfig === "object" ? data.readerConfig : null,
-          );
-          setChapterLoadError(false);
+        if (!isActive) {
+          return;
         }
+        setChapterContent(data.chapter || null);
+        setChapterReaderConfig(
+          data?.readerConfig && typeof data.readerConfig === "object" ? data.readerConfig : null,
+        );
+        setChapterLoadError(false);
       } catch {
         if (isActive) {
           setChapterContent(null);
@@ -622,144 +597,92 @@ const ProjectReading = () => {
     chapterContent?.contentFormat || chapterData?.contentFormat,
     chapterPages.length > 0 ? "images" : "lexical",
   );
+  const isImageReader = chapterContentFormat === "images" && chapterPages.length > 0;
   const chapterReaderConfigResolved = resolveProjectReaderConfig({
     projectType: project?.type,
     siteSettings: settings,
     siteReaderConfig: chapterReaderConfig,
     projectReaderConfig: project?.readerConfig,
   });
-  const shareUrl =
-    typeof window !== "undefined"
-      ? window.location.href
-      : `${apiBase}/projeto/${encodeURIComponent(project.id)}/leitura/${encodeURIComponent(String(chapterNumber))}`;
+  const currentUserId = String(currentUser?.id || "").trim() || null;
+  const currentChapterValue = buildEpisodeKey(
+    chapterData?.number ?? chapterContent?.number ?? chapterNumber,
+    chapterData?.volume ?? chapterContent?.volume ?? volumeParam,
+  );
+  const chapterOptions = sortedChapters.map((entry) => ({
+    value: buildEpisodeKey(entry.number, entry.volume),
+    label:
+      String(entry.displayLabel || "").trim() ||
+      `${Number.isFinite(Number(entry.volume)) ? `Vol. ${entry.volume} • ` : ""}Capítulo ${entry.number}${
+        entry.title ? ` • ${entry.title}` : ""
+      }`,
+    href: buildProjectPublicReadingHref(project.id, entry.number, entry.volume),
+  }));
+  const chapterHeading =
+    chapterContent?.title ||
+    chapterData?.title ||
+    (chapterContent?.entryKind === "extra" || chapterData?.entryKind === "extra"
+      ? chapterBadgeLabel
+      : `Capítulo ${chapterData?.number ?? chapterNumber}`);
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <main className="flex-1 bg-background">
-        <section
-          data-testid="project-reading-hero"
-          className="project-reading-masthead relative overflow-hidden"
+    <div className="flex min-h-screen flex-col bg-background">
+      {isImageReader ? (
+        <div
+          data-testid="project-reading-images-layout"
+          className="flex min-h-0 flex-1 flex-col"
         >
-          <UploadPicture
-            src={heroImage}
-            alt=""
-            preset="hero"
-            mediaVariants={mediaVariants}
-            className="project-reading-masthead__media absolute inset-0 h-full w-full"
-            imgClassName="h-full w-full object-cover object-top md:object-[center_18%]"
-            loading="eager"
-            decoding="async"
-            fetchPriority="high"
+          <PublicProjectReader
+            projectTitle={project.title}
+            projectType={project.type || (isLightNovel ? "Light Novel" : "Mangá")}
+            chapterTitle={chapterHeading}
+            chapterLabel={chapterBadgeLabel}
+            synopsis={resolvedChapterSynopsis}
+            volume={activeVolume}
+            pages={chapterPages}
+            baseConfig={chapterReaderConfigResolved}
+            currentUserId={currentUserId}
+            editHref={canEditChapter ? editChapterHref : undefined}
+            chapterOptions={chapterOptions}
+            currentChapterValue={currentChapterValue}
+            onNavigateChapter={(href) => navigate(href)}
+            backHref={`/projeto/${encodeURIComponent(project.id)}`}
+            chromeMode="cinema"
           />
-          <div className="project-reading-masthead__backdrop project-reading-masthead__backdrop--veil absolute inset-0" />
-          <div className="project-reading-masthead__backdrop project-reading-masthead__backdrop--horizontal absolute inset-0" />
-          <div className="project-reading-masthead__backdrop project-reading-masthead__backdrop--bottom absolute inset-0" />
-
-          <div
-            className={`${publicPageLayoutTokens.sectionBase} project-reading-masthead__content relative max-w-6xl pb-10 pt-24 md:pb-16 md:pt-20 lg:pb-20 lg:pt-24`}
-          >
-            <div className="project-reading-masthead__layout grid items-center gap-8 md:grid-cols-[minmax(0,1fr)_250px] md:gap-10 lg:grid-cols-[minmax(0,1fr)_270px]">
-              <div className="project-reading-masthead__body order-2 mx-auto w-48 md:order-1 md:w-full">
-                <div className="project-reading-masthead__meta flex w-full flex-wrap items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className="project-reading-masthead__badge project-reading-masthead__badge--type text-xs uppercase tracking-wide"
-                  >
-                    {project.type || (isLightNovel ? "Light Novel" : "Mangá")}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="project-reading-masthead__badge project-reading-masthead__badge--chapter text-xs uppercase tracking-wide"
-                  >
-                    {chapterBadgeLabel}
-                    {Number.isFinite(activeVolume) ? ` • Vol. ${activeVolume}` : ""}
-                  </Badge>
-                </div>
-                <div className="project-reading-masthead__heading mt-4 space-y-2">
-                  <p className="project-reading-masthead__overline">{project.title}</p>
-                  <h1 className="project-reading-masthead__title">
-                    {chapterContent?.title || chapterData?.title || project.title}
-                  </h1>
-                </div>
-                {resolvedChapterSynopsis ? (
-                  <p className="project-reading-masthead__synopsis mt-4 max-w-3xl">
-                    {resolvedChapterSynopsis}
-                  </p>
-                ) : null}
-                <div className="project-reading-masthead__actions mt-5 flex w-full flex-wrap gap-2">
-                  <Button
-                    asChild
-                    size="sm"
-                    variant="outline"
-                    className="project-reading-action-btn project-reading-action-btn--secondary shrink-0"
-                  >
-                    <Link to={`/projeto/${project.id}`}>
-                      <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                      <span>Voltar ao projeto</span>
+        </div>
+      ) : (
+        <main
+          className="mx-auto flex w-full flex-col gap-6 px-0 pb-16 md:px-4"
+          style={{ maxWidth: "1680px" }}
+        >
+          <div className="space-y-4">
+            <ProjectReadingInfoBar
+              projectTitle={project.title}
+              projectType={project.type || (isLightNovel ? "Light Novel" : "Mangá")}
+              chapterTitle={chapterHeading}
+              chapterLabel={chapterBadgeLabel}
+              synopsis={resolvedChapterSynopsis}
+              volume={activeVolume}
+              actions={
+                canEditChapter && editChapterHref ? (
+                  <Button asChild variant="outline" className="rounded-full">
+                    <Link to={editChapterHref}>
+                      <PencilLine className="h-4 w-4" aria-hidden="true" />
+                      <span>
+                        {chapterContent?.entryKind === "extra" || chapterData?.entryKind === "extra"
+                          ? "Editar extra"
+                          : "Editar capítulo"}
+                      </span>
                     </Link>
                   </Button>
-                  {canEditChapter && editChapterHref ? (
-                    <Button
-                      asChild
-                      size="sm"
-                      className="project-reading-action-btn project-reading-action-btn--primary"
-                    >
-                      <Link to={editChapterHref}>
-                        <PencilLine className="h-4 w-4" aria-hidden="true" />
-                        <span>
-                          {chapterContent?.entryKind === "extra" ||
-                          chapterData?.entryKind === "extra"
-                            ? "Editar extra"
-                            : "Editar capítulo"}
-                        </span>
-                      </Link>
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
+                ) : null
+              }
+            />
 
-              <div className="project-reading-masthead__cover order-1 mx-auto w-52 md:order-2 md:ml-auto md:w-[250px] lg:w-[270px]">
-                <div
-                  className="project-reading-masthead__cover-frame overflow-hidden rounded-2xl border border-border/70 bg-secondary/90"
-                  style={{ aspectRatio: "9 / 14" }}
-                >
-                  <UploadPicture
-                    src={heroImage}
-                    alt={heroImageAlt}
-                    preset="poster"
-                    mediaVariants={mediaVariants}
-                    className="h-full w-full"
-                    imgClassName="h-full w-full object-cover object-center"
-                    loading="eager"
-                    decoding="async"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="project-reading-first-fold mx-auto mt-6 w-full max-w-6xl px-6 pb-16 md:px-10">
-          <section>
-            <article className="min-w-0 space-y-6">
-              <Card className="project-reading-reader-shell">
-                <CardContent className="project-reading-reader-shell__content min-w-0 space-y-6 p-6">
-                  {chapterContentFormat === "images" && chapterPages.length > 0 ? (
-                    <MangaViewerAdapter
-                      title={pageTitle}
-                      backUrl={`/projeto/${encodeURIComponent(project.id)}`}
-                      shareUrl={shareUrl}
-                      pages={chapterPages}
-                      direction={chapterReaderConfigResolved.direction || "rtl"}
-                      viewMode={chapterReaderConfigResolved.viewMode || "page"}
-                      firstPageSingle={chapterReaderConfigResolved.firstPageSingle !== false}
-                      allowSpread={chapterReaderConfigResolved.allowSpread !== false}
-                      showFooter={chapterReaderConfigResolved.showFooter !== false}
-                      previewLimit={chapterReaderConfigResolved.previewLimit ?? null}
-                      purchaseUrl={chapterReaderConfigResolved.purchaseUrl || ""}
-                      purchasePrice={chapterReaderConfigResolved.purchasePrice || ""}
-                    />
-                  ) : chapterContent?.content ? (
+            <section className="project-reading-reader-shell mx-auto w-full max-w-5xl px-4 md:px-6">
+              <div className="overflow-hidden rounded-3xl border border-border/60 bg-card/40 shadow-xl">
+                <div className="p-5 md:p-8" style={{ minHeight: "calc(100svh - 18rem)" }}>
+                  {chapterContent?.content ? (
                     <Suspense fallback={<LexicalViewerFallback />}>
                       <LexicalViewer
                         value={chapterLexical}
@@ -780,77 +703,33 @@ const ProjectReading = () => {
                   ) : !hasLoadedChapter ? (
                     <LexicalViewerFallback />
                   ) : chapterLoadError ? (
-                    <div className="project-reading-reader-shell__empty rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-center text-sm text-muted-foreground">
+                    <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-center text-sm text-muted-foreground">
                       O conteúdo do capítulo não pôde ser carregado agora.
                     </div>
                   ) : (
-                    <div className="project-reading-reader-shell__empty rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-center text-sm text-muted-foreground">
+                    <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-center text-sm text-muted-foreground">
                       Conteúdo ainda não disponível.
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
+            </section>
+          </div>
+        </main>
+      )}
 
-              {previousChapter || nextChapter ? (
-                <nav
-                  data-testid="project-reading-chapter-nav"
-                  aria-label="Navegação de capítulos"
-                  className="project-reading-chapter-nav flex flex-wrap items-center gap-2"
-                >
-                  {previousChapter ? (
-                    <Button
-                      asChild
-                      size="sm"
-                      variant="outline"
-                      className="project-reading-nav-btn project-reading-nav-btn--secondary project-reading-chapter-nav__button"
-                    >
-                      <Link
-                        to={buildProjectPublicReadingHref(
-                          project.id,
-                          previousChapter.number,
-                          previousChapter.volume,
-                        )}
-                      >
-                        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                        <span>Capítulo anterior</span>
-                      </Link>
-                    </Button>
-                  ) : null}
-                  {nextChapter ? (
-                    <Button
-                      asChild
-                      size="sm"
-                      className="project-reading-nav-btn project-reading-nav-btn--next project-reading-chapter-nav__button"
-                    >
-                      <Link
-                        to={buildProjectPublicReadingHref(
-                          project.id,
-                          nextChapter.number,
-                          nextChapter.volume,
-                        )}
-                      >
-                        <span>Próximo capítulo</span>
-                        <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                      </Link>
-                    </Button>
-                  ) : null}
-                </nav>
-              ) : null}
+      <div ref={commentsSentinelRef} aria-hidden="true" className="h-px w-full" />
 
-              <div ref={commentsSentinelRef} aria-hidden="true" className="h-px w-full" />
-
-              {isCommentsVisible ? (
-                <CommentsSection
-                  targetType="chapter"
-                  targetId={project.id}
-                  chapterNumber={chapterData?.number ?? chapterContent?.number ?? chapterNumber}
-                  volume={chapterData?.volume ?? chapterContent?.volume ?? volumeParam}
-                />
-              ) : null}
-            </article>
-          </section>
+      {isCommentsVisible ? (
+        <section className="mx-auto w-full max-w-5xl px-4 pb-16 md:px-6">
+          <CommentsSection
+            targetType="chapter"
+            targetId={project.id}
+            chapterNumber={chapterData?.number ?? chapterContent?.number ?? chapterNumber}
+            volume={chapterData?.volume ?? chapterContent?.volume ?? volumeParam}
+          />
         </section>
-      </main>
+      ) : null}
     </div>
   );
 };

@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
+import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPresetCard";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
@@ -88,7 +89,12 @@ import { DEFAULT_SITE_SHARE_IMAGE_ALT, resolveAssetAltText } from "@/lib/image-a
 import { navbarIconOptions } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
 import {
+  PROJECT_READER_BACKGROUNDS,
   PROJECT_READER_DIRECTIONS,
+  PROJECT_READER_IMAGE_FITS,
+  PROJECT_READER_LAYOUTS,
+  PROJECT_READER_PROGRESS_POSITIONS,
+  PROJECT_READER_PROGRESS_STYLES,
   PROJECT_READER_VIEW_MODES,
   normalizeProjectReaderConfig,
 } from "../../shared/project-reader.js";
@@ -2239,6 +2245,16 @@ const DashboardSettings = () => {
                       {readerProjectTypeMeta.map((presetMeta) => {
                         const preset = readerPresets[presetMeta.key];
                         return (
+                          <DashboardReaderPresetCard
+                            key={presetMeta.key}
+                            cardClassName={dashboardSettingsCardClassName}
+                            preset={preset}
+                            presetMeta={presetMeta}
+                            onUpdate={updateReaderPreset}
+                          />
+                        );
+                        /*
+                        return (
                           <Card
                             key={presetMeta.key}
                             lift={false}
@@ -2260,8 +2276,14 @@ const DashboardSettings = () => {
                                       : "LTR"}
                                   </DashboardPageBadge>
                                   <DashboardPageBadge>
-                                    {preset.viewMode === PROJECT_READER_VIEW_MODES.SCROLL
-                                      ? "Scroll"
+                                    {preset.layout === PROJECT_READER_LAYOUTS.DOUBLE
+                                      ? "Dupla"
+                                      : preset.layout === PROJECT_READER_LAYOUTS.SCROLL_VERTICAL
+                                        ? "Scroll vertical"
+                                        : preset.layout === PROJECT_READER_LAYOUTS.SCROLL_HORIZONTAL
+                                          ? "Scroll horizontal"
+                                          : "Única"}
+                                      ? "Dupla"
                                       : "Página"}
                                   </DashboardPageBadge>
                                 </div>
@@ -2441,6 +2463,7 @@ const DashboardSettings = () => {
                             </CardContent>
                           </Card>
                         );
+                        */
                       })}
                     </TabsContent>
 

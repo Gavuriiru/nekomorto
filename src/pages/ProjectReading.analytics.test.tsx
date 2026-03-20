@@ -1,10 +1,11 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import ProjectReading from "@/pages/ProjectReading";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
+const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "",
@@ -221,6 +222,7 @@ const setupProjectReadingApiMock = (
 
 describe("ProjectReading analytics", () => {
   beforeEach(() => {
+    HTMLElement.prototype.scrollIntoView = vi.fn();
     apiFetchMock.mockReset();
     window.localStorage.clear();
     delete (
@@ -237,10 +239,14 @@ describe("ProjectReading analytics", () => {
     ).__BOOTSTRAP_PUBLIC_ME__;
   });
 
+  afterEach(() => {
+    HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
+  });
+
   it("envia evento chapter_view ao carregar capitulo", async () => {
     setupProjectReadingApiMock();
 
-    render(
+    const { container } = render(
       <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
         <ProjectReading />
       </MemoryRouter>,
@@ -268,7 +274,7 @@ describe("ProjectReading analytics", () => {
     setupProjectReadingApiMock();
     window.localStorage.setItem("reading.any-value", "1");
 
-    render(
+    const { container } = render(
       <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
         <ProjectReading />
       </MemoryRouter>,
@@ -284,10 +290,10 @@ describe("ProjectReading analytics", () => {
     expect(screen.queryByRole("button", { name: /Restaurar padr.o/i })).not.toBeInTheDocument();
   });
 
-  it("remove ruido visual e mantem acoes principais no hero", async () => {
+  it("remove o hero antigo e mantem a barra informativa na primeira dobra", async () => {
     setupProjectReadingApiMock();
 
-    render(
+    const { container } = render(
       <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
         <ProjectReading />
       </MemoryRouter>,
@@ -296,25 +302,23 @@ describe("ProjectReading analytics", () => {
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
 
     expect(screen.queryByRole("navigation", { name: /breadcrumb/i })).not.toBeInTheDocument();
-    const backLink = screen.getByRole("link", { name: "Voltar ao projeto" });
-    expect(backLink).toHaveAttribute("href", "/projeto/projeto-teste");
-    expect(backLink.querySelector("svg")).not.toBeNull();
     expect(screen.queryByText(/Leitura de Light Novel/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Volume 1/i)).not.toBeInTheDocument();
 
-    const hero = screen.getByTestId("project-reading-hero");
-    expect(hero).toBeInTheDocument();
-    expect(within(hero).getByText("Projeto Teste")).toBeInTheDocument();
-    expect(within(hero).getByText("Resumo do capitulo")).toBeInTheDocument();
-    expect(within(hero).getByText("Light Novel")).toBeInTheDocument();
-    const chapterBadge = within(hero).getByText(/Cap 1/i);
+    const infoBar = screen.getByTestId("project-reading-info-bar");
+    expect(infoBar).toBeInTheDocument();
+    expect(within(infoBar).getByText("Projeto Teste")).toBeInTheDocument();
+    expect(within(infoBar).getByText("Resumo do capitulo")).toBeInTheDocument();
+    expect(within(infoBar).getByText("Light Novel")).toBeInTheDocument();
+    const chapterBadge = within(infoBar).getByText(/Cap 1/i);
     expect(chapterBadge).toBeInTheDocument();
-    expect(within(hero).getByText(/Vol\. 2/i)).toBeInTheDocument();
+    expect(within(infoBar).getByText(/Volume 2/i)).toBeInTheDocument();
     expect(chapterBadge).not.toHaveClass("bg-secondary");
-    const contentSection = document.querySelector("main > section + section");
-    expect(contentSection).not.toBeNull();
-    expect(contentSection).toHaveClass("mt-6");
+    expect(screen.queryByRole("link", { name: "Voltar ao projeto" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("project-reading-hero")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("project-reading-chapter-nav")).not.toBeInTheDocument();
     expect(document.querySelector(".project-reading-reader-shell")).not.toBeNull();
+    expect(container.firstElementChild).not.toHaveClass("pt-20", "md:pt-24");
   });
 
   it("exibe CTA de editar capitulo para staff com permissao de projetos", async () => {
@@ -460,7 +464,7 @@ describe("ProjectReading analytics", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByTestId("project-reading-hero");
+    await screen.findByTestId("project-reading-info-bar");
     expect(screen.queryByRole("link", { name: /Editar cap.tulo/i })).not.toBeInTheDocument();
   });
 
@@ -477,25 +481,40 @@ describe("ProjectReading analytics", () => {
     expect(screen.queryByRole("link", { name: /Editar cap.tulo/i })).not.toBeInTheDocument();
   });
 
-  it("move navegacao anterior/proximo para bloco pos-conteudo", async () => {
-    setupProjectReadingApiMock([
-      {
+  it("remove a navegacao inferior antiga e concentra os controles no menu do reader", async () => {
+    const project = {
+      ...createProjectFixture([
+        {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1",
+          synopsis: "Resumo do capitulo",
+          hasPages: true,
+        },
+        {
+          number: 2,
+          volume: 2,
+          title: "Capitulo 2",
+          synopsis: "Resumo do capitulo 2",
+          hasPages: true,
+        },
+      ]),
+      type: "Manga",
+    };
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      chapterResponse: {
         number: 1,
         volume: 2,
         title: "Capitulo 1",
         synopsis: "Resumo do capitulo",
-        content: "<p>Conteudo</p>",
-        hasContent: true,
+        contentFormat: "images",
+        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pageCount: 1,
+        hasPages: true,
       },
-      {
-        number: 2,
-        volume: 2,
-        title: "Capitulo 2",
-        synopsis: "Resumo do capitulo 2",
-        content: "<p>Conteudo 2</p>",
-        hasContent: true,
-      },
-    ]);
+    });
 
     render(
       <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
@@ -503,14 +522,35 @@ describe("ProjectReading analytics", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
-    const hero = screen.getByTestId("project-reading-hero");
-    expect(within(hero).queryByRole("link", { name: /Pr.ximo cap.tulo/i })).not.toBeInTheDocument();
+    await screen.findByTestId("project-reading-stage");
+    const imageLayout = screen.getByTestId("project-reading-images-layout");
+    const readerShell = screen.getByTestId("project-reading-full-bleed-shell");
+    const readerBar = screen.getByTestId("project-reading-reader-bar");
+    const infoBar = screen.getByTestId("project-reading-info-bar");
 
-    const chapterNav = screen.getByTestId("project-reading-chapter-nav");
-    const nextLink = within(chapterNav).getByRole("link", { name: /Pr.ximo cap.tulo/i });
-    expect(nextLink).toBeInTheDocument();
-    expect(nextLink.querySelector("svg")).not.toBeNull();
+    expect(imageLayout).toHaveClass("flex", "min-h-0", "flex-1", "flex-col");
+    expect(imageLayout).not.toHaveClass("pb-16");
+    expect(imageLayout).not.toHaveClass("mx-auto");
+    expect(imageLayout.style.maxWidth).toBe("");
+    expect(readerShell).toHaveClass("w-full");
+    expect(readerBar).not.toHaveClass("mx-auto");
+    expect(readerBar.style.maxWidth).toBe("");
+    expect(infoBar).toHaveAttribute("data-variant", "reader-cinema");
+    expect(within(infoBar).getByText("Resumo do capitulo")).toBeInTheDocument();
+    expect(within(readerBar).getByRole("heading", { name: /Cap.*tulo 1/i })).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(readerShell.style.minHeight).toMatch(/px$/);
+    });
+
+    expect(screen.queryByTestId("project-reading-chapter-nav")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+    expect(await screen.findByText("Menu do leitor")).toBeInTheDocument();
+    expect(screen.getByTestId("project-reader-sidebar")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /Selecionar cap.tulo/i })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /Selecionar p.gina/i })).toBeInTheDocument();
   });
 
   it("usa hasContent e hasPages do payload publico enxuto na navegacao", async () => {
@@ -554,10 +594,13 @@ describe("ProjectReading analytics", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
-    const chapterNav = screen.getByTestId("project-reading-chapter-nav");
-    const nextLink = within(chapterNav).getByRole("link", { name: /Pr.ximo cap.tulo/i });
-    expect(nextLink).toHaveAttribute("href", "/projeto/projeto-teste/leitura/2?volume=2");
+    await screen.findByTestId("project-reading-stage");
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+
+    const chapterTrigger = screen.getByRole("combobox", { name: /Selecionar cap.tulo/i });
+    fireEvent.click(chapterTrigger);
+
+    expect(await screen.findByRole("option", { name: /Cap.*tulo 2/i })).toBeInTheDocument();
   });
 
   it("ignora capitulos sem leitura na navegacao publica", async () => {
@@ -717,7 +760,7 @@ describe("ProjectReading analytics", () => {
     expect(screen.getByText("Sinopse principal do projeto")).toBeInTheDocument();
   });
 
-  it("prioriza a capa do capitulo no hero quando existir capa de capitulo e volume", async () => {
+  it("remove a capa do leitor mesmo quando o capitulo possui imagem propria", async () => {
     const project = createProjectFixture();
     project.volumeCovers = [
       {
@@ -770,13 +813,11 @@ describe("ProjectReading analytics", () => {
     );
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
-    await waitFor(() => {
-      expect(screen.getByRole("img", { name: "Capa do capitulo 1" })).toBeInTheDocument();
-    });
+    expect(screen.queryByRole("img", { name: "Capa do capitulo 1" })).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "Capa do volume 2" })).not.toBeInTheDocument();
   });
 
-  it("usa a capa do volume no hero quando nao houver capa do capitulo", async () => {
+  it("nao renderiza a capa do volume na barra do leitor", async () => {
     const project = createProjectFixture();
     project.volumeCovers = [
       {
@@ -827,6 +868,6 @@ describe("ProjectReading analytics", () => {
     );
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
-    expect(screen.getByRole("img", { name: "Capa do volume 2" })).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Capa do volume 2" })).not.toBeInTheDocument();
   });
 });

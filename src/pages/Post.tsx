@@ -36,7 +36,7 @@ import {
 const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
 
 const LexicalViewerFallback = () => (
-  <div className="min-h-[320px] w-full rounded-xl border border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
+  <div className="min-h-80 w-full rounded-xl border border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
     Carregando conteúdo...
   </div>
 );

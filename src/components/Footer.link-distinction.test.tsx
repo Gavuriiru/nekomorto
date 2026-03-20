@@ -24,4 +24,21 @@ describe("Footer copyright text", () => {
       screen.queryByRole("link", { name: defaultSettings.footer.copyright }),
     ).not.toBeInTheDocument();
   });
+
+  it("uses an opaque footer shell without external top margin", () => {
+    render(
+      <MemoryRouter>
+        <Footer />
+      </MemoryRouter>,
+    );
+
+    const footer = screen.getByRole("contentinfo");
+    const [mainSection, lowerSection] = Array.from(footer.children) as HTMLElement[];
+
+    expect(footer).toHaveClass("border-t", "border-border/60", "bg-background");
+    expect(footer).not.toHaveClass("mt-16", "bg-card/60");
+    expect(mainSection).toHaveClass("pt-16", "pb-14");
+    expect(lowerSection).toHaveClass("border-t", "border-border/60", "bg-background");
+    expect(lowerSection).not.toHaveClass("bg-background/40");
+  });
 });

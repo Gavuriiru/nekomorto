@@ -130,6 +130,8 @@ describe("TopProjectsSection", () => {
     expect(headings).toHaveLength(10);
     expect(cardRoot).not.toBeNull();
     expect(cardRoot).not.toHaveClass("lift-hover");
+    expect(cardRoot).toHaveClass("shadow-none");
+    expect(cardRoot).not.toHaveClass("shadow-xs");
     expect(headings[0]).toHaveTextContent("Projeto 12");
     expect(screen.queryByRole("heading", { level: 3, name: "Projeto 01" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { level: 3, name: "Projeto 02" })).not.toBeInTheDocument();

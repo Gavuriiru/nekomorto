@@ -1,20 +1,20 @@
 import { Outlet, useLocation } from "react-router-dom";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
-import { cn } from "@/lib/utils";
 
 const PublicLayout = () => {
   const location = useLocation();
   const hasSurfaceGradient = location.pathname === "/projetos";
+  const isReadingRoute = /^\/projeto(?:s)?\/.+\/leitura\/[^/]+/.test(location.pathname);
+  const hidesChromeOnRoute = isReadingRoute;
 
   return (
     <div
-      className={cn(
-        "flex min-h-screen flex-col",
-        hasSurfaceGradient && "bg-gradient-surface text-foreground",
-      )}
+      className={`flex min-h-screen flex-col bg-background text-foreground${
+        hasSurfaceGradient ? " bg-gradient-surface" : ""
+      }`}
     >
-      <Header />
+      {hidesChromeOnRoute ? null : <Header variant="fixed" />}
       <main
         key={location.pathname}
         id="public-main-content"
@@ -23,7 +23,7 @@ const PublicLayout = () => {
       >
         <Outlet />
       </main>
-      <Footer />
+      {hidesChromeOnRoute ? null : <Footer />}
     </div>
   );
 };

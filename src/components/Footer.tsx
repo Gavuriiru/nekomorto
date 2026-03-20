@@ -33,8 +33,8 @@ const Footer = () => {
   };
 
   return (
-    <footer className="mt-16 border-t border-border/60 bg-card/60">
-      <div className="mx-auto max-w-7xl px-6 md:px-12 py-14">
+    <footer className="border-t border-border/60 bg-background">
+      <div className="mx-auto max-w-7xl px-6 pb-14 pt-16 md:px-12">
         <div className="grid gap-10 lg:grid-cols-[1.2fr_1fr_1fr_1fr_1.1fr]">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
@@ -155,7 +155,7 @@ const Footer = () => {
         </div>
       </div>
 
-      <div className="border-t border-border/60 bg-background/40">
+      <div className="border-t border-border/60 bg-background">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-6 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between md:px-12">
           <p>{footer.copyright || ""}</p>
         </div>

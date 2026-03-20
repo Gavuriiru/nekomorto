@@ -15,6 +15,38 @@ export const PROJECT_READER_DIRECTIONS = Object.freeze({
   LTR: "ltr",
 });
 
+export const PROJECT_READER_LAYOUTS = Object.freeze({
+  SINGLE: "single",
+  DOUBLE: "double",
+  SCROLL_VERTICAL: "scroll-vertical",
+  SCROLL_HORIZONTAL: "scroll-horizontal",
+});
+
+export const PROJECT_READER_IMAGE_FITS = Object.freeze({
+  BOTH: "both",
+  NONE: "none",
+  WIDTH: "width",
+  HEIGHT: "height",
+});
+
+export const PROJECT_READER_BACKGROUNDS = Object.freeze({
+  THEME: "theme",
+  BLACK: "black",
+  WHITE: "white",
+});
+
+export const PROJECT_READER_PROGRESS_STYLES = Object.freeze({
+  HIDDEN: "hidden",
+  BAR: "bar",
+  GLOW: "glow",
+});
+
+export const PROJECT_READER_PROGRESS_POSITIONS = Object.freeze({
+  BOTTOM: "bottom",
+  LEFT: "left",
+  RIGHT: "right",
+});
+
 export const PROJECT_READER_VIEW_MODES = Object.freeze({
   PAGE: "page",
   SCROLL: "scroll",
@@ -117,6 +149,112 @@ const normalizeProjectTypeKey = (value) =>
 
 const isPlainObject = (value) => value && typeof value === "object" && !Array.isArray(value);
 
+const LEGACY_THEME_PRESET_TO_BACKGROUND = Object.freeze({
+  black: PROJECT_READER_BACKGROUNDS.BLACK,
+  dark: PROJECT_READER_BACKGROUNDS.BLACK,
+  white: PROJECT_READER_BACKGROUNDS.WHITE,
+  light: PROJECT_READER_BACKGROUNDS.WHITE,
+  manga: PROJECT_READER_BACKGROUNDS.THEME,
+  webtoon: PROJECT_READER_BACKGROUNDS.THEME,
+  default: PROJECT_READER_BACKGROUNDS.THEME,
+});
+
+const normalizeReaderLayout = (value) => {
+  const normalized = normalizeText(value).toLowerCase();
+  if (
+    normalized === PROJECT_READER_LAYOUTS.SINGLE ||
+    normalized === PROJECT_READER_LAYOUTS.DOUBLE ||
+    normalized === PROJECT_READER_LAYOUTS.SCROLL_VERTICAL ||
+    normalized === PROJECT_READER_LAYOUTS.SCROLL_HORIZONTAL
+  ) {
+    return normalized;
+  }
+  return "";
+};
+
+const normalizeReaderImageFit = (value) => {
+  const normalized = normalizeText(value).toLowerCase();
+  if (
+    normalized === PROJECT_READER_IMAGE_FITS.BOTH ||
+    normalized === PROJECT_READER_IMAGE_FITS.NONE ||
+    normalized === PROJECT_READER_IMAGE_FITS.WIDTH ||
+    normalized === PROJECT_READER_IMAGE_FITS.HEIGHT
+  ) {
+    return normalized;
+  }
+  return "";
+};
+
+const normalizeReaderBackground = (value) => {
+  const normalized = normalizeText(value).toLowerCase();
+  if (
+    normalized === PROJECT_READER_BACKGROUNDS.THEME ||
+    normalized === PROJECT_READER_BACKGROUNDS.BLACK ||
+    normalized === PROJECT_READER_BACKGROUNDS.WHITE
+  ) {
+    return normalized;
+  }
+  return "";
+};
+
+const normalizeReaderProgressStyle = (value) => {
+  const normalized = normalizeText(value).toLowerCase();
+  if (
+    normalized === PROJECT_READER_PROGRESS_STYLES.HIDDEN ||
+    normalized === PROJECT_READER_PROGRESS_STYLES.BAR ||
+    normalized === PROJECT_READER_PROGRESS_STYLES.GLOW
+  ) {
+    return normalized;
+  }
+  return "";
+};
+
+const normalizeReaderProgressPosition = (value) => {
+  const normalized = normalizeText(value).toLowerCase();
+  if (
+    normalized === PROJECT_READER_PROGRESS_POSITIONS.BOTTOM ||
+    normalized === PROJECT_READER_PROGRESS_POSITIONS.LEFT ||
+    normalized === PROJECT_READER_PROGRESS_POSITIONS.RIGHT
+  ) {
+    return normalized;
+  }
+  return "";
+};
+
+const resolveLegacyReaderLayout = ({ rawLayout, rawViewMode, rawAllowSpread, presetLayout }) => {
+  if (rawLayout) {
+    return rawLayout;
+  }
+  if (rawViewMode === PROJECT_READER_VIEW_MODES.SCROLL) {
+    return PROJECT_READER_LAYOUTS.SCROLL_VERTICAL;
+  }
+  if (rawViewMode === PROJECT_READER_VIEW_MODES.PAGE) {
+    return rawAllowSpread === true ? PROJECT_READER_LAYOUTS.DOUBLE : PROJECT_READER_LAYOUTS.SINGLE;
+  }
+  return presetLayout;
+};
+
+const resolveLegacyReaderBackground = ({ rawBackground, rawThemePreset, presetBackground }) => {
+  if (rawBackground) {
+    return rawBackground;
+  }
+  return LEGACY_THEME_PRESET_TO_BACKGROUND[rawThemePreset] || presetBackground;
+};
+
+const resolveLegacyReaderProgressStyle = ({
+  rawProgressStyle,
+  rawShowFooter,
+  presetProgressStyle,
+}) => {
+  if (rawProgressStyle) {
+    return rawProgressStyle;
+  }
+  if (rawShowFooter === false) {
+    return PROJECT_READER_PROGRESS_STYLES.HIDDEN;
+  }
+  return presetProgressStyle;
+};
+
 export const normalizeProjectReaderTypeKey = (projectType) => {
   const normalized = normalizeProjectTypeKey(projectType);
   if (normalized.includes("webtoon")) {
@@ -133,39 +271,42 @@ export const getProjectReaderPresetByType = (projectType) => {
   if (typeKey === PROJECT_READER_TYPE_KEYS.WEBTOON) {
     return {
       direction: PROJECT_READER_DIRECTIONS.LTR,
-      viewMode: PROJECT_READER_VIEW_MODES.SCROLL,
+      layout: PROJECT_READER_LAYOUTS.SCROLL_VERTICAL,
+      imageFit: PROJECT_READER_IMAGE_FITS.WIDTH,
+      background: PROJECT_READER_BACKGROUNDS.THEME,
+      progressStyle: PROJECT_READER_PROGRESS_STYLES.BAR,
+      progressPosition: PROJECT_READER_PROGRESS_POSITIONS.BOTTOM,
       firstPageSingle: false,
-      allowSpread: false,
-      showFooter: true,
       previewLimit: null,
       purchaseUrl: "",
       purchasePrice: "",
-      themePreset: "webtoon",
     };
   }
   if (typeKey === PROJECT_READER_TYPE_KEYS.MANGA) {
     return {
       direction: PROJECT_READER_DIRECTIONS.RTL,
-      viewMode: PROJECT_READER_VIEW_MODES.PAGE,
+      layout: PROJECT_READER_LAYOUTS.SINGLE,
+      imageFit: PROJECT_READER_IMAGE_FITS.BOTH,
+      background: PROJECT_READER_BACKGROUNDS.THEME,
+      progressStyle: PROJECT_READER_PROGRESS_STYLES.BAR,
+      progressPosition: PROJECT_READER_PROGRESS_POSITIONS.BOTTOM,
       firstPageSingle: true,
-      allowSpread: true,
-      showFooter: true,
       previewLimit: null,
       purchaseUrl: "",
       purchasePrice: "",
-      themePreset: "manga",
     };
   }
   return {
     direction: PROJECT_READER_DIRECTIONS.LTR,
-    viewMode: PROJECT_READER_VIEW_MODES.PAGE,
+    layout: PROJECT_READER_LAYOUTS.SINGLE,
+    imageFit: PROJECT_READER_IMAGE_FITS.BOTH,
+    background: PROJECT_READER_BACKGROUNDS.THEME,
+    progressStyle: PROJECT_READER_PROGRESS_STYLES.BAR,
+    progressPosition: PROJECT_READER_PROGRESS_POSITIONS.BOTTOM,
     firstPageSingle: true,
-    allowSpread: false,
-    showFooter: true,
     previewLimit: null,
     purchaseUrl: "",
     purchasePrice: "",
-    themePreset: "default",
   };
 };
 
@@ -173,29 +314,57 @@ export const normalizeProjectReaderConfig = (value, { projectType } = {}) => {
   const preset = getProjectReaderPresetByType(projectType);
   const raw = isPlainObject(value) ? value : {};
   const direction = normalizeText(raw.direction).toLowerCase();
+  const layout = normalizeReaderLayout(raw.layout);
+  const imageFit = normalizeReaderImageFit(raw.imageFit);
+  const background = normalizeReaderBackground(raw.background);
+  const progressStyle = normalizeReaderProgressStyle(raw.progressStyle);
+  const progressPosition = normalizeReaderProgressPosition(raw.progressPosition);
   const viewMode = normalizeText(raw.viewMode).toLowerCase();
+  const themePreset = normalizeText(raw.themePreset).toLowerCase();
   const previewLimit = toFiniteNumber(raw.previewLimit);
+  const allowSpread = typeof raw.allowSpread === "boolean" ? raw.allowSpread : null;
+  const showFooter = typeof raw.showFooter === "boolean" ? raw.showFooter : null;
 
   return {
     direction:
       direction === PROJECT_READER_DIRECTIONS.LTR || direction === PROJECT_READER_DIRECTIONS.RTL
         ? direction
         : preset.direction,
-    viewMode:
-      viewMode === PROJECT_READER_VIEW_MODES.SCROLL || viewMode === PROJECT_READER_VIEW_MODES.PAGE
-        ? viewMode
-        : preset.viewMode,
+    layout: resolveLegacyReaderLayout({
+      rawLayout: layout,
+      rawViewMode: viewMode,
+      rawAllowSpread: allowSpread,
+      presetLayout: preset.layout,
+    }),
+    imageFit: imageFit || preset.imageFit,
+    background: resolveLegacyReaderBackground({
+      rawBackground: background,
+      rawThemePreset: themePreset,
+      presetBackground: preset.background,
+    }),
+    progressStyle: resolveLegacyReaderProgressStyle({
+      rawProgressStyle: progressStyle,
+      rawShowFooter: showFooter,
+      presetProgressStyle: preset.progressStyle,
+    }),
+    progressPosition: progressPosition || preset.progressPosition,
     firstPageSingle:
       typeof raw.firstPageSingle === "boolean" ? raw.firstPageSingle : preset.firstPageSingle,
-    allowSpread: typeof raw.allowSpread === "boolean" ? raw.allowSpread : preset.allowSpread,
-    showFooter: typeof raw.showFooter === "boolean" ? raw.showFooter : preset.showFooter,
     previewLimit:
       previewLimit !== null && previewLimit > 0 ? Math.floor(previewLimit) : preset.previewLimit,
     purchaseUrl: normalizeText(raw.purchaseUrl) || preset.purchaseUrl,
     purchasePrice: normalizeText(raw.purchasePrice) || preset.purchasePrice,
-    themePreset: normalizeText(raw.themePreset) || preset.themePreset,
   };
 };
+
+export const mergeProjectReaderConfig = (baseConfig, overrideConfig, { projectType } = {}) =>
+  normalizeProjectReaderConfig(
+    {
+      ...normalizeProjectReaderConfig(baseConfig, { projectType }),
+      ...(isPlainObject(overrideConfig) ? overrideConfig : {}),
+    },
+    { projectType },
+  );
 
 export const getSiteProjectReaderConfig = (siteSettings, projectType) => {
   const typeKey = normalizeProjectReaderTypeKey(projectType);
@@ -232,4 +401,38 @@ export const resolveProjectReaderConfig = ({
   }
 
   return normalizeProjectReaderConfig({}, { projectType });
+};
+
+export const normalizeProjectReaderPreferences = (value) => {
+  if (!isPlainObject(value)) {
+    return {};
+  }
+
+  const rawProjectTypes = isPlainObject(value.projectTypes) ? value.projectTypes : {};
+  const projectTypes = {};
+
+  [PROJECT_READER_TYPE_KEYS.MANGA, PROJECT_READER_TYPE_KEYS.WEBTOON].forEach((typeKey) => {
+    if (!isPlainObject(rawProjectTypes[typeKey])) {
+      return;
+    }
+    projectTypes[typeKey] = normalizeProjectReaderConfig(rawProjectTypes[typeKey], {
+      projectType: typeKey,
+    });
+  });
+
+  if (Object.keys(projectTypes).length === 0) {
+    return {};
+  }
+
+  return { projectTypes };
+};
+
+export const getProjectReaderPreferenceByType = (value, projectType) => {
+  const typeKey = normalizeProjectReaderTypeKey(projectType);
+  if (typeKey === PROJECT_READER_TYPE_KEYS.DEFAULT) {
+    return null;
+  }
+  const normalized = normalizeProjectReaderPreferences(value);
+  const projectTypes = isPlainObject(normalized.projectTypes) ? normalized.projectTypes : {};
+  return isPlainObject(projectTypes[typeKey]) ? projectTypes[typeKey] : null;
 };

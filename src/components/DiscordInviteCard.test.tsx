@@ -51,6 +51,8 @@ describe("DiscordInviteCard", () => {
     expect(screen.getByText("Entre na comunidade")).toBeInTheDocument();
     expect(cardRoot).not.toBeNull();
     expect(cardRoot).not.toHaveClass("lift-hover");
+    expect(cardRoot).toHaveClass("shadow-none");
+    expect(cardRoot).not.toHaveClass("shadow-xs");
     expect(screen.getByText("Fale com a equipe em tempo real.")).toBeInTheDocument();
     expect(screen.getByText("Servidor oficial")).toBeInTheDocument();
     expect(

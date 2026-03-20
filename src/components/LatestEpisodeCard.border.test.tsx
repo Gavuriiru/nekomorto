@@ -101,6 +101,8 @@ describe("LatestEpisodeCard border styles", () => {
     expect(cardRoot).not.toBeNull();
     expect(cardRoot).not.toHaveClass("hover:-translate-y-1");
     expect(cardRoot).not.toHaveClass("lift-hover");
+    expect(cardRoot).toHaveClass("shadow-none");
+    expect(cardRoot).not.toHaveClass("shadow-xs");
 
     const updateLinks = screen.getAllByRole("link");
     expect(updateLinks).toHaveLength(2);

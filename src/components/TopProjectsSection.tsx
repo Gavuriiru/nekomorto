@@ -143,7 +143,12 @@ const TopProjectsSection = () => {
   };
 
   return (
-    <Card id="top-projetos" lift={false} className="bg-card border-border reveal" data-reveal>
+    <Card
+      id="top-projetos"
+      lift={false}
+      className="bg-card border-border reveal shadow-none"
+      data-reveal
+    >
       <CardHeader className="px-4 pb-3 pt-4">
         <div className="flex items-center justify-between gap-3">
           <CardTitle className="text-lg font-semibold text-foreground">

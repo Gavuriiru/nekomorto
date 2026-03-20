@@ -5,7 +5,9 @@ import { describe, expect, it, vi } from "vitest";
 import PublicLayout from "@/components/PublicLayout";
 
 vi.mock("@/components/Header", () => ({
-  default: () => <div data-testid="public-header" />,
+  default: ({ variant = "fixed" }: { variant?: "fixed" | "static" }) => (
+    <div data-testid="public-header" data-variant={variant} />
+  ),
 }));
 
 vi.mock("@/components/Footer", () => ({
@@ -25,6 +27,7 @@ describe("PublicLayout", () => {
     );
 
     expect(screen.getByTestId("public-header")).toBeInTheDocument();
+    expect(screen.getByTestId("public-header")).toHaveAttribute("data-variant", "fixed");
     expect(screen.getByTestId("public-footer")).toBeInTheDocument();
     expect(screen.getByTestId("public-outlet")).toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveAttribute("id", "public-main-content");
@@ -33,6 +36,7 @@ describe("PublicLayout", () => {
       screen.queryByRole("navigation", { name: /Atalhos de acessibilidade/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Pular para o conte/iu })).not.toBeInTheDocument();
+    expect(screen.getByRole("main").parentElement).toHaveClass("bg-background", "text-foreground");
     expect(screen.getByRole("main").parentElement).not.toHaveClass("bg-gradient-surface");
   });
 
@@ -51,5 +55,24 @@ describe("PublicLayout", () => {
       "bg-gradient-surface",
       "text-foreground",
     );
+  });
+
+  it("oculta o chrome global nas rotas de leitura publica", () => {
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1"]}>
+        <Routes>
+          <Route element={<PublicLayout />}>
+            <Route
+              path="/projeto/:slug/leitura/:chapter"
+              element={<div data-testid="public-outlet">Leitor</div>}
+            />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByTestId("public-header")).not.toBeInTheDocument();
+    expect(screen.getByTestId("public-outlet")).toBeInTheDocument();
+    expect(screen.queryByTestId("public-footer")).not.toBeInTheDocument();
   });
 });

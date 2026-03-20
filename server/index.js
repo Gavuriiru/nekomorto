@@ -168,6 +168,7 @@ import {
   normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,
   normalizeProjectReaderConfig,
+  normalizeProjectReaderPreferences,
   resolveProjectReaderConfig,
 } from "../shared/project-reader.js";
 import { findDuplicateVolumeCover } from "./lib/project-volume-covers.js";
@@ -2991,6 +2992,13 @@ const normalizeUserPreferences = (value) => {
     }
     if (Object.keys(dashboard).length > 0) {
       normalized.dashboard = dashboard;
+    }
+  }
+  const readerInput = isPlainObject(value.reader) ? value.reader : null;
+  if (readerInput) {
+    const reader = normalizeProjectReaderPreferences(readerInput);
+    if (Object.keys(reader).length > 0) {
+      normalized.reader = reader;
     }
   }
   return normalized;

@@ -72,7 +72,7 @@ const LatestEpisodeCard = () => {
   return (
     <Card
       lift={false}
-      className="bg-card border-border overflow-hidden reveal transition-all duration-300 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+      className="bg-card border-border overflow-hidden reveal shadow-none transition-all duration-300 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
       data-reveal
     >
       <CardHeader className="px-4 pb-3 pt-4">

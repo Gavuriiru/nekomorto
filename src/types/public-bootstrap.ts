@@ -60,13 +60,18 @@ export type PublicBootstrapProject = {
   producers: string[];
   readerConfig?: {
     direction?: "rtl" | "ltr";
-    viewMode?: "page" | "scroll";
+    layout?: "single" | "double" | "scroll-vertical" | "scroll-horizontal";
+    imageFit?: "both" | "none" | "width" | "height";
+    background?: "theme" | "black" | "white";
+    progressStyle?: "hidden" | "bar" | "glow";
+    progressPosition?: "bottom" | "left" | "right";
     firstPageSingle?: boolean;
-    allowSpread?: boolean;
-    showFooter?: boolean;
     previewLimit?: number | null;
     purchaseUrl?: string;
     purchasePrice?: string;
+    viewMode?: "page" | "scroll";
+    allowSpread?: boolean;
+    showFooter?: boolean;
     themePreset?: string;
   };
   volumeEntries?: PublicBootstrapVolumeEntry[];

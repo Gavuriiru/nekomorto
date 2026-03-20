@@ -1,4 +1,4 @@
-import { type MouseEvent, useMemo } from "react";
+import { type FocusEvent, type MouseEvent, useEffect, useMemo, useRef } from "react";
 
 import type { ButtonProps } from "@/components/ui/button";
 import {
@@ -77,13 +77,28 @@ const CompactPagination = ({
   nextClassName,
   ellipsisClassName,
 }: CompactPaginationProps) => {
-  if (totalPages <= 1) {
-    return null;
-  }
+  const pointerFocusRef = useRef(false);
+  const blurFrameRef = useRef<number | null>(null);
 
-  const safeCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
+  useEffect(() => {
+    const handleWindowKeyDown = () => {
+      pointerFocusRef.current = false;
+    };
+
+    window.addEventListener("keydown", handleWindowKeyDown, true);
+
+    return () => {
+      window.removeEventListener("keydown", handleWindowKeyDown, true);
+      if (blurFrameRef.current !== null) {
+        cancelAnimationFrame(blurFrameRef.current);
+      }
+    };
+  }, []);
+
+  const safeTotalPages = Math.max(totalPages, 1);
+  const safeCurrentPage = Math.min(Math.max(currentPage, 1), safeTotalPages);
   const paginationItems = useMemo(
-    () => buildCompactPaginationItems(safeCurrentPage, totalPages),
+    () => (totalPages <= 1 ? [] : buildCompactPaginationItems(safeCurrentPage, totalPages)),
     [safeCurrentPage, totalPages],
   );
 
@@ -95,11 +110,45 @@ const CompactPagination = ({
     onPageChange(targetPage);
   };
 
+  const handleFocusCapture = (event: FocusEvent<HTMLElement>) => {
+    const target = event.target;
+    const shouldBlurLink =
+      pointerFocusRef.current &&
+      target instanceof HTMLAnchorElement &&
+      typeof target.blur === "function";
+
+    if (!shouldBlurLink) {
+      return;
+    }
+
+    pointerFocusRef.current = false;
+    if (blurFrameRef.current !== null) {
+      cancelAnimationFrame(blurFrameRef.current);
+    }
+    blurFrameRef.current = requestAnimationFrame(() => {
+      blurFrameRef.current = null;
+      target.blur();
+    });
+  };
+
+  if (totalPages <= 1) {
+    return null;
+  }
+
   const previousDisabled = disabled || safeCurrentPage <= 1;
   const nextDisabled = disabled || safeCurrentPage >= totalPages;
 
   return (
-    <Pagination className={className}>
+    <Pagination
+      className={className}
+      onPointerDownCapture={() => {
+        pointerFocusRef.current = true;
+      }}
+      onTouchStartCapture={() => {
+        pointerFocusRef.current = true;
+      }}
+      onFocusCapture={handleFocusCapture}
+    >
       <PaginationContent className={contentClassName}>
         <PaginationItem>
           <PaginationPrevious

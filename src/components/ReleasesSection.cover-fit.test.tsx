@@ -104,6 +104,8 @@ describe("ReleasesSection cover fit", () => {
     );
 
     const coverImage = await screen.findByRole("img", { name: "Post de Teste" });
+    const postLink = screen.getByRole("link", { name: /post de teste/i });
+    const postCardRoot = postLink.firstElementChild as HTMLElement | null;
     expect(coverImage).toHaveClass(
       "absolute",
       "inset-0",
@@ -117,6 +119,10 @@ describe("ReleasesSection cover fit", () => {
     const coverContainer = coverImage.parentElement?.parentElement;
     expect(coverContainer).not.toBeNull();
     expect(coverContainer).toHaveClass("relative", "w-full", "aspect-3/2", "overflow-hidden");
+    expect(postCardRoot).not.toBeNull();
+    expect(postCardRoot).toHaveClass("shadow-none");
+    expect(postCardRoot).not.toHaveClass("shadow-xs");
+    expect(postCardRoot).toHaveClass("hover:shadow-lg");
     expect(coverImage).toHaveAttribute(
       "src",
       expect.stringContaining("/uploads/_variants/post-1/cardHome-v2.jpeg"),
