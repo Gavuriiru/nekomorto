@@ -403,13 +403,24 @@ describe("ProjectReading analytics", () => {
 
     const infoBar = screen.getByTestId("project-reading-info-bar");
     expect(infoBar).toBeInTheDocument();
-    expect(within(infoBar).getByText("Projeto Teste")).toBeInTheDocument();
+    expect(within(infoBar).getByRole("link", { name: "Projeto Teste" })).toHaveAttribute(
+      "href",
+      "/projeto/projeto-teste",
+    );
     expect(within(infoBar).getByText("Resumo do capitulo")).toBeInTheDocument();
     expect(within(infoBar).getByText("Light Novel")).toBeInTheDocument();
-    const chapterBadge = within(infoBar).getByText(/Cap 1/i);
-    expect(chapterBadge).toBeInTheDocument();
+    const chapterContext = within(infoBar).getByTestId("project-reading-chapter-context");
+    expect(chapterContext).toHaveTextContent(/Cap.*tulo 1/i);
+    expect(within(infoBar).getByTestId("project-reading-meta-row")).not.toHaveTextContent(
+      /Cap.*tulo 1/i,
+    );
     expect(within(infoBar).getByText(/Volume 2/i)).toBeInTheDocument();
-    expect(chapterBadge).not.toHaveClass("bg-secondary");
+    expect(chapterContext).not.toHaveClass("bg-secondary");
+    expect(within(infoBar).getByTestId("project-reading-project-title")).toHaveClass(
+      "text-primary",
+      "text-sm",
+      "md:text-base",
+    );
     expect(screen.queryByRole("link", { name: "Voltar ao projeto" })).not.toBeInTheDocument();
     expect(screen.queryByTestId("project-reading-hero")).not.toBeInTheDocument();
     expect(screen.queryByTestId("project-reading-chapter-nav")).not.toBeInTheDocument();
@@ -629,6 +640,12 @@ describe("ProjectReading analytics", () => {
     const readerShell = screen.getByTestId("project-reading-full-bleed-shell");
     const readerBar = screen.getByTestId("project-reading-reader-bar");
     const infoBar = screen.getByTestId("project-reading-info-bar");
+    const contextRow = within(infoBar).getByTestId("project-reading-context-row");
+    const projectTitle = within(infoBar).getByTestId("project-reading-project-title");
+    const chapterContext = within(infoBar).getByTestId("project-reading-chapter-context");
+    const synopsis = within(infoBar).getByTestId("project-reading-synopsis");
+    const metaRow = within(infoBar).getByTestId("project-reading-meta-row");
+    const heading = within(readerBar).getByRole("heading", { name: /Cap.*tulo 1/i });
     const commentsHandoff = screen.getByTestId("project-reading-comments-handoff");
     const commentsSentinel = screen.getByTestId("project-reading-comments-sentinel");
 
@@ -639,11 +656,25 @@ describe("ProjectReading analytics", () => {
     expect(imageLayout.style.maxWidth).toBe("");
     expect(publicHeader).toHaveAttribute("data-variant", "static");
     expect(readerShell).toHaveClass("w-full");
+    expect(readerShell).toHaveClass("gap-2", "md:gap-3");
     expect(readerBar).not.toHaveClass("mx-auto");
+    expect(readerBar).toHaveClass("gap-3", "py-2", "md:py-3");
     expect(readerBar.style.maxWidth).toBe("");
     expect(infoBar).toHaveAttribute("data-variant", "reader-full-bleed");
-    expect(within(infoBar).getByText("Resumo do capitulo")).toBeInTheDocument();
-    expect(within(readerBar).getByRole("heading", { name: /Cap.*tulo 1/i })).toBeInTheDocument();
+    expect(projectTitle).toHaveAttribute("href", "/projeto/projeto-teste");
+    expect(projectTitle).toHaveClass("text-primary", "text-sm", "md:text-base");
+    expect(chapterContext).toHaveTextContent(/Cap.*tulo 1/i);
+    expect(within(contextRow).queryByText(/^manga$/i)).not.toBeInTheDocument();
+    expect(synopsis).toHaveTextContent("Resumo do capitulo");
+    expect(heading).toBeInTheDocument();
+    expect(heading).toHaveClass("text-2xl", "md:text-3xl");
+    expect(
+      contextRow.compareDocumentPosition(projectTitle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      synopsis.compareDocumentPosition(metaRow) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(metaRow).not.toHaveTextContent(/Cap.*tulo 1/i);
     expect(commentsHandoff.style.minHeight).toBe("5rem");
     expect(
       publicHeader.compareDocumentPosition(infoBar) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -667,10 +698,13 @@ describe("ProjectReading analytics", () => {
 
     expect(screen.queryByTestId("project-reading-chapter-nav")).not.toBeInTheDocument();
     expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
+    expect(screen.getByTestId("project-reading-stage").contains(screen.getByTestId("project-reader-menu-button"))).toBe(true);
+    expect(infoBar.contains(screen.getByTestId("project-reader-menu-button"))).toBe(false);
 
     fireEvent.click(screen.getByTestId("project-reader-menu-button"));
-    expect(await screen.findByText("Menu do leitor")).toBeInTheDocument();
+    expect(await screen.findByText("Leitor")).toBeInTheDocument();
     expect(screen.getByTestId("project-reader-sidebar")).toBeInTheDocument();
+    expect(screen.getByTestId("project-reading-stage").contains(screen.getByTestId("project-reader-sidebar"))).toBe(true);
     expect(screen.getByRole("combobox", { name: /Selecionar cap.tulo/i })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /Selecionar p.gina/i })).toBeInTheDocument();
   });
@@ -1011,10 +1045,7 @@ describe("ProjectReading analytics", () => {
 
     const publicHeader = await screen.findByTestId("public-header");
     expect(publicHeader).toHaveAttribute("data-variant", "fixed");
-    expect(screen.getByTestId("project-reading-site-header-offset")).toHaveClass(
-      "h-20",
-      "md:h-24",
-    );
+    expect(screen.getByTestId("project-reading-site-header-offset")).toHaveClass("h-20", "md:h-24");
     expect(screen.getByTestId("project-reading-info-bar")).toHaveAttribute(
       "data-variant",
       "reader-full-bleed",

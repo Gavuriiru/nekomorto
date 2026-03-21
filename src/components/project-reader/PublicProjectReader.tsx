@@ -1,13 +1,23 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { ArrowLeft, ArrowRight, BookOpenText, Menu, PencilLine, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpenText,
+  Eye,
+  Menu,
+  PencilLine,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import ProjectReadingInfoBar from "@/components/project-reader/ProjectReadingInfoBar";
@@ -36,7 +46,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
@@ -79,10 +88,19 @@ type PublicProjectReaderProps = PublicProjectReaderBaseProps & {
 };
 
 const PAGE_WRAPPER_BASE_CLASS = "relative flex min-w-0 justify-center";
-const SIDEBAR_SECTION_CLASS_NAME = "rounded-3xl border border-border/70 bg-card/40 p-4 shadow-sm";
-const SIDEBAR_SECTION_HEADER_CLASS_NAME = "flex items-start gap-3";
-const SIDEBAR_SECTION_ICON_CLASS_NAME =
-  "mt-0.5 h-9 w-9 shrink-0 rounded-2xl border border-border/70 bg-background/40 p-2 text-primary";
+const SIDEBAR_SECTION_CLASS_NAME =
+  "rounded-[1.75rem] border border-border/55 bg-card/35 p-3.5 shadow-[0_18px_46px_-34px_rgba(0,0,0,0.58)]";
+const SIDEBAR_FIELD_CLASS_NAME = "space-y-2";
+const SIDEBAR_LABEL_CLASS_NAME =
+  "text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground/70";
+const SIDEBAR_SECTION_HEADER_CLASS_NAME = "flex items-center gap-2.5";
+const SIDEBAR_SECTION_ICON_CLASS_NAME = "h-[0.95rem] w-[0.95rem] shrink-0 text-primary/80";
+const SIDEBAR_SELECT_TRIGGER_CLASS_NAME =
+  "h-10 rounded-2xl border-border/55 bg-background/70 text-left shadow-sm";
+const SIDEBAR_ACTION_BUTTON_CLASS_NAME =
+  "h-10 w-full justify-start rounded-2xl border-border/55 bg-background/70 px-4 text-left shadow-sm";
+const SIDEBAR_CONTEXT_CHIP_CLASS_NAME =
+  "inline-flex items-center rounded-full border border-border/55 bg-background/70 px-2.5 py-0.5 text-[11px] font-medium text-foreground/80";
 const PROGRESS_EDGE_OFFSET_PX = 12;
 const HIDDEN_PROGRESS_ZONE_SIZE_PX = 48;
 const HIDDEN_PROGRESS_HIDE_DELAY_MS = 180;
@@ -93,6 +111,12 @@ const PROGRESS_VERTICAL_OVERLAY_WIDTH_PX = 88;
 const PROGRESS_CHIP_MIN_WIDTH_PX = 40;
 const PROGRESS_CHIP_MIN_HEIGHT_PX = 28;
 const HORIZONTAL_PAGE_URL_SYNC_SETTLE_MS = 220;
+const MENU_TRIGGER_INITIAL_VISIBLE_MS = 5000;
+const MENU_TRIGGER_HOTSPOT_SIZE_PX = 72;
+const MENU_PANEL_VIEWPORT_INSET_PX = 84;
+const MENU_OVERLAY_TRANSITION_MS = 220;
+const MENU_TRIGGER_ENTER_TRANSITION_MS = 300;
+const MENU_TRIGGER_EXIT_TRANSITION_MS = 320;
 
 const getVisibleViewportMetrics = () => {
   if (typeof window === "undefined") {
@@ -113,10 +137,23 @@ const getVisibleViewportMetrics = () => {
 
 const getWindowWidth = () => getVisibleViewportMetrics().width;
 const getVisibleViewportHeight = () => getVisibleViewportMetrics().height;
+const supportsFineHoverPointer = () => {
+  if (typeof window === "undefined") {
+    return true;
+  }
+  if (typeof window.matchMedia === "function") {
+    return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  }
+  return getWindowWidth() >= 768;
+};
 const getWindowScrollY = () =>
   typeof window === "undefined"
     ? 0
-    : Math.max(window.scrollY || 0, window.pageYOffset || 0, document.documentElement?.scrollTop || 0);
+    : Math.max(
+        window.scrollY || 0,
+        window.pageYOffset || 0,
+        document.documentElement?.scrollTop || 0,
+      );
 
 const parseRequestedReaderPageIndex = (search: string) => {
   const params = new URLSearchParams(search);
@@ -186,12 +223,18 @@ const getImageClassName = (imageFit: string) => {
   if (imageFit === "none") {
     return "block h-auto w-auto max-h-none max-w-none object-contain";
   }
+  if (imageFit === "width") {
+    return "block h-auto w-full max-h-none max-w-full object-contain";
+  }
   return "block h-auto w-auto max-h-full max-w-full object-contain";
 };
 
 const getPageWrapperClassName = (imageFit: string) => {
   if (imageFit === "none") {
     return "w-auto max-w-none shrink-0 items-start";
+  }
+  if (imageFit === "width") {
+    return "w-full min-w-0 items-start";
   }
   return "w-full items-center";
 };
@@ -200,13 +243,17 @@ const getPageSurfaceClassName = (imageFit: string) => {
   if (imageFit === "none") {
     return "inline-flex h-auto w-auto max-w-none shrink-0 items-start justify-center";
   }
+  if (imageFit === "width") {
+    return "flex h-auto w-full max-w-full items-start justify-center";
+  }
   return "flex w-full items-center justify-center";
 };
 
 const usesViewportBoundedHeight = (imageFit: string) =>
   imageFit === "both" || imageFit === "height";
 
-const resolveEffectiveImageFit = (imageFit: string) => (imageFit === "width" ? "none" : imageFit);
+const resolveEffectiveImageFit = ({ imageFit, layout }: { imageFit: string; layout: string }) =>
+  imageFit === "width" && layout !== "double" ? "none" : imageFit;
 
 const getSafeAreaInset = (edge: "top" | "right" | "bottom" | "left") =>
   `calc(env(safe-area-inset-${edge}, 0px) + ${PROGRESS_EDGE_OFFSET_PX}px)`;
@@ -237,6 +284,20 @@ const getProgressOverlayContainerStyle = (position: ReaderProgressPosition): CSS
 };
 
 const clampProgressRatio = (value: number) => Math.min(Math.max(value, 0), 1);
+const getPaginatedPointerRatio = ({
+  clientX,
+  rect,
+}: {
+  clientX: number;
+  rect: Pick<DOMRect, "left" | "width">;
+}) => {
+  if (rect.width <= 0) {
+    return 0.5;
+  }
+
+  return clampProgressRatio((clientX - rect.left) / rect.width);
+};
+
 const getRootFontSizePx = () => {
   if (typeof window === "undefined") {
     return 16;
@@ -459,7 +520,6 @@ const PublicProjectReaderContent = ({
   synopsis = "",
   volume,
   pages,
-  currentUserId,
   editHref,
   chapterOptions,
   currentChapterValue,
@@ -472,12 +532,13 @@ const PublicProjectReaderContent = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const {
-    isLoaded: hasLoadedPreferences,
-    resolvedConfig,
-    updateConfig,
-  } = preferences;
+  const { resolvedConfig, updateConfig } = preferences;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMenuTriggerVisible, setIsMenuTriggerVisible] = useState(true);
+  const [isMenuTriggerMounted, setIsMenuTriggerMounted] = useState(true);
+  const [isMenuTriggerAnimatingVisible, setIsMenuTriggerAnimatingVisible] = useState(true);
+  const [isMenuOverlayMounted, setIsMenuOverlayMounted] = useState(false);
+  const [isMenuOverlayVisible, setIsMenuOverlayVisible] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(getWindowWidth);
   const [readerViewportHeight, setReaderViewportHeight] = useState<number | null>(null);
   const [stageViewportHeight, setStageViewportHeight] = useState<number | null>(null);
@@ -493,6 +554,7 @@ const PublicProjectReaderContent = ({
   const [horizontalScrollMetrics, setHorizontalScrollMetrics] = useState({
     clientWidth: 0,
     scrollWidth: 0,
+    scrollbarHeight: 0,
   });
   const horizontalScrollRef = useRef<HTMLDivElement | null>(null);
   const horizontalScrollRailHostRef = useRef<HTMLDivElement | null>(null);
@@ -505,10 +567,14 @@ const PublicProjectReaderContent = ({
   const progressLabelRef = useRef<HTMLDivElement | null>(null);
   const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
   const hideHiddenProgressTimeoutRef = useRef<number | null>(null);
+  const menuTriggerHideTimeoutRef = useRef<number | null>(null);
+  const menuTriggerUnmountTimeoutRef = useRef<number | null>(null);
+  const menuOverlayUnmountTimeoutRef = useRef<number | null>(null);
   const progressInteractionTimeoutRef = useRef<number | null>(null);
   const progressOverlayUnmountTimeoutRef = useRef<number | null>(null);
   const activeProgressPointerIdRef = useRef<number | null>(null);
   const isProgressPointerDraggingRef = useRef(false);
+  const isMenuRegionHoveredRef = useRef(false);
   const lastScrubbedProgressPageRef = useRef<number | null>(null);
   const initialReaderPositionFrameRef = useRef<number | null>(null);
   const lastAppliedInitialPageKeyRef = useRef<string | null>(null);
@@ -516,6 +582,8 @@ const PublicProjectReaderContent = ({
   const lastSyncedPageUrlKeyRef = useRef<string | null>(null);
   const pendingHorizontalPageUrlSyncRef = useRef<number | null>(null);
   const horizontalPageUrlSyncTimeoutRef = useRef<number | null>(null);
+  const readerMenuPanelId = useId();
+  const readerMenuTitleId = useId();
 
   const { originalPages, renderablePages, accessiblePageCount, hasPurchaseGate } = useMemo(
     () =>
@@ -530,6 +598,7 @@ const PublicProjectReaderContent = ({
   const direction = resolvedConfig.direction === "ltr" ? "ltr" : "rtl";
   const paginated = isPaginatedReaderLayout(layout);
   const isDesktopMenu = viewportWidth >= 768;
+  const supportsHoverMenuActivation = supportsFineHoverPointer();
   const isCinemaMode = chromeMode === "cinema";
   const siteHeaderVariant = resolvedConfig.siteHeaderVariant === "fixed" ? "fixed" : "static";
   const slots = useMemo(
@@ -551,7 +620,10 @@ const PublicProjectReaderContent = ({
     progressPosition: String(resolvedConfig.progressPosition || "bottom"),
   });
 
-  const effectiveImageFit = resolveEffectiveImageFit(visualState.imageFit);
+  const effectiveImageFit = resolveEffectiveImageFit({
+    imageFit: visualState.imageFit,
+    layout,
+  });
   const initialChapterPageSeedRef = useRef({
     chapterValue: currentChapterValue,
     search: location.search,
@@ -571,12 +643,11 @@ const PublicProjectReaderContent = ({
   const sidebarToneClassName = cn(
     stageToneClassName,
     visualState.background === "theme"
-      ? "border-border/70 bg-background/95"
+      ? "border-border/50 bg-background/94"
       : visualState.background === "black"
-        ? "border-white/10 bg-black/80"
-        : "border-slate-200 bg-white",
+        ? "border-white/10 bg-black/78"
+        : "border-slate-200/80 bg-white/95",
   );
-  const imageClassName = getImageClassName(effectiveImageFit);
   const resolvedInitialPageIndex = useMemo(() => {
     const requestedOrDefault = requestedPageIndex ?? 0;
     const clampedPageIndex = clampIndex(requestedOrDefault, Math.max(originalPages.length, 1));
@@ -628,6 +699,27 @@ const PublicProjectReaderContent = ({
     }
   }, []);
 
+  const clearMenuTriggerHideTimer = useCallback(() => {
+    if (menuTriggerHideTimeoutRef.current !== null) {
+      window.clearTimeout(menuTriggerHideTimeoutRef.current);
+      menuTriggerHideTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearMenuTriggerUnmountTimer = useCallback(() => {
+    if (menuTriggerUnmountTimeoutRef.current !== null) {
+      window.clearTimeout(menuTriggerUnmountTimeoutRef.current);
+      menuTriggerUnmountTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearMenuOverlayUnmountTimer = useCallback(() => {
+    if (menuOverlayUnmountTimeoutRef.current !== null) {
+      window.clearTimeout(menuOverlayUnmountTimeoutRef.current);
+      menuOverlayUnmountTimeoutRef.current = null;
+    }
+  }, []);
+
   const clearProgressInteractionTimer = useCallback(() => {
     if (progressInteractionTimeoutRef.current !== null) {
       window.clearTimeout(progressInteractionTimeoutRef.current);
@@ -649,6 +741,11 @@ const PublicProjectReaderContent = ({
     setIsProgressInteracting(true);
   }, [clearHiddenProgressHideTimer, clearProgressInteractionTimer]);
 
+  const revealMenuTrigger = useCallback(() => {
+    clearMenuTriggerHideTimer();
+    setIsMenuTriggerVisible(true);
+  }, [clearMenuTriggerHideTimer]);
+
   const scheduleHiddenProgressHide = useCallback(() => {
     clearHiddenProgressHideTimer();
     hideHiddenProgressTimeoutRef.current = window.setTimeout(() => {
@@ -657,6 +754,17 @@ const PublicProjectReaderContent = ({
       hideHiddenProgressTimeoutRef.current = null;
     }, HIDDEN_PROGRESS_HIDE_DELAY_MS);
   }, [clearHiddenProgressHideTimer]);
+
+  const scheduleMenuTriggerHide = useCallback(
+    (delayMs = HIDDEN_PROGRESS_HIDE_DELAY_MS) => {
+      clearMenuTriggerHideTimer();
+      menuTriggerHideTimeoutRef.current = window.setTimeout(() => {
+        setIsMenuTriggerVisible(false);
+        menuTriggerHideTimeoutRef.current = null;
+      }, delayMs);
+    },
+    [clearMenuTriggerHideTimer],
+  );
 
   const scheduleProgressInteractionReset = useCallback(
     (delayMs = PROGRESS_TOUCH_FEEDBACK_MS) => {
@@ -694,6 +802,9 @@ const PublicProjectReaderContent = ({
       clearHiddenProgressHideTimer();
       clearHorizontalPageUrlSyncTimeout();
       clearInitialReaderPositionFrame();
+      clearMenuTriggerUnmountTimer();
+      clearMenuOverlayUnmountTimer();
+      clearMenuTriggerHideTimer();
       clearProgressOverlayUnmountTimer();
       clearProgressInteractionTimer();
     },
@@ -701,6 +812,9 @@ const PublicProjectReaderContent = ({
       clearHiddenProgressHideTimer,
       clearHorizontalPageUrlSyncTimeout,
       clearInitialReaderPositionFrame,
+      clearMenuTriggerUnmountTimer,
+      clearMenuOverlayUnmountTimer,
+      clearMenuTriggerHideTimer,
       clearProgressInteractionTimer,
       clearProgressOverlayUnmountTimer,
     ],
@@ -708,7 +822,96 @@ const PublicProjectReaderContent = ({
 
   useEffect(() => {
     setIsMenuOpen(false);
-  }, [currentChapterValue, isDesktopMenu]);
+    revealMenuTrigger();
+    scheduleMenuTriggerHide(MENU_TRIGGER_INITIAL_VISIBLE_MS);
+  }, [currentChapterValue, revealMenuTrigger, scheduleMenuTriggerHide]);
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return;
+    }
+
+    revealMenuTrigger();
+  }, [isMenuOpen, revealMenuTrigger]);
+
+  const shouldDisplayMenuTrigger = isMenuOpen || isMenuTriggerVisible;
+
+  useEffect(() => {
+    clearMenuTriggerUnmountTimer();
+
+    if (shouldDisplayMenuTrigger) {
+      setIsMenuTriggerMounted(true);
+      const frame = window.requestAnimationFrame(() => {
+        setIsMenuTriggerAnimatingVisible(true);
+      });
+
+      return () => {
+        window.cancelAnimationFrame(frame);
+      };
+    }
+
+    setIsMenuTriggerAnimatingVisible(false);
+    if (!isMenuTriggerMounted) {
+      return;
+    }
+
+    menuTriggerUnmountTimeoutRef.current = window.setTimeout(() => {
+      setIsMenuTriggerMounted(false);
+      menuTriggerUnmountTimeoutRef.current = null;
+    }, MENU_TRIGGER_EXIT_TRANSITION_MS);
+  }, [clearMenuTriggerUnmountTimer, isMenuTriggerMounted, shouldDisplayMenuTrigger]);
+
+  useEffect(() => {
+    clearMenuOverlayUnmountTimer();
+
+    if (isMenuOpen) {
+      setIsMenuOverlayMounted(true);
+      return;
+    }
+
+    setIsMenuOverlayVisible(false);
+    if (!isMenuOverlayMounted) {
+      return;
+    }
+
+    menuOverlayUnmountTimeoutRef.current = window.setTimeout(() => {
+      setIsMenuOverlayMounted(false);
+      menuOverlayUnmountTimeoutRef.current = null;
+    }, MENU_OVERLAY_TRANSITION_MS);
+  }, [clearMenuOverlayUnmountTimer, isMenuOpen, isMenuOverlayMounted]);
+
+  useEffect(() => {
+    if (!isMenuOpen || !isMenuOverlayMounted) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      setIsMenuOverlayVisible(true);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [isMenuOpen, isMenuOverlayMounted]);
+
+  useEffect(() => {
+    if (isStageInViewport) {
+      return;
+    }
+
+    setIsMenuOpen(false);
+  }, [isStageInViewport]);
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return;
+    }
+
+    clearHiddenProgressHideTimer();
+    clearProgressInteractionTimer();
+    setIsHiddenProgressRevealed(false);
+    setIsProgressInteracting(false);
+  }, [clearHiddenProgressHideTimer, clearProgressInteractionTimer, isMenuOpen]);
 
   useEffect(() => {
     const updateStageHeight = () => {
@@ -812,9 +1015,9 @@ const PublicProjectReaderContent = ({
   const syncHorizontalScrollMetrics = useCallback(() => {
     if (layout !== "scroll-horizontal") {
       setHorizontalScrollMetrics((current) =>
-        current.clientWidth === 0 && current.scrollWidth === 0
+        current.clientWidth === 0 && current.scrollWidth === 0 && current.scrollbarHeight === 0
           ? current
-          : { clientWidth: 0, scrollWidth: 0 },
+          : { clientWidth: 0, scrollWidth: 0, scrollbarHeight: 0 },
       );
       return;
     }
@@ -828,11 +1031,21 @@ const PublicProjectReaderContent = ({
       viewport?.scrollWidth || 0,
       nextClientWidth,
     );
+    const nextScrollbarHeight = Math.max(
+      (viewport?.offsetHeight || 0) - (viewport?.clientHeight || 0),
+      0,
+    );
 
     setHorizontalScrollMetrics((current) =>
-      current.clientWidth === nextClientWidth && current.scrollWidth === nextScrollWidth
+      current.clientWidth === nextClientWidth &&
+      current.scrollWidth === nextScrollWidth &&
+      current.scrollbarHeight === nextScrollbarHeight
         ? current
-        : { clientWidth: nextClientWidth, scrollWidth: nextScrollWidth },
+        : {
+            clientWidth: nextClientWidth,
+            scrollWidth: nextScrollWidth,
+            scrollbarHeight: nextScrollbarHeight,
+          },
     );
 
     if (viewport && rail && Math.abs(rail.scrollLeft - viewport.scrollLeft) > 1) {
@@ -941,7 +1154,14 @@ const PublicProjectReaderContent = ({
       );
       lastSyncedPageUrlKeyRef.current = syncKey;
     },
-    [location.hash, location.pathname, location.search, location.state, navigate, originalPages.length],
+    [
+      location.hash,
+      location.pathname,
+      location.search,
+      location.state,
+      navigate,
+      originalPages.length,
+    ],
   );
 
   const commitHorizontalPageUrlSync = useCallback(
@@ -1160,7 +1380,12 @@ const PublicProjectReaderContent = ({
       if (layout === "scroll-horizontal") {
         const container = horizontalScrollRef.current;
         const targetPageRect = targetPageNode?.getBoundingClientRect();
-        if (!container || container.clientWidth <= 0 || !targetPageRect || targetPageRect.width <= 0) {
+        if (
+          !container ||
+          container.clientWidth <= 0 ||
+          !targetPageRect ||
+          targetPageRect.width <= 0
+        ) {
           initialReaderPositionFrameRef.current = null;
           return;
         }
@@ -1265,6 +1490,14 @@ const PublicProjectReaderContent = ({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isMenuOpen) {
+        event.preventDefault();
+        setIsMenuOpen(false);
+        revealMenuTrigger();
+        scheduleMenuTriggerHide();
+        return;
+      }
+
       const target = event.target as HTMLElement | null;
       const tagName = String(target?.tagName || "").toLowerCase();
       if (tagName === "input" || tagName === "textarea" || target?.isContentEditable) {
@@ -1292,7 +1525,7 @@ const PublicProjectReaderContent = ({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [direction, goToNext, goToPrevious, paginated]);
+  }, [direction, goToNext, goToPrevious, isMenuOpen, paginated, revealMenuTrigger, scheduleMenuTriggerHide]);
 
   useEffect(() => {
     if (visualState.progressStyle === "hidden" && isStageInViewport) {
@@ -1338,6 +1571,22 @@ const PublicProjectReaderContent = ({
     horizontalScrollMetrics.scrollWidth,
     horizontalScrollMetrics.clientWidth,
   );
+  const horizontalScrollViewportStyle = useMemo(() => {
+    if (layout !== "scroll-horizontal" || !isViewportBoundedReader || !stageViewportHeight) {
+      return undefined;
+    }
+
+    const compensatedHeight = stageViewportHeight + horizontalScrollMetrics.scrollbarHeight;
+    return {
+      minHeight: `${compensatedHeight}px`,
+      height: `${compensatedHeight}px`,
+    };
+  }, [
+    horizontalScrollMetrics.scrollbarHeight,
+    isViewportBoundedReader,
+    layout,
+    stageViewportHeight,
+  ]);
   const pageItems = useMemo(
     () =>
       buildReaderPageItems({
@@ -1380,6 +1629,18 @@ const PublicProjectReaderContent = ({
       height: `${stageViewportHeight}px`,
     };
   }, [isViewportBoundedReader, stageViewportHeight]);
+  const menuPanelStyle = useMemo(() => {
+    const availableHeight = stageViewportHeight
+      ? Math.max(stageViewportHeight - MENU_PANEL_VIEWPORT_INSET_PX, 160)
+      : null;
+    const panelWidth = isDesktopMenu ? "22.5rem" : `${Math.min(Math.max(viewportWidth - 16, 0), 352)}px`;
+
+    return {
+      width: panelWidth,
+      maxHeight: availableHeight ? `${availableHeight}px` : "calc(100vh - 5.5rem)",
+      height: availableHeight ? `${availableHeight}px` : undefined,
+    };
+  }, [isDesktopMenu, stageViewportHeight, viewportWidth]);
   const progressPosition: ReaderProgressPosition =
     visualState.progressPosition === "left" || visualState.progressPosition === "right"
       ? visualState.progressPosition
@@ -1396,7 +1657,8 @@ const PublicProjectReaderContent = ({
     () => getHiddenProgressZoneStyle(progressPosition),
     [progressPosition],
   );
-  const shouldDisplayProgressOverlay = isStageInViewport && renderedProgressStyle !== null;
+  const shouldDisplayProgressOverlay =
+    !isMenuOpen && isStageInViewport && renderedProgressStyle !== null;
   const shouldShowProgressChip =
     renderedProgressStyle !== null &&
     (progressStyle === "hidden" ? isHiddenProgressRevealed : isProgressInteracting);
@@ -1420,11 +1682,7 @@ const PublicProjectReaderContent = ({
       setIsProgressOverlayMounted(false);
       progressOverlayUnmountTimeoutRef.current = null;
     }, PROGRESS_OVERLAY_TRANSITION_MS);
-  }, [
-    clearProgressOverlayUnmountTimer,
-    isProgressOverlayMounted,
-    shouldDisplayProgressOverlay,
-  ]);
+  }, [clearProgressOverlayUnmountTimer, isProgressOverlayMounted, shouldDisplayProgressOverlay]);
 
   useEffect(() => {
     if (!shouldDisplayProgressOverlay || !isProgressOverlayMounted) {
@@ -1484,28 +1742,19 @@ const PublicProjectReaderContent = ({
     };
   }, [isProgressOverlayMounted, progressPageIndex, progressPosition, shouldShowProgressChip]);
 
-  const getProgressInteractionRect = useCallback(
-    () => {
-      const preferredNode = progressTrackRef.current;
-      const rect = preferredNode?.getBoundingClientRect();
+  const getProgressInteractionRect = useCallback(() => {
+    const preferredNode = progressTrackRef.current;
+    const rect = preferredNode?.getBoundingClientRect();
 
-      if (rect && rect.width > 0 && rect.height > 0) {
-        return rect;
-      }
+    if (rect && rect.width > 0 && rect.height > 0) {
+      return rect;
+    }
 
-      return getFallbackProgressTrackRect(progressPosition);
-    },
-    [progressPosition],
-  );
+    return getFallbackProgressTrackRect(progressPosition);
+  }, [progressPosition]);
 
   const getProgressPageIndexFromClientPosition = useCallback(
-    ({
-      clientX,
-      clientY,
-    }: {
-      clientX: number;
-      clientY: number;
-    }) => {
+    ({ clientX, clientY }: { clientX: number; clientY: number }) => {
       if (originalPages.length <= 1) {
         return 0;
       }
@@ -1522,13 +1771,7 @@ const PublicProjectReaderContent = ({
   );
 
   const scrubToProgressClientPosition = useCallback(
-    ({
-      clientX,
-      clientY,
-    }: {
-      clientX: number;
-      clientY: number;
-    }) => {
+    ({ clientX, clientY }: { clientX: number; clientY: number }) => {
       const nextPageIndex = getProgressPageIndexFromClientPosition({
         clientX,
         clientY,
@@ -1801,7 +2044,7 @@ const PublicProjectReaderContent = ({
   };
 
   const renderHiddenProgressZone = () => {
-    if (!isStageInViewport || visualState.progressStyle !== "hidden") {
+    if (isMenuOpen || !isStageInViewport || visualState.progressStyle !== "hidden") {
       return null;
     }
 
@@ -1869,10 +2112,13 @@ const PublicProjectReaderContent = ({
     pageIndex: number,
     className?: string,
     surfaceClassName?: string,
+    imageFit = effectiveImageFit,
   ) => {
     if (page.type === "purchase" || page.isPurchasePage) {
       return renderPurchaseCard(pageIndex, className, surfaceClassName);
     }
+
+    const resolvedImageClassName = getImageClassName(imageFit);
 
     return (
       <div
@@ -1881,15 +2127,11 @@ const PublicProjectReaderContent = ({
           pageRefs.current[pageIndex] = node;
         }}
         data-testid={`reader-page-${pageIndex}`}
-        className={cn(
-          PAGE_WRAPPER_BASE_CLASS,
-          getPageWrapperClassName(effectiveImageFit),
-          className,
-        )}
+        className={cn(PAGE_WRAPPER_BASE_CLASS, getPageWrapperClassName(imageFit), className)}
       >
         <div
           data-testid={`reader-page-surface-${pageIndex}`}
-          className={cn(getPageSurfaceClassName(effectiveImageFit), surfaceClassName)}
+          className={cn(getPageSurfaceClassName(imageFit), surfaceClassName)}
           style={viewportBoundedSurfaceStyle}
         >
           <img
@@ -1897,7 +2139,7 @@ const PublicProjectReaderContent = ({
             alt={`Página ${pageIndex + 1}`}
             loading={pageIndex < 2 ? "eager" : "lazy"}
             decoding="async"
-            className={imageClassName}
+            className={resolvedImageClassName}
             draggable={false}
           />
         </div>
@@ -1919,10 +2161,14 @@ const PublicProjectReaderContent = ({
       className="relative flex w-full min-h-0 flex-1 cursor-default text-left select-none"
       onClick={(event) => {
         const target = event.currentTarget;
+        const rect = target.getBoundingClientRect();
         const nextAction = resolvePaginatedPointerAction({
           layout,
           direction,
-          pointerRatio: event.nativeEvent.offsetX / Math.max(target.clientWidth, 1),
+          pointerRatio: getPaginatedPointerRatio({
+            clientX: event.clientX,
+            rect,
+          }),
         });
         if (nextAction === "next") {
           goToNext();
@@ -1937,7 +2183,7 @@ const PublicProjectReaderContent = ({
         data-testid="project-reading-paginated-scroll-lane"
         className={cn(
           "flex w-full items-center justify-center overflow-x-auto overflow-y-hidden",
-          isCinemaMode ? "px-0" : "px-2 md:px-4",
+          isCinemaMode || layout === "double" ? "px-0" : "px-2 md:px-4",
         )}
       >
         <div
@@ -1961,10 +2207,13 @@ const PublicProjectReaderContent = ({
             if (!page) {
               return null;
             }
-            const spreadAlignmentClassName =
-              shouldCenterFirstSingleSpread
-                ? getHorizontalAlignmentClassName("center")
-                : layout === "double" && effectiveImageFit !== "none"
+            const pageImageFit =
+              shouldCenterFirstSingleSpread && effectiveImageFit === "width"
+                ? "none"
+                : effectiveImageFit;
+            const spreadAlignmentClassName = shouldCenterFirstSingleSpread
+              ? getHorizontalAlignmentClassName("center")
+              : layout === "double" && pageImageFit !== "none"
                 ? getHorizontalAlignmentClassName(
                     getDoublePageInnerAlignment({
                       direction,
@@ -1977,13 +2226,19 @@ const PublicProjectReaderContent = ({
                 key={`slot-page-${pageIndex}`}
                 className={getPaginatedSlotClassName({
                   layout,
-                  imageFit: effectiveImageFit,
+                  imageFit: pageImageFit,
                   direction,
                   pagePosition,
                   centerSinglePage: shouldCenterFirstSingleSpread,
                 })}
               >
-                {renderImagePage(page, pageIndex, undefined, spreadAlignmentClassName)}
+                {renderImagePage(
+                  page,
+                  pageIndex,
+                  undefined,
+                  spreadAlignmentClassName,
+                  pageImageFit,
+                )}
               </div>
             );
           })}
@@ -1994,7 +2249,7 @@ const PublicProjectReaderContent = ({
     <div
       className={cn(
         "flex w-full min-w-0 flex-col",
-        isViewportBoundedReader ? "h-full min-h-0" : "",
+        isViewportBoundedReader ? "h-full min-h-0 overflow-hidden" : "",
       )}
     >
       <div
@@ -2002,9 +2257,16 @@ const PublicProjectReaderContent = ({
         data-testid="project-reading-horizontal-scroll"
         className={cn(
           "no-scrollbar w-full min-w-0 overflow-x-auto overflow-y-hidden",
-          isViewportBoundedReader ? "min-h-0 flex-1" : "",
-          isCinemaMode ? "px-0 py-0" : "px-2 py-2 md:px-4 md:py-4",
+          isViewportBoundedReader ? "min-h-0" : "",
+          isCinemaMode
+            ? isViewportBoundedReader
+              ? "px-0"
+              : "px-0 py-0"
+            : isViewportBoundedReader
+              ? "px-0"
+              : "px-0 py-2 md:py-4",
         )}
+        style={horizontalScrollViewportStyle}
         aria-label="Leitura com rolagem horizontal"
       >
         <div
@@ -2044,275 +2306,492 @@ const PublicProjectReaderContent = ({
     </div>
   );
 
+  const readerMenuContextChips = [
+    chapterLabel,
+    pageSummary ? `Página ${pageSummary}` : null,
+  ].filter(Boolean) as string[];
+
+  const closeMenu = useCallback(
+    (delayMs = HIDDEN_PROGRESS_HIDE_DELAY_MS) => {
+      setIsMenuOpen(false);
+      revealMenuTrigger();
+      if (!supportsHoverMenuActivation || !isMenuRegionHoveredRef.current) {
+        scheduleMenuTriggerHide(delayMs);
+      }
+    },
+    [revealMenuTrigger, scheduleMenuTriggerHide, supportsHoverMenuActivation],
+  );
+
+  const handleMenuButtonClick = useCallback(() => {
+    if (isMenuOpen) {
+      closeMenu();
+      return;
+    }
+
+    revealMenuTrigger();
+    setIsMenuOpen(true);
+  }, [closeMenu, isMenuOpen, revealMenuTrigger]);
+
+  const handleMenuRegionEnter = useCallback(() => {
+    isMenuRegionHoveredRef.current = true;
+    if (!supportsHoverMenuActivation) {
+      return;
+    }
+
+    revealMenuTrigger();
+  }, [revealMenuTrigger, supportsHoverMenuActivation]);
+
+  const handleMenuRegionLeave = useCallback(() => {
+    isMenuRegionHoveredRef.current = false;
+    if (!supportsHoverMenuActivation || isMenuOpen) {
+      return;
+    }
+
+    scheduleMenuTriggerHide();
+  }, [isMenuOpen, scheduleMenuTriggerHide, supportsHoverMenuActivation]);
+
+  const handleMenuActivationPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const isMousePointer = event.pointerType === "mouse";
+      if (supportsHoverMenuActivation && isMousePointer) {
+        return;
+      }
+
+      event.preventDefault();
+      revealMenuTrigger();
+      setIsMenuOpen(true);
+    },
+    [revealMenuTrigger, supportsHoverMenuActivation],
+  );
+
   const sidebarContent = (
-    <div className="flex h-full flex-col overflow-y-auto">
-      <div className="border-b border-border/60 px-4 py-4 md:px-5 md:py-5">
-        <p className="text-lg font-semibold text-foreground">Menu do leitor</p>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {currentUserId
-            ? "As preferências são salvas automaticamente na sua conta."
-            : "As preferências são salvas automaticamente neste navegador."}
-          {!hasLoadedPreferences ? " Carregando preferências..." : ""}
-        </p>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="border-b border-border/45 px-3.5 py-3 pr-14 md:px-4 md:py-4">
+        <div className="space-y-2">
+          <p
+            id={readerMenuTitleId}
+            className="text-lg font-semibold tracking-tight text-foreground"
+          >
+            Leitor
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {readerMenuContextChips.map((chip) => (
+              <span key={chip} className={SIDEBAR_CONTEXT_CHIP_CLASS_NAME}>
+                {chip}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-4 px-4 pb-6 pt-4 md:px-5">
-        <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "space-y-4")}>
-          <div className={SIDEBAR_SECTION_HEADER_CLASS_NAME}>
-            <BookOpenText className={SIDEBAR_SECTION_ICON_CLASS_NAME} aria-hidden="true" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">Navegação da leitura</p>
-              <p className="text-xs leading-5 text-muted-foreground">
-                Mude de capítulo ou salte direto para a página desejada.
-              </p>
+      <div className="flex-1 overflow-y-auto">
+        <div className="space-y-3 px-4 pb-5 pt-4 md:px-5">
+          <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "space-y-3")}>
+            <div className={SIDEBAR_SECTION_HEADER_CLASS_NAME}>
+              <BookOpenText className={SIDEBAR_SECTION_ICON_CLASS_NAME} aria-hidden="true" />
+              <p className="text-sm font-semibold leading-none text-foreground">Navegação</p>
+            </div>
+            <div className="space-y-3">
+              <div className={SIDEBAR_FIELD_CLASS_NAME}>
+                <Label className={SIDEBAR_LABEL_CLASS_NAME}>Capítulo</Label>
+                <Select
+                  value={currentChapterValue}
+                  onValueChange={(value) => {
+                    const nextChapter = chapterOptions.find((option) => option.value === value);
+                    if (!nextChapter) {
+                      return;
+                    }
+                    closeMenu();
+                    onNavigateChapter(nextChapter.href);
+                  }}
+                >
+                  <SelectTrigger
+                    className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+                    aria-label="Selecionar capítulo"
+                  >
+                    <SelectValue placeholder="Selecione um capítulo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {chapterOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className={SIDEBAR_FIELD_CLASS_NAME}>
+                <Label className={SIDEBAR_LABEL_CLASS_NAME}>Página</Label>
+                <Select
+                  value={String(Math.min(activePageIndex, Math.max(originalPages.length - 1, 0)))}
+                  onValueChange={(value) => {
+                    goToPage(Number(value));
+                    closeMenu();
+                  }}
+                >
+                  <SelectTrigger
+                    className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+                    aria-label="Selecionar página"
+                  >
+                    <SelectValue placeholder="Selecione uma página" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pageItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Capítulo</Label>
-              <Select
-                value={currentChapterValue}
-                onValueChange={(value) => {
-                  const nextChapter = chapterOptions.find((option) => option.value === value);
-                  if (!nextChapter) {
-                    return;
-                  }
-                  setIsMenuOpen(false);
-                  onNavigateChapter(nextChapter.href);
-                }}
-              >
-                <SelectTrigger aria-label="Selecionar capítulo">
-                  <SelectValue placeholder="Selecione um capítulo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {chapterOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "space-y-3")}>
+            <div className={SIDEBAR_SECTION_HEADER_CLASS_NAME}>
+              <Eye className={SIDEBAR_SECTION_ICON_CLASS_NAME} aria-hidden="true" />
+              <p className="text-sm font-semibold leading-none text-foreground">Exibição</p>
             </div>
+            <div className="space-y-3">
+              <div className={SIDEBAR_FIELD_CLASS_NAME}>
+                <Label className={SIDEBAR_LABEL_CLASS_NAME}>Layout</Label>
+                <Select
+                  value={String(resolvedConfig.layout || "single")}
+                  onValueChange={(value) => updateConfig({ layout: value })}
+                >
+                  <SelectTrigger
+                    className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+                    aria-label="Selecionar layout do leitor"
+                  >
+                    <SelectValue placeholder="Selecione um layout" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single">Página única</SelectItem>
+                    <SelectItem value="double">Página dupla</SelectItem>
+                    <SelectItem value="scroll-vertical">Rolagem vertical</SelectItem>
+                    <SelectItem value="scroll-horizontal">Rolagem horizontal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2">
-              <Label>Página</Label>
-              <Select
-                value={String(Math.min(activePageIndex, Math.max(originalPages.length - 1, 0)))}
-                onValueChange={(value) => {
-                  goToPage(Number(value));
-                  setIsMenuOpen(false);
-                }}
-              >
-                <SelectTrigger aria-label="Selecionar página">
-                  <SelectValue placeholder="Selecione uma página" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pageItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className={SIDEBAR_FIELD_CLASS_NAME}>
+                <Label className={SIDEBAR_LABEL_CLASS_NAME}>Ajuste da imagem</Label>
+                <Select
+                  value={String(resolvedConfig.imageFit || "both")}
+                  onValueChange={(value) => updateConfig({ imageFit: value })}
+                >
+                  <SelectTrigger
+                    className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+                    aria-label="Selecionar ajuste da imagem"
+                  >
+                    <SelectValue placeholder="Selecione o ajuste" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="both">Largura e altura</SelectItem>
+                    <SelectItem value="none">Sem ajuste</SelectItem>
+                    <SelectItem value="width">Ajustar à largura</SelectItem>
+                    <SelectItem value="height">Ajustar à altura</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className={SIDEBAR_FIELD_CLASS_NAME}>
+                <Label className={SIDEBAR_LABEL_CLASS_NAME}>Sentido de leitura</Label>
+                <Select
+                  value={String(resolvedConfig.direction || "rtl")}
+                  onValueChange={(value) => updateConfig({ direction: value })}
+                >
+                  <SelectTrigger
+                    className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+                    aria-label="Selecionar direção do leitor"
+                  >
+                    <SelectValue placeholder="Selecione a direção" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="rtl">Direita para esquerda</SelectItem>
+                    <SelectItem value="ltr">Esquerda para direita</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className={SIDEBAR_FIELD_CLASS_NAME}>
+                <Label className={SIDEBAR_LABEL_CLASS_NAME}>Fundo do palco</Label>
+                <Select
+                  value={String(resolvedConfig.background || "theme")}
+                  onValueChange={(value) => updateConfig({ background: value })}
+                >
+                  <SelectTrigger
+                    className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+                    aria-label="Selecionar fundo do palco"
+                  >
+                    <SelectValue placeholder="Selecione o fundo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="theme">Tema do site</SelectItem>
+                    <SelectItem value="black">Preto</SelectItem>
+                    <SelectItem value="white">Branco</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "space-y-3")}>
+            <div className={SIDEBAR_SECTION_HEADER_CLASS_NAME}>
+              <SlidersHorizontal className={SIDEBAR_SECTION_ICON_CLASS_NAME} aria-hidden="true" />
+              <p className="text-sm font-semibold leading-none text-foreground">Interface</p>
+            </div>
+            <div className="space-y-3">
+              <div className={SIDEBAR_FIELD_CLASS_NAME}>
+                <Label className={SIDEBAR_LABEL_CLASS_NAME}>Barra do site</Label>
+                <Select
+                  value={siteHeaderVariant}
+                  onValueChange={(value) => updateConfig({ siteHeaderVariant: value })}
+                >
+                  <SelectTrigger
+                    className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+                    aria-label="Selecionar comportamento do header do site"
+                  >
+                    <SelectValue placeholder="Selecione o comportamento do header" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="static">Acompanha a página</SelectItem>
+                    <SelectItem value="fixed">Padrão do site (fixo no topo)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className={SIDEBAR_FIELD_CLASS_NAME}>
+                <Label className={SIDEBAR_LABEL_CLASS_NAME}>Indicador de progresso</Label>
+                <Select
+                  value={String(resolvedConfig.progressStyle || "default")}
+                  onValueChange={(value) => updateConfig({ progressStyle: value })}
+                >
+                  <SelectTrigger
+                    className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+                    aria-label="Selecionar estilo do progresso"
+                  >
+                    <SelectValue placeholder="Selecione o progresso" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Padrão</SelectItem>
+                    <SelectItem value="hidden">Oculto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className={SIDEBAR_FIELD_CLASS_NAME}>
+                <Label className={SIDEBAR_LABEL_CLASS_NAME}>Posição do indicador</Label>
+                <Select
+                  value={String(resolvedConfig.progressPosition || "bottom")}
+                  onValueChange={(value) => updateConfig({ progressPosition: value })}
+                >
+                  <SelectTrigger
+                    className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+                    aria-label="Selecionar posição do progresso"
+                  >
+                    <SelectValue placeholder="Selecione a posição" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bottom">Inferior</SelectItem>
+                    <SelectItem value="left">Esquerda</SelectItem>
+                    <SelectItem value="right">Direita</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <label className="flex items-center justify-between gap-4 rounded-2xl border border-border/55 bg-background/50 px-3.5 py-3.5 text-sm shadow-sm">
+                <span>
+                  <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
+                    Isolar primeira página
+                  </span>
+                </span>
+                <Switch
+                  checked={resolvedConfig.firstPageSingle !== false}
+                  onCheckedChange={(checked) => updateConfig({ firstPageSingle: checked })}
+                  aria-label="Alternar primeira página isolada"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "space-y-3")}>
+            <div className={SIDEBAR_SECTION_HEADER_CLASS_NAME}>
+              <PencilLine className={SIDEBAR_SECTION_ICON_CLASS_NAME} aria-hidden="true" />
+              <p className="text-sm font-semibold leading-none text-foreground">Ações rápidas</p>
+            </div>
+            <div className="space-y-3">
+              <Button asChild variant="outline" className={SIDEBAR_ACTION_BUTTON_CLASS_NAME}>
+                <Link to={backHref}>
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  <span>Voltar ao projeto</span>
+                </Link>
+              </Button>
+
+              {editHref ? (
+                <Button asChild variant="outline" className={SIDEBAR_ACTION_BUTTON_CLASS_NAME}>
+                  <Link to={editHref}>
+                    <PencilLine className="h-4 w-4" aria-hidden="true" />
+                    <span>Editar capítulo</span>
+                  </Link>
+                </Button>
+              ) : null}
+
+              {paginated ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 w-full rounded-2xl border-border/55 bg-background/70 px-4 shadow-sm"
+                    onClick={() => {
+                      goToPrevious();
+                      closeMenu();
+                    }}
+                    aria-label="Página anterior"
+                  >
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    <span>Anterior</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 w-full rounded-2xl border-border/55 bg-background/70 px-4 shadow-sm"
+                    onClick={() => {
+                      goToNext();
+                      closeMenu();
+                    }}
+                    aria-label="Próxima página"
+                  >
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    <span>Próxima</span>
+                  </Button>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
 
-        <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "space-y-4")}>
-          <div className={SIDEBAR_SECTION_HEADER_CLASS_NAME}>
-            <BookOpenText className={SIDEBAR_SECTION_ICON_CLASS_NAME} aria-hidden="true" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">Ações do capítulo</p>
-              <p className="text-xs leading-5 text-muted-foreground">
-                Volte ao projeto, edite o capítulo e navegue sem sair da leitura.
-              </p>
-            </div>
-          </div>
+  const stageMenuOverlay = (
+    <>
+      {isMenuOverlayMounted ? (
+        <button
+          type="button"
+          data-testid="project-reader-menu-backdrop"
+          className={cn(
+            "absolute inset-0 z-30 transition-opacity duration-200 ease-out",
+            isMenuOverlayVisible
+              ? "pointer-events-auto bg-black/40 opacity-100 backdrop-blur-[1px]"
+              : "pointer-events-none bg-black/0 opacity-0 backdrop-blur-0",
+          )}
+          onClick={() => closeMenu()}
+          aria-label="Fechar menu do leitor"
+        />
+      ) : null}
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <Button asChild variant="outline" className="w-full rounded-full">
-              <Link to={backHref}>Voltar ao projeto</Link>
-            </Button>
+      <div className="pointer-events-none sticky top-3 z-40 flex h-0 justify-end px-2 md:px-4">
+        <div
+          className="relative pointer-events-auto"
+          style={{
+            width: `${MENU_TRIGGER_HOTSPOT_SIZE_PX}px`,
+            height: `${MENU_TRIGGER_HOTSPOT_SIZE_PX}px`,
+          }}
+          onMouseEnter={handleMenuRegionEnter}
+          onMouseLeave={handleMenuRegionLeave}
+          onFocusCapture={revealMenuTrigger}
+          onBlurCapture={(event) => {
+            const nextTarget = event.relatedTarget as Node | null;
+            if (!event.currentTarget.contains(nextTarget) && !isMenuOpen) {
+              scheduleMenuTriggerHide();
+            }
+          }}
+        >
+          <div
+            data-testid="project-reader-menu-activation-zone"
+            className="absolute right-0 top-0 z-0 rounded-full bg-transparent touch-none"
+            style={{
+              width: `${MENU_TRIGGER_HOTSPOT_SIZE_PX}px`,
+              height: `${MENU_TRIGGER_HOTSPOT_SIZE_PX}px`,
+            }}
+            onPointerDown={handleMenuActivationPointerDown}
+            aria-hidden="true"
+          />
 
-            {editHref ? (
-              <Button asChild variant="outline" className="w-full rounded-full">
-                <Link to={editHref}>
-                  <PencilLine className="h-4 w-4" aria-hidden="true" />
-                  <span>Editar capítulo</span>
-                </Link>
-              </Button>
-            ) : null}
-          </div>
-
-          {paginated ? (
-            <div className="grid gap-3 md:grid-cols-2">
+          {isMenuTriggerMounted ? (
+            <div
+              data-testid="project-reader-menu-button-shell"
+              data-state={isMenuTriggerAnimatingVisible ? "visible" : "hidden"}
+              className={cn(
+                "absolute right-2 top-2 z-10 will-change-transform transition-[opacity,transform] ease-out",
+                isMenuTriggerAnimatingVisible
+                  ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+                  : "pointer-events-none translate-y-0 scale-[0.985] opacity-0",
+              )}
+              style={{
+                transitionDuration: `${isMenuTriggerAnimatingVisible ? MENU_TRIGGER_ENTER_TRANSITION_MS : MENU_TRIGGER_EXIT_TRANSITION_MS}ms`,
+              }}
+            >
               <Button
                 type="button"
-                variant="outline"
-                className="w-full rounded-full"
-                onClick={() => {
-                  goToPrevious();
-                  setIsMenuOpen(false);
-                }}
-                aria-label="Página anterior"
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "h-10 w-10 rounded-full border border-border/45 bg-card/45 text-foreground/85 shadow-[0_14px_30px_-24px_rgba(0,0,0,0.65)] backdrop-blur-sm transition-[background-color,border-color,color,box-shadow] duration-300 ease-out hover:bg-accent/90 hover:text-accent-foreground",
+                  isCinemaMode ? "bg-background/75" : "",
+                  isMenuOpen
+                    ? "border-primary/25 bg-primary/8 text-foreground shadow-[0_20px_42px_-28px_hsl(var(--foreground)/0.72)]"
+                    : "",
+                )}
+                onClick={handleMenuButtonClick}
+                onFocus={revealMenuTrigger}
+                aria-label="Abrir menu do leitor"
+                aria-controls={readerMenuPanelId}
+                aria-expanded={isMenuOpen}
+                aria-haspopup="dialog"
+                data-testid="project-reader-menu-button"
+                data-state={isMenuTriggerAnimatingVisible ? "visible" : "hidden"}
               >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                <span>Página anterior</span>
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full rounded-full"
-                onClick={() => {
-                  goToNext();
-                  setIsMenuOpen(false);
-                }}
-                aria-label="Próxima página"
-              >
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                <span>Próxima página</span>
+                <Menu className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>
           ) : null}
+
+          {isMenuOverlayMounted ? (
+            <aside
+              id={readerMenuPanelId}
+              aria-labelledby={readerMenuTitleId}
+              aria-modal="false"
+              role="dialog"
+              data-testid="project-reader-sidebar"
+              className={cn(
+                "absolute z-20 flex min-h-0 flex-col overflow-hidden rounded-[2rem] border shadow-[0_28px_90px_-42px_rgba(0,0,0,0.72)] transition-all duration-200 ease-out origin-top-right",
+                sidebarToneClassName,
+                isMenuOverlayVisible
+                  ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+                  : "pointer-events-none -translate-y-2 scale-[0.985] opacity-0",
+              )}
+              style={{ ...menuPanelStyle, right: 0, top: "3.5rem" }}
+            >
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="absolute right-2.5 top-2.5 z-10 h-10 w-10 rounded-full border border-border/45 bg-background/70 text-foreground/80 shadow-sm backdrop-blur-sm transition-colors duration-200 hover:bg-accent hover:text-accent-foreground"
+                onClick={() => closeMenu()}
+                aria-label="Fechar menu do leitor"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              {sidebarContent}
+            </aside>
+          ) : null}
         </div>
-
-        <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "grid gap-4 md:grid-cols-2")}>
-          <div className="space-y-2 md:col-span-2">
-            <Label>Header do site</Label>
-            <Select
-              value={siteHeaderVariant}
-              onValueChange={(value) => updateConfig({ siteHeaderVariant: value })}
-            >
-              <SelectTrigger aria-label="Selecionar comportamento do header do site">
-                <SelectValue placeholder="Selecione o comportamento do header" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="static">Acompanha a página</SelectItem>
-                <SelectItem value="fixed">Padrão do site (fixo no topo)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Layout</Label>
-            <Select
-              value={String(resolvedConfig.layout || "single")}
-              onValueChange={(value) => updateConfig({ layout: value })}
-            >
-              <SelectTrigger aria-label="Selecionar layout do leitor">
-                <SelectValue placeholder="Selecione um layout" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="single">Página única</SelectItem>
-                <SelectItem value="double">Página dupla</SelectItem>
-                <SelectItem value="scroll-vertical">Rolagem vertical</SelectItem>
-                <SelectItem value="scroll-horizontal">Rolagem horizontal</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Ajuste da imagem</Label>
-            <Select
-              value={String(resolvedConfig.imageFit || "both")}
-              onValueChange={(value) => updateConfig({ imageFit: value })}
-            >
-              <SelectTrigger aria-label="Selecionar ajuste da imagem">
-                <SelectValue placeholder="Selecione o ajuste" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="both">Largura e altura</SelectItem>
-                <SelectItem value="none">Sem ajuste</SelectItem>
-                <SelectItem value="width">Ajustar à largura</SelectItem>
-                <SelectItem value="height">Ajustar à altura</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Direção</Label>
-            <Select
-              value={String(resolvedConfig.direction || "rtl")}
-              onValueChange={(value) => updateConfig({ direction: value })}
-            >
-              <SelectTrigger aria-label="Selecionar direção do leitor">
-                <SelectValue placeholder="Selecione a direção" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="rtl">Direita para esquerda</SelectItem>
-                <SelectItem value="ltr">Esquerda para direita</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Fundo do palco</Label>
-            <Select
-              value={String(resolvedConfig.background || "theme")}
-              onValueChange={(value) => updateConfig({ background: value })}
-            >
-              <SelectTrigger aria-label="Selecionar fundo do palco">
-                <SelectValue placeholder="Selecione o fundo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="theme">Tema do site</SelectItem>
-                <SelectItem value="black">Preto</SelectItem>
-                <SelectItem value="white">Branco</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Estilo do progresso</Label>
-            <Select
-              value={String(resolvedConfig.progressStyle || "default")}
-              onValueChange={(value) => updateConfig({ progressStyle: value })}
-            >
-              <SelectTrigger aria-label="Selecionar estilo do progresso">
-                <SelectValue placeholder="Selecione o progresso" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="default">PadrÃ£o</SelectItem>
-                <SelectItem value="hidden">Oculto</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Posição do progresso</Label>
-            <Select
-              value={String(resolvedConfig.progressPosition || "bottom")}
-              onValueChange={(value) => updateConfig({ progressPosition: value })}
-            >
-              <SelectTrigger aria-label="Selecionar posição do progresso">
-                <SelectValue placeholder="Selecione a posição" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="bottom">Inferior</SelectItem>
-                <SelectItem value="left">Esquerda</SelectItem>
-                <SelectItem value="right">Direita</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <label className="flex items-start justify-between gap-4 rounded-2xl border border-border/70 bg-card/50 px-4 py-4 text-sm">
-          <span className="space-y-1">
-            <span className="block font-medium text-foreground">Primeira página isolada</span>
-            <span className="block text-xs leading-5 text-muted-foreground">
-              Mantém a primeira página sozinha quando o layout usa páginas duplas.
-            </span>
-          </span>
-          <Switch
-            checked={resolvedConfig.firstPageSingle !== false}
-            onCheckedChange={(checked) => updateConfig({ firstPageSingle: checked })}
-            aria-label="Alternar primeira página isolada"
-          />
-        </label>
       </div>
-    </div>
+    </>
   );
 
   return (
@@ -2321,7 +2800,7 @@ const PublicProjectReaderContent = ({
       data-testid="project-reading-full-bleed-shell"
       className={cn(
         "project-reading-reader-shell relative flex w-full min-w-0 flex-col",
-        isCinemaMode ? "gap-0" : "gap-3 md:gap-4",
+        isCinemaMode ? "gap-0" : "gap-2 md:gap-3",
         paginated ? "min-h-0 flex-1" : "",
       )}
       style={readerViewportStyle}
@@ -2332,6 +2811,7 @@ const PublicProjectReaderContent = ({
       >
         <ProjectReadingInfoBar
           projectTitle={projectTitle}
+          projectHref={backHref}
           chapterTitle={chapterTitle}
           chapterLabel={chapterLabel}
           projectType={projectType}
@@ -2339,21 +2819,6 @@ const PublicProjectReaderContent = ({
           volume={volume}
           pageSummary={pageSummary}
           variant={isCinemaMode ? "reader-cinema" : "reader-full-bleed"}
-          actions={
-            <Button
-              type="button"
-              size="icon"
-              className={cn(
-                "h-9 w-9 rounded-full",
-                isCinemaMode ? "border border-border/60 bg-background/80" : "",
-              )}
-              onClick={() => setIsMenuOpen(true)}
-              aria-label="Abrir menu do leitor"
-              data-testid="project-reader-menu-button"
-            >
-              <Menu className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          }
         />
       </div>
 
@@ -2373,6 +2838,7 @@ const PublicProjectReaderContent = ({
           )}
           style={stageViewportStyle}
         >
+          {stageMenuOverlay}
           {stageContent}
         </section>
 
@@ -2382,7 +2848,7 @@ const PublicProjectReaderContent = ({
             data-testid="project-reading-horizontal-scrollbar-host"
             className={cn(
               "pointer-events-none absolute inset-x-0 top-full z-10 overflow-visible",
-              isCinemaMode ? "px-0 pt-1" : "px-2 pt-1 md:px-4",
+              isCinemaMode ? "px-0 pt-1" : "px-0 pt-1",
             )}
           >
             <div
@@ -2405,50 +2871,7 @@ const PublicProjectReaderContent = ({
 
         {renderHiddenProgressZone()}
         {renderProgressOverlay()}
-
-        {isDesktopMenu && isMenuOpen ? (
-          <>
-            <button
-              type="button"
-              className="absolute inset-0 z-20 hidden bg-black/45 md:block"
-              onClick={() => setIsMenuOpen(false)}
-              aria-label="Fechar menu do leitor"
-            />
-            <aside
-              data-testid="project-reader-sidebar"
-              className={cn(
-                "absolute right-3 z-30 hidden overflow-hidden rounded-3xl border shadow-xl md:flex md:flex-col",
-                sidebarToneClassName,
-              )}
-              style={{ top: "0.75rem", bottom: "0.75rem", width: "min(calc(100vw - 2rem), 24rem)" }}
-            >
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="absolute right-3 top-3 z-10 rounded-full"
-                onClick={() => setIsMenuOpen(false)}
-                aria-label="Fechar menu do leitor"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </Button>
-              {sidebarContent}
-            </aside>
-          </>
-        ) : null}
       </div>
-
-      {!isDesktopMenu ? (
-        <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-          <SheetContent
-            side="right"
-            data-testid="project-reader-sidebar"
-            className={cn("w-full max-w-sm p-0", sidebarToneClassName)}
-          >
-            {sidebarContent}
-          </SheetContent>
-        </Sheet>
-      ) : null}
     </div>
   );
 };

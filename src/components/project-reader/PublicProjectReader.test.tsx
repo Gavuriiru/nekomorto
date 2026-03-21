@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation, useNavigationType } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -6,6 +6,9 @@ import PublicProjectReader from "@/components/project-reader/PublicProjectReader
 
 const useProjectReaderPreferencesMock = vi.hoisted(() => vi.fn());
 const updateConfigMock = vi.hoisted(() => vi.fn());
+const MENU_TRIGGER_INITIAL_VISIBLE_MS = 5000;
+const MENU_TRIGGER_HIDE_DELAY_MS = 180;
+const MENU_TRIGGER_EXIT_TRANSITION_MS = 320;
 const PROGRESS_OVERLAY_TRANSITION_MS = 180;
 const HORIZONTAL_PAGE_URL_SYNC_SETTLE_MS = 220;
 
@@ -216,9 +219,13 @@ const setElementSize = (
   element: Element,
   {
     clientWidth,
+    clientHeight,
+    offsetHeight,
     scrollWidth,
   }: {
     clientWidth?: number;
+    clientHeight?: number;
+    offsetHeight?: number;
     scrollWidth?: number;
   },
 ) => {
@@ -226,6 +233,20 @@ const setElementSize = (
     Object.defineProperty(element, "clientWidth", {
       configurable: true,
       value: clientWidth,
+    });
+  }
+
+  if (typeof clientHeight === "number") {
+    Object.defineProperty(element, "clientHeight", {
+      configurable: true,
+      value: clientHeight,
+    });
+  }
+
+  if (typeof offsetHeight === "number") {
+    Object.defineProperty(element, "offsetHeight", {
+      configurable: true,
+      value: offsetHeight,
     });
   }
 
@@ -237,10 +258,39 @@ const setElementSize = (
   }
 };
 
-const goToNextPaginatedPage = () => {
+const clickPaginatedTarget = ({
+  clientX,
+  offsetX,
+  target,
+  stageRect = {
+    top: 0,
+    bottom: 600,
+    left: 0,
+    right: 1000,
+  },
+}: {
+  clientX: number;
+  offsetX?: number;
+  target?: Element;
+  stageRect?: {
+    top: number;
+    bottom: number;
+    left?: number;
+    right?: number;
+    width?: number;
+    height?: number;
+  };
+}) => {
   const stageButton = screen.getByRole("button", { name: /paginada/i });
-  setElementSize(stageButton, { clientWidth: 1000 });
-  fireEvent.click(stageButton, { offsetX: 100 });
+  mockElementRect(stageButton, stageRect);
+  fireEvent.click(target ?? stageButton, {
+    clientX,
+    ...(typeof offsetX === "number" ? { offsetX } : {}),
+  });
+};
+
+const goToNextPaginatedPage = () => {
+  clickPaginatedTarget({ clientX: 100 });
 };
 
 const goToLastPaginatedPage = () => {
@@ -256,10 +306,7 @@ const getProgressContainerLength = (progressPosition: "bottom" | "left" | "right
 const getProgressLabelInsetPx = (progressPosition: "bottom" | "left" | "right") =>
   progressPosition === "bottom" ? 20 : 14;
 
-const mockProgressTrackRect = (
-  element: Element,
-  progressPosition: "bottom" | "left" | "right",
-) =>
+const mockProgressTrackRect = (element: Element, progressPosition: "bottom" | "left" | "right") =>
   mockElementRect(
     element,
     progressPosition === "bottom"
@@ -312,6 +359,11 @@ describe("PublicProjectReader", () => {
       writable: true,
       value: undefined,
     });
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
   });
 
   it("does not clip the stage and keeps no-limit free from full-width wrappers", async () => {
@@ -360,21 +412,42 @@ describe("PublicProjectReader", () => {
     });
   });
 
-  it("anchors double-page spreads to the center seam", () => {
-    renderReader({ layout: "double", imageFit: "both", firstPageSingle: false });
+  it.each([
+    "both",
+    "width",
+  ])("anchors double-page spreads to the center seam for fit %s", (imageFit) => {
+    renderReader({ layout: "double", imageFit, firstPageSingle: false });
+    const paginatedLane = screen.getByTestId("project-reading-paginated-scroll-lane");
 
     expect(screen.queryByTestId("reader-spread-blank")).not.toBeInTheDocument();
     expect(screen.getByTestId("reader-page-surface-0")).toHaveClass("justify-start");
     expect(screen.getByTestId("reader-page-surface-1")).toHaveClass("justify-end");
+    expect(paginatedLane.className).not.toContain("px-2");
+    expect(paginatedLane.className).not.toContain("md:px-4");
   });
 
-  it("centers the isolated cover slot in double-page mode", () => {
-    renderReader({ layout: "double", imageFit: "both", firstPageSingle: true });
+  it.each([
+    "both",
+    "width",
+  ])("centers the isolated cover slot in double-page mode for fit %s", (imageFit) => {
+    renderReader({ layout: "double", imageFit, firstPageSingle: true });
 
     const coverPage = screen.getByTestId("reader-page-0");
+    const coverSurface = screen.getByTestId("reader-page-surface-0");
+    const coverImage = within(coverPage).getByRole("img", { name: /P.gina 1/i });
 
     expect(screen.queryByTestId("reader-spread-blank")).not.toBeInTheDocument();
     expect(coverPage.parentElement).toHaveClass("justify-center");
+
+    if (imageFit === "width") {
+      expect(coverPage.parentElement).not.toHaveClass("flex-1", "min-w-0");
+      expect(coverPage).toHaveClass("w-auto", "max-w-none", "shrink-0");
+      expect(coverPage).not.toHaveClass("w-full", "min-w-0");
+      expect(coverSurface).toHaveClass("inline-flex", "h-auto", "w-auto", "max-w-none", "shrink-0");
+      expect(coverSurface).not.toHaveClass("w-full", "max-w-full");
+      expect(coverImage).toHaveClass("h-auto", "w-auto", "max-h-none", "max-w-none");
+      expect(coverImage).not.toHaveClass("w-full", "max-w-full");
+    }
   });
 
   it.each([
@@ -403,25 +476,24 @@ describe("PublicProjectReader", () => {
   it.each([
     { imageFit: "both" },
     { imageFit: "height" },
-  ])(
-    "keeps scroll-vertical cinema mode with viewport min-height but no fixed shell height for fit $imageFit",
-    async ({ imageFit }) => {
-      setVisualViewport({ height: 640 });
-      renderReader({ layout: "scroll-vertical", imageFit }, { chromeMode: "cinema" });
+  ])("keeps scroll-vertical cinema mode with viewport min-height but no fixed shell height for fit $imageFit", async ({
+    imageFit,
+  }) => {
+    setVisualViewport({ height: 640 });
+    renderReader({ layout: "scroll-vertical", imageFit }, { chromeMode: "cinema" });
 
-      const shell = screen.getByTestId("project-reading-full-bleed-shell");
-      const stage = screen.getByTestId("project-reading-stage");
-      const surface = screen.getByTestId("reader-page-surface-0");
+    const shell = screen.getByTestId("project-reading-full-bleed-shell");
+    const stage = screen.getByTestId("project-reading-stage");
+    const surface = screen.getByTestId("reader-page-surface-0");
 
-      await waitFor(() => {
-        expect(shell.style.minHeight).toBe("640px");
-        expect(shell.style.height).toBe("");
-        expect(stage.style.minHeight).toBe("640px");
-        expect(stage.style.height).toBe("");
-        expect(surface.style.height).toBe("640px");
-      });
-    },
-  );
+    await waitFor(() => {
+      expect(shell.style.minHeight).toBe("640px");
+      expect(shell.style.height).toBe("");
+      expect(stage.style.minHeight).toBe("640px");
+      expect(stage.style.height).toBe("");
+      expect(surface.style.height).toBe("640px");
+    });
+  });
 
   it("falls back to innerHeight in cinema mode for scroll-horizontal", async () => {
     renderReader({ layout: "scroll-horizontal", imageFit: "both" }, { chromeMode: "cinema" });
@@ -457,7 +529,6 @@ describe("PublicProjectReader", () => {
 
   it.each([
     { layout: "single" },
-    { layout: "double" },
     { layout: "scroll-horizontal" },
     { layout: "scroll-vertical" },
   ])("treats fit width as no-limit for $layout", async ({ layout }) => {
@@ -491,6 +562,52 @@ describe("PublicProjectReader", () => {
     }
   });
 
+  it("bounds fit width to the renderable slot in double-page mode", async () => {
+    renderReader({ layout: "double", imageFit: "width", firstPageSingle: false });
+
+    const shell = screen.getByTestId("project-reading-full-bleed-shell");
+    const stage = screen.getByTestId("project-reading-stage");
+    const paginatedLane = screen.getByTestId("project-reading-paginated-scroll-lane");
+    const page0 = screen.getByTestId("reader-page-0");
+    const page1 = screen.getByTestId("reader-page-1");
+    const surface0 = screen.getByTestId("reader-page-surface-0");
+    const surface1 = screen.getByTestId("reader-page-surface-1");
+    const image0 = within(page0).getByRole("img", { name: /P.gina 1/i });
+    const image1 = within(page1).getByRole("img", { name: /P.gina 2/i });
+
+    await waitFor(() => {
+      expect(shell.style.height).toBe("");
+      expect(stage.style.height).toBe("");
+      expect(surface0.style.height).toBe("");
+    });
+
+    expect(paginatedLane.className).not.toContain("px-2");
+    expect(paginatedLane.className).not.toContain("md:px-4");
+    expect(page0.parentElement).toHaveClass("flex-1", "min-w-0");
+    expect(page1.parentElement).toHaveClass("flex-1", "min-w-0");
+    expect(page0).toHaveClass("w-full", "min-w-0");
+    expect(page0).not.toHaveClass("w-auto", "max-w-none", "shrink-0");
+    expect(page1).toHaveClass("w-full", "min-w-0");
+    expect(page1).not.toHaveClass("w-auto", "max-w-none", "shrink-0");
+    expect(surface0).toHaveClass("flex", "h-auto", "w-full", "max-w-full", "justify-start");
+    expect(surface0).not.toHaveClass("inline-flex", "max-w-none", "shrink-0");
+    expect(surface1).toHaveClass("flex", "h-auto", "w-full", "max-w-full", "justify-end");
+    expect(surface1).not.toHaveClass("inline-flex", "max-w-none", "shrink-0");
+    expect(image0).toHaveClass("h-auto", "w-full", "max-w-full");
+    expect(image0).not.toHaveClass("w-auto", "max-w-none", "max-h-full");
+    expect(image1).toHaveClass("h-auto", "w-full", "max-w-full");
+    expect(image1).not.toHaveClass("w-auto", "max-w-none", "max-h-full");
+  });
+
+  it("keeps horizontal padding in single-page paginated mode", () => {
+    renderReader({ layout: "single", imageFit: "both" });
+
+    const paginatedLane = screen.getByTestId("project-reading-paginated-scroll-lane");
+
+    expect(paginatedLane.className).toContain("px-2");
+    expect(paginatedLane.className).toContain("md:px-4");
+  });
+
   it.each([
     "both",
     "height",
@@ -515,6 +632,10 @@ describe("PublicProjectReader", () => {
     expect(horizontalReader).not.toHaveClass("fixed", "sticky");
     expect(externalScrollbarHost).toBeInTheDocument();
     expect(externalScrollbar).toHaveClass("reader-external-scrollbar");
+    expect(horizontalReader.className).not.toContain("px-2");
+    expect(horizontalReader.className).not.toContain("md:px-4");
+    expect(externalScrollbarHost.className).not.toContain("px-2");
+    expect(externalScrollbarHost.className).not.toContain("md:px-4");
     expect(spacer.style.minWidth).toBe("100%");
     expect(strip).toHaveClass("gap-0");
     expect(page0).toHaveClass("w-auto", "max-w-none", "shrink-0");
@@ -525,8 +646,12 @@ describe("PublicProjectReader", () => {
     if (imageFit === "both" || imageFit === "height") {
       expect(surface0).toHaveClass("inline-flex", "h-full", "w-auto", "max-w-none", "shrink-0");
       expect(surface0).not.toHaveClass("w-full");
+      expect(horizontalReader.className).not.toContain("py-2");
+      expect(horizontalReader.className).not.toContain("md:py-4");
     } else {
       expect(surface0).toHaveClass("inline-flex", "h-auto", "w-auto", "max-w-none", "shrink-0");
+      expect(horizontalReader.className).toContain("py-2");
+      expect(horizontalReader.className).toContain("md:py-4");
     }
   });
 
@@ -560,17 +685,40 @@ describe("PublicProjectReader", () => {
     renderReader({ imageFit: "both" });
 
     const shell = screen.getByTestId("project-reading-full-bleed-shell");
+    const infoBar = screen.getByTestId("project-reading-info-bar");
     const readerBar = screen.getByTestId("project-reading-reader-bar");
+    const contextRow = screen.getByTestId("project-reading-context-row");
+    const projectTitle = screen.getByTestId("project-reading-project-title");
+    const chapterContext = screen.getByTestId("project-reading-chapter-context");
+    const synopsis = screen.getByTestId("project-reading-synopsis");
+    const metaRow = screen.getByTestId("project-reading-meta-row");
+    const heading = within(readerBar).getByRole("heading", { name: /Cap.*tulo 1/i });
 
     expect(shell).toHaveClass("w-full", "flex-1", "min-h-0");
+    expect(shell).toHaveClass("gap-2", "md:gap-3");
     expect(readerBar).not.toHaveClass("mx-auto");
+    expect(readerBar).toHaveClass("gap-3", "py-2", "md:py-3");
     expect(readerBar.style.maxWidth).toBe("");
-    expect(screen.getByTestId("project-reading-info-bar")).toHaveAttribute(
-      "data-variant",
-      "reader-full-bleed",
-    );
-    expect(screen.getByText("Resumo do capitulo")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Capitulo 1" })).toHaveClass("line-clamp-2");
+    expect(infoBar).toHaveAttribute("data-variant", "reader-full-bleed");
+    expect(within(contextRow).queryByText(/^manga$/i)).not.toBeInTheDocument();
+    expect(chapterContext).toHaveTextContent(/Cap.*tulo 1/i);
+    expect(projectTitle).toHaveTextContent("Projeto Teste");
+    expect(projectTitle).toHaveAttribute("href", "/projeto/projeto-teste");
+    expect(projectTitle).toHaveClass("text-primary", "text-sm", "md:text-base");
+    expect(heading).toHaveClass("text-2xl", "md:text-3xl");
+    expect(synopsis).toHaveTextContent("Resumo do capitulo");
+    expect(
+      contextRow.compareDocumentPosition(projectTitle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      projectTitle.compareDocumentPosition(synopsis) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      synopsis.compareDocumentPosition(metaRow) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(within(metaRow).queryByText(/Cap.*tulo 1/i)).not.toBeInTheDocument();
+    expect(within(metaRow).getByText("Volume 1")).toBeInTheDocument();
+    expect(within(metaRow).getByText(/1\/2/)).toBeInTheDocument();
 
     await waitFor(() => {
       expect(shell.style.minHeight).toMatch(/px$/);
@@ -584,9 +732,27 @@ describe("PublicProjectReader", () => {
     const shell = screen.getByTestId("project-reading-full-bleed-shell");
     const stage = screen.getByTestId("project-reading-stage");
     const infoBar = screen.getByTestId("project-reading-info-bar");
+    const contextRow = screen.getByTestId("project-reading-context-row");
+    const projectTitle = screen.getByTestId("project-reading-project-title");
+    const chapterContext = screen.getByTestId("project-reading-chapter-context");
+    const synopsis = screen.getByTestId("project-reading-synopsis");
+    const metaRow = screen.getByTestId("project-reading-meta-row");
+    const heading = within(infoBar).getByRole("heading", { name: /Cap.*tulo 1/i });
 
     expect(infoBar).toHaveAttribute("data-variant", "reader-cinema");
     expect(shell).toHaveClass("relative", "gap-0");
+    expect(chapterContext).toHaveTextContent(/Cap.*tulo 1/i);
+    expect(projectTitle).toHaveAttribute("href", "/projeto/projeto-teste");
+    expect(projectTitle).toHaveClass("text-primary", "text-xs", "md:text-sm");
+    expect(heading).toHaveClass("text-lg", "md:text-2xl");
+    expect(synopsis).toHaveClass("line-clamp-1", "md:line-clamp-2");
+    expect(
+      contextRow.compareDocumentPosition(projectTitle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      projectTitle.compareDocumentPosition(metaRow) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(within(metaRow).queryByText(/Cap.*tulo 1/i)).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(shell.style.minHeight).toBe("640px");
@@ -747,6 +913,91 @@ describe("PublicProjectReader", () => {
       expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
       expect(screen.getByTestId("reader-location-action")).toHaveTextContent("REPLACE");
       expect(screen.getByTestId("reader-location-preserve-scroll")).toHaveTextContent("true");
+    });
+  });
+
+  it.each([
+    {
+      label: "reader-page-surface",
+      getTarget: () => screen.getByTestId("reader-page-surface-0"),
+    },
+    {
+      label: "img",
+      getTarget: () => screen.getByRole("img", { name: /P.gina 1/i }),
+    },
+  ])("advances in rtl when clicking the left half of the paginated stage through $label", async ({
+    getTarget,
+  }) => {
+    renderReader({ direction: "rtl", imageFit: "none" });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+    });
+
+    clickPaginatedTarget({
+      target: getTarget(),
+      clientX: 250,
+      offsetX: 50,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+    });
+  });
+
+  it("uses the full paginated stage width when clicking a nested image in rtl", async () => {
+    renderReader({ direction: "rtl", imageFit: "none" });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+    });
+
+    goToNextPaginatedPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+    });
+
+    clickPaginatedTarget({
+      target: screen.getByRole("img", { name: /P.gina 2/i }),
+      clientX: 650,
+      offsetX: 350,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+    });
+  });
+
+  it("goes to the previous page in ltr when clicking the left half of the paginated stage", async () => {
+    renderReader(
+      { direction: "ltr", imageFit: "both" },
+      {},
+      { initialEntries: ["/projeto/projeto-teste/leitura/1?page=2"] },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+    });
+
+    clickPaginatedTarget({ clientX: 250 });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+    });
+  });
+
+  it("advances in ltr when clicking the right half of the paginated stage", async () => {
+    renderReader({ direction: "ltr", imageFit: "both" });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+    });
+
+    clickPaginatedTarget({ clientX: 750 });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
     });
   });
 
@@ -1084,6 +1335,50 @@ describe("PublicProjectReader", () => {
     expect(scrollbarHost).toHaveClass("absolute", "top-full", "overflow-visible");
   });
 
+  it("keeps the horizontal page surface tied to the stage height when the hidden native scrollbar consumes gutter", async () => {
+    setVisualViewport({ height: 640 });
+    renderReader({ layout: "scroll-horizontal", imageFit: "both" }, { chromeMode: "default" });
+
+    const shell = screen.getByTestId("project-reading-full-bleed-shell");
+    const infoBar = screen.getByTestId("project-reading-info-bar");
+    const stage = screen.getByTestId("project-reading-stage");
+    const horizontalReader = screen.getByTestId("project-reading-horizontal-scroll");
+    const surface = screen.getByTestId("reader-page-surface-0");
+    const scrollbarHost = screen.getByTestId("project-reading-horizontal-scrollbar-host");
+    const infoBarWrapper = infoBar.parentElement as HTMLElement;
+
+    mockElementRect(shell, { top: 120, bottom: 904 });
+    mockElementRect(infoBarWrapper, { top: 120, bottom: 200 });
+    mockElementRect(stage, { top: 216, bottom: 856 });
+    mockElementRect(scrollbarHost, { top: 856, bottom: 904, height: 48 });
+    setElementSize(horizontalReader, {
+      clientWidth: 1200,
+      scrollWidth: 2400,
+      clientHeight: 624,
+      offsetHeight: 640,
+    });
+
+    fireEvent(window, new Event("resize"));
+
+    await waitFor(() => {
+      expect(stage.style.minHeight).toBe("640px");
+      expect(stage.style.height).toBe("640px");
+      expect(shell.style.minHeight).toBe("736px");
+      expect(shell.style.height).toBe("736px");
+      expect(surface.style.height).toBe("640px");
+      expect(horizontalReader.style.minHeight).toBe("656px");
+      expect(horizontalReader.style.height).toBe("656px");
+    });
+
+    expect(horizontalReader.className).not.toContain("py-2");
+    expect(horizontalReader.className).not.toContain("md:py-4");
+    expect(horizontalReader.className).not.toContain("px-2");
+    expect(horizontalReader.className).not.toContain("md:px-4");
+    expect(scrollbarHost.className).not.toContain("px-2");
+    expect(scrollbarHost.className).not.toContain("md:px-4");
+    expect(scrollbarHost).toHaveClass("absolute", "top-full", "overflow-visible");
+  });
+
   it("preserves existing query params and hash while syncing ?page", async () => {
     renderReader(
       { imageFit: "both" },
@@ -1210,10 +1505,7 @@ describe("PublicProjectReader", () => {
       4,
     );
     expect(label).toHaveClass(expectedClassName);
-    expect(Number.parseFloat(label.style[styleKey as "left" | "top"])).toBeCloseTo(
-      labelInsetPx,
-      4,
-    );
+    expect(Number.parseFloat(label.style[styleKey as "left" | "top"])).toBeCloseTo(labelInsetPx, 4);
     if (progressPosition !== "bottom") {
       expect(indicator.style.bottom).toBe("");
       expect(label.style.bottom).toBe("");
@@ -1227,9 +1519,7 @@ describe("PublicProjectReader", () => {
       );
       expect(
         Number.parseFloat(
-          screen.getByTestId("project-reader-progress-indicator").style[
-            styleKey as "left" | "top"
-          ],
+          screen.getByTestId("project-reader-progress-indicator").style[styleKey as "left" | "top"],
         ),
       ).toBeCloseTo(containerLength - indicatorInsetPx, 4);
       expect(screen.getByTestId("project-reader-progress-label")).toHaveClass(expectedClassName);
@@ -1381,7 +1671,10 @@ describe("PublicProjectReader", () => {
       await vi.advanceTimersByTimeAsync(PROGRESS_OVERLAY_TRANSITION_MS);
     });
 
-    expect(screen.getByTestId("project-reader-progress-overlay")).toHaveAttribute("data-state", "hidden");
+    expect(screen.getByTestId("project-reader-progress-overlay")).toHaveAttribute(
+      "data-state",
+      "hidden",
+    );
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(PROGRESS_OVERLAY_TRANSITION_MS);
@@ -1568,14 +1861,177 @@ describe("PublicProjectReader", () => {
     rectSpy.mockRestore();
   });
 
-  it("opens a local desktop panel when the reader menu button is clicked", async () => {
+  it("opens a local sticky panel inside the stage when the reader menu button is clicked", async () => {
     renderReader({ imageFit: "both" });
 
-    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+    const infoBar = screen.getByTestId("project-reading-info-bar");
+    const stage = screen.getByTestId("project-reading-stage");
+    const menuButton = screen.getByTestId("project-reader-menu-button");
+    expect(stage.contains(menuButton)).toBe(true);
+    expect(infoBar.contains(menuButton)).toBe(false);
+    expect(menuButton).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(menuButton);
 
     const sidebar = await screen.findByTestId("project-reader-sidebar");
     expect(sidebar.tagName).toBe("ASIDE");
-    expect(screen.getByText("Menu do leitor")).toBeInTheDocument();
+    expect(stage.contains(sidebar)).toBe(true);
+    expect(sidebar.getAttribute("style") || "").toContain("top: 3.5rem");
+    expect(sidebar.getAttribute("style") || "").toContain("width: 22.5rem");
+    expect(menuButton).toHaveAttribute("aria-expanded", "true");
+    expect(within(sidebar).getByText("Leitor")).toBeInTheDocument();
+
+    fireEvent.click(menuButton);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
+    });
+    expect(menuButton).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("opens the mobile reader menu as a responsive in-stage overlay with the contextual header intact", async () => {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 640,
+    });
+
+    renderReader({ imageFit: "both" });
+
+    const stage = screen.getByTestId("project-reading-stage");
+    const menuButton = screen.getByTestId("project-reader-menu-button");
+    fireEvent.click(menuButton);
+
+    const sidebar = await screen.findByTestId("project-reader-sidebar");
+    expect(sidebar.tagName).toBe("ASIDE");
+    expect(stage.contains(sidebar)).toBe(true);
+    expect(sidebar).not.toHaveClass("right-0");
+    expect(sidebar.getAttribute("style") || "").toContain("width: 352px");
+    expect(menuButton).toHaveAttribute("aria-expanded", "true");
+    expect(within(sidebar).getByText("Leitor")).toBeInTheDocument();
+    expect(within(sidebar).getByText("Cap 1")).toBeInTheDocument();
+    expect(within(sidebar).getByText("Página 1")).toBeInTheDocument();
+    expect(within(sidebar).getByRole("button", { name: "Fechar menu do leitor" })).toBeInTheDocument();
+  });
+
+  it("auto-hides the stage menu button after five seconds and reveals it on proximity", async () => {
+    vi.useFakeTimers();
+    renderReader({ imageFit: "both" });
+
+    const menuButtonShell = screen.getByTestId("project-reader-menu-button-shell");
+    const menuButton = screen.getByTestId("project-reader-menu-button");
+    const activationWrapper = screen.getByTestId("project-reader-menu-activation-zone")
+      .parentElement as HTMLElement;
+
+    expect(menuButtonShell).toHaveAttribute("data-state", "visible");
+    expect(menuButton).toHaveAttribute("data-state", "visible");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(MENU_TRIGGER_INITIAL_VISIBLE_MS);
+    });
+
+    expect(screen.getByTestId("project-reader-menu-button-shell")).toHaveAttribute(
+      "data-state",
+      "hidden",
+    );
+    expect(menuButton).toHaveAttribute("data-state", "hidden");
+
+    fireEvent.mouseEnter(activationWrapper);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(16);
+    });
+    expect(screen.getByTestId("project-reader-menu-button-shell")).toHaveAttribute(
+      "data-state",
+      "visible",
+    );
+    expect(screen.getByTestId("project-reader-menu-button")).toHaveAttribute(
+      "data-state",
+      "visible",
+    );
+
+    fireEvent.mouseLeave(activationWrapper);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(MENU_TRIGGER_HIDE_DELAY_MS);
+    });
+
+    expect(screen.getByTestId("project-reader-menu-button-shell")).toHaveAttribute(
+      "data-state",
+      "hidden",
+    );
+    expect(screen.getByTestId("project-reader-menu-button")).toHaveAttribute("data-state", "hidden");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(MENU_TRIGGER_EXIT_TRANSITION_MS);
+    });
+
+    expect(screen.queryByTestId("project-reader-menu-button-shell")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("project-reader-menu-button")).not.toBeInTheDocument();
+  });
+
+  it("opens the in-stage menu from the top-right hotspot on touch after the button auto-hides", async () => {
+    vi.useFakeTimers();
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 640,
+    });
+
+    renderReader({ imageFit: "both" });
+
+    const menuButton = screen.getByTestId("project-reader-menu-button");
+    const activationZone = screen.getByTestId("project-reader-menu-activation-zone");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(MENU_TRIGGER_INITIAL_VISIBLE_MS);
+    });
+
+    expect(screen.getByTestId("project-reader-menu-button-shell")).toHaveAttribute(
+      "data-state",
+      "hidden",
+    );
+    expect(menuButton).toHaveAttribute("data-state", "hidden");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(MENU_TRIGGER_EXIT_TRANSITION_MS);
+    });
+
+    expect(screen.queryByTestId("project-reader-menu-button-shell")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("project-reader-menu-button")).not.toBeInTheDocument();
+
+    fireEvent.pointerDown(activationZone, {
+      pointerId: 21,
+      pointerType: "touch",
+    });
+
+    const sidebar = screen.getByTestId("project-reader-sidebar");
+    expect(sidebar).toBeInTheDocument();
+    expect(screen.getByTestId("project-reader-menu-button")).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("closes the in-stage menu when the backdrop is clicked", async () => {
+    renderReader({ imageFit: "both" });
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+    expect(await screen.findByTestId("project-reader-sidebar")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-backdrop"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
+    });
+  });
+
+  it("closes the in-stage menu when Escape is pressed", async () => {
+    renderReader({ imageFit: "both" });
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+    expect(await screen.findByTestId("project-reader-sidebar")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape", code: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
+    });
   });
 
   it("shows the site header behavior options in the reader menu", async () => {
@@ -1621,7 +2077,7 @@ describe("PublicProjectReader", () => {
     trigger.focus();
     fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
 
-    expect(await screen.findByRole("option", { name: /Padr/i })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Padrão" })).toBeInTheDocument();
     expect(await screen.findByRole("option", { name: "Oculto" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /Barra/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /Brilho|Glow/i })).not.toBeInTheDocument();

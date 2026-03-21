@@ -21,7 +21,10 @@ import {
   readWindowPublicBootstrapCurrentUser,
   type PublicBootstrapCurrentUser,
 } from "@/lib/public-bootstrap-global";
-import { buildDashboardProjectChapterEditorHref, buildProjectPublicReadingHref } from "@/lib/project-editor-routes";
+import {
+  buildDashboardProjectChapterEditorHref,
+  buildProjectPublicReadingHref,
+} from "@/lib/project-editor-routes";
 import { buildEpisodeKey, resolveCanonicalEpisodeRouteTarget } from "@/lib/project-episode-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import { createSlug } from "@/lib/post-content";
@@ -94,7 +97,9 @@ const ProjectReading = () => {
   const [searchParams] = useSearchParams();
   const apiBase = getApiBase();
   const { settings } = useSiteSettings();
-  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() => readWindowPublicBootstrap());
+  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() =>
+    readWindowPublicBootstrap(),
+  );
   const [currentUser] = useState<PublicBootstrapCurrentUser | null>(() =>
     readWindowPublicBootstrapCurrentUser(),
   );
@@ -412,7 +417,8 @@ const ProjectReading = () => {
   }, [chapterNumber, project?.id, readingOgRevision, readingOgSnapshot]);
 
   const projectOgImage = useMemo(
-    () => (project?.id ? normalizeAssetUrl(`/api/og/project/${encodeURIComponent(project.id)}`) : ""),
+    () =>
+      project?.id ? normalizeAssetUrl(`/api/og/project/${encodeURIComponent(project.id)}`) : "",
     [project?.id],
   );
 
@@ -697,25 +703,25 @@ const ProjectReading = () => {
                   : "min-h-0 flex-1",
             )}
           >
-          <PublicProjectReader
-            projectTitle={project.title}
-            projectType={project.type || (isLightNovel ? "Light Novel" : "Mangá")}
-            chapterTitle={chapterHeading}
-            chapterLabel={chapterBadgeLabel}
-            synopsis={resolvedChapterSynopsis}
-            volume={activeVolume}
-            pages={chapterPages}
-            baseConfig={chapterReaderConfigResolved}
-            currentUserId={currentUserId}
-            editHref={canEditChapter ? editChapterHref : undefined}
-            chapterOptions={chapterOptions}
-            currentChapterValue={currentChapterValue}
-            onNavigateChapter={(href) => navigate(href)}
-            backHref={`/projeto/${encodeURIComponent(project.id)}`}
-            chromeMode={shouldRenderMangaSiteHeader ? "default" : "cinema"}
-            preferences={imageReaderPreferences}
-          />
-        </div>
+            <PublicProjectReader
+              projectTitle={project.title}
+              projectType={project.type || (isLightNovel ? "Light Novel" : "Mangá")}
+              chapterTitle={chapterHeading}
+              chapterLabel={chapterBadgeLabel}
+              synopsis={resolvedChapterSynopsis}
+              volume={activeVolume}
+              pages={chapterPages}
+              baseConfig={chapterReaderConfigResolved}
+              currentUserId={currentUserId}
+              editHref={canEditChapter ? editChapterHref : undefined}
+              chapterOptions={chapterOptions}
+              currentChapterValue={currentChapterValue}
+              onNavigateChapter={(href) => navigate(href)}
+              backHref={`/projeto/${encodeURIComponent(project.id)}`}
+              chromeMode={shouldRenderMangaSiteHeader ? "default" : "cinema"}
+              preferences={imageReaderPreferences}
+            />
+          </div>
         </div>
       ) : (
         <main
@@ -725,6 +731,7 @@ const ProjectReading = () => {
           <div className="space-y-4">
             <ProjectReadingInfoBar
               projectTitle={project.title}
+              projectHref={`/projeto/${encodeURIComponent(project.id)}`}
               projectType={project.type || (isLightNovel ? "Light Novel" : "Mangá")}
               chapterTitle={chapterHeading}
               chapterLabel={chapterBadgeLabel}
