@@ -112,4 +112,32 @@ describe("project-reader-state", () => {
       }),
     ).toBe(1);
   });
+
+  it("mantem a pagina atual quando a candidata nao abre vantagem suficiente", () => {
+    expect(
+      pickMostVisiblePage({
+        measurements: [
+          { index: 0, start: -120, end: 360 },
+          { index: 1, start: 300, end: 780 },
+        ],
+        viewportSize: 600,
+        currentIndex: 0,
+        visibilityLeadThresholdPx: 40,
+      }),
+    ).toBe(0);
+  });
+
+  it("troca para a candidata quando ela ultrapassa o threshold de visibilidade", () => {
+    expect(
+      pickMostVisiblePage({
+        measurements: [
+          { index: 0, start: -220, end: 180 },
+          { index: 1, start: 120, end: 620 },
+        ],
+        viewportSize: 600,
+        currentIndex: 0,
+        visibilityLeadThresholdPx: 40,
+      }),
+    ).toBe(1);
+  });
 });

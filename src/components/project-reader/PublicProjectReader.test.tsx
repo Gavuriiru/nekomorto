@@ -7,6 +7,7 @@ import PublicProjectReader from "@/components/project-reader/PublicProjectReader
 const useProjectReaderPreferencesMock = vi.hoisted(() => vi.fn());
 const updateConfigMock = vi.hoisted(() => vi.fn());
 const PROGRESS_OVERLAY_TRANSITION_MS = 180;
+const HORIZONTAL_PAGE_URL_SYNC_SETTLE_MS = 220;
 
 vi.mock("@/components/project-reader/use-project-reader-preferences", () => ({
   useProjectReaderPreferences: (...args: unknown[]) => useProjectReaderPreferencesMock(...args),
@@ -121,6 +122,11 @@ const renderReader = (
       <ReaderLocationProbe />
     </MemoryRouter>,
   );
+};
+
+const setBrowserLocation = (path: string, state: unknown = null) => {
+  window.history.replaceState(state, "", path);
+  return window.history.state;
 };
 
 const mockElementRect = (
@@ -300,6 +306,7 @@ describe("PublicProjectReader", () => {
       writable: true,
       value: vi.fn(),
     });
+    window.history.replaceState(null, "", "/");
     Object.defineProperty(window, "visualViewport", {
       configurable: true,
       writable: true,
@@ -757,6 +764,9 @@ describe("PublicProjectReader", () => {
     await waitFor(() => {
       expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
     });
+    await waitFor(() => {
+      expect(window.scrollTo).toHaveBeenCalledWith({ top: 220, behavior: "auto" });
+    });
     vi.mocked(window.scrollTo).mockClear();
 
     rects["reader-page-0"] = { top: -680, bottom: -40, width: 1200, height: 640 };
@@ -773,7 +783,10 @@ describe("PublicProjectReader", () => {
     rectSpy.mockRestore();
   });
 
-  it("updates ?page in the horizontal strip as the active strip page changes", async () => {
+  it("keeps ?page unchanged during slow horizontal scrolling near the boundary and updates after a clear lead", async () => {
+    const initialPath = "/projeto/projeto-teste/leitura/1";
+    setBrowserLocation(initialPath);
+    const replaceStateSpy = vi.spyOn(window.history, "replaceState");
     setVisualViewport({ width: 1280, height: 640 });
     const rects = {
       "project-reading-stage": { top: 240, bottom: 880, width: 1200, height: 640 },
@@ -797,7 +810,11 @@ describe("PublicProjectReader", () => {
     };
     const rectSpy = mockRectsByTestId(rects);
 
-    renderReader({ layout: "scroll-horizontal", imageFit: "both" });
+    renderReader(
+      { layout: "scroll-horizontal", imageFit: "both" },
+      {},
+      { initialEntries: [initialPath] },
+    );
 
     const horizontalReader = await screen.findByTestId("project-reading-horizontal-scroll");
     const externalScrollbar = screen.getByTestId("project-reading-horizontal-scrollbar");
@@ -805,9 +822,163 @@ describe("PublicProjectReader", () => {
     setElementSize(externalScrollbar, { clientWidth: 800, scrollWidth: 1400 });
 
     await waitFor(() => {
-      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+      expect(window.location.search).toBe("?page=1");
     });
+    await waitFor(() => {
+      expect(window.scrollTo).toHaveBeenCalledWith({ top: 240, behavior: "auto" });
+    });
+    expect(screen.getByTestId("reader-location-search").textContent).toBe("");
+    expect(screen.getByTestId("reader-location-action")).toHaveTextContent("POP");
+    expect(screen.getByTestId("reader-location-preserve-scroll")).toHaveTextContent("false");
     vi.mocked(window.scrollTo).mockClear();
+    replaceStateSpy.mockClear();
+    vi.useFakeTimers();
+
+    rects["reader-page-0"] = {
+      top: 240,
+      bottom: 880,
+      left: -120,
+      right: 480,
+      width: 600,
+      height: 640,
+    };
+    rects["reader-page-1"] = {
+      top: 240,
+      bottom: 880,
+      left: 420,
+      right: 1020,
+      width: 600,
+      height: 640,
+    };
+    horizontalReader.scrollLeft = 120;
+    fireEvent.scroll(horizontalReader);
+
+    expect(window.location.search).toBe("?page=1");
+    expect(replaceStateSpy).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(HORIZONTAL_PAGE_URL_SYNC_SETTLE_MS);
+    });
+
+    expect(window.location.search).toBe("?page=1");
+    expect(replaceStateSpy).not.toHaveBeenCalled();
+
+    rects["reader-page-0"] = {
+      top: 240,
+      bottom: 880,
+      left: -260,
+      right: 340,
+      width: 600,
+      height: 640,
+    };
+    rects["reader-page-1"] = {
+      top: 240,
+      bottom: 880,
+      left: 280,
+      right: 880,
+      width: 600,
+      height: 640,
+    };
+    horizontalReader.scrollLeft = 260;
+    fireEvent.scroll(horizontalReader);
+
+    expect(window.location.search).toBe("?page=1");
+    expect(replaceStateSpy).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(HORIZONTAL_PAGE_URL_SYNC_SETTLE_MS - 1);
+    });
+
+    expect(window.location.search).toBe("?page=1");
+    expect(replaceStateSpy).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
+    expect(window.location.search).toBe("?page=2");
+    expect(replaceStateSpy).toHaveBeenCalledTimes(1);
+    expect(String(replaceStateSpy.mock.calls[0]?.[2] || "")).toBe(
+      "/projeto/projeto-teste/leitura/1?page=2",
+    );
+    expect(screen.getByTestId("reader-location-search").textContent).toBe("");
+    expect(screen.getByTestId("reader-location-action")).toHaveTextContent("POP");
+    expect(screen.getByTestId("reader-location-preserve-scroll")).toHaveTextContent("false");
+    expect(horizontalReader.scrollLeft).toBe(260);
+    expect(externalScrollbar.scrollLeft).toBe(260);
+    expect(window.scrollTo).not.toHaveBeenCalled();
+
+    rectSpy.mockRestore();
+  });
+
+  it("commits only the last stabilized page to ?page during rapid horizontal scrolling", async () => {
+    const initialBrowserState = { source: "browser-history" };
+    const initialPath = "/projeto/projeto-teste/leitura/1?volume=2&foo=bar#comment-42";
+    const browserStateSnapshot = setBrowserLocation(initialPath, initialBrowserState);
+    const replaceStateSpy = vi.spyOn(window.history, "replaceState");
+    setVisualViewport({ width: 1280, height: 640 });
+    const rects = {
+      "project-reading-stage": { top: 240, bottom: 880, width: 1800, height: 640 },
+      "project-reading-horizontal-scroll": {
+        top: 240,
+        bottom: 880,
+        left: 0,
+        right: 800,
+        width: 800,
+        height: 640,
+      },
+      "reader-page-0": { top: 240, bottom: 880, left: 0, right: 600, width: 600, height: 640 },
+      "reader-page-1": {
+        top: 240,
+        bottom: 880,
+        left: 600,
+        right: 1200,
+        width: 600,
+        height: 640,
+      },
+      "reader-page-2": {
+        top: 240,
+        bottom: 880,
+        left: 1200,
+        right: 1800,
+        width: 600,
+        height: 640,
+      },
+    };
+    const rectSpy = mockRectsByTestId(rects);
+
+    renderReader(
+      { layout: "scroll-horizontal", imageFit: "both" },
+      {
+        pages: [
+          { position: 0, imageUrl: "/page-1.jpg" },
+          { position: 1, imageUrl: "/page-2.jpg" },
+          { position: 2, imageUrl: "/page-3.jpg" },
+        ],
+      },
+      { initialEntries: [initialPath] },
+    );
+
+    const horizontalReader = await screen.findByTestId("project-reading-horizontal-scroll");
+    const externalScrollbar = screen.getByTestId("project-reading-horizontal-scrollbar");
+    setElementSize(horizontalReader, { clientWidth: 800, scrollWidth: 2000 });
+    setElementSize(externalScrollbar, { clientWidth: 800, scrollWidth: 2000 });
+
+    await waitFor(() => {
+      expect(window.location.search).toBe("?volume=2&foo=bar&page=1");
+    });
+    expect(window.location.hash).toBe("#comment-42");
+    expect(screen.getByTestId("reader-location-search").textContent).toBe("?volume=2&foo=bar");
+    expect(screen.getByTestId("reader-location-action")).toHaveTextContent("POP");
+    expect(screen.getByTestId("reader-location-preserve-scroll")).toHaveTextContent("false");
+    expect(replaceStateSpy).toHaveBeenCalledTimes(1);
+    expect(replaceStateSpy.mock.calls[0]?.[0]).toBe(browserStateSnapshot);
+    expect(String(replaceStateSpy.mock.calls[0]?.[2] || "")).toBe(
+      "/projeto/projeto-teste/leitura/1?volume=2&foo=bar&page=1#comment-42",
+    );
+    vi.mocked(window.scrollTo).mockClear();
+    replaceStateSpy.mockClear();
+    vi.useFakeTimers();
 
     rects["reader-page-0"] = {
       top: 240,
@@ -825,17 +996,63 @@ describe("PublicProjectReader", () => {
       width: 600,
       height: 640,
     };
+    rects["reader-page-2"] = {
+      top: 240,
+      bottom: 880,
+      left: 680,
+      right: 1280,
+      width: 600,
+      height: 640,
+    };
     horizontalReader.scrollLeft = 520;
     fireEvent.scroll(horizontalReader);
 
-    await waitFor(() => {
-      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
-      expect(screen.getByTestId("reader-location-action")).toHaveTextContent("REPLACE");
-      expect(screen.getByTestId("reader-location-preserve-scroll")).toHaveTextContent("true");
+    rects["reader-page-0"] = {
+      top: 240,
+      bottom: 880,
+      left: -1120,
+      right: -520,
+      width: 600,
+      height: 640,
+    };
+    rects["reader-page-1"] = {
+      top: 240,
+      bottom: 880,
+      left: -520,
+      right: 80,
+      width: 600,
+      height: 640,
+    };
+    rects["reader-page-2"] = {
+      top: 240,
+      bottom: 880,
+      left: 80,
+      right: 680,
+      width: 600,
+      height: 640,
+    };
+    horizontalReader.scrollLeft = 1120;
+    fireEvent.scroll(horizontalReader);
+
+    expect(window.location.search).toBe("?volume=2&foo=bar&page=1");
+    expect(replaceStateSpy).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(HORIZONTAL_PAGE_URL_SYNC_SETTLE_MS);
     });
-    expect(horizontalReader.scrollLeft).toBe(520);
-    expect(externalScrollbar.scrollLeft).toBe(520);
-    expect(window.scrollTo).not.toHaveBeenCalled();
+
+    expect(window.location.search).toBe("?volume=2&foo=bar&page=3");
+    expect(window.location.hash).toBe("#comment-42");
+    expect(replaceStateSpy).toHaveBeenCalledTimes(1);
+    expect(replaceStateSpy.mock.calls[0]?.[0]).toBe(browserStateSnapshot);
+    expect(String(replaceStateSpy.mock.calls[0]?.[2] || "")).toBe(
+      "/projeto/projeto-teste/leitura/1?volume=2&foo=bar&page=3#comment-42",
+    );
+    expect(screen.getByTestId("reader-location-search").textContent).toBe("?volume=2&foo=bar");
+    expect(screen.getByTestId("reader-location-action")).toHaveTextContent("POP");
+    expect(screen.getByTestId("reader-location-preserve-scroll")).toHaveTextContent("false");
+    expect(horizontalReader.scrollLeft).toBe(1120);
+    expect(externalScrollbar.scrollLeft).toBe(1120);
 
     rectSpy.mockRestore();
   });

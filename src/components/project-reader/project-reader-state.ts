@@ -14,6 +14,9 @@ export type ReaderVisibilityMeasurement = {
   end: number;
 };
 
+const getVisibleMeasurementSize = (measurement: ReaderVisibilityMeasurement, viewportSize: number) =>
+  Math.max(0, Math.min(measurement.end, viewportSize) - Math.max(measurement.start, 0));
+
 export const isPaginatedReaderLayout = (layout: string) => layout === "single" || layout === "double";
 
 export const buildReaderDisplayPages = ({
@@ -153,9 +156,13 @@ export const resolvePaginatedPointerAction = ({
 export const pickMostVisiblePage = ({
   measurements,
   viewportSize,
+  currentIndex,
+  visibilityLeadThresholdPx = 0,
 }: {
   measurements: ReaderVisibilityMeasurement[];
   viewportSize: number;
+  currentIndex?: number;
+  visibilityLeadThresholdPx?: number;
 }) => {
   if (measurements.length === 0 || viewportSize <= 0) {
     return 0;
@@ -166,8 +173,7 @@ export const pickMostVisiblePage = ({
   let bestDistance = Number.POSITIVE_INFINITY;
 
   measurements.forEach((measurement) => {
-    const visibleSize =
-      Math.max(0, Math.min(measurement.end, viewportSize) - Math.max(measurement.start, 0));
+    const visibleSize = getVisibleMeasurementSize(measurement, viewportSize);
     const center = (measurement.start + measurement.end) / 2;
     const distanceToCenter = Math.abs(center - viewportSize / 2);
 
@@ -180,6 +186,24 @@ export const pickMostVisiblePage = ({
       bestDistance = distanceToCenter;
     }
   });
+
+  if (typeof currentIndex !== "number" || bestIndex === currentIndex) {
+    return bestIndex;
+  }
+
+  const currentMeasurement = measurements.find((measurement) => measurement.index === currentIndex);
+  const currentVisible = currentMeasurement
+    ? getVisibleMeasurementSize(currentMeasurement, viewportSize)
+    : 0;
+
+  if (currentVisible <= 0) {
+    return bestIndex;
+  }
+
+  const threshold = Math.max(visibilityLeadThresholdPx, 0);
+  if (bestVisible - currentVisible < threshold) {
+    return currentIndex;
+  }
 
   return bestIndex;
 };

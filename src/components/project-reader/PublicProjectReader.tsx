@@ -92,6 +92,7 @@ const PROGRESS_BOTTOM_OVERLAY_HEIGHT_PX = 80;
 const PROGRESS_VERTICAL_OVERLAY_WIDTH_PX = 88;
 const PROGRESS_CHIP_MIN_WIDTH_PX = 40;
 const PROGRESS_CHIP_MIN_HEIGHT_PX = 28;
+const HORIZONTAL_PAGE_URL_SYNC_SETTLE_MS = 220;
 
 const getVisibleViewportMetrics = () => {
   if (typeof window === "undefined") {
@@ -513,6 +514,8 @@ const PublicProjectReaderContent = ({
   const lastAppliedInitialPageKeyRef = useRef<string | null>(null);
   const lastInitialReaderPositionKeyRef = useRef<string | null>(null);
   const lastSyncedPageUrlKeyRef = useRef<string | null>(null);
+  const pendingHorizontalPageUrlSyncRef = useRef<number | null>(null);
+  const horizontalPageUrlSyncTimeoutRef = useRef<number | null>(null);
 
   const { originalPages, renderablePages, accessiblePageCount, hasPurchaseGate } = useMemo(
     () =>
@@ -611,6 +614,13 @@ const PublicProjectReaderContent = ({
     }
   }, []);
 
+  const clearHorizontalPageUrlSyncTimeout = useCallback(() => {
+    if (horizontalPageUrlSyncTimeoutRef.current !== null) {
+      window.clearTimeout(horizontalPageUrlSyncTimeoutRef.current);
+      horizontalPageUrlSyncTimeoutRef.current = null;
+    }
+  }, []);
+
   const clearHiddenProgressHideTimer = useCallback(() => {
     if (hideHiddenProgressTimeoutRef.current !== null) {
       window.clearTimeout(hideHiddenProgressTimeoutRef.current);
@@ -682,12 +692,14 @@ const PublicProjectReaderContent = ({
   useEffect(
     () => () => {
       clearHiddenProgressHideTimer();
+      clearHorizontalPageUrlSyncTimeout();
       clearInitialReaderPositionFrame();
       clearProgressOverlayUnmountTimer();
       clearProgressInteractionTimer();
     },
     [
       clearHiddenProgressHideTimer,
+      clearHorizontalPageUrlSyncTimeout,
       clearInitialReaderPositionFrame,
       clearProgressInteractionTimer,
       clearProgressOverlayUnmountTimer,
@@ -901,46 +913,95 @@ const PublicProjectReaderContent = ({
     lastAppliedInitialPageKeyRef.current = nextInitialPageKey;
   }, [currentChapterValue, layout, paginated, resolvedInitialPageIndex, slots]);
 
+  const commitRouterPageUrlSync = useCallback(
+    (pageIndex: number, syncKey: string) => {
+      const params = new URLSearchParams(location.search);
+      const nextPageValue = String(clampIndex(pageIndex, Math.max(originalPages.length, 1)) + 1);
+      if (params.get("page") === nextPageValue) {
+        lastSyncedPageUrlKeyRef.current = syncKey;
+        return;
+      }
+
+      params.set("page", nextPageValue);
+      const nextSearch = params.toString();
+      const nextLocationState =
+        typeof location.state === "object" && location.state !== null
+          ? {
+              ...(location.state as Record<string, unknown>),
+              preserveScroll: true,
+            }
+          : { preserveScroll: true };
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearch ? `?${nextSearch}` : "",
+          hash: location.hash,
+        },
+        { replace: true, state: nextLocationState },
+      );
+      lastSyncedPageUrlKeyRef.current = syncKey;
+    },
+    [location.hash, location.pathname, location.search, location.state, navigate, originalPages.length],
+  );
+
+  const commitHorizontalPageUrlSync = useCallback(
+    (pageIndex: number, syncKey: string) => {
+      const params = new URLSearchParams(window.location.search);
+      const nextPageValue = String(clampIndex(pageIndex, Math.max(originalPages.length, 1)) + 1);
+      if (params.get("page") === nextPageValue) {
+        lastSyncedPageUrlKeyRef.current = syncKey;
+        return;
+      }
+
+      params.set("page", nextPageValue);
+      const nextSearch = params.toString();
+      const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
+      window.history.replaceState(window.history.state, "", nextUrl);
+      lastSyncedPageUrlKeyRef.current = syncKey;
+    },
+    [originalPages.length],
+  );
+
   useEffect(() => {
     const syncKey = `${currentChapterValue}:${layout}:${resolvedInitialPageIndex}`;
-    if (lastSyncedPageUrlKeyRef.current !== syncKey && activePageIndex !== resolvedInitialPageIndex) {
+    const nextPageIndex = clampIndex(activePageIndex, Math.max(originalPages.length, 1));
+    if (lastSyncedPageUrlKeyRef.current !== syncKey && nextPageIndex !== resolvedInitialPageIndex) {
       return;
     }
 
-    const params = new URLSearchParams(location.search);
-    const nextPageValue = String(clampIndex(activePageIndex, Math.max(originalPages.length, 1)) + 1);
-    if (params.get("page") === nextPageValue) {
-      lastSyncedPageUrlKeyRef.current = syncKey;
+    if (layout !== "scroll-horizontal" || lastSyncedPageUrlKeyRef.current !== syncKey) {
+      pendingHorizontalPageUrlSyncRef.current = null;
+      clearHorizontalPageUrlSyncTimeout();
+      if (layout === "scroll-horizontal") {
+        commitHorizontalPageUrlSync(nextPageIndex, syncKey);
+      } else {
+        commitRouterPageUrlSync(nextPageIndex, syncKey);
+      }
       return;
     }
 
-    params.set("page", nextPageValue);
-    const nextSearch = params.toString();
-    const nextLocationState =
-      typeof location.state === "object" && location.state !== null
-        ? {
-            ...(location.state as Record<string, unknown>),
-            preserveScroll: true,
-          }
-        : { preserveScroll: true };
-    navigate(
-      {
-        pathname: location.pathname,
-        search: nextSearch ? `?${nextSearch}` : "",
-        hash: location.hash,
-      },
-      { replace: true, state: nextLocationState },
-    );
-    lastSyncedPageUrlKeyRef.current = syncKey;
+    pendingHorizontalPageUrlSyncRef.current = nextPageIndex;
+    clearHorizontalPageUrlSyncTimeout();
+    horizontalPageUrlSyncTimeoutRef.current = window.setTimeout(() => {
+      const pendingPageIndex = pendingHorizontalPageUrlSyncRef.current;
+      if (pendingPageIndex === null) {
+        return;
+      }
+      commitHorizontalPageUrlSync(pendingPageIndex, syncKey);
+      pendingHorizontalPageUrlSyncRef.current = null;
+      horizontalPageUrlSyncTimeoutRef.current = null;
+    }, HORIZONTAL_PAGE_URL_SYNC_SETTLE_MS);
+
+    return () => {
+      clearHorizontalPageUrlSyncTimeout();
+    };
   }, [
     activePageIndex,
+    clearHorizontalPageUrlSyncTimeout,
+    commitHorizontalPageUrlSync,
+    commitRouterPageUrlSync,
     currentChapterValue,
     layout,
-    location.hash,
-    location.pathname,
-    location.search,
-    location.state,
-    navigate,
     originalPages.length,
     resolvedInitialPageIndex,
   ]);
@@ -965,6 +1026,7 @@ const PublicProjectReaderContent = ({
       if (!container) {
         return;
       }
+      const visibilityLeadThresholdPx = Math.min(Math.max(container.clientWidth * 0.08, 32), 72);
       const containerRect = container.getBoundingClientRect();
       const nextIndex = pickMostVisiblePage({
         measurements: originalPages
@@ -982,6 +1044,8 @@ const PublicProjectReaderContent = ({
           })
           .filter(Boolean) as Array<{ index: number; start: number; end: number }>,
         viewportSize: container.clientWidth,
+        currentIndex: activePageIndex,
+        visibilityLeadThresholdPx,
       });
       setActivePageIndex((current) => (current === nextIndex ? current : nextIndex));
       return;
@@ -1005,7 +1069,7 @@ const PublicProjectReaderContent = ({
       viewportSize: getVisibleViewportHeight(),
     });
     setActivePageIndex((current) => (current === nextIndex ? current : nextIndex));
-  }, [layout, originalPages, paginated]);
+  }, [activePageIndex, layout, originalPages, paginated]);
 
   useEffect(() => {
     if (paginated) {
