@@ -8,7 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { ArrowLeft, ArrowRight, BookOpenText, Menu, PencilLine, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import ProjectReadingInfoBar from "@/components/project-reader/ProjectReadingInfoBar";
 import {
@@ -23,7 +23,10 @@ import {
   resolvePaginatedPointerAction,
   type ReaderRenderablePage,
 } from "@/components/project-reader/project-reader-state";
-import { useProjectReaderPreferences } from "@/components/project-reader/use-project-reader-preferences";
+import {
+  useProjectReaderPreferences,
+  type ProjectReaderPreferencesState,
+} from "@/components/project-reader/use-project-reader-preferences";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -53,7 +56,7 @@ type ReaderChromeMode = "default" | "cinema";
 type ReaderProgressStyle = "default" | "hidden";
 type ReaderProgressPosition = "bottom" | "left" | "right";
 
-type PublicProjectReaderProps = {
+type PublicProjectReaderBaseProps = {
   projectTitle: string;
   projectType: string;
   chapterTitle: string;
@@ -69,6 +72,10 @@ type PublicProjectReaderProps = {
   onNavigateChapter: (href: string) => void;
   backHref: string;
   chromeMode?: ReaderChromeMode;
+};
+
+type PublicProjectReaderProps = PublicProjectReaderBaseProps & {
+  preferences?: ProjectReaderPreferencesState;
 };
 
 const PAGE_WRAPPER_BASE_CLASS = "relative flex min-w-0 justify-center";
@@ -105,6 +112,51 @@ const getVisibleViewportMetrics = () => {
 
 const getWindowWidth = () => getVisibleViewportMetrics().width;
 const getVisibleViewportHeight = () => getVisibleViewportMetrics().height;
+const getWindowScrollY = () =>
+  typeof window === "undefined"
+    ? 0
+    : Math.max(window.scrollY || 0, window.pageYOffset || 0, document.documentElement?.scrollTop || 0);
+
+const parseRequestedReaderPageIndex = (search: string) => {
+  const params = new URLSearchParams(search);
+  const rawValue = Number(params.get("page"));
+  if (!Number.isFinite(rawValue) || rawValue < 1) {
+    return null;
+  }
+  return Math.max(Math.floor(rawValue) - 1, 0);
+};
+
+const getCenteredViewportScrollTop = ({
+  targetRect,
+  viewportHeight,
+  viewportOffsetTop,
+}: {
+  targetRect: DOMRect;
+  viewportHeight: number;
+  viewportOffsetTop: number;
+}) => {
+  const visibleHeight = Math.min(Math.max(Math.round(targetRect.height), 0), viewportHeight);
+  const centeredOffset = Math.max(Math.round((viewportHeight - visibleHeight) / 2), 0);
+  return Math.max(
+    Math.round(getWindowScrollY() + targetRect.top - viewportOffsetTop - centeredOffset),
+    0,
+  );
+};
+
+const getCenteredHorizontalScrollLeft = ({
+  container,
+  targetRect,
+}: {
+  container: HTMLDivElement;
+  targetRect: DOMRect;
+}) => {
+  const containerRect = container.getBoundingClientRect();
+  const targetStart = targetRect.left - containerRect.left + container.scrollLeft;
+  const centeredOffset = Math.max((container.clientWidth - targetRect.width) / 2, 0);
+  const nextScrollLeft = Math.round(targetStart - centeredOffset);
+  const maxScrollLeft = Math.max(container.scrollWidth - container.clientWidth, 0);
+  return Math.min(Math.max(nextScrollLeft, 0), maxScrollLeft);
+};
 
 const getStageToneClassName = (background: string) => {
   if (background === "black") {
@@ -360,17 +412,21 @@ const getPaginatedSlotClassName = ({
   imageFit,
   direction,
   pagePosition,
+  centerSinglePage = false,
 }: {
   layout: string;
   imageFit: string;
   direction: "rtl" | "ltr";
   pagePosition: number;
+  centerSinglePage?: boolean;
 }) => {
   const doubleAlignmentClassName = getHorizontalAlignmentClassName(
-    getDoublePageInnerAlignment({
-      direction,
-      pagePosition,
-    }),
+    centerSinglePage
+      ? "center"
+      : getDoublePageInnerAlignment({
+          direction,
+          pagePosition,
+        }),
   );
 
   if (layout === "double") {
@@ -394,7 +450,7 @@ const clampIndex = (value: number, max: number) => {
   return Math.min(Math.max(value, 0), max - 1);
 };
 
-const PublicProjectReader = ({
+const PublicProjectReaderContent = ({
   projectTitle,
   projectType,
   chapterTitle,
@@ -402,7 +458,6 @@ const PublicProjectReader = ({
   synopsis = "",
   volume,
   pages,
-  baseConfig,
   currentUserId,
   editHref,
   chapterOptions,
@@ -410,16 +465,17 @@ const PublicProjectReader = ({
   onNavigateChapter,
   backHref,
   chromeMode = "default",
-}: PublicProjectReaderProps) => {
+  preferences,
+}: PublicProjectReaderBaseProps & {
+  preferences: ProjectReaderPreferencesState;
+}) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const {
     isLoaded: hasLoadedPreferences,
     resolvedConfig,
     updateConfig,
-  } = useProjectReaderPreferences({
-    projectType,
-    baseConfig,
-    currentUserId,
-  });
+  } = preferences;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(getWindowWidth);
   const [readerViewportHeight, setReaderViewportHeight] = useState<number | null>(null);
@@ -453,6 +509,10 @@ const PublicProjectReader = ({
   const activeProgressPointerIdRef = useRef<number | null>(null);
   const isProgressPointerDraggingRef = useRef(false);
   const lastScrubbedProgressPageRef = useRef<number | null>(null);
+  const initialReaderPositionFrameRef = useRef<number | null>(null);
+  const lastAppliedInitialPageKeyRef = useRef<string | null>(null);
+  const lastInitialReaderPositionKeyRef = useRef<string | null>(null);
+  const lastSyncedPageUrlKeyRef = useRef<string | null>(null);
 
   const { originalPages, renderablePages, accessiblePageCount, hasPurchaseGate } = useMemo(
     () =>
@@ -468,6 +528,7 @@ const PublicProjectReader = ({
   const paginated = isPaginatedReaderLayout(layout);
   const isDesktopMenu = viewportWidth >= 768;
   const isCinemaMode = chromeMode === "cinema";
+  const siteHeaderVariant = resolvedConfig.siteHeaderVariant === "fixed" ? "fixed" : "static";
   const slots = useMemo(
     () =>
       buildReaderSlots({
@@ -488,6 +549,20 @@ const PublicProjectReader = ({
   });
 
   const effectiveImageFit = resolveEffectiveImageFit(visualState.imageFit);
+  const initialChapterPageSeedRef = useRef({
+    chapterValue: currentChapterValue,
+    search: location.search,
+  });
+  if (initialChapterPageSeedRef.current.chapterValue !== currentChapterValue) {
+    initialChapterPageSeedRef.current = {
+      chapterValue: currentChapterValue,
+      search: location.search,
+    };
+  }
+  const requestedPageIndex = useMemo(
+    () => parseRequestedReaderPageIndex(initialChapterPageSeedRef.current.search),
+    [currentChapterValue],
+  );
   const stageToneClassName = getStageToneClassName(visualState.background);
   const purchaseToneClassName = getPurchaseToneClassName(visualState.background);
   const sidebarToneClassName = cn(
@@ -499,6 +574,20 @@ const PublicProjectReader = ({
         : "border-slate-200 bg-white",
   );
   const imageClassName = getImageClassName(effectiveImageFit);
+  const resolvedInitialPageIndex = useMemo(() => {
+    const requestedOrDefault = requestedPageIndex ?? 0;
+    const clampedPageIndex = clampIndex(requestedOrDefault, Math.max(originalPages.length, 1));
+    if (!hasPurchaseGate || clampedPageIndex < accessiblePageCount) {
+      return clampedPageIndex;
+    }
+    return Math.max(renderablePages.length - 1, 0);
+  }, [
+    accessiblePageCount,
+    hasPurchaseGate,
+    originalPages.length,
+    renderablePages.length,
+    requestedPageIndex,
+  ]);
 
   useEffect(() => {
     const handleResize = () => setViewportWidth(getWindowWidth());
@@ -514,6 +603,13 @@ const PublicProjectReader = ({
   useEffect(() => {
     pageRefs.current = [];
   }, [renderablePages.length]);
+
+  const clearInitialReaderPositionFrame = useCallback(() => {
+    if (initialReaderPositionFrameRef.current !== null) {
+      window.cancelAnimationFrame(initialReaderPositionFrameRef.current);
+      initialReaderPositionFrameRef.current = null;
+    }
+  }, []);
 
   const clearHiddenProgressHideTimer = useCallback(() => {
     if (hideHiddenProgressTimeoutRef.current !== null) {
@@ -586,10 +682,16 @@ const PublicProjectReader = ({
   useEffect(
     () => () => {
       clearHiddenProgressHideTimer();
+      clearInitialReaderPositionFrame();
       clearProgressOverlayUnmountTimer();
       clearProgressInteractionTimer();
     },
-    [clearHiddenProgressHideTimer, clearProgressInteractionTimer, clearProgressOverlayUnmountTimer],
+    [
+      clearHiddenProgressHideTimer,
+      clearInitialReaderPositionFrame,
+      clearProgressInteractionTimer,
+      clearProgressOverlayUnmountTimer,
+    ],
   );
 
   useEffect(() => {
@@ -604,23 +706,19 @@ const PublicProjectReader = ({
       if (!shell || !node) {
         return;
       }
-      const shellRect = shell.getBoundingClientRect();
       const stageRect = node.getBoundingClientRect();
       const infoBarRect = infoBar?.getBoundingClientRect();
-      const scrollbarHostRect = horizontalScrollRailHostRef.current?.getBoundingClientRect();
       const viewportMetrics = getVisibleViewportMetrics();
-      const topOffset = Math.max(Math.round(shellRect.top - viewportMetrics.offsetTop), 0);
-      const nextReaderHeight = Math.max(Math.round(viewportMetrics.height - topOffset), 320);
+      const nextVisibleViewportHeight = Math.max(Math.round(viewportMetrics.height), 320);
       const infoBarHeight = isCinemaMode ? 0 : Math.round(infoBarRect?.height || 0);
-      const scrollbarHostHeight =
-        layout === "scroll-horizontal" ? Math.round(scrollbarHostRect?.height || 0) : 0;
       const gapHeight =
         isCinemaMode || !infoBarRect
           ? 0
           : Math.max(Math.round(stageRect.top - infoBarRect.bottom), 0);
-      const nextStageHeight = isCinemaMode
-        ? Math.max(nextReaderHeight - scrollbarHostHeight, 240)
-        : Math.max(nextReaderHeight - infoBarHeight - gapHeight - scrollbarHostHeight, 240);
+      const nextStageHeight = Math.max(nextVisibleViewportHeight, 240);
+      const nextReaderHeight = isCinemaMode
+        ? nextStageHeight
+        : nextStageHeight + infoBarHeight + gapHeight;
       setReaderViewportHeight(nextReaderHeight);
       setStageViewportHeight(nextStageHeight);
     };
@@ -638,15 +736,14 @@ const PublicProjectReader = ({
     if (stageRef.current) {
       resizeObserver?.observe(stageRef.current);
     }
-    if (horizontalScrollRailHostRef.current) {
-      resizeObserver?.observe(horizontalScrollRailHostRef.current);
-    }
+    window.addEventListener("scroll", updateStageHeight, { passive: true });
     window.addEventListener("resize", updateStageHeight, { passive: true });
     viewport?.addEventListener("resize", updateStageHeight);
     viewport?.addEventListener("scroll", updateStageHeight);
     return () => {
       window.cancelAnimationFrame(frame);
       resizeObserver?.disconnect();
+      window.removeEventListener("scroll", updateStageHeight);
       window.removeEventListener("resize", updateStageHeight);
       viewport?.removeEventListener("resize", updateStageHeight);
       viewport?.removeEventListener("scroll", updateStageHeight);
@@ -787,6 +884,68 @@ const PublicProjectReader = ({
   }, [originalPages.length, paginated, slots.length]);
 
   useEffect(() => {
+    const nextInitialPageKey = `${currentChapterValue}:${layout}:${resolvedInitialPageIndex}`;
+    if (lastAppliedInitialPageKeyRef.current === nextInitialPageKey) {
+      return;
+    }
+
+    if (paginated) {
+      const nextSlotIndex = findSlotIndexForPage(slots, resolvedInitialPageIndex);
+      setActiveSlotIndex((current) => (current === nextSlotIndex ? current : nextSlotIndex));
+    } else {
+      setActivePageIndex((current) =>
+        current === resolvedInitialPageIndex ? current : resolvedInitialPageIndex,
+      );
+    }
+
+    lastAppliedInitialPageKeyRef.current = nextInitialPageKey;
+  }, [currentChapterValue, layout, paginated, resolvedInitialPageIndex, slots]);
+
+  useEffect(() => {
+    const syncKey = `${currentChapterValue}:${layout}:${resolvedInitialPageIndex}`;
+    if (lastSyncedPageUrlKeyRef.current !== syncKey && activePageIndex !== resolvedInitialPageIndex) {
+      return;
+    }
+
+    const params = new URLSearchParams(location.search);
+    const nextPageValue = String(clampIndex(activePageIndex, Math.max(originalPages.length, 1)) + 1);
+    if (params.get("page") === nextPageValue) {
+      lastSyncedPageUrlKeyRef.current = syncKey;
+      return;
+    }
+
+    params.set("page", nextPageValue);
+    const nextSearch = params.toString();
+    const nextLocationState =
+      typeof location.state === "object" && location.state !== null
+        ? {
+            ...(location.state as Record<string, unknown>),
+            preserveScroll: true,
+          }
+        : { preserveScroll: true };
+    navigate(
+      {
+        pathname: location.pathname,
+        search: nextSearch ? `?${nextSearch}` : "",
+        hash: location.hash,
+      },
+      { replace: true, state: nextLocationState },
+    );
+    lastSyncedPageUrlKeyRef.current = syncKey;
+  }, [
+    activePageIndex,
+    currentChapterValue,
+    layout,
+    location.hash,
+    location.pathname,
+    location.search,
+    location.state,
+    navigate,
+    originalPages.length,
+    resolvedInitialPageIndex,
+  ]);
+
+  useEffect(() => {
     if (!paginated) {
       return;
     }
@@ -895,6 +1054,93 @@ const PublicProjectReader = ({
       viewport?.removeEventListener("scroll", handleResize);
     };
   }, [layout, paginated, syncHorizontalScrollPosition, updateContinuousActivePage]);
+
+  useEffect(() => {
+    const nextInitialPositionKey = `${currentChapterValue}:${layout}:${resolvedInitialPageIndex}`;
+    if (location.hash) {
+      lastInitialReaderPositionKeyRef.current = nextInitialPositionKey;
+      return;
+    }
+    if (lastInitialReaderPositionKeyRef.current === nextInitialPositionKey) {
+      return;
+    }
+    if (stageViewportHeight === null) {
+      return;
+    }
+
+    clearInitialReaderPositionFrame();
+    initialReaderPositionFrameRef.current = window.requestAnimationFrame(() => {
+      const stage = stageRef.current;
+      if (!stage) {
+        initialReaderPositionFrameRef.current = null;
+        return;
+      }
+
+      const stageRect = stage.getBoundingClientRect();
+      if (stageRect.height <= 0 || stageRect.width <= 0) {
+        initialReaderPositionFrameRef.current = null;
+        return;
+      }
+
+      const viewportMetrics = getVisibleViewportMetrics();
+      const targetPageNode = pageRefs.current[resolvedInitialPageIndex];
+      const verticalTargetNode =
+        !paginated && layout === "scroll-vertical" && targetPageNode ? targetPageNode : stage;
+      const verticalTargetRect = verticalTargetNode.getBoundingClientRect();
+
+      if (verticalTargetRect.height <= 0 || verticalTargetRect.width <= 0) {
+        initialReaderPositionFrameRef.current = null;
+        return;
+      }
+
+      if (layout === "scroll-horizontal") {
+        const container = horizontalScrollRef.current;
+        const targetPageRect = targetPageNode?.getBoundingClientRect();
+        if (!container || container.clientWidth <= 0 || !targetPageRect || targetPageRect.width <= 0) {
+          initialReaderPositionFrameRef.current = null;
+          return;
+        }
+      }
+
+      window.scrollTo({
+        top: getCenteredViewportScrollTop({
+          targetRect: verticalTargetRect,
+          viewportHeight: viewportMetrics.height,
+          viewportOffsetTop: viewportMetrics.offsetTop,
+        }),
+        behavior: "auto",
+      });
+
+      if (layout === "scroll-horizontal") {
+        const container = horizontalScrollRef.current;
+        const rail = horizontalScrollRailRef.current;
+        if (container && targetPageNode) {
+          const nextScrollLeft = getCenteredHorizontalScrollLeft({
+            container,
+            targetRect: targetPageNode.getBoundingClientRect(),
+          });
+          container.scrollLeft = nextScrollLeft;
+          if (rail && Math.abs(rail.scrollLeft - nextScrollLeft) > 1) {
+            rail.scrollLeft = nextScrollLeft;
+          }
+        }
+      }
+
+      lastInitialReaderPositionKeyRef.current = nextInitialPositionKey;
+      initialReaderPositionFrameRef.current = null;
+    });
+
+    return clearInitialReaderPositionFrame;
+  }, [
+    clearInitialReaderPositionFrame,
+    currentChapterValue,
+    horizontalScrollMetrics.clientWidth,
+    layout,
+    location.hash,
+    paginated,
+    resolvedInitialPageIndex,
+    stageViewportHeight,
+  ]);
 
   const goToSlot = useCallback(
     (nextSlotIndex: number) => {
@@ -1596,6 +1842,12 @@ const PublicProjectReader = ({
   };
 
   const activeSlot = slots[activeSlotIndex] || slots[0];
+  const shouldCenterFirstSingleSpread =
+    layout === "double" &&
+    activeSlotIndex === 0 &&
+    resolvedConfig.firstPageSingle !== false &&
+    activeSlot?.hasBlank === true &&
+    (activeSlot.pages || []).length === 1;
 
   const stageContent = paginated ? (
     <button
@@ -1632,7 +1884,7 @@ const PublicProjectReader = ({
             layout === "double" && direction === "rtl" ? "md:flex-row-reverse" : "md:flex-row",
           )}
         >
-          {layout === "double" && activeSlot?.hasBlank ? (
+          {layout === "double" && activeSlot?.hasBlank && !shouldCenterFirstSingleSpread ? (
             <div
               aria-hidden="true"
               data-testid="reader-spread-blank"
@@ -1646,7 +1898,9 @@ const PublicProjectReader = ({
               return null;
             }
             const spreadAlignmentClassName =
-              layout === "double" && effectiveImageFit !== "none"
+              shouldCenterFirstSingleSpread
+                ? getHorizontalAlignmentClassName("center")
+                : layout === "double" && effectiveImageFit !== "none"
                 ? getHorizontalAlignmentClassName(
                     getDoublePageInnerAlignment({
                       direction,
@@ -1662,6 +1916,7 @@ const PublicProjectReader = ({
                   imageFit: effectiveImageFit,
                   direction,
                   pagePosition,
+                  centerSinglePage: shouldCenterFirstSingleSpread,
                 })}
               >
                 {renderImagePage(page, pageIndex, undefined, spreadAlignmentClassName)}
@@ -1860,6 +2115,22 @@ const PublicProjectReader = ({
         </div>
 
         <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "grid gap-4 md:grid-cols-2")}>
+          <div className="space-y-2 md:col-span-2">
+            <Label>Header do site</Label>
+            <Select
+              value={siteHeaderVariant}
+              onValueChange={(value) => updateConfig({ siteHeaderVariant: value })}
+            >
+              <SelectTrigger aria-label="Selecionar comportamento do header do site">
+                <SelectValue placeholder="Selecione o comportamento do header" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="static">Acompanha a página</SelectItem>
+                <SelectItem value="fixed">Padrão do site (fixo no topo)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-2">
             <Label>Layout</Label>
             <Select
@@ -2046,7 +2317,7 @@ const PublicProjectReader = ({
             ref={horizontalScrollRailHostRef}
             data-testid="project-reading-horizontal-scrollbar-host"
             className={cn(
-              "pointer-events-none shrink-0",
+              "pointer-events-none absolute inset-x-0 top-full z-10 overflow-visible",
               isCinemaMode ? "px-0 pt-1" : "px-2 pt-1 md:px-4",
             )}
           >
@@ -2116,6 +2387,24 @@ const PublicProjectReader = ({
       ) : null}
     </div>
   );
+};
+
+const PublicProjectReaderWithPreferences = (props: PublicProjectReaderBaseProps) => {
+  const preferences = useProjectReaderPreferences({
+    projectType: props.projectType,
+    baseConfig: props.baseConfig,
+    currentUserId: props.currentUserId,
+  });
+
+  return <PublicProjectReaderContent {...props} preferences={preferences} />;
+};
+
+const PublicProjectReader = ({ preferences, ...props }: PublicProjectReaderProps) => {
+  if (preferences) {
+    return <PublicProjectReaderContent {...props} preferences={preferences} />;
+  }
+
+  return <PublicProjectReaderWithPreferences {...props} />;
 };
 
 export default PublicProjectReader;

@@ -3,8 +3,10 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from "reac
 import { PencilLine } from "lucide-react";
 
 import CommentsSection from "@/components/CommentsSection";
+import Header from "@/components/Header";
 import ProjectReadingInfoBar from "@/components/project-reader/ProjectReadingInfoBar";
 import PublicProjectReader from "@/components/project-reader/PublicProjectReader";
+import { useProjectReaderPreferences } from "@/components/project-reader/use-project-reader-preferences";
 import { Button } from "@/components/ui/button";
 import type { Project } from "@/data/projects";
 import { useDeferredVisibility } from "@/hooks/use-deferred-visibility";
@@ -31,6 +33,7 @@ import type { PublicBootstrapPayload, PublicBootstrapProject } from "@/types/pub
 import {
   normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,
+  normalizeProjectReaderTypeKey,
   resolveProjectReaderConfig,
 } from "../../shared/project-reader.js";
 import {
@@ -48,6 +51,8 @@ const LexicalViewerFallback = () => (
   </div>
 );
 
+const FIXED_READER_HEADER_OFFSET_CLASS_NAME = "h-20 shrink-0 md:h-24";
+
 type ReadingProject = Project | PublicBootstrapProject;
 
 const normalizeProjectRouteKey = (value: unknown) =>
@@ -64,6 +69,7 @@ const resolveBootstrapProject = (
   if (!routeKey && !rawSlug) {
     return null;
   }
+
   return (
     bootstrapData?.projects.find((candidate) => {
       const candidateId = String(candidate.id || "").trim();
@@ -581,17 +587,7 @@ const ProjectReading = () => {
     });
   }, [apiBase, chapterContent?.number, chapterContent?.volume, project?.id]);
 
-  const shouldShowNotFound = !slug || (!project && hasLoadedProject);
-  if (shouldShowNotFound) {
-    return <NotFound />;
-  }
-  if (!project) {
-    return null;
-  }
-  if (!isReaderProject) {
-    return <NotFound />;
-  }
-
+  const currentUserId = String(currentUser?.id || "").trim() || null;
   const chapterLexical = chapterContent?.content || "";
   const chapterPages = normalizeProjectEpisodePages(chapterContent?.pages || chapterData?.pages);
   const chapterContentFormat = normalizeProjectEpisodeContentFormat(
@@ -605,9 +601,30 @@ const ProjectReading = () => {
     siteReaderConfig: chapterReaderConfig,
     projectReaderConfig: project?.readerConfig,
   });
+  const readerTypeKey = normalizeProjectReaderTypeKey(project?.type);
+  const isMangaReader = readerTypeKey === "manga";
+  const isWebtoonReader = readerTypeKey === "webtoon";
+  const imageReaderPreferences = useProjectReaderPreferences({
+    projectType: project?.type || "",
+    baseConfig: chapterReaderConfigResolved,
+    currentUserId,
+  });
   const isVerticalImageReaderLayout =
     String(chapterReaderConfigResolved.layout || "single") === "scroll-vertical";
-  const currentUserId = String(currentUser?.id || "").trim() || null;
+  const shouldUseNaturalImageReaderFlow = isVerticalImageReaderLayout && isWebtoonReader;
+  const mangaSiteHeaderVariant =
+    imageReaderPreferences.resolvedConfig.siteHeaderVariant === "fixed" ? "fixed" : "static";
+
+  const shouldShowNotFound = !slug || (!project && hasLoadedProject);
+  if (shouldShowNotFound) {
+    return <NotFound />;
+  }
+  if (!project) {
+    return null;
+  }
+  if (!isReaderProject) {
+    return <NotFound />;
+  }
   const currentChapterValue = buildEpisodeKey(
     chapterData?.number ?? chapterContent?.number ?? chapterNumber,
     chapterData?.volume ?? chapterContent?.volume ?? volumeParam,
@@ -628,16 +645,58 @@ const ProjectReading = () => {
       ? chapterBadgeLabel
       : `Capítulo ${chapterData?.number ?? chapterNumber}`);
 
+  const shouldRenderMangaSiteHeader = isImageReader && isMangaReader;
+  const imageReaderProps = {
+    projectTitle: project.title,
+    projectType: project.type || (isLightNovel ? "Light Novel" : "MangÃ¡"),
+    chapterTitle: chapterHeading,
+    chapterLabel: chapterBadgeLabel,
+    synopsis: resolvedChapterSynopsis,
+    volume: activeVolume,
+    pages: chapterPages,
+    baseConfig: chapterReaderConfigResolved,
+    currentUserId,
+    editHref: canEditChapter ? editChapterHref : undefined,
+    chapterOptions,
+    currentChapterValue,
+    onNavigateChapter: (href: string) => navigate(href),
+    backHref: `/projeto/${encodeURIComponent(project.id)}`,
+    chromeMode: (shouldRenderMangaSiteHeader ? "default" : "cinema") as const,
+    preferences: imageReaderPreferences,
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {isImageReader ? (
         <div
-          data-testid="project-reading-images-layout"
+          data-testid={shouldRenderMangaSiteHeader ? "project-reading-first-fold" : undefined}
           className={cn(
             "flex flex-col",
-            isVerticalImageReaderLayout ? "min-h-screen" : "min-h-0 flex-1",
+            shouldRenderMangaSiteHeader ? "project-reading-first-fold min-h-screen" : "",
           )}
         >
+          {shouldRenderMangaSiteHeader ? (
+            <>
+              <Header variant={mangaSiteHeaderVariant} />
+              {mangaSiteHeaderVariant === "fixed" ? (
+                <div
+                  data-testid="project-reading-site-header-offset"
+                  className={FIXED_READER_HEADER_OFFSET_CLASS_NAME}
+                />
+              ) : null}
+            </>
+          ) : null}
+          <div
+            data-testid="project-reading-images-layout"
+            className={cn(
+              "flex flex-col",
+              shouldRenderMangaSiteHeader
+                ? "min-h-0 flex-1"
+                : shouldUseNaturalImageReaderFlow
+                  ? "min-h-screen"
+                  : "min-h-0 flex-1",
+            )}
+          >
           <PublicProjectReader
             projectTitle={project.title}
             projectType={project.type || (isLightNovel ? "Light Novel" : "Mangá")}
@@ -653,8 +712,10 @@ const ProjectReading = () => {
             currentChapterValue={currentChapterValue}
             onNavigateChapter={(href) => navigate(href)}
             backHref={`/projeto/${encodeURIComponent(project.id)}`}
-            chromeMode="cinema"
+            chromeMode={shouldRenderMangaSiteHeader ? "default" : "cinema"}
+            preferences={imageReaderPreferences}
           />
+        </div>
         </div>
       ) : (
         <main

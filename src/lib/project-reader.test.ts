@@ -56,6 +56,7 @@ describe("normalizeProjectReaderConfig", () => {
       progressStyle: "default",
       progressPosition: "bottom",
       firstPageSingle: true,
+      siteHeaderVariant: "static",
     });
 
     expect(normalizeProjectReaderConfig({}, { projectType: "webtoon" })).toMatchObject({
@@ -66,6 +67,7 @@ describe("normalizeProjectReaderConfig", () => {
       progressStyle: "default",
       progressPosition: "bottom",
       firstPageSingle: false,
+      siteHeaderVariant: "fixed",
     });
   });
 

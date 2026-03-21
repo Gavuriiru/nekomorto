@@ -30,6 +30,7 @@ export type ProjectReaderConfig = {
   progressStyle?: "default" | "hidden";
   progressPosition?: "bottom" | "left" | "right";
   firstPageSingle?: boolean;
+  siteHeaderVariant?: "static" | "fixed";
   previewLimit?: number | null;
   purchaseUrl?: string;
   purchasePrice?: string;

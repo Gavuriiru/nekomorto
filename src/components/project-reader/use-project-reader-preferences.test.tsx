@@ -35,11 +35,15 @@ const HookHarness = ({
       <div data-testid="loaded">{String(isLoaded)}</div>
       <div data-testid="layout">{String(resolvedConfig.layout || "")}</div>
       <div data-testid="progress-style">{String(resolvedConfig.progressStyle || "")}</div>
+      <div data-testid="site-header-variant">{String(resolvedConfig.siteHeaderVariant || "")}</div>
       <button type="button" onClick={() => void updateConfig({ layout: "double" })}>
         set-double
       </button>
       <button type="button" onClick={() => void updateConfig({ layout: "scroll-horizontal" })}>
         set-horizontal
+      </button>
+      <button type="button" onClick={() => void updateConfig({ siteHeaderVariant: "fixed" })}>
+        set-fixed-header
       </button>
     </div>
   );
@@ -78,6 +82,12 @@ describe("useProjectReaderPreferences", () => {
     await waitFor(() => expect(screen.getByTestId("loaded")).toHaveTextContent("true"));
     expect(screen.getByTestId("layout")).toHaveTextContent("double");
     expect(screen.getByTestId("progress-style")).toHaveTextContent("default");
+    expect(screen.getByTestId("site-header-variant")).toHaveTextContent("static");
+
+    fireEvent.click(screen.getByRole("button", { name: "set-fixed-header" }));
+    await waitFor(() =>
+      expect(screen.getByTestId("site-header-variant")).toHaveTextContent("fixed"),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "set-horizontal" }));
 
@@ -88,6 +98,7 @@ describe("useProjectReaderPreferences", () => {
     const storedValue = JSON.parse(String(window.localStorage.getItem(STORAGE_KEY) || "{}"));
     expect(storedValue.reader.projectTypes.manga.layout).toBe("scroll-horizontal");
     expect(storedValue.reader.projectTypes.manga.progressStyle).toBe("default");
+    expect(storedValue.reader.projectTypes.manga.siteHeaderVariant).toBe("fixed");
 
     rerender(
       <HookHarness projectType="manga" baseConfig={{ layout: "single", progressStyle: "glow" }} />,
@@ -95,6 +106,7 @@ describe("useProjectReaderPreferences", () => {
 
     expect(screen.getByTestId("layout")).toHaveTextContent("scroll-horizontal");
     expect(screen.getByTestId("progress-style")).toHaveTextContent("default");
+    expect(screen.getByTestId("site-header-variant")).toHaveTextContent("fixed");
   });
 
   it("usa /api/me/preferences para usuarios autenticados", async () => {
@@ -144,6 +156,7 @@ describe("useProjectReaderPreferences", () => {
 
     await waitFor(() => expect(screen.getByTestId("loaded")).toHaveTextContent("true"));
     expect(screen.getByTestId("layout")).toHaveTextContent("scroll-horizontal");
+    expect(screen.getByTestId("site-header-variant")).toHaveTextContent("fixed");
 
     fireEvent.click(screen.getByRole("button", { name: "set-double" }));
 

@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation, useNavigationType } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import PublicProjectReader from "@/components/project-reader/PublicProjectReader";
 
 const useProjectReaderPreferencesMock = vi.hoisted(() => vi.fn());
+const updateConfigMock = vi.hoisted(() => vi.fn());
 const PROGRESS_OVERLAY_TRANSITION_MS = 180;
 
 vi.mock("@/components/project-reader/use-project-reader-preferences", () => ({
@@ -34,6 +35,7 @@ const baseProps = {
 };
 
 const setReaderConfig = (config: Record<string, unknown>) => {
+  updateConfigMock.mockReset();
   useProjectReaderPreferencesMock.mockReturnValue({
     isLoaded: true,
     resolvedConfig: {
@@ -44,9 +46,10 @@ const setReaderConfig = (config: Record<string, unknown>) => {
       progressStyle: "default",
       progressPosition: "bottom",
       firstPageSingle: true,
+      siteHeaderVariant: "static",
       ...config,
     },
-    updateConfig: vi.fn(),
+    updateConfig: updateConfigMock,
   });
 };
 
@@ -85,15 +88,37 @@ const setVisualViewport = ({
   return viewport;
 };
 
+const ReaderLocationProbe = () => {
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const preserveScroll =
+    typeof location.state === "object" && location.state !== null
+      ? String((location.state as { preserveScroll?: boolean }).preserveScroll === true)
+      : "false";
+
+  return (
+    <>
+      <div data-testid="reader-location-search">{location.search}</div>
+      <div data-testid="reader-location-hash">{location.hash}</div>
+      <div data-testid="reader-location-action">{navigationType}</div>
+      <div data-testid="reader-location-preserve-scroll">{preserveScroll}</div>
+    </>
+  );
+};
+
 const renderReader = (
   config: Record<string, unknown>,
   props: Partial<Parameters<typeof PublicProjectReader>[0]> = {},
+  options: {
+    initialEntries?: string[];
+  } = {},
 ) => {
   setReaderConfig(config);
 
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={options.initialEntries}>
       <PublicProjectReader {...baseProps} {...props} />
+      <ReaderLocationProbe />
     </MemoryRouter>,
   );
 };
@@ -130,6 +155,56 @@ const mockElementRect = (
         toJSON: () => ({}),
       }) as DOMRect,
   );
+
+const mockRectsByTestId = (
+  rects: Record<
+    string,
+    {
+      top: number;
+      bottom: number;
+      left?: number;
+      right?: number;
+      width?: number;
+      height?: number;
+    }
+  >,
+) =>
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    const testId = this.getAttribute("data-testid");
+    const rect = testId ? rects[testId] : undefined;
+    if (!rect) {
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        width: 0,
+        height: 0,
+        toJSON: () => ({}),
+      } as DOMRect;
+    }
+
+    const left = rect.left ?? 0;
+    const right = rect.right ?? left + (rect.width ?? 0);
+    const width = rect.width ?? Math.max(right - left, 0);
+    const height = rect.height ?? Math.max(rect.bottom - rect.top, 0);
+
+    return {
+      x: left,
+      y: rect.top,
+      top: rect.top,
+      bottom: rect.bottom,
+      left,
+      right,
+      width,
+      height,
+      toJSON: () => ({}),
+    } as DOMRect;
+  });
 
 const setElementSize = (
   element: Element,
@@ -215,6 +290,16 @@ describe("PublicProjectReader", () => {
       writable: true,
       value: 900,
     });
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+    Object.defineProperty(window, "scrollTo", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(),
+    });
     Object.defineProperty(window, "visualViewport", {
       configurable: true,
       writable: true,
@@ -276,11 +361,13 @@ describe("PublicProjectReader", () => {
     expect(screen.getByTestId("reader-page-surface-1")).toHaveClass("justify-end");
   });
 
-  it("keeps a blank virtual spread page anchored to the seam", () => {
+  it("centers the isolated cover slot in double-page mode", () => {
     renderReader({ layout: "double", imageFit: "both", firstPageSingle: true });
 
-    expect(screen.getByTestId("reader-spread-blank")).toBeInTheDocument();
-    expect(screen.getByTestId("reader-page-surface-0")).toHaveClass("justify-start");
+    const coverPage = screen.getByTestId("reader-page-0");
+
+    expect(screen.queryByTestId("reader-spread-blank")).not.toBeInTheDocument();
+    expect(coverPage.parentElement).toHaveClass("justify-center");
   });
 
   it.each([
@@ -498,6 +585,304 @@ describe("PublicProjectReader", () => {
       expect(shell.style.minHeight).toBe("640px");
       expect(shell.style.height).toBe("640px");
       expect(stage.style.height).toBe("640px");
+    });
+  });
+
+  it("keeps the default-mode stage tied to the visible viewport even with top chrome above it", async () => {
+    setVisualViewport({ height: 640 });
+    renderReader({ imageFit: "both" }, { chromeMode: "default" });
+
+    const shell = screen.getByTestId("project-reading-full-bleed-shell");
+    const infoBar = screen.getByTestId("project-reading-info-bar");
+    const stage = screen.getByTestId("project-reading-stage");
+    const infoBarWrapper = infoBar.parentElement as HTMLElement;
+
+    mockElementRect(shell, { top: 120, bottom: 856 });
+    mockElementRect(infoBarWrapper, { top: 120, bottom: 200 });
+    mockElementRect(stage, { top: 216, bottom: 856 });
+
+    fireEvent(window, new Event("resize"));
+
+    await waitFor(() => {
+      expect(stage.style.minHeight).toBe("640px");
+      expect(stage.style.height).toBe("640px");
+      expect(shell.style.minHeight).toBe("736px");
+      expect(shell.style.height).toBe("736px");
+    });
+  });
+
+  it("positions a direct load on the stage instead of leaving the top chrome in view", async () => {
+    setVisualViewport({ height: 640 });
+    const rectSpy = mockRectsByTestId({
+      "project-reading-stage": { top: 260, bottom: 900, width: 1200, height: 640 },
+      "reader-page-0": { top: 260, bottom: 900, left: 120, right: 1080, width: 960, height: 640 },
+    });
+
+    renderReader({ imageFit: "both" });
+
+    await waitFor(() => {
+      expect(window.scrollTo).toHaveBeenCalledWith({ top: 260, behavior: "auto" });
+    });
+
+    rectSpy.mockRestore();
+  });
+
+  it("uses ?page to center the requested page inside the horizontal strip on load", async () => {
+    setVisualViewport({ width: 1280, height: 640 });
+    const rectSpy = mockRectsByTestId({
+      "project-reading-stage": { top: 240, bottom: 880, width: 1200, height: 640 },
+      "project-reading-horizontal-scroll": {
+        top: 240,
+        bottom: 880,
+        left: 0,
+        right: 800,
+        width: 800,
+        height: 640,
+      },
+      "reader-page-0": { top: 240, bottom: 880, left: 0, right: 600, width: 600, height: 640 },
+      "reader-page-1": {
+        top: 240,
+        bottom: 880,
+        left: 600,
+        right: 1200,
+        width: 600,
+        height: 640,
+      },
+    });
+
+    renderReader(
+      { layout: "scroll-horizontal", imageFit: "both" },
+      {},
+      { initialEntries: ["/projeto/projeto-teste/leitura/1?page=2"] },
+    );
+
+    const horizontalReader = await screen.findByTestId("project-reading-horizontal-scroll");
+    const externalScrollbar = screen.getByTestId("project-reading-horizontal-scrollbar");
+    setElementSize(horizontalReader, { clientWidth: 800, scrollWidth: 1400 });
+    setElementSize(externalScrollbar, { clientWidth: 800, scrollWidth: 1400 });
+
+    fireEvent(window, new Event("resize"));
+
+    await waitFor(() => {
+      expect(window.scrollTo).toHaveBeenCalledWith({ top: 240, behavior: "auto" });
+      expect(horizontalReader.scrollLeft).toBe(500);
+      expect(externalScrollbar.scrollLeft).toBe(500);
+    });
+
+    rectSpy.mockRestore();
+  });
+
+  it("uses ?page to align the requested page inside the vertical strip on load", async () => {
+    setVisualViewport({ height: 640 });
+    const rectSpy = mockRectsByTestId({
+      "project-reading-stage": { top: 220, bottom: 860, width: 1200, height: 640 },
+      "reader-page-0": { top: 220, bottom: 860, width: 1200, height: 640 },
+      "reader-page-1": { top: 920, bottom: 1560, width: 1200, height: 640 },
+    });
+
+    renderReader(
+      { layout: "scroll-vertical", imageFit: "both" },
+      {},
+      { initialEntries: ["/projeto/projeto-teste/leitura/1?page=2"] },
+    );
+
+    await waitFor(() => {
+      expect(window.scrollTo).toHaveBeenCalledWith({ top: 920, behavior: "auto" });
+    });
+
+    rectSpy.mockRestore();
+  });
+
+  it("does not reapply the initial stage positioning after normal resize recalculations", async () => {
+    setVisualViewport({ height: 640 });
+    const rectSpy = mockRectsByTestId({
+      "project-reading-stage": { top: 260, bottom: 900, width: 1200, height: 640 },
+      "reader-page-0": { top: 260, bottom: 900, width: 1200, height: 640 },
+    });
+
+    renderReader({ imageFit: "both" });
+
+    await waitFor(() => {
+      expect(window.scrollTo).toHaveBeenCalledWith({ top: 260, behavior: "auto" });
+    });
+
+    vi.mocked(window.scrollTo).mockClear();
+    fireEvent(window, new Event("resize"));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(window.scrollTo).not.toHaveBeenCalled();
+    rectSpy.mockRestore();
+  });
+
+  it("writes ?page=1 to the URL on direct load with replace navigation", async () => {
+    renderReader({ imageFit: "both" });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+      expect(screen.getByTestId("reader-location-action")).toHaveTextContent("REPLACE");
+      expect(screen.getByTestId("reader-location-preserve-scroll")).toHaveTextContent("true");
+    });
+  });
+
+  it("updates ?page in paginated mode as the active page changes", async () => {
+    renderReader({ imageFit: "both" });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+    });
+
+    goToNextPaginatedPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+      expect(screen.getByTestId("reader-location-action")).toHaveTextContent("REPLACE");
+      expect(screen.getByTestId("reader-location-preserve-scroll")).toHaveTextContent("true");
+    });
+  });
+
+  it("updates ?page in the vertical strip as the most visible page changes", async () => {
+    setVisualViewport({ height: 640 });
+    const rects = {
+      "project-reading-stage": { top: 220, bottom: 860, width: 1200, height: 640 },
+      "reader-page-0": { top: 220, bottom: 860, width: 1200, height: 640 },
+      "reader-page-1": { top: 920, bottom: 1560, width: 1200, height: 640 },
+    };
+    const rectSpy = mockRectsByTestId(rects);
+
+    renderReader({ layout: "scroll-vertical", imageFit: "both" });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+    });
+    vi.mocked(window.scrollTo).mockClear();
+
+    rects["reader-page-0"] = { top: -680, bottom: -40, width: 1200, height: 640 };
+    rects["reader-page-1"] = { top: 24, bottom: 664, width: 1200, height: 640 };
+    fireEvent.scroll(window);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+      expect(screen.getByTestId("reader-location-action")).toHaveTextContent("REPLACE");
+      expect(screen.getByTestId("reader-location-preserve-scroll")).toHaveTextContent("true");
+    });
+    expect(window.scrollTo).not.toHaveBeenCalled();
+
+    rectSpy.mockRestore();
+  });
+
+  it("updates ?page in the horizontal strip as the active strip page changes", async () => {
+    setVisualViewport({ width: 1280, height: 640 });
+    const rects = {
+      "project-reading-stage": { top: 240, bottom: 880, width: 1200, height: 640 },
+      "project-reading-horizontal-scroll": {
+        top: 240,
+        bottom: 880,
+        left: 0,
+        right: 800,
+        width: 800,
+        height: 640,
+      },
+      "reader-page-0": { top: 240, bottom: 880, left: 0, right: 600, width: 600, height: 640 },
+      "reader-page-1": {
+        top: 240,
+        bottom: 880,
+        left: 600,
+        right: 1200,
+        width: 600,
+        height: 640,
+      },
+    };
+    const rectSpy = mockRectsByTestId(rects);
+
+    renderReader({ layout: "scroll-horizontal", imageFit: "both" });
+
+    const horizontalReader = await screen.findByTestId("project-reading-horizontal-scroll");
+    const externalScrollbar = screen.getByTestId("project-reading-horizontal-scrollbar");
+    setElementSize(horizontalReader, { clientWidth: 800, scrollWidth: 1400 });
+    setElementSize(externalScrollbar, { clientWidth: 800, scrollWidth: 1400 });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+    });
+    vi.mocked(window.scrollTo).mockClear();
+
+    rects["reader-page-0"] = {
+      top: 240,
+      bottom: 880,
+      left: -520,
+      right: 80,
+      width: 600,
+      height: 640,
+    };
+    rects["reader-page-1"] = {
+      top: 240,
+      bottom: 880,
+      left: 80,
+      right: 680,
+      width: 600,
+      height: 640,
+    };
+    horizontalReader.scrollLeft = 520;
+    fireEvent.scroll(horizontalReader);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+      expect(screen.getByTestId("reader-location-action")).toHaveTextContent("REPLACE");
+      expect(screen.getByTestId("reader-location-preserve-scroll")).toHaveTextContent("true");
+    });
+    expect(horizontalReader.scrollLeft).toBe(520);
+    expect(externalScrollbar.scrollLeft).toBe(520);
+    expect(window.scrollTo).not.toHaveBeenCalled();
+
+    rectSpy.mockRestore();
+  });
+
+  it("keeps the horizontal stage at full visible height while the external scrollbar sits outside the page bounds", async () => {
+    setVisualViewport({ height: 640 });
+    renderReader({ layout: "scroll-horizontal", imageFit: "both" }, { chromeMode: "default" });
+
+    const shell = screen.getByTestId("project-reading-full-bleed-shell");
+    const infoBar = screen.getByTestId("project-reading-info-bar");
+    const stage = screen.getByTestId("project-reading-stage");
+    const scrollbarHost = screen.getByTestId("project-reading-horizontal-scrollbar-host");
+    const infoBarWrapper = infoBar.parentElement as HTMLElement;
+
+    mockElementRect(shell, { top: 120, bottom: 904 });
+    mockElementRect(infoBarWrapper, { top: 120, bottom: 200 });
+    mockElementRect(stage, { top: 216, bottom: 856 });
+    mockElementRect(scrollbarHost, { top: 856, bottom: 904, height: 48 });
+
+    fireEvent(window, new Event("resize"));
+
+    await waitFor(() => {
+      expect(stage.style.minHeight).toBe("640px");
+      expect(stage.style.height).toBe("640px");
+      expect(shell.style.minHeight).toBe("736px");
+      expect(shell.style.height).toBe("736px");
+    });
+
+    expect(scrollbarHost).toHaveClass("absolute", "top-full", "overflow-visible");
+  });
+
+  it("preserves existing query params and hash while syncing ?page", async () => {
+    renderReader(
+      { imageFit: "both" },
+      {},
+      {
+        initialEntries: ["/projeto/projeto-teste/leitura/1?volume=2&foo=bar#comment-42"],
+      },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reader-location-search")).toHaveTextContent(
+        "?volume=2&foo=bar&page=1",
+      );
+      expect(screen.getByTestId("reader-location-hash")).toHaveTextContent("#comment-42");
+      expect(screen.getByTestId("reader-location-action")).toHaveTextContent("REPLACE");
+      expect(screen.getByTestId("reader-location-preserve-scroll")).toHaveTextContent("true");
     });
   });
 
@@ -974,6 +1359,38 @@ describe("PublicProjectReader", () => {
     const sidebar = await screen.findByTestId("project-reader-sidebar");
     expect(sidebar.tagName).toBe("ASIDE");
     expect(screen.getByText("Menu do leitor")).toBeInTheDocument();
+  });
+
+  it("shows the site header behavior options in the reader menu", async () => {
+    renderReader({ imageFit: "both", siteHeaderVariant: "static" });
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+    const trigger = await screen.findByRole("combobox", {
+      name: "Selecionar comportamento do header do site",
+    });
+
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
+
+    expect(await screen.findByRole("option", { name: "Acompanha a página" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: "Padrão do site (fixo no topo)" }),
+    ).toBeInTheDocument();
+  });
+
+  it("updates the saved site header behavior from the reader menu", async () => {
+    renderReader({ imageFit: "both", siteHeaderVariant: "static" });
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+    const trigger = await screen.findByRole("combobox", {
+      name: "Selecionar comportamento do header do site",
+    });
+
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("option", { name: "Padrão do site (fixo no topo)" }));
+
+    expect(updateConfigMock).toHaveBeenCalledWith({ siteHeaderVariant: "fixed" });
   });
 
   it("shows only the default and hidden progress options in the reader menu", async () => {

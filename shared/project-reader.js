@@ -46,6 +46,11 @@ export const PROJECT_READER_PROGRESS_POSITIONS = Object.freeze({
   RIGHT: "right",
 });
 
+export const PROJECT_READER_SITE_HEADER_VARIANTS = Object.freeze({
+  FIXED: "fixed",
+  STATIC: "static",
+});
+
 export const PROJECT_READER_VIEW_MODES = Object.freeze({
   PAGE: "page",
   SCROLL: "scroll",
@@ -223,6 +228,17 @@ const normalizeReaderProgressPosition = (value) => {
   return "";
 };
 
+const normalizeReaderSiteHeaderVariant = (value) => {
+  const normalized = normalizeText(value).toLowerCase();
+  if (
+    normalized === PROJECT_READER_SITE_HEADER_VARIANTS.FIXED ||
+    normalized === PROJECT_READER_SITE_HEADER_VARIANTS.STATIC
+  ) {
+    return normalized;
+  }
+  return "";
+};
+
 const resolveLegacyReaderLayout = ({ rawLayout, rawViewMode, rawAllowSpread, presetLayout }) => {
   if (rawLayout) {
     return rawLayout;
@@ -279,6 +295,7 @@ export const getProjectReaderPresetByType = (projectType) => {
       progressStyle: PROJECT_READER_PROGRESS_STYLES.DEFAULT,
       progressPosition: PROJECT_READER_PROGRESS_POSITIONS.BOTTOM,
       firstPageSingle: false,
+      siteHeaderVariant: PROJECT_READER_SITE_HEADER_VARIANTS.FIXED,
       previewLimit: null,
       purchaseUrl: "",
       purchasePrice: "",
@@ -293,6 +310,7 @@ export const getProjectReaderPresetByType = (projectType) => {
       progressStyle: PROJECT_READER_PROGRESS_STYLES.DEFAULT,
       progressPosition: PROJECT_READER_PROGRESS_POSITIONS.BOTTOM,
       firstPageSingle: true,
+      siteHeaderVariant: PROJECT_READER_SITE_HEADER_VARIANTS.STATIC,
       previewLimit: null,
       purchaseUrl: "",
       purchasePrice: "",
@@ -306,6 +324,7 @@ export const getProjectReaderPresetByType = (projectType) => {
     progressStyle: PROJECT_READER_PROGRESS_STYLES.DEFAULT,
     progressPosition: PROJECT_READER_PROGRESS_POSITIONS.BOTTOM,
     firstPageSingle: true,
+    siteHeaderVariant: PROJECT_READER_SITE_HEADER_VARIANTS.FIXED,
     previewLimit: null,
     purchaseUrl: "",
     purchasePrice: "",
@@ -321,6 +340,7 @@ export const normalizeProjectReaderConfig = (value, { projectType } = {}) => {
   const background = normalizeReaderBackground(raw.background);
   const progressStyle = normalizeReaderProgressStyle(raw.progressStyle);
   const progressPosition = normalizeReaderProgressPosition(raw.progressPosition);
+  const siteHeaderVariant = normalizeReaderSiteHeaderVariant(raw.siteHeaderVariant);
   const viewMode = normalizeText(raw.viewMode).toLowerCase();
   const themePreset = normalizeText(raw.themePreset).toLowerCase();
   const previewLimit = toFiniteNumber(raw.previewLimit);
@@ -352,6 +372,7 @@ export const normalizeProjectReaderConfig = (value, { projectType } = {}) => {
     progressPosition: progressPosition || preset.progressPosition,
     firstPageSingle:
       typeof raw.firstPageSingle === "boolean" ? raw.firstPageSingle : preset.firstPageSingle,
+    siteHeaderVariant: siteHeaderVariant || preset.siteHeaderVariant,
     previewLimit:
       previewLimit !== null && previewLimit > 0 ? Math.floor(previewLimit) : preset.previewLimit,
     purchaseUrl: normalizeText(raw.purchaseUrl) || preset.purchaseUrl,

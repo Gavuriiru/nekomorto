@@ -12,6 +12,18 @@ import {
 
 const READER_PREFERENCES_STORAGE_KEY = "public.reader.preferences";
 
+export type ProjectReaderPreferencesState = {
+  isLoaded: boolean;
+  resolvedConfig: Record<string, unknown> & {
+    siteHeaderVariant?: "static" | "fixed";
+  };
+  updateConfig: (
+    nextConfig:
+      | Record<string, unknown>
+      | ((current: Record<string, unknown>) => Record<string, unknown>),
+  ) => Promise<Record<string, unknown>>;
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
@@ -55,6 +67,7 @@ const toStoredReaderPreference = (value: Record<string, unknown>, projectType: s
     progressStyle: normalized.progressStyle,
     progressPosition: normalized.progressPosition,
     firstPageSingle: normalized.firstPageSingle,
+    siteHeaderVariant: normalized.siteHeaderVariant,
   };
 };
 
@@ -236,9 +249,11 @@ export const useProjectReaderPreferences = ({
     [apiBase, currentUserId, normalizedBaseConfig, projectType, resolvedConfig, typeKey],
   );
 
-  return {
+  const value: ProjectReaderPreferencesState = {
     isLoaded,
     resolvedConfig,
     updateConfig,
   };
+
+  return value;
 };

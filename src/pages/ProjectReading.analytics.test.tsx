@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation, useNavigationType } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import ProjectReading from "@/pages/ProjectReading";
@@ -35,6 +35,12 @@ vi.mock("@/components/CommentsSection", () => ({
   default: () => null,
 }));
 
+vi.mock("@/components/Header", () => ({
+  default: ({ variant = "fixed" }: { variant?: "fixed" | "static" }) => (
+    <div data-testid="public-header" data-variant={variant} />
+  ),
+}));
+
 vi.mock("@/components/DiscordInviteCard", () => ({
   default: () => <div data-testid="discord-invite-card" />,
 }));
@@ -53,6 +59,69 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     status,
     json: async () => payload,
   }) as Response;
+
+const mockRectsByTestId = (
+  rects: Record<
+    string,
+    {
+      top: number;
+      bottom: number;
+      left?: number;
+      right?: number;
+      width?: number;
+      height?: number;
+    }
+  >,
+) =>
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    const testId = this.getAttribute("data-testid");
+    const rect = testId ? rects[testId] : undefined;
+    if (!rect) {
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        width: 0,
+        height: 0,
+        toJSON: () => ({}),
+      } as DOMRect;
+    }
+
+    const left = rect.left ?? 0;
+    const right = rect.right ?? left + (rect.width ?? 0);
+    const width = rect.width ?? Math.max(right - left, 0);
+    const height = rect.height ?? Math.max(rect.bottom - rect.top, 0);
+
+    return {
+      x: left,
+      y: rect.top,
+      top: rect.top,
+      bottom: rect.bottom,
+      left,
+      right,
+      width,
+      height,
+      toJSON: () => ({}),
+    } as DOMRect;
+  });
+
+const ProjectReadingLocationProbe = () => {
+  const location = useLocation();
+  const navigationType = useNavigationType();
+
+  return (
+    <>
+      <div data-testid="project-reading-location-search">{location.search}</div>
+      <div data-testid="project-reading-location-hash">{location.hash}</div>
+      <div data-testid="project-reading-location-action">{navigationType}</div>
+    </>
+  );
+};
 
 const createProjectFixture = (episodeDownloads?: Array<Record<string, unknown>>) => ({
   id: "projeto-teste",
@@ -203,20 +272,23 @@ const setupProjectReadingApiMock = (
       }
     : null;
   apiFetchMock.mockImplementation(
-    async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+    async (_apiBase: string, endpoint: string, requestOptions?: RequestInit) => {
       if (
         endpoint === "/api/public/projects/projeto-teste" &&
-        (!options?.method || options.method === "GET")
+        (!requestOptions?.method || requestOptions.method === "GET")
       ) {
         return mockJsonResponse(true, { project });
       }
-      if (endpoint === chapterEndpoint && (!options?.method || options.method === "GET")) {
+      if (
+        endpoint === chapterEndpoint &&
+        (!requestOptions?.method || requestOptions.method === "GET")
+      ) {
         return mockJsonResponse(true, {
           chapter: chapterResponse,
           readerConfig: options?.readerConfig || undefined,
         });
       }
-      if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+      if (endpoint === "/api/public/analytics/event" && requestOptions?.method === "POST") {
         return mockJsonResponse(true, { ok: true });
       }
       return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -229,6 +301,26 @@ describe("ProjectReading analytics", () => {
     HTMLElement.prototype.scrollIntoView = vi.fn();
     apiFetchMock.mockReset();
     window.localStorage.clear();
+    Object.defineProperty(window, "scrollTo", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(),
+    });
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 1280,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      writable: true,
+      value: 640,
+    });
     delete (
       window as Window & {
         __BOOTSTRAP_PUBLIC__?: unknown;
@@ -531,26 +623,39 @@ describe("ProjectReading analytics", () => {
     );
 
     await screen.findByTestId("project-reading-stage");
+    const firstFold = screen.getByTestId("project-reading-first-fold");
     const imageLayout = screen.getByTestId("project-reading-images-layout");
+    const publicHeader = screen.getByTestId("public-header");
     const readerShell = screen.getByTestId("project-reading-full-bleed-shell");
     const readerBar = screen.getByTestId("project-reading-reader-bar");
     const infoBar = screen.getByTestId("project-reading-info-bar");
     const commentsHandoff = screen.getByTestId("project-reading-comments-handoff");
     const commentsSentinel = screen.getByTestId("project-reading-comments-sentinel");
 
+    expect(firstFold).toHaveClass("project-reading-first-fold", "min-h-screen");
     expect(imageLayout).toHaveClass("flex", "min-h-0", "flex-1", "flex-col");
     expect(imageLayout).not.toHaveClass("pb-16");
     expect(imageLayout).not.toHaveClass("mx-auto");
     expect(imageLayout.style.maxWidth).toBe("");
+    expect(publicHeader).toHaveAttribute("data-variant", "static");
     expect(readerShell).toHaveClass("w-full");
     expect(readerBar).not.toHaveClass("mx-auto");
     expect(readerBar.style.maxWidth).toBe("");
-    expect(infoBar).toHaveAttribute("data-variant", "reader-cinema");
+    expect(infoBar).toHaveAttribute("data-variant", "reader-full-bleed");
     expect(within(infoBar).getByText("Resumo do capitulo")).toBeInTheDocument();
     expect(within(readerBar).getByRole("heading", { name: /Cap.*tulo 1/i })).toBeInTheDocument();
     expect(commentsHandoff.style.minHeight).toBe("5rem");
     expect(
-      imageLayout.compareDocumentPosition(commentsHandoff) & Node.DOCUMENT_POSITION_FOLLOWING,
+      publicHeader.compareDocumentPosition(infoBar) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      infoBar.compareDocumentPosition(screen.getByTestId("project-reading-stage")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(firstFold.contains(imageLayout)).toBe(true);
+    expect(firstFold.contains(commentsHandoff)).toBe(false);
+    expect(
+      firstFold.compareDocumentPosition(commentsHandoff) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
       commentsHandoff.compareDocumentPosition(commentsSentinel) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -618,6 +723,302 @@ describe("ProjectReading analytics", () => {
     fireEvent.click(chapterTrigger);
 
     expect(await screen.findByRole("option", { name: /Cap.*tulo 2/i })).toBeInTheDocument();
+  });
+
+  it("entra no palco ao abrir um capitulo por imagens sem hash na URL", async () => {
+    const rectSpy = mockRectsByTestId({
+      "project-reading-stage": { top: 280, bottom: 920, width: 1200, height: 640 },
+      "reader-page-0": { top: 280, bottom: 920, width: 1200, height: 640 },
+    });
+    const project = {
+      ...createProjectFixture([
+        {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1",
+          synopsis: "Resumo do capitulo",
+          hasPages: true,
+        },
+      ]),
+      type: "Manga",
+    };
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      chapterResponse: {
+        number: 1,
+        volume: 2,
+        title: "Capitulo 1",
+        synopsis: "Resumo do capitulo",
+        contentFormat: "images",
+        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pageCount: 1,
+        hasPages: true,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId("project-reading-stage");
+
+    await waitFor(() => {
+      expect(window.scrollTo).toHaveBeenCalledWith({ top: 280, behavior: "auto" });
+    });
+
+    rectSpy.mockRestore();
+  });
+
+  it("sincroniza ?page=1 na rota publica de leitura quando a URL nao traz pagina", async () => {
+    const project = {
+      ...createProjectFixture([
+        {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1",
+          synopsis: "Resumo do capitulo",
+          hasPages: true,
+        },
+      ]),
+      type: "Manga",
+    };
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      chapterResponse: {
+        number: 1,
+        volume: 2,
+        title: "Capitulo 1",
+        synopsis: "Resumo do capitulo",
+        contentFormat: "images",
+        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pageCount: 1,
+        hasPages: true,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+        <ProjectReadingLocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId("project-reading-stage");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("project-reading-location-search")).toHaveTextContent(
+        "?volume=2&page=1",
+      );
+      expect(screen.getByTestId("project-reading-location-action")).toHaveTextContent("REPLACE");
+    });
+  });
+
+  it("respeita ?page existente ao entrar na rota publica de leitura", async () => {
+    const project = {
+      ...createProjectFixture([
+        {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1",
+          synopsis: "Resumo do capitulo",
+          hasPages: true,
+        },
+        {
+          number: 2,
+          volume: 2,
+          title: "Capitulo 2",
+          synopsis: "Resumo do capitulo 2",
+          hasPages: true,
+        },
+      ]),
+      type: "Manga",
+    };
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      chapterResponse: {
+        number: 1,
+        volume: 2,
+        title: "Capitulo 1",
+        synopsis: "Resumo do capitulo",
+        contentFormat: "images",
+        pages: [
+          { position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" },
+          { position: 1, imageUrl: "/uploads/projects/projeto-teste/page-2.jpg" },
+        ],
+        pageCount: 2,
+        hasPages: true,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2&page=2"]}>
+        <ProjectReading />
+        <ProjectReadingLocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId("project-reading-stage");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("project-reading-location-search")).toHaveTextContent(
+        "?volume=2&page=2",
+      );
+    });
+    expect(screen.getByTestId("project-reading-location-action")).toHaveTextContent("POP");
+  });
+
+  it("preserva o fluxo de hash de comentario e nao forca retorno ao palco", async () => {
+    const rectSpy = mockRectsByTestId({
+      "project-reading-stage": { top: 280, bottom: 920, width: 1200, height: 640 },
+      "reader-page-0": { top: 280, bottom: 920, width: 1200, height: 640 },
+    });
+    const project = {
+      ...createProjectFixture([
+        {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1",
+          synopsis: "Resumo do capitulo",
+          hasPages: true,
+        },
+      ]),
+      type: "Manga",
+    };
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      chapterResponse: {
+        number: 1,
+        volume: 2,
+        title: "Capitulo 1",
+        synopsis: "Resumo do capitulo",
+        contentFormat: "images",
+        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pageCount: 1,
+        hasPages: true,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2#comment-42"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId("project-reading-stage");
+    expect(window.scrollTo).not.toHaveBeenCalled();
+
+    rectSpy.mockRestore();
+  });
+
+  it("preserva o hash de comentario enquanto sincroniza ?page na rota publica", async () => {
+    const project = {
+      ...createProjectFixture([
+        {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1",
+          synopsis: "Resumo do capitulo",
+          hasPages: true,
+        },
+      ]),
+      type: "Manga",
+    };
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      chapterResponse: {
+        number: 1,
+        volume: 2,
+        title: "Capitulo 1",
+        synopsis: "Resumo do capitulo",
+        contentFormat: "images",
+        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pageCount: 1,
+        hasPages: true,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2#comment-42"]}>
+        <ProjectReading />
+        <ProjectReadingLocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId("project-reading-stage");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("project-reading-location-search")).toHaveTextContent(
+        "?volume=2&page=1",
+      );
+      expect(screen.getByTestId("project-reading-location-hash")).toHaveTextContent("#comment-42");
+      expect(screen.getByTestId("project-reading-location-action")).toHaveTextContent("REPLACE");
+    });
+  });
+
+  it("aplica offset quando o header do manga reader usa o modo fixo do site", async () => {
+    window.localStorage.setItem(
+      "public.reader.preferences",
+      JSON.stringify({
+        reader: {
+          projectTypes: {
+            manga: {
+              siteHeaderVariant: "fixed",
+            },
+          },
+        },
+      }),
+    );
+
+    const project = {
+      ...createProjectFixture([
+        {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1",
+          synopsis: "Resumo do capitulo",
+          hasPages: true,
+        },
+      ]),
+      type: "Manga",
+    };
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      chapterResponse: {
+        number: 1,
+        volume: 2,
+        title: "Capitulo 1",
+        synopsis: "Resumo do capitulo",
+        contentFormat: "images",
+        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pageCount: 1,
+        hasPages: true,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    const publicHeader = await screen.findByTestId("public-header");
+    expect(publicHeader).toHaveAttribute("data-variant", "fixed");
+    expect(screen.getByTestId("project-reading-site-header-offset")).toHaveClass(
+      "h-20",
+      "md:h-24",
+    );
+    expect(screen.getByTestId("project-reading-info-bar")).toHaveAttribute(
+      "data-variant",
+      "reader-full-bleed",
+    );
   });
 
   it("keeps vertical image reader chapters in natural document flow so deferred comments stay after the stack", async () => {
