@@ -4,7 +4,99 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-const Select = SelectPrimitive.Root;
+type SelectProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>;
+
+let activeSelectId: string | null = null;
+const registeredSelectClosers = new Map<string, () => void>();
+
+const activateSelectInstance = (id: string) => {
+  if (activeSelectId === id) {
+    return;
+  }
+
+  const previousActiveId = activeSelectId;
+  activeSelectId = id;
+  if (previousActiveId) {
+    registeredSelectClosers.get(previousActiveId)?.();
+  }
+};
+
+const clearActiveSelectInstance = (id: string) => {
+  if (activeSelectId === id) {
+    activeSelectId = null;
+  }
+};
+
+const registerSelectInstance = (id: string, requestClose: () => void) => {
+  registeredSelectClosers.set(id, requestClose);
+  return () => {
+    registeredSelectClosers.delete(id);
+    clearActiveSelectInstance(id);
+  };
+};
+
+const Select = ({ open: openProp, defaultOpen = false, onOpenChange, children, ...props }: SelectProps) => {
+  const instanceId = React.useId();
+  const isControlled = openProp !== undefined;
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen);
+  const open = isControlled ? openProp : uncontrolledOpen;
+  const openRef = React.useRef(open);
+
+  const emitOpenChange = React.useCallback(
+    (nextOpen: boolean) => {
+      if (openRef.current === nextOpen) {
+        return;
+      }
+
+      if (!isControlled) {
+        setUncontrolledOpen(nextOpen);
+      }
+
+      onOpenChange?.(nextOpen);
+    },
+    [isControlled, onOpenChange],
+  );
+
+  const requestClose = React.useCallback(() => {
+    if (!openRef.current) {
+      return;
+    }
+
+    emitOpenChange(false);
+    clearActiveSelectInstance(instanceId);
+  }, [emitOpenChange, instanceId]);
+
+  React.useEffect(() => registerSelectInstance(instanceId, requestClose), [instanceId, requestClose]);
+
+  React.useEffect(() => {
+    openRef.current = open;
+    if (open) {
+      activateSelectInstance(instanceId);
+      return;
+    }
+
+    clearActiveSelectInstance(instanceId);
+  }, [instanceId, open]);
+
+  const handleOpenChange = React.useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) {
+        activateSelectInstance(instanceId);
+      } else {
+        clearActiveSelectInstance(instanceId);
+      }
+
+      emitOpenChange(nextOpen);
+    },
+    [emitOpenChange, instanceId],
+  );
+
+  return (
+    <SelectPrimitive.Root {...props} open={open} onOpenChange={handleOpenChange}>
+      {children}
+    </SelectPrimitive.Root>
+  );
+};
 
 const SelectGroup = SelectPrimitive.Group;
 

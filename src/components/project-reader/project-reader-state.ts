@@ -16,6 +16,7 @@ export type ReaderVisibilityMeasurement = {
 
 const getVisibleMeasurementSize = (measurement: ReaderVisibilityMeasurement, viewportSize: number) =>
   Math.max(0, Math.min(measurement.end, viewportSize) - Math.max(measurement.start, 0));
+const clampMeasurementRatio = (value: number) => Math.min(Math.max(value, 0), 1);
 
 export const isPaginatedReaderLayout = (layout: string) => layout === "single" || layout === "double";
 
@@ -206,6 +207,61 @@ export const pickMostVisiblePage = ({
   }
 
   return bestIndex;
+};
+
+export const interpolateContinuousPageRatio = ({
+  measurements,
+  viewportSize,
+  viewportAnchorOffsetPx,
+}: {
+  measurements: ReaderVisibilityMeasurement[];
+  viewportSize: number;
+  viewportAnchorOffsetPx?: number;
+}) => {
+  if (measurements.length === 0 || viewportSize <= 0) {
+    return 0;
+  }
+
+  const sortedMeasurements = [...measurements].sort((left, right) => left.index - right.index);
+  const lastIndex = sortedMeasurements[sortedMeasurements.length - 1]?.index || 0;
+  if (lastIndex <= 0) {
+    return 0;
+  }
+
+  const viewportCenter = clampMeasurementRatio(
+    (viewportAnchorOffsetPx ?? viewportSize / 2) / viewportSize,
+  ) * viewportSize;
+  const centeredMeasurements = sortedMeasurements.map((measurement) => ({
+    ...measurement,
+    center: (measurement.start + measurement.end) / 2,
+  }));
+
+  if (viewportCenter <= centeredMeasurements[0].center) {
+    return centeredMeasurements[0].index / lastIndex;
+  }
+
+  const lastMeasurement = centeredMeasurements[centeredMeasurements.length - 1];
+  if (viewportCenter >= lastMeasurement.center) {
+    return lastMeasurement.index / lastIndex;
+  }
+
+  for (let index = 1; index < centeredMeasurements.length; index += 1) {
+    const previousMeasurement = centeredMeasurements[index - 1];
+    const nextMeasurement = centeredMeasurements[index];
+    if (viewportCenter > nextMeasurement.center) {
+      continue;
+    }
+
+    const centerDistance = nextMeasurement.center - previousMeasurement.center;
+    const interpolationRatio =
+      centerDistance <= 0 ? 0 : (viewportCenter - previousMeasurement.center) / centerDistance;
+    const interpolatedIndex =
+      previousMeasurement.index +
+      (nextMeasurement.index - previousMeasurement.index) * clampMeasurementRatio(interpolationRatio);
+    return clampMeasurementRatio(interpolatedIndex / lastIndex);
+  }
+
+  return clampMeasurementRatio(lastMeasurement.index / lastIndex);
 };
 
 export const buildReaderPageItems = ({

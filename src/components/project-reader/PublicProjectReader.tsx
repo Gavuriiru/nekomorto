@@ -28,6 +28,7 @@ import {
   findSlotIndexForPage,
   formatVisiblePageLabel,
   getReaderVisualState,
+  interpolateContinuousPageRatio,
   isPaginatedReaderLayout,
   pickMostVisiblePage,
   resolvePaginatedPointerAction,
@@ -64,6 +65,7 @@ type ReaderChapterOption = {
 type ReaderChromeMode = "default" | "cinema";
 type ReaderProgressStyle = "default" | "hidden";
 type ReaderProgressPosition = "bottom" | "left" | "right";
+type ContinuousProgressDirection = "forward" | "backward";
 
 type PublicProjectReaderBaseProps = {
   projectTitle: string;
@@ -99,8 +101,6 @@ const SIDEBAR_SELECT_TRIGGER_CLASS_NAME =
   "h-10 rounded-2xl border-border/55 bg-background/70 text-left shadow-sm";
 const SIDEBAR_ACTION_BUTTON_CLASS_NAME =
   "h-10 w-full justify-start rounded-2xl border-border/55 bg-background/70 px-4 text-left shadow-sm";
-const SIDEBAR_CONTEXT_CHIP_CLASS_NAME =
-  "inline-flex items-center rounded-full border border-border/55 bg-background/70 px-2.5 py-0.5 text-[11px] font-medium text-foreground/80";
 const PROGRESS_EDGE_OFFSET_PX = 12;
 const HIDDEN_PROGRESS_ZONE_SIZE_PX = 48;
 const HIDDEN_PROGRESS_HIDE_DELAY_MS = 180;
@@ -110,13 +110,16 @@ const PROGRESS_BOTTOM_OVERLAY_HEIGHT_PX = 80;
 const PROGRESS_VERTICAL_OVERLAY_WIDTH_PX = 88;
 const PROGRESS_CHIP_MIN_WIDTH_PX = 40;
 const PROGRESS_CHIP_MIN_HEIGHT_PX = 28;
+const CONTINUOUS_PROGRESS_FORWARD_VIEWPORT_ANCHOR_RATIO = 0.7;
+const CONTINUOUS_PROGRESS_BACKWARD_VIEWPORT_ANCHOR_RATIO = 0.3;
 const HORIZONTAL_PAGE_URL_SYNC_SETTLE_MS = 220;
 const MENU_TRIGGER_INITIAL_VISIBLE_MS = 5000;
 const MENU_TRIGGER_HOTSPOT_SIZE_PX = 72;
-const MENU_PANEL_VIEWPORT_INSET_PX = 84;
+const MENU_PANEL_BOTTOM_INSET_PX = 16;
 const MENU_OVERLAY_TRANSITION_MS = 220;
 const MENU_TRIGGER_ENTER_TRANSITION_MS = 300;
 const MENU_TRIGGER_EXIT_TRANSITION_MS = 320;
+const MENU_TRIGGER_HOST_TOP_OFFSET_PX = 12;
 
 const getVisibleViewportMetrics = () => {
   if (typeof window === "undefined") {
@@ -312,20 +315,17 @@ const getSafeCenteredProgressPlacement = ({
   position,
   ratio,
   edgeInsetPx,
+  containerLength,
 }: {
   position: ReaderProgressPosition;
   ratio: number;
   edgeInsetPx: number;
+  containerLength: number;
 }): {
   className: string;
   style: CSSProperties;
 } => {
   const clampedRatio = clampProgressRatio(ratio);
-  const viewportMetrics = getVisibleViewportMetrics();
-  const containerLength =
-    position === "bottom"
-      ? Math.max(viewportMetrics.width - PROGRESS_EDGE_OFFSET_PX * 2, 0)
-      : Math.max(viewportMetrics.height - PROGRESS_EDGE_OFFSET_PX * 2, 0);
   const clampedPosition = Math.min(
     Math.max(containerLength * clampedRatio, edgeInsetPx),
     Math.max(containerLength - edgeInsetPx, edgeInsetPx),
@@ -342,6 +342,49 @@ const getSafeCenteredProgressPlacement = ({
     className: "-translate-y-1/2",
     style: { top: `${clampedPosition}px` },
   };
+};
+
+const getVisibleStageViewportMetrics = ({
+  stageRect,
+  fallbackHeight,
+}: {
+  stageRect?: Pick<DOMRect, "top" | "bottom" | "width" | "height"> | null;
+  fallbackHeight: number;
+}) => {
+  const viewportMetrics = getVisibleViewportMetrics();
+  const fallbackWidth = Math.max(Math.round(viewportMetrics.width), 1);
+  if (!stageRect || (stageRect.width <= 0 && stageRect.height <= 0)) {
+    return {
+      width: fallbackWidth,
+      height: Math.max(Math.round(fallbackHeight), 1),
+    };
+  }
+
+  const viewportTop = viewportMetrics.offsetTop;
+  const viewportBottom = viewportTop + viewportMetrics.height;
+  const visibleTop = Math.max(stageRect.top, viewportTop);
+  const visibleBottom = Math.min(stageRect.bottom, viewportBottom);
+
+  return {
+    width: Math.max(Math.round(stageRect.width), 0) || fallbackWidth,
+    height: Math.max(Math.round(visibleBottom - visibleTop), 0),
+  };
+};
+
+const getContinuousProgressAnchorOffsetPx = ({
+  viewportSize,
+  direction,
+}: {
+  viewportSize: number;
+  direction: ContinuousProgressDirection | null;
+}) => {
+  if (direction === "forward") {
+    return viewportSize * CONTINUOUS_PROGRESS_FORWARD_VIEWPORT_ANCHOR_RATIO;
+  }
+  if (direction === "backward") {
+    return viewportSize * CONTINUOUS_PROGRESS_BACKWARD_VIEWPORT_ANCHOR_RATIO;
+  }
+  return viewportSize / 2;
 };
 
 const getHiddenProgressZoneStyle = (position: ReaderProgressPosition): CSSProperties => {
@@ -385,40 +428,63 @@ const getProgressOverlayMotionClassName = ({
   return isVisible ? "translate-x-0 opacity-100" : "translate-x-2 opacity-0";
 };
 
-const getFallbackProgressTrackRect = (position: ReaderProgressPosition) => {
+const getFallbackProgressTrackRect = ({
+  position,
+  containerRect,
+}: {
+  position: ReaderProgressPosition;
+  containerRect?: Pick<DOMRect, "left" | "right" | "top" | "bottom" | "width" | "height"> | null;
+}) => {
   const viewportMetrics = getVisibleViewportMetrics();
   const viewportWidth = Math.max(viewportMetrics.width, PROGRESS_EDGE_OFFSET_PX * 2 + 1);
   const viewportHeight = Math.max(viewportMetrics.height, PROGRESS_EDGE_OFFSET_PX * 2 + 1);
+  const fallbackContainerRect =
+    containerRect && containerRect.width > 0 && containerRect.height > 0
+      ? containerRect
+      : {
+          left: 0,
+          right: viewportWidth,
+          top: viewportMetrics.offsetTop,
+          bottom: viewportMetrics.offsetTop + viewportHeight,
+          width: viewportWidth,
+          height: viewportHeight,
+        };
 
   if (position === "bottom") {
     return {
-      left: PROGRESS_EDGE_OFFSET_PX,
-      right: viewportWidth - PROGRESS_EDGE_OFFSET_PX,
-      top: viewportMetrics.offsetTop + viewportHeight - PROGRESS_BOTTOM_OVERLAY_HEIGHT_PX,
-      bottom: viewportMetrics.offsetTop + viewportHeight,
-      width: Math.max(viewportWidth - PROGRESS_EDGE_OFFSET_PX * 2, 1),
+      left: fallbackContainerRect.left + PROGRESS_EDGE_OFFSET_PX,
+      right: fallbackContainerRect.right - PROGRESS_EDGE_OFFSET_PX,
+      top: fallbackContainerRect.bottom - PROGRESS_BOTTOM_OVERLAY_HEIGHT_PX,
+      bottom: fallbackContainerRect.bottom,
+      width: Math.max(fallbackContainerRect.width - PROGRESS_EDGE_OFFSET_PX * 2, 1),
       height: PROGRESS_BOTTOM_OVERLAY_HEIGHT_PX,
     };
   }
 
   if (position === "left") {
     return {
-      left: PROGRESS_EDGE_OFFSET_PX,
-      right: PROGRESS_EDGE_OFFSET_PX + PROGRESS_VERTICAL_OVERLAY_WIDTH_PX,
-      top: viewportMetrics.offsetTop + PROGRESS_EDGE_OFFSET_PX,
-      bottom: viewportMetrics.offsetTop + viewportHeight - PROGRESS_EDGE_OFFSET_PX,
+      left: fallbackContainerRect.left + PROGRESS_EDGE_OFFSET_PX,
+      right:
+        fallbackContainerRect.left +
+        PROGRESS_EDGE_OFFSET_PX +
+        PROGRESS_VERTICAL_OVERLAY_WIDTH_PX,
+      top: fallbackContainerRect.top + PROGRESS_EDGE_OFFSET_PX,
+      bottom: fallbackContainerRect.bottom - PROGRESS_EDGE_OFFSET_PX,
       width: PROGRESS_VERTICAL_OVERLAY_WIDTH_PX,
-      height: Math.max(viewportHeight - PROGRESS_EDGE_OFFSET_PX * 2, 1),
+      height: Math.max(fallbackContainerRect.height - PROGRESS_EDGE_OFFSET_PX * 2, 1),
     };
   }
 
   return {
-    left: viewportWidth - PROGRESS_EDGE_OFFSET_PX - PROGRESS_VERTICAL_OVERLAY_WIDTH_PX,
-    right: viewportWidth - PROGRESS_EDGE_OFFSET_PX,
-    top: viewportMetrics.offsetTop + PROGRESS_EDGE_OFFSET_PX,
-    bottom: viewportMetrics.offsetTop + viewportHeight - PROGRESS_EDGE_OFFSET_PX,
+    left:
+      fallbackContainerRect.right -
+      PROGRESS_EDGE_OFFSET_PX -
+      PROGRESS_VERTICAL_OVERLAY_WIDTH_PX,
+    right: fallbackContainerRect.right - PROGRESS_EDGE_OFFSET_PX,
+    top: fallbackContainerRect.top + PROGRESS_EDGE_OFFSET_PX,
+    bottom: fallbackContainerRect.bottom - PROGRESS_EDGE_OFFSET_PX,
     width: PROGRESS_VERTICAL_OVERLAY_WIDTH_PX,
-    height: Math.max(viewportHeight - PROGRESS_EDGE_OFFSET_PX * 2, 1),
+    height: Math.max(fallbackContainerRect.height - PROGRESS_EDGE_OFFSET_PX * 2, 1),
   };
 };
 
@@ -542,6 +608,11 @@ const PublicProjectReaderContent = ({
   const [viewportWidth, setViewportWidth] = useState(getWindowWidth);
   const [readerViewportHeight, setReaderViewportHeight] = useState<number | null>(null);
   const [stageViewportHeight, setStageViewportHeight] = useState<number | null>(null);
+  const [infoBarMeasuredHeight, setInfoBarMeasuredHeight] = useState(0);
+  const [progressViewportMetrics, setProgressViewportMetrics] = useState(() => ({
+    width: getWindowWidth(),
+    height: getVisibleViewportHeight(),
+  }));
   const [isStageInViewport, setIsStageInViewport] = useState(true);
   const [isHiddenProgressRevealed, setIsHiddenProgressRevealed] = useState(false);
   const [isProgressInteracting, setIsProgressInteracting] = useState(false);
@@ -563,6 +634,7 @@ const PublicProjectReaderContent = ({
   const shellRef = useRef<HTMLDivElement | null>(null);
   const infoBarRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLElement | null>(null);
+  const progressViewportRef = useRef<HTMLDivElement | null>(null);
   const progressTrackRef = useRef<HTMLDivElement | null>(null);
   const progressLabelRef = useRef<HTMLDivElement | null>(null);
   const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -580,6 +652,9 @@ const PublicProjectReaderContent = ({
   const lastAppliedInitialPageKeyRef = useRef<string | null>(null);
   const lastInitialReaderPositionKeyRef = useRef<string | null>(null);
   const lastSyncedPageUrlKeyRef = useRef<string | null>(null);
+  const lastContinuousVerticalScrollYRef = useRef<number | null>(null);
+  const lastContinuousHorizontalScrollLeftRef = useRef<number | null>(null);
+  const lastContinuousProgressDirectionRef = useRef<ContinuousProgressDirection | null>(null);
   const pendingHorizontalPageUrlSyncRef = useRef<number | null>(null);
   const horizontalPageUrlSyncTimeoutRef = useRef<number | null>(null);
   const readerMenuPanelId = useId();
@@ -612,6 +687,7 @@ const PublicProjectReaderContent = ({
   );
   const [activeSlotIndex, setActiveSlotIndex] = useState(0);
   const [activePageIndex, setActivePageIndex] = useState(0);
+  const [continuousProgressVisualRatio, setContinuousProgressVisualRatio] = useState(0);
 
   const visualState = getReaderVisualState({
     imageFit: String(resolvedConfig.imageFit || "both"),
@@ -619,6 +695,10 @@ const PublicProjectReaderContent = ({
     progressStyle: String(resolvedConfig.progressStyle || "default"),
     progressPosition: String(resolvedConfig.progressPosition || "bottom"),
   });
+  const progressPosition: ReaderProgressPosition =
+    visualState.progressPosition === "left" || visualState.progressPosition === "right"
+      ? visualState.progressPosition
+      : "bottom";
 
   const effectiveImageFit = resolveEffectiveImageFit({
     imageFit: visualState.imageFit,
@@ -826,15 +906,7 @@ const PublicProjectReaderContent = ({
     scheduleMenuTriggerHide(MENU_TRIGGER_INITIAL_VISIBLE_MS);
   }, [currentChapterValue, revealMenuTrigger, scheduleMenuTriggerHide]);
 
-  useEffect(() => {
-    if (!isMenuOpen) {
-      return;
-    }
-
-    revealMenuTrigger();
-  }, [isMenuOpen, revealMenuTrigger]);
-
-  const shouldDisplayMenuTrigger = isMenuOpen || isMenuTriggerVisible;
+  const shouldDisplayMenuTrigger = !isMenuOpen && isMenuTriggerVisible;
 
   useEffect(() => {
     clearMenuTriggerUnmountTimer();
@@ -925,7 +997,8 @@ const PublicProjectReaderContent = ({
       const infoBarRect = infoBar?.getBoundingClientRect();
       const viewportMetrics = getVisibleViewportMetrics();
       const nextVisibleViewportHeight = Math.max(Math.round(viewportMetrics.height), 320);
-      const infoBarHeight = isCinemaMode ? 0 : Math.round(infoBarRect?.height || 0);
+      const nextInfoBarMeasuredHeight = Math.round(infoBarRect?.height || 0);
+      const infoBarHeight = isCinemaMode ? 0 : nextInfoBarMeasuredHeight;
       const gapHeight =
         isCinemaMode || !infoBarRect
           ? 0
@@ -934,6 +1007,7 @@ const PublicProjectReaderContent = ({
       const nextReaderHeight = isCinemaMode
         ? nextStageHeight
         : nextStageHeight + infoBarHeight + gapHeight;
+      setInfoBarMeasuredHeight(nextInfoBarMeasuredHeight);
       setReaderViewportHeight(nextReaderHeight);
       setStageViewportHeight(nextStageHeight);
     };
@@ -973,6 +1047,17 @@ const PublicProjectReaderContent = ({
       }
 
       const stageRect = node.getBoundingClientRect();
+      const nextProgressViewportMetrics = getVisibleStageViewportMetrics({
+        stageRect,
+        fallbackHeight: Math.max(stageViewportHeight ?? getVisibleViewportHeight(), 1),
+      });
+      setProgressViewportMetrics((current) =>
+        current.width === nextProgressViewportMetrics.width &&
+        current.height === nextProgressViewportMetrics.height
+          ? current
+          : nextProgressViewportMetrics,
+      );
+
       if (stageRect.height <= 0 && stageRect.width <= 0) {
         setIsStageInViewport(true);
         return;
@@ -1010,7 +1095,7 @@ const PublicProjectReaderContent = ({
       viewport?.removeEventListener("resize", updateStageVisibility);
       viewport?.removeEventListener("scroll", updateStageVisibility);
     };
-  }, [chapterTitle, layout, projectTitle, visualState.imageFit]);
+  }, [chapterTitle, layout, projectTitle, stageViewportHeight, visualState.imageFit]);
 
   const syncHorizontalScrollMetrics = useCallback(() => {
     if (layout !== "scroll-horizontal") {
@@ -1292,13 +1377,122 @@ const PublicProjectReaderContent = ({
   }, [activePageIndex, layout, originalPages, paginated]);
 
   useEffect(() => {
+    lastContinuousVerticalScrollYRef.current = getWindowScrollY();
+    lastContinuousHorizontalScrollLeftRef.current = horizontalScrollRef.current?.scrollLeft ?? 0;
+    lastContinuousProgressDirectionRef.current = null;
+  }, [layout, paginated, progressPosition]);
+
+  const updateContinuousProgressVisualRatio = useCallback(() => {
+    if (
+      paginated ||
+      originalPages.length <= 1 ||
+      progressPosition === "bottom" ||
+      originalPages.length === 0
+    ) {
+      setContinuousProgressVisualRatio((current) => (current === 0 ? current : 0));
+      return;
+    }
+
+    if (layout === "scroll-horizontal") {
+      const container = horizontalScrollRef.current;
+      if (!container || container.clientWidth <= 0) {
+        return;
+      }
+
+      const currentScrollLeft = container.scrollLeft;
+      const previousScrollLeft = lastContinuousHorizontalScrollLeftRef.current;
+      const nextDirection =
+        typeof previousScrollLeft !== "number"
+          ? lastContinuousProgressDirectionRef.current
+          : currentScrollLeft > previousScrollLeft
+            ? "forward"
+            : currentScrollLeft < previousScrollLeft
+              ? "backward"
+              : lastContinuousProgressDirectionRef.current;
+      lastContinuousHorizontalScrollLeftRef.current = currentScrollLeft;
+      lastContinuousProgressDirectionRef.current = nextDirection;
+
+      const containerRect = container.getBoundingClientRect();
+      const nextRatio = interpolateContinuousPageRatio({
+        measurements: originalPages
+          .map((_, index) => {
+            const node = pageRefs.current[index];
+            if (!node) {
+              return null;
+            }
+            const rect = node.getBoundingClientRect();
+            return {
+              index,
+              start: rect.left - containerRect.left,
+              end: rect.right - containerRect.left,
+            };
+          })
+          .filter(Boolean) as Array<{ index: number; start: number; end: number }>,
+        viewportSize: container.clientWidth,
+        viewportAnchorOffsetPx: getContinuousProgressAnchorOffsetPx({
+          viewportSize: container.clientWidth,
+          direction: nextDirection,
+        }),
+      });
+      setContinuousProgressVisualRatio((current) =>
+        Math.abs(current - nextRatio) < 0.0005 ? current : nextRatio,
+      );
+      return;
+    }
+
+    const viewportMetrics = getVisibleViewportMetrics();
+    const currentScrollY = getWindowScrollY();
+    const previousScrollY = lastContinuousVerticalScrollYRef.current;
+    const nextDirection =
+      typeof previousScrollY !== "number"
+        ? lastContinuousProgressDirectionRef.current
+        : currentScrollY > previousScrollY
+          ? "forward"
+          : currentScrollY < previousScrollY
+            ? "backward"
+            : lastContinuousProgressDirectionRef.current;
+    lastContinuousVerticalScrollYRef.current = currentScrollY;
+    lastContinuousProgressDirectionRef.current = nextDirection;
+
+    const nextRatio = interpolateContinuousPageRatio({
+      measurements: originalPages
+        .map((_, index) => {
+          const node = pageRefs.current[index];
+          if (!node) {
+            return null;
+          }
+          const rect = node.getBoundingClientRect();
+          return {
+            index,
+            start: rect.top - viewportMetrics.offsetTop,
+            end: rect.bottom - viewportMetrics.offsetTop,
+          };
+        })
+        .filter(Boolean) as Array<{ index: number; start: number; end: number }>,
+      viewportSize: viewportMetrics.height,
+      viewportAnchorOffsetPx: getContinuousProgressAnchorOffsetPx({
+        viewportSize: viewportMetrics.height,
+        direction: nextDirection,
+      }),
+    });
+    setContinuousProgressVisualRatio((current) =>
+      Math.abs(current - nextRatio) < 0.0005 ? current : nextRatio,
+    );
+  }, [layout, originalPages, paginated, progressPosition]);
+
+  useEffect(() => {
     if (paginated) {
       return;
     }
 
-    updateContinuousActivePage();
-    const handleScroll = () => updateContinuousActivePage();
-    const handleResize = () => updateContinuousActivePage();
+    const syncContinuousReaderState = () => {
+      updateContinuousActivePage();
+      updateContinuousProgressVisualRatio();
+    };
+
+    syncContinuousReaderState();
+    const handleScroll = () => syncContinuousReaderState();
+    const handleResize = () => syncContinuousReaderState();
     const viewport = window.visualViewport;
 
     if (layout === "scroll-horizontal") {
@@ -1306,11 +1500,11 @@ const PublicProjectReaderContent = ({
       const rail = horizontalScrollRailRef.current;
       const handleViewportScroll = () => {
         syncHorizontalScrollPosition("viewport");
-        updateContinuousActivePage();
+        syncContinuousReaderState();
       };
       const handleRailScroll = () => {
         syncHorizontalScrollPosition("rail");
-        updateContinuousActivePage();
+        syncContinuousReaderState();
       };
 
       container?.addEventListener("scroll", handleViewportScroll, { passive: true });
@@ -1337,7 +1531,13 @@ const PublicProjectReaderContent = ({
       viewport?.removeEventListener("resize", handleResize);
       viewport?.removeEventListener("scroll", handleResize);
     };
-  }, [layout, paginated, syncHorizontalScrollPosition, updateContinuousActivePage]);
+  }, [
+    layout,
+    paginated,
+    syncHorizontalScrollPosition,
+    updateContinuousActivePage,
+    updateContinuousProgressVisualRatio,
+  ]);
 
   useEffect(() => {
     const nextInitialPositionKey = `${currentChapterValue}:${layout}:${resolvedInitialPageIndex}`;
@@ -1565,6 +1765,8 @@ const PublicProjectReaderContent = ({
   );
   const progressPositionRatio =
     originalPages.length > 1 ? progressAnchorIndex / (originalPages.length - 1) : 0;
+  const progressVisualRatio =
+    !paginated && progressPosition !== "bottom" ? continuousProgressVisualRatio : progressPositionRatio;
   const isViewportBoundedReader = usesViewportBoundedHeight(effectiveImageFit);
   const shouldUseFixedViewportHeight = isViewportBoundedReader && layout !== "scroll-vertical";
   const horizontalScrollbarSpacerWidth = Math.max(
@@ -1629,22 +1831,32 @@ const PublicProjectReaderContent = ({
       height: `${stageViewportHeight}px`,
     };
   }, [isViewportBoundedReader, stageViewportHeight]);
+  const progressStickyViewportHeight = Math.max(progressViewportMetrics.height, 1);
+  const progressStickyViewportStyle = useMemo(
+    () => ({
+      height: `${progressStickyViewportHeight}px`,
+    }),
+    [progressStickyViewportHeight],
+  );
+  const menuStickyTopOffsetPx = useMemo(
+    () =>
+      Math.max(
+        (isCinemaMode ? infoBarMeasuredHeight : 0) + MENU_TRIGGER_HOST_TOP_OFFSET_PX,
+        MENU_TRIGGER_HOST_TOP_OFFSET_PX,
+      ),
+    [infoBarMeasuredHeight, isCinemaMode],
+  );
   const menuPanelStyle = useMemo(() => {
-    const availableHeight = stageViewportHeight
-      ? Math.max(stageViewportHeight - MENU_PANEL_VIEWPORT_INSET_PX, 160)
-      : null;
-    const panelWidth = isDesktopMenu ? "22.5rem" : `${Math.min(Math.max(viewportWidth - 16, 0), 352)}px`;
+    const menuPanelViewportInsetPx = menuStickyTopOffsetPx + MENU_PANEL_BOTTOM_INSET_PX;
+    const availableHeight = Math.max(progressViewportMetrics.height - menuPanelViewportInsetPx, 160);
+    const panelWidth = isDesktopMenu ? "21rem" : "20.5rem";
 
     return {
       width: panelWidth,
-      maxHeight: availableHeight ? `${availableHeight}px` : "calc(100vh - 5.5rem)",
-      height: availableHeight ? `${availableHeight}px` : undefined,
+      maxWidth: "calc(100% - 0.75rem)",
+      maxHeight: `${availableHeight}px`,
     };
-  }, [isDesktopMenu, stageViewportHeight, viewportWidth]);
-  const progressPosition: ReaderProgressPosition =
-    visualState.progressPosition === "left" || visualState.progressPosition === "right"
-      ? visualState.progressPosition
-      : "bottom";
+  }, [isDesktopMenu, menuStickyTopOffsetPx, progressViewportMetrics.height]);
   const progressStyle: ReaderProgressStyle =
     visualState.progressStyle === "hidden" ? "hidden" : "default";
   const renderedProgressStyle =
@@ -1664,6 +1876,13 @@ const PublicProjectReaderContent = ({
     (progressStyle === "hidden" ? isHiddenProgressRevealed : isProgressInteracting);
   const shouldEmphasizeProgress =
     progressStyle === "hidden" ? isHiddenProgressRevealed : isProgressInteracting;
+  const shouldRenderProgressViewport =
+    isProgressOverlayMounted || (isStageInViewport && visualState.progressStyle === "hidden");
+  const progressContainerLength = Math.max(
+    (progressPosition === "bottom" ? progressViewportMetrics.width : progressViewportMetrics.height) -
+      PROGRESS_EDGE_OFFSET_PX * 2,
+    0,
+  );
 
   useEffect(() => {
     clearProgressOverlayUnmountTimer();
@@ -1750,7 +1969,19 @@ const PublicProjectReaderContent = ({
       return rect;
     }
 
-    return getFallbackProgressTrackRect(progressPosition);
+    const progressViewportRect = progressViewportRef.current?.getBoundingClientRect();
+    if (progressViewportRect && progressViewportRect.width > 0 && progressViewportRect.height > 0) {
+      return getFallbackProgressTrackRect({
+        position: progressPosition,
+        containerRect: progressViewportRect,
+      });
+    }
+
+    const stageRect = stageRef.current?.getBoundingClientRect();
+    return getFallbackProgressTrackRect({
+      position: progressPosition,
+      containerRect: stageRect,
+    });
   }, [progressPosition]);
 
   const getProgressPageIndexFromClientPosition = useCallback(
@@ -1903,16 +2134,18 @@ const PublicProjectReaderContent = ({
     const rootFontSizePx = getRootFontSizePx();
     const indicatorPlacement = getSafeCenteredProgressPlacement({
       position: progressPosition,
-      ratio: progressPositionRatio,
+      ratio: progressVisualRatio,
       edgeInsetPx: rootFontSizePx * (isBottomProgress ? 3 : 2.25),
+      containerLength: progressContainerLength,
     });
     const labelPlacement = getSafeCenteredProgressPlacement({
       position: progressPosition,
-      ratio: progressPositionRatio,
+      ratio: progressVisualRatio,
       edgeInsetPx: Math.max(
         isBottomProgress ? progressLabelSize.width / 2 : progressLabelSize.height / 2,
         isBottomProgress ? PROGRESS_CHIP_MIN_WIDTH_PX / 2 : PROGRESS_CHIP_MIN_HEIGHT_PX / 2,
       ),
+      containerLength: progressContainerLength,
     });
     const hitAreaClassName = isBottomProgress
       ? "absolute inset-x-0 bottom-0 h-16"
@@ -1942,7 +2175,7 @@ const PublicProjectReaderContent = ({
         data-testid="project-reader-progress-overlay"
         data-state={isProgressOverlayVisible ? "visible" : "hidden"}
         className={cn(
-          "pointer-events-none fixed z-10 transition-all ease-out",
+          "pointer-events-none absolute z-10 transition-all ease-out",
           getProgressOverlayMotionClassName({
             position: progressPosition,
             isVisible: isProgressOverlayVisible,
@@ -2051,7 +2284,7 @@ const PublicProjectReaderContent = ({
     return (
       <div
         data-testid="project-reader-progress-activation-zone"
-        className="fixed z-10 touch-none bg-transparent"
+        className="absolute z-10 touch-none bg-transparent"
         style={hiddenProgressZoneStyle}
         onMouseEnter={revealHiddenProgress}
         onMouseLeave={handleProgressPointerLeave}
@@ -2060,6 +2293,26 @@ const PublicProjectReaderContent = ({
         onPointerUp={finishProgressScrub}
         onPointerCancel={finishProgressScrub}
       />
+    );
+  };
+
+  const renderProgressViewport = () => {
+    if (!shouldRenderProgressViewport) {
+      return null;
+    }
+
+    return (
+      <div className="pointer-events-none sticky top-0 z-10 h-0 overflow-visible">
+        <div
+          ref={progressViewportRef}
+          data-testid="project-reader-progress-viewport"
+          className="relative w-full overflow-visible"
+          style={progressStickyViewportStyle}
+        >
+          {renderHiddenProgressZone()}
+          {renderProgressOverlay()}
+        </div>
+      </div>
     );
   };
 
@@ -2306,11 +2559,6 @@ const PublicProjectReaderContent = ({
     </div>
   );
 
-  const readerMenuContextChips = [
-    chapterLabel,
-    pageSummary ? `Página ${pageSummary}` : null,
-  ].filter(Boolean) as string[];
-
   const closeMenu = useCallback(
     (delayMs = HIDDEN_PROGRESS_HIDE_DELAY_MS) => {
       setIsMenuOpen(false);
@@ -2367,31 +2615,24 @@ const PublicProjectReaderContent = ({
   const sidebarContent = (
     <div className="flex h-full min-h-0 flex-col">
       <div className="border-b border-border/45 px-3.5 py-3 pr-14 md:px-4 md:py-4">
-        <div className="space-y-2">
+        <div className="flex min-w-0 items-center">
           <p
             id={readerMenuTitleId}
-            className="text-lg font-semibold tracking-tight text-foreground"
+            className="truncate text-lg font-semibold tracking-tight text-foreground"
           >
             Leitor
           </p>
-          <div className="flex flex-wrap items-center gap-2">
-            {readerMenuContextChips.map((chip) => (
-              <span key={chip} className={SIDEBAR_CONTEXT_CHIP_CLASS_NAME}>
-                {chip}
-              </span>
-            ))}
-          </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="space-y-3 px-4 pb-5 pt-4 md:px-5">
-          <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "space-y-3")}>
+        <div className="space-y-2.5 px-3.5 pb-5 pt-3.5 md:px-4 md:pt-4">
+          <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "space-y-2.5")}>
             <div className={SIDEBAR_SECTION_HEADER_CLASS_NAME}>
               <BookOpenText className={SIDEBAR_SECTION_ICON_CLASS_NAME} aria-hidden="true" />
               <p className="text-sm font-semibold leading-none text-foreground">Navegação</p>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <div className={SIDEBAR_FIELD_CLASS_NAME}>
                 <Label className={SIDEBAR_LABEL_CLASS_NAME}>Capítulo</Label>
                 <Select
@@ -2448,12 +2689,12 @@ const PublicProjectReaderContent = ({
             </div>
           </div>
 
-          <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "space-y-3")}>
+          <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "space-y-2.5")}>
             <div className={SIDEBAR_SECTION_HEADER_CLASS_NAME}>
               <Eye className={SIDEBAR_SECTION_ICON_CLASS_NAME} aria-hidden="true" />
               <p className="text-sm font-semibold leading-none text-foreground">Exibição</p>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <div className={SIDEBAR_FIELD_CLASS_NAME}>
                 <Label className={SIDEBAR_LABEL_CLASS_NAME}>Layout</Label>
                 <Select
@@ -2537,12 +2778,12 @@ const PublicProjectReaderContent = ({
             </div>
           </div>
 
-          <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "space-y-3")}>
+          <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "space-y-2.5")}>
             <div className={SIDEBAR_SECTION_HEADER_CLASS_NAME}>
               <SlidersHorizontal className={SIDEBAR_SECTION_ICON_CLASS_NAME} aria-hidden="true" />
               <p className="text-sm font-semibold leading-none text-foreground">Interface</p>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <div className={SIDEBAR_FIELD_CLASS_NAME}>
                 <Label className={SIDEBAR_LABEL_CLASS_NAME}>Barra do site</Label>
                 <Select
@@ -2616,12 +2857,12 @@ const PublicProjectReaderContent = ({
             </div>
           </div>
 
-          <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "space-y-3")}>
+          <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "space-y-2.5")}>
             <div className={SIDEBAR_SECTION_HEADER_CLASS_NAME}>
               <PencilLine className={SIDEBAR_SECTION_ICON_CLASS_NAME} aria-hidden="true" />
               <p className="text-sm font-semibold leading-none text-foreground">Ações rápidas</p>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <Button asChild variant="outline" className={SIDEBAR_ACTION_BUTTON_CLASS_NAME}>
                 <Link to={backHref}>
                   <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -2639,7 +2880,7 @@ const PublicProjectReaderContent = ({
               ) : null}
 
               {paginated ? (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2.5">
                   <Button
                     type="button"
                     variant="outline"
@@ -2693,102 +2934,116 @@ const PublicProjectReaderContent = ({
         />
       ) : null}
 
-      <div className="pointer-events-none sticky top-3 z-40 flex h-0 justify-end px-2 md:px-4">
-        <div
-          className="relative pointer-events-auto"
-          style={{
-            width: `${MENU_TRIGGER_HOTSPOT_SIZE_PX}px`,
-            height: `${MENU_TRIGGER_HOTSPOT_SIZE_PX}px`,
-          }}
-          onMouseEnter={handleMenuRegionEnter}
-          onMouseLeave={handleMenuRegionLeave}
-          onFocusCapture={revealMenuTrigger}
-          onBlurCapture={(event) => {
-            const nextTarget = event.relatedTarget as Node | null;
-            if (!event.currentTarget.contains(nextTarget) && !isMenuOpen) {
-              scheduleMenuTriggerHide();
-            }
-          }}
-        >
+      <div
+        data-testid="project-reader-menu-host"
+        className="pointer-events-none sticky top-0 z-40 h-0 overflow-visible"
+      >
+        <div className="px-2 md:px-4" style={{ paddingTop: `${menuStickyTopOffsetPx}px` }}>
           <div
-            data-testid="project-reader-menu-activation-zone"
-            className="absolute right-0 top-0 z-0 rounded-full bg-transparent touch-none"
-            style={{
-              width: `${MENU_TRIGGER_HOTSPOT_SIZE_PX}px`,
-              height: `${MENU_TRIGGER_HOTSPOT_SIZE_PX}px`,
+            className="relative ml-auto w-full max-w-full"
+            onFocusCapture={revealMenuTrigger}
+            onBlurCapture={(event) => {
+              const nextTarget = event.relatedTarget as Node | null;
+              if (!event.currentTarget.contains(nextTarget) && !isMenuOpen) {
+                scheduleMenuTriggerHide();
+              }
             }}
-            onPointerDown={handleMenuActivationPointerDown}
-            aria-hidden="true"
-          />
-
-          {isMenuTriggerMounted ? (
+          >
             <div
-              data-testid="project-reader-menu-button-shell"
-              data-state={isMenuTriggerAnimatingVisible ? "visible" : "hidden"}
               className={cn(
-                "absolute right-2 top-2 z-10 will-change-transform transition-[opacity,transform] ease-out",
-                isMenuTriggerAnimatingVisible
-                  ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
-                  : "pointer-events-none translate-y-0 scale-[0.985] opacity-0",
+                "absolute right-0 top-0",
+                isMenuOpen ? "pointer-events-none" : "pointer-events-auto",
               )}
               style={{
-                transitionDuration: `${isMenuTriggerAnimatingVisible ? MENU_TRIGGER_ENTER_TRANSITION_MS : MENU_TRIGGER_EXIT_TRANSITION_MS}ms`,
+                width: `${MENU_TRIGGER_HOTSPOT_SIZE_PX}px`,
+                height: `${MENU_TRIGGER_HOTSPOT_SIZE_PX}px`,
               }}
+              onMouseEnter={handleMenuRegionEnter}
+              onMouseLeave={handleMenuRegionLeave}
             >
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "h-10 w-10 rounded-full border border-border/45 bg-card/45 text-foreground/85 shadow-[0_14px_30px_-24px_rgba(0,0,0,0.65)] backdrop-blur-sm transition-[background-color,border-color,color,box-shadow] duration-300 ease-out hover:bg-accent/90 hover:text-accent-foreground",
-                  isCinemaMode ? "bg-background/75" : "",
-                  isMenuOpen
-                    ? "border-primary/25 bg-primary/8 text-foreground shadow-[0_20px_42px_-28px_hsl(var(--foreground)/0.72)]"
-                    : "",
-                )}
-                onClick={handleMenuButtonClick}
-                onFocus={revealMenuTrigger}
-                aria-label="Abrir menu do leitor"
-                aria-controls={readerMenuPanelId}
-                aria-expanded={isMenuOpen}
-                aria-haspopup="dialog"
-                data-testid="project-reader-menu-button"
-                data-state={isMenuTriggerAnimatingVisible ? "visible" : "hidden"}
-              >
-                <Menu className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </div>
-          ) : null}
+              {!isMenuOpen ? (
+                <div
+                  data-testid="project-reader-menu-activation-zone"
+                  className="absolute right-0 top-0 z-0 rounded-full bg-transparent touch-none"
+                  style={{
+                    width: `${MENU_TRIGGER_HOTSPOT_SIZE_PX}px`,
+                    height: `${MENU_TRIGGER_HOTSPOT_SIZE_PX}px`,
+                  }}
+                  onPointerDown={handleMenuActivationPointerDown}
+                  aria-hidden="true"
+                />
+              ) : null}
 
-          {isMenuOverlayMounted ? (
-            <aside
-              id={readerMenuPanelId}
-              aria-labelledby={readerMenuTitleId}
-              aria-modal="false"
-              role="dialog"
-              data-testid="project-reader-sidebar"
-              className={cn(
-                "absolute z-20 flex min-h-0 flex-col overflow-hidden rounded-[2rem] border shadow-[0_28px_90px_-42px_rgba(0,0,0,0.72)] transition-all duration-200 ease-out origin-top-right",
-                sidebarToneClassName,
-                isMenuOverlayVisible
-                  ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
-                  : "pointer-events-none -translate-y-2 scale-[0.985] opacity-0",
-              )}
-              style={{ ...menuPanelStyle, right: 0, top: "3.5rem" }}
-            >
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="absolute right-2.5 top-2.5 z-10 h-10 w-10 rounded-full border border-border/45 bg-background/70 text-foreground/80 shadow-sm backdrop-blur-sm transition-colors duration-200 hover:bg-accent hover:text-accent-foreground"
-                onClick={() => closeMenu()}
-                aria-label="Fechar menu do leitor"
+              {isMenuTriggerMounted ? (
+                <div
+                  data-testid="project-reader-menu-button-shell"
+                  data-state={isMenuTriggerAnimatingVisible ? "visible" : "hidden"}
+                  className={cn(
+                    "absolute right-2 top-2 z-10 will-change-transform transition-[opacity,transform] ease-out",
+                    isMenuTriggerAnimatingVisible
+                      ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+                      : "pointer-events-none translate-y-0 scale-[0.985] opacity-0",
+                  )}
+                  style={{
+                    transitionDuration: `${isMenuTriggerAnimatingVisible ? MENU_TRIGGER_ENTER_TRANSITION_MS : MENU_TRIGGER_EXIT_TRANSITION_MS}ms`,
+                  }}
+                >
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "h-10 w-10 rounded-full border border-border/45 bg-card/45 text-foreground/85 shadow-[0_14px_30px_-24px_rgba(0,0,0,0.65)] backdrop-blur-sm transition-[background-color,border-color,color,box-shadow] duration-300 ease-out hover:bg-accent/90 hover:text-accent-foreground",
+                      isCinemaMode ? "bg-background/75" : "",
+                      isMenuOpen
+                        ? "border-primary/25 bg-primary/8 text-foreground shadow-[0_20px_42px_-28px_hsl(var(--foreground)/0.72)]"
+                        : "",
+                    )}
+                    onClick={handleMenuButtonClick}
+                    onFocus={revealMenuTrigger}
+                    aria-label="Abrir menu do leitor"
+                    aria-controls={readerMenuPanelId}
+                    aria-expanded={isMenuOpen}
+                    aria-haspopup="dialog"
+                    data-testid="project-reader-menu-button"
+                    data-state={isMenuTriggerAnimatingVisible ? "visible" : "hidden"}
+                  >
+                    <Menu className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+
+            {isMenuOverlayMounted ? (
+              <aside
+                id={readerMenuPanelId}
+                aria-labelledby={readerMenuTitleId}
+                aria-modal="false"
+                role="dialog"
+                data-testid="project-reader-sidebar"
+                className={cn(
+                  "absolute right-0 z-20 flex min-h-0 flex-col overflow-hidden rounded-[2rem] border shadow-[0_28px_90px_-42px_rgba(0,0,0,0.72)] transition-all duration-200 ease-out origin-top-right",
+                  sidebarToneClassName,
+                  isMenuOverlayVisible
+                    ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+                    : "pointer-events-none -translate-y-2 scale-[0.985] opacity-0",
+                )}
+                style={{ ...menuPanelStyle, top: 0 }}
               >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </Button>
-              {sidebarContent}
-            </aside>
-          ) : null}
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="absolute right-2.5 top-2.5 z-10 h-10 w-10 rounded-full border border-border/45 bg-background/70 text-foreground/80 shadow-sm backdrop-blur-sm transition-colors duration-200 hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => closeMenu()}
+                  aria-label="Fechar menu do leitor"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                {sidebarContent}
+              </aside>
+            ) : null}
+          </div>
         </div>
       </div>
     </>
@@ -2839,6 +3094,7 @@ const PublicProjectReaderContent = ({
           style={stageViewportStyle}
         >
           {stageMenuOverlay}
+          {renderProgressViewport()}
           {stageContent}
         </section>
 
@@ -2868,9 +3124,6 @@ const PublicProjectReaderContent = ({
             </div>
           </div>
         ) : null}
-
-        {renderHiddenProgressZone()}
-        {renderProgressOverlay()}
       </div>
     </div>
   );

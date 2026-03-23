@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { axe } from "jest-axe";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,6 +7,7 @@ import Projects from "@/pages/Projects";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const originalMatchMedia = window.matchMedia;
+const originalScrollIntoView = window.HTMLElement.prototype.scrollIntoView;
 
 type BootstrapWindow = Window &
   typeof globalThis & {
@@ -51,6 +52,10 @@ describe("Projects accessibility", () => {
     apiFetchMock.mockReset();
     clearBootstrapPayload();
     window.scrollTo = vi.fn();
+    Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: vi.fn(),
+    });
     setViewportIsMobile(false);
     vi.stubGlobal(
       "ResizeObserver",
@@ -118,6 +123,10 @@ describe("Projects accessibility", () => {
 
   afterEach(() => {
     clearBootstrapPayload();
+    Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: originalScrollIntoView,
+    });
     window.matchMedia = originalMatchMedia;
   });
 
@@ -158,5 +167,29 @@ describe("Projects accessibility", () => {
     expect(screen.getByRole("combobox", { name: "Filtrar por genero" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Filtrar por formato" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("mantem apenas um filtro aberto por vez no desktop", async () => {
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+      </MemoryRouter>,
+    );
+
+    const letterTrigger = await screen.findByRole("combobox", { name: "Filtrar por letra" });
+    const tagTrigger = screen.getByRole("combobox", { name: "Filtrar por tag" });
+
+    letterTrigger.focus();
+    fireEvent.keyDown(letterTrigger, { key: "ArrowDown", code: "ArrowDown" });
+    expect(await screen.findByRole("option", { name: "A" })).toBeInTheDocument();
+
+    tagTrigger.focus();
+    fireEvent.keyDown(tagTrigger, { key: "ArrowDown", code: "ArrowDown" });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("option", { name: "A" })).not.toBeInTheDocument();
+    });
+
+    expect(await screen.findByRole("option", { name: "Acao" })).toBeInTheDocument();
   });
 });
