@@ -4,7 +4,19 @@ import QRCode from "qrcode";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
-import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
+import {
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from "@/components/dashboard/dashboard-form-controls";
+import {
+  dashboardPageLayoutTokens,
+  dashboardStrongSurfaceHoverClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
 import {
   dashboardAnimationDelay,
   dashboardClampedStaggerMs,
@@ -29,18 +41,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import {
   UserRound,
   BadgeCheck,
@@ -1499,7 +1502,7 @@ const DashboardUsers = () => {
                     return (
                       <div
                         key={user.id}
-                        className={`relative ${dashboardPageLayoutTokens.surfaceSolid} p-5 transition hover:border-primary/40 hover:bg-primary/5 animate-slide-up opacity-0 ${
+                        className={`relative ${dashboardPageLayoutTokens.surfaceSolid} p-5 transition ${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5 animate-slide-up opacity-0 ${
                           isLoneLastActiveCard
                             ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]"
                             : ""

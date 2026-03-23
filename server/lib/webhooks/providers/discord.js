@@ -1,5 +1,13 @@
 const DISCORD_MAX_EMBEDS = 10;
 const DISCORD_MAX_FIELDS = 25;
+const DISCORD_MAX_CONTENT = 2000;
+const DISCORD_MAX_EMBED_TITLE = 256;
+const DISCORD_MAX_EMBED_DESCRIPTION = 4096;
+const DISCORD_MAX_EMBED_FOOTER = 2048;
+const DISCORD_MAX_EMBED_AUTHOR = 256;
+const DISCORD_MAX_FIELD_NAME = 256;
+const DISCORD_MAX_FIELD_VALUE = 1024;
+const DISCORD_MAX_EMBED_TOTAL = 6000;
 const ROLE_ID_PATTERN = /^\d+$/;
 
 const asObject = (value) =>
@@ -18,6 +26,21 @@ const toText = (value) => {
     return String(value);
   }
   return "";
+};
+
+const truncateText = (value, maxLength) => {
+  const text = toText(value);
+  const normalizedMax = Math.max(0, Math.floor(Number(maxLength) || 0));
+  if (!normalizedMax) {
+    return "";
+  }
+  if (text.length <= normalizedMax) {
+    return text;
+  }
+  if (normalizedMax <= 3) {
+    return text.slice(0, normalizedMax);
+  }
+  return `${text.slice(0, normalizedMax - 3).trimEnd()}...`;
 };
 
 const normalizeRoleIds = (value) => {
@@ -100,8 +123,8 @@ const normalizeEmbedUrl = (value, origin = "") => {
 
 const normalizeEmbedField = (value) => {
   const field = asObject(value);
-  const name = toText(field.name);
-  const fieldValue = toText(field.value);
+  const name = truncateText(field.name, DISCORD_MAX_FIELD_NAME);
+  const fieldValue = truncateText(field.value, DISCORD_MAX_FIELD_VALUE);
   if (!name && !fieldValue) {
     return null;
   }
@@ -112,6 +135,82 @@ const normalizeEmbedField = (value) => {
   };
 };
 
+const getEmbedTextTotalLength = (embed) => {
+  const source = asObject(embed);
+  const footer = asObject(source.footer);
+  const author = asObject(source.author);
+  const fields = asArray(source.fields);
+  return [
+    toText(source.title),
+    toText(source.description),
+    toText(footer.text),
+    toText(author.name),
+    ...fields.flatMap((field) => [toText(field?.name), toText(field?.value)]),
+  ].reduce((total, text) => total + text.length, 0);
+};
+
+const trimEmbedTotalLength = (embed) => {
+  const next = {
+    ...asObject(embed),
+    footer: asObject(embed?.footer),
+    author: asObject(embed?.author),
+    fields: asArray(embed?.fields).map((field) => ({ ...asObject(field) })),
+  };
+  const trimTargets = [
+    () => ["description", toText(next.description)],
+    ...next.fields.map((field, index) => () => [`field:${index}:value`, toText(field.value)]),
+    ...next.fields.map((field, index) => () => [`field:${index}:name`, toText(field.name)]),
+    () => ["footer", toText(next.footer?.text)],
+    () => ["author", toText(next.author?.name)],
+    () => ["title", toText(next.title)],
+  ];
+
+  let total = getEmbedTextTotalLength(next);
+  if (total <= DISCORD_MAX_EMBED_TOTAL) {
+    return next;
+  }
+
+  for (const getTarget of trimTargets) {
+    if (total <= DISCORD_MAX_EMBED_TOTAL) {
+      break;
+    }
+    const [key, value] = getTarget();
+    if (!value) {
+      continue;
+    }
+    const overflow = total - DISCORD_MAX_EMBED_TOTAL;
+    const allowed = Math.max(0, value.length - overflow);
+    const truncated = truncateText(value, allowed);
+    if (key === "description") {
+      next.description = truncated;
+    } else if (key === "footer") {
+      next.footer = {
+        ...next.footer,
+        text: truncated,
+      };
+    } else if (key === "author") {
+      next.author = {
+        ...next.author,
+        name: truncated,
+      };
+    } else if (key === "title") {
+      next.title = truncated;
+    } else if (key.startsWith("field:")) {
+      const [, indexRaw, fieldKey] = key.split(":");
+      const index = Number(indexRaw);
+      if (Number.isInteger(index) && next.fields[index]) {
+        next.fields[index] = {
+          ...next.fields[index],
+          [fieldKey]: truncated || " ",
+        };
+      }
+    }
+    total = getEmbedTextTotalLength(next);
+  }
+
+  return next;
+};
+
 const normalizeEmbed = (value, fallbackSeverity = "", origin = "") => {
   const source = asObject(value);
 
@@ -120,18 +219,18 @@ const normalizeEmbed = (value, fallbackSeverity = "", origin = "") => {
   const thumbnailSource = asObject(source.thumbnail);
   const imageSource = asObject(source.image);
 
-  const title = toText(source.title);
-  const description = toText(source.description);
+  const title = truncateText(source.title, DISCORD_MAX_EMBED_TITLE);
+  const description = truncateText(source.description, DISCORD_MAX_EMBED_DESCRIPTION);
   const url = normalizeEmbedUrl(source.url, origin);
   const timestamp = toText(source.timestamp);
 
-  const footerText = toText(source.footerText || footerSource.text);
+  const footerText = truncateText(source.footerText || footerSource.text, DISCORD_MAX_EMBED_FOOTER);
   const footerIconUrl = normalizeEmbedUrl(
     source.footerIconUrl || footerSource.icon_url || footerSource.iconUrl,
     origin,
   );
 
-  const authorName = toText(source.authorName || authorSource.name);
+  const authorName = truncateText(source.authorName || authorSource.name, DISCORD_MAX_EMBED_AUTHOR);
   const authorIconUrl = normalizeEmbedUrl(
     source.authorIconUrl || authorSource.icon_url || authorSource.iconUrl,
     origin,
@@ -205,7 +304,7 @@ const normalizeEmbed = (value, fallbackSeverity = "", origin = "") => {
     return null;
   }
 
-  return embed;
+  return trimEmbedTotalLength(embed);
 };
 
 const inferEmbedsInput = (notification) => {
@@ -234,7 +333,7 @@ const inferEmbedsInput = (notification) => {
 
 export const toDiscordWebhookPayload = (notification = {}) => {
   const source = asObject(notification);
-  const content = toText(source.content);
+  const content = truncateText(source.content, DISCORD_MAX_CONTENT);
   const origin = toText(source.origin);
   const embedsInput = inferEmbedsInput(source);
   const embeds = embedsInput

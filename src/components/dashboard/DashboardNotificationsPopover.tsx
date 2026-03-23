@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, Bell, CheckCircle2, CircleDot, Clock3 } from "lucide-react";
+import { dashboardStrongSurfaceHoverClassName } from "@/components/dashboard/dashboard-page-tokens";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -320,7 +321,7 @@ const DashboardNotificationsPopover = ({
                 <Link
                   key={item.id}
                   to={item.href || "/dashboard"}
-                  className="mb-2 block rounded-xl border border-border/60 bg-card/60 p-3 transition hover:border-primary/35 hover:bg-primary/5"
+                  className={`mb-2 block rounded-xl border border-border/60 bg-card/60 p-3 transition ${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5`}
                 >
                   <div className="flex items-start gap-3">
                     <span className="mt-0.5 rounded-full bg-card/90 p-1.5">

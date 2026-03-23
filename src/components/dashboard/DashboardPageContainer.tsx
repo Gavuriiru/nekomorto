@@ -1,4 +1,7 @@
-import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
+import {
+  dashboardPageLayoutTokens,
+  dashboardStrongFocusScopeClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
 import { cn } from "@/lib/utils";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
@@ -38,6 +41,7 @@ const DashboardPageContainer = ({
     >
       <section
         className={cn(
+          dashboardStrongFocusScopeClassName,
           dashboardPageLayoutTokens.sectionBase,
           dashboardPageLayoutTokens.sectionSpacing,
           reveal ? "reveal" : null,

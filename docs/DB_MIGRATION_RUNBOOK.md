@@ -1,8 +1,8 @@
-# Runbook de Producao DB-Only (Ubuntu + Caddy + Docker Compose)
+# Runbook de Producao DB-Only (Ubuntu + Edge Proxy + Docker Compose)
 
-Este runbook define o fluxo oficial para `https://nekomata.moe` em topologia de host unico:
+Este runbook define o fluxo oficial para a stack publicada em topologia de host unico:
 
-- `app` + `postgres` + `caddy` no mesmo servidor Ubuntu
+- `app` + `postgres` + `edge` no mesmo servidor Ubuntu
 - deploy automatico por GitHub Actions + SSH
 - runtime DB-only, sem fallback JSON
 
@@ -11,7 +11,11 @@ Este runbook define o fluxo oficial para `https://nekomata.moe` em topologia de 
 Arquivos usados em producao:
 
 - `docker-compose.prod.yml`
+- `docker-compose.prod.caddy.yml`
+- `docker-compose.prod.nginx.yml`
+- `docker-compose.prod.traefik.yml`
 - `ops/caddy/Caddyfile`
+- `ops/nginx/default.conf.template`
 - `ops/prod/.env.prod.example`
 - `ops/prod/deploy-prod.sh`
 - `.github/workflows/deploy-prod.yml`
@@ -69,15 +73,20 @@ SESSION_TABLE=user_sessions
 APP_ORIGIN=https://nekomata.moe,https://www.nekomata.moe
 ADMIN_ORIGINS=<origens_admin>
 MAINTENANCE_MODE=false
+PROXY_PROVIDER=caddy
+APP_DOMAIN=<dominio-canonico>
+APP_WWW_DOMAIN=<dominio-www>
 ```
 
 6. Configurar firewall:
 
 - abrir `22`, `80`, `443`
 - nao expor `5432`
-7. Confirmar DNS antes do primeiro `up` do Caddy:
+7. Confirmar DNS antes do primeiro `up`:
 
-- `nekomata.moe` e `www.nekomata.moe` apontando para o IP publico do host
+- `APP_DOMAIN` e `APP_WWW_DOMAIN` apontando para o IP publico do host
+- se `PROXY_PROVIDER=traefik`, preencher `TRAEFIK_ACME_EMAIL`
+- se `PROXY_PROVIDER=nginx`, provisionar certificado/chave no host e apontar `NGINX_TLS_CERT_PATH`/`NGINX_TLS_KEY_PATH`
 
 ## 3. Primeiro deploy em producao
 
@@ -85,17 +94,19 @@ No host:
 
 ```bash
 cd /srv/nekomorto
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d postgres
-docker compose --env-file .env.prod -f docker-compose.prod.yml build app
-docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d app caddy
+export PROXY_PROVIDER="${PROXY_PROVIDER:-caddy}"
+export EDGE_COMPOSE_FILE="docker-compose.prod.${PROXY_PROVIDER}.yml"
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" up -d postgres
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" build app
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" up -d app edge
 ```
 
 Validar:
 
 ```bash
-curl -fsS https://nekomata.moe/api/health
-npm run api:smoke -- --base=https://nekomata.moe
+curl -fsS https://<APP_DOMAIN>/api/health
+npm run api:smoke -- --base=https://<APP_DOMAIN>
 ```
 
 Criterio de aceite:
@@ -120,8 +131,8 @@ ENV_FILE=/srv/nekomorto/.env.prod \
 5. Reaplicar migrations e validar estado:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npx prisma migrate status
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" run --rm app npx prisma migrate status
 ```
 
 6. Reabrir escrita (`MAINTENANCE_MODE=false`) apos health/smoke ok.
@@ -146,11 +157,12 @@ Secrets obrigatorios:
 
 Fluxo remoto:
 
-1. sync de `origin/main`
-2. `docker compose build app`
-3. `docker compose run --rm app npm run prisma:migrate:deploy`
-4. `docker compose up -d app caddy`
-5. health check interno/externo
+1. o workflow sincroniza `origin/main` no host
+2. `ops/prod/deploy-prod.sh` resolve `PROXY_PROVIDER` e o overlay `docker-compose.prod.<provider>.yml`
+3. `docker compose build app`
+4. `docker compose run --rm app npm run prisma:migrate:deploy`
+5. `docker compose up -d app edge`
+6. health check interno/externo
 
 Recomendacao:
 
@@ -182,13 +194,13 @@ ENV_FILE=/srv/nekomorto/.env.prod \
 2. Reiniciar app:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d app
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" up -d app
 ```
 
 3. Validar:
 
 ```bash
-npm run api:health:check -- --base=https://nekomata.moe --expect-source=db --expect-maintenance=true
+npm run api:health:check -- --base=https://<APP_DOMAIN> --expect-source=db --expect-maintenance=true
 ```
 
 4. Finalizar operacao, voltar `MAINTENANCE_MODE=false`, reiniciar app.

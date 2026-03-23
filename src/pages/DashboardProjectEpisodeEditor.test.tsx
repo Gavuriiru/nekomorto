@@ -553,6 +553,74 @@ describe("DashboardProjectEpisodeEditor", () => {
     );
   });
 
+  it("usa o seletor de fonte para adicionar links de download no editor dedicado", async () => {
+    const apiState = setupApiMock();
+    renderEditor("/dashboard/projetos/project-1/episodios/2");
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
+
+    const fileSection = screen.getByTestId("anime-episode-file-section");
+    fireEvent.click(within(fileSection).getByRole("button", { name: /Adicionar fonte/i }));
+
+    const sourceTrigger = within(fileSection).getByRole("combobox", { name: "Fonte 1" });
+    const sourceUrlInput = within(fileSection).getByPlaceholderText("URL");
+    expect(sourceUrlInput).toBeDisabled();
+
+    fireEvent.click(sourceTrigger);
+    fireEvent.click(await screen.findByRole("option", { name: /^Google Drive$/i }));
+    expect(sourceUrlInput).not.toBeDisabled();
+
+    fireEvent.change(sourceUrlInput, {
+      target: { value: "https://example.com/episodio-2-google-drive" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Salvar episódio/i }));
+
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Episódio salvo", intent: "success" }),
+      ),
+    );
+
+    const persistedProject = apiState.getPersistedProjects().at(-1);
+    expect(persistedProject?.episodeDownloads).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          number: 2,
+          sources: [
+            {
+              label: "Google Drive",
+              url: "https://example.com/episodio-2-google-drive",
+            },
+          ],
+        }),
+      ]),
+    );
+  });
+
+  it("bloqueia o save quando existe fonte de download parcial", async () => {
+    const apiState = setupApiMock();
+    renderEditor("/dashboard/projetos/project-1/episodios/2");
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
+
+    const fileSection = screen.getByTestId("anime-episode-file-section");
+    fireEvent.click(within(fileSection).getByRole("button", { name: /Adicionar fonte/i }));
+    fireEvent.click(within(fileSection).getByRole("combobox", { name: "Fonte 1" }));
+    fireEvent.click(await screen.findByRole("option", { name: /^MEGA$/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Salvar episódio/i }));
+
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Complete as fontes de download",
+          variant: "destructive",
+        }),
+      ),
+    );
+    expect(apiState.getPersistedProjects()).toHaveLength(0);
+  });
+
   it("usa a data atual no release ao salvar episódio com release vazio", async () => {
     const apiState = setupApiMock();
     const mockedNowMs = new Date("2026-04-02T15:00:00.000Z").getTime();

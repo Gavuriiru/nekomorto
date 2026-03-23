@@ -54,7 +54,7 @@ const createDeferredResponse = () => {
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
-const baseSettings = {
+const baseEditorialSettings = {
   version: 1,
   mentionMode: "role_id",
   mentionFallback: "skip",
@@ -153,14 +153,79 @@ const baseSettings = {
   },
 };
 
+const baseSettings = {
+  version: 2,
+  editorial: baseEditorialSettings,
+  operational: {
+    enabled: true,
+    provider: "discord",
+    webhookUrl: "https://discord.com/api/webhooks/ops/teste",
+    timeoutMs: 5000,
+    intervalMs: 60000,
+  },
+  security: {
+    enabled: true,
+    provider: "discord",
+    webhookUrl: "https://discord.com/api/webhooks/security/teste",
+    timeoutMs: 5000,
+  },
+};
+
+const baseSources = {
+  editorial: "stored",
+  operational: "env",
+  security: "stored",
+};
+
+const defaultDeliveriesPayload = {
+  items: [
+    {
+      id: "delivery-1",
+      scope: "editorial",
+      channel: "posts",
+      eventKey: "post_create",
+      eventLabel: "Novo post",
+      status: "failed",
+      provider: "discord",
+      attemptCount: 2,
+      maxAttempts: 3,
+      createdAt: "2026-03-23T12:00:00.000Z",
+      nextAttemptAt: null,
+      lastAttemptAt: "2026-03-23T12:05:00.000Z",
+      statusCode: 429,
+      error: "rate_limited",
+      targetLabel: "discord.com/api/webhooks/123/...",
+      resourceIds: {
+        postId: "post-1",
+        projectId: "project-1",
+      },
+      isRetryable: true,
+    },
+  ],
+  summary: {
+    queued: 1,
+    processing: 0,
+    retrying: 1,
+    failed: 1,
+    sentLast24h: 4,
+  },
+  page: 1,
+  limit: 25,
+  total: 1,
+};
+
 const setupApiMock = ({
   meResponse,
   testResponse,
   putResponse,
+  deliveriesResponse,
+  retryResponse,
 }: {
   meResponse?: Response;
   testResponse?: Response;
   putResponse?: Response;
+  deliveriesResponse?: Response;
+  retryResponse?: Response;
 } = {}) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
@@ -176,11 +241,16 @@ const setupApiMock = ({
         })
       );
     }
-    if (path === "/api/integrations/webhooks/editorial" && method === "GET") {
+    if (path === "/api/integrations/webhooks" && method === "GET") {
       return mockJsonResponse(true, {
         settings: baseSettings,
         projectTypes: ["Anime", "Manga"],
+        revision: "rev-1",
+        sources: baseSources,
       });
+    }
+    if (path.startsWith("/api/integrations/webhooks/deliveries?") && method === "GET") {
+      return deliveriesResponse || mockJsonResponse(true, defaultDeliveriesPayload);
     }
     if (path === "/api/integrations/webhooks/editorial/test" && method === "POST") {
       return (
@@ -194,7 +264,23 @@ const setupApiMock = ({
         })
       );
     }
-    if (path === "/api/integrations/webhooks/editorial" && method === "PUT") {
+    if (path === "/api/integrations/webhooks/operational/test" && method === "POST") {
+      return mockJsonResponse(true, {
+        ok: true,
+        scope: "operational",
+        status: "sent",
+        code: null,
+      });
+    }
+    if (path === "/api/integrations/webhooks/security/test" && method === "POST") {
+      return mockJsonResponse(true, {
+        ok: true,
+        scope: "security",
+        status: "sent",
+        code: null,
+      });
+    }
+    if (path === "/api/integrations/webhooks" && method === "PUT") {
       if (putResponse) {
         return putResponse;
       }
@@ -205,7 +291,26 @@ const setupApiMock = ({
       return mockJsonResponse(true, {
         settings: parsedBody.settings || baseSettings,
         projectTypes: ["Anime", "Manga"],
+        revision: "rev-2",
+        sources: {
+          editorial: "stored",
+          operational: "stored",
+          security: "stored",
+        },
       });
+    }
+    if (path === "/api/integrations/webhooks/deliveries/delivery-1/retry" && method === "POST") {
+      return (
+        retryResponse ||
+        mockJsonResponse(true, {
+          ok: true,
+          delivery: {
+            ...defaultDeliveriesPayload.items[0],
+            id: "delivery-2",
+            status: "queued",
+          },
+        })
+      );
     }
     return mockJsonResponse(false, { error: "not_found" }, 404);
   });
@@ -242,8 +347,11 @@ describe("DashboardWebhooks layout", () => {
     apiFetchMock.mockReset();
     apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
       const method = String(options?.method || "GET").toUpperCase();
-      if (path === "/api/integrations/webhooks/editorial" && method === "GET") {
+      if (path === "/api/integrations/webhooks" && method === "GET") {
         return settingsDeferred.promise;
+      }
+      if (path.startsWith("/api/integrations/webhooks/deliveries?") && method === "GET") {
+        return mockJsonResponse(true, defaultDeliveriesPayload);
       }
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
@@ -287,6 +395,8 @@ describe("DashboardWebhooks layout", () => {
       mockJsonResponse(true, {
         settings: baseSettings,
         projectTypes: ["Anime", "Manga"],
+        revision: "rev-1",
+        sources: baseSources,
       }),
     );
 
@@ -323,8 +433,11 @@ describe("DashboardWebhooks layout", () => {
     apiFetchMock.mockReset();
     apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
       const method = String(options?.method || "GET").toUpperCase();
-      if (path === "/api/integrations/webhooks/editorial" && method === "GET") {
+      if (path === "/api/integrations/webhooks" && method === "GET") {
         return refreshDeferred.promise;
+      }
+      if (path.startsWith("/api/integrations/webhooks/deliveries?") && method === "GET") {
+        return mockJsonResponse(true, defaultDeliveriesPayload);
       }
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
@@ -350,7 +463,7 @@ describe("DashboardWebhooks layout", () => {
     refreshDeferred.resolve(mockJsonResponse(false, { error: "load_failed" }, 500));
 
     await waitFor(() => {
-      expect(screen.getByText(/Mantendo os ultimos dados carregados/i)).toBeInTheDocument();
+      expect(screen.getByText(/Mantendo os últimos dados carregados/i)).toBeInTheDocument();
     });
     expect(dismissToastMock).toHaveBeenCalledWith("dashboard-webhooks-refresh-toast");
     expect(screen.getByText(/Role geral de lan/i)).toBeInTheDocument();
@@ -549,7 +662,7 @@ describe("DashboardWebhooks layout", () => {
       const putCalls = apiFetchMock.mock.calls.filter((call) => {
         const path = String(call[1] || "");
         const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
-        return path === "/api/integrations/webhooks/editorial" && method === "PUT";
+        return path === "/api/integrations/webhooks" && method === "PUT";
       });
       expect(putCalls).toHaveLength(1);
     });
@@ -557,17 +670,20 @@ describe("DashboardWebhooks layout", () => {
     const putCall = apiFetchMock.mock.calls.find((call) => {
       const path = String(call[1] || "");
       const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
-      return path === "/api/integrations/webhooks/editorial" && method === "PUT";
+      return path === "/api/integrations/webhooks" && method === "PUT";
     });
 
-    const payload = (
-      (putCall?.[2] as { json?: { settings?: typeof baseSettings } } | undefined)?.json || {}
-    ).settings;
+    const requestPayload =
+      ((putCall?.[2] as {
+        json?: { settings?: typeof baseSettings; ifRevision?: string };
+      } | undefined)?.json || {});
+    const payload = requestPayload.settings;
 
-    expect(payload?.channels?.posts?.webhookUrl).toBe(
+    expect(payload?.editorial?.channels?.posts?.webhookUrl).toBe(
       "https://discord.com/api/webhooks/posts/teste",
     );
-    expect(payload?.typeRoles?.[0]?.roleId || "").toBe("");
+    expect(payload?.editorial?.typeRoles?.[0]?.roleId || "").toBe("");
+    expect(requestPayload.ifRevision).toBe("rev-1");
 
     expect(
       (screen.getAllByPlaceholderText("ID do cargo do Discord")[0] as HTMLInputElement).value,
@@ -595,13 +711,232 @@ describe("DashboardWebhooks layout", () => {
 
     await screen.findByRole("heading", { name: /Webhooks/i });
     fireEvent.click(screen.getByRole("button", { name: /Novo lan/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Enviar teste/i }));
+    fireEvent.click(
+      within(screen.getByTestId("dashboard-webhooks-event-projects-project_release")).getByRole(
+        "button",
+        { name: /Enviar teste/i },
+      ),
+    );
 
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
           title: "Teste falhou",
           description: "Invalid Form Body",
+        }),
+      );
+    });
+  });
+
+  it("envia o rascunho atual no teste manual", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Webhooks/i });
+
+    const webhookInputs = screen.getAllByPlaceholderText("https://discord.com/api/webhooks/...");
+    fireEvent.change(webhookInputs[0], {
+      target: { value: "https://discord.com/api/webhooks/posts/draft-token" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
+    fireEvent.change(screen.getByDisplayValue("{{mention.all}}"), {
+      target: { value: "rascunho local" },
+    });
+    fireEvent.click(
+      within(screen.getByTestId("dashboard-webhooks-event-posts-post_create")).getByRole(
+        "button",
+        { name: /Enviar teste/i },
+      ),
+    );
+
+    await waitFor(() => {
+      const testCalls = apiFetchMock.mock.calls.filter((call) => {
+        const path = String(call[1] || "");
+        const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
+        return path === "/api/integrations/webhooks/editorial/test" && method === "POST";
+      });
+      expect(testCalls).toHaveLength(1);
+    });
+
+    const testCall = apiFetchMock.mock.calls.find((call) => {
+      const path = String(call[1] || "");
+      const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
+      return path === "/api/integrations/webhooks/editorial/test" && method === "POST";
+    });
+    const requestPayload =
+      ((testCall?.[2] as { json?: { settings?: typeof baseSettings } } | undefined)?.json || {});
+
+    expect(requestPayload.settings?.editorial.channels.posts.webhookUrl).toBe(
+      "https://discord.com/api/webhooks/posts/draft-token",
+    );
+    expect(requestPayload.settings?.editorial.channels.posts.templates.post_create.content).toBe(
+      "rascunho local",
+    );
+  });
+
+  it("preserva o rascunho local quando o save encontra conflito de revisao", async () => {
+    setupApiMock({
+      putResponse: mockJsonResponse(
+        false,
+        {
+          error: "edit_conflict",
+          currentRevision: "rev-2",
+          projectTypes: ["Anime", "Manga"],
+          sources: baseSources,
+          settings: {
+            ...baseSettings,
+            editorial: {
+              ...baseEditorialSettings,
+              generalReleaseRoleId: "999",
+            },
+          },
+        },
+        409,
+      ),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Webhooks/i });
+
+    const roleInput = screen.getAllByPlaceholderText("ID do cargo do Discord")[0];
+    fireEvent.change(roleInput, { target: { value: "123456" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Salvar$/i }));
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Configuração desatualizada",
+        }),
+      );
+    });
+
+    expect((screen.getAllByPlaceholderText("ID do cargo do Discord")[0] as HTMLInputElement).value).toBe(
+      "123456",
+    );
+  });
+
+  it("envia os testes de alertas operacionais e segurança com o rascunho atual", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Webhooks/i });
+
+    const operationalSection = screen.getByTestId("dashboard-webhooks-section-content-operational");
+    const securitySection = screen.getByTestId("dashboard-webhooks-section-content-security");
+    const operationalWebhookInput = within(operationalSection).getByPlaceholderText(
+      "https://discord.com/api/webhooks/...",
+    );
+    const securityWebhookInput = within(securitySection).getByPlaceholderText(
+      "https://discord.com/api/webhooks/...",
+    );
+
+    fireEvent.change(operationalWebhookInput, {
+      target: { value: "https://discord.com/api/webhooks/ops/draft-token" },
+    });
+    fireEvent.change(securityWebhookInput, {
+      target: { value: "https://discord.com/api/webhooks/security/draft-token" },
+    });
+
+    fireEvent.click(
+      within(operationalSection).getByRole("button", { name: /Enviar teste/i }),
+    );
+    fireEvent.click(within(securitySection).getByRole("button", { name: /Enviar teste/i }));
+
+    await waitFor(() => {
+      const operationalCall = apiFetchMock.mock.calls.find(
+        (call) => String(call[1] || "") === "/api/integrations/webhooks/operational/test",
+      );
+      const securityCall = apiFetchMock.mock.calls.find(
+        (call) => String(call[1] || "") === "/api/integrations/webhooks/security/test",
+      );
+
+      expect(operationalCall).toBeDefined();
+      expect(securityCall).toBeDefined();
+      expect(
+        ((operationalCall?.[2] as { json?: { settings?: typeof baseSettings } } | undefined)?.json
+          ?.settings?.operational?.webhookUrl || ""),
+      ).toBe("https://discord.com/api/webhooks/ops/draft-token");
+      expect(
+        ((securityCall?.[2] as { json?: { settings?: typeof baseSettings } } | undefined)?.json
+          ?.settings?.security?.webhookUrl || ""),
+      ).toBe("https://discord.com/api/webhooks/security/draft-token");
+    });
+  });
+
+  it("mostra entregas persistidas e permite reenfileirar uma falha", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId("dashboard-webhooks-section-deliveries");
+    await screen.findByTestId("dashboard-webhooks-deliveries-list");
+    const summaryGrid = screen.getByTestId("dashboard-webhooks-delivery-summary-grid");
+
+    expect(classTokens(summaryGrid)).toContain("grid");
+    expect(classTokens(summaryGrid)).toContain("md:grid-cols-2");
+    expect(classTokens(summaryGrid)).toContain("lg:grid-cols-3");
+    expect(classTokens(summaryGrid)).toContain("xl:grid-cols-5");
+    expect(
+      within(summaryGrid).getByTestId("dashboard-webhooks-delivery-summary-card-queued"),
+    ).toBeInTheDocument();
+    expect(
+      within(summaryGrid).getByTestId("dashboard-webhooks-delivery-summary-card-processing"),
+    ).toBeInTheDocument();
+    expect(
+      within(summaryGrid).getByTestId("dashboard-webhooks-delivery-summary-card-retrying"),
+    ).toBeInTheDocument();
+    expect(
+      within(summaryGrid).getByTestId("dashboard-webhooks-delivery-summary-card-failed"),
+    ).toBeInTheDocument();
+    expect(
+      within(summaryGrid).getByTestId("dashboard-webhooks-delivery-summary-card-sent_last_24h"),
+    ).toBeInTheDocument();
+    expect(within(summaryGrid).getByText("Na fila")).toBeInTheDocument();
+    expect(within(summaryGrid).getByText("Processando")).toBeInTheDocument();
+    expect(within(summaryGrid).getByText("Reagendado")).toBeInTheDocument();
+    expect(within(summaryGrid).getByText("Falhas")).toBeInTheDocument();
+    expect(within(summaryGrid).getByText("Enviados 24h")).toBeInTheDocument();
+
+    expect(screen.getByText("discord.com/api/webhooks/123/...")).toBeInTheDocument();
+    expect(screen.getByText(/rate_limited/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Reenfileirar/i }));
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "http://api.local",
+        "/api/integrations/webhooks/deliveries/delivery-1/retry",
+        expect.objectContaining({
+          method: "POST",
+          auth: true,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Entrega reenfileirada",
         }),
       );
     });

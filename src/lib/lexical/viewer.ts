@@ -7,6 +7,7 @@ type SerializedLexicalNodeLike = {
   children?: SerializedLexicalNodeLike[];
   open?: boolean;
   root?: SerializedLexicalNodeLike;
+  text?: string;
   type?: string;
 };
 
@@ -28,6 +29,23 @@ const hasSerializableRoot = (serializedState: unknown) => {
   return root?.type === "root" && Array.isArray(root.children);
 };
 
+const isWhitespaceOnlyTextNode = (node: SerializedLexicalNodeLike) =>
+  node.type === "text" && String(node.text || "").trim().length === 0;
+
+const isVisuallyEmptyParagraph = (node: SerializedLexicalNodeLike) => {
+  if (node.type !== "paragraph") {
+    return false;
+  }
+
+  if (!Array.isArray(node.children) || node.children.length === 0) {
+    return true;
+  }
+
+  return node.children.every(
+    (child) => child.type === "linebreak" || isWhitespaceOnlyTextNode(child),
+  );
+};
+
 const closeCollapsibleContainers = (node: unknown): void => {
   if (!node || typeof node !== "object") {
     return;
@@ -43,6 +61,15 @@ const closeCollapsibleContainers = (node: unknown): void => {
   }
 
   if (Array.isArray(serializedNode.children)) {
+    if (
+      serializedNode.type === "collapsible-title" ||
+      serializedNode.type === "collapsible-content"
+    ) {
+      serializedNode.children = serializedNode.children.filter(
+        (child) => !isVisuallyEmptyParagraph(child),
+      );
+    }
+
     for (const child of serializedNode.children) {
       closeCollapsibleContainers(child);
     }

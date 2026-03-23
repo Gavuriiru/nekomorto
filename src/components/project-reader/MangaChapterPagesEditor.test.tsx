@@ -297,7 +297,7 @@ describe("MangaChapterPagesEditor", () => {
       ".zip,.cbz,application/zip,application/x-cbz",
     );
     expect(screen.getByTestId("manga-pages-sources")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Galeria")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Fonte 1" })).toHaveTextContent("Galeria");
     expect(screen.getByDisplayValue("https://cdn.test/gallery")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Abrir leitura/i })).not.toBeInTheDocument();
   });

@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
+import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
 import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
 import type { Project, ProjectEpisode, ProjectEpisodePage } from "@/data/projects";
 import { apiFetch } from "@/lib/api-client";
@@ -661,16 +662,17 @@ const MangaChapterPagesEditor = ({
               key={`chapter-source-${sourceIndex}`}
               className="grid gap-2 rounded-xl border border-border/60 bg-card/70 p-3"
             >
-              <Input
+              <DownloadSourceSelect
                 value={source.label}
-                onChange={(event) =>
+                ariaLabel={`Fonte ${sourceIndex + 1}`}
+                legacyLabels={(chapter.sources || []).map((item) => item.label)}
+                onValueChange={(value) =>
                   setChapterState({
                     sources: (chapter.sources || []).map((item, index) =>
-                      index === sourceIndex ? { ...item, label: event.target.value } : item,
+                      index === sourceIndex ? { ...item, label: value } : item,
                     ),
                   })
                 }
-                placeholder="Fonte"
               />
               <Input
                 value={source.url}
@@ -682,6 +684,7 @@ const MangaChapterPagesEditor = ({
                   })
                 }
                 placeholder="URL"
+                disabled={!String(source.label || "").trim()}
               />
               <div className="flex justify-end">
                 <Button

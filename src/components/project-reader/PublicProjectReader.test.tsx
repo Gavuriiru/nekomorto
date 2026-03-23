@@ -221,11 +221,13 @@ const setElementSize = (
     clientWidth,
     clientHeight,
     offsetHeight,
+    scrollHeight,
     scrollWidth,
   }: {
     clientWidth?: number;
     clientHeight?: number;
     offsetHeight?: number;
+    scrollHeight?: number;
     scrollWidth?: number;
   },
 ) => {
@@ -254,6 +256,13 @@ const setElementSize = (
     Object.defineProperty(element, "scrollWidth", {
       configurable: true,
       value: scrollWidth,
+    });
+  }
+
+  if (typeof scrollHeight === "number") {
+    Object.defineProperty(element, "scrollHeight", {
+      configurable: true,
+      value: scrollHeight,
     });
   }
 };
@@ -455,6 +464,91 @@ describe("PublicProjectReader", () => {
       expect(coverSurface).not.toHaveClass("w-full", "max-w-full");
       expect(coverImage).toHaveClass("h-auto", "w-auto", "max-h-none", "max-w-none");
       expect(coverImage).not.toHaveClass("w-full", "max-w-full");
+    }
+  });
+
+  it.each([
+    "both",
+    "width",
+  ])("centers an isolated slot created by a forced spread in double-page mode for fit %s", (imageFit) => {
+    renderReader(
+      { layout: "double", imageFit, firstPageSingle: false },
+      {
+        pages: [
+          { position: 0, imageUrl: "/page-1.jpg" },
+          { position: 1, imageUrl: "/page-2.jpg", spreadPairId: "spread-1" },
+          { position: 2, imageUrl: "/page-3.jpg", spreadPairId: "spread-1" },
+          { position: 3, imageUrl: "/page-4.jpg" },
+        ],
+      },
+    );
+
+    const isolatedPage = screen.getByTestId("reader-page-0");
+    const isolatedSurface = screen.getByTestId("reader-page-surface-0");
+    const isolatedImage = within(isolatedPage).getByRole("img", { name: /P.gina 1/i });
+
+    expect(screen.queryByTestId("reader-spread-blank")).not.toBeInTheDocument();
+    expect(isolatedPage.parentElement).toHaveClass("justify-center");
+    expect(isolatedSurface).toHaveClass("justify-center");
+
+    if (imageFit === "width") {
+      expect(isolatedPage.parentElement).not.toHaveClass("flex-1", "min-w-0");
+      expect(isolatedPage).toHaveClass("w-auto", "max-w-none", "shrink-0");
+      expect(isolatedPage).not.toHaveClass("w-full", "min-w-0");
+      expect(isolatedSurface).toHaveClass(
+        "inline-flex",
+        "h-auto",
+        "w-auto",
+        "max-w-none",
+        "shrink-0",
+      );
+      expect(isolatedSurface).not.toHaveClass("w-full", "max-w-full");
+      expect(isolatedImage).toHaveClass("h-auto", "w-auto", "max-h-none", "max-w-none");
+      expect(isolatedImage).not.toHaveClass("w-full", "max-w-full");
+    }
+  });
+
+  it.each([
+    "both",
+    "width",
+  ])("centers the isolated last slot in double-page mode for fit %s", (imageFit) => {
+    renderReader(
+      { layout: "double", imageFit, firstPageSingle: false },
+      {
+        pages: [
+          { position: 0, imageUrl: "/page-1.jpg" },
+          { position: 1, imageUrl: "/page-2.jpg", spreadPairId: "spread-1" },
+          { position: 2, imageUrl: "/page-3.jpg", spreadPairId: "spread-1" },
+          { position: 3, imageUrl: "/page-4.jpg" },
+        ],
+      },
+      {
+        initialEntries: ["/projeto/projeto-teste/leitura/1?page=4"],
+      },
+    );
+
+    const isolatedPage = screen.getByTestId("reader-page-3");
+    const isolatedSurface = screen.getByTestId("reader-page-surface-3");
+    const isolatedImage = within(isolatedPage).getByRole("img", { name: /P.gina 4/i });
+
+    expect(screen.queryByTestId("reader-spread-blank")).not.toBeInTheDocument();
+    expect(isolatedPage.parentElement).toHaveClass("justify-center");
+    expect(isolatedSurface).toHaveClass("justify-center");
+
+    if (imageFit === "width") {
+      expect(isolatedPage.parentElement).not.toHaveClass("flex-1", "min-w-0");
+      expect(isolatedPage).toHaveClass("w-auto", "max-w-none", "shrink-0");
+      expect(isolatedPage).not.toHaveClass("w-full", "min-w-0");
+      expect(isolatedSurface).toHaveClass(
+        "inline-flex",
+        "h-auto",
+        "w-auto",
+        "max-w-none",
+        "shrink-0",
+      );
+      expect(isolatedSurface).not.toHaveClass("w-full", "max-w-full");
+      expect(isolatedImage).toHaveClass("h-auto", "w-auto", "max-h-none", "max-w-none");
+      expect(isolatedImage).not.toHaveClass("w-full", "max-w-full");
     }
   });
 
@@ -1718,6 +1812,7 @@ describe("PublicProjectReader", () => {
     renderReader({ progressStyle: "default", progressPosition });
 
     const stage = screen.getByTestId("project-reading-stage");
+    const menuViewport = screen.getByTestId("project-reader-menu-viewport");
     const progressViewport = await screen.findByTestId("project-reader-progress-viewport");
     const progressViewportShell = progressViewport.parentElement as HTMLElement;
     const overlay = await screen.findByTestId("project-reader-progress-overlay");
@@ -1728,10 +1823,13 @@ describe("PublicProjectReader", () => {
 
     expect(progressViewportShell.closest('[data-testid="project-reading-stage"]')).toBe(stage);
     expect(progressViewportShell).toHaveClass("sticky", "top-0", "h-0");
+    expect(menuViewport).not.toBe(progressViewport);
+    expect(within(progressViewport).queryByTestId("project-reader-menu-host")).not.toBeInTheDocument();
     expect(overlay.closest('[data-testid="project-reading-stage"]')).toBe(stage);
     expect(overlay).toHaveClass("absolute");
     expect(overlay.className).not.toContain("fixed");
     expect(overlay.className).not.toContain("inset-0");
+    expect(overlay.className).not.toContain("transition-all");
     expect(overlay.style[edge as "bottom" | "left" | "right"]).toContain(`safe-area-inset-${edge}`);
     expect(overlay.style[edge as "bottom" | "left" | "right"]).toContain("12px");
     if (progressPosition === "bottom") {
@@ -1747,7 +1845,9 @@ describe("PublicProjectReader", () => {
     expect(screen.queryByTestId("project-reader-progress-beam")).not.toBeInTheDocument();
     expect(indicator).toBeInTheDocument();
     expect(indicator).toHaveClass("bg-accent");
+    expect(indicator.className).not.toContain("transition-all");
     expect(label).toHaveClass("bg-accent", "text-accent-foreground", "py-0.5", "opacity-0");
+    expect(label.className).not.toContain("transition-all");
     expect(label).toHaveClass(progressPosition === "bottom" ? "bottom-2" : "min-h-7");
     await waitFor(() => {
       expect(overlay).toHaveAttribute("data-state", "visible");
@@ -1823,13 +1923,10 @@ describe("PublicProjectReader", () => {
     fireEvent.scroll(window);
     goToNextPaginatedPage();
 
-    await waitFor(() => {
-      expect(progressViewport.style.height).toBe("640px");
-      expect(Number.parseFloat(screen.getByTestId("project-reader-progress-indicator").style.left)).toBeCloseTo(
-        getProgressContainerLength("bottom", { width: 480, height: 640 }) / 2,
-        4,
-      );
-    });
+    expect(progressViewport.style.height).toBe("640px");
+    expect(
+      Number.parseFloat(screen.getByTestId("project-reader-progress-indicator").style.left),
+    ).toBeCloseTo(getProgressContainerLength("bottom", { width: 480, height: 640 }) / 2, 4);
 
     stageRectSpy.mockRestore();
   });
@@ -2175,13 +2272,13 @@ describe("PublicProjectReader", () => {
     goToNextPaginatedPage();
     goToNextPaginatedPage();
 
-    await waitFor(() => {
-      expect(progressViewport.style.height).toBe("200px");
-      expect(Number.parseFloat(screen.getByTestId("project-reader-progress-indicator").style.top)).toBeCloseTo(
-        getProgressContainerLength("left", { width: 480, height: 200 }) - getRootFontSizePx() * 2.25,
-        4,
-      );
-    });
+    expect(progressViewport.style.height).toBe("200px");
+    expect(
+      Number.parseFloat(screen.getByTestId("project-reader-progress-indicator").style.top),
+    ).toBeCloseTo(
+      getProgressContainerLength("left", { width: 480, height: 200 }) - getRootFontSizePx() * 2.25,
+      4,
+    );
 
     stageRectSpy.mockRestore();
   });
@@ -2321,10 +2418,15 @@ describe("PublicProjectReader", () => {
 
     const infoBar = screen.getByTestId("project-reading-info-bar");
     const stage = screen.getByTestId("project-reading-stage");
+    const menuViewport = screen.getByTestId("project-reader-menu-viewport");
+    const progressViewport = screen.getByTestId("project-reader-progress-viewport");
     const menuHost = screen.getByTestId("project-reader-menu-host");
     const menuButton = screen.getByTestId("project-reader-menu-button");
     expect(stage.contains(menuButton)).toBe(true);
     expect(stage.contains(menuHost)).toBe(true);
+    expect(stage.contains(menuViewport)).toBe(true);
+    expect(menuViewport).not.toBe(progressViewport);
+    expect(menuViewport.contains(menuHost)).toBe(true);
     expect(infoBar.contains(menuButton)).toBe(false);
     expect(menuButton).toHaveAttribute("aria-expanded", "false");
 
@@ -2340,11 +2442,15 @@ describe("PublicProjectReader", () => {
         "hidden",
       );
     });
-    expect(sidebar.style.top).toBe("0px");
+    expect(sidebar).toHaveClass("top-0");
     expect(sidebar.style.width).toBe("21rem");
     expect(sidebar.style.maxWidth).toBe("calc(100% - 0.75rem)");
     expect(sidebar.style.maxHeight).toMatch(/px$/);
-    expect(sidebar.style.height).toBe("");
+    expect(sidebar.style.height).toMatch(/px$/);
+    expect(within(sidebar).getByTestId("project-reader-menu-scroll-area").style.height).toMatch(
+      /px$/,
+    );
+    expect(sidebar.className).not.toContain("transition-all");
     expect(menuButton).toHaveAttribute("aria-expanded", "true");
     expect(within(sidebar).getByText("Leitor")).toBeInTheDocument();
     expect(sidebarHeader).not.toHaveTextContent(/\bCap 1\b/);
@@ -2369,6 +2475,7 @@ describe("PublicProjectReader", () => {
     renderReader({ imageFit: "both" });
 
     const stage = screen.getByTestId("project-reading-stage");
+    const menuViewport = screen.getByTestId("project-reader-menu-viewport");
     const menuHost = screen.getByTestId("project-reader-menu-host");
     const menuButton = screen.getByTestId("project-reader-menu-button");
     fireEvent.click(menuButton);
@@ -2378,17 +2485,22 @@ describe("PublicProjectReader", () => {
     expect(sidebar.tagName).toBe("ASIDE");
     expect(stage.contains(sidebar)).toBe(true);
     expect(stage.contains(menuHost)).toBe(true);
+    expect(stage.contains(menuViewport)).toBe(true);
+    expect(menuViewport.contains(menuHost)).toBe(true);
     await waitFor(() => {
       expect(screen.getByTestId("project-reader-menu-button-shell")).toHaveAttribute(
         "data-state",
         "hidden",
       );
     });
-    expect(sidebar.style.top).toBe("0px");
+    expect(sidebar).toHaveClass("top-0");
     expect(sidebar.style.width).toBe("20.5rem");
     expect(sidebar.style.maxWidth).toBe("calc(100% - 0.75rem)");
     expect(sidebar.style.maxHeight).toMatch(/px$/);
-    expect(sidebar.style.height).toBe("");
+    expect(sidebar.style.height).toMatch(/px$/);
+    expect(within(sidebar).getByTestId("project-reader-menu-scroll-area").style.height).toMatch(
+      /px$/,
+    );
     expect(menuButton).toHaveAttribute("aria-expanded", "true");
     expect(within(sidebar).getByText("Leitor")).toBeInTheDocument();
     expect(sidebarHeader).not.toHaveTextContent(/\bCap 1\b/);
@@ -2396,25 +2508,275 @@ describe("PublicProjectReader", () => {
     expect(within(sidebar).getByRole("button", { name: "Fechar menu do leitor" })).toBeInTheDocument();
   });
 
-  it("limits the reader menu height to the visible stage viewport", async () => {
+  it("updates the reader menu viewport height and maxHeight synchronously on scroll", async () => {
     renderReader({ imageFit: "both" });
 
     const stage = screen.getByTestId("project-reading-stage");
-    const rectSpy = mockElementRect(stage, {
-      top: 250,
-      bottom: 980,
+    const menuViewport = screen.getByTestId("project-reader-menu-viewport");
+    let stageRect = {
+      top: 120,
+      bottom: 920,
+      left: 0,
+      right: 1200,
       width: 1200,
-      height: 730,
-    });
+      height: 800,
+    };
+    const rectSpy = vi.spyOn(stage, "getBoundingClientRect").mockImplementation(
+      () =>
+        ({
+          x: stageRect.left,
+          y: stageRect.top,
+          ...stageRect,
+          toJSON: () => ({}),
+        }) as DOMRect,
+    );
 
-    fireEvent.scroll(window);
     fireEvent.click(screen.getByTestId("project-reader-menu-button"));
 
     const sidebar = await screen.findByTestId("project-reader-sidebar");
+    const scrollArea = within(sidebar).getByTestId("project-reader-menu-scroll-area");
+    stageRect = {
+      top: 250,
+      bottom: 980,
+      left: 0,
+      right: 1200,
+      width: 1200,
+      height: 730,
+    };
+    fireEvent.scroll(window);
 
-    await waitFor(() => {
-      expect(sidebar.style.maxHeight).toBe("622px");
-    });
+    expect(menuViewport.style.height).toBe("650px");
+    expect(sidebar.style.maxHeight).toBe("622px");
+    expect(sidebar.style.height).toBe("622px");
+    expect(scrollArea.style.maxHeight).toMatch(/px$/);
+    expect(scrollArea.style.height).toMatch(/px$/);
+
+    rectSpy.mockRestore();
+  });
+
+  it("restores the original menu height after the stage recovers visible space", async () => {
+    renderReader({ imageFit: "both" });
+
+    const stage = screen.getByTestId("project-reading-stage");
+    const menuViewport = screen.getByTestId("project-reader-menu-viewport");
+    let stageRect = {
+      top: 120,
+      bottom: 920,
+      left: 0,
+      right: 1200,
+      width: 1200,
+      height: 800,
+    };
+    const rectSpy = vi.spyOn(stage, "getBoundingClientRect").mockImplementation(
+      () =>
+        ({
+          x: stageRect.left,
+          y: stageRect.top,
+          ...stageRect,
+          toJSON: () => ({}),
+        }) as DOMRect,
+    );
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+
+    const sidebar = await screen.findByTestId("project-reader-sidebar");
+    const scrollArea = within(sidebar).getByTestId("project-reader-menu-scroll-area");
+    const initialViewportHeight = menuViewport.style.height;
+    const initialPanelHeight = sidebar.style.height;
+    const initialPanelMaxHeight = sidebar.style.maxHeight;
+    const initialScrollAreaHeight = scrollArea.style.height;
+
+    stageRect = {
+      top: 250,
+      bottom: 980,
+      left: 0,
+      right: 1200,
+      width: 1200,
+      height: 730,
+    };
+    fireEvent.scroll(window);
+
+    expect(menuViewport.style.height).toBe("650px");
+    expect(sidebar.style.height).toBe("622px");
+    expect(scrollArea.style.height).not.toBe(initialScrollAreaHeight);
+
+    scrollArea.scrollTop = 48;
+
+    stageRect = {
+      top: 120,
+      bottom: 920,
+      left: 0,
+      right: 1200,
+      width: 1200,
+      height: 800,
+    };
+    fireEvent.scroll(window);
+
+    expect(menuViewport.style.height).toBe(initialViewportHeight);
+    expect(sidebar.style.height).toBe(initialPanelHeight);
+    expect(sidebar.style.maxHeight).toBe(initialPanelMaxHeight);
+    expect(scrollArea.style.height).toBe(initialScrollAreaHeight);
+    expect(scrollArea.scrollTop).toBe(48);
+
+    rectSpy.mockRestore();
+  });
+
+  it("absorbs a tiny residual menu overflow when there is still free space in the stage", async () => {
+    renderReader({ imageFit: "both" });
+
+    const stage = screen.getByTestId("project-reading-stage");
+    const rectSpy = vi.spyOn(stage, "getBoundingClientRect").mockImplementation(
+      () =>
+        ({
+          x: 0,
+          y: 120,
+          top: 120,
+          bottom: 920,
+          left: 0,
+          right: 1200,
+          width: 1200,
+          height: 800,
+          toJSON: () => ({}),
+        }) as DOMRect,
+    );
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+
+    const sidebar = await screen.findByTestId("project-reader-sidebar");
+    const scrollArea = within(sidebar).getByTestId("project-reader-menu-scroll-area");
+
+    setElementSize(sidebar, { clientHeight: 730, offsetHeight: 730, scrollHeight: 742 });
+    setElementSize(scrollArea, { clientHeight: 646, offsetHeight: 646, scrollHeight: 648 });
+    fireEvent.scroll(window);
+
+    expect(scrollArea.style.overflowY).toBe("hidden");
+    expect(Number.parseFloat(sidebar.style.height)).toBeGreaterThanOrEqual(732);
+    expect(Number.parseFloat(scrollArea.style.height)).toBeGreaterThanOrEqual(648);
+
+    rectSpy.mockRestore();
+  });
+
+  it("keeps menu scrolling enabled when the content genuinely exceeds the available stage height", async () => {
+    renderReader({ imageFit: "both" });
+
+    const stage = screen.getByTestId("project-reading-stage");
+    const rectSpy = vi.spyOn(stage, "getBoundingClientRect").mockImplementation(
+      () =>
+        ({
+          x: 0,
+          y: 250,
+          top: 250,
+          bottom: 980,
+          left: 0,
+          right: 1200,
+          width: 1200,
+          height: 730,
+          toJSON: () => ({}),
+        }) as DOMRect,
+    );
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+
+    const sidebar = await screen.findByTestId("project-reader-sidebar");
+    const scrollArea = within(sidebar).getByTestId("project-reader-menu-scroll-area");
+
+    setElementSize(sidebar, { clientHeight: 622, offsetHeight: 622, scrollHeight: 780 });
+    setElementSize(scrollArea, { clientHeight: 538, offsetHeight: 538, scrollHeight: 700 });
+    fireEvent.scroll(window);
+
+    expect(sidebar.style.height).toBe("622px");
+    expect(scrollArea.style.overflowY).toBe("auto");
+    expect(Number.parseFloat(scrollArea.style.height)).toBeLessThanOrEqual(
+      Number.parseFloat(sidebar.style.height),
+    );
+
+    rectSpy.mockRestore();
+  });
+
+  it("keeps menu and progress clamped to the same visible stage slice near the top", async () => {
+    renderReader({ imageFit: "both", progressStyle: "default", progressPosition: "right" });
+
+    const stage = screen.getByTestId("project-reading-stage");
+    const progressViewport = await screen.findByTestId("project-reader-progress-viewport");
+    const menuViewport = screen.getByTestId("project-reader-menu-viewport");
+    let stageRect = {
+      top: 160,
+      bottom: 760,
+      left: 240,
+      right: 720,
+      width: 480,
+      height: 600,
+    };
+    const rectSpy = vi.spyOn(stage, "getBoundingClientRect").mockImplementation(
+      () =>
+        ({
+          x: stageRect.left,
+          y: stageRect.top,
+          ...stageRect,
+          toJSON: () => ({}),
+        }) as DOMRect,
+    );
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+
+    const sidebar = await screen.findByTestId("project-reader-sidebar");
+    stageRect = {
+      top: -120,
+      bottom: 480,
+      left: 240,
+      right: 720,
+      width: 480,
+      height: 600,
+    };
+    fireEvent.scroll(window);
+
+    expect(progressViewport.style.height).toBe("480px");
+    expect(menuViewport.style.height).toBe("480px");
+    expect(sidebar.style.maxHeight).toBe("452px");
+
+    rectSpy.mockRestore();
+  });
+
+  it("collapses menu and progress without a minimum floor when only a tiny slice of the stage is visible", async () => {
+    renderReader({ imageFit: "both", progressStyle: "default", progressPosition: "left" });
+
+    const stage = screen.getByTestId("project-reading-stage");
+    const progressViewport = await screen.findByTestId("project-reader-progress-viewport");
+    const menuViewport = screen.getByTestId("project-reader-menu-viewport");
+    let stageRect = {
+      top: 160,
+      bottom: 760,
+      left: 240,
+      right: 720,
+      width: 480,
+      height: 600,
+    };
+    const rectSpy = vi.spyOn(stage, "getBoundingClientRect").mockImplementation(
+      () =>
+        ({
+          x: stageRect.left,
+          y: stageRect.top,
+          ...stageRect,
+          toJSON: () => ({}),
+        }) as DOMRect,
+    );
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+
+    const sidebar = await screen.findByTestId("project-reader-sidebar");
+    stageRect = {
+      top: 880,
+      bottom: 1000,
+      left: 240,
+      right: 720,
+      width: 480,
+      height: 120,
+    };
+    fireEvent.scroll(window);
+
+    expect(progressViewport.style.height).toBe("20px");
+    expect(menuViewport.style.height).toBe("20px");
+    expect(sidebar.style.maxHeight).toBe("0px");
 
     rectSpy.mockRestore();
   });
@@ -2545,7 +2907,7 @@ describe("PublicProjectReader", () => {
     });
   });
 
-  it("shows the site header behavior options in the reader menu", async () => {
+  it.skip("shows the site header behavior options in the reader menu", async () => {
     renderReader({ imageFit: "both", siteHeaderVariant: "static" });
 
     fireEvent.click(screen.getByTestId("project-reader-menu-button"));
@@ -2562,7 +2924,7 @@ describe("PublicProjectReader", () => {
     ).toBeInTheDocument();
   });
 
-  it("updates the saved site header behavior from the reader menu", async () => {
+  it.skip("updates the saved site header behavior from the reader menu", async () => {
     renderReader({ imageFit: "both", siteHeaderVariant: "static" });
 
     fireEvent.click(screen.getByTestId("project-reader-menu-button"));
@@ -2573,6 +2935,36 @@ describe("PublicProjectReader", () => {
     trigger.focus();
     fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
     fireEvent.click(await screen.findByRole("option", { name: "Padrão do site (fixo no topo)" }));
+
+    expect(updateConfigMock).toHaveBeenCalledWith({ siteHeaderVariant: "fixed" });
+  });
+
+  it("shows the renamed site header visibility options in the reader menu", async () => {
+    renderReader({ imageFit: "both", siteHeaderVariant: "static" });
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+    const trigger = await screen.findByRole("combobox", {
+      name: "Selecionar comportamento do header do site",
+    });
+
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
+
+    expect(await screen.findByRole("option", { name: "Oculto" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Visível" })).toBeInTheDocument();
+  });
+
+  it("updates the saved site header behavior from the renamed reader menu option", async () => {
+    renderReader({ imageFit: "both", siteHeaderVariant: "static" });
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+    const trigger = await screen.findByRole("combobox", {
+      name: "Selecionar comportamento do header do site",
+    });
+
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("option", { name: "Visível" }));
 
     expect(updateConfigMock).toHaveBeenCalledWith({ siteHeaderVariant: "fixed" });
   });

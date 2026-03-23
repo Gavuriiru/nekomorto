@@ -381,6 +381,47 @@ model ProjectImageExportJobRecord {
   @@map("project_image_export_jobs")
 }
 
+model WebhookDeliveryRecord {
+  id                String   @id
+  scope             String
+  provider          String
+  channel           String?
+  eventKey          String?
+  status            String
+  targetUrl         String
+  targetLabel       String
+  payload           Json
+  context           Json
+  attemptCount      Int      @default(0)
+  maxAttempts       Int
+  nextAttemptAt     DateTime?
+  lastAttemptAt     DateTime?
+  lastStatusCode    Int?
+  lastErrorCode     String?
+  lastError         String?
+  processingOwner   String?
+  processingStartedAt DateTime?
+  sentAt            DateTime?
+  retryOfId         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([status, nextAttemptAt], map: "webhook_deliveries_status_nextAttemptAt_idx")
+  @@index([scope, createdAt], map: "webhook_deliveries_scope_createdAt_idx")
+  @@index([channel, createdAt], map: "webhook_deliveries_channel_createdAt_idx")
+  @@index([eventKey, createdAt], map: "webhook_deliveries_eventKey_createdAt_idx")
+  @@index([retryOfId], map: "webhook_deliveries_retryOfId_idx")
+  @@map("webhook_deliveries")
+}
+
+model WebhookStateRecord {
+  key       String   @id
+  data      Json
+  updatedAt DateTime @updatedAt
+
+  @@map("webhook_state")
+}
+
 model SecretRotationRecord {
   id           String   @id
   secretFamily String

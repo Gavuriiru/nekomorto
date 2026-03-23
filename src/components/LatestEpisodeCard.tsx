@@ -199,7 +199,7 @@ const LatestEpisodeCard = () => {
                           </Badge>
                         </div>
                         <div className="space-y-1">
-                          <h4 className="text-sm font-semibold text-foreground transition-colors group-hover:text-primary line-clamp-2">
+                          <h4 className="clamp-safe-2 text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
                             {update.projectTitle}
                           </h4>
                           <p className="line-clamp-1 text-xs leading-relaxed text-muted-foreground md:line-clamp-2">

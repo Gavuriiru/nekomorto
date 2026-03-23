@@ -82,6 +82,12 @@ export const buildMangaSpreadSlots = ({
       continue;
     }
 
+    if (index + 1 >= pages.length) {
+      slots.push({ pages: [index], spread: true, hasBlank: true });
+      index += 1;
+      continue;
+    }
+
     slots.push({ pages: [index], spread: false });
     index += 1;
   }

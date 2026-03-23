@@ -551,9 +551,9 @@
 
 .Collapsible__title {
   position: relative;
-  padding: 0.7rem 0.9rem 0.7rem 2rem;
+  padding: 5px 5px 5px 20px;
   list-style: none;
-  font-weight: 600;
+  font-weight: bold;
   color: var(--lexical-viewer-text);
   cursor: pointer;
 }
@@ -566,22 +566,33 @@
 .Collapsible__title::before {
   content: "";
   position: absolute;
-  left: 0.8rem;
+  left: 7px;
   top: 50%;
   width: 0;
   height: 0;
   border-style: solid;
-  border-width: 0.35rem 0 0.35rem 0.5rem;
-  border-color: transparent transparent transparent var(--lexical-viewer-text);
+  border-color: transparent;
+  border-width: 4px 6px 4px 6px;
+  border-left-color: var(--lexical-viewer-text);
   transform: translateY(-50%);
 }
 
 .Collapsible__container[open] > .Collapsible__title::before {
-  border-width: 0.5rem 0.35rem 0 0.35rem;
-  border-color: var(--lexical-viewer-text) transparent transparent transparent;
+  border-color: transparent;
+  border-width: 6px 4px 0 4px;
+  border-top-color: var(--lexical-viewer-text);
 }
 
 .Collapsible__content {
-  padding: 0 0.9rem 0.9rem 2rem;
+  padding: 0 5px 5px 20px;
   color: var(--lexical-viewer-text-muted);
+}
+
+.lexical-playground.lexical-playground--viewer .Collapsible__content[hidden],
+.lexical-playground.lexical-playground--viewer .Collapsible__content[hidden="until-found"] {
+  display: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  min-height: 0 !important;
 }

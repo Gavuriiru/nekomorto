@@ -26,7 +26,7 @@ describe("buildMangaSpreadSlots", () => {
     ).toEqual([
       { pages: [0], spread: true, hasBlank: true },
       { pages: [1, 2], spread: true },
-      { pages: [3], spread: false },
+      { pages: [3], spread: true, hasBlank: true },
     ]);
   });
 
@@ -39,7 +39,20 @@ describe("buildMangaSpreadSlots", () => {
       }),
     ).toEqual([
       { pages: [0, 1], spread: true },
-      { pages: [2], spread: false },
+      { pages: [2], spread: true, hasBlank: true },
+    ]);
+  });
+
+  it("marca a ultima pagina isolada como spread com blank virtual", () => {
+    expect(
+      buildMangaSpreadSlots({
+        pages: [{}, {}, {}],
+        spreadMode: true,
+        firstPageSingle: false,
+      }),
+    ).toEqual([
+      { pages: [0, 1], spread: true },
+      { pages: [2], spread: true, hasBlank: true },
     ]);
   });
 

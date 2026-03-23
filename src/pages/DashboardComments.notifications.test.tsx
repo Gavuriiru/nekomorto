@@ -333,9 +333,11 @@ describe("DashboardComments notifications", () => {
     );
 
     await screen.findByText("Comentário pendente");
+    const pendingCard = screen.getByTestId("pending-comment-card-comment-1");
     const meta = screen.getByTestId("pending-comment-meta-comment-1");
     const targetLabel = screen.getByTitle(longTargetLabel);
 
+    expect(classTokens(pendingCard)).toContain("hover:border-primary/60");
     expect(classTokens(meta)).toContain("flex-wrap");
     expect(targetLabel.className).toContain("truncate");
     expect(targetLabel.className).toContain("flex-1");

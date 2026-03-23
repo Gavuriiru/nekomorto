@@ -6,11 +6,26 @@ const severityLabel = (severity) => {
 };
 
 const prettyCode = (code) => String(code || "").replace(/_/g, " ");
+const MAX_FIELD_VALUE_LENGTH = 900;
 
-const summarizeGroup = (items) =>
-  (Array.isArray(items) ? items : [])
-    .map((item) => `• ${item.title || prettyCode(item.code)} (${item.severity})`)
-    .join("\n");
+const summarizeGroup = (items) => {
+  const source = Array.isArray(items) ? items : [];
+  const lines = [];
+  let hiddenCount = 0;
+  source.forEach((item) => {
+    const line = `- ${item.title || prettyCode(item.code)} (${item.severity})`;
+    const preview = [...lines, line].join("\n");
+    if (preview.length > MAX_FIELD_VALUE_LENGTH) {
+      hiddenCount += 1;
+      return;
+    }
+    lines.push(line);
+  });
+  if (hiddenCount > 0) {
+    lines.push(`+${hiddenCount} restante(s)`);
+  }
+  return lines.join("\n");
+};
 
 export const buildOperationalAlertsWebhookNotification = ({
   transition,

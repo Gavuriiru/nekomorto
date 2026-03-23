@@ -107,7 +107,7 @@ describe("ProjectEmbedCard", () => {
     expect(badgesSection).toHaveClass("mt-auto");
     expect(statusBadge).toHaveClass("max-w-[8.5rem]", "truncate");
     expect(studioBadge).toHaveClass("max-w-[8.5rem]", "truncate");
-    expect(title).toHaveClass("line-clamp-2");
+    expect(title).toHaveClass("clamp-safe-2");
     expect(title).not.toHaveClass("sm:line-clamp-none");
     expect(row).toHaveClass("group", "flex", "items-stretch", "gap-4");
     expect(synopsis).toHaveClass(

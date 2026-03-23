@@ -133,6 +133,7 @@ describe("TopProjectsSection", () => {
     expect(cardRoot).toHaveClass("shadow-none");
     expect(cardRoot).not.toHaveClass("shadow-xs");
     expect(headings[0]).toHaveTextContent("Projeto 12");
+    expect(headings[0]).toHaveClass("clamp-safe-2");
     expect(screen.queryByRole("heading", { level: 3, name: "Projeto 01" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { level: 3, name: "Projeto 02" })).not.toBeInTheDocument();
     expect(screen.queryByText("#1")).not.toBeInTheDocument();

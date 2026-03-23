@@ -60,6 +60,9 @@ const countApiCalls = (path: string, method = "GET") =>
     return requestPath === path && String(requestOptions.method || "GET").toUpperCase() === method;
   }).length;
 
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
+
 const renderPopover = (open: boolean) =>
   render(
     <MemoryRouter>
@@ -159,6 +162,8 @@ describe("DashboardNotificationsPopover loading state", () => {
     );
 
     expect(await screen.findByText("Falha em webhook")).toBeInTheDocument();
+    const notificationLink = screen.getByRole("link", { name: /Falha em webhook/i });
+    expect(classTokens(notificationLink)).toContain("hover:border-primary/60");
 
     await waitFor(() => {
       expect(apiFetchMock).toHaveBeenCalledWith(

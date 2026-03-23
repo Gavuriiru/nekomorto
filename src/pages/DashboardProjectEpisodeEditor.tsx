@@ -1,8 +1,17 @@
 import DashboardShell from "@/components/DashboardShell";
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
+import {
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/dashboard/dashboard-form-controls";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
+import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
 import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
@@ -15,15 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import type { Project, ProjectEpisode } from "@/data/projects";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
@@ -63,6 +64,7 @@ import {
   syncProjectProgress,
 } from "@/lib/project-progress";
 import { resolveProjectImageFolders } from "@/lib/project-image-folders";
+import { findIncompleteDownloadSourceIndex } from "@/lib/project-download-sources";
 import { isChapterBasedType } from "@/lib/project-utils";
 import { Search, ArrowLeft, ExternalLink, ImagePlus, Loader2, Plus, Trash2 } from "lucide-react";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -260,6 +262,14 @@ const matchesEpisodeSearch = (episode: ProjectEpisode, query: string) => {
     .map((value) => String(value || "").toLowerCase())
     .join(" ");
   return haystack.includes(normalizedQuery);
+};
+
+const toastIncompleteDownloadSources = () => {
+  toast({
+    title: "Complete as fontes de download",
+    description: "Selecione uma fonte e informe a URL antes de salvar o episódio.",
+    variant: "destructive",
+  });
 };
 
 const normalizeEpisodeForEditor = (episode: ProjectEpisode): EditableAnimeEpisode => ({
@@ -685,6 +695,10 @@ const DashboardProjectEpisodeEditor = () => {
 
   const saveActiveDraft = useCallback(async () => {
     if (!project || !activeDraft || !activeEpisodeKey) {
+      return null;
+    }
+    if (findIncompleteDownloadSourceIndex(activeDraft.sources) >= 0) {
+      toastIncompleteDownloadSources();
       return null;
     }
     const normalizedDraft = normalizeEpisodeForSave(activeDraft);
@@ -1585,19 +1599,20 @@ const DashboardProjectEpisodeEditor = () => {
                                 key={`anime-episode-source-${sourceIndex}`}
                                 className="grid gap-2 rounded-xl border border-border/60 bg-background/40 p-3"
                               >
-                                <Input
+                                <DownloadSourceSelect
                                   value={source.label}
-                                  onChange={(event) =>
+                                  ariaLabel={`Fonte ${sourceIndex + 1}`}
+                                  legacyLabels={(activeDraft.sources || []).map((item) => item.label)}
+                                  onValueChange={(value) =>
                                     updateDraft((current) => ({
                                       ...current,
                                       sources: (current.sources || []).map((item, index) =>
                                         index === sourceIndex
-                                          ? { ...item, label: event.target.value }
+                                          ? { ...item, label: value }
                                           : item,
                                       ),
                                     }))
                                   }
-                                  placeholder="Fonte"
                                 />
                                 <Input
                                   value={source.url}
@@ -1612,6 +1627,7 @@ const DashboardProjectEpisodeEditor = () => {
                                     }))
                                   }
                                   placeholder="URL"
+                                  disabled={!String(source.label || "").trim()}
                                 />
                                 <div className="flex justify-end">
                                   <Button

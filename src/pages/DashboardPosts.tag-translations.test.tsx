@@ -321,6 +321,17 @@ describe("DashboardPosts tags translation", () => {
     expect(excerptTokens).toContain("[-webkit-line-clamp:2]");
     expect(excerptTokens).toContain("lg:[-webkit-line-clamp:1]");
 
+    const headlineSlot = card.querySelector('[data-slot="headline"]') as HTMLDivElement | null;
+    expect(headlineSlot).not.toBeNull();
+    const headlineTitle = within(headlineSlot as HTMLDivElement).getByText("Post com resumo longo");
+    const headlineTokens = String(headlineTitle.className).split(/\s+/).filter(Boolean);
+    expect(headlineTokens).toContain("dashboard-list-card-title");
+    expect(headlineTokens).toContain("clamp-safe-2");
+    expect(headlineTokens).toContain("lg:clamp-safe-1");
+    expect(headlineTokens).not.toContain("line-clamp-2");
+    expect(headlineTokens).not.toContain("font-semibold");
+    expect(headlineTokens).not.toContain("text-foreground");
+
     const rightContentColumn = Array.from(card.querySelectorAll("div")).find((element) =>
       element.className.includes("grid-rows-[auto_auto_minmax(0,1fr)_auto]"),
     );

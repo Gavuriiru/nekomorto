@@ -137,4 +137,4 @@ jobs:
           IMAGE_TAG="${{ steps.resolve-image.outputs.image_tag }}"
 
           ssh -o StrictHostKeyChecking=yes -p "${PORT}" "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
-            "DEPLOY_PATH='${{ secrets.PROD_DEPLOY_PATH }}' DEPLOY_BRANCH='main' HEALTHCHECK_BASE_URL='https://nekomata.moe' APP_IMAGE_REPO='${IMAGE_REPO}' APP_IMAGE_TAG='${IMAGE_TAG}' bash '${{ secrets.PROD_DEPLOY_PATH }}/ops/prod/deploy-prod.sh'"
+            "cd '${{ secrets.PROD_DEPLOY_PATH }}' && git fetch --prune origin && git checkout main && git reset --hard origin/main && DEPLOY_PATH='${{ secrets.PROD_DEPLOY_PATH }}' DEPLOY_BRANCH='main' SKIP_GIT_SYNC='true' APP_IMAGE_REPO='${IMAGE_REPO}' APP_IMAGE_TAG='${IMAGE_TAG}' bash '${{ secrets.PROD_DEPLOY_PATH }}/ops/prod/deploy-prod.sh'"

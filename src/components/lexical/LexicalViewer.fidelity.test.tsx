@@ -176,4 +176,89 @@ describe("LexicalViewer fidelity", () => {
     expect(image.getAttribute("style")).toContain("margin-left: auto");
     expect(image.getAttribute("style")).toContain("margin-right: auto");
   });
+
+  it("renderiza colapsavel fechado por padrao no fallback de chrome", async () => {
+    vi.resetModules();
+    vi.doMock("@lexical/utils", async () => {
+      const actual = await vi.importActual<typeof import("@lexical/utils")>("@lexical/utils");
+      return {
+        ...actual,
+        IS_CHROME: true,
+      };
+    });
+
+    try {
+      const { default: ChromeLexicalViewer } = await import("@/components/lexical/LexicalViewer");
+      const { default: ChromeLexicalViewerNodes } = await import(
+        "@/components/lexical/LexicalViewerNodes"
+      );
+      const {
+        createEditor: createChromeEditor,
+        $getRoot: $getChromeRoot,
+        $createParagraphNode: $createChromeParagraphNode,
+        $createTextNode: $createChromeTextNode,
+      } = await import("lexical");
+      const { $createCollapsibleContainerNode } = await import(
+        "@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleContainerNode"
+      );
+      const { $createCollapsibleTitleNode } = await import(
+        "@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleTitleNode"
+      );
+      const { $createCollapsibleContentNode } = await import(
+        "@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleContentNode"
+      );
+
+      const chromeEditor = createChromeEditor({
+        namespace: "LexicalViewerChromeCollapsibleTest",
+        nodes: ChromeLexicalViewerNodes,
+        editable: false,
+        onError: (error: Error) => {
+          throw error;
+        },
+      });
+
+      chromeEditor.update(
+        () => {
+          const root = $getChromeRoot();
+          root.clear();
+
+          const titleParagraph = $createChromeParagraphNode();
+          titleParagraph.append($createChromeTextNode("Titulo recolhivel"));
+
+          const contentParagraph = $createChromeParagraphNode();
+          contentParagraph.append($createChromeTextNode("Conteudo recolhido"));
+
+          root.append(
+            $createCollapsibleContainerNode(true).append(
+              $createCollapsibleTitleNode().append(titleParagraph),
+              $createCollapsibleContentNode().append(contentParagraph),
+            ),
+          );
+        },
+        { discrete: true },
+      );
+
+      const value = JSON.stringify(chromeEditor.getEditorState().toJSON());
+
+      const { container } = render(
+        <ChromeLexicalViewer
+          value={value}
+          className="reader-content post-content"
+          ariaLabel="Conteudo recolhivel"
+        />,
+      );
+
+      const collapsibleContainer = container.querySelector(".Collapsible__container");
+      expect(collapsibleContainer).toBeTruthy();
+      expect(collapsibleContainer).toHaveTextContent("Titulo recolhivel");
+      expect(collapsibleContainer).not.toHaveAttribute("open");
+
+      const collapsibleContent = container.querySelector(".Collapsible__content");
+      expect(collapsibleContent).toBeTruthy();
+      expect(collapsibleContent).toHaveAttribute("hidden", "until-found");
+    } finally {
+      vi.doUnmock("@lexical/utils");
+      vi.resetModules();
+    }
+  });
 });

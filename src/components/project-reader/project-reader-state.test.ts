@@ -44,7 +44,7 @@ describe("project-reader-state", () => {
     expect(slots).toEqual([
       { pages: [0], spread: true, hasBlank: true },
       { pages: [1, 2], spread: true },
-      { pages: [3], spread: false },
+      { pages: [3], spread: true, hasBlank: true },
     ]);
   });
 

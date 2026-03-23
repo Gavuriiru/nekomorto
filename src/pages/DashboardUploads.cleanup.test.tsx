@@ -318,20 +318,20 @@ describe("DashboardUploads cleanup", () => {
     expect(summaryLoadingCards.length).toBeGreaterThan(0);
     expect(classTokens(summaryLoadingCards[0] as HTMLElement)).toContain("animate-slide-up");
     expect(classTokens(summaryLoadingCards[0] as HTMLElement)).toContain("bg-card");
-    expect(classTokens(summaryLoadingCards[0] as HTMLElement)).toContain("hover:border-accent");
+    expect(classTokens(summaryLoadingCards[0] as HTMLElement)).toContain("hover:border-primary/60");
     expect(classTokens(screen.getByTestId("dashboard-uploads-storage-card"))).toContain(
       "animate-slide-up",
     );
     expect(classTokens(screen.getByTestId("dashboard-uploads-storage-card"))).toContain("bg-card");
     expect(classTokens(screen.getByTestId("dashboard-uploads-storage-card"))).toContain(
-      "hover:border-accent",
+      "hover:border-primary/60",
     );
     expect(classTokens(screen.getByTestId("dashboard-uploads-cleanup-card"))).toContain(
       "animate-slide-up",
     );
     expect(classTokens(screen.getByTestId("dashboard-uploads-cleanup-card"))).toContain("bg-card");
     expect(classTokens(screen.getByTestId("dashboard-uploads-cleanup-card"))).toContain(
-      "hover:border-accent",
+      "hover:border-primary/60",
     );
     expect(screen.getByRole("button", { name: CLEANUP_ACTION_LABEL })).toBeDisabled();
     expect(screen.getByText(/Atualizado:/i)).toBeInTheDocument();
@@ -453,18 +453,18 @@ describe("DashboardUploads cleanup", () => {
       .querySelectorAll("article");
     expect(summaryCards.length).toBeGreaterThan(0);
     expect(classTokens(summaryCards[0] as HTMLElement)).toContain("animate-slide-up");
-    expect(classTokens(summaryCards[0] as HTMLElement)).toContain("hover:border-accent");
+    expect(classTokens(summaryCards[0] as HTMLElement)).toContain("hover:border-primary/60");
     expect(classTokens(screen.getByTestId("dashboard-uploads-storage-card"))).toContain(
       "animate-slide-up",
     );
     expect(classTokens(screen.getByTestId("dashboard-uploads-storage-card"))).toContain(
-      "hover:border-accent",
+      "hover:border-primary/60",
     );
     expect(classTokens(screen.getByTestId("dashboard-uploads-cleanup-card"))).toContain(
       "animate-slide-up",
     );
     expect(classTokens(screen.getByTestId("dashboard-uploads-cleanup-card"))).toContain(
-      "hover:border-accent",
+      "hover:border-primary/60",
     );
   });
 

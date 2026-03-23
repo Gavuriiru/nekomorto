@@ -475,10 +475,22 @@ describe("Project mobile hero layout", () => {
         const method = String(options?.method || "GET").toUpperCase();
 
         if (endpoint === "/api/public/projects/project-1" && method === "GET") {
-          return mockJsonResponse(true, { project: lightNovelProjectFixture });
+          return mockJsonResponse(true, {
+            project: {
+              ...lightNovelProjectFixture,
+              trailerUrl: "https://example.com/trailer",
+            },
+          });
         }
         if (endpoint === "/api/public/projects" && method === "GET") {
-          return mockJsonResponse(true, { projects: [lightNovelProjectFixture] });
+          return mockJsonResponse(true, {
+            projects: [
+              {
+                ...lightNovelProjectFixture,
+                trailerUrl: "https://example.com/trailer",
+              },
+            ],
+          });
         }
         if (endpoint === "/api/public/tag-translations" && method === "GET") {
           return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
@@ -500,13 +512,18 @@ describe("Project mobile hero layout", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
-    expect(screen.getByRole("link", { name: /Come.* leitura/i })).toHaveAttribute(
+    const readLink = screen.getByRole("link", { name: /Come.* leitura/i });
+    expect(readLink).toHaveAttribute(
       "href",
       "/projeto/project-1/leitura/1?volume=2",
     );
+    const actionsRow = screen.getByTestId("project-hero-actions-row");
+    const actionLinks = within(actionsRow).getAllByRole("link");
+    expect(actionLinks.at(-1)).toBe(readLink);
+    expect(classTokens(readLink)).toContain("order-last");
   });
 
-  it("mantem leitura e download no mesmo card de light novel com thumb vertical", async () => {
+  it("mantem leitura e download no mesmo card compacto de light novel", async () => {
     setupApiMock({
       ...lightNovelProjectFixture,
       episodeDownloads: [
@@ -541,27 +558,60 @@ describe("Project mobile hero layout", () => {
     expect(classTokens(readCard as HTMLElement)).toContain("!transform-none");
     expect(classTokens(readCard as HTMLElement)).toContain("hover:!translate-y-0");
     expect(classTokens(readCard as HTMLElement)).not.toContain("hover:-translate-y-1");
-    const thumbShell = (readCard as HTMLElement).querySelector(
-      ".chapter-download-card__thumb > div",
-    ) as HTMLElement | null;
-    expect(thumbShell).not.toBeNull();
-    expect(thumbShell?.style.aspectRatio).toBe("9 / 14");
-    const thumbImage = (readCard as HTMLElement).querySelector(
-      ".chapter-download-card__thumb img",
-    ) as HTMLElement | null;
-    expect(thumbImage).not.toBeNull();
-    expect(classTokens(thumbImage as HTMLElement)).toContain(
-      "group-hover/chapter-card:scale-[1.03]",
-    );
-    expect(classTokens(thumbImage as HTMLElement)).not.toContain("group-hover:scale-[1.03]");
-    expect(within(readCard as HTMLElement).getByRole("link", { name: "Drive" })).toHaveAttribute(
+    expect((readCard as HTMLElement).querySelector(".chapter-download-card__thumb")).toBeNull();
+    const chapterTitle = within(readCard as HTMLElement).getByText(/Cap.tulo 1/i);
+    expect(classTokens(chapterTitle as HTMLElement)).toContain("chapter-download-card__title");
+    expect(classTokens(chapterTitle as HTMLElement)).toContain("text-base");
+    expect(within(readCard as HTMLElement).queryByText(/Vol\.\s*2/i)).not.toBeInTheDocument();
+    const sourceLink = within(readCard as HTMLElement).getByRole("link", { name: "Drive" });
+    expect(sourceLink).toHaveAttribute(
       "href",
       "https://example.com/drive",
     );
-    expect(within(readCard as HTMLElement).getByText("Resumo do capitulo")).toBeInTheDocument();
+    const actionsRow = findAncestor(sourceLink, (candidate) =>
+      classTokens(candidate).includes("chapter-download-card__actions"),
+    );
+    expect(actionsRow).not.toBeNull();
+    expect(actionsRow).toContainElement(readLink);
+    const actionLinks = within(actionsRow as HTMLElement).getAllByRole("link");
+    expect(actionLinks.at(-1)).toBe(readLink);
+    expect(classTokens(readLink)).toContain("order-last");
+    expect(classTokens(actionsRow as HTMLElement)).toContain("flex-wrap");
+    expect(classTokens(actionsRow as HTMLElement)).toContain("gap-2");
+    expect(within(readCard as HTMLElement).queryByText("Resumo do capitulo")).not.toBeInTheDocument();
   });
 
-  it("usa sinopse do volume quando capitulo de light novel nao possui sinopse", async () => {
+  it("mantem o CTA do leitor como ultima acao do hero para mangas", async () => {
+    setupApiMock({
+      ...mangaProjectFixture,
+      type: "Manga",
+      trailerUrl: "https://example.com/trailer",
+      episodeDownloads: [
+        {
+          ...mangaProjectFixture.episodeDownloads[0],
+          hasPages: true,
+          contentFormat: "images",
+          pages: [{ position: 1, imageUrl: "/uploads/page-1.jpg" }],
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Teste" });
+    const actionsRow = screen.getByTestId("project-hero-actions-row");
+    const readLink = within(actionsRow).getByRole("link", { name: /Come.* leitura/i });
+    const actionLinks = within(actionsRow).getAllByRole("link");
+    expect(actionLinks.at(-1)).toBe(readLink);
+    expect(classTokens(readLink)).toContain("order-last");
+    expect(readLink).toHaveAttribute("href", "/projeto/project-1/leitura/1?volume=3");
+  });
+
+  it("mantem a sinopse do volume apenas no cabecalho quando o capitulo nao possui resumo", async () => {
     setupApiMock({
       ...lightNovelProjectFixture,
       episodeDownloads: [
@@ -607,8 +657,39 @@ describe("Project mobile hero layout", () => {
     );
     expect(readCard).not.toBeNull();
     expect(
-      within(readCard as HTMLElement).getByText("Sinopse fallback do volume 2"),
-    ).toBeInTheDocument();
+      within(readCard as HTMLElement).queryByText("Sinopse fallback do volume 2"),
+    ).not.toBeInTheDocument();
+    expect(within(volumeTrigger).getByText("Sinopse fallback do volume 2")).toBeInTheDocument();
+  });
+
+  it("usa o rotulo numerico como titulo quando o capitulo nao tem nome customizado", async () => {
+    setupApiMock({
+      ...lightNovelProjectFixture,
+      episodeDownloads: [
+        {
+          ...lightNovelProjectFixture.episodeDownloads[0],
+          title: "",
+          sources: [{ label: "Drive", url: "https://example.com/drive" }],
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Teste" });
+    const volumeTrigger = screen.getByRole("button", { name: /Volume 2/i });
+    fireEvent.click(volumeTrigger);
+    const readLink = await screen.findByRole("link", { name: /Ler cap.tulo/i });
+    const readCard = findAncestor(readLink, (candidate) =>
+      classTokens(candidate).includes("chapter-download-card"),
+    );
+    expect(readCard).not.toBeNull();
+    expect(within(readCard as HTMLElement).getByText(/Cap.tulo 1/i)).toBeInTheDocument();
+    expect(within(readCard as HTMLElement).queryByText(/Vol\.\s*2/i)).not.toBeInTheDocument();
   });
 
   it("exibe capa por volume em grupos de light novel", async () => {
@@ -659,10 +740,16 @@ describe("Project mobile hero layout", () => {
     expect((triggerGrid as HTMLElement).querySelector('[class*="self-start"]')).not.toBeNull();
     expect((triggerGrid as HTMLElement).querySelector('[class*="w-28"]')).not.toBeNull();
 
+    const volumeTitle = within(volumeTrigger).getByText("Volume 2");
+    const volumeSynopsis = within(volumeTrigger).getByText("Sinopse do volume 2");
     expect(within(volumeTrigger).getAllByRole("img", { name: "Capa do volume 2" }).length).toBe(1);
     expect(within(volumeTrigger).getByText("1 capítulos disponíveis")).toBeInTheDocument();
     expect(within(volumeTrigger).getByText("1 capítulos")).toBeInTheDocument();
-    expect(within(volumeTrigger).getByText("Sinopse do volume 2")).toBeInTheDocument();
+    expect(volumeSynopsis).toBeInTheDocument();
+    expect(classTokens(volumeTitle)).toContain("text-base");
+    expect(classTokens(volumeTitle)).not.toContain("text-sm");
+    expect(classTokens(volumeSynopsis)).toContain("text-sm");
+    expect(classTokens(volumeSynopsis)).not.toContain("text-xs");
   });
 
   it("exibe capa por volume em grupos de mangá", async () => {
@@ -711,10 +798,16 @@ describe("Project mobile hero layout", () => {
     expect((triggerGrid as HTMLElement).querySelector('[class*="self-start"]')).not.toBeNull();
     expect((triggerGrid as HTMLElement).querySelector('[class*="w-28"]')).not.toBeNull();
 
+    const volumeTitle = within(volumeTrigger).getByText("Volume 3");
+    const volumeSynopsis = within(volumeTrigger).getByText("Sinopse do volume 3");
     expect(within(volumeTrigger).getAllByRole("img", { name: "Capa do volume 3" }).length).toBe(1);
     expect(within(volumeTrigger).getByText("1 capítulos disponíveis")).toBeInTheDocument();
     expect(within(volumeTrigger).getByText("1 capítulos")).toBeInTheDocument();
-    expect(within(volumeTrigger).getByText("Sinopse do volume 3")).toBeInTheDocument();
+    expect(volumeSynopsis).toBeInTheDocument();
+    expect(classTokens(volumeTitle)).toContain("text-base");
+    expect(classTokens(volumeTitle)).not.toContain("text-sm");
+    expect(classTokens(volumeSynopsis)).toContain("text-sm");
+    expect(classTokens(volumeSynopsis)).not.toContain("text-xs");
   });
 
   it("remove centralizacao do grid de downloads no manga e mantem cards com largura fluida", async () => {
@@ -739,7 +832,7 @@ describe("Project mobile hero layout", () => {
       (downloadsSection as HTMLElement).querySelector('[class*="justify-items-center"]'),
     ).toBeNull();
 
-    const chapterTitle = screen.getByText("Capitulo 1");
+    const chapterTitle = screen.getByText(/Cap.tulo 1/i);
     const episodeCard = findAncestor(chapterTitle, (candidate) =>
       classTokens(candidate).includes("chapter-download-card"),
     );
@@ -749,6 +842,7 @@ describe("Project mobile hero layout", () => {
     expect(classTokens(episodeCard as HTMLElement)).toContain("!transform-none");
     expect(classTokens(episodeCard as HTMLElement)).toContain("hover:!translate-y-0");
     expect(classTokens(episodeCard as HTMLElement)).not.toContain("hover:-translate-y-1");
+    expect((episodeCard as HTMLElement).querySelector(".chapter-download-card__thumb")).toBeNull();
     expect(within(episodeCard as HTMLElement).queryByRole("link", { name: /Ler/i })).toBeNull();
     expect(within(episodeCard as HTMLElement).getByRole("link", { name: "Drive" })).toHaveAttribute(
       "href",

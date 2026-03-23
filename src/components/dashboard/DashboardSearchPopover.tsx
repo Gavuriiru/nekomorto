@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import UploadPicture from "@/components/UploadPicture";
+import { dashboardStrongSurfaceHoverClassName } from "@/components/dashboard/dashboard-page-tokens";
 import { Badge } from "@/components/ui/badge";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
@@ -93,7 +94,7 @@ const DashboardSearchPopover = ({
               <li key={item.href}>
                 <Link
                   to={item.href}
-                  className="group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                  className={`group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition ${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5`}
                 >
                   <div
                     className="h-28 shrink-0 self-start overflow-hidden rounded-lg bg-secondary"

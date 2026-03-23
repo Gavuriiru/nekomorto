@@ -2,8 +2,16 @@ import DashboardShell from "@/components/DashboardShell";
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import ReorderControls from "@/components/ReorderControls";
-import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
+import {
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from "@/components/dashboard/dashboard-form-controls";
 import ProjectMemberCombobox from "@/components/dashboard/ProjectMemberCombobox";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
@@ -11,8 +19,13 @@ import {
   dashboardAnimationDelay,
   dashboardClampedStaggerMs,
 } from "@/components/dashboard/dashboard-motion";
-import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
+import {
+  dashboardPageLayoutTokens,
+  dashboardStrongFocusFieldClassName,
+  dashboardStrongSurfaceHoverClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
+import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
 import {
   Accordion,
   AccordionContent,
@@ -32,19 +45,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import CompactPagination from "@/components/ui/compact-pagination";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import type {
   ProjectEpisode,
@@ -119,21 +123,16 @@ import {
 } from "../../shared/project-reader.js";
 import {
   Clapperboard,
-  Cloud,
   Copy,
-  Download,
   Eye,
   FileImage,
   FileText,
-  HardDrive,
   LayoutGrid,
-  Link2,
   type LucideIcon,
   Loader2,
   MessageSquare,
   PencilLine,
   Plus,
-  Send,
   Settings,
   Shield,
   Trash2,
@@ -1059,79 +1058,6 @@ const DashboardProjectsEditor = () => {
   useEditorScrollStability(isEditorOpen);
   const [isEditorDialogScrolled, setIsEditorDialogScrolled] = useState(false);
 
-  const downloadSourceOptions = useMemo(() => {
-    const sources =
-      publicSettings?.downloads?.sources?.map((source) => ({
-        label: String(source.label || "").trim(),
-        icon: source.icon,
-        color: source.color || "#7C3AED",
-        tintIcon: source.tintIcon !== false,
-      })) ?? [];
-    const filtered = sources.filter((source) => source.label);
-    if (filtered.length) {
-      return filtered;
-    }
-    return [
-      { label: "Google Drive", icon: "google-drive", color: "#34A853" },
-      { label: "MEGA", icon: "mega", color: "#D9272E" },
-      { label: "Torrent", icon: "torrent", color: "#7C3AED" },
-      { label: "Mediafire", icon: "mediafire", color: "#2563EB" },
-      { label: "Telegram", icon: "telegram", color: "#0EA5E9" },
-      { label: "Outro", icon: "link", color: "#64748B" },
-    ];
-  }, [publicSettings?.downloads?.sources]);
-
-  const renderDownloadIcon = (
-    iconKey: string | undefined,
-    color: string,
-    label?: string,
-    tintIcon = true,
-  ) => {
-    if (
-      iconKey &&
-      (iconKey.startsWith("http") || iconKey.startsWith("data:") || iconKey.startsWith("/uploads/"))
-    ) {
-      if (!tintIcon) {
-        return <img src={iconKey} alt={label || ""} className="h-4 w-4" />;
-      }
-      return (
-        <ThemedSvgLogo
-          url={iconKey}
-          label={label || "Fonte de download"}
-          className="h-4 w-4"
-          color={color}
-        />
-      );
-    }
-    const normalized = String(iconKey || "").toLowerCase();
-    if (normalized === "google-drive") {
-      return (
-        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" style={{ color }}>
-          <path fill="currentColor" d="M7.5 3h9l4.5 8-4.5 8h-9L3 11z" />
-        </svg>
-      );
-    }
-    if (normalized === "mega") {
-      return (
-        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
-          <circle cx="12" cy="12" r="10" fill={color} />
-          <path
-            fill="#fff"
-            d="M7.2 16.4V7.6h1.6l3.2 4.2 3.2-4.2h1.6v8.8h-1.6V10l-3.2 4.1L8.8 10v6.4z"
-          />
-        </svg>
-      );
-    }
-    const iconMap: Record<string, typeof Download> = {
-      telegram: Send,
-      mediafire: Cloud,
-      torrent: HardDrive,
-      link: Link2,
-      download: Download,
-    };
-    const Icon = iconMap[normalized] || Download;
-    return <Icon className="h-4 w-4" style={{ color }} />;
-  };
   const [editingProject, setEditingProject] = useState<ProjectRecord | null>(null);
   const [formState, setFormState] = useState<ProjectForm>(emptyProject);
   const [deleteTarget, setDeleteTarget] = useState<ProjectRecord | null>(null);
@@ -4154,8 +4080,7 @@ const DashboardProjectsEditor = () => {
   const editorSectionTriggerClassName =
     "project-editor-section-trigger flex w-full items-start gap-4 py-3.5 text-left hover:no-underline md:py-4";
   const editorSectionContentClassName = "project-editor-section-content pb-2.5 px-1";
-  const adjacentMetadataInputClassName =
-    "focus-visible:border-primary focus-visible:ring-primary focus-visible:ring-inset";
+  const adjacentMetadataInputClassName = dashboardStrongFocusFieldClassName;
   const editorSectionBlockClassName = "space-y-4";
   const editorSectionBlockTitleClassName = "text-sm font-semibold text-foreground";
   const editorSectionBlockDividerClassName = "border-t border-border/50 pt-5";
@@ -4338,7 +4263,7 @@ const DashboardProjectsEditor = () => {
                       key={project.id}
                       data-testid={`dashboard-project-card-${project.id}`}
                       lift={false}
-                      className={`${dashboardPageLayoutTokens.listCardSolid} group overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
+                      className={`${dashboardPageLayoutTokens.listCardSolid} ${dashboardStrongSurfaceHoverClassName} group overflow-hidden transition animate-slide-up opacity-0`}
                       style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                     >
                       <CardContent className="relative p-0">
@@ -4379,7 +4304,7 @@ const DashboardProjectsEditor = () => {
                                     {project.type}
                                   </Badge>
                                 </div>
-                                <h3 className="line-clamp-2 break-words text-lg font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
+                                <h3 className="dashboard-list-card-title clamp-safe-2 break-words text-lg transition-colors duration-300 group-hover:text-primary">
                                   {project.title}
                                 </h3>
                                 <p className={`text-xs ${dashboardPageLayoutTokens.cardMetaText}`}>
@@ -7571,8 +7496,12 @@ const DashboardProjectsEditor = () => {
                                                                 className="rounded-xl border border-border/60 bg-background/40 p-3"
                                                               >
                                                                 <div className="grid items-start gap-2 md:grid-cols-[minmax(180px,1fr)_minmax(240px,2fr)_auto]">
-                                                                  <Select
+                                                                  <DownloadSourceSelect
                                                                     value={source.label}
+                                                                    ariaLabel={`Fonte ${sourceIndex + 1}`}
+                                                                    legacyLabels={(episode.sources || []).map(
+                                                                      (item) => item.label,
+                                                                    )}
                                                                     onValueChange={(value) =>
                                                                       setFormState((prev) => {
                                                                         const next = [
@@ -7596,33 +7525,7 @@ const DashboardProjectsEditor = () => {
                                                                         };
                                                                       })
                                                                     }
-                                                                  >
-                                                                    <SelectTrigger>
-                                                                      <SelectValue placeholder="Fonte" />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                      {downloadSourceOptions.map(
-                                                                        (option) => (
-                                                                          <SelectItem
-                                                                            key={option.label}
-                                                                            value={option.label}
-                                                                          >
-                                                                            <span className="flex items-center gap-2">
-                                                                              {renderDownloadIcon(
-                                                                                option.icon,
-                                                                                option.color,
-                                                                                option.label,
-                                                                                option.tintIcon,
-                                                                              )}
-                                                                              <span>
-                                                                                {option.label}
-                                                                              </span>
-                                                                            </span>
-                                                                          </SelectItem>
-                                                                        ),
-                                                                      )}
-                                                                    </SelectContent>
-                                                                  </Select>
+                                                                  />
                                                                   <Input
                                                                     value={source.url}
                                                                     onChange={(event) =>

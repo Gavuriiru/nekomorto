@@ -13,7 +13,22 @@ import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPresetCard";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
-import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
+import {
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from "@/components/dashboard/dashboard-form-controls";
+import {
+  dashboardPageLayoutTokens,
+  dashboardStrongFocusFieldClassName,
+  dashboardStrongFocusScopeClassName,
+  dashboardStrongFocusTriggerClassName,
+  dashboardStrongSurfaceHoverClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
 import DashboardSeoRedirectsPanel from "@/components/dashboard/DashboardSeoRedirectsPanel";
 import DashboardShell from "@/components/DashboardShell";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
@@ -26,18 +41,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/use-toast";
@@ -1878,7 +1884,8 @@ const DashboardSettings = () => {
                                   <ColorPicker
                                     label=""
                                     showSwatch
-                                    buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-background shadow-xs transition hover:border-primary/40"
+                                    buttonClassName={`inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-background shadow-xs transition ${dashboardStrongSurfaceHoverClassName} focus-visible:outline-hidden ${dashboardStrongFocusFieldClassName} ${dashboardStrongFocusTriggerClassName}`}
+                                    panelClassName={dashboardStrongFocusScopeClassName}
                                     value={settings.theme.accent || "#000000"}
                                     onChange={(color) =>
                                       setSettings((prev) => ({
@@ -2910,7 +2917,8 @@ const DashboardSettings = () => {
                                       <ColorPicker
                                         label=""
                                         showSwatch
-                                        buttonClassName="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background shadow-xs transition hover:border-primary/40 md:h-9 md:w-9"
+                                        buttonClassName={`inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background shadow-xs transition ${dashboardStrongSurfaceHoverClassName} focus-visible:outline-hidden md:h-9 md:w-9 ${dashboardStrongFocusFieldClassName} ${dashboardStrongFocusTriggerClassName}`}
+                                        panelClassName={dashboardStrongFocusScopeClassName}
                                         value={source.color}
                                         onChange={(color) =>
                                           setSettings((prev) => {

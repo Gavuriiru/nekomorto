@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { computeWebhookRetryDelayMs } from "../../server/lib/webhooks/delivery.js";
 import { dispatchWebhookMessage } from "../../server/lib/webhooks/dispatcher.js";
 import {
   buildEditorialEventContext,
@@ -12,6 +13,7 @@ import {
 import { toDiscordWebhookPayload } from "../../server/lib/webhooks/providers/discord.js";
 import { buildOperationalAlertsWebhookNotification } from "../../server/lib/webhooks/templates/operational-alerts.js";
 import { diffOperationalAlertSets } from "../../server/lib/webhooks/transitions.js";
+import { validateWebhookUrlForProvider } from "../../server/lib/webhooks/validation.js";
 
 describe("webhooks", () => {
   const originalFetch = global.fetch;
@@ -40,7 +42,7 @@ describe("webhooks", () => {
     expect(transition.resolved).toHaveLength(0);
   });
 
-  it("gera payload Discord a partir de notificação", () => {
+  it("gera payload Discord a partir de notificacao", () => {
     const notification = buildOperationalAlertsWebhookNotification({
       transition: {
         triggered: [
@@ -83,14 +85,92 @@ describe("webhooks", () => {
     expect(result.code).toBe("missing_webhook_url");
   });
 
+  it("trata 429 como retryavel e respeita Retry-After", async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: false,
+      status: 429,
+      headers: new Headers({ "Retry-After": "7" }),
+      text: async () => "rate limited",
+    })) as unknown as typeof fetch;
+
+    const result = await dispatchWebhookMessage({
+      provider: "discord",
+      webhookUrl: "https://discord.com/api/webhooks/x/y",
+      message: { embeds: [{ title: "x" }] },
+      retries: 0,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe("failed");
+    expect(result.retryable).toBe(true);
+    expect(result.retryAfterMs).toBe(7_000);
+    expect(result.statusCode).toBe(429);
+  });
+
+  it("marca erro de rede como retryavel", async () => {
+    global.fetch = vi.fn(async () => {
+      throw new Error("boom");
+    }) as unknown as typeof fetch;
+
+    const result = await dispatchWebhookMessage({
+      provider: "discord",
+      webhookUrl: "https://discord.com/api/webhooks/x/y",
+      message: { embeds: [{ title: "x" }] },
+      retries: 0,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("network_error");
+    expect(result.retryable).toBe(true);
+    expect(result.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("valida URL de webhook Discord no backend", () => {
+    expect(
+      validateWebhookUrlForProvider({
+        provider: "discord",
+        webhookUrl: "https://discord.com/api/webhooks/123/abc",
+      }),
+    ).toMatchObject({
+      ok: true,
+      host: "discord.com",
+    });
+
+    expect(
+      validateWebhookUrlForProvider({
+        provider: "discord",
+        webhookUrl: "http://discord.com/api/webhooks/123/abc",
+      }),
+    ).toMatchObject({
+      ok: false,
+      code: "invalid_webhook_url",
+      reason: "invalid_protocol",
+    });
+
+    expect(
+      validateWebhookUrlForProvider({
+        provider: "discord",
+        webhookUrl: "https://example.com/api/webhooks/123/abc",
+      }),
+    ).toMatchObject({
+      ok: false,
+      code: "invalid_webhook_url",
+      reason: "unsupported_host",
+    });
+  });
+
+  it("calcula backoff usando Retry-After quando presente", () => {
+    expect(computeWebhookRetryDelayMs({ attemptCount: 3, retryAfterMs: 12_000 })).toBe(12_000);
+  });
+
   it("normaliza embed direto com author/thumbnail/image/footer icon", () => {
     const payload = toDiscordWebhookPayload({
       content: "Teste",
       allowedMentionsRoleIds: ["111", "abc", "111", "222"],
       embed: {
-        title: "Título",
-        description: "Descrição",
-        footerText: "Rodapé",
+        title: "Titulo",
+        description: "Descricao",
+        footerText: "Rodape",
         footerIconUrl: "https://example.com/footer.png",
         authorName: "Autor",
         authorIconUrl: "https://example.com/author.png",
@@ -110,7 +190,7 @@ describe("webhooks", () => {
     expect(payload.allowed_mentions?.roles).toEqual(["111", "222"]);
   });
 
-  it("absolutiza URLs relativas com origin e filtra URLs inválidas", () => {
+  it("absolutiza URLs relativas com origin e filtra URLs invalidas", () => {
     const payload = toDiscordWebhookPayload({
       origin: "https://dev.nekomata.moe",
       embed: {
@@ -121,7 +201,7 @@ describe("webhooks", () => {
         authorIconUrl: "/uploads/avatars/equipe.png",
         thumbnailUrl: "/placeholder.svg",
         imageUrl: "javascript:alert(1)",
-        footerText: "Rodapé",
+        footerText: "Rodape",
         footerIconUrl: "/uploads/branding/logo.png",
       },
     });
@@ -134,6 +214,56 @@ describe("webhooks", () => {
     expect(embed?.thumbnail?.url).toBe("https://dev.nekomata.moe/placeholder.svg");
     expect(embed?.image).toBeUndefined();
     expect(embed?.footer?.icon_url).toBe("https://dev.nekomata.moe/uploads/branding/logo.png");
+  });
+
+  it("trunca payloads Discord para limites conhecidos", () => {
+    const payload = toDiscordWebhookPayload({
+      content: "c".repeat(2_500),
+      embed: {
+        title: "t".repeat(400),
+        description: "d".repeat(5_000),
+        footerText: "f".repeat(2_500),
+        authorName: "a".repeat(400),
+        fields: [{ name: "n".repeat(400), value: "v".repeat(1_500), inline: false }],
+      },
+    });
+
+    const embed = payload.embeds?.[0];
+    const totalEmbedTextLength = [
+      embed?.title || "",
+      embed?.description || "",
+      embed?.footer?.text || "",
+      embed?.author?.name || "",
+      ...(embed?.fields || []).flatMap((field) => [field.name || "", field.value || ""]),
+    ].reduce((total, text) => total + text.length, 0);
+
+    expect(payload.content?.length || 0).toBeLessThanOrEqual(2_000);
+    expect(embed?.title?.length || 0).toBeLessThanOrEqual(256);
+    expect(embed?.description?.length || 0).toBeLessThanOrEqual(4_096);
+    expect(embed?.footer?.text?.length || 0).toBeLessThanOrEqual(2_048);
+    expect(embed?.author?.name?.length || 0).toBeLessThanOrEqual(256);
+    expect(embed?.fields?.[0]?.name?.length || 0).toBeLessThanOrEqual(256);
+    expect(embed?.fields?.[0]?.value?.length || 0).toBeLessThanOrEqual(1_024);
+    expect(totalEmbedTextLength).toBeLessThanOrEqual(6_000);
+  });
+
+  it("resume alertas operacionais sem estourar o campo do Discord", () => {
+    const notification = buildOperationalAlertsWebhookNotification({
+      transition: {
+        triggered: Array.from({ length: 80 }, (_, index) => ({
+          code: `alert_${index}`,
+          severity: "warning",
+          title: `Alerta ${index} com um titulo propositalmente maior para forcar truncamento`,
+          description: `Descricao ${index}`,
+        })),
+        changed: [],
+        resolved: [],
+        hasChanges: true,
+      },
+    });
+
+    expect(notification.fields?.[0]?.value).toContain("restante(s)");
+    expect(notification.fields?.[0]?.value.length || 0).toBeLessThanOrEqual(920);
   });
 
   it("migra categories/typeMappings legado para typeRoles", () => {
@@ -155,7 +285,7 @@ describe("webhooks", () => {
     ]);
   });
 
-  it("aceita placeholders novos e bloqueia placeholder inválido", () => {
+  it("aceita placeholders novos e bloqueia placeholder invalido", () => {
     const settings = normalizeEditorialWebhookSettings({}, { projectTypes: ["Anime"] });
     settings.channels.posts.templates.post_create.content =
       "{{site.logoUrl}} {{mention.category}} {{mention.general}}";
@@ -189,7 +319,7 @@ describe("webhooks", () => {
     expect(validation.errors[0]?.placeholder).toBe("placeholder.inexistente");
   });
 
-  it("aplica menções por tipo + projeto + role global de lançamento", () => {
+  it("aplica mencoes por tipo + projeto + role global de lancamento", () => {
     const settings = normalizeEditorialWebhookSettings(
       {
         generalReleaseRoleId: "999",
@@ -252,8 +382,8 @@ describe("webhooks", () => {
           synopsis: "Sinopse do projeto",
         },
         chapter: {
-          title: "Capítulo 1",
-          synopsis: "Sinopse do capítulo",
+          title: "Capitulo 1",
+          synopsis: "Sinopse do capitulo",
           imageUrl: "https://example.com/chapter-image.jpg",
         },
         site: {
@@ -270,7 +400,7 @@ describe("webhooks", () => {
     expect(rendered.embed.thumbnailUrl).toBe("https://example.com/project-image.jpg");
     expect(rendered.embed.imageUrl).toBe("https://example.com/chapter-image.jpg");
     expect(rendered.embed.description).toContain("Sinopse do projeto");
-    expect(rendered.embed.description).toContain("Sinopse do capítulo");
+    expect(rendered.embed.description).toContain("Sinopse do capitulo");
   });
 
   it("aplica fallback de chapter.coverImageUrl para project.heroImageUrl no contexto", () => {

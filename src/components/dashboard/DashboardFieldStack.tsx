@@ -7,8 +7,8 @@ type DashboardFieldStackProps = HTMLAttributes<HTMLDivElement> & {
 };
 
 const densityClassName: Record<NonNullable<DashboardFieldStackProps["density"]>, string> = {
-  default: "flex flex-col gap-2 [&>label]:block",
-  compact: "flex flex-col gap-2 [&>label]:block",
+  default: "flex min-w-0 flex-col gap-2 [&>label]:block",
+  compact: "flex min-w-0 flex-col gap-2 [&>label]:block",
 };
 
 const DashboardFieldStack = ({

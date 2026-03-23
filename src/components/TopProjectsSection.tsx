@@ -281,7 +281,7 @@ const TopProjectsSection = () => {
                           </div>
                         </div>
                         <div data-synopsis-role="title" className="mt-1.5 space-y-1.5">
-                          <h3 className="line-clamp-2 text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+                          <h3 className="clamp-safe-2 text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
                             {entry.title}
                           </h3>
                         </div>

@@ -664,7 +664,6 @@ const ProjectPage = () => {
   };
 
   type RenderChapterCardOptions = {
-    groupMeta: VolumeGroupMeta;
     allowReadAction: boolean;
   };
 
@@ -673,13 +672,23 @@ const ProjectPage = () => {
     key: string,
     options: RenderChapterCardOptions,
   ) => {
-    const { groupMeta, allowReadAction } = options;
+    const { allowReadAction } = options;
     const isExtraEntry = getEpisodeEntryKind(chapter) === "extra";
     const chapterLabel = isExtraEntry
       ? String(chapter.displayLabel || "Extra").trim() || "Extra"
-      : `Cap ${chapter.number}${chapter.volume ? ` • Vol. ${chapter.volume}` : ""}`;
-    const chapterTitle =
-      String(chapter.title || "").trim() || (isExtraEntry ? "Extra" : "Capítulo");
+      : Number.isFinite(Number(chapter.number))
+        ? `Capítulo ${chapter.number}`
+        : "Capítulo";
+    const rawChapterTitle = String(chapter.title || "").trim();
+    const normalizedChapterTitle = rawChapterTitle.toLocaleLowerCase();
+    const isGenericNumberedChapterTitle = /^cap[íi]tulo\s+\d+$/i.test(rawChapterTitle);
+    const hasRelevantCustomTitle =
+      rawChapterTitle.length > 0 &&
+      normalizedChapterTitle !== "capítulo" &&
+      normalizedChapterTitle !== "capitulo" &&
+      normalizedChapterTitle !== "extra" &&
+      !isGenericNumberedChapterTitle;
+    const chapterTitle = hasRelevantCustomTitle ? rawChapterTitle : chapterLabel;
     const hasContent = hasPublicEpisodeReadableContent(chapter);
     const hasPages = hasPublicEpisodePages(chapter);
     const hasSources = (chapter.sources || []).length > 0;
@@ -694,109 +703,66 @@ const ProjectPage = () => {
                 : "Ler capítulo",
           }
         : null;
-    const synopsisText =
-      String(chapter.synopsis || "").trim() || String(groupMeta.synopsis || "").trim();
-    const thumbSrc =
-      chapter.coverImageUrl ||
-      groupMeta.src ||
-      project.cover ||
-      project.banner ||
-      "/placeholder.svg";
-    const thumbAlt =
-      String(chapter.coverImageAlt || "").trim() ||
-      String(groupMeta.alt || "").trim() ||
-      (isExtraEntry
-        ? `Capa do extra de ${project.title}`
-        : `Capa do capítulo ${chapter.number} de ${project.title}`);
 
     return (
       <Card
         key={key}
         className="chapter-download-card group/chapter-card w-full !transform-none rounded-2xl border border-border/60 bg-background/40 shadow-[0_6px_14px_-12px_rgba(0,0,0,0.06),0_16px_32px_-24px_rgba(0,0,0,0.1)] transition-all duration-300 hover:!translate-y-0 hover:border-primary/40 hover:bg-background/60 hover:shadow-[0_10px_20px_-14px_rgba(0,0,0,0.08),0_20px_38px_-22px_rgba(0,0,0,0.13)]"
       >
-        <CardContent className="grid gap-4 p-4 md:grid-cols-[112px_minmax(0,1fr)] md:items-start">
-          <div className="chapter-download-card__thumb mx-auto w-24 md:mx-0">
-            <div
-              className="overflow-hidden rounded-xl border border-border/60 bg-background/70"
-              style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
-            >
-              <UploadPicture
-                src={thumbSrc}
-                alt={thumbAlt}
-                preset="poster"
-                mediaVariants={mediaVariants}
-                className="h-full w-full"
-                imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover/chapter-card:scale-[1.03]"
-              />
-            </div>
-          </div>
+        <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+          <p
+            className="chapter-download-card__title min-w-0 text-base font-semibold text-foreground md:flex-1 md:pr-4 md:truncate"
+            title={chapterTitle}
+          >
+            {chapterTitle}
+          </p>
 
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Badge variant="secondary" className="text-xs uppercase">
-                {chapterLabel}
-              </Badge>
-              <p
-                className="min-w-0 text-base font-semibold text-foreground md:truncate"
-                title={chapterTitle}
-              >
-                {chapterTitle}
-              </p>
-            </div>
-
-            {synopsisText ? (
-              <p className="text-sm text-muted-foreground line-clamp-3 md:line-clamp-2">
-                {synopsisText}
-              </p>
-            ) : null}
-
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {readAction ? (
-                <Button asChild size="sm">
-                  <Link to={readAction.href}>{readAction.label}</Link>
-                </Button>
-              ) : null}
-              {hasSources
-                ? (chapter.sources || []).map((source, sourceIndex) => {
-                    const theme = sourceThemeMap.get(source.label.toLowerCase());
-                    const color = theme?.color || "#4b5563";
-                    const icon = renderSourceIcon(
-                      theme?.icon,
-                      color,
-                      source.label,
-                      theme?.tintIcon ?? true,
-                    );
-                    return (
-                      <Button
-                        key={`${key}-${source.label}-${sourceIndex}`}
-                        asChild
-                        variant="outline"
-                        size="sm"
-                        className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
-                        style={{ borderColor: `${color}99`, color }}
+          <div className="chapter-download-card__actions flex flex-wrap items-center gap-2 md:justify-end">
+            {hasSources
+              ? (chapter.sources || []).map((source, sourceIndex) => {
+                  const theme = sourceThemeMap.get(source.label.toLowerCase());
+                  const color = theme?.color || "#4b5563";
+                  const icon = renderSourceIcon(
+                    theme?.icon,
+                    color,
+                    source.label,
+                    theme?.tintIcon ?? true,
+                  );
+                  return (
+                    <Button
+                      key={`${key}-${source.label}-${sourceIndex}`}
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
+                      style={{ borderColor: `${color}99`, color }}
+                    >
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={source.label}
+                        title={source.label}
+                        className="inline-flex items-center justify-center gap-0 md:gap-2"
+                        onClick={() => trackDownloadClick(chapter, source.label)}
                       >
-                        <a
-                          href={source.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label={source.label}
-                          title={source.label}
-                          className="inline-flex items-center justify-center gap-0 md:gap-2"
-                          onClick={() => trackDownloadClick(chapter, source.label)}
-                        >
-                          {icon}
-                          <span className="sr-only md:not-sr-only">{source.label}</span>
-                        </a>
-                      </Button>
-                    );
-                  })
-                : null}
-              {!readAction && !hasSources ? (
-                <Badge variant="outline" className="text-[10px] uppercase">
-                  Em breve
-                </Badge>
-              ) : null}
-            </div>
+                        {icon}
+                        <span className="sr-only md:not-sr-only">{source.label}</span>
+                      </a>
+                    </Button>
+                  );
+                })
+              : null}
+            {readAction ? (
+              <Button asChild size="sm" className="order-last">
+                <Link to={readAction.href}>{readAction.label}</Link>
+              </Button>
+            ) : null}
+            {!readAction && !hasSources ? (
+              <Badge variant="outline" className="text-[10px] uppercase">
+                Em breve
+              </Badge>
+            ) : null}
           </div>
         </CardContent>
       </Card>
@@ -902,10 +868,10 @@ const ProjectPage = () => {
               </div>
 
               <div className="self-start space-y-1 text-center md:text-left">
-                <p className="text-sm font-semibold text-foreground">{group.label}</p>
+                <p className="text-base font-semibold text-foreground">{group.label}</p>
                 <p className="text-xs text-muted-foreground">{chapterCountLabel}</p>
                 {groupMeta.synopsis ? (
-                  <p className="text-xs text-muted-foreground line-clamp-3 md:line-clamp-2">
+                  <p className="text-sm text-muted-foreground line-clamp-3 md:line-clamp-2">
                     {groupMeta.synopsis}
                   </p>
                 ) : null}
@@ -925,7 +891,6 @@ const ProjectPage = () => {
                   chapter,
                   buildEpisodeKey(chapter.number, chapter.volume),
                   {
-                    groupMeta,
                     allowReadAction,
                   },
                 ),
@@ -1096,19 +1061,6 @@ const ProjectPage = () => {
                       {isChapterBased ? "Ver capítulos" : "Ver episódios"}
                     </a>
                   </Button>
-                  {isChapterBased && firstReadableChapter ? (
-                    <Button asChild variant="outline" className="gap-2">
-                      <Link
-                        to={buildProjectPublicReadingHref(
-                          project.id,
-                          firstReadableChapter.number,
-                          firstReadableChapter.volume,
-                        )}
-                      >
-                        Começar leitura
-                      </Link>
-                    </Button>
-                  ) : null}
                   {project.trailerUrl ? (
                     <Button asChild variant="outline" className="gap-2">
                       <a href={project.trailerUrl} target="_blank" rel="noreferrer">
@@ -1121,6 +1073,19 @@ const ProjectPage = () => {
                     <Button asChild variant="secondary" className="gap-2">
                       <Link to={`/dashboard/projetos?edit=${encodeURIComponent(project.id)}`}>
                         Editar projeto
+                      </Link>
+                    </Button>
+                  ) : null}
+                  {isChapterBased && firstReadableChapter ? (
+                    <Button asChild variant="outline" className="gap-2 order-last">
+                      <Link
+                        to={buildProjectPublicReadingHref(
+                          project.id,
+                          firstReadableChapter.number,
+                          firstReadableChapter.volume,
+                        )}
+                      >
+                        Começar leitura
                       </Link>
                     </Button>
                   ) : null}

@@ -300,8 +300,11 @@ describe("DashboardProjectsEditor card layout", () => {
     expect(titleBlock).not.toBeNull();
     expect(classTokens(titleBlock)).toContain("min-w-0");
     expect(classTokens(titleBlock)).toContain("flex-1");
-    expect(classTokens(title)).toContain("line-clamp-2");
+    expect(classTokens(title)).toContain("dashboard-list-card-title");
+    expect(classTokens(title)).toContain("clamp-safe-2");
     expect(classTokens(title)).toContain("break-words");
+    expect(classTokens(title)).not.toContain("font-semibold");
+    expect(classTokens(title)).not.toContain("text-foreground");
     expect(actions).not.toBeNull();
     expect(classTokens(actions)).toContain("shrink-0");
     expect(classTokens(actions)).toContain("flex-wrap");

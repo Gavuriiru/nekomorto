@@ -1,0 +1,30 @@
+services:
+  edge:
+    image: caddy:2-alpine
+    container_name: nekomorto-edge
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+      APP_WWW_DOMAIN: ${APP_WWW_DOMAIN}
+    volumes:
+      - ./ops/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - nekomorto_internal
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  caddy_data:
+    name: nekomorto-caddy-data
+  caddy_config:
+    name: nekomorto-caddy-config

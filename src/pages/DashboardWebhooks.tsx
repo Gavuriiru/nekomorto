@@ -9,9 +9,24 @@ import {
 } from "@/components/ui/accordion";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
+import {
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from "@/components/dashboard/dashboard-form-controls";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
-import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
+import {
+  dashboardPageLayoutTokens,
+  dashboardStrongFocusFieldClassName,
+  dashboardStrongFocusScopeClassName,
+  dashboardStrongFocusTriggerClassName,
+  dashboardStrongSurfaceHoverClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
 import {
   dashboardAnimationDelay,
   dashboardMotionDelays,
@@ -21,27 +36,29 @@ import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ColorPicker } from "@/components/ui/color-picker";
-import { Input } from "@/components/ui/input";
+import CompactPagination from "@/components/ui/compact-pagination";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { Plus, Save, Send, Trash2 } from "lucide-react";
+import { Loader2, Plus, RotateCcw, Save, Send, Trash2 } from "lucide-react";
 
 type ChannelKey = "posts" | "projects";
 type EventKey = "post_create" | "post_update" | "project_release" | "project_adjust";
-type SaveSectionKey = "types" | "posts" | "projects";
+type WebhookProvider = "discord";
+type SaveSectionKey = "types" | "posts" | "projects" | "operational" | "security";
 
 const SECTION_REVEAL_DELAYS: Record<SaveSectionKey, number> = {
   types: 0,
   posts: dashboardMotionDelays.sectionStepMs,
   projects: dashboardMotionDelays.sectionStepMs * 2,
+  operational: dashboardMotionDelays.sectionStepMs * 3,
+  security: dashboardMotionDelays.sectionStepMs * 4,
 };
 
 type TemplateField = { name: string; value: string; inline: boolean };
@@ -70,6 +87,39 @@ type DashboardCurrentUser = {
   grants?: Partial<Record<string, boolean>>;
 };
 
+type WebhookDeliveryStatus = "queued" | "processing" | "retrying" | "sent" | "failed";
+type WebhookDeliveryScope = "editorial" | "ops_alerts" | "security";
+type WebhookDeliveryItem = {
+  id: string;
+  scope: WebhookDeliveryScope | string;
+  channel: string;
+  eventKey: string;
+  eventLabel: string;
+  status: WebhookDeliveryStatus | string;
+  provider: string;
+  attemptCount: number;
+  maxAttempts: number;
+  createdAt: string | null;
+  nextAttemptAt: string | null;
+  lastAttemptAt: string | null;
+  statusCode: number | null;
+  error: string | null;
+  targetLabel: string;
+  resourceIds: {
+    postId?: string;
+    projectId?: string;
+    securityEventId?: string;
+  };
+  isRetryable: boolean;
+};
+type WebhookDeliverySummary = {
+  queued: number;
+  processing: number;
+  retrying: number;
+  failed: number;
+  sentLast24h: number;
+};
+
 type EditorialSettings = {
   version: 1;
   mentionMode: "role_id";
@@ -95,6 +145,30 @@ type EditorialSettings = {
     };
   };
 };
+type OperationalWebhookSettings = {
+  enabled: boolean;
+  provider: WebhookProvider;
+  webhookUrl: string;
+  timeoutMs: number;
+  intervalMs: number;
+};
+type SecurityWebhookSettings = {
+  enabled: boolean;
+  provider: WebhookProvider;
+  webhookUrl: string;
+  timeoutMs: number;
+};
+type UnifiedWebhookSettings = {
+  version: 2;
+  editorial: EditorialSettings;
+  operational: OperationalWebhookSettings;
+  security: SecurityWebhookSettings;
+};
+type WebhookSettingsSources = {
+  editorial: string;
+  operational: string;
+  security: string;
+};
 
 const CHANNEL_EVENTS: Record<ChannelKey, EventKey[]> = {
   posts: ["post_create", "post_update"],
@@ -112,6 +186,29 @@ const EVENT_LABELS: Record<EventKey, string> = {
   project_release: "Novo lançamento",
   project_adjust: "Ajuste em capítulo/episódio",
 };
+const WEBHOOK_DELIVERY_SCOPE_LABELS: Record<string, string> = {
+  editorial: "Editorial",
+  ops_alerts: "Alertas operacionais",
+  security: "Segurança",
+};
+const WEBHOOK_DELIVERY_STATUS_LABELS: Record<string, string> = {
+  queued: "Na fila",
+  processing: "Processando",
+  retrying: "Reagendado",
+  sent: "Enviado",
+  failed: "Falhou",
+};
+const WEBHOOK_DELIVERY_STATUS_VARIANTS: Record<
+  string,
+  "secondary" | "warning" | "success" | "danger" | "outline"
+> = {
+  queued: "secondary",
+  processing: "warning",
+  retrying: "warning",
+  sent: "success",
+  failed: "danger",
+};
+const WEBHOOK_ACCORDION_CONTENT_CLASSNAME = "space-y-4 px-1";
 
 const COMMON_PLACEHOLDERS = [
   "event.key",
@@ -203,8 +300,20 @@ const PLACEHOLDERS: Record<EventKey, string[]> = {
 };
 
 const DEFAULT_PROJECT_TYPES = ["Anime", "Manga", "Light Novel"];
+const DEFAULT_TIMEOUT_MS = 5_000;
+const MIN_TIMEOUT_MS = 1_000;
+const MAX_TIMEOUT_MS = 30_000;
+const DEFAULT_OPERATIONAL_INTERVAL_MS = 60_000;
+const MIN_OPERATIONAL_INTERVAL_MS = 10_000;
+const MAX_OPERATIONAL_INTERVAL_MS = 60 * 60 * 1_000;
 const ROLE_ID_PATTERN = /^\d+$/;
-const WEBHOOK_URL_PATTERN = /^https?:\/\/.+/i;
+const DISCORD_WEBHOOK_HOSTS = new Set([
+  "discord.com",
+  "discordapp.com",
+  "canary.discord.com",
+  "ptb.discord.com",
+]);
+const DISCORD_WEBHOOK_PATH_PATTERN = /^\/api\/webhooks\/[^/]+\/[^/]+\/?$/i;
 const DEFAULT_EVENT_COLORS: Record<EventKey, string> = {
   post_create: "#3b82f6",
   post_update: "#f59e0b",
@@ -307,17 +416,103 @@ const asSettings = (value: unknown, projectTypes: string[]): EditorialSettings =
   };
 };
 
+const makeDefaultOperationalSettings = (): OperationalWebhookSettings => ({
+  enabled: false,
+  provider: "discord",
+  webhookUrl: "",
+  timeoutMs: DEFAULT_TIMEOUT_MS,
+  intervalMs: DEFAULT_OPERATIONAL_INTERVAL_MS,
+});
+
+const makeDefaultSecuritySettings = (): SecurityWebhookSettings => ({
+  enabled: false,
+  provider: "discord",
+  webhookUrl: "",
+  timeoutMs: DEFAULT_TIMEOUT_MS,
+});
+
+const makeDefaultWebhookSettings = (
+  projectTypes: string[] = DEFAULT_PROJECT_TYPES,
+): UnifiedWebhookSettings => ({
+  version: 2,
+  editorial: makeDefaultSettings(projectTypes),
+  operational: makeDefaultOperationalSettings(),
+  security: makeDefaultSecuritySettings(),
+});
+
+const clampInt = (value: unknown, min: number, max: number, fallback: number) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, Math.floor(numeric)));
+};
+
+const asOperationalSettings = (value: unknown): OperationalWebhookSettings => {
+  const fallback = makeDefaultOperationalSettings();
+  if (!value || typeof value !== "object") {
+    return fallback;
+  }
+  const parsed = value as Partial<OperationalWebhookSettings>;
+  return {
+    enabled: parsed.enabled === true,
+    provider: "discord",
+    webhookUrl: String(parsed.webhookUrl || "").trim(),
+    timeoutMs: clampInt(parsed.timeoutMs, MIN_TIMEOUT_MS, MAX_TIMEOUT_MS, fallback.timeoutMs),
+    intervalMs: clampInt(
+      parsed.intervalMs,
+      MIN_OPERATIONAL_INTERVAL_MS,
+      MAX_OPERATIONAL_INTERVAL_MS,
+      fallback.intervalMs,
+    ),
+  };
+};
+
+const asSecuritySettings = (value: unknown): SecurityWebhookSettings => {
+  const fallback = makeDefaultSecuritySettings();
+  if (!value || typeof value !== "object") {
+    return fallback;
+  }
+  const parsed = value as Partial<SecurityWebhookSettings>;
+  return {
+    enabled: parsed.enabled === true,
+    provider: "discord",
+    webhookUrl: String(parsed.webhookUrl || "").trim(),
+    timeoutMs: clampInt(parsed.timeoutMs, MIN_TIMEOUT_MS, MAX_TIMEOUT_MS, fallback.timeoutMs),
+  };
+};
+
+const asUnifiedSettings = (value: unknown, projectTypes: string[]): UnifiedWebhookSettings => {
+  const parsed =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  const hasUnifiedEnvelope =
+    Number(parsed.version || 0) === 2 ||
+    Object.prototype.hasOwnProperty.call(parsed, "editorial") ||
+    Object.prototype.hasOwnProperty.call(parsed, "operational") ||
+    Object.prototype.hasOwnProperty.call(parsed, "security");
+
+  return {
+    version: 2,
+    editorial: asSettings(hasUnifiedEnvelope ? parsed.editorial : parsed, projectTypes),
+    operational: asOperationalSettings(hasUnifiedEnvelope ? parsed.operational : null),
+    security: asSecuritySettings(hasUnifiedEnvelope ? parsed.security : null),
+  };
+};
+
 const isValidWebhookUrl = (value: string) => {
   const text = String(value || "").trim();
   if (!text) {
     return true;
   }
-  if (!WEBHOOK_URL_PATTERN.test(text)) {
-    return false;
-  }
   try {
     const parsed = new URL(text);
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
+    return (
+      parsed.protocol === "https:" &&
+      DISCORD_WEBHOOK_HOSTS.has(parsed.hostname.toLowerCase()) &&
+      DISCORD_WEBHOOK_PATH_PATTERN.test(parsed.pathname)
+    );
   } catch {
     return false;
   }
@@ -326,51 +521,71 @@ const isValidWebhookUrl = (value: string) => {
 const cloneSettings = (value: EditorialSettings): EditorialSettings =>
   JSON.parse(JSON.stringify(value)) as EditorialSettings;
 
+const cloneWebhookSettings = (value: UnifiedWebhookSettings): UnifiedWebhookSettings =>
+  JSON.parse(JSON.stringify(value)) as UnifiedWebhookSettings;
+
 const WEBHOOKS_CACHE_TTL_MS = 60_000;
 
-type EditorialSettingsCacheEntry = {
+type WebhookSettingsCacheEntry = {
   projectTypes: string[];
-  settings: EditorialSettings;
-  savedSettings: EditorialSettings;
+  revision: string;
+  settings: UnifiedWebhookSettings;
+  savedSettings: UnifiedWebhookSettings;
+  sources: WebhookSettingsSources;
   expiresAt: number;
 };
 
-let editorialSettingsCache: EditorialSettingsCacheEntry | null = null;
+let webhookSettingsCache: WebhookSettingsCacheEntry | null = null;
 
-const readEditorialSettingsCache = () => {
-  if (!editorialSettingsCache) {
+const DEFAULT_WEBHOOK_SOURCES: WebhookSettingsSources = {
+  editorial: "stored",
+  operational: "stored",
+  security: "stored",
+};
+
+const readWebhookSettingsCache = () => {
+  if (!webhookSettingsCache) {
     return null;
   }
-  if (editorialSettingsCache.expiresAt <= Date.now()) {
-    editorialSettingsCache = null;
+  if (webhookSettingsCache.expiresAt <= Date.now()) {
+    webhookSettingsCache = null;
     return null;
   }
   return {
-    projectTypes: [...editorialSettingsCache.projectTypes],
-    settings: cloneSettings(editorialSettingsCache.settings),
-    savedSettings: cloneSettings(editorialSettingsCache.savedSettings),
+    projectTypes: [...webhookSettingsCache.projectTypes],
+    revision: String(webhookSettingsCache.revision || ""),
+    settings: cloneWebhookSettings(webhookSettingsCache.settings),
+    savedSettings: cloneWebhookSettings(webhookSettingsCache.savedSettings),
+    sources: { ...webhookSettingsCache.sources },
   };
 };
 
-const writeEditorialSettingsCache = (value: {
+const writeWebhookSettingsCache = (value: {
   projectTypes: string[];
-  settings: EditorialSettings;
-  savedSettings: EditorialSettings;
+  revision: string;
+  settings: UnifiedWebhookSettings;
+  savedSettings: UnifiedWebhookSettings;
+  sources?: WebhookSettingsSources;
 }) => {
-  editorialSettingsCache = {
+  webhookSettingsCache = {
     projectTypes: [...value.projectTypes],
-    settings: cloneSettings(value.settings),
-    savedSettings: cloneSettings(value.savedSettings),
+    revision: String(value.revision || ""),
+    settings: cloneWebhookSettings(value.settings),
+    savedSettings: cloneWebhookSettings(value.savedSettings),
+    sources: { ...DEFAULT_WEBHOOK_SOURCES, ...(value.sources || {}) },
     expiresAt: Date.now() + WEBHOOKS_CACHE_TTL_MS,
   };
 };
 
-const settingsMatch = (left: EditorialSettings, right: EditorialSettings) =>
+const settingsMatch = (left: UnifiedWebhookSettings, right: UnifiedWebhookSettings) =>
   JSON.stringify(left) === JSON.stringify(right);
 
 export const __testing = {
+  clearWebhookSettingsCache: () => {
+    webhookSettingsCache = null;
+  },
   clearEditorialSettingsCache: () => {
-    editorialSettingsCache = null;
+    webhookSettingsCache = null;
   },
 };
 
@@ -386,6 +601,122 @@ const normalizeHexColor = (value: string, fallback: string) => {
   return fallback;
 };
 
+const EMPTY_DELIVERY_SUMMARY: WebhookDeliverySummary = {
+  queued: 0,
+  processing: 0,
+  retrying: 0,
+  failed: 0,
+  sentLast24h: 0,
+};
+
+const asWebhookDeliverySummary = (value: unknown): WebhookDeliverySummary => {
+  if (!value || typeof value !== "object") {
+    return EMPTY_DELIVERY_SUMMARY;
+  }
+  const parsed = value as Partial<WebhookDeliverySummary>;
+  return {
+    queued: Number(parsed.queued || 0),
+    processing: Number(parsed.processing || 0),
+    retrying: Number(parsed.retrying || 0),
+    failed: Number(parsed.failed || 0),
+    sentLast24h: Number(parsed.sentLast24h || 0),
+  };
+};
+
+const asWebhookDeliveryItems = (value: unknown): WebhookDeliveryItem[] =>
+  Array.isArray(value)
+    ? value.map((item) => {
+        const candidate =
+          item && typeof item === "object" && !Array.isArray(item)
+            ? (item as Partial<WebhookDeliveryItem>)
+            : {};
+        return {
+          id: String(candidate.id || ""),
+          scope: String(candidate.scope || ""),
+          channel: String(candidate.channel || ""),
+          eventKey: String(candidate.eventKey || ""),
+          eventLabel: String(candidate.eventLabel || ""),
+          status: String(candidate.status || ""),
+          provider: String(candidate.provider || ""),
+          attemptCount: Number(candidate.attemptCount || 0),
+          maxAttempts: Number(candidate.maxAttempts || 0),
+          createdAt: candidate.createdAt ? String(candidate.createdAt) : null,
+          nextAttemptAt: candidate.nextAttemptAt ? String(candidate.nextAttemptAt) : null,
+          lastAttemptAt: candidate.lastAttemptAt ? String(candidate.lastAttemptAt) : null,
+          statusCode: Number.isFinite(Number(candidate.statusCode)) ? Number(candidate.statusCode) : null,
+          error: candidate.error ? String(candidate.error) : null,
+          targetLabel: String(candidate.targetLabel || ""),
+          resourceIds:
+            candidate.resourceIds && typeof candidate.resourceIds === "object"
+              ? candidate.resourceIds
+              : {},
+          isRetryable: candidate.isRetryable === true,
+        };
+      })
+    : [];
+
+const formatWebhookTs = (value: string | null | undefined) => {
+  const parsed = value ? new Date(value) : null;
+  if (!parsed || Number.isNaN(parsed.getTime())) {
+    return "-";
+  }
+  return parsed.toLocaleString("pt-BR");
+};
+
+const describeDeliveryResources = (delivery: WebhookDeliveryItem) => {
+  const parts: string[] = [];
+  if (delivery.resourceIds.postId) {
+    parts.push(`Post ${delivery.resourceIds.postId}`);
+  }
+  if (delivery.resourceIds.projectId) {
+    parts.push(`Projeto ${delivery.resourceIds.projectId}`);
+  }
+  if (delivery.resourceIds.securityEventId) {
+    parts.push(`Evento ${delivery.resourceIds.securityEventId}`);
+  }
+  return parts.join(" | ");
+};
+
+const describeInvalidWebhookChannelsLegacy = (value: unknown) => {
+  if (!Array.isArray(value) || value.length === 0) {
+    return "Revise as URLs de webhook configuradas.";
+  }
+  const first =
+    value[0] && typeof value[0] === "object" && !Array.isArray(value[0])
+      ? (value[0] as { channel?: unknown; reason?: unknown; code?: unknown })
+      : {};
+  const channel = String(first.channel || "").trim();
+  const label =
+    channel === "posts" || channel === "projects"
+      ? CHANNEL_LABELS[channel]
+      : channel === "operational"
+        ? "Alertas operacionais"
+        : channel === "security"
+          ? "Segurança"
+      : channel || "canal";
+  return `${label}: ${String(first.reason || first.code || "url inválida")}`;
+};
+
+const describeInvalidWebhookChannels = (value: unknown) => {
+  if (!Array.isArray(value) || value.length === 0) {
+    return "Revise as URLs de webhook configuradas.";
+  }
+  const first =
+    value[0] && typeof value[0] === "object" && !Array.isArray(value[0])
+      ? (value[0] as { channel?: unknown; reason?: unknown; code?: unknown })
+      : {};
+  const channel = String(first.channel || "").trim();
+  const label =
+    channel === "posts" || channel === "projects"
+      ? CHANNEL_LABELS[channel]
+      : channel === "operational"
+        ? "Alertas operacionais"
+        : channel === "security"
+          ? "Segurança"
+          : channel || "canal";
+  return `${label}: ${String(first.reason || first.code || "url inválida")}`;
+};
+
 const WebhookPlaceholderField = ({ label, wide = false }: { label: string; wide?: boolean }) => (
   <DashboardFieldStack className={wide ? "md:col-span-2" : undefined}>
     <Label>{label}</Label>
@@ -396,7 +727,7 @@ const WebhookPlaceholderField = ({ label, wide = false }: { label: string; wide?
 const WebhookTypesPlaceholder = () => (
   <div className="space-y-4 min-h-[19rem]" data-testid="dashboard-webhooks-placeholder-types">
     <DashboardFieldStack data-testid="dashboard-webhooks-general-role-placeholder-field">
-      <Label>Role geral de lancamentos (ID)</Label>
+      <Label>Role geral de lançamentos (ID)</Label>
       <Skeleton className="h-10 w-full" />
     </DashboardFieldStack>
     <div className="space-y-3">
@@ -475,7 +806,7 @@ const DashboardWebhooks = () => {
   usePageMeta({ title: "Webhooks", noIndex: true });
   const navigate = useNavigate();
   const apiBase = getApiBase();
-  const initialCacheRef = useRef(readEditorialSettingsCache());
+  const initialCacheRef = useRef(readWebhookSettingsCache());
   const { currentUser, isLoadingUser } = useDashboardCurrentUser<DashboardCurrentUser>({
     revalidateBootstrap: false,
   });
@@ -486,17 +817,30 @@ const DashboardWebhooks = () => {
   const [projectTypes, setProjectTypes] = useState<string[]>(
     initialCacheRef.current?.projectTypes ?? DEFAULT_PROJECT_TYPES,
   );
-  const [settings, setSettings] = useState<EditorialSettings>(
-    initialCacheRef.current?.settings ?? makeDefaultSettings(DEFAULT_PROJECT_TYPES),
+  const [revision, setRevision] = useState(initialCacheRef.current?.revision ?? "");
+  const [settings, setSettings] = useState<UnifiedWebhookSettings>(
+    initialCacheRef.current?.settings ?? makeDefaultWebhookSettings(DEFAULT_PROJECT_TYPES),
   );
-  const [savedSettings, setSavedSettings] = useState<EditorialSettings>(
-    initialCacheRef.current?.savedSettings ?? makeDefaultSettings(DEFAULT_PROJECT_TYPES),
+  const [savedSettings, setSavedSettings] = useState<UnifiedWebhookSettings>(
+    initialCacheRef.current?.savedSettings ?? makeDefaultWebhookSettings(DEFAULT_PROJECT_TYPES),
   );
-  const [openSections, setOpenSections] = useState<string[]>(["types", "posts", "projects"]);
+  const [sources, setSources] = useState<WebhookSettingsSources>(
+    initialCacheRef.current?.sources ?? DEFAULT_WEBHOOK_SOURCES,
+  );
+  const [openSections, setOpenSections] = useState<string[]>([
+    "types",
+    "posts",
+    "projects",
+    "operational",
+    "security",
+    "deliveries",
+  ]);
   const [savingBySection, setSavingBySection] = useState<Record<SaveSectionKey, boolean>>({
     types: false,
     posts: false,
     projects: false,
+    operational: false,
+    security: false,
   });
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [testingByEvent, setTestingByEvent] = useState<Record<EventKey, boolean>>({
@@ -505,10 +849,32 @@ const DashboardWebhooks = () => {
     project_release: false,
     project_adjust: false,
   });
+  const [isTestingOperational, setIsTestingOperational] = useState(false);
+  const [isTestingSecurity, setIsTestingSecurity] = useState(false);
+  const [deliveryFilters, setDeliveryFilters] = useState<{
+    scope: string;
+    status: string;
+    channel: string;
+    page: number;
+  }>({
+    scope: "",
+    status: "",
+    channel: "",
+    page: 1,
+  });
+  const [deliveries, setDeliveries] = useState<WebhookDeliveryItem[]>([]);
+  const [deliveriesSummary, setDeliveriesSummary] =
+    useState<WebhookDeliverySummary>(EMPTY_DELIVERY_SUMMARY);
+  const [deliveriesTotal, setDeliveriesTotal] = useState(0);
+  const [isLoadingDeliveries, setIsLoadingDeliveries] = useState(false);
+  const [retryingDeliveryId, setRetryingDeliveryId] = useState("");
   const loadRequestIdRef = useRef(0);
+  const deliveryRequestIdRef = useRef(0);
   const hasLoadedOnceRef = useRef(hasLoadedOnce);
   const settingsRef = useRef(settings);
   const savedSettingsRef = useRef(savedSettings);
+  const sourcesRef = useRef(sources);
+  const revisionRef = useRef(revision);
 
   useEffect(() => {
     hasLoadedOnceRef.current = hasLoadedOnce;
@@ -521,6 +887,14 @@ const DashboardWebhooks = () => {
   useEffect(() => {
     savedSettingsRef.current = savedSettings;
   }, [savedSettings]);
+
+  useEffect(() => {
+    sourcesRef.current = sources;
+  }, [sources]);
+
+  useEffect(() => {
+    revisionRef.current = revision;
+  }, [revision]);
 
   const canManageIntegrations = useMemo(() => {
     const grants =
@@ -551,7 +925,7 @@ const DashboardWebhooks = () => {
       }
       setLoadError("");
       try {
-        const response = await apiFetch(apiBase, "/api/integrations/webhooks/editorial", {
+        const response = await apiFetch(apiBase, "/api/integrations/webhooks", {
           auth: true,
           cache: "no-store",
         });
@@ -565,26 +939,34 @@ const DashboardWebhooks = () => {
         const remoteTypes = Array.isArray(payload?.projectTypes)
           ? payload.projectTypes.map((item: unknown) => String(item || "").trim()).filter(Boolean)
           : DEFAULT_PROJECT_TYPES;
-        const nextSettings = asSettings(payload?.settings, remoteTypes);
+        const nextSettings = asUnifiedSettings(payload?.settings, remoteTypes);
+        const nextSources =
+          payload?.sources && typeof payload.sources === "object"
+            ? ({ ...DEFAULT_WEBHOOK_SOURCES, ...payload.sources } as WebhookSettingsSources)
+            : DEFAULT_WEBHOOK_SOURCES;
         const currentSettings = settingsRef.current;
         const currentSavedSettings = savedSettingsRef.current;
         const shouldPreserveDrafts =
           background && settingsMatch(currentSettings, currentSavedSettings) === false;
         const nextDraftSettings = shouldPreserveDrafts ? currentSettings : nextSettings;
         setProjectTypes(remoteTypes);
+        setRevision(String(payload?.revision || ""));
         setSavedSettings(nextSettings);
         setSettings(nextDraftSettings);
-        writeEditorialSettingsCache({
+        setSources(nextSources);
+        writeWebhookSettingsCache({
           projectTypes: remoteTypes,
+          revision: String(payload?.revision || ""),
           settings: nextDraftSettings,
           savedSettings: nextSettings,
+          sources: nextSources,
         });
         setHasLoadedOnce(true);
       } catch {
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
-        setLoadError("Nao foi possivel atualizar os Webhooks.");
+        setLoadError("Não foi possível atualizar os Webhooks.");
       } finally {
         if (loadRequestIdRef.current !== requestId) {
           return;
@@ -596,9 +978,70 @@ const DashboardWebhooks = () => {
     [apiBase],
   );
 
+  const loadDeliveries = useCallback(
+    async (options?: { page?: number }) => {
+      const nextPage = options?.page ?? deliveryFilters.page;
+      const requestId = deliveryRequestIdRef.current + 1;
+      deliveryRequestIdRef.current = requestId;
+      setIsLoadingDeliveries(true);
+      try {
+        const params = new URLSearchParams({
+          page: String(nextPage),
+          limit: "25",
+        });
+        if (deliveryFilters.scope) {
+          params.set("scope", deliveryFilters.scope);
+        }
+        if (deliveryFilters.status) {
+          params.set("status", deliveryFilters.status);
+        }
+        if (deliveryFilters.channel) {
+          params.set("channel", deliveryFilters.channel);
+        }
+        const response = await apiFetch(
+          apiBase,
+          `/api/integrations/webhooks/deliveries?${params.toString()}`,
+          {
+            auth: true,
+            cache: "no-store",
+          },
+        );
+        if (!response.ok) {
+          throw new Error("deliveries_load_failed");
+        }
+        const payload = await response.json();
+        if (deliveryRequestIdRef.current !== requestId) {
+          return;
+        }
+        setDeliveries(asWebhookDeliveryItems(payload?.items));
+        setDeliveriesSummary(asWebhookDeliverySummary(payload?.summary));
+        setDeliveriesTotal(Number(payload?.total || 0));
+      } catch {
+        if (deliveryRequestIdRef.current !== requestId) {
+          return;
+        }
+        toast({
+          title: "Falha ao carregar entregas",
+          description: "Não foi possível atualizar o histórico de webhooks.",
+          variant: "destructive",
+        });
+      } finally {
+        if (deliveryRequestIdRef.current !== requestId) {
+          return;
+        }
+        setIsLoadingDeliveries(false);
+      }
+    },
+    [apiBase, deliveryFilters.channel, deliveryFilters.page, deliveryFilters.scope, deliveryFilters.status],
+  );
+
   useEffect(() => {
     void loadSettings({ background: Boolean(initialCacheRef.current) });
   }, [loadSettings]);
+
+  useEffect(() => {
+    void loadDeliveries({ page: deliveryFilters.page });
+  }, [deliveryFilters.page, loadDeliveries]);
 
   const patchChannel = useCallback(
     (
@@ -609,9 +1052,12 @@ const DashboardWebhooks = () => {
     ) => {
       setSettings((previous) => ({
         ...previous,
-        channels: {
-          ...previous.channels,
-          [channelKey]: updater(previous.channels[channelKey]),
+        editorial: {
+          ...previous.editorial,
+          channels: {
+            ...previous.editorial.channels,
+            [channelKey]: updater(previous.editorial.channels[channelKey]),
+          },
         },
       }));
     },
@@ -653,13 +1099,16 @@ const DashboardWebhooks = () => {
     [setTemplate],
   );
 
-  const validateSection = useCallback((sectionKey: SaveSectionKey, value: EditorialSettings) => {
+  const validateSection = useCallback((sectionKey: SaveSectionKey, value: UnifiedWebhookSettings) => {
     const errors: string[] = [];
     if (sectionKey === "types") {
-      if (value.generalReleaseRoleId && !ROLE_ID_PATTERN.test(value.generalReleaseRoleId)) {
+      if (
+        value.editorial.generalReleaseRoleId &&
+        !ROLE_ID_PATTERN.test(value.editorial.generalReleaseRoleId)
+      ) {
         errors.push("Role geral inválida.");
       }
-      value.typeRoles.forEach((item) => {
+      value.editorial.typeRoles.forEach((item) => {
         if (item.roleId && !ROLE_ID_PATTERN.test(item.roleId)) {
           errors.push(`ID de cargo inválido em ${item.type}.`);
         }
@@ -667,8 +1116,28 @@ const DashboardWebhooks = () => {
       return errors;
     }
 
+    if (sectionKey === "operational") {
+      if (value.operational.enabled && !String(value.operational.webhookUrl || "").trim()) {
+        errors.push("Webhook URL obrigatória em Alertas operacionais.");
+      }
+      if (!isValidWebhookUrl(value.operational.webhookUrl || "")) {
+        errors.push("Webhook URL inválida em Alertas operacionais.");
+      }
+      return errors;
+    }
+
+    if (sectionKey === "security") {
+      if (value.security.enabled && !String(value.security.webhookUrl || "").trim()) {
+        errors.push("Webhook URL obrigatória em Segurança.");
+      }
+      if (!isValidWebhookUrl(value.security.webhookUrl || "")) {
+        errors.push("Webhook URL inválida em Segurança.");
+      }
+      return errors;
+    }
+
     const channelKey = sectionKey as ChannelKey;
-    const channel = value.channels[channelKey];
+    const channel = value.editorial.channels[channelKey];
     const channelLabel = CHANNEL_LABELS[channelKey];
     if (channel.enabled && !String(channel.webhookUrl || "").trim()) {
       errors.push(`Webhook URL obrigatória em ${channelLabel}.`);
@@ -682,20 +1151,28 @@ const DashboardWebhooks = () => {
   const buildSettingsPayloadForSection = useCallback(
     (
       sectionKey: SaveSectionKey,
-      draftSettings: EditorialSettings,
-      savedBase: EditorialSettings,
+      draftSettings: UnifiedWebhookSettings,
+      savedBase: UnifiedWebhookSettings,
     ) => {
-      const next = cloneSettings(savedBase);
+      const next = cloneWebhookSettings(savedBase);
       if (sectionKey === "types") {
-        next.generalReleaseRoleId = draftSettings.generalReleaseRoleId;
-        next.typeRoles = cloneSettings(draftSettings).typeRoles;
+        next.editorial.generalReleaseRoleId = draftSettings.editorial.generalReleaseRoleId;
+        next.editorial.typeRoles = cloneSettings(draftSettings.editorial).typeRoles;
+        return next;
+      }
+      if (sectionKey === "operational") {
+        next.operational = { ...draftSettings.operational };
+        return next;
+      }
+      if (sectionKey === "security") {
+        next.security = { ...draftSettings.security };
         return next;
       }
       if (sectionKey === "posts") {
-        next.channels.posts = cloneSettings(draftSettings).channels.posts;
+        next.editorial.channels.posts = cloneSettings(draftSettings.editorial).channels.posts;
         return next;
       }
-      next.channels.projects = cloneSettings(draftSettings).channels.projects;
+      next.editorial.channels.projects = cloneSettings(draftSettings.editorial).channels.projects;
       return next;
     },
     [],
@@ -704,19 +1181,25 @@ const DashboardWebhooks = () => {
   const mergeServerWithUnsavedDrafts = useCallback(
     (
       sectionKey: SaveSectionKey,
-      serverSettings: EditorialSettings,
-      draftBeforeSave: EditorialSettings,
+      serverSettings: UnifiedWebhookSettings,
+      draftBeforeSave: UnifiedWebhookSettings,
     ) => {
-      const next = cloneSettings(serverSettings);
+      const next = cloneWebhookSettings(serverSettings);
       if (sectionKey !== "types") {
-        next.generalReleaseRoleId = draftBeforeSave.generalReleaseRoleId;
-        next.typeRoles = cloneSettings(draftBeforeSave).typeRoles;
+        next.editorial.generalReleaseRoleId = draftBeforeSave.editorial.generalReleaseRoleId;
+        next.editorial.typeRoles = cloneSettings(draftBeforeSave.editorial).typeRoles;
       }
       if (sectionKey !== "posts") {
-        next.channels.posts = cloneSettings(draftBeforeSave).channels.posts;
+        next.editorial.channels.posts = cloneSettings(draftBeforeSave.editorial).channels.posts;
       }
       if (sectionKey !== "projects") {
-        next.channels.projects = cloneSettings(draftBeforeSave).channels.projects;
+        next.editorial.channels.projects = cloneSettings(draftBeforeSave.editorial).channels.projects;
+      }
+      if (sectionKey !== "operational") {
+        next.operational = { ...draftBeforeSave.operational };
+      }
+      if (sectionKey !== "security") {
+        next.security = { ...draftBeforeSave.security };
       }
       return next;
     },
@@ -735,7 +1218,7 @@ const DashboardWebhooks = () => {
         return;
       }
 
-      const draftBeforeSave = cloneSettings(settings);
+      const draftBeforeSave = cloneWebhookSettings(settings);
       const payloadSettings = buildSettingsPayloadForSection(
         sectionKey,
         draftBeforeSave,
@@ -744,13 +1227,55 @@ const DashboardWebhooks = () => {
 
       setSavingBySection((previous) => ({ ...previous, [sectionKey]: true }));
       try {
-        const response = await apiFetch(apiBase, "/api/integrations/webhooks/editorial", {
+        const response = await apiFetch(apiBase, "/api/integrations/webhooks", {
           method: "PUT",
           auth: true,
-          json: { settings: payloadSettings },
+          json: {
+            settings: payloadSettings,
+            ifRevision: revisionRef.current,
+          },
         });
         const payload = await response.json().catch(() => null);
         if (!response.ok) {
+          if (payload?.error === "edit_conflict") {
+            const remoteTypes = Array.isArray(payload?.projectTypes)
+              ? payload.projectTypes.map((item: unknown) => String(item || "").trim()).filter(Boolean)
+              : projectTypes;
+            const serverSettings = asUnifiedSettings(payload?.settings, remoteTypes);
+            const preservedDraft = asUnifiedSettings(draftBeforeSave, remoteTypes);
+            const nextSources =
+              payload?.sources && typeof payload.sources === "object"
+                ? ({ ...DEFAULT_WEBHOOK_SOURCES, ...payload.sources } as WebhookSettingsSources)
+                : sourcesRef.current;
+            const nextRevision = String(payload?.currentRevision || revisionRef.current || "");
+            setProjectTypes(remoteTypes);
+            setRevision(nextRevision);
+            setSavedSettings(serverSettings);
+            setSettings(preservedDraft);
+            setSources(nextSources);
+            writeWebhookSettingsCache({
+              projectTypes: remoteTypes,
+              revision: nextRevision,
+              settings: preservedDraft,
+              savedSettings: serverSettings,
+              sources: nextSources,
+            });
+            toast({
+              title: "Configuração desatualizada",
+              description:
+                "Outro admin alterou os webhooks. Seu rascunho foi preservado para revisar e salvar novamente.",
+              variant: "destructive",
+            });
+            return;
+          }
+          if (payload?.error === "invalid_webhook_url") {
+            toast({
+              title: "Webhook URL inválida",
+              description: describeInvalidWebhookChannels(payload?.channels),
+              variant: "destructive",
+            });
+            return;
+          }
           if (payload?.error === "invalid_placeholders" && Array.isArray(payload?.placeholders)) {
             const first = payload.placeholders[0];
             toast({
@@ -773,25 +1298,39 @@ const DashboardWebhooks = () => {
         const remoteTypes = Array.isArray(payload?.projectTypes)
           ? payload.projectTypes.map((item: unknown) => String(item || "").trim()).filter(Boolean)
           : projectTypes;
-        const serverSettings = asSettings(payload?.settings, remoteTypes);
+        const serverSettings = asUnifiedSettings(payload?.settings, remoteTypes);
+        const nextSources =
+          payload?.sources && typeof payload.sources === "object"
+            ? ({ ...DEFAULT_WEBHOOK_SOURCES, ...payload.sources } as WebhookSettingsSources)
+            : DEFAULT_WEBHOOK_SOURCES;
+        const nextRevision = String(payload?.revision || revisionRef.current || "");
         const nextDraft = mergeServerWithUnsavedDrafts(sectionKey, serverSettings, draftBeforeSave);
 
         setProjectTypes(remoteTypes);
+        setRevision(nextRevision);
         setSavedSettings(serverSettings);
         setSettings(nextDraft);
-        writeEditorialSettingsCache({
+        setSources(nextSources);
+        writeWebhookSettingsCache({
           projectTypes: remoteTypes,
+          revision: nextRevision,
           settings: nextDraft,
           savedSettings: serverSettings,
+          sources: nextSources,
         });
+        const sectionSuccessDescription =
+          sectionKey === "types"
+            ? "Tipos e menções atualizados com sucesso."
+            : sectionKey === "posts"
+              ? "Configurações de posts atualizadas com sucesso."
+              : sectionKey === "projects"
+                ? "Configurações de projetos atualizadas com sucesso."
+                : sectionKey === "operational"
+                  ? "Alertas operacionais atualizados com sucesso."
+                  : "Configurações de segurança atualizadas com sucesso.";
         toast({
           title: "Seção salva",
-          description:
-            sectionKey === "types"
-              ? "Tipos e menções atualizados com sucesso."
-              : sectionKey === "posts"
-                ? "Configurações de posts atualizadas com sucesso."
-                : "Configurações de projetos atualizadas com sucesso.",
+          description: sectionSuccessDescription,
           intent: "success",
         });
       } finally {
@@ -814,6 +1353,8 @@ const DashboardWebhooks = () => {
       ...validateSection("types", settings),
       ...validateSection("posts", settings),
       ...validateSection("projects", settings),
+      ...validateSection("operational", settings),
+      ...validateSection("security", settings),
     ];
     if (errors.length > 0) {
       toast({
@@ -826,13 +1367,55 @@ const DashboardWebhooks = () => {
 
     setIsSavingAll(true);
     try {
-      const response = await apiFetch(apiBase, "/api/integrations/webhooks/editorial", {
+      const response = await apiFetch(apiBase, "/api/integrations/webhooks", {
         method: "PUT",
         auth: true,
-        json: { settings },
+        json: {
+          settings,
+          ifRevision: revisionRef.current,
+        },
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
+        if (payload?.error === "edit_conflict") {
+          const remoteTypes = Array.isArray(payload?.projectTypes)
+            ? payload.projectTypes.map((item: unknown) => String(item || "").trim()).filter(Boolean)
+            : projectTypes;
+          const serverSettings = asUnifiedSettings(payload?.settings, remoteTypes);
+          const preservedDraft = asUnifiedSettings(settings, remoteTypes);
+          const nextSources =
+            payload?.sources && typeof payload.sources === "object"
+              ? ({ ...DEFAULT_WEBHOOK_SOURCES, ...payload.sources } as WebhookSettingsSources)
+              : sourcesRef.current;
+          const nextRevision = String(payload?.currentRevision || revisionRef.current || "");
+          setProjectTypes(remoteTypes);
+          setRevision(nextRevision);
+          setSavedSettings(serverSettings);
+          setSettings(preservedDraft);
+          setSources(nextSources);
+          writeWebhookSettingsCache({
+            projectTypes: remoteTypes,
+            revision: nextRevision,
+            settings: preservedDraft,
+            savedSettings: serverSettings,
+            sources: nextSources,
+          });
+          toast({
+            title: "Configuração desatualizada",
+            description:
+              "Outro admin alterou os webhooks. Seu rascunho foi preservado para revisar e salvar novamente.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (payload?.error === "invalid_webhook_url") {
+          toast({
+            title: "Webhook URL inválida",
+            description: describeInvalidWebhookChannels(payload?.channels),
+            variant: "destructive",
+          });
+          return;
+        }
         if (payload?.error === "invalid_placeholders" && Array.isArray(payload?.placeholders)) {
           const first = payload.placeholders[0];
           toast({
@@ -855,14 +1438,23 @@ const DashboardWebhooks = () => {
       const remoteTypes = Array.isArray(payload?.projectTypes)
         ? payload.projectTypes.map((item: unknown) => String(item || "").trim()).filter(Boolean)
         : projectTypes;
-      const serverSettings = asSettings(payload?.settings, remoteTypes);
+      const serverSettings = asUnifiedSettings(payload?.settings, remoteTypes);
+      const nextSources =
+        payload?.sources && typeof payload.sources === "object"
+          ? ({ ...DEFAULT_WEBHOOK_SOURCES, ...payload.sources } as WebhookSettingsSources)
+          : DEFAULT_WEBHOOK_SOURCES;
+      const nextRevision = String(payload?.revision || revisionRef.current || "");
       setProjectTypes(remoteTypes);
+      setRevision(nextRevision);
       setSavedSettings(serverSettings);
       setSettings(serverSettings);
-      writeEditorialSettingsCache({
+      setSources(nextSources);
+      writeWebhookSettingsCache({
         projectTypes: remoteTypes,
+        revision: nextRevision,
         settings: serverSettings,
         savedSettings: serverSettings,
+        sources: nextSources,
       });
       toast({
         title: "Configurações salvas",
@@ -881,10 +1473,18 @@ const DashboardWebhooks = () => {
         const response = await apiFetch(apiBase, "/api/integrations/webhooks/editorial/test", {
           method: "POST",
           auth: true,
-          json: { eventKey },
+          json: { eventKey, settings: settingsRef.current },
         });
         const payload = await response.json().catch(() => null);
         if (!response.ok || !payload?.ok) {
+          if (payload?.error === "invalid_webhook_url") {
+            toast({
+              title: "Webhook URL inválida",
+              description: describeInvalidWebhookChannels(payload?.channels),
+              variant: "destructive",
+            });
+            return;
+          }
           toast({
             title: "Teste falhou",
             description:
@@ -905,13 +1505,121 @@ const DashboardWebhooks = () => {
     [apiBase],
   );
 
+  const handleOperationalTest = useCallback(async () => {
+    setIsTestingOperational(true);
+    try {
+      const response = await apiFetch(apiBase, "/api/integrations/webhooks/operational/test", {
+        method: "POST",
+        auth: true,
+        json: { settings: settingsRef.current },
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) {
+        if (payload?.error === "invalid_webhook_url") {
+          toast({
+            title: "Webhook URL inválida",
+            description: describeInvalidWebhookChannels(payload?.channels),
+            variant: "destructive",
+          });
+          return;
+        }
+        toast({
+          title: "Teste falhou",
+          description:
+            payload?.errorDetail || payload?.error || payload?.code || "Falha ao enviar teste.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Teste enviado",
+        description: "Alerta operacional enviado com sucesso.",
+        intent: "success",
+      });
+    } finally {
+      setIsTestingOperational(false);
+    }
+  }, [apiBase]);
+
+  const handleSecurityTest = useCallback(async () => {
+    setIsTestingSecurity(true);
+    try {
+      const response = await apiFetch(apiBase, "/api/integrations/webhooks/security/test", {
+        method: "POST",
+        auth: true,
+        json: { settings: settingsRef.current },
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) {
+        if (payload?.error === "invalid_webhook_url") {
+          toast({
+            title: "Webhook URL inválida",
+            description: describeInvalidWebhookChannels(payload?.channels),
+            variant: "destructive",
+          });
+          return;
+        }
+        toast({
+          title: "Teste falhou",
+          description:
+            payload?.errorDetail || payload?.error || payload?.code || "Falha ao enviar teste.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Teste enviado",
+        description: "Alerta de segurança enviado com sucesso.",
+        intent: "success",
+      });
+    } finally {
+      setIsTestingSecurity(false);
+    }
+  }, [apiBase]);
+
+  const handleRetryDelivery = useCallback(
+    async (deliveryId: string) => {
+      setRetryingDeliveryId(deliveryId);
+      try {
+        const response = await apiFetch(
+          apiBase,
+          `/api/integrations/webhooks/deliveries/${deliveryId}/retry`,
+          {
+            method: "POST",
+            auth: true,
+          },
+        );
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) {
+          toast({
+            title: "Falha ao reenfileirar",
+            description: payload?.error || "Não foi possível criar uma nova tentativa.",
+            variant: "destructive",
+          });
+          return;
+        }
+        toast({
+          title: "Entrega reenfileirada",
+          description: "Uma nova tentativa foi adicionada a fila de webhooks.",
+          intent: "success",
+        });
+        await loadDeliveries({ page: deliveryFilters.page });
+      } finally {
+        setRetryingDeliveryId("");
+      }
+    },
+    [apiBase, deliveryFilters.page, loadDeliveries],
+  );
+
   const hasBlockingLoadError = !hasLoadedOnce && Boolean(loadError);
   const showStableShell = isInitialLoading && !hasLoadedOnce;
+  const deliveryTotalPages = Math.max(1, Math.ceil(deliveriesTotal / 25));
+  const editorialSettings = settings.editorial;
 
   useDashboardRefreshToast({
     active: isRefreshing && hasLoadedOnce,
     title: "Atualizando Webhooks",
-    description: "Buscando a configuracao mais recente dos Webhooks.",
+    description: "Buscando a configuração mais recente dos Webhooks.",
   });
 
   if (!isLoadingUser && !canManageIntegrations) {
@@ -943,7 +1651,7 @@ const DashboardWebhooks = () => {
         <DashboardPageHeader
           badge="Integrações"
           title="Webhooks"
-          description="Configure canais para posts e projetos com templates por evento."
+          description="Configure webhooks editoriais, alertas operacionais e segurança em um só lugar."
           actions={
             <Button
               type="button"
@@ -959,7 +1667,7 @@ const DashboardWebhooks = () => {
         {loadError && !hasBlockingLoadError ? (
           <Alert className="mb-4 border-border/70 bg-background text-foreground/70">
             <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-              <span>Mantendo os ultimos dados carregados.</span>
+              <span>Mantendo os últimos dados carregados.</span>
               <Button
                 size="sm"
                 variant="outline"
@@ -1011,7 +1719,7 @@ const DashboardWebhooks = () => {
                   </Button>
                 ) : null}
               </div>
-              <AccordionContent className="space-y-4">
+              <AccordionContent className={WEBHOOK_ACCORDION_CONTENT_CLASSNAME}>
                 {showStableShell ? (
                   <WebhookTypesPlaceholder />
                 ) : (
@@ -1019,11 +1727,14 @@ const DashboardWebhooks = () => {
                     <DashboardFieldStack data-testid="dashboard-webhooks-general-role-field">
                       <Label>Role geral de lançamentos (ID)</Label>
                       <Input
-                        value={settings.generalReleaseRoleId}
+                        value={editorialSettings.generalReleaseRoleId}
                         onChange={(event) =>
                           setSettings((previous) => ({
                             ...previous,
-                            generalReleaseRoleId: event.target.value.replace(/\D/g, ""),
+                            editorial: {
+                              ...previous.editorial,
+                              generalReleaseRoleId: event.target.value.replace(/\D/g, ""),
+                            },
                           }))
                         }
                         placeholder="Opcional: usada em project_release"
@@ -1031,7 +1742,7 @@ const DashboardWebhooks = () => {
                     </DashboardFieldStack>
 
                     <div className="space-y-3">
-                      {settings.typeRoles.map((typeRole, index) => (
+                      {editorialSettings.typeRoles.map((typeRole, index) => (
                         <div
                           key={`${typeRole.type}-${index}`}
                           className={`grid gap-3 ${dashboardPageLayoutTokens.surfaceInset} rounded-xl p-3 md:grid-cols-[1fr_280px]`}
@@ -1047,14 +1758,17 @@ const DashboardWebhooks = () => {
                             onChange={(event) =>
                               setSettings((previous) => ({
                                 ...previous,
-                                typeRoles: previous.typeRoles.map((item, itemIndex) =>
-                                  itemIndex !== index
-                                    ? item
-                                    : {
-                                        ...item,
-                                        roleId: event.target.value.replace(/\D/g, ""),
-                                      },
-                                ),
+                                editorial: {
+                                  ...previous.editorial,
+                                  typeRoles: previous.editorial.typeRoles.map((item, itemIndex) =>
+                                    itemIndex !== index
+                                      ? item
+                                      : {
+                                          ...item,
+                                          roleId: event.target.value.replace(/\D/g, ""),
+                                        },
+                                  ),
+                                },
                               }))
                             }
                             placeholder="ID do cargo do Discord"
@@ -1068,7 +1782,7 @@ const DashboardWebhooks = () => {
             </AccordionItem>
 
             {(Object.keys(CHANNEL_EVENTS) as ChannelKey[]).map((channelKey) => {
-              const channel = settings.channels[channelKey];
+              const channel = editorialSettings.channels[channelKey];
               const sectionKey = channelKey as Extract<SaveSectionKey, ChannelKey>;
               return (
                 <AccordionItem
@@ -1097,7 +1811,7 @@ const DashboardWebhooks = () => {
                       </Button>
                     ) : null}
                   </div>
-                  <AccordionContent className="space-y-4">
+                  <AccordionContent className={WEBHOOK_ACCORDION_CONTENT_CLASSNAME}>
                     {showStableShell ? (
                       <WebhookChannelPlaceholder
                         channelKey={channelKey}
@@ -1192,7 +1906,7 @@ const DashboardWebhooks = () => {
                                   </div>
                                 </AccordionTrigger>
 
-                                <AccordionContent className="space-y-4">
+                                <AccordionContent className={WEBHOOK_ACCORDION_CONTENT_CLASSNAME}>
                                   <div
                                     className="space-y-4"
                                     data-testid={`dashboard-webhooks-event-content-${channelKey}-${eventKey}`}
@@ -1526,7 +2240,8 @@ const DashboardWebhooks = () => {
                                           aria-label="Selecionar cor da embed"
                                           label=""
                                           showSwatch
-                                          buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-background shadow-xs transition hover:border-primary/40"
+                                          buttonClassName={`inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-background shadow-xs transition ${dashboardStrongSurfaceHoverClassName} focus-visible:outline-hidden ${dashboardStrongFocusFieldClassName} ${dashboardStrongFocusTriggerClassName}`}
+                                          panelClassName={dashboardStrongFocusScopeClassName}
                                           value={displayEmbedColor}
                                           onChange={(color) =>
                                             setEmbedValue(
@@ -1577,6 +2292,498 @@ const DashboardWebhooks = () => {
                 </AccordionItem>
               );
             })}
+
+            <AccordionItem
+              value="operational"
+              className={`${dashboardPageLayoutTokens.surfaceSolid} rounded-xl px-4 animate-slide-up opacity-0`}
+              style={dashboardAnimationDelay(SECTION_REVEAL_DELAYS.operational)}
+              data-testid="dashboard-webhooks-section-operational"
+            >
+              <div className="relative">
+                <AccordionTrigger className="hover:no-underline">
+                  Alertas Operacionais
+                </AccordionTrigger>
+                {isSectionOpen("operational") ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="absolute right-10 top-1/2 -translate-y-1/2 gap-2"
+                    aria-label="Salvar alertas operacionais"
+                    onClick={() => void handleSaveSection("operational")}
+                    disabled={savingBySection.operational || showStableShell}
+                  >
+                    <Save className="h-4 w-4" />
+                    {savingBySection.operational ? "Salvando..." : "Salvar"}
+                  </Button>
+                ) : null}
+              </div>
+              <AccordionContent className={WEBHOOK_ACCORDION_CONTENT_CLASSNAME}>
+                <div
+                  className="space-y-4"
+                  data-testid="dashboard-webhooks-section-content-operational"
+                >
+                  {sources.operational === "env" ? (
+                    <div
+                      className={`${dashboardPageLayoutTokens.surfaceInset} rounded-xl border-dashed p-3 text-sm text-muted-foreground`}
+                    >
+                      Esta seção foi inicializada a partir das variáveis de ambiente e ainda não foi
+                      salva pelo dashboard.
+                    </div>
+                  ) : null}
+
+                  <p className="text-sm text-muted-foreground">
+                    Envia um resumo das mudanças entre estados operacionais, incluindo alertas
+                    disparados, alterados e resolvidos.
+                  </p>
+
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <DashboardFieldStack className="md:col-span-2">
+                      <Label>Webhook URL</Label>
+                      <Input
+                        value={settings.operational.webhookUrl}
+                        onChange={(event) =>
+                          setSettings((previous) => ({
+                            ...previous,
+                            operational: {
+                              ...previous.operational,
+                              webhookUrl: event.target.value,
+                            },
+                          }))
+                        }
+                        placeholder="https://discord.com/api/webhooks/..."
+                      />
+                    </DashboardFieldStack>
+                    <DashboardFieldStack>
+                      <Label>Timeout (ms)</Label>
+                      <Input
+                        type="number"
+                        min={MIN_TIMEOUT_MS}
+                        max={MAX_TIMEOUT_MS}
+                        value={settings.operational.timeoutMs}
+                        onChange={(event) =>
+                          setSettings((previous) => ({
+                            ...previous,
+                            operational: {
+                              ...previous.operational,
+                              timeoutMs: Number(event.target.value || DEFAULT_TIMEOUT_MS),
+                            },
+                          }))
+                        }
+                      />
+                    </DashboardFieldStack>
+                    <DashboardFieldStack>
+                      <Label>Intervalo (ms)</Label>
+                      <Input
+                        type="number"
+                        min={MIN_OPERATIONAL_INTERVAL_MS}
+                        max={MAX_OPERATIONAL_INTERVAL_MS}
+                        value={settings.operational.intervalMs}
+                        onChange={(event) =>
+                          setSettings((previous) => ({
+                            ...previous,
+                            operational: {
+                              ...previous.operational,
+                              intervalMs: Number(
+                                event.target.value || DEFAULT_OPERATIONAL_INTERVAL_MS,
+                              ),
+                            },
+                          }))
+                        }
+                      />
+                    </DashboardFieldStack>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div
+                      className={`flex w-fit items-center gap-2 ${dashboardPageLayoutTokens.cardActionSurface} px-3 py-2`}
+                    >
+                      <Switch
+                        checked={settings.operational.enabled}
+                        onCheckedChange={(checked) =>
+                          setSettings((previous) => ({
+                            ...previous,
+                            operational: {
+                              ...previous.operational,
+                              enabled: checked,
+                            },
+                          }))
+                        }
+                      />
+                      <span className="text-xs text-muted-foreground">Seção ativa</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="gap-2"
+                      disabled={isTestingOperational}
+                      onClick={() => void handleOperationalTest()}
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      {isTestingOperational ? "Enviando..." : "Enviar teste"}
+                    </Button>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem
+              value="security"
+              className={`${dashboardPageLayoutTokens.surfaceSolid} rounded-xl px-4 animate-slide-up opacity-0`}
+              style={dashboardAnimationDelay(SECTION_REVEAL_DELAYS.security)}
+              data-testid="dashboard-webhooks-section-security"
+            >
+              <div className="relative">
+                <AccordionTrigger className="hover:no-underline">Segurança</AccordionTrigger>
+                {isSectionOpen("security") ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="absolute right-10 top-1/2 -translate-y-1/2 gap-2"
+                    aria-label="Salvar segurança"
+                    onClick={() => void handleSaveSection("security")}
+                    disabled={savingBySection.security || showStableShell}
+                  >
+                    <Save className="h-4 w-4" />
+                    {savingBySection.security ? "Salvando..." : "Salvar"}
+                  </Button>
+                ) : null}
+              </div>
+              <AccordionContent className={WEBHOOK_ACCORDION_CONTENT_CLASSNAME}>
+                <div className="space-y-4" data-testid="dashboard-webhooks-section-content-security">
+                  {sources.security === "env" ? (
+                    <div
+                      className={`${dashboardPageLayoutTokens.surfaceInset} rounded-xl border-dashed p-3 text-sm text-muted-foreground`}
+                    >
+                      Esta seção foi inicializada a partir das variáveis de ambiente e ainda não foi
+                      salva pelo dashboard.
+                    </div>
+                  ) : null}
+
+                  <p className="text-sm text-muted-foreground">
+                    Envia somente eventos críticos de segurança com status, risco, ator, alvo, IP e
+                    link para o dashboard.
+                  </p>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <DashboardFieldStack className="md:col-span-2">
+                      <Label>Webhook URL</Label>
+                      <Input
+                        value={settings.security.webhookUrl}
+                        onChange={(event) =>
+                          setSettings((previous) => ({
+                            ...previous,
+                            security: {
+                              ...previous.security,
+                              webhookUrl: event.target.value,
+                            },
+                          }))
+                        }
+                        placeholder="https://discord.com/api/webhooks/..."
+                      />
+                    </DashboardFieldStack>
+                    <DashboardFieldStack>
+                      <Label>Timeout (ms)</Label>
+                      <Input
+                        type="number"
+                        min={MIN_TIMEOUT_MS}
+                        max={MAX_TIMEOUT_MS}
+                        value={settings.security.timeoutMs}
+                        onChange={(event) =>
+                          setSettings((previous) => ({
+                            ...previous,
+                            security: {
+                              ...previous.security,
+                              timeoutMs: Number(event.target.value || DEFAULT_TIMEOUT_MS),
+                            },
+                          }))
+                        }
+                      />
+                    </DashboardFieldStack>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div
+                      className={`flex w-fit items-center gap-2 ${dashboardPageLayoutTokens.cardActionSurface} px-3 py-2`}
+                    >
+                      <Switch
+                        checked={settings.security.enabled}
+                        onCheckedChange={(checked) =>
+                          setSettings((previous) => ({
+                            ...previous,
+                            security: {
+                              ...previous.security,
+                              enabled: checked,
+                            },
+                          }))
+                        }
+                      />
+                      <span className="text-xs text-muted-foreground">Seção ativa</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="gap-2"
+                      disabled={isTestingSecurity}
+                      onClick={() => void handleSecurityTest()}
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      {isTestingSecurity ? "Enviando..." : "Enviar teste"}
+                    </Button>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem
+              value="deliveries"
+              className={`${dashboardPageLayoutTokens.surfaceSolid} rounded-xl px-4 animate-slide-up opacity-0`}
+              style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 3)}
+              data-testid="dashboard-webhooks-section-deliveries"
+            >
+              <AccordionTrigger className="hover:no-underline">Entregas</AccordionTrigger>
+              <AccordionContent className={WEBHOOK_ACCORDION_CONTENT_CLASSNAME}>
+                <div
+                  className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+                  data-testid="dashboard-webhooks-delivery-summary-grid"
+                >
+                  {[
+                    { id: "queued", label: "Na fila", value: deliveriesSummary.queued },
+                    { id: "processing", label: "Processando", value: deliveriesSummary.processing },
+                    { id: "retrying", label: "Reagendado", value: deliveriesSummary.retrying },
+                    { id: "failed", label: "Falhas", value: deliveriesSummary.failed },
+                    { id: "sent_last_24h", label: "Enviados 24h", value: deliveriesSummary.sentLast24h },
+                  ].map((item) => (
+                    <div
+                      key={item.id}
+                      className={`${dashboardPageLayoutTokens.surfaceSolid} min-w-0 p-5`}
+                      data-testid={`dashboard-webhooks-delivery-summary-card-${item.id}`}
+                    >
+                      <p className={`text-sm ${dashboardPageLayoutTokens.cardMetaText}`}>
+                        {item.label}
+                      </p>
+                      <p className="mt-3 text-2xl font-semibold">{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div
+                  className={`grid gap-3 ${dashboardPageLayoutTokens.surfaceInset} rounded-xl p-3 md:grid-cols-[repeat(3,minmax(0,1fr))_auto]`}
+                >
+                  <DashboardFieldStack>
+                    <Label>Escopo</Label>
+                    <Select
+                      value={deliveryFilters.scope || "all"}
+                      onValueChange={(value) =>
+                        setDeliveryFilters((previous) => ({
+                          ...previous,
+                          scope: value === "all" ? "" : value,
+                          page: 1,
+                        }))
+                      }
+                    >
+                      <SelectTrigger data-testid="dashboard-webhooks-delivery-filter-scope">
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="editorial">Editorial</SelectItem>
+                        <SelectItem value="ops_alerts">Alertas operacionais</SelectItem>
+                        <SelectItem value="security">Segurança</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </DashboardFieldStack>
+
+                  <DashboardFieldStack>
+                    <Label>Status</Label>
+                    <Select
+                      value={deliveryFilters.status || "all"}
+                      onValueChange={(value) =>
+                        setDeliveryFilters((previous) => ({
+                          ...previous,
+                          status: value === "all" ? "" : value,
+                          page: 1,
+                        }))
+                      }
+                    >
+                      <SelectTrigger data-testid="dashboard-webhooks-delivery-filter-status">
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="queued">Na fila</SelectItem>
+                        <SelectItem value="processing">Processando</SelectItem>
+                        <SelectItem value="retrying">Reagendado</SelectItem>
+                        <SelectItem value="failed">Falhou</SelectItem>
+                        <SelectItem value="sent">Enviado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </DashboardFieldStack>
+
+                  <DashboardFieldStack>
+                    <Label>Canal</Label>
+                    <Select
+                      value={deliveryFilters.channel || "all"}
+                      onValueChange={(value) =>
+                        setDeliveryFilters((previous) => ({
+                          ...previous,
+                          channel: value === "all" ? "" : value,
+                          page: 1,
+                        }))
+                      }
+                    >
+                      <SelectTrigger data-testid="dashboard-webhooks-delivery-filter-channel">
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="posts">Posts</SelectItem>
+                        <SelectItem value="projects">Projetos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </DashboardFieldStack>
+
+                  <div className="flex items-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => void loadDeliveries({ page: deliveryFilters.page })}
+                      disabled={isLoadingDeliveries}
+                    >
+                      {isLoadingDeliveries ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-4 w-4" />
+                      )}
+                      Atualizar
+                    </Button>
+                  </div>
+                </div>
+
+                {isLoadingDeliveries && deliveries.length === 0 ? (
+                  <div className="space-y-3" data-testid="dashboard-webhooks-deliveries-loading">
+                    <Skeleton className="h-28 rounded-xl" />
+                    <Skeleton className="h-28 rounded-xl" />
+                  </div>
+                ) : deliveries.length === 0 ? (
+                  <div
+                    className={`${dashboardPageLayoutTokens.surfaceInset} rounded-xl p-4 text-sm text-muted-foreground`}
+                    data-testid="dashboard-webhooks-deliveries-empty"
+                  >
+                    Nenhuma entrega encontrada para os filtros atuais.
+                  </div>
+                ) : (
+                  <div className="space-y-3" data-testid="dashboard-webhooks-deliveries-list">
+                    {deliveries.map((delivery) => {
+                      const resourceSummary = describeDeliveryResources(delivery);
+                      const eventLabel =
+                        delivery.eventLabel ||
+                        (delivery.eventKey in EVENT_LABELS
+                          ? EVENT_LABELS[delivery.eventKey as EventKey]
+                          : delivery.eventKey || "Sem evento");
+                      const channelLabel =
+                        delivery.channel in CHANNEL_LABELS
+                          ? CHANNEL_LABELS[delivery.channel as ChannelKey]
+                          : delivery.channel || "Sem canal";
+                      return (
+                        <div
+                          key={delivery.id}
+                          className={`${dashboardPageLayoutTokens.surfaceInset} rounded-xl p-4`}
+                          data-testid={`dashboard-webhooks-delivery-${delivery.id}`}
+                        >
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="space-y-3">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge
+                                  variant={
+                                    WEBHOOK_DELIVERY_STATUS_VARIANTS[delivery.status] || "outline"
+                                  }
+                                >
+                                  {WEBHOOK_DELIVERY_STATUS_LABELS[delivery.status] || delivery.status}
+                                </Badge>
+                                <Badge variant="outline">
+                                  {WEBHOOK_DELIVERY_SCOPE_LABELS[delivery.scope] || delivery.scope}
+                                </Badge>
+                                <Badge variant="secondary">{channelLabel}</Badge>
+                                <span className="text-sm font-medium">{eventLabel}</span>
+                              </div>
+
+                              <div className="space-y-1 text-sm">
+                                <p className="font-medium">{delivery.targetLabel || "-"}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Tentativas: {delivery.attemptCount}/{delivery.maxAttempts}
+                                  {delivery.statusCode ? ` | HTTP ${delivery.statusCode}` : ""}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Criado em {formatWebhookTs(delivery.createdAt)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Última tentativa em {formatWebhookTs(delivery.lastAttemptAt)}
+                                </p>
+                                {delivery.nextAttemptAt ? (
+                                  <p className="text-xs text-muted-foreground">
+                                    Próxima tentativa em {formatWebhookTs(delivery.nextAttemptAt)}
+                                  </p>
+                                ) : null}
+                                {resourceSummary ? (
+                                  <p className="text-xs text-muted-foreground">
+                                    Recursos: {resourceSummary}
+                                  </p>
+                                ) : null}
+                                {delivery.error ? (
+                                  <p className="text-xs text-destructive">{delivery.error}</p>
+                                ) : null}
+                              </div>
+                            </div>
+
+                            <div className="flex items-start gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => void handleRetryDelivery(delivery.id)}
+                                disabled={!delivery.isRetryable || retryingDeliveryId === delivery.id}
+                              >
+                                {retryingDeliveryId === delivery.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="h-3.5 w-3.5" />
+                                )}
+                                Reenfileirar
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {deliveriesTotal > 25 ? (
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Página {deliveryFilters.page} de {deliveryTotalPages}
+                    </p>
+                    <CompactPagination
+                      currentPage={deliveryFilters.page}
+                      totalPages={deliveryTotalPages}
+                      disabled={isLoadingDeliveries}
+                      className="mx-0 w-full justify-start md:w-auto md:justify-end"
+                      contentClassName="flex-wrap justify-start md:justify-end"
+                      onPageChange={(page) =>
+                        setDeliveryFilters((previous) => ({
+                          ...previous,
+                          page,
+                        }))
+                      }
+                    />
+                  </div>
+                ) : null}
+              </AccordionContent>
+            </AccordionItem>
           </Accordion>
         )}
       </DashboardPageContainer>

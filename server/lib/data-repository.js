@@ -19,6 +19,7 @@ import {
   syncUsersToNormalized,
   toDateOnlyOrNull,
 } from "./normalized-domain-store.js";
+import { WEBHOOK_DELIVERY_STATUS } from "./webhooks/delivery.js";
 
 const cloneValue = (value) => {
   try {
@@ -120,6 +121,65 @@ const toAuditLogRow = (entry, position) => ({
   data: cloneValue(entry || {}),
 });
 
+const sortByCreatedAtDesc = (items) =>
+  ensureArray(items).sort((left, right) => {
+    const leftTs = new Date(left?.createdAt || 0).getTime();
+    const rightTs = new Date(right?.createdAt || 0).getTime();
+    return rightTs - leftTs;
+  });
+
+const normalizeWebhookDeliveryRecord = (record) => {
+  const id = String(record?.id || "").trim();
+  if (!id) {
+    return null;
+  }
+  return {
+    id,
+    scope: String(record?.scope || "").trim(),
+    provider: String(record?.provider || "").trim(),
+    channel: record?.channel ? String(record.channel).trim() : null,
+    eventKey: record?.eventKey ? String(record.eventKey).trim() : null,
+    status: String(record?.status || WEBHOOK_DELIVERY_STATUS.QUEUED).trim().toLowerCase(),
+    targetUrl: String(record?.targetUrl || "").trim(),
+    targetLabel: String(record?.targetLabel || "").trim(),
+    payload:
+      record?.payload && typeof record.payload === "object" && !Array.isArray(record.payload)
+        ? cloneValue(record.payload)
+        : {},
+    context:
+      record?.context && typeof record.context === "object" && !Array.isArray(record.context)
+        ? cloneValue(record.context)
+        : {},
+    attemptCount: Number.isFinite(Number(record?.attemptCount)) ? Number(record.attemptCount) : 0,
+    maxAttempts: Number.isFinite(Number(record?.maxAttempts)) ? Number(record.maxAttempts) : 1,
+    nextAttemptAt: record?.nextAttemptAt ? String(record.nextAttemptAt) : null,
+    lastAttemptAt: record?.lastAttemptAt ? String(record.lastAttemptAt) : null,
+    lastStatusCode: Number.isFinite(Number(record?.lastStatusCode))
+      ? Number(record.lastStatusCode)
+      : null,
+    lastErrorCode: record?.lastErrorCode ? String(record.lastErrorCode) : null,
+    lastError: record?.lastError ? String(record.lastError) : null,
+    processingOwner: record?.processingOwner ? String(record.processingOwner) : null,
+    processingStartedAt: record?.processingStartedAt ? String(record.processingStartedAt) : null,
+    sentAt: record?.sentAt ? String(record.sentAt) : null,
+    retryOfId: record?.retryOfId ? String(record.retryOfId) : null,
+    createdAt: String(record?.createdAt || new Date().toISOString()),
+    updatedAt: String(record?.updatedAt || new Date().toISOString()),
+  };
+};
+
+const normalizeWebhookStateRecord = (value) => {
+  const key = String(value?.key || "").trim();
+  if (!key) {
+    return null;
+  }
+  return {
+    key,
+    data: value?.data && typeof value.data === "object" && !Array.isArray(value.data) ? cloneValue(value.data) : {},
+    updatedAt: String(value?.updatedAt || new Date().toISOString()),
+  };
+};
+
 const toAnalyticsEventRow = (event, position) => ({
   id: String(event?.id || crypto.randomUUID()),
   position: Number.isFinite(Number(position)) ? Math.max(0, Math.floor(Number(position))) : 0,
@@ -175,6 +235,8 @@ export class DbDataRepository {
     this.epubImportJobStorageAvailable = true;
     this.projectImageImportJobStorageAvailable = true;
     this.projectImageExportJobStorageAvailable = true;
+    this.webhookDeliveryStorageAvailable = true;
+    this.webhookStateStorageAvailable = true;
     this.onBackgroundError = options.onBackgroundError;
     this.persistQueue = Promise.resolve();
     this.health = {
@@ -213,6 +275,8 @@ export class DbDataRepository {
       epubImportJobs: [],
       projectImageImportJobs: [],
       projectImageExportJobs: [],
+      webhookDeliveries: [],
+      webhookStates: {},
       secretRotations: [],
     };
   }
@@ -349,6 +413,8 @@ export class DbDataRepository {
       epubImportJobs,
       projectImageImportJobs,
       projectImageExportJobs,
+      webhookDeliveries,
+      webhookStates,
       secretRotations,
       normalizedUsers,
       normalizedPosts,
@@ -454,6 +520,46 @@ export class DbDataRepository {
             })
         : (() => {
             this.projectImageExportJobStorageAvailable = false;
+            return Promise.resolve([]);
+          })(),
+      typeof prisma.webhookDeliveryRecord?.findMany === "function"
+        ? prisma.webhookDeliveryRecord.findMany({ orderBy: { createdAt: "desc" } }).catch((error) => {
+            if (
+              isPrismaMissingTableError(error, {
+                modelName: "WebhookDeliveryRecord",
+                tableName: "webhook_deliveries",
+              })
+            ) {
+              this.webhookDeliveryStorageAvailable = false;
+              console.warn(
+                "[data-repository:webhook_deliveries] table missing; persistent webhook delivery disabled until migrations run.",
+              );
+              return [];
+            }
+            throw error;
+          })
+        : (() => {
+            this.webhookDeliveryStorageAvailable = false;
+            return Promise.resolve([]);
+          })(),
+      typeof prisma.webhookStateRecord?.findMany === "function"
+        ? prisma.webhookStateRecord.findMany({}).catch((error) => {
+            if (
+              isPrismaMissingTableError(error, {
+                modelName: "WebhookStateRecord",
+                tableName: "webhook_state",
+              })
+            ) {
+              this.webhookStateStorageAvailable = false;
+              console.warn(
+                "[data-repository:webhook_state] table missing; persistent webhook runtime state disabled until migrations run.",
+              );
+              return [];
+            }
+            throw error;
+          })
+        : (() => {
+            this.webhookStateStorageAvailable = false;
             return Promise.resolve([]);
           })(),
       typeof prisma.secretRotationRecord?.findMany === "function"
@@ -646,6 +752,45 @@ export class DbDataRepository {
       expiresAt: row?.expiresAt ? new Date(row.expiresAt).toISOString() : null,
       updatedAt: row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
     }));
+    this.snapshot.webhookDeliveries = webhookDeliveries.map((row) => ({
+      id: String(row?.id || ""),
+      scope: String(row?.scope || ""),
+      provider: String(row?.provider || ""),
+      channel: row?.channel ? String(row.channel) : null,
+      eventKey: row?.eventKey ? String(row.eventKey) : null,
+      status: String(row?.status || "queued"),
+      targetUrl: String(row?.targetUrl || ""),
+      targetLabel: String(row?.targetLabel || ""),
+      payload: cloneValue(row?.payload || {}),
+      context: cloneValue(row?.context || {}),
+      attemptCount: Number.isFinite(Number(row?.attemptCount)) ? Number(row.attemptCount) : 0,
+      maxAttempts: Number.isFinite(Number(row?.maxAttempts)) ? Number(row.maxAttempts) : 1,
+      nextAttemptAt: row?.nextAttemptAt ? new Date(row.nextAttemptAt).toISOString() : null,
+      lastAttemptAt: row?.lastAttemptAt ? new Date(row.lastAttemptAt).toISOString() : null,
+      lastStatusCode: Number.isFinite(Number(row?.lastStatusCode)) ? Number(row.lastStatusCode) : null,
+      lastErrorCode: row?.lastErrorCode ? String(row.lastErrorCode) : null,
+      lastError: row?.lastError ? String(row.lastError) : null,
+      processingOwner: row?.processingOwner ? String(row.processingOwner) : null,
+      processingStartedAt: row?.processingStartedAt
+        ? new Date(row.processingStartedAt).toISOString()
+        : null,
+      sentAt: row?.sentAt ? new Date(row.sentAt).toISOString() : null,
+      retryOfId: row?.retryOfId ? String(row.retryOfId) : null,
+      createdAt: row?.createdAt ? new Date(row.createdAt).toISOString() : null,
+      updatedAt: row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+    }));
+    this.snapshot.webhookStates = webhookStates.reduce((acc, row) => {
+      const key = String(row?.key || "").trim();
+      if (!key) {
+        return acc;
+      }
+      acc[key] = {
+        key,
+        data: cloneValue(row?.data || {}),
+        updatedAt: row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+      };
+      return acc;
+    }, {});
     this.snapshot.secretRotations = secretRotations.map((row) => ({
       id: String(row?.id || ""),
       secretFamily: String(row?.secretFamily || ""),
@@ -1876,6 +2021,213 @@ export class DbDataRepository {
         },
       });
     });
+    return cloneValue(normalized);
+  }
+
+  isWebhookDeliveryStorageAvailable() {
+    return this.webhookDeliveryStorageAvailable === true;
+  }
+
+  storeWebhookDeliverySnapshot(record) {
+    const normalized = normalizeWebhookDeliveryRecord(record);
+    if (!normalized) {
+      return null;
+    }
+    const list = ensureArray(this.snapshot.webhookDeliveries);
+    const index = list.findIndex((item) => String(item?.id || "") === normalized.id);
+    if (index >= 0) {
+      list[index] = normalized;
+    } else {
+      list.push(normalized);
+    }
+    this.snapshot.webhookDeliveries = sortByCreatedAtDesc(list);
+    return normalized;
+  }
+
+  loadWebhookDeliveries() {
+    return cloneValue(this.snapshot.webhookDeliveries || []);
+  }
+
+  findWebhookDelivery(id) {
+    const normalizedId = String(id || "").trim();
+    if (!normalizedId) {
+      return null;
+    }
+    const match = ensureArray(this.snapshot.webhookDeliveries).find(
+      (item) => String(item?.id || "") === normalizedId,
+    );
+    return match ? cloneValue(match) : null;
+  }
+
+  upsertWebhookDelivery(record) {
+    const normalized = this.storeWebhookDeliverySnapshot(record);
+    if (!normalized) {
+      return null;
+    }
+    if (
+      this.webhookDeliveryStorageAvailable === true &&
+      typeof prisma.webhookDeliveryRecord?.upsert === "function"
+    ) {
+      this.enqueuePersist("webhook_delivery", async () => {
+        await prisma.webhookDeliveryRecord.upsert({
+          where: { id: normalized.id },
+          create: {
+            id: normalized.id,
+            scope: normalized.scope,
+            provider: normalized.provider,
+            channel: normalized.channel,
+            eventKey: normalized.eventKey,
+            status: normalized.status,
+            targetUrl: normalized.targetUrl,
+            targetLabel: normalized.targetLabel,
+            payload: cloneValue(normalized.payload),
+            context: cloneValue(normalized.context),
+            attemptCount: normalized.attemptCount,
+            maxAttempts: normalized.maxAttempts,
+            nextAttemptAt: toDateOrNull(normalized.nextAttemptAt),
+            lastAttemptAt: toDateOrNull(normalized.lastAttemptAt),
+            lastStatusCode: normalized.lastStatusCode,
+            lastErrorCode: normalized.lastErrorCode,
+            lastError: normalized.lastError,
+            processingOwner: normalized.processingOwner,
+            processingStartedAt: toDateOrNull(normalized.processingStartedAt),
+            sentAt: toDateOrNull(normalized.sentAt),
+            retryOfId: normalized.retryOfId,
+            createdAt: toDateOrNull(normalized.createdAt) || new Date(),
+          },
+          update: {
+            scope: normalized.scope,
+            provider: normalized.provider,
+            channel: normalized.channel,
+            eventKey: normalized.eventKey,
+            status: normalized.status,
+            targetUrl: normalized.targetUrl,
+            targetLabel: normalized.targetLabel,
+            payload: cloneValue(normalized.payload),
+            context: cloneValue(normalized.context),
+            attemptCount: normalized.attemptCount,
+            maxAttempts: normalized.maxAttempts,
+            nextAttemptAt: toDateOrNull(normalized.nextAttemptAt),
+            lastAttemptAt: toDateOrNull(normalized.lastAttemptAt),
+            lastStatusCode: normalized.lastStatusCode,
+            lastErrorCode: normalized.lastErrorCode,
+            lastError: normalized.lastError,
+            processingOwner: normalized.processingOwner,
+            processingStartedAt: toDateOrNull(normalized.processingStartedAt),
+            sentAt: toDateOrNull(normalized.sentAt),
+            retryOfId: normalized.retryOfId,
+          },
+        });
+      });
+    }
+    return cloneValue(normalized);
+  }
+
+  async claimWebhookDelivery({ workerId = "", now = new Date().toISOString() } = {}) {
+    const normalizedWorkerId = String(workerId || "").trim();
+    const nowDate = toDateOrNull(now) || new Date();
+    if (
+      this.webhookDeliveryStorageAvailable === true &&
+      typeof prisma.webhookDeliveryRecord?.findMany === "function" &&
+      typeof prisma.webhookDeliveryRecord?.updateMany === "function" &&
+      typeof prisma.webhookDeliveryRecord?.findUnique === "function"
+    ) {
+      const candidates = await prisma.webhookDeliveryRecord.findMany({
+        where: {
+          status: { in: [WEBHOOK_DELIVERY_STATUS.QUEUED, WEBHOOK_DELIVERY_STATUS.RETRYING] },
+          OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: nowDate } }],
+        },
+        orderBy: [{ nextAttemptAt: "asc" }, { createdAt: "asc" }],
+        take: 20,
+      });
+      for (const candidate of candidates) {
+        const claimed = await prisma.webhookDeliveryRecord.updateMany({
+          where: {
+            id: String(candidate?.id || ""),
+            status: { in: [WEBHOOK_DELIVERY_STATUS.QUEUED, WEBHOOK_DELIVERY_STATUS.RETRYING] },
+            OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: nowDate } }],
+          },
+          data: {
+            status: WEBHOOK_DELIVERY_STATUS.PROCESSING,
+            processingOwner: normalizedWorkerId || null,
+            processingStartedAt: nowDate,
+          },
+        });
+        if (Number(claimed?.count || 0) < 1) {
+          continue;
+        }
+        const refreshed = await prisma.webhookDeliveryRecord.findUnique({
+          where: { id: String(candidate?.id || "") },
+        });
+        const normalized = this.storeWebhookDeliverySnapshot(refreshed);
+        return normalized ? cloneValue(normalized) : null;
+      }
+    }
+
+    const fallbackCandidates = ensureArray(this.snapshot.webhookDeliveries)
+      .filter((entry) =>
+        [WEBHOOK_DELIVERY_STATUS.QUEUED, WEBHOOK_DELIVERY_STATUS.RETRYING].includes(
+          String(entry?.status || "").trim().toLowerCase(),
+        ),
+      )
+      .filter((entry) => {
+        const dueAtTs = entry?.nextAttemptAt ? new Date(entry.nextAttemptAt).getTime() : null;
+        return dueAtTs === null || (Number.isFinite(dueAtTs) && dueAtTs <= nowDate.getTime());
+      })
+      .sort((left, right) => {
+        const leftDue = left?.nextAttemptAt ? new Date(left.nextAttemptAt).getTime() : 0;
+        const rightDue = right?.nextAttemptAt ? new Date(right.nextAttemptAt).getTime() : 0;
+        return leftDue - rightDue;
+      });
+    const fallback = fallbackCandidates[0];
+    if (!fallback) {
+      return null;
+    }
+    const claimedFallback = this.storeWebhookDeliverySnapshot({
+      ...fallback,
+      status: WEBHOOK_DELIVERY_STATUS.PROCESSING,
+      processingOwner: normalizedWorkerId || null,
+      processingStartedAt: nowDate.toISOString(),
+      updatedAt: nowDate.toISOString(),
+    });
+    return claimedFallback ? cloneValue(claimedFallback) : null;
+  }
+
+  loadWebhookState(key) {
+    const normalizedKey = String(key || "").trim();
+    if (!normalizedKey) {
+      return null;
+    }
+    const state = this.snapshot.webhookStates?.[normalizedKey];
+    return state ? cloneValue(state) : null;
+  }
+
+  writeWebhookState(key, data) {
+    const normalized = normalizeWebhookStateRecord({ key, data });
+    if (!normalized) {
+      return null;
+    }
+    this.snapshot.webhookStates = {
+      ...this.snapshot.webhookStates,
+      [normalized.key]: normalized,
+    };
+    if (
+      this.webhookStateStorageAvailable === true &&
+      typeof prisma.webhookStateRecord?.upsert === "function"
+    ) {
+      this.enqueuePersist("webhook_state", async () => {
+        await prisma.webhookStateRecord.upsert({
+          where: { key: normalized.key },
+          create: {
+            key: normalized.key,
+            data: cloneValue(normalized.data),
+          },
+          update: {
+            data: cloneValue(normalized.data),
+          },
+        });
+      });
+    }
     return cloneValue(normalized);
   }
 

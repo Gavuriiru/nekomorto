@@ -13,6 +13,14 @@ import {
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
+import {
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/dashboard/dashboard-form-controls";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import {
@@ -21,7 +29,10 @@ import {
 } from "@/components/dashboard/dashboard-motion";
 import UploadPicture from "@/components/UploadPicture";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
-import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
+import {
+  dashboardPageLayoutTokens,
+  dashboardStrongSurfaceHoverClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
@@ -34,16 +45,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import {
   CalendarDays,
@@ -2866,7 +2869,7 @@ const DashboardPosts = () => {
                                         <button
                                           key={item.id}
                                           type="button"
-                                          className="block w-full rounded-md border border-border/70 bg-background px-2 py-1 text-left hover:border-primary/40"
+                                          className={`block w-full rounded-md border border-border/70 bg-background px-2 py-1 text-left ${dashboardStrongSurfaceHoverClassName}`}
                                           onClick={() => {
                                             const target = posts.find(
                                               (post) => post.id === item.id,
@@ -2947,7 +2950,7 @@ const DashboardPosts = () => {
                       key={post.id}
                       data-testid={`post-card-${post.id}`}
                       lift={false}
-                      className={`${dashboardPageLayoutTokens.listCardSolid} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
+                      className={`${dashboardPageLayoutTokens.listCardSolid} ${dashboardStrongSurfaceHoverClassName} group cursor-pointer overflow-hidden transition animate-slide-up opacity-0`}
                       style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                       role={canManagePosts ? "button" : undefined}
                       tabIndex={canManagePosts ? 0 : -1}
@@ -3043,7 +3046,7 @@ const DashboardPosts = () => {
                             </div>
 
                             <div data-slot="headline" className="min-h-11">
-                              <h3 className="line-clamp-2 text-lg font-semibold leading-tight text-foreground lg:line-clamp-1">
+                              <h3 className="dashboard-list-card-title clamp-safe-2 text-lg leading-tight lg:clamp-safe-1">
                                 {post.title}
                               </h3>
                               <span className={`text-xs ${dashboardPageLayoutTokens.cardMetaText}`}>

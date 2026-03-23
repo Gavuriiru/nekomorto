@@ -1,8 +1,23 @@
 # Nekomorto
 
-Guia completo (PT-BR) para rodar, operar e manter o projeto em ambiente local e em producao com Docker.
+Guia completo (PT-BR) para entender o produto, rodar, desenvolver, operar e manter o projeto em ambiente local e em producao com Docker.
 
 ## 1. Titulo e Visao Geral do Projeto
+
+O Nekomorto e uma plataforma editorial e de leitura da Nekomata, com area publica para conteudo e catalogo de projetos e um dashboard autenticado para operacao interna.
+
+### 1.1 O que o produto cobre
+
+- Area publica com home, posts, paginas institucionais, equipe, FAQ, doacoes, recrutamento, catalogo de projetos e leitura de capitulos/episodios.
+- Dashboard autenticado para usuarios, posts, paginas, projetos, capitulos, episodios, comentarios, uploads, analytics, redirects, webhooks, seguranca e audit log.
+- Login via Discord, bootstrap inicial de owner e trilhas operacionais para manutencao, backup, restore e deploy.
+
+As principais superficies do produto aparecem diretamente nas rotas do frontend:
+
+- publico: `src/routes/PublicRoutes.tsx`
+- dashboard: `src/routes/DashboardRoutes.tsx`
+
+### 1.2 Visao tecnica
 
 O Nekomorto e uma aplicacao web **DB-only**:
 
@@ -10,7 +25,16 @@ O Nekomorto e uma aplicacao web **DB-only**:
 - O backend roda em Node.js/Express (`server/index.js`).
 - O frontend React/Vite e servido pelo backend no runtime principal.
 - As sessoes HTTP sao persistidas no PostgreSQL com `connect-pg-simple` (tabela padrao `user_sessions`).
-- Arquivos `server/data/*.example.json` sao apenas referencias estaticas e nao sao usados como fonte operacional.
+- Uploads podem ser servidos localmente ou via object storage, preservando o contrato publico em `/uploads/...`.
+
+### 1.3 Mapa rapido do repositorio
+
+- `src/`: app React, paginas, componentes, hooks, rotas, estilos e testes de frontend.
+- `server/`: servidor Express, rotas de API, auth, uploads, analytics, OG images e integracoes operacionais.
+- `shared/`: utilitarios compartilhados entre runtime do servidor e app cliente.
+- `prisma/`: schema, migrations e configuracao do banco.
+- `ops/`: compose, env examples, scripts de deploy, restore, backup e runbooks operacionais.
+- `docs/`: documentacao complementar de schema, migracoes, auditorias e remediacoes.
 
 ## 2. Arquitetura de Runtime
 
@@ -73,7 +97,7 @@ Fluxo oficial para desenvolvimento local com PostgreSQL em Docker:
 ### Linux/macOS
 
 ```bash
-git clone <REPO_URL>
+git clone https://github.com/gavuriiru/nekomorto.git
 cd nekomorto
 npm install
 npm run setup:dev
@@ -82,7 +106,7 @@ npm run setup:dev
 ### Windows (PowerShell)
 
 ```powershell
-git clone <REPO_URL>
+git clone https://github.com/gavuriiru/nekomorto.git
 Set-Location nekomorto
 npm install
 npm run setup:dev
@@ -119,6 +143,7 @@ Checks de qualidade:
 ```bash
 npm run lint
 npm run test
+npm run test:a11y
 ```
 
 ## 5. Configurar Banco Local com Docker (fluxo manual alternativo)
@@ -230,6 +255,34 @@ Observacoes importantes para `NODE_ENV=production`:
 - `APP_ORIGIN` precisa estar preenchida com origem valida.
 - `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` e `SESSION_SECRET` precisam existir.
 - Voce precisa configurar `OWNER_IDS` **ou** `BOOTSTRAP_TOKEN`.
+
+### 6.4 Fluxo diario de desenvolvimento
+
+Fluxo recomendado para quem esta trabalhando no produto no dia a dia:
+
+1. No primeiro clone, rode `npm install` e `npm run setup:dev`.
+2. Para o fluxo padrao, trabalhe em `npm run dev` e acesse `http://localhost:8080`.
+3. Use `npm run dev:client:local-api` apenas quando precisar isolar o frontend em `5173` consumindo a API local.
+4. Antes de abrir PR, rode pelo menos `npm run lint`, `npm run test` e `npm run test:a11y`.
+5. Antes de validar publicacao local em modo producao, rode `npm run build` e `npm run api:smoke -- --base=http://localhost:8080`.
+
+### 6.5 Qualidade, acessibilidade e auditoria
+
+Checks base:
+
+- `npm run lint`: validacao estaticas com Biome.
+- `npm run test`: suite principal de testes com Vitest.
+- `npm run test:a11y`: gate de acessibilidade usado tambem no deploy de producao.
+
+Quando a mudanca afetar bundle, carregamento inicial ou paginas criticas, use os checks adicionais:
+
+- `npm run build:audit`: build com sourcemaps para analise de bundle e auditoria.
+- `npm run lighthouse:home:mobile`: regressao na home publica mobile.
+- `npm run lighthouse:projects:mobile` e `npm run lighthouse:projects:desktop`: regressao na listagem de projetos.
+- `npm run lighthouse:reader-pages:mobile`: regressao nas paginas de leitura.
+- `npm run lighthouse:dashboard:desktop`: regressao no dashboard autenticado.
+
+Use esses comandos quando a alteracao mexer em performance, PWA, carregamento inicial, layout critico ou experiencia de leitura/dashboard.
 
 ## 7. Variaveis de Ambiente (guia completo)
 
@@ -393,6 +446,12 @@ Fora do escopo desta fase:
 | --- | --- | --- | --- | --- | --- |
 | `APP_IMAGE_REPO` | `prod compose`, `dev deploy` | nunca | `ghcr.io/gavuriiru/nekomorto` no compose e no script de deploy | repositorio Docker | Repositorio da imagem da app usada no deploy. |
 | `APP_IMAGE_TAG` | `prod compose`, `dev deploy` | nunca | `latest` no compose e no script de deploy | tag Docker | Tag da imagem da app. O padrao de CI costuma usar `sha-<commit>`. |
+| `PROXY_PROVIDER` | `prod compose`, `dev deploy` | nunca | `caddy` | `caddy`, `nginx`, `traefik` | Provider oficial do proxy reverso publicado como servico `edge`. |
+| `APP_DOMAIN` | `prod compose`, `dev deploy` | recomendado; o deploy tenta derivar de `APP_ORIGIN` | vazio no env; sem derivacao o deploy falha | dominio sem schema | Dominio canonico publicado pela app e usado no healthcheck externo. |
+| `APP_WWW_DOMAIN` | `prod compose`, `dev deploy` | recomendado; o deploy tenta derivar de `APP_ORIGIN` ou prefixar `www.` | vazio no env | dominio sem schema | Dominio `www` redirecionado para `APP_DOMAIN`. |
+| `TRAEFIK_ACME_EMAIL` | `prod compose`, `dev deploy` | quando `PROXY_PROVIDER=traefik` | vazio | email valido | Email usado pelo ACME/Let's Encrypt do Traefik. |
+| `NGINX_TLS_CERT_PATH` | `prod compose`, `dev deploy` | quando `PROXY_PROVIDER=nginx` | vazio | caminho absoluto no host | Certificado TLS montado no container Nginx. Deve cobrir `APP_DOMAIN` e `APP_WWW_DOMAIN`. |
+| `NGINX_TLS_KEY_PATH` | `prod compose`, `dev deploy` | quando `PROXY_PROVIDER=nginx` | vazio | caminho absoluto no host | Chave privada TLS montada no container Nginx. |
 | `APP_COMMIT_SHA` | `dev deploy` | nunca | vazio; se `APP_IMAGE_TAG` seguir `sha-<commit>`, o backend tenta inferir o SHA | hash de commit | Metadata opcional de build exposta pela app. |
 | `APP_BUILD_TIME` | `dev deploy` | nunca | vazio | timestamp; prefira ISO 8601 UTC | Metadata opcional com o horario do build. |
 | `POSTGRES_DB` | `prod compose`, `dev deploy` | quando usar o `docker-compose.prod.yml` oficial | `nekomorto` no compose; o exemplo de dev deploy usa `nekomorto_dev` | nome de banco PostgreSQL | Nome do banco inicial do container Postgres e do healthcheck. |
@@ -416,7 +475,11 @@ Regras:
 
 - `Dockerfile`
 - `docker-compose.prod.yml`
+- `docker-compose.prod.caddy.yml`
+- `docker-compose.prod.nginx.yml`
+- `docker-compose.prod.traefik.yml`
 - `ops/caddy/Caddyfile`
+- `ops/nginx/default.conf.template`
 - `ops/prod/.env.prod.example`
 - `ops/prod/deploy-prod.sh`
 - `.github/workflows/deploy-prod.yml`
@@ -458,29 +521,35 @@ Edite `.env.prod` com valores reais, incluindo:
 - `POSTGRES_PASSWORD`
 - `DATABASE_URL`
 - `SESSION_SECRET`
+- `PROXY_PROVIDER`
+- `APP_DOMAIN`
+- `APP_WWW_DOMAIN`
 - `APP_ORIGIN`
 - `DISCORD_CLIENT_ID`
 - `DISCORD_CLIENT_SECRET`
 - `OWNER_IDS` ou `BOOTSTRAP_TOKEN`
 - `APP_IMAGE_REPO` e `APP_IMAGE_TAG` (opcionais; defaults para GHCR + `latest`)
+- `TRAEFIK_ACME_EMAIL` quando `PROXY_PROVIDER=traefik`
+- `NGINX_TLS_CERT_PATH` e `NGINX_TLS_KEY_PATH` quando `PROXY_PROVIDER=nginx`
 
 Para producao same-origin (recomendado), nao configure `VITE_API_BASE`.
 Em ambiente realmente `production`, origens locais so serao aceitas se estiverem permitidas por `APP_ORIGIN`.
 No Discord Developer Portal, confirme as redirect URIs:
 
-- `https://nekomata.moe/login` (obrigatoria)
-- `https://www.nekomata.moe/login` (recomendada)
+- `https://<APP_DOMAIN>/login` (obrigatoria)
+- `https://<APP_WWW_DOMAIN>/login` (recomendada)
 
-### 8.4 DNS, dominio e Caddy
+### 8.4 DNS, dominio e escolha do proxy
 
-Antes do primeiro `up` com Caddy:
+Antes do primeiro `up`:
 
 - Garanta que `A/AAAA` do dominio apontam para o IP do host.
-- O `ops/caddy/Caddyfile` atual esta configurado para:
-  - `nekomata.moe`
-  - `www.nekomata.moe`
-
-Se o seu dominio for outro, ajuste esse arquivo antes de subir a stack.
+- Configure `APP_DOMAIN` e `APP_WWW_DOMAIN` no `.env.prod`.
+- Escolha um provider oficial em `PROXY_PROVIDER`:
+  - `caddy`: HTTPS automatico com ACME, opcao padrao.
+  - `traefik`: HTTPS automatico com ACME; exige `TRAEFIK_ACME_EMAIL`.
+  - `nginx`: HTTPS oficial com certificado ja provisionado no host; exige `NGINX_TLS_CERT_PATH` e `NGINX_TLS_KEY_PATH`.
+- Os arquivos de proxy ja sao parametrizados por env; nao e mais necessario editar o `Caddyfile` para trocar dominio.
 
 ### 8.5 Firewall
 
@@ -495,11 +564,13 @@ sudo ufw enable
 
 ```bash
 cd /srv/nekomorto
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d postgres
-docker compose --env-file .env.prod -f docker-compose.prod.yml pull app
-docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run uploads:check-integrity -- --mode=fast
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d app caddy
+export PROXY_PROVIDER="${PROXY_PROVIDER:-caddy}"
+export EDGE_COMPOSE_FILE="docker-compose.prod.${PROXY_PROVIDER}.yml"
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" up -d postgres
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" pull app
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" run --rm app npm run uploads:check-integrity -- --mode=fast
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" up -d app edge
 ```
 
 Esse fluxo pressupoe que a imagem ja foi publicada no GHCR (via `push` em `main` ou `workflow_dispatch`).
@@ -514,24 +585,30 @@ Notas operacionais para uploads:
 ### 8.7 Validacao apos deploy
 
 ```bash
-curl -fsS https://nekomata.moe/api/health
-docker compose --env-file .env.prod -f docker-compose.prod.yml ps
-docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f app
+curl -fsS "https://<APP_DOMAIN>/api/health"
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" ps
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" logs -f app edge
 ```
 
 Smoke test (opcao 1: com Node no host):
 
 ```bash
-npm run api:smoke -- --base=https://nekomata.moe
+npm run api:smoke -- --base=https://<APP_DOMAIN>
 ```
 
 Smoke test (opcao 2: sem Node no host, usando container da app):
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app node scripts/smoke-api.mjs --base=https://nekomata.moe
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" run --rm app node scripts/smoke-api.mjs --base=https://<APP_DOMAIN>
 ```
 
 ## 9. Deploy Automatico com GitHub Actions
+
+Pacote oficial no GHCR:
+
+- `https://github.com/gavuriiru/nekomorto/pkgs/container/nekomorto`
+
+### 9.1 Producao
 
 Workflow:
 
@@ -552,31 +629,60 @@ Secrets necessarios no repositorio:
 
 Fluxo CI/CD:
 
-1. Job `build_and_push` publica `ghcr.io/gavuriiru/nekomorto` com tags `latest` e `sha-<commit>`.
-2. Job `deploy` resolve a tag:
+1. Sem `image_tag`, o job `quality` roda `npm run test:a11y`.
+2. Sem `image_tag`, o job `build_and_push` publica `ghcr.io/gavuriiru/nekomorto` com tags `latest` e `sha-<commit>`.
+3. O job `deploy` resolve a tag:
    - sem `image_tag`: usa `sha-<commit_atual>`;
-   - com `image_tag`: valida `latest` ou `sha-[0-9a-f]{40}` e usa a tag informada.
-3. Via SSH, chama `ops/prod/deploy-prod.sh` no host com `APP_IMAGE_REPO` e `APP_IMAGE_TAG`.
-
-Pacote no GHCR:
-
-- `https://github.com/gavuriiru/nekomorto/pkgs/container/nekomorto`
+   - com `image_tag`: valida `latest` ou `sha-[0-9a-f]{40}` e usa a tag informada, sem rebuild.
+4. Via SSH, sincroniza o repositorio no host e chama `ops/prod/deploy-prod.sh` com `SKIP_GIT_SYNC=true`, `APP_IMAGE_REPO` e `APP_IMAGE_TAG`. O script resolve `PROXY_PROVIDER`, `APP_DOMAIN` e o overlay `docker-compose.prod.<provider>.yml` a partir do `.env.prod`.
 
 Comportamento do deploy remoto (`ops/prod/deploy-prod.sh`):
 
-1. Sincroniza branch de deploy.
-2. Executa `git reset --hard origin/<branch>` no host.
+1. Quando executado sem `SKIP_GIT_SYNC=true`, sincroniza a branch de deploy no host.
+2. Resolve `PROXY_PROVIDER`, dominios e o overlay `docker-compose.prod.<provider>.yml`.
 3. Sobe `postgres`.
 4. Faz `pull` da imagem `app` definida por `APP_IMAGE_REPO:APP_IMAGE_TAG`.
 5. Aplica migracoes Prisma.
 6. Executa check de integridade de uploads em modo rapido (`npm run uploads:check-integrity -- --mode=fast`).
-7. Sobe `app` + `caddy`.
-8. Executa healthcheck interno e externo.
+7. Sobe `app` + `edge` com o provider definido em `PROXY_PROVIDER`.
+8. Valida artefatos criticos de PWA, executa healthcheck interno/externo e smoke de fluxos criticos.
+
+### 9.2 Desenvolvimento / staging publicado
+
+Workflow:
+
+- `.github/workflows/deploy-dev.yml`
+
+Trigger:
+
+- `workflow_dispatch` (com input opcional `image_tag`)
+
+Secrets necessarios no repositorio:
+
+- `DEV_HOST`
+- `DEV_PORT` (opcional, default `22`)
+- `DEV_USER`
+- `DEV_SSH_KEY`
+- `DEV_DEPLOY_PATH` (exemplo: `/srv/nekomorto-dev`)
+
+Fluxo:
+
+1. Sem `image_tag`, o workflow gera e publica `ghcr.io/gavuriiru/nekomorto:sha-<commit>`.
+2. Com `image_tag`, ele reutiliza uma imagem `sha-<commit>` ja publicada.
+3. O deploy remoto chama `ops/dev/deploy-dev.sh`, que reaproveita o fluxo de producao com `ENV_FILE=.env.dev` e `HEALTHCHECK_BASE_URL=https://dev.nekomata.moe`.
+
+Como esse deploy e manual, rode os checks base (`npm run lint`, `npm run test` e `npm run test:a11y`) antes do dispatch quando a imagem ainda nao tiver sido validada em outro fluxo.
+
+Diferenca pratica entre os dois workflows:
+
+- producao publica `latest` e `sha-<commit>` e pode disparar automaticamente a cada push em `main`
+- dev/staging e manual e trabalha apenas com tags `sha-<commit>`
+- ambos aplicam migracoes, validam uploads e executam healthchecks no ambiente remoto
 
 Importante:
 
 - Mudancas locais nao commitadas no host de deploy serao descartadas pelo `reset --hard`.
-- Rollback/redeploy manual: execute `workflow_dispatch` e preencha `image_tag` com `sha-<commit>` ja publicado no GHCR.
+- Rollback/redeploy manual: execute `workflow_dispatch` e preencha `image_tag` com uma tag `sha-<commit>` ja publicada no GHCR.
 
 ## 10. Backup e Restore
 
@@ -703,13 +809,13 @@ MAINTENANCE_MODE=true
 2. Reinicie somente a app:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d app
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" up -d app
 ```
 
 3. Valide:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app node scripts/check-health.mjs --base=http://app:8080 --expect-source=db --expect-maintenance=true
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" run --rm app node scripts/check-health.mjs --base=http://app:8080 --expect-source=db --expect-maintenance=true
 ```
 
 ### 11.2 Sair de manutencao
@@ -723,13 +829,13 @@ MAINTENANCE_MODE=false
 2. Reinicie app:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d app
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" up -d app
 ```
 
 3. Valide:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app node scripts/check-health.mjs --base=http://app:8080 --expect-source=db --expect-maintenance=false
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" run --rm app node scripts/check-health.mjs --base=http://app:8080 --expect-source=db --expect-maintenance=false
 ```
 
 ## 12. Troubleshooting
@@ -886,7 +992,7 @@ Troubleshooting:
 Diagnostico em producao:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f app
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" logs -f app edge
 ```
 
 Procure eventos `auth.login.failed` com codigos `state_mismatch`, `token_exchange_failed` ou `unauthorized`.
@@ -894,7 +1000,7 @@ Procure eventos `auth.login.failed` com codigos `state_mismatch`, `token_exchang
 Para verificar se a sessao esta sendo persistida:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml exec postgres \
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" exec postgres \
   psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select count(*) as total_sessions from user_sessions;"
 ```
 
@@ -1012,6 +1118,10 @@ Qualidade:
 ```bash
 npm run lint
 npm run test
+npm run test:a11y
+npm run build:audit
+npm run lighthouse:home:mobile
+npm run lighthouse:dashboard:desktop
 npm run uploads:check-integrity
 npm run uploads:check-integrity -- --mode=fast
 npm run uploads:check-integrity -- --mode=deep
@@ -1024,11 +1134,11 @@ npm run uploads:restore-from-object-storage -- --apply
 Producao (ordem):
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d postgres
-docker compose --env-file .env.prod -f docker-compose.prod.yml pull app
-docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run uploads:check-integrity -- --mode=fast
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d app caddy
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" up -d postgres
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" pull app
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" run --rm app npm run uploads:check-integrity -- --mode=fast
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" up -d app edge
 ```
 
 Backup e restore (producao):
@@ -1038,9 +1148,28 @@ COMPOSE_FILE=/srv/nekomorto/docker-compose.prod.yml ENV_FILE=/srv/nekomorto/.env
 COMPOSE_FILE=/srv/nekomorto/docker-compose.prod.yml ENV_FILE=/srv/nekomorto/.env.prod ./ops/postgres/restore.sh /path/backup.sql.gz
 ```
 
----
+## 14. Documentacao Complementar
 
-Referencias complementares:
+Arquitetura e dados:
 
+- `docs/SCHEMA.md`
 - `docs/DB_MIGRATION_RUNBOOK.md`
 - `ops/postgres/README.md`
+
+Qualidade, acessibilidade e auditoria:
+
+- `docs/wcag-2.2-aa-audit-matrix.md`
+- `docs/lighthouse-home-mobile.md`
+- `docs/lighthouse-dashboard-desktop.md`
+
+Operacao, staging e restore:
+
+- `ops/dev/restore-dev-runbook.md`
+- `ops/staging/parity-checklist.md`
+- `docs/uploads-integrity-remediation-2026-03-05.md`
+
+Incidentes e resposta operacional:
+
+- `ops/runbooks/incidente-geral.md`
+- `ops/runbooks/comprometimento-conta-admin.md`
+- `ops/runbooks/post-mortem-template.md`

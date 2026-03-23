@@ -1,9 +1,14 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardProjectChapterEditor from "@/pages/DashboardProjectChapterEditor";
+
+const originalScrollIntoView = window.HTMLElement.prototype.scrollIntoView;
+const originalHasPointerCapture = window.HTMLElement.prototype.hasPointerCapture;
+const originalSetPointerCapture = window.HTMLElement.prototype.setPointerCapture;
+const originalReleasePointerCapture = window.HTMLElement.prototype.releasePointerCapture;
 
 const {
   apiFetchMock,
@@ -934,6 +939,41 @@ describe("DashboardProjectChapterEditor", () => {
     vi.stubGlobal("scrollBy", vi.fn());
     window.URL.createObjectURL = vi.fn(() => "blob:epub");
     window.URL.revokeObjectURL = vi.fn();
+    Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "hasPointerCapture", {
+      configurable: true,
+      value: vi.fn(() => false),
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "setPointerCapture", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "releasePointerCapture", {
+      configurable: true,
+      value: vi.fn(),
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: originalScrollIntoView,
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "hasPointerCapture", {
+      configurable: true,
+      value: originalHasPointerCapture,
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "setPointerCapture", {
+      configurable: true,
+      value: originalSetPointerCapture,
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "releasePointerCapture", {
+      configurable: true,
+      value: originalReleasePointerCapture,
+    });
   });
 
   it("envia kind=loading para AsyncState enquanto a tela inicializa", () => {
@@ -2106,6 +2146,60 @@ describe("DashboardProjectChapterEditor", () => {
         expect.objectContaining({
           completedStages: ["aguardando-raw", "traducao", "limpeza"],
           progressStage: "redrawing",
+        }),
+      );
+    });
+    expect(refetchPublicBootstrapCacheMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("usa o seletor de fonte ao salvar links de download em light novel", async () => {
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
+
+    await screen.findByTestId("mock-lexical");
+
+    const sourcesSection = screen.getByTestId("chapter-sources-section");
+    fireEvent.click(within(sourcesSection).getByRole("button", { name: /^Adicionar$/i }));
+
+    const sourceTrigger = await waitFor(() =>
+      within(screen.getByTestId("chapter-sources-section")).getByRole("combobox", { name: "Fonte 1" }),
+    );
+    const sourceUrlInput = within(screen.getByTestId("chapter-sources-section")).getByPlaceholderText(
+      "URL",
+    );
+    expect(sourceUrlInput).toBeDisabled();
+
+    fireEvent.click(sourceTrigger);
+    fireEvent.click(await screen.findByRole("option", { name: /^Google Drive$/i }));
+    await waitFor(() => {
+      expect(
+        within(screen.getByTestId("chapter-sources-section")).getByPlaceholderText("URL"),
+      ).not.toBeDisabled();
+    });
+
+    fireEvent.change(within(screen.getByTestId("chapter-sources-section")).getByPlaceholderText("URL"), {
+      target: { value: "https://example.com/capitulo-2-google-drive" },
+    });
+    await waitFor(() => {
+      expect(getTopActions().getByRole("button", { name: /Salvar como rascunho/i })).toBeEnabled();
+    });
+    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar como rascunho/i }));
+
+    await waitFor(() => {
+      const saveCall = apiFetchMock.mock.calls.find(
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+      );
+      expect(saveCall).toBeDefined();
+      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      expect(payload?.chapter).toEqual(
+        expect.objectContaining({
+          sources: [
+            {
+              label: "Google Drive",
+              url: "https://example.com/capitulo-2-google-drive",
+            },
+          ],
         }),
       );
     });

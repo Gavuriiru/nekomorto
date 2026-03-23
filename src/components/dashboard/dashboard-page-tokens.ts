@@ -1,3 +1,9 @@
+export const dashboardStrongFocusFieldClassName =
+  "focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-inset";
+export const dashboardStrongSurfaceHoverClassName = "hover:border-primary/60";
+export const dashboardStrongFocusScopeClassName = "dashboard-strong-focus-scope";
+export const dashboardStrongFocusTriggerClassName = "dashboard-strong-focus-trigger";
+
 export const dashboardPageLayoutTokens = {
   main: "pt-24",
   sectionBase: "mx-auto w-full px-6 pb-20 md:px-10",
@@ -12,7 +18,7 @@ export const dashboardPageLayoutTokens = {
   surfaceMuted: "rounded-2xl border border-border/60 bg-card/40",
   listCard: "rounded-2xl border border-border/60 bg-card/80 shadow-lg",
   surfaceSolid:
-    "rounded-2xl border border-border/70 bg-card shadow-[0_18px_38px_-30px_rgba(0,0,0,0.82)] transition-[border-color] duration-200 hover:border-accent",
+    `rounded-2xl border border-border/70 bg-card shadow-[0_18px_38px_-30px_rgba(0,0,0,0.82)] transition-[border-color] duration-200 ${dashboardStrongSurfaceHoverClassName}`,
   surfaceInset: "rounded-2xl border border-border/70 bg-background",
   listCardSolid:
     "rounded-2xl border border-border/70 bg-card shadow-[0_20px_40px_-32px_rgba(0,0,0,0.8)]",

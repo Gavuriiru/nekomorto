@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { CheckCircle2, ExternalLink, Loader2, Trash2 } from "lucide-react";
 
 import DashboardShell from "@/components/DashboardShell";
+import { Input } from "@/components/dashboard/dashboard-form-controls";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import {
@@ -10,7 +11,10 @@ import {
   dashboardClampedStaggerMs,
   dashboardMotionDelays,
 } from "@/components/dashboard/dashboard-motion";
-import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
+import {
+  dashboardPageLayoutTokens,
+  dashboardStrongSurfaceHoverClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,7 +30,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import AsyncState from "@/components/ui/async-state";
-import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { getApiBase } from "@/lib/api-base";
@@ -445,7 +448,7 @@ const DashboardComments = () => {
                 key={comment.id}
                 lift={false}
                 data-testid={`pending-comment-card-${comment.id}`}
-                className={`${dashboardPageLayoutTokens.listCard} border-border bg-card shadow-[0_12px_28px_-24px_rgba(0,0,0,0.45)] overflow-hidden transition hover:border-primary/35 animate-slide-up opacity-0`}
+                className={`${dashboardPageLayoutTokens.listCard} ${dashboardStrongSurfaceHoverClassName} border-border bg-card shadow-[0_12px_28px_-24px_rgba(0,0,0,0.45)] overflow-hidden transition animate-slide-up opacity-0`}
                 style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
               >
                 <CardContent className="p-0">

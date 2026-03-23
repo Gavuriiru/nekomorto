@@ -5,9 +5,15 @@ const EDITORIAL_EVENT_TO_CHANNEL = {
   project_adjust: "projects",
 };
 
-const EDITORIAL_EVENT_LABEL = {
+const EDITORIAL_EVENT_LABEL_LEGACY = {
   post_create: "Novo post",
   post_update: "Post atualizado",
+  project_release: "Novo lançamento",
+  project_adjust: "Atualização de capítulo/episódio",
+};
+
+const EDITORIAL_EVENT_LABEL = {
+  ...EDITORIAL_EVENT_LABEL_LEGACY,
   project_release: "Novo lançamento",
   project_adjust: "Atualização de capítulo/episódio",
 };
@@ -93,7 +99,7 @@ const toMention = (roleId) => {
   return normalized ? `<@&${normalized}>` : "";
 };
 
-const buildDefaultTemplate = (eventKey) => {
+const buildDefaultTemplateLegacy = (eventKey) => {
   if (eventKey === "post_create") {
     return {
       content: "{{mention.all}}",
@@ -180,6 +186,27 @@ const buildDefaultTemplate = (eventKey) => {
       ],
     },
   };
+};
+
+const buildDefaultTemplate = (eventKey) => {
+  const template = buildDefaultTemplateLegacy(eventKey);
+  if (eventKey === "project_release" || eventKey === "project_adjust") {
+    const fields = Array.isArray(template?.embed?.fields) ? [...template.embed.fields] : [];
+    if (fields[1]) {
+      fields[1] = {
+        ...fields[1],
+        name: "Título",
+      };
+    }
+    return {
+      ...template,
+      embed: {
+        ...template.embed,
+        fields,
+      },
+    };
+  }
+  return template;
 };
 
 const normalizeTemplateField = (value) => {

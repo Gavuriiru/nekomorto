@@ -3,7 +3,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
-import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
+import {
+  dashboardPageLayoutTokens,
+  dashboardStrongSurfaceHoverClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
 import {
   dashboardAnimationDelay,
   dashboardMotionDelays,
@@ -278,6 +281,7 @@ const dashboardOverviewCardShellClassName = `${dashboardPageLayoutTokens.surface
 const dashboardOverviewInsetClassName = dashboardPageLayoutTokens.surfaceInset;
 const dashboardOverviewInsetDashedClassName =
   "rounded-2xl border border-dashed border-border/70 bg-background";
+const dashboardOverviewInteractiveSurfaceClassName = `${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5`;
 const dashboardOverviewActionButtonClassName =
   "border-border/70 bg-background text-foreground/70 hover:bg-background hover:text-foreground";
 const dashboardOverviewBadgeClassName = "bg-background text-foreground/70";
@@ -1026,7 +1030,7 @@ const Dashboard = () => {
                           <Link
                             key={project.id}
                             to={`/projeto/${project.id}`}
-                            className={`block ${dashboardOverviewInsetClassName} p-4 transition hover:border-primary/40 hover:bg-primary/5`}
+                            className={`block ${dashboardOverviewInsetClassName} p-4 transition ${dashboardOverviewInteractiveSurfaceClassName}`}
                           >
                             <div className="flex items-center justify-between">
                               <span className="text-sm font-medium">{project.title}</span>
@@ -1086,7 +1090,7 @@ const Dashboard = () => {
                           <Link
                             key={post.id}
                             to={`/postagem/${post.slug}`}
-                            className={`flex flex-col gap-3 ${dashboardOverviewInsetClassName} p-4 transition hover:border-primary/40 hover:bg-primary/5 md:flex-row md:items-center md:justify-between`}
+                            className={`flex flex-col gap-3 ${dashboardOverviewInsetClassName} p-4 transition ${dashboardOverviewInteractiveSurfaceClassName} md:flex-row md:items-center md:justify-between`}
                           >
                             <div>
                               <p className="font-medium">{post.title}</p>
@@ -1289,7 +1293,7 @@ const Dashboard = () => {
                           <a
                             key={comment.id}
                             href={comment.url}
-                            className={`block ${dashboardOverviewInsetClassName} p-4 transition hover:border-primary/40 hover:bg-primary/5`}
+                            className={`block ${dashboardOverviewInsetClassName} p-4 transition ${dashboardOverviewInteractiveSurfaceClassName}`}
                           >
                             <div
                               className={`flex items-center justify-between text-xs ${dashboardOverviewMetaTextClassName}`}
@@ -1324,7 +1328,7 @@ const Dashboard = () => {
                         <Link
                           key={project.id}
                           to={`/projeto/${project.id}`}
-                          className={`flex items-center justify-between ${dashboardOverviewInsetClassName} px-4 py-3 text-sm transition hover:border-primary/40 hover:bg-primary/5`}
+                          className={`flex items-center justify-between ${dashboardOverviewInsetClassName} px-4 py-3 text-sm transition ${dashboardOverviewInteractiveSurfaceClassName}`}
                         >
                           <span className="font-medium">{project.title}</span>
                           <Badge className={dashboardOverviewBadgeClassName}>
@@ -1335,7 +1339,7 @@ const Dashboard = () => {
                       {totalProjects > 3 && (
                         <Link
                           to="/projetos"
-                          className={`block w-full ${dashboardPageLayoutTokens.cardActionSurface} px-4 py-3 text-center text-sm ${dashboardOverviewMetaTextClassName} transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground`}
+                          className={`block w-full ${dashboardPageLayoutTokens.cardActionSurface} px-4 py-3 text-center text-sm ${dashboardOverviewMetaTextClassName} transition ${dashboardOverviewInteractiveSurfaceClassName} hover:text-foreground`}
                         >
                           Ver todos os projetos
                         </Link>

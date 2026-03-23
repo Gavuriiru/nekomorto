@@ -144,6 +144,10 @@ describe("LatestEpisodeCard border styles", () => {
     expect(reason).toHaveClass("line-clamp-1");
     expect(reason).toHaveClass("md:line-clamp-2");
 
+    expect(screen.getByRole("heading", { level: 4, name: "Projeto Alpha" })).toHaveClass(
+      "clamp-safe-2",
+    );
+
     expect(container.querySelector(".soft-divider")).toBeNull();
   });
 

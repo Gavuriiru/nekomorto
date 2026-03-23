@@ -34,7 +34,7 @@ services:
       postgres:
         condition: service_healthy
     env_file:
-      - .env.prod
+      - ${ENV_FILE:-.env.prod}
     environment:
       NODE_ENV: production
       PORT: 8080
@@ -55,27 +55,6 @@ services:
         max-size: "10m"
         max-file: "5"
 
-  caddy:
-    image: caddy:2-alpine
-    container_name: nekomorto-caddy
-    restart: unless-stopped
-    depends_on:
-      app:
-        condition: service_healthy
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./ops/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    networks:
-      - nekomorto_internal
-    logging:
-      options:
-        max-size: "10m"
-        max-file: "5"
-
 networks:
   nekomorto_internal:
     name: nekomorto-internal
@@ -85,7 +64,3 @@ volumes:
     name: nekomorto-postgres-prod-data
   uploads_data:
     name: nekomorto-uploads-prod-data
-  caddy_data:
-    name: nekomorto-caddy-data
-  caddy_config:
-    name: nekomorto-caddy-config

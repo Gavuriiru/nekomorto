@@ -211,7 +211,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
                 <p className="text-[10px] uppercase tracking-[0.2em] text-primary/80">
                   {project?.type || ""}
                 </p>
-                <span className="line-clamp-2 text-lg font-semibold text-foreground transition group-hover:text-primary">
+                <span className="clamp-safe-2 text-lg font-semibold text-foreground transition group-hover:text-primary">
                   {project?.title || "Projeto"}
                 </span>
               </div>

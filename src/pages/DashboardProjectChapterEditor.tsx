@@ -1,9 +1,19 @@
 import DashboardShell from "@/components/DashboardShell";
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
+import {
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from "@/components/dashboard/dashboard-form-controls";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
+import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
 import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
 import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
 import { exportMangaCollectionZip } from "@/components/project-reader/manga-collection-export";
@@ -31,16 +41,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import type {
   Project,
@@ -62,6 +63,7 @@ import {
 } from "@/lib/image-alt";
 import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 import { createSlug } from "@/lib/post-content";
+import { findIncompleteDownloadSourceIndex } from "@/lib/project-download-sources";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_API_CAPABILITIES,
@@ -390,6 +392,14 @@ const workspaceSectionMutedClassName =
 const IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE =
   "Capitulos em imagem precisam ter ao menos uma pagina para serem publicados.";
 
+const toastIncompleteDownloadSources = () => {
+  toast({
+    title: "Complete as fontes de download",
+    description: "Selecione uma fonte e informe a URL antes de salvar o capitulo.",
+    variant: "destructive",
+  });
+};
+
 const EditorAccordionHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
   <div className={editorAccordionHeaderTextClassName}>
     <span className={editorAccordionTitleClassName}>{title}</span>
@@ -563,9 +573,10 @@ const normalizeNonNegativeInteger = (value: unknown, fallback?: number) => {
 const resolveChapterEntrySubtype = (entryKind: ProjectEpisode["entryKind"]) =>
   entryKind === "extra" ? "extra" : "chapter";
 
-const normalizeChapterForSave = (
+const normalizeChapterState = (
   chapter: ProjectEpisode,
   progressKind?: ProjectProgressKind,
+  options?: { preserveEmptySources?: boolean },
 ): ProjectEpisode => {
   const parsedNumber = Number(chapter.number);
   const parsedReadingOrder = Number(chapter.readingOrder);
@@ -602,7 +613,7 @@ const normalizeChapterForSave = (
         label: String(source.label || "").trim(),
         url: String(source.url || "").trim(),
       }))
-      .filter((source) => source.label || source.url),
+      .filter((source) => options?.preserveEmptySources || source.label || source.url),
     hash: String(chapter.hash || "").trim() || undefined,
     sizeBytes:
       Number.isFinite(parsedSizeBytes) && parsedSizeBytes > 0
@@ -626,11 +637,17 @@ const normalizeChapterForSave = (
   return progressKind ? syncProjectProgress(normalizedChapter, progressKind) : normalizedChapter;
 };
 
+const normalizeChapterForSave = (chapter: ProjectEpisode, progressKind?: ProjectProgressKind) =>
+  normalizeChapterState(chapter, progressKind);
+
+const normalizeChapterForEditor = (chapter: ProjectEpisode, progressKind?: ProjectProgressKind) =>
+  normalizeChapterState(chapter, progressKind, { preserveEmptySources: true });
+
 const buildNewChapterDraft = (
   episodes: ProjectEpisode[],
   options: { volume?: number; projectType?: string | null } = {},
 ) =>
-  normalizeChapterForSave({
+  normalizeChapterForEditor({
     ...EMPTY_CHAPTER_DRAFT,
     number: resolveNextMainEpisodeNumber(
       options.volume === undefined
@@ -670,7 +687,7 @@ const normalizeOriginLabel = (value: unknown) => {
 const buildChapterSnapshot = (
   chapter: ProjectEpisode | null,
   progressKind?: ProjectProgressKind,
-) => (chapter ? JSON.stringify(normalizeChapterForSave(chapter, progressKind)) : "");
+) => (chapter ? JSON.stringify(normalizeChapterForEditor(chapter, progressKind)) : "");
 
 const buildVolumeCoverAltFallback = (volume: number) => `Capa do volume ${volume}`;
 
@@ -1033,7 +1050,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     const [leaveDialogState, setLeaveDialogState] = useState<LeaveGuardDialogState | null>(null);
     const hasActiveChapter = Boolean(activeChapter && activeChapterKey);
     const normalizeEditorChapter = useCallback(
-      (chapter: ProjectEpisode) => normalizeChapterForSave(chapter, "manga"),
+      (chapter: ProjectEpisode) => normalizeChapterForEditor(chapter, "manga"),
       [],
     );
     const buildEditorChapterSnapshot = useCallback(
@@ -1203,7 +1220,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           return snapshot;
         }
         setIdentityError(null);
-        const normalizedSnapshot = normalizeEditorChapter(snapshot);
+        const normalizedSnapshot = normalizeChapterForSave(snapshot, "manga");
         const response = await apiFetch(
           apiBase,
           `/api/projects/${project.id}/chapters/${activeChapter.number}${
@@ -1287,6 +1304,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         if (!hasActiveChapter || isSavingChapter) {
           return true;
         }
+        if (findIncompleteDownloadSourceIndex(draft.sources) >= 0) {
+          toastIncompleteDownloadSources();
+          return false;
+        }
         const resolvedPublicationStatus = nextPublicationStatus ?? draft.publicationStatus;
         if (resolvedPublicationStatus === "published" && isPublishedImageChapterMissingPages) {
           toast({
@@ -1315,6 +1336,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       },
       [
         draft,
+        findIncompleteDownloadSourceIndex,
         hasActiveChapter,
         isDirty,
         isPublishedImageChapterMissingPages,
@@ -3049,17 +3071,18 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 key={`chapter-source-${sourceIndex}`}
                 className="grid gap-2 rounded-xl border border-border/60 bg-card/70 p-3"
               >
-                <Input
+                <DownloadSourceSelect
                   value={source.label}
-                  onChange={(event) =>
+                  ariaLabel={`Fonte ${sourceIndex + 1}`}
+                  legacyLabels={(draft.sources || []).map((item) => item.label)}
+                  onValueChange={(value) =>
                     updateDraft((current) => ({
                       ...current,
                       sources: (current.sources || []).map((item, index) =>
-                        index === sourceIndex ? { ...item, label: event.target.value } : item,
+                        index === sourceIndex ? { ...item, label: value } : item,
                       ),
                     }))
                   }
-                  placeholder="Fonte"
                 />
                 <Input
                   value={source.url}
@@ -3072,6 +3095,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     }))
                   }
                   placeholder="URL"
+                  disabled={!String(source.label || "").trim()}
                 />
                 <div className="flex justify-end">
                   <Button
@@ -4606,19 +4630,20 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                             key={`chapter-source-${sourceIndex}`}
                             className="grid gap-2 rounded-xl border border-border/60 bg-card/70 p-3"
                           >
-                            <Input
+                            <DownloadSourceSelect
                               value={source.label}
-                              onChange={(event) =>
+                              ariaLabel={`Fonte ${sourceIndex + 1}`}
+                              legacyLabels={(draft.sources || []).map((item) => item.label)}
+                              onValueChange={(value) =>
                                 updateDraft((current) => ({
                                   ...current,
                                   sources: (current.sources || []).map((item, index) =>
                                     index === sourceIndex
-                                      ? { ...item, label: event.target.value }
+                                      ? { ...item, label: value }
                                       : item,
                                   ),
                                 }))
                               }
-                              placeholder="Fonte"
                             />
                             <Input
                               value={source.url}
@@ -4633,6 +4658,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                                 }))
                               }
                               placeholder="URL"
+                              disabled={!String(source.label || "").trim()}
                             />
                             <div className="flex justify-end">
                               <Button
@@ -5139,8 +5165,8 @@ const DashboardProjectChapterEditor = () => {
     activeChapter && chapterNumber
       ? buildEpisodeKey(activeChapter.number, activeChapter.volume)
       : null;
-  const normalizeChapterForEditor = useCallback(
-    (chapter: ProjectEpisode) => normalizeChapterForSave(chapter, "manga"),
+  const normalizeChapterDraft = useCallback(
+    (chapter: ProjectEpisode) => normalizeChapterForEditor(chapter, "manga"),
     [],
   );
   const buildChapterSnapshotForEditor = useCallback(
@@ -5165,7 +5191,7 @@ const DashboardProjectChapterEditor = () => {
       setActiveDraft(null);
       return;
     }
-    const nextDraft = normalizeChapterForEditor(activeChapter);
+    const nextDraft = normalizeChapterDraft(activeChapter);
     setActiveDraft((current) => {
       if (!current) {
         return nextDraft;
@@ -5185,7 +5211,7 @@ const DashboardProjectChapterEditor = () => {
     activeChapterKey,
     activeChapterSnapshot,
     buildChapterSnapshotForEditor,
-    normalizeChapterForEditor,
+    normalizeChapterDraft,
   ]);
 
   const normalizedProjectVolumeEntries = useMemo(
@@ -5682,7 +5708,7 @@ const DashboardProjectChapterEditor = () => {
       nextChapter: ProjectEpisode,
       routeHint?: { number: number; volume?: number },
     ) => {
-      const normalizedChapter = normalizeChapterForEditor(nextChapter);
+      const normalizedChapter = normalizeChapterDraft(nextChapter);
       const hintedNumber = routeHint?.number ?? normalizedChapter.number;
       const hintedVolume =
         routeHint?.volume === null ||
@@ -5698,7 +5724,7 @@ const DashboardProjectChapterEditor = () => {
         [hintedVolume, normalizedChapter.volume],
         { exactPreferredOnly: true },
       );
-      const resolvedChapter = normalizeChapterForEditor(
+      const resolvedChapter = normalizeChapterDraft(
         canonicalChapter
           ? canonicalChapter
           : {
@@ -5740,7 +5766,7 @@ const DashboardProjectChapterEditor = () => {
       activeChapter?.volume,
       activeDraft?.volume,
       navigate,
-      normalizeChapterForEditor,
+      normalizeChapterDraft,
       resolvedVolume,
     ],
   );
@@ -6131,7 +6157,7 @@ const DashboardProjectChapterEditor = () => {
             buildEpisodeKey(episode.number, episode.volume) ===
             buildEpisodeKey(nextChapter.number, nextChapter.volume),
         ) || nextChapter;
-      const normalizedPersistedChapter = normalizeChapterForEditor(persistedChapter);
+      const normalizedPersistedChapter = normalizeChapterDraft(persistedChapter);
       const persistedChapterKey = buildEpisodeKey(
         normalizedPersistedChapter.number,
         normalizedPersistedChapter.volume,
@@ -6156,7 +6182,7 @@ const DashboardProjectChapterEditor = () => {
         intent: "success",
       });
     },
-    [chapterSearchQuery, filterMode, navigate, normalizeChapterForEditor, persistProjectSnapshot],
+    [chapterSearchQuery, filterMode, navigate, normalizeChapterDraft, persistProjectSnapshot],
   );
 
   const openEpubImportPicker = useCallback(
@@ -6296,7 +6322,7 @@ const DashboardProjectChapterEditor = () => {
         importedKeys.includes(buildEpisodeKey(chapter.number, chapter.volume)),
       );
       if (currentPersistedChapter) {
-        setActiveDraft(normalizeChapterForEditor(currentPersistedChapter));
+        setActiveDraft(normalizeChapterDraft(currentPersistedChapter));
       } else if (firstImportedChapter) {
         navigate(
           buildDashboardProjectChapterEditorHref(
@@ -6516,7 +6542,7 @@ const DashboardProjectChapterEditor = () => {
           importedKeys.includes(buildEpisodeKey(chapter.number, chapter.volume)),
         );
         if (currentPersistedChapter) {
-          setActiveDraft(normalizeChapterForEditor(currentPersistedChapter));
+          setActiveDraft(normalizeChapterDraft(currentPersistedChapter));
         } else if (firstImportedChapter) {
           navigate(
             buildDashboardProjectChapterEditorHref(

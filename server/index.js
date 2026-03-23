@@ -286,6 +286,14 @@ import {
 } from "./lib/user-avatar.js";
 import { dispatchWebhookMessage } from "./lib/webhooks/dispatcher.js";
 import {
+  WEBHOOK_DELIVERY_SCOPE,
+  WEBHOOK_DELIVERY_STATUS,
+  computeWebhookRetryDelayMs,
+  createWebhookWorkerId,
+  summarizeWebhookDeliveries,
+  toWebhookDeliveryApiResponse,
+} from "./lib/webhooks/delivery.js";
+import {
   buildEditorialEventContext,
   buildEditorialMentions,
   migrateEditorialMentionPlaceholdersInSettings,
@@ -296,8 +304,22 @@ import {
   validateEditorialWebhookSettingsPlaceholders,
 } from "./lib/webhooks/editorial.js";
 import { toDiscordWebhookPayload } from "./lib/webhooks/providers/discord.js";
+import {
+  defaultOperationalWebhookSettings,
+  defaultSecurityWebhookSettings,
+  normalizeOperationalWebhookSettings,
+  normalizeSecurityWebhookSettings,
+  normalizeWebhookSettingsBundle,
+  OPERATIONAL_WEBHOOK_INTERVAL_DEFAULT_MS,
+  OPERATIONAL_WEBHOOK_INTERVAL_MAX_MS,
+  OPERATIONAL_WEBHOOK_INTERVAL_MIN_MS,
+  WEBHOOK_TIMEOUT_DEFAULT_MS,
+  WEBHOOK_TIMEOUT_MAX_MS,
+  WEBHOOK_TIMEOUT_MIN_MS,
+} from "./lib/webhooks/settings.js";
 import { buildOperationalAlertsWebhookNotification } from "./lib/webhooks/templates/operational-alerts.js";
 import { diffOperationalAlertSets } from "./lib/webhooks/transitions.js";
+import { buildWebhookTargetLabel, validateWebhookUrlForProvider } from "./lib/webhooks/validation.js";
 import { deriveAniListMediaOrganization } from "../src/lib/anilist-media.js";
 import {
   buildInstitutionalOgImageAlt,
@@ -573,17 +595,24 @@ const AUDIT_META_ALLOWLIST = {
     "linkTypeIconsDropped",
     "siteLinksDropped",
   ],
+  "editorial_webhook.queued": ["deliveryId", "scope", "channel", "eventKey", "eventLabel", "postId", "projectId", "attempt"],
   "editorial_webhook.sent": [
+    "deliveryId",
+    "scope",
     "eventKey",
     "eventLabel",
     "channel",
     "status",
     "statusCode",
     "attempt",
+    "durationMs",
+    "nextAttemptAt",
     "postId",
     "projectId",
   ],
   "editorial_webhook.failed": [
+    "deliveryId",
+    "scope",
     "eventKey",
     "eventLabel",
     "channel",
@@ -591,8 +620,59 @@ const AUDIT_META_ALLOWLIST = {
     "code",
     "statusCode",
     "attempt",
+    "durationMs",
+    "nextAttemptAt",
+    "error",
     "postId",
     "projectId",
+  ],
+  "ops_alerts.webhook.queued": ["deliveryId", "scope", "eventLabel", "attempt"],
+  "ops_alerts.webhook.sent": [
+    "deliveryId",
+    "scope",
+    "eventLabel",
+    "status",
+    "statusCode",
+    "attempt",
+    "durationMs",
+    "nextAttemptAt",
+  ],
+  "ops_alerts.webhook.failed": [
+    "deliveryId",
+    "scope",
+    "eventLabel",
+    "status",
+    "code",
+    "statusCode",
+    "attempt",
+    "durationMs",
+    "nextAttemptAt",
+    "error",
+  ],
+  "security.webhook.queued": ["deliveryId", "scope", "eventLabel", "securityEventId", "attempt"],
+  "security.webhook.sent": [
+    "deliveryId",
+    "scope",
+    "eventLabel",
+    "securityEventId",
+    "status",
+    "statusCode",
+    "attempt",
+    "durationMs",
+    "nextAttemptAt",
+  ],
+  "security.webhook.failed": [
+    "deliveryId",
+    "scope",
+    "eventLabel",
+    "securityEventId",
+    "status",
+    "code",
+    "statusCode",
+    "attempt",
+    "durationMs",
+    "nextAttemptAt",
+    "error",
   ],
   "editorial_webhook.skipped": ["eventKey", "channel", "code", "postId", "projectId"],
   "integrations.webhooks_editorial.read": ["channel", "eventKey"],
@@ -613,6 +693,17 @@ const AUDIT_META_ALLOWLIST = {
     "attempt",
     "postId",
     "projectId",
+    "error",
+  ],
+  "integrations.webhooks.read": ["scope", "channel", "eventKey"],
+  "integrations.webhooks.update": ["scope", "channel", "eventKey", "count", "code"],
+  "integrations.webhooks.operational_test": ["status", "code", "statusCode", "attempt", "error"],
+  "integrations.webhooks.security_test": [
+    "status",
+    "code",
+    "statusCode",
+    "attempt",
+    "securityEventId",
     "error",
   ],
 };
@@ -3163,6 +3254,48 @@ const upsertAdminExportJob = (job) => {
   return dataRepository.upsertAdminExportJob(job);
 };
 
+const loadWebhookDeliveries = () => {
+  if (!dataRepository || typeof dataRepository.loadWebhookDeliveries !== "function") {
+    return [];
+  }
+  return dataRepository.loadWebhookDeliveries();
+};
+
+const findWebhookDelivery = (id) => {
+  if (!dataRepository || typeof dataRepository.findWebhookDelivery !== "function") {
+    return null;
+  }
+  return dataRepository.findWebhookDelivery(id);
+};
+
+const upsertWebhookDelivery = (delivery) => {
+  if (!dataRepository || typeof dataRepository.upsertWebhookDelivery !== "function") {
+    return null;
+  }
+  return dataRepository.upsertWebhookDelivery(delivery);
+};
+
+const claimWebhookDelivery = async (options) => {
+  if (!dataRepository || typeof dataRepository.claimWebhookDelivery !== "function") {
+    return null;
+  }
+  return dataRepository.claimWebhookDelivery(options);
+};
+
+const loadWebhookState = (key) => {
+  if (!dataRepository || typeof dataRepository.loadWebhookState !== "function") {
+    return null;
+  }
+  return dataRepository.loadWebhookState(key);
+};
+
+const writeWebhookState = (key, data) => {
+  if (!dataRepository || typeof dataRepository.writeWebhookState !== "function") {
+    return null;
+  }
+  return dataRepository.writeWebhookState(key, data);
+};
+
 const loadEpubImportJobs = () => {
   if (!dataRepository || typeof dataRepository.loadEpubImportJobs !== "function") {
     return [];
@@ -5337,43 +5470,80 @@ const writeSiteSettings = (settings) => {
   invalidateJsonFileCache("site-settings");
 };
 
-const loadIntegrationSettings = () => {
+const buildEnvOperationalWebhookSettings = () =>
+  defaultOperationalWebhookSettings({
+    enabled: isOpsAlertsWebhookEnabled,
+    provider: OPS_ALERTS_WEBHOOK_PROVIDER,
+    webhookUrl: OPS_ALERTS_WEBHOOK_URL,
+    timeoutMs: OPS_ALERTS_WEBHOOK_TIMEOUT_MS,
+    intervalMs: OPS_ALERTS_WEBHOOK_INTERVAL_MS,
+  });
+
+const buildEnvSecurityWebhookSettings = () =>
+  defaultSecurityWebhookSettings({
+    enabled: isOpsAlertsWebhookEnabled,
+    provider: OPS_ALERTS_WEBHOOK_PROVIDER,
+    webhookUrl: OPS_ALERTS_WEBHOOK_URL,
+    timeoutMs: OPS_ALERTS_WEBHOOK_TIMEOUT_MS,
+  });
+
+const buildWebhookSettingsBundle = (payload) =>
+  normalizeWebhookSettingsBundle(payload, {
+    defaultProjectTypes: DEFAULT_PROJECT_TYPE_CATALOG,
+    operationalFallback: buildEnvOperationalWebhookSettings(),
+    securityFallback: buildEnvSecurityWebhookSettings(),
+  });
+
+const loadIntegrationSettingsBundle = () => {
   const cached = readJsonFileFromCache("integration-settings");
-  if (cached) {
+  if (
+    cached &&
+    cached.settings &&
+    typeof cached.settings === "object" &&
+    cached.sources &&
+    typeof cached.sources === "object"
+  ) {
     return cached;
   }
   if (!dataRepository || typeof dataRepository.loadIntegrationSettings !== "function") {
-    const defaults = normalizeEditorialWebhookSettings(
-      {},
-      {
-        defaultProjectTypes: DEFAULT_PROJECT_TYPE_CATALOG,
-      },
-    );
+    const defaults = buildWebhookSettingsBundle({});
     writeJsonFileToCache("integration-settings", defaults);
     return defaults;
   }
   const parsed = dataRepository.loadIntegrationSettings();
-  const normalized = normalizeEditorialWebhookSettings(parsed, {
-    defaultProjectTypes: DEFAULT_PROJECT_TYPE_CATALOG,
-  });
-  const migrated = migrateEditorialMentionPlaceholdersInSettings(normalized);
-  if (JSON.stringify(parsed) !== JSON.stringify(migrated)) {
-    writeIntegrationSettings(migrated);
-  }
-  writeJsonFileToCache("integration-settings", migrated);
-  return migrated;
+  const bundle = buildWebhookSettingsBundle(parsed);
+  writeJsonFileToCache("integration-settings", bundle);
+  return bundle;
 };
 
+const loadIntegrationSettings = () => loadIntegrationSettingsBundle().settings;
+
+const loadIntegrationSettingsSources = () => loadIntegrationSettingsBundle().sources;
+
 const writeIntegrationSettings = (settings) => {
-  const normalized = normalizeEditorialWebhookSettings(settings, {
-    defaultProjectTypes: DEFAULT_PROJECT_TYPE_CATALOG,
-  });
-  const migrated = migrateEditorialMentionPlaceholdersInSettings(normalized);
+  const bundle = buildWebhookSettingsBundle(settings);
+  const persistedBundle = {
+    settings: {
+      ...bundle.settings,
+      operational: normalizeOperationalWebhookSettings(bundle.settings.operational, {
+        fallback: buildEnvOperationalWebhookSettings(),
+      }),
+      security: normalizeSecurityWebhookSettings(bundle.settings.security, {
+        fallback: buildEnvSecurityWebhookSettings(),
+      }),
+    },
+    sources: {
+      editorial: "stored",
+      operational: "stored",
+      security: "stored",
+    },
+  };
   if (dataRepository && typeof dataRepository.writeIntegrationSettings === "function") {
-    dataRepository.writeIntegrationSettings(migrated);
+    dataRepository.writeIntegrationSettings(persistedBundle.settings);
   }
   invalidateJsonFileCache("integration-settings");
-  return migrated;
+  writeJsonFileToCache("integration-settings", persistedBundle);
+  return persistedBundle.settings;
 };
 
 const countDroppedUserSocials = (usersInput) => {
@@ -6449,6 +6619,123 @@ const resolveEditorialAuthorFromPost = (postInput) => {
   };
 };
 
+const createWebhookAuditReqFromContext = (contextInput = {}) => {
+  const context =
+    contextInput && typeof contextInput === "object" && !Array.isArray(contextInput)
+      ? contextInput
+      : {};
+  return {
+    headers: {},
+    ip: String(context.actorIp || "127.0.0.1"),
+    session: {
+      user: {
+        id: String(context.actorId || "system"),
+        name: String(context.actorName || "System"),
+      },
+    },
+    requestId: String(context.requestId || `webhook-${crypto.randomUUID()}`),
+  };
+};
+
+const resolveWebhookAuditActions = (scope) => {
+  if (scope === WEBHOOK_DELIVERY_SCOPE.OPS_ALERTS) {
+    return {
+      resource: "system",
+      queuedAction: "ops_alerts.webhook.queued",
+      sentAction: "ops_alerts.webhook.sent",
+      failedAction: "ops_alerts.webhook.failed",
+    };
+  }
+  if (scope === WEBHOOK_DELIVERY_SCOPE.SECURITY) {
+    return {
+      resource: "security",
+      queuedAction: "security.webhook.queued",
+      sentAction: "security.webhook.sent",
+      failedAction: "security.webhook.failed",
+    };
+  }
+  return {
+    resource: "integrations",
+    queuedAction: "editorial_webhook.queued",
+    sentAction: "editorial_webhook.sent",
+    failedAction: "editorial_webhook.failed",
+  };
+};
+
+const buildWebhookAuditMeta = (delivery, extra = {}) => {
+  const context =
+    delivery?.context && typeof delivery.context === "object" && !Array.isArray(delivery.context)
+      ? delivery.context
+      : {};
+  return {
+    deliveryId: delivery?.id || null,
+    scope: delivery?.scope || null,
+    channel: delivery?.channel || null,
+    eventKey: delivery?.eventKey || null,
+    eventLabel: context.eventLabel || null,
+    postId: context.postId || null,
+    projectId: context.projectId || null,
+    securityEventId: context.securityEventId || null,
+    ...extra,
+  };
+};
+
+const enqueueWebhookDelivery = ({
+  scope,
+  provider = "discord",
+  webhookUrl,
+  payload,
+  channel = "",
+  eventKey = "",
+  timeoutMs = 5000,
+  maxAttempts = 1,
+  targetLabel = "",
+  context = {},
+} = {}) => {
+  const validated = validateWebhookUrlForProvider({ provider, webhookUrl });
+  if (!validated.ok) {
+    return {
+      ok: false,
+      status: validated.code === "missing_webhook_url" ? "skipped" : "failed",
+      code: validated.code,
+    };
+  }
+  const now = new Date().toISOString();
+  const record = upsertWebhookDelivery({
+    id: crypto.randomUUID(),
+    scope: String(scope || "").trim(),
+    provider: String(provider || "").trim().toLowerCase(),
+    channel: String(channel || "").trim() || null,
+    eventKey: String(eventKey || "").trim() || null,
+    status: WEBHOOK_DELIVERY_STATUS.QUEUED,
+    targetUrl: validated.url,
+    targetLabel: String(targetLabel || "").trim() || buildWebhookTargetLabel(validated.url),
+    payload: payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {},
+    context:
+      context && typeof context === "object" && !Array.isArray(context)
+        ? {
+            ...context,
+            timeoutMs: clampWebhookInteger(timeoutMs, 1000, 30000, 5000),
+          }
+        : { timeoutMs: clampWebhookInteger(timeoutMs, 1000, 30000, 5000) },
+    attemptCount: 0,
+    maxAttempts: clampWebhookInteger(maxAttempts, 1, 10, 1),
+    nextAttemptAt: now,
+    createdAt: now,
+    updatedAt: now,
+  });
+  if (!record) {
+    return { ok: false, status: "failed", code: "delivery_enqueue_failed" };
+  }
+  return {
+    ok: true,
+    status: "queued",
+    code: "queued",
+    deliveryId: record.id,
+    delivery: record,
+  };
+};
+
 const prepareEditorialWebhookDispatch = ({
   eventKey,
   post = null,
@@ -6464,7 +6751,9 @@ const prepareEditorialWebhookDispatch = ({
   }
   const projectTypes = getActiveProjectTypes();
   const baseSettings =
-    settingsInput && typeof settingsInput === "object" ? settingsInput : loadIntegrationSettings();
+    settingsInput && typeof settingsInput === "object"
+      ? settingsInput
+      : loadIntegrationSettings().editorial;
   const settings = normalizeEditorialWebhookSettings(baseSettings, {
     projectTypes,
   });
@@ -6482,6 +6771,13 @@ const prepareEditorialWebhookDispatch = ({
   const webhookUrl = String(channel?.webhookUrl || "").trim();
   if (!webhookUrl) {
     return { ok: false, status: "skipped", code: "missing_webhook_url", channel: channelKey };
+  }
+  const webhookValidation = validateWebhookUrlForProvider({
+    provider: "discord",
+    webhookUrl,
+  });
+  if (!webhookValidation.ok) {
+    return { ok: false, status: "failed", code: webhookValidation.code, channel: channelKey };
   }
 
   const template = channel?.templates?.[eventKey];
@@ -6595,8 +6891,10 @@ const prepareEditorialWebhookDispatch = ({
     channel: channelKey,
     eventKey,
     webhookUrl,
+    targetLabel: buildWebhookTargetLabel(webhookValidation.url),
     timeoutMs: clampWebhookInteger(channel.timeoutMs, 1000, 30000, 5000),
     retries: clampWebhookInteger(channel.retries, 0, 5, 1),
+    maxAttempts: clampWebhookInteger(channel.retries, 0, 5, 1) + 1,
     payload,
     mentionsRoleIds: Array.isArray(mentions.roleIds) ? mentions.roleIds : [],
     context,
@@ -6630,33 +6928,47 @@ const dispatchEditorialWebhookEvent = async ({
     return prepared;
   }
 
-  const result = await dispatchWebhookMessage({
+  const queued = enqueueWebhookDelivery({
+    scope: WEBHOOK_DELIVERY_SCOPE.EDITORIAL,
     provider: "discord",
     webhookUrl: prepared.webhookUrl,
-    message: prepared.payload,
+    payload: prepared.payload,
+    channel: prepared.channel,
+    eventKey: prepared.eventKey,
     timeoutMs: prepared.timeoutMs,
-    retries: prepared.retries,
+    maxAttempts: prepared.maxAttempts,
+    targetLabel: prepared.targetLabel,
+    context: {
+      ...prepared.context,
+      eventLabel: resolveEditorialEventLabel(eventKey),
+      postId: post?.id || "",
+      projectId: project?.id || post?.projectId || "",
+      actorId: actorReq.session?.user?.id || "system",
+      actorName: actorReq.session?.user?.name || "System",
+      actorIp: actorReq.ip || actorReq.headers?.["x-forwarded-for"] || "",
+      requestId: actorReq.requestId || "",
+    },
   });
-
-  appendAuditLog(
-    actorReq,
-    result.ok ? "editorial_webhook.sent" : "editorial_webhook.failed",
-    "integrations",
-    {
+  if (!queued.ok) {
+    appendAuditLog(actorReq, "editorial_webhook.failed", "integrations", {
       eventKey,
       eventLabel: resolveEditorialEventLabel(eventKey),
       channel: prepared.channel,
-      status: result.status,
-      code: result.code || null,
-      statusCode: result.statusCode || null,
-      attempt: result.attempt || null,
+      code: queued.code || "delivery_enqueue_failed",
       postId: post?.id || null,
       projectId: project?.id || post?.projectId || null,
-    },
-  );
+    });
+    return queued;
+  }
+
+  appendAuditLog(actorReq, "editorial_webhook.queued", "integrations", {
+    ...buildWebhookAuditMeta(queued.delivery),
+    attempt: 0,
+  });
+  void runWebhookDeliveryWorkerTick();
 
   return {
-    ...result,
+    ...queued,
     eventKey,
     channel: prepared.channel,
   };
@@ -7162,10 +7474,19 @@ registerOperationalRoutes({
   securityEventStatusOpen: SecurityEventStatus.OPEN,
 });
 
+const WEBHOOK_STATE_KEY_OPS_ALERTS_BASELINE = "ops_alerts_baseline";
+const WEBHOOK_WORKER_POLL_INTERVAL_MS = 5_000;
+const OPERATIONAL_ALERTS_SCHEDULER_POLL_MS = 5_000;
+
 const operationalAlertsWebhookState = {
-  previousAlerts: [],
   inFlight: null,
   timer: null,
+  lastStartedAt: 0,
+};
+const webhookDeliveryWorkerState = {
+  inFlight: null,
+  timer: null,
+  workerId: createWebhookWorkerId("backend-webhook"),
 };
 const analyticsCompactionState = {
   timer: null,
@@ -7173,13 +7494,267 @@ const analyticsCompactionState = {
 
 const buildOperationalDashboardUrl = () => `${PRIMARY_APP_ORIGIN}/dashboard`;
 
+const loadOperationalWebhookSettings = () => loadIntegrationSettings().operational;
+
+const loadSecurityWebhookSettings = () => loadIntegrationSettings().security;
+
+const loadWebhookSettingsSources = () => loadIntegrationSettingsSources();
+
+const resolveOperationalWebhookIntervalMs = (settings) =>
+  Math.min(
+    Math.max(
+      Math.floor(Number(settings?.intervalMs) || OPERATIONAL_WEBHOOK_INTERVAL_DEFAULT_MS),
+      OPERATIONAL_WEBHOOK_INTERVAL_MIN_MS,
+    ),
+    OPERATIONAL_WEBHOOK_INTERVAL_MAX_MS,
+  );
+
+const loadOperationalAlertsBaseline = () => {
+  const state = loadWebhookState(WEBHOOK_STATE_KEY_OPS_ALERTS_BASELINE);
+  return Array.isArray(state?.data?.alerts) ? state.data.alerts : [];
+};
+
+const writeOperationalAlertsBaseline = ({ alerts = [], generatedAt = "" } = {}) =>
+  writeWebhookState(WEBHOOK_STATE_KEY_OPS_ALERTS_BASELINE, {
+    alerts: Array.isArray(alerts) ? alerts : [],
+    generatedAt: String(generatedAt || new Date().toISOString()),
+  });
+
+const buildWebhookFailureDetail = (result) =>
+  String(result?.bodyText || result?.message || result?.code || "")
+    .trim()
+    .slice(0, 500);
+
+const appendWebhookQueuedAuditLog = ({ scope, delivery, req } = {}) => {
+  const auditConfig = resolveWebhookAuditActions(scope);
+  appendAuditLog(req || createWebhookAuditReqFromContext(delivery?.context), auditConfig.queuedAction, auditConfig.resource, {
+    ...buildWebhookAuditMeta(delivery),
+    attempt: 0,
+  });
+};
+
+const appendWebhookDeliveryAttemptAuditLog = ({ delivery, result, nextAttemptAt = null, terminal = false } = {}) => {
+  const auditConfig = resolveWebhookAuditActions(delivery?.scope);
+  const action = result?.ok ? auditConfig.sentAction : auditConfig.failedAction;
+  appendAuditLog(
+    createWebhookAuditReqFromContext(delivery?.context),
+    action,
+    auditConfig.resource,
+    {
+      ...buildWebhookAuditMeta(delivery),
+      status: result?.ok ? "sent" : terminal ? "failed" : "retrying",
+      code: result?.code || null,
+      statusCode: result?.statusCode || null,
+      attempt: result?.attempt || null,
+      durationMs: result?.durationMs || null,
+      nextAttemptAt,
+      error: result?.ok ? null : buildWebhookFailureDetail(result) || null,
+    },
+  );
+};
+
+const resolveWebhookDeliveryTimeoutMs = (delivery) => {
+  const timeoutMs = delivery?.context?.timeoutMs;
+  return clampWebhookInteger(timeoutMs, 1000, 30000, 5000);
+};
+
+const processWebhookDelivery = async (delivery) => {
+  const now = new Date();
+  const attemptedCount = clampWebhookInteger(delivery?.attemptCount, 0, 1000, 0) + 1;
+  const result = await dispatchWebhookMessage({
+    provider: delivery?.provider,
+    webhookUrl: delivery?.targetUrl,
+    message: delivery?.payload,
+    timeoutMs: resolveWebhookDeliveryTimeoutMs(delivery),
+    retries: 0,
+  });
+  const updatedBase = {
+    ...delivery,
+    attemptCount: attemptedCount,
+    lastAttemptAt: now.toISOString(),
+    lastStatusCode: result?.statusCode || null,
+    lastErrorCode: result?.ok ? null : result?.code || null,
+    lastError: result?.ok ? null : buildWebhookFailureDetail(result) || null,
+    processingOwner: null,
+    processingStartedAt: null,
+    updatedAt: now.toISOString(),
+  };
+  if (result.ok) {
+    const persisted = upsertWebhookDelivery({
+      ...updatedBase,
+      status: WEBHOOK_DELIVERY_STATUS.SENT,
+      nextAttemptAt: null,
+      sentAt: now.toISOString(),
+    });
+    appendWebhookDeliveryAttemptAuditLog({
+      delivery: persisted || updatedBase,
+      result: { ...result, attempt: attemptedCount },
+      terminal: true,
+    });
+    return persisted || updatedBase;
+  }
+
+  if (result.retryable && attemptedCount < clampWebhookInteger(delivery?.maxAttempts, 1, 10, 1)) {
+    const delayMs = computeWebhookRetryDelayMs({
+      attemptCount: attemptedCount,
+      retryAfterMs: result?.retryAfterMs,
+    });
+    const nextAttemptAt = new Date(Date.now() + delayMs).toISOString();
+    const persisted = upsertWebhookDelivery({
+      ...updatedBase,
+      status: WEBHOOK_DELIVERY_STATUS.RETRYING,
+      nextAttemptAt,
+    });
+    appendWebhookDeliveryAttemptAuditLog({
+      delivery: persisted || updatedBase,
+      result: { ...result, attempt: attemptedCount },
+      nextAttemptAt,
+      terminal: false,
+    });
+    return persisted || updatedBase;
+  }
+
+  const persisted = upsertWebhookDelivery({
+    ...updatedBase,
+    status: WEBHOOK_DELIVERY_STATUS.FAILED,
+    nextAttemptAt: null,
+  });
+  appendWebhookDeliveryAttemptAuditLog({
+    delivery: persisted || updatedBase,
+    result: { ...result, attempt: attemptedCount },
+    terminal: true,
+  });
+  return persisted || updatedBase;
+};
+
+const runWebhookDeliveryWorkerTick = async () => {
+  if (webhookDeliveryWorkerState.inFlight) {
+    return webhookDeliveryWorkerState.inFlight;
+  }
+  webhookDeliveryWorkerState.inFlight = (async () => {
+    let processed = 0;
+    try {
+      while (true) {
+        const delivery = await claimWebhookDelivery({
+          workerId: webhookDeliveryWorkerState.workerId,
+          now: new Date().toISOString(),
+        });
+        if (!delivery) {
+          break;
+        }
+        processed += 1;
+        await processWebhookDelivery(delivery);
+      }
+      return { ok: true, processed };
+    } catch (error) {
+      console.error("[webhook-worker] failed", error);
+      return {
+        ok: false,
+        processed,
+        error: String(error?.message || error || "webhook_worker_failed"),
+      };
+    } finally {
+      webhookDeliveryWorkerState.inFlight = null;
+    }
+  })();
+  return webhookDeliveryWorkerState.inFlight;
+};
+
+const buildSecurityWebhookPayloadLegacy = (event) => {
+  const title = `Evento crítico de segurança: ${String(event?.type || "security_event")}`;
+  const description = [
+    `Status: ${String(event?.status || "open")}`,
+    `Risco: ${Number(event?.riskScore || 0)}`,
+    event?.actorUserId ? `Ator: ${event.actorUserId}` : "",
+    event?.targetUserId ? `Alvo: ${event.targetUserId}` : "",
+    event?.ip ? `IP: ${event.ip}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return {
+    content: "Alerta crítico de segurança detectado.",
+    embeds: [
+      {
+        title,
+        description: description || "Sem detalhes adicionais.",
+        color: 0xff4d4f,
+        timestamp: new Date(event?.ts || Date.now()).toISOString(),
+        fields: [
+          {
+            name: "Dashboard",
+            value: buildOperationalDashboardUrl(),
+            inline: false,
+          },
+          {
+            name: "Event ID",
+            value: String(event?.id || "unknown"),
+            inline: false,
+          },
+        ],
+      },
+    ],
+    allowed_mentions: { parse: [] },
+  };
+};
+
+const buildSecurityWebhookPayload = (event) => {
+  const title = `Evento crítico de segurança: ${String(event?.type || "security_event")}`;
+  const description = [
+    `Status: ${String(event?.status || "open")}`,
+    `Risco: ${Number(event?.riskScore || 0)}`,
+    event?.actorUserId ? `Ator: ${event.actorUserId}` : "",
+    event?.targetUserId ? `Alvo: ${event.targetUserId}` : "",
+    event?.ip ? `IP: ${event.ip}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return {
+    content: "Alerta crítico de segurança detectado.",
+    embeds: [
+      {
+        title,
+        description: description || "Sem detalhes adicionais.",
+        color: 0xff4d4f,
+        timestamp: new Date(event?.ts || Date.now()).toISOString(),
+        fields: [
+          {
+            name: "Dashboard",
+            value: buildOperationalDashboardUrl(),
+            inline: false,
+          },
+          {
+            name: "Event ID",
+            value: String(event?.id || "unknown"),
+            inline: false,
+          },
+        ],
+      },
+    ],
+    allowed_mentions: { parse: [] },
+  };
+};
+
+const buildOperationalAlertsWebhookPayload = ({ transition, generatedAt }) =>
+  toDiscordWebhookPayload(
+    buildOperationalAlertsWebhookNotification({
+      transition,
+      dashboardUrl: buildOperationalDashboardUrl(),
+      generatedAt,
+    }),
+  );
+
 const dispatchCriticalSecurityEventWebhook = async (event) => {
-  if (!event || !isOpsAlertsWebhookEnabled || !OPS_ALERTS_WEBHOOK_URL) {
+  const securitySettings = loadSecurityWebhookSettings();
+  if (!event || securitySettings.enabled !== true) {
     return { ok: false, status: "skipped", code: "disabled" };
   }
-  if (OPS_ALERTS_WEBHOOK_PROVIDER !== "discord") {
+  if (!securitySettings.webhookUrl) {
+    return { ok: false, status: "skipped", code: "missing_webhook_url" };
+  }
+  if (securitySettings.provider !== "discord") {
     return { ok: false, status: "skipped", code: "unsupported_provider" };
   }
+  const payload = buildSecurityWebhookPayload(event);
   const title = `Evento crítico de segurança: ${String(event.type || "security_event")}`;
   const description = [
     `Status: ${String(event.status || "open")}`,
@@ -7190,7 +7765,7 @@ const dispatchCriticalSecurityEventWebhook = async (event) => {
   ]
     .filter(Boolean)
     .join("\n");
-  const payload = {
+  const payloadLegacy = {
     content: "Alerta crítico de segurança detectado.",
     embeds: [
       {
@@ -7214,30 +7789,47 @@ const dispatchCriticalSecurityEventWebhook = async (event) => {
     ],
     allowed_mentions: { parse: [] },
   };
-  const result = await dispatchWebhookMessage({
+  const queued = enqueueWebhookDelivery({
+    scope: WEBHOOK_DELIVERY_SCOPE.SECURITY,
     provider: "discord",
-    webhookUrl: OPS_ALERTS_WEBHOOK_URL,
-    message: payload,
-    timeoutMs: OPS_ALERTS_WEBHOOK_TIMEOUT_MS,
-    retries: 1,
+    webhookUrl: securitySettings.webhookUrl,
+    payload,
+    timeoutMs: securitySettings.timeoutMs,
+    maxAttempts: 4,
+    targetLabel: buildWebhookTargetLabel(securitySettings.webhookUrl),
+    context: {
+      eventLabel: String(event.type || "security_event"),
+      securityEventId: String(event.id || ""),
+      actorId: "system",
+      actorName: "System",
+      requestId: `security-webhook-${String(event.id || crypto.randomUUID())}`,
+    },
   });
-  appendAuditLog(createSystemAuditReq(), "security.webhook.dispatch", "security", {
-    id: event.id,
-    type: event.type,
-    severity: event.severity,
-    status: result.ok ? "success" : "failed",
-    code: result.code || null,
-    statusCode: result.statusCode || null,
+  if (!queued.ok) {
+    appendAuditLog(createSystemAuditReq(), "security.webhook.failed", "security", {
+      id: event.id,
+      type: event.type,
+      severity: event.severity,
+      code: queued.code || null,
+    });
+    return queued;
+  }
+  appendWebhookQueuedAuditLog({
+    scope: WEBHOOK_DELIVERY_SCOPE.SECURITY,
+    delivery: queued.delivery,
+    req: createSystemAuditReq(),
   });
-  return result;
+  void runWebhookDeliveryWorkerTick();
+  return queued;
 };
 
 const dispatchOperationalAlertsWebhookTransition = async ({ transition, generatedAt }) => {
+  const operationalSettings = loadOperationalWebhookSettings();
   if (!transition?.hasChanges) {
     return { ok: false, status: "skipped", code: "no_change" };
   }
 
-  if (!isOpsAlertsWebhookEnabled) {
+  if (operationalSettings.enabled !== true) {
     appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.skipped", "system", {
       reason: "disabled",
       changes:
@@ -7248,53 +7840,55 @@ const dispatchOperationalAlertsWebhookTransition = async ({ transition, generate
     return { ok: false, status: "skipped", code: "disabled" };
   }
 
-  if (!OPS_ALERTS_WEBHOOK_URL) {
+  if (!operationalSettings.webhookUrl) {
     appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.skipped", "system", {
       reason: "missing_webhook_url",
     });
     return { ok: false, status: "skipped", code: "missing_webhook_url" };
   }
 
-  if (OPS_ALERTS_WEBHOOK_PROVIDER !== "discord") {
+  if (operationalSettings.provider !== "discord") {
     appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.skipped", "system", {
       reason: "unsupported_provider",
-      provider: OPS_ALERTS_WEBHOOK_PROVIDER,
+      provider: operationalSettings.provider,
     });
     return { ok: false, status: "skipped", code: "unsupported_provider" };
   }
 
-  const notification = buildOperationalAlertsWebhookNotification({
-    transition,
-    dashboardUrl: buildOperationalDashboardUrl(),
-    generatedAt,
+  const payload = buildOperationalAlertsWebhookPayload({ transition, generatedAt });
+  const queued = enqueueWebhookDelivery({
+    scope: WEBHOOK_DELIVERY_SCOPE.OPS_ALERTS,
+    provider: operationalSettings.provider,
+    webhookUrl: operationalSettings.webhookUrl,
+    payload,
+    timeoutMs: operationalSettings.timeoutMs,
+    maxAttempts: 4,
+    targetLabel: buildWebhookTargetLabel(operationalSettings.webhookUrl),
+    context: {
+      eventLabel: "Alertas operacionais",
+      triggeredCount: Number(transition.triggered?.length || 0),
+      changedCount: Number(transition.changed?.length || 0),
+      resolvedCount: Number(transition.resolved?.length || 0),
+      generatedAt: String(generatedAt || ""),
+      actorId: "system",
+      actorName: "System",
+      requestId: `ops-alerts-webhook-${crypto.randomUUID()}`,
+    },
   });
-  const payload = toDiscordWebhookPayload(notification);
-  const result = await dispatchWebhookMessage({
-    provider: OPS_ALERTS_WEBHOOK_PROVIDER,
-    webhookUrl: OPS_ALERTS_WEBHOOK_URL,
-    message: payload,
-    timeoutMs: OPS_ALERTS_WEBHOOK_TIMEOUT_MS,
-    retries: 1,
-  });
-
-  if (result.ok) {
-    appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.sent", "system", {
-      provider: OPS_ALERTS_WEBHOOK_PROVIDER,
-      statusCode: result.statusCode || null,
-      triggered: Number(transition.triggered?.length || 0),
-      changed: Number(transition.changed?.length || 0),
-      resolved: Number(transition.resolved?.length || 0),
-    });
-  } else if (result.status !== "skipped") {
+  if (!queued.ok) {
     appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.failed", "system", {
-      provider: OPS_ALERTS_WEBHOOK_PROVIDER,
-      code: result.code || "failed",
-      statusCode: result.statusCode || null,
-      error: result.message || result.bodyText || null,
+      provider: operationalSettings.provider,
+      code: queued.code || "delivery_enqueue_failed",
     });
+    return queued;
   }
-
-  return result;
+  appendWebhookQueuedAuditLog({
+    scope: WEBHOOK_DELIVERY_SCOPE.OPS_ALERTS,
+    delivery: queued.delivery,
+    req: createSystemAuditReq(),
+  });
+  void runWebhookDeliveryWorkerTick();
+  return queued;
 };
 
 const runOperationalAlertsWebhookTick = async () => {
@@ -7305,20 +7899,23 @@ const runOperationalAlertsWebhookTick = async () => {
     try {
       const snapshot = await evaluateOperationalMonitoring();
       const transition = diffOperationalAlertSets({
-        previousAlerts: operationalAlertsWebhookState.previousAlerts,
+        previousAlerts: loadOperationalAlertsBaseline(),
         currentAlerts: snapshot.alerts.alerts,
       });
       const result = await dispatchOperationalAlertsWebhookTransition({
         transition,
         generatedAt: snapshot.alerts.generatedAt,
       });
-      operationalAlertsWebhookState.previousAlerts = Array.isArray(snapshot.alerts.alerts)
-        ? snapshot.alerts.alerts
-        : [];
+      if (result.ok) {
+        writeOperationalAlertsBaseline({
+          alerts: Array.isArray(snapshot.alerts.alerts) ? snapshot.alerts.alerts : [],
+          generatedAt: snapshot.alerts.generatedAt,
+        });
+      }
       return result;
     } catch (error) {
       appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.failed", "system", {
-        provider: OPS_ALERTS_WEBHOOK_PROVIDER,
+        provider: operationalSettings.provider,
         code: "tick_failed",
         error: String(error?.message || error || "tick_failed"),
       });
@@ -7328,6 +7925,23 @@ const runOperationalAlertsWebhookTick = async () => {
     }
   })();
   return operationalAlertsWebhookState.inFlight;
+};
+
+const runOperationalAlertsSchedulerTick = async () => {
+  const operationalSettings = loadOperationalWebhookSettings();
+  if (operationalSettings.enabled !== true) {
+    return { ok: false, status: "skipped", code: "disabled" };
+  }
+  const now = Date.now();
+  const intervalMs = resolveOperationalWebhookIntervalMs(operationalSettings);
+  if (
+    operationalAlertsWebhookState.lastStartedAt > 0 &&
+    now - operationalAlertsWebhookState.lastStartedAt < intervalMs
+  ) {
+    return { ok: false, status: "skipped", code: "not_due" };
+  }
+  operationalAlertsWebhookState.lastStartedAt = now;
+  return runOperationalAlertsWebhookTick();
 };
 
 const requireAuth = (req, res, next) => {
@@ -9392,25 +10006,23 @@ app.get("/api/dashboard/notifications", requireAuth, async (req, res) => {
   }
 
   if (canManageIntegrations(userId)) {
-    const webhookFailures = loadAuditLog()
-      .filter((entry) =>
-        ["editorial_webhook.failed", "ops_alerts.webhook.failed"].includes(entry.action),
+    const webhookFailures = loadWebhookDeliveries()
+      .filter(
+        (entry) =>
+          String(entry?.status || "").trim().toLowerCase() === WEBHOOK_DELIVERY_STATUS.FAILED,
       )
-      .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+      .sort((a, b) => new Date(b?.updatedAt || 0).getTime() - new Date(a?.updatedAt || 0).getTime())
       .slice(0, 10);
     webhookFailures.forEach((entry) => {
       items.push({
-        id: toDashboardNotificationId(`webhook:${entry.id}:${entry.ts}`),
+        id: toDashboardNotificationId(`webhook:${entry.id}:${entry.updatedAt}`),
         kind: "error",
         source: "webhooks",
         severity: "warning",
         title: "Falha em webhook",
-        description:
-          String(entry?.meta?.code || "").trim() ||
-          String(entry?.meta?.error || "").trim() ||
-          "Entrega falhou.",
+        description: String(entry?.lastErrorCode || "").trim() || String(entry?.lastError || "").trim() || "Entrega falhou.",
         href: "/dashboard/webhooks",
-        ts: entry.ts || new Date().toISOString(),
+        ts: entry.updatedAt || new Date().toISOString(),
       });
     });
   }
@@ -13432,18 +14044,298 @@ app.get("/api/public/updates", (req, res) => {
   return res.json({ updates: paged, page, limit, total: updates.length });
 });
 
+const normalizeUnifiedWebhookSettingsForRequest = (payload, projectTypes) =>
+  normalizeWebhookSettingsBundle(payload, {
+    projectTypes,
+    defaultProjectTypes: DEFAULT_PROJECT_TYPE_CATALOG,
+    operationalFallback: buildEnvOperationalWebhookSettings(),
+    securityFallback: buildEnvSecurityWebhookSettings(),
+  }).settings;
+
+const validateEditorialWebhookChannelUrls = (settings) => {
+  const channels =
+    settings?.channels && typeof settings.channels === "object" ? settings.channels : {};
+  const errors = [];
+  Object.entries(channels).forEach(([channelKey, channelValue]) => {
+    const webhookUrl = String(channelValue?.webhookUrl || "").trim();
+    if (!webhookUrl) {
+      return;
+    }
+    const validation = validateWebhookUrlForProvider({ provider: "discord", webhookUrl });
+    if (validation.ok) {
+      return;
+    }
+    errors.push({
+      channel: channelKey,
+      code: validation.code,
+      reason: validation.reason || validation.code,
+    });
+  });
+  return {
+    ok: errors.length === 0,
+    errors,
+  };
+};
+
+const validateStandaloneWebhookConfig = ({ section, settings } = {}) => {
+  const errors = [];
+  const source = settings && typeof settings === "object" ? settings : {};
+  const webhookUrl = String(source.webhookUrl || "").trim();
+  if (!webhookUrl) {
+    return { ok: true, errors };
+  }
+  const validation = validateWebhookUrlForProvider({
+    provider: source.provider || "discord",
+    webhookUrl,
+  });
+  if (!validation.ok) {
+    errors.push({
+      channel: section,
+      code: validation.code,
+      reason: validation.reason || validation.code,
+    });
+  }
+  return {
+    ok: errors.length === 0,
+    errors,
+  };
+};
+
+const validateUnifiedWebhookSettingsUrls = (settings) => {
+  const editorialValidation = validateEditorialWebhookChannelUrls(settings?.editorial);
+  const operationalValidation = validateStandaloneWebhookConfig({
+    section: "operational",
+    settings: settings?.operational,
+  });
+  const securityValidation = validateStandaloneWebhookConfig({
+    section: "security",
+    settings: settings?.security,
+  });
+  const errors = [
+    ...(editorialValidation.errors || []),
+    ...(operationalValidation.errors || []),
+    ...(securityValidation.errors || []),
+  ];
+  return {
+    ok: errors.length === 0,
+    errors,
+  };
+};
+
+const ensureWebhookSettingsNoConflict = ({
+  res,
+  currentSettings,
+  currentRevision,
+  projectTypes,
+  sources,
+  options,
+}) => {
+  if (options?.forceOverride === true) {
+    return true;
+  }
+  const requestedRevision = String(options?.ifRevision || "").trim();
+  if (!requestedRevision || requestedRevision === currentRevision) {
+    return true;
+  }
+  return res.status(409).json({
+    error: "edit_conflict",
+    currentRevision,
+    settings: currentSettings,
+    projectTypes,
+    sources,
+  });
+};
+
+const ensureEditorialWebhookSettingsNoConflict = ({
+  res,
+  currentSettings,
+  currentRevision,
+  projectTypes,
+  options,
+}) => {
+  if (options?.forceOverride === true) {
+    return true;
+  }
+  const requestedRevision = String(options?.ifRevision || "").trim();
+  if (!requestedRevision || requestedRevision === currentRevision) {
+    return true;
+  }
+  return res.status(409).json({
+    error: "edit_conflict",
+    currentRevision,
+    settings: currentSettings,
+    projectTypes,
+  });
+};
+
+const buildOperationalWebhookTestTransitionLegacy = () => ({
+  triggered: [
+    {
+      code: "db_latency_high",
+      severity: "warning",
+      title: "Latência alta no banco",
+      description: "O tempo de resposta do banco ultrapassou o limite configurado.",
+    },
+  ],
+  changed: [
+    {
+      code: "queue_backlog",
+      severity: "critical",
+      title: "Fila de persistência congestionada",
+      description: "O backlog de persistência aumentou nas últimas verificações.",
+    },
+  ],
+  resolved: [
+    {
+      code: "maintenance_mode_enabled",
+      severity: "success",
+      title: "Modo de manutenção desativado",
+      description: "O site voltou ao fluxo normal de operação.",
+    },
+  ],
+  hasChanges: true,
+});
+
+const buildOperationalWebhookTestTransition = () => ({
+  triggered: [
+    {
+      code: "db_latency_high",
+      severity: "warning",
+      title: "Latência alta no banco",
+      description: "O tempo de resposta do banco ultrapassou o limite configurado.",
+    },
+  ],
+  changed: [
+    {
+      code: "queue_backlog",
+      severity: "critical",
+      title: "Fila de persistência congestionada",
+      description: "O backlog de persistência aumentou nas últimas verificações.",
+    },
+  ],
+  resolved: [
+    {
+      code: "maintenance_mode_enabled",
+      severity: "success",
+      title: "Modo de manutenção desativado",
+      description: "O site voltou ao fluxo normal de operação.",
+    },
+  ],
+  hasChanges: true,
+});
+
+const buildSecurityWebhookTestEvent = () =>
+  createSecurityEventPayload({
+    id: `security-test-${Date.now()}`,
+    type: "dashboard_webhook_test",
+    severity: SecurityEventSeverity.CRITICAL,
+    status: SecurityEventStatus.OPEN,
+    riskScore: 95,
+    actorUserId: "admin:test",
+    targetUserId: "user:test",
+    ip: "127.0.0.1",
+    ts: new Date().toISOString(),
+    data: {
+      source: "dashboard_webhooks",
+    },
+  });
+
+app.get("/api/integrations/webhooks", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageIntegrations(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const projectTypes = getActiveProjectTypes({ includeDefaults: true });
+  const settings = normalizeUnifiedWebhookSettingsForRequest(loadIntegrationSettings(), projectTypes);
+  const sources = loadIntegrationSettingsSources();
+  appendAuditLog(req, "integrations.webhooks.read", "integrations", {
+    scope: "all",
+  });
+  return res.json({
+    settings,
+    projectTypes,
+    revision: createRevisionToken(settings),
+    sources,
+  });
+});
+
+app.put("/api/integrations/webhooks", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageIntegrations(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const options = parseEditRevisionOptions(req.body);
+  const payload = req.body?.settings ?? req.body;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return res.status(400).json({ error: "invalid_payload" });
+  }
+
+  const projectTypes = getActiveProjectTypes({ includeDefaults: true });
+  const currentSettings = normalizeUnifiedWebhookSettingsForRequest(
+    loadIntegrationSettings(),
+    projectTypes,
+  );
+  const sources = loadIntegrationSettingsSources();
+  const currentRevision = createRevisionToken(currentSettings);
+  const noConflict = ensureWebhookSettingsNoConflict({
+    res,
+    currentSettings,
+    currentRevision,
+    projectTypes,
+    sources,
+    options,
+  });
+  if (!noConflict) {
+    return noConflict;
+  }
+
+  const normalized = normalizeUnifiedWebhookSettingsForRequest(payload, projectTypes);
+  const editorialValidation = validateEditorialWebhookSettingsPlaceholders(normalized.editorial);
+  if (!editorialValidation.ok) {
+    return res.status(400).json({
+      error: "invalid_placeholders",
+      placeholders: editorialValidation.errors,
+    });
+  }
+  const urlValidation = validateUnifiedWebhookSettingsUrls(normalized);
+  if (!urlValidation.ok) {
+    return res.status(400).json({
+      error: "invalid_webhook_url",
+      channels: urlValidation.errors,
+    });
+  }
+
+  const persisted = writeIntegrationSettings(normalized);
+  const settings = normalizeUnifiedWebhookSettingsForRequest(persisted, projectTypes);
+  appendAuditLog(req, "integrations.webhooks.update", "integrations", {
+    scope: "all",
+    count:
+      Number(settings.editorial?.typeRoles?.length || 0) +
+      (settings.operational.enabled ? 1 : 0) +
+      (settings.security.enabled ? 1 : 0),
+  });
+  return res.json({
+    settings,
+    projectTypes,
+    revision: createRevisionToken(settings),
+    sources: {
+      editorial: "stored",
+      operational: "stored",
+      security: "stored",
+    },
+  });
+});
+
 app.get("/api/integrations/webhooks/editorial", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
   if (!canManageIntegrations(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
   const projectTypes = getActiveProjectTypes({ includeDefaults: true });
-  const loadedSettings = loadIntegrationSettings();
-  const normalized = normalizeEditorialWebhookSettings(loadedSettings, { projectTypes });
-  const settings = migrateEditorialMentionPlaceholdersInSettings(normalized);
-  if (JSON.stringify(loadedSettings) !== JSON.stringify(settings)) {
-    writeIntegrationSettings(settings);
-  }
+  const loadedSettings = loadIntegrationSettings().editorial;
+  const settings = migrateEditorialMentionPlaceholdersInSettings(
+    normalizeEditorialWebhookSettings(loadedSettings, { projectTypes }),
+  );
   appendAuditLog(req, "integrations.webhooks_editorial.read", "integrations", {
     channel: "all",
   });
@@ -13462,17 +14354,16 @@ app.put("/api/integrations/webhooks/editorial", requireAuth, (req, res) => {
   }
 
   const projectTypes = getActiveProjectTypes({ includeDefaults: true });
+  const currentBundle = loadIntegrationSettings();
   const currentSettings = migrateEditorialMentionPlaceholdersInSettings(
-    normalizeEditorialWebhookSettings(loadIntegrationSettings(), { projectTypes }),
+    normalizeEditorialWebhookSettings(currentBundle.editorial, { projectTypes }),
   );
   const currentRevision = createRevisionToken(currentSettings);
-  const noConflict = ensureNoEditConflict({
-    req,
+  const noConflict = ensureEditorialWebhookSettingsNoConflict({
     res,
-    resourceType: "editorial_webhooks",
-    resourceId: "global",
-    current: currentSettings,
+    currentSettings,
     currentRevision,
+    projectTypes,
     options,
   });
   if (!noConflict) {
@@ -13487,10 +14378,20 @@ app.put("/api/integrations/webhooks/editorial", requireAuth, (req, res) => {
       placeholders: validation.errors,
     });
   }
+  const urlValidation = validateEditorialWebhookChannelUrls(migrated);
+  if (!urlValidation.ok) {
+    return res.status(400).json({
+      error: "invalid_webhook_url",
+      channels: urlValidation.errors,
+    });
+  }
 
-  const persisted = writeIntegrationSettings(migrated);
+  const persisted = writeIntegrationSettings({
+    ...currentBundle,
+    editorial: migrated,
+  });
   const settings = migrateEditorialMentionPlaceholdersInSettings(
-    normalizeEditorialWebhookSettings(persisted, { projectTypes }),
+    normalizeEditorialWebhookSettings(persisted.editorial, { projectTypes }),
   );
   appendAuditLog(req, "integrations.webhooks_editorial.update", "integrations", {
     count: Array.isArray(settings?.typeRoles) ? settings.typeRoles.length : 0,
@@ -13602,6 +14503,54 @@ app.post("/api/integrations/webhooks/editorial/test", requireAuth, async (req, r
       volume: sampleChapter.volume,
       updatedAt: now,
     };
+    if (
+      !requestedProjectId &&
+      sampleProject?.id === "sample-project" &&
+      Array.isArray(sampleProject?.episodeDownloads) &&
+      sampleProject.episodeDownloads[0]
+    ) {
+      sampleProject.episodeDownloads[0].title = "Capítulo piloto";
+    }
+    sampleUpdate.kind = eventKey === "project_adjust" ? "Ajuste" : "Lançamento";
+    sampleUpdate.reason =
+      eventKey === "project_adjust"
+        ? `Conteúdo ajustado no ${sampleUpdateUnit.toLowerCase()} ${safeChapterNumber}`
+        : `${sampleUpdateUnit} ${safeChapterNumber} disponível`;
+
+    const requestedSettings =
+      req.body?.settings && typeof req.body.settings === "object" && !Array.isArray(req.body.settings)
+        ? req.body.settings
+        : null;
+    const requestedEditorialSettings =
+      requestedSettings?.editorial &&
+      typeof requestedSettings.editorial === "object" &&
+      !Array.isArray(requestedSettings.editorial)
+        ? requestedSettings.editorial
+        : requestedSettings;
+    const normalizedDraftSettings = migrateEditorialMentionPlaceholdersInSettings(
+      normalizeEditorialWebhookSettings(requestedEditorialSettings || loadIntegrationSettings().editorial, {
+        projectTypes: getActiveProjectTypes({ includeDefaults: true }),
+      }),
+    );
+    const placeholderValidation =
+      validateEditorialWebhookSettingsPlaceholders(normalizedDraftSettings);
+    if (!placeholderValidation.ok) {
+      return res.status(400).json({
+        ok: false,
+        error: "invalid_placeholders",
+        placeholders: placeholderValidation.errors,
+        channel: channelKey,
+      });
+    }
+    const urlValidation = validateEditorialWebhookChannelUrls(normalizedDraftSettings);
+    if (!urlValidation.ok) {
+      return res.status(400).json({
+        ok: false,
+        error: "invalid_webhook_url",
+        channels: urlValidation.errors,
+        channel: channelKey,
+      });
+    }
 
     const prepared = prepareEditorialWebhookDispatch({
       eventKey,
@@ -13609,7 +14558,7 @@ app.post("/api/integrations/webhooks/editorial/test", requireAuth, async (req, r
       project: sampleProject,
       update: sampleUpdate,
       chapter: sampleChapter,
-      settings: loadIntegrationSettings(),
+      settings: normalizedDraftSettings,
       allowDisabled: true,
     });
     if (!prepared.ok) {
@@ -13633,7 +14582,7 @@ app.post("/api/integrations/webhooks/editorial/test", requireAuth, async (req, r
       webhookUrl: prepared.webhookUrl,
       message: prepared.payload,
       timeoutMs: prepared.timeoutMs,
-      retries: prepared.retries,
+      retries: 0,
     });
     const errorDetail = result.ok
       ? ""
@@ -13677,6 +14626,270 @@ app.post("/api/integrations/webhooks/editorial/test", requireAuth, async (req, r
       channel: channelKey,
     });
   }
+});
+
+app.post("/api/integrations/webhooks/operational/test", requireAuth, async (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageIntegrations(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  try {
+    const projectTypes = getActiveProjectTypes({ includeDefaults: true });
+    const requestedSettings =
+      req.body?.settings && typeof req.body.settings === "object" && !Array.isArray(req.body.settings)
+        ? req.body.settings
+        : null;
+    const normalized = normalizeUnifiedWebhookSettingsForRequest(
+      requestedSettings || loadIntegrationSettings(),
+      projectTypes,
+    );
+    const urlValidation = validateUnifiedWebhookSettingsUrls(normalized);
+    if (!urlValidation.ok) {
+      return res.status(400).json({
+        ok: false,
+        error: "invalid_webhook_url",
+        channels: urlValidation.errors,
+        scope: "operational",
+      });
+    }
+
+    const operational = normalized.operational;
+    if (operational.enabled !== true) {
+      return res.status(400).json({ ok: false, error: "disabled", scope: "operational" });
+    }
+    if (!String(operational.webhookUrl || "").trim()) {
+      return res.status(400).json({
+        ok: false,
+        error: "missing_webhook_url",
+        scope: "operational",
+      });
+    }
+
+    const generatedAt = new Date().toISOString();
+    const payload = buildOperationalAlertsWebhookPayload({
+      transition: buildOperationalWebhookTestTransition(),
+      generatedAt,
+    });
+    const result = await dispatchWebhookMessage({
+      provider: operational.provider,
+      webhookUrl: operational.webhookUrl,
+      message: payload,
+      timeoutMs: operational.timeoutMs,
+      retries: 0,
+    });
+    const errorDetail = result.ok
+      ? ""
+      : String(result.bodyText || result.message || "")
+          .trim()
+          .slice(0, 500);
+
+    appendAuditLog(req, "integrations.webhooks.operational_test", "integrations", {
+      status: result.status,
+      code: result.code || null,
+      statusCode: result.statusCode || null,
+      attempt: result.attempt || null,
+      error: errorDetail || null,
+    });
+
+    return res.json({
+      ok: result.ok,
+      scope: "operational",
+      status: result.status,
+      code: result.code || null,
+      statusCode: result.statusCode || null,
+      attempt: result.attempt || null,
+      ...(errorDetail ? { errorDetail } : {}),
+    });
+  } catch (error) {
+    appendAuditLog(req, "integrations.webhooks.operational_test", "integrations", {
+      status: "failed",
+      code: "internal_error",
+      error: String(error?.message || error || "operational_webhook_test_failed"),
+    });
+    return res.status(500).json({ ok: false, error: "internal_error", scope: "operational" });
+  }
+});
+
+app.post("/api/integrations/webhooks/security/test", requireAuth, async (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageIntegrations(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  try {
+    const projectTypes = getActiveProjectTypes({ includeDefaults: true });
+    const requestedSettings =
+      req.body?.settings && typeof req.body.settings === "object" && !Array.isArray(req.body.settings)
+        ? req.body.settings
+        : null;
+    const normalized = normalizeUnifiedWebhookSettingsForRequest(
+      requestedSettings || loadIntegrationSettings(),
+      projectTypes,
+    );
+    const urlValidation = validateUnifiedWebhookSettingsUrls(normalized);
+    if (!urlValidation.ok) {
+      return res.status(400).json({
+        ok: false,
+        error: "invalid_webhook_url",
+        channels: urlValidation.errors,
+        scope: "security",
+      });
+    }
+
+    const security = normalized.security;
+    if (security.enabled !== true) {
+      return res.status(400).json({ ok: false, error: "disabled", scope: "security" });
+    }
+    if (!String(security.webhookUrl || "").trim()) {
+      return res.status(400).json({
+        ok: false,
+        error: "missing_webhook_url",
+        scope: "security",
+      });
+    }
+
+    const event = buildSecurityWebhookTestEvent();
+    const result = await dispatchWebhookMessage({
+      provider: security.provider,
+      webhookUrl: security.webhookUrl,
+      message: buildSecurityWebhookPayload(event),
+      timeoutMs: security.timeoutMs,
+      retries: 0,
+    });
+    const errorDetail = result.ok
+      ? ""
+      : String(result.bodyText || result.message || "")
+          .trim()
+          .slice(0, 500);
+
+    appendAuditLog(req, "integrations.webhooks.security_test", "integrations", {
+      status: result.status,
+      code: result.code || null,
+      statusCode: result.statusCode || null,
+      attempt: result.attempt || null,
+      securityEventId: String(event.id || ""),
+      error: errorDetail || null,
+    });
+
+    return res.json({
+      ok: result.ok,
+      scope: "security",
+      status: result.status,
+      code: result.code || null,
+      statusCode: result.statusCode || null,
+      attempt: result.attempt || null,
+      securityEventId: String(event.id || ""),
+      ...(errorDetail ? { errorDetail } : {}),
+    });
+  } catch (error) {
+    appendAuditLog(req, "integrations.webhooks.security_test", "integrations", {
+      status: "failed",
+      code: "internal_error",
+      error: String(error?.message || error || "security_webhook_test_failed"),
+    });
+    return res.status(500).json({ ok: false, error: "internal_error", scope: "security" });
+  }
+});
+
+app.get("/api/integrations/webhooks/deliveries", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageIntegrations(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  const pageRaw = Number(req.query.page);
+  const limitRaw = Number(req.query.limit);
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
+  const limit =
+    Number.isFinite(limitRaw) && limitRaw > 0
+      ? Math.min(Math.max(Math.floor(limitRaw), 10), 100)
+      : 25;
+  const statusFilter = String(req.query.status || "")
+    .trim()
+    .toLowerCase();
+  const scopeFilter = String(req.query.scope || "")
+    .trim()
+    .toLowerCase();
+  const channelFilter = String(req.query.channel || "")
+    .trim()
+    .toLowerCase();
+
+  const rows = loadWebhookDeliveries();
+  let filtered = rows.slice();
+  if (statusFilter) {
+    filtered = filtered.filter(
+      (entry) => String(entry?.status || "").trim().toLowerCase() === statusFilter,
+    );
+  }
+  if (scopeFilter) {
+    filtered = filtered.filter(
+      (entry) => String(entry?.scope || "").trim().toLowerCase() === scopeFilter,
+    );
+  }
+  if (channelFilter) {
+    filtered = filtered.filter(
+      (entry) => String(entry?.channel || "").trim().toLowerCase() === channelFilter,
+    );
+  }
+  filtered.sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime());
+
+  const total = filtered.length;
+  const start = (page - 1) * limit;
+  return res.json({
+    items: filtered.slice(start, start + limit).map((entry) => toWebhookDeliveryApiResponse(entry)),
+    summary: summarizeWebhookDeliveries(rows),
+    page,
+    limit,
+    total,
+  });
+});
+
+app.post("/api/integrations/webhooks/deliveries/:id/retry", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageIntegrations(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  const current = findWebhookDelivery(req.params.id);
+  if (!current) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  if (String(current.status || "").trim().toLowerCase() !== WEBHOOK_DELIVERY_STATUS.FAILED) {
+    return res.status(409).json({ error: "delivery_not_retryable" });
+  }
+
+  const now = new Date().toISOString();
+  const cloned = upsertWebhookDelivery({
+    ...current,
+    id: crypto.randomUUID(),
+    status: WEBHOOK_DELIVERY_STATUS.QUEUED,
+    attemptCount: 0,
+    nextAttemptAt: now,
+    lastAttemptAt: null,
+    lastStatusCode: null,
+    lastErrorCode: null,
+    lastError: null,
+    processingOwner: null,
+    processingStartedAt: null,
+    sentAt: null,
+    retryOfId: current.id,
+    createdAt: now,
+    updatedAt: now,
+  });
+  if (!cloned) {
+    return res.status(500).json({ error: "delivery_retry_failed" });
+  }
+  appendWebhookQueuedAuditLog({
+    scope: cloned.scope,
+    delivery: cloned,
+    req,
+  });
+  void runWebhookDeliveryWorkerTick();
+  return res.json({
+    ok: true,
+    delivery: toWebhookDeliveryApiResponse(cloned),
+  });
 });
 
 app.get("/api/public/settings", (req, res) => {
@@ -16539,15 +17752,20 @@ httpServer.listen(listenPort, () => {
     void enqueueAnalyticsCompactionJob({ trigger: "interval" }).catch(() => undefined);
   }, ANALYTICS_COMPACTION_INTERVAL_MS);
   analyticsCompactionState.timer.unref?.();
-  if (isOpsAlertsWebhookEnabled) {
-    operationalAlertsWebhookState.timer = setInterval(() => {
-      void runOperationalAlertsWebhookTick();
-    }, OPS_ALERTS_WEBHOOK_INTERVAL_MS);
-    operationalAlertsWebhookState.timer.unref?.();
-    setImmediate(() => {
-      void runOperationalAlertsWebhookTick();
-    });
-  }
+  webhookDeliveryWorkerState.timer = setInterval(() => {
+    void runWebhookDeliveryWorkerTick();
+  }, WEBHOOK_WORKER_POLL_INTERVAL_MS);
+  webhookDeliveryWorkerState.timer.unref?.();
+  setImmediate(() => {
+    void runWebhookDeliveryWorkerTick();
+  });
+  operationalAlertsWebhookState.timer = setInterval(() => {
+    void runOperationalAlertsSchedulerTick();
+  }, OPERATIONAL_ALERTS_SCHEDULER_POLL_MS);
+  operationalAlertsWebhookState.timer.unref?.();
+  setImmediate(() => {
+    void runOperationalAlertsSchedulerTick();
+  });
 });
 
 httpServer.on("error", (error) => {
@@ -16568,6 +17786,10 @@ httpServer.on("close", () => {
   if (analyticsCompactionState.timer) {
     clearInterval(analyticsCompactionState.timer);
     analyticsCompactionState.timer = null;
+  }
+  if (webhookDeliveryWorkerState.timer) {
+    clearInterval(webhookDeliveryWorkerState.timer);
+    webhookDeliveryWorkerState.timer = null;
   }
   if (operationalAlertsWebhookState.timer) {
     clearInterval(operationalAlertsWebhookState.timer);

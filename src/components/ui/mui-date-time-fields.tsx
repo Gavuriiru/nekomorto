@@ -38,10 +38,10 @@ const muiTextFieldSx = {
       borderColor: "hsl(var(--input))",
     },
     "&.Mui-focused": {
-      boxShadow: "0 0 0 2px hsl(var(--ring))",
+      boxShadow: "inset 0 0 0 1px hsl(var(--primary))",
     },
     "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-      borderColor: "hsl(var(--ring))",
+      borderColor: "hsl(var(--primary))",
       borderWidth: "1px",
     },
     "&.Mui-disabled": {
