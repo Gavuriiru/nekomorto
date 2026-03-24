@@ -21,6 +21,7 @@ import { toast } from "@/components/ui/use-toast";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
+import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 
 type CommentTargetType = "post" | "project" | "chapter";
 
@@ -90,18 +91,22 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
   const [replyTo, setReplyTo] = useState<PublicComment | null>(null);
   const [form, setForm] = useState({ name: "", email: "", content: "", website: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{
-    name: string;
-    email?: string;
-    permissions?: string[];
-  } | null>(null);
-  const [canModerate, setCanModerate] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<PublicComment | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { currentUser } = usePublicCurrentUser();
 
   const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
   const location = useLocation();
   const lastScrolledRef = useRef<string | null>(null);
+  const canModerate = useMemo(() => {
+    const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
+    return (
+      permissions.includes("*") ||
+      permissions.includes("comentarios") ||
+      permissions.includes("posts") ||
+      permissions.includes("projetos")
+    );
+  }, [currentUser?.permissions]);
 
   const fetchComments = useCallback(
     async (options: FetchCommentsOptions = {}) => {
@@ -164,45 +169,15 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
   }, [comments, location.hash]);
 
   useEffect(() => {
-    let isActive = true;
-    const loadMe = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/me", { auth: true });
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        const user = data?.user ?? data;
-        if (!user) {
-          return;
-        }
-        if (!isActive) {
-          return;
-        }
-        const permissions = Array.isArray(user.permissions) ? user.permissions : [];
-        const moderator =
-          permissions.includes("*") ||
-          permissions.includes("comentarios") ||
-          permissions.includes("posts") ||
-          permissions.includes("projetos");
-        setCurrentUser({ name: user.name || "", email: user.email || "", permissions });
-        setCanModerate(moderator);
-        if (moderator) {
-          setForm((prev) => ({
-            ...prev,
-            name: user.name || prev.name,
-            email: user.email || prev.email,
-          }));
-        }
-      } catch {
-        // ignore
-      }
-    };
-    void loadMe();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
+    if (!canModerate) {
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      name: currentUser?.name || prev.name,
+      email: currentUser?.email || prev.email,
+    }));
+  }, [canModerate, currentUser?.email, currentUser?.name]);
 
   const handleSubmit = async () => {
     if (!form.name.trim() || !form.content.trim()) {

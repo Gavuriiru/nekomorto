@@ -1,5 +1,4 @@
 import {
-  Input,
   Select,
   SelectContent,
   SelectItem,
@@ -215,7 +214,7 @@ const DashboardReaderPresetCard = ({
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={PROJECT_READER_PROGRESS_STYLES.DEFAULT}>PadrÃ£o</SelectItem>
+                <SelectItem value={PROJECT_READER_PROGRESS_STYLES.DEFAULT}>Padrão</SelectItem>
                 <SelectItem value={PROJECT_READER_PROGRESS_STYLES.HIDDEN}>Oculto</SelectItem>
               </SelectContent>
             </Select>
@@ -245,52 +244,6 @@ const DashboardReaderPresetCard = ({
                 <SelectItem value={PROJECT_READER_PROGRESS_POSITIONS.RIGHT}>Direita</SelectItem>
               </SelectContent>
             </Select>
-          </DashboardFieldStack>
-
-          <DashboardFieldStack>
-            <Label htmlFor={`reader-preview-limit-${presetMeta.key}`}>Limite de preview</Label>
-            <Input
-              id={`reader-preview-limit-${presetMeta.key}`}
-              type="number"
-              min="1"
-              value={preset.previewLimit ?? ""}
-              placeholder="Opcional"
-              onChange={(event) =>
-                applyUpdate({
-                  previewLimit: event.target.value.trim()
-                    ? Math.max(1, Number(event.target.value))
-                    : null,
-                })
-              }
-            />
-          </DashboardFieldStack>
-
-          <DashboardFieldStack>
-            <Label htmlFor={`reader-purchase-url-${presetMeta.key}`}>URL de compra</Label>
-            <Input
-              id={`reader-purchase-url-${presetMeta.key}`}
-              value={preset.purchaseUrl || ""}
-              placeholder="https://..."
-              onChange={(event) =>
-                applyUpdate({
-                  purchaseUrl: event.target.value,
-                })
-              }
-            />
-          </DashboardFieldStack>
-
-          <DashboardFieldStack>
-            <Label htmlFor={`reader-purchase-price-${presetMeta.key}`}>Preço exibido</Label>
-            <Input
-              id={`reader-purchase-price-${presetMeta.key}`}
-              value={preset.purchasePrice || ""}
-              placeholder="R$ 0,00"
-              onChange={(event) =>
-                applyUpdate({
-                  purchasePrice: event.target.value,
-                })
-              }
-            />
           </DashboardFieldStack>
         </div>
 

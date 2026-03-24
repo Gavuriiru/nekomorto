@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import ProjectReading from "@/pages/ProjectReading";
@@ -198,5 +198,60 @@ describe("ProjectReading bootstrap-first", () => {
     expect(calledEndpoints).not.toContain("/api/public/projects/projeto-teste");
     expect(calledEndpoints).not.toContain("/api/public/me");
     expect(screen.queryByTestId("comments-section")).not.toBeInTheDocument();
+  });
+
+  it("corrige o estado de permissao quando o bootstrap inicial vem anonimo", async () => {
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (
+          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+          method === "GET"
+        ) {
+          return await new Promise<Response>(() => undefined);
+        }
+        if (endpoint === "/api/public/me" && method === "GET") {
+          return mockJsonResponse(true, {
+            user: {
+              id: "user-1",
+              name: "Admin",
+              username: "admin",
+              permissions: ["projetos"],
+            },
+          });
+        }
+        if (endpoint === "/api/public/analytics/event" && method === "POST") {
+          return mockJsonResponse(true, { ok: true });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
+
+    (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC_ME__ = null;
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("heading", { name: /Cap.*tulo Bootstrap/i })).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "",
+        "/api/public/me",
+        expect.objectContaining({ auth: true, cache: "no-store" }),
+      );
+    });
+    expect(await screen.findByRole("link", { name: /Editar cap.tulo/i })).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
+    );
   });
 });

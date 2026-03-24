@@ -52,6 +52,7 @@ import { formatBytesCompact } from "@/lib/file-size";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import { buildProjectPublicReadingHref } from "@/lib/project-editor-routes";
@@ -69,7 +70,7 @@ const ProjectPage = () => {
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
   const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>({});
-  const [currentUser, setCurrentUser] = useState<{ permissions?: string[] } | null>(null);
+  const { currentUser } = usePublicCurrentUser();
   const [episodePage, setEpisodePage] = useState(1);
   const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
   const { settings } = useSiteSettings();
@@ -184,34 +185,6 @@ const ProjectPage = () => {
     };
 
     loadMeta();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
-
-  useEffect(() => {
-    let isActive = true;
-    const loadCurrentUser = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/me", { auth: true });
-        if (!response.ok) {
-          if (isActive) {
-            setCurrentUser(null);
-          }
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setCurrentUser(data?.user ?? null);
-        }
-      } catch {
-        if (isActive) {
-          setCurrentUser(null);
-        }
-      }
-    };
-
-    loadCurrentUser();
     return () => {
       isActive = false;
     };

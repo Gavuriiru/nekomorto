@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { dashboardMotionDelays } from "@/components/dashboard/dashboard-motion";
 import DashboardSettings from "@/pages/DashboardSettings";
 import { defaultSettings } from "@/hooks/site-settings-context";
+import type { SiteSettings } from "@/types/site-settings";
 
 const { apiFetchMock, navigateMock, refreshMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
@@ -59,6 +60,9 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
+const cloneSettings = (value: SiteSettings): SiteSettings =>
+  JSON.parse(JSON.stringify(value)) as SiteSettings;
+
 const getPutCalls = () =>
   apiFetchMock.mock.calls.filter((call) => {
     const options = (call[2] || {}) as RequestInit;
@@ -82,12 +86,15 @@ const renderDashboardSettings = () =>
     </MemoryRouter>,
   );
 
+let settingsResponse: SiteSettings;
+
 describe("DashboardSettings autosave", () => {
   beforeEach(() => {
     window.localStorage.clear();
     apiFetchMock.mockReset();
     navigateMock.mockReset();
     refreshMock.mockClear();
+    settingsResponse = cloneSettings(defaultSettings);
 
     apiFetchMock.mockImplementation(async (_base, path, options) => {
       const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
@@ -95,7 +102,7 @@ describe("DashboardSettings autosave", () => {
         return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
       }
       if (path === "/api/settings" && method === "GET") {
-        return mockJsonResponse(true, { settings: defaultSettings });
+        return mockJsonResponse(true, { settings: settingsResponse });
       }
       if (path === "/api/public/tag-translations" && method === "GET") {
         return mockJsonResponse(true, {
@@ -132,7 +139,7 @@ describe("DashboardSettings autosave", () => {
       }
       if (path === "/api/settings" && method === "PUT") {
         const body = JSON.parse(String((options as RequestInit).body || "{}"));
-        return mockJsonResponse(true, { settings: body.settings || defaultSettings });
+        return mockJsonResponse(true, { settings: body.settings || settingsResponse });
       }
       if (path === "/api/tag-translations" && method === "PUT") {
         const body = JSON.parse(String((options as RequestInit).body || "{}"));
@@ -226,6 +233,38 @@ describe("DashboardSettings autosave", () => {
     expect(putCalls[0][1]).toBe("/api/settings");
     const payload = JSON.parse(String(((putCalls[0][2] || {}) as RequestInit).body || "{}"));
     expect(payload?.settings?.theme?.useAccentInProgressCard).toBe(true);
+  }, 10000);
+
+  it("limpa campos legados do leitor no payload de configuracoes", async () => {
+    settingsResponse = cloneSettings(defaultSettings);
+    settingsResponse.reader.projectTypes.manga.previewLimit = 3;
+    settingsResponse.reader.projectTypes.manga.purchaseUrl = "https://example.com/manga";
+    settingsResponse.reader.projectTypes.manga.purchasePrice = "R$ 9,90";
+    settingsResponse.reader.projectTypes.webtoon.previewLimit = 5;
+    settingsResponse.reader.projectTypes.webtoon.purchaseUrl = "https://example.com/webtoon";
+    settingsResponse.reader.projectTypes.webtoon.purchasePrice = "R$ 14,90";
+
+    renderDashboardSettings();
+    await screen.findByRole("heading", { name: /Painel/i });
+
+    apiFetchMock.mockClear();
+    const communityCardTitleInput = await screen.findByLabelText(/Título do card/i);
+    fireEvent.change(communityCardTitleInput, { target: { value: "Sanitizar leitor" } });
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    const putCalls = getPutCalls();
+    expect(putCalls).toHaveLength(1);
+    const payload = JSON.parse(String(((putCalls[0][2] || {}) as RequestInit).body || "{}"));
+    expect(payload?.settings?.reader?.projectTypes?.manga?.previewLimit).toBeNull();
+    expect(payload?.settings?.reader?.projectTypes?.manga?.purchaseUrl).toBe("");
+    expect(payload?.settings?.reader?.projectTypes?.manga?.purchasePrice).toBe("");
+    expect(payload?.settings?.reader?.projectTypes?.webtoon?.previewLimit).toBeNull();
+    expect(payload?.settings?.reader?.projectTypes?.webtoon?.purchaseUrl).toBe("");
+    expect(payload?.settings?.reader?.projectTypes?.webtoon?.purchasePrice).toBe("");
   }, 10000);
 
   it("editar tradução dispara apenas PUT /api/tag-translations", async () => {

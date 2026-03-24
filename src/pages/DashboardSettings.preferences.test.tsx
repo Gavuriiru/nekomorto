@@ -320,7 +320,7 @@ describe("DashboardSettings query sync", () => {
     ).toBeInTheDocument();
   });
 
-  it("simplifica a aba Leitor e remove o resumo introdutório e campos comerciais", async () => {
+  it("simplifica a aba Leitor e remove o resumo introdutório e campos legados", async () => {
     setupApiMock();
 
     render(
@@ -337,7 +337,8 @@ describe("DashboardSettings query sync", () => {
     expect(screen.getByRole("heading", { name: /^Webtoon$/i })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /Presets globais do leitor/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Precedência: preset global do tipo do projeto/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Limite de preview/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/URL de compra/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/^Preço$/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Preço exibido/i)).not.toBeInTheDocument();
   });
 });

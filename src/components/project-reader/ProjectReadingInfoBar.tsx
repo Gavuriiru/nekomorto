@@ -160,7 +160,13 @@ const ProjectReadingInfoBar = ({
         </div>
 
         {actions ? (
-          <div className="flex w-full shrink-0 flex-wrap items-start justify-start gap-2 md:w-auto md:justify-end md:self-end">
+          <div
+            data-testid="project-reading-actions"
+            className={cn(
+              "flex w-full shrink-0 flex-wrap items-center justify-start gap-2",
+              isReaderVariant ? "md:w-auto md:justify-end md:self-start" : "md:w-auto md:justify-end md:self-end",
+            )}
+          >
             {actions}
           </div>
         ) : null}

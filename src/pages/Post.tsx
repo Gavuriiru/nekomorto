@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useDeferredVisibility } from "@/hooks/use-deferred-visibility";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -20,8 +21,6 @@ import { formatDateTime } from "@/lib/date";
 import { extractFirstImageFromPostContent } from "@/lib/post-cover";
 import {
   readWindowPublicBootstrap,
-  readWindowPublicBootstrapCurrentUser,
-  type PublicBootstrapCurrentUser,
 } from "@/lib/public-bootstrap-global";
 import { estimateReadTime } from "@/lib/post-content";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
@@ -142,9 +141,7 @@ const Post = () => {
   const [bootstrapData] = useState<PublicBootstrapPayload | null>(() =>
     readWindowPublicBootstrap(),
   );
-  const [currentUser] = useState<PublicBootstrapCurrentUser | null>(() =>
-    readWindowPublicBootstrapCurrentUser(),
-  );
+  const { currentUser } = usePublicCurrentUser();
   const bootstrapPost = useMemo(
     () => resolveBootstrapPost(bootstrapData, slug),
     [bootstrapData, slug],

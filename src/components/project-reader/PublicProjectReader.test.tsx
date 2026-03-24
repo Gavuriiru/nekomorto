@@ -827,6 +827,41 @@ describe("PublicProjectReader", () => {
     });
   });
 
+  it("renders the hero actions in the full-bleed reader and keeps them out of the sidebar", async () => {
+    renderReader(
+      { imageFit: "both" },
+      {
+        editHref: "/dashboard/projetos/projeto-teste/capitulos/1",
+        editActionLabel: "Editar extra",
+      },
+    );
+
+    const infoBar = screen.getByTestId("project-reading-info-bar");
+    const actions = within(infoBar).getByTestId("project-reading-actions");
+
+    expect(within(actions).getByRole("link", { name: /Voltar ao projeto/i })).toHaveAttribute(
+      "href",
+      "/projeto/projeto-teste",
+    );
+    expect(within(actions).getByRole("link", { name: /Editar extra/i })).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/projeto-teste/capitulos/1",
+    );
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+    const sidebar = await screen.findByTestId("project-reader-sidebar");
+
+    expect(
+      within(sidebar).queryByRole("link", { name: /Voltar ao projeto/i }),
+    ).not.toBeInTheDocument();
+    expect(within(sidebar).queryByRole("link", { name: /Editar extra/i })).not.toBeInTheDocument();
+    expect(within(sidebar).queryByText(/Navegar pelas/i)).not.toBeInTheDocument();
+    expect(
+      within(sidebar).queryByRole("button", { name: /Cap.tulo anterior/i }),
+    ).not.toBeInTheDocument();
+    expect(within(sidebar).getByRole("button", { name: /Pr.ximo cap.tulo/i })).toBeInTheDocument();
+  });
+
   it("uses the visual viewport in cinema mode and keeps the stage as tall as the shell", async () => {
     setVisualViewport({ height: 640 });
     renderReader({ imageFit: "both" }, { chromeMode: "cinema" });
@@ -861,6 +896,29 @@ describe("PublicProjectReader", () => {
       expect(shell.style.height).toBe("640px");
       expect(stage.style.height).toBe("640px");
     });
+  });
+
+  it("renders the hero actions in cinema mode", () => {
+    renderReader(
+      { imageFit: "both" },
+      {
+        chromeMode: "cinema",
+        editHref: "/dashboard/projetos/projeto-teste/capitulos/1",
+        editActionLabel: "Editar capítulo",
+      },
+    );
+
+    const infoBar = screen.getByTestId("project-reading-info-bar");
+    const actions = within(infoBar).getByTestId("project-reading-actions");
+
+    expect(within(actions).getByRole("link", { name: /Voltar ao projeto/i })).toHaveAttribute(
+      "href",
+      "/projeto/projeto-teste",
+    );
+    expect(within(actions).getByRole("link", { name: /Editar cap.tulo/i })).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/projeto-teste/capitulos/1",
+    );
   });
 
   it("keeps the default-mode stage tied to the visible viewport even with top chrome above it", async () => {
@@ -2905,6 +2963,54 @@ describe("PublicProjectReader", () => {
     await waitFor(() => {
       expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
     });
+  });
+
+  it("closes the menu after using previous and next chapter actions", async () => {
+    const onNavigateChapter = vi.fn();
+    const firstRender = renderReader(
+      { imageFit: "both" },
+      {
+        onNavigateChapter,
+      },
+      { initialEntries: ["/projeto/projeto-teste/leitura/1"] },
+    );
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+    const sidebar = await screen.findByTestId("project-reader-sidebar");
+    expect(
+      within(sidebar).queryByRole("button", { name: /Cap.tulo anterior/i }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(within(sidebar).getByRole("button", { name: /Pr.ximo cap.tulo/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
+    });
+    expect(onNavigateChapter).toHaveBeenCalledWith("/projeto/projeto-teste/leitura/2");
+
+    firstRender.unmount();
+
+    const secondRender = renderReader(
+      { imageFit: "both" },
+      {
+        onNavigateChapter,
+        currentChapterValue: "2",
+      },
+      { initialEntries: ["/projeto/projeto-teste/leitura/2"] },
+    );
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+    const reopenedSidebar = await screen.findByTestId("project-reader-sidebar");
+    expect(
+      within(reopenedSidebar).queryByRole("button", { name: /Pr.ximo cap.tulo/i }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(within(reopenedSidebar).getByRole("button", { name: /Cap.tulo anterior/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
+    });
+    expect(onNavigateChapter).toHaveBeenLastCalledWith("/projeto/projeto-teste/leitura/1");
+
+    secondRender.unmount();
   });
 
   it.skip("shows the site header behavior options in the reader menu", async () => {

@@ -84,6 +84,7 @@ type PublicProjectReaderBaseProps = {
   baseConfig: Record<string, unknown>;
   currentUserId?: string | null;
   editHref?: string;
+  editActionLabel?: string;
   chapterOptions: ReaderChapterOption[];
   currentChapterValue: string;
   onNavigateChapter: (href: string) => void;
@@ -105,8 +106,6 @@ const SIDEBAR_SECTION_HEADER_CLASS_NAME = "flex items-center gap-2.5";
 const SIDEBAR_SECTION_ICON_CLASS_NAME = "h-[0.95rem] w-[0.95rem] shrink-0 text-primary/80";
 const SIDEBAR_SELECT_TRIGGER_CLASS_NAME =
   "h-10 rounded-2xl border-border/55 bg-background/70 text-left shadow-sm";
-const SIDEBAR_ACTION_BUTTON_CLASS_NAME =
-  "h-10 w-full justify-start rounded-2xl border-border/55 bg-background/70 px-4 text-left shadow-sm";
 const PROGRESS_EDGE_OFFSET_PX = 12;
 const HIDDEN_PROGRESS_ZONE_SIZE_PX = 48;
 const HIDDEN_PROGRESS_HIDE_DELAY_MS = 180;
@@ -580,6 +579,7 @@ const PublicProjectReaderContent = ({
   volume,
   pages,
   editHref,
+  editActionLabel,
   chapterOptions,
   currentChapterValue,
   onNavigateChapter,
@@ -1775,6 +1775,18 @@ const PublicProjectReaderContent = ({
     goToSlot(activeSlotIndex + 1);
   }, [activeSlotIndex, goToSlot, paginated]);
 
+  const currentChapterOptionIndex = useMemo(
+    () => chapterOptions.findIndex((option) => option.value === currentChapterValue),
+    [chapterOptions, currentChapterValue],
+  );
+  const previousChapterOption =
+    currentChapterOptionIndex > 0 ? chapterOptions[currentChapterOptionIndex - 1] : null;
+  const nextChapterOption =
+    currentChapterOptionIndex >= 0 && currentChapterOptionIndex < chapterOptions.length - 1
+      ? chapterOptions[currentChapterOptionIndex + 1]
+      : null;
+  const showChapterNavigationActions = Boolean(previousChapterOption || nextChapterOption);
+
   const goToPage = useCallback(
     (pageIndex: number) => {
       const clampedPageIndex = clampIndex(pageIndex, Math.max(originalPages.length, 1));
@@ -2734,6 +2746,17 @@ const PublicProjectReaderContent = ({
     [revealMenuTrigger, scheduleMenuTriggerHide, supportsHoverMenuActivation],
   );
 
+  const navigateChapterByOption = useCallback(
+    (option: ReaderChapterOption | null) => {
+      if (!option) {
+        return;
+      }
+      closeMenu();
+      onNavigateChapter(option.href);
+    },
+    [closeMenu, onNavigateChapter],
+  );
+
   const handleMenuButtonClick = useCallback(() => {
     if (isMenuOpen) {
       closeMenu();
@@ -2775,6 +2798,38 @@ const PublicProjectReaderContent = ({
     },
     [revealMenuTrigger, supportsHoverMenuActivation],
   );
+
+  const heroActions = useMemo(() => {
+    const resolvedEditActionLabel = String(editActionLabel || "").trim() || "Editar capítulo";
+
+    return (
+      <>
+        <Button
+          asChild
+          variant="outline"
+          className="h-10 rounded-full border-border/60 bg-background/75 px-4 shadow-sm backdrop-blur-sm"
+        >
+          <Link to={backHref}>
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            <span>Voltar ao projeto</span>
+          </Link>
+        </Button>
+
+        {editHref ? (
+          <Button
+            asChild
+            variant="outline"
+            className="h-10 rounded-full border-border/60 bg-background/75 px-4 shadow-sm backdrop-blur-sm"
+          >
+            <Link to={editHref}>
+              <PencilLine className="h-4 w-4" aria-hidden="true" />
+              <span>{resolvedEditActionLabel}</span>
+            </Link>
+          </Button>
+        ) : null}
+      </>
+    );
+  }, [backHref, editActionLabel, editHref]);
 
   const sidebarContent = useMemo(
     () => (
@@ -2838,6 +2893,41 @@ const PublicProjectReaderContent = ({
                   </SelectContent>
                 </Select>
               </div>
+
+              {showChapterNavigationActions ? (
+                <div
+                  className={cn(
+                    "grid gap-2.5",
+                    previousChapterOption && nextChapterOption ? "grid-cols-2" : "grid-cols-1",
+                  )}
+                >
+                  {previousChapterOption ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 w-full rounded-2xl border-border/55 bg-background/70 px-4 shadow-sm"
+                      onClick={() => navigateChapterByOption(previousChapterOption)}
+                      aria-label="Capítulo anterior"
+                    >
+                      <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                      <span>Anterior</span>
+                    </Button>
+                  ) : null}
+
+                  {nextChapterOption ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 w-full rounded-2xl border-border/55 bg-background/70 px-4 shadow-sm"
+                      onClick={() => navigateChapterByOption(nextChapterOption)}
+                      aria-label="Próximo capítulo"
+                    >
+                      <span>Próxima</span>
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -3009,77 +3099,20 @@ const PublicProjectReaderContent = ({
             </div>
           </div>
 
-          <div className={cn(SIDEBAR_SECTION_CLASS_NAME, "space-y-2.5")}>
-            <div className={SIDEBAR_SECTION_HEADER_CLASS_NAME}>
-              <PencilLine className={SIDEBAR_SECTION_ICON_CLASS_NAME} aria-hidden="true" />
-              <p className="text-sm font-semibold leading-none text-foreground">Ações rápidas</p>
-            </div>
-            <div className="space-y-2.5">
-              <Button asChild variant="outline" className={SIDEBAR_ACTION_BUTTON_CLASS_NAME}>
-                <Link to={backHref}>
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                  <span>Voltar ao projeto</span>
-                </Link>
-              </Button>
-
-              {editHref ? (
-                <Button asChild variant="outline" className={SIDEBAR_ACTION_BUTTON_CLASS_NAME}>
-                  <Link to={editHref}>
-                    <PencilLine className="h-4 w-4" aria-hidden="true" />
-                    <span>Editar capítulo</span>
-                  </Link>
-                </Button>
-              ) : null}
-
-              {paginated ? (
-                <div className="grid grid-cols-2 gap-2.5">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-10 w-full rounded-2xl border-border/55 bg-background/70 px-4 shadow-sm"
-                    onClick={() => {
-                      goToPrevious();
-                      closeMenu();
-                    }}
-                    aria-label="Página anterior"
-                  >
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    <span>Anterior</span>
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-10 w-full rounded-2xl border-border/55 bg-background/70 px-4 shadow-sm"
-                    onClick={() => {
-                      goToNext();
-                      closeMenu();
-                    }}
-                    aria-label="Próxima página"
-                  >
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                    <span>Próxima</span>
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          </div>
       </div>
     ),
     [
       activePageIndex,
-      backHref,
       chapterOptions,
       closeMenu,
       currentChapterValue,
-      editHref,
-      goToNext,
       goToPage,
-      goToPrevious,
+      navigateChapterByOption,
+      nextChapterOption,
       onNavigateChapter,
       originalPages.length,
       pageItems,
-      paginated,
+      previousChapterOption,
       resolvedConfig.background,
       resolvedConfig.direction,
       resolvedConfig.firstPageSingle,
@@ -3089,6 +3122,7 @@ const PublicProjectReaderContent = ({
       resolvedConfig.progressStyle,
       resolvedConfig.siteHeaderVariant,
       siteHeaderVariant,
+      showChapterNavigationActions,
       updateConfig,
     ],
   );
@@ -3291,6 +3325,7 @@ const PublicProjectReaderContent = ({
           synopsis={synopsis}
           volume={volume}
           pageSummary={pageSummary}
+          actions={heroActions}
           variant={isCinemaMode ? "reader-cinema" : "reader-full-bleed"}
         />
       </div>

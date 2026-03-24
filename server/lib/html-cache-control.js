@@ -1,6 +1,7 @@
 export const HTML_CACHE_CONTROL_NO_STORE = "no-store";
 export const HTML_CACHE_CONTROL_PRIVATE_REVALIDATE =
   "private, no-cache, max-age=0, must-revalidate";
+export const HTML_VARY_COOKIE = "Cookie";
 
 const normalizePathname = (value) => {
   if (typeof value !== "string") {
@@ -44,4 +45,27 @@ export const resolveHtmlCacheControl = ({ pathname, isAuthenticated } = {}) => {
   }
 
   return HTML_CACHE_CONTROL_PRIVATE_REVALIDATE;
+};
+
+const normalizeVaryTokens = (value) =>
+  String(value || "")
+    .split(",")
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+export const resolveHtmlVaryHeader = (currentValue) => {
+  const tokens = normalizeVaryTokens(currentValue);
+  if (tokens.some((token) => token.toLowerCase() === HTML_VARY_COOKIE.toLowerCase())) {
+    return tokens.join(", ");
+  }
+  return [...tokens, HTML_VARY_COOKIE].join(", ");
+};
+
+export const applyHtmlCachingHeaders = (res, options = {}) => {
+  if (!res || typeof res.setHeader !== "function") {
+    return;
+  }
+  res.setHeader("Cache-Control", resolveHtmlCacheControl(options));
+  const currentVary = typeof res.getHeader === "function" ? res.getHeader("Vary") : "";
+  res.setHeader("Vary", resolveHtmlVaryHeader(currentVary));
 };

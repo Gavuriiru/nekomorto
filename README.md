@@ -619,7 +619,7 @@ Triggers:
 - `push` para `main`
 - `workflow_dispatch` (com input opcional `image_tag`)
 
-Secrets necessarios no repositorio:
+Secrets necessarios no ambiente `production` do GitHub (`Settings > Environments > production`):
 
 - `PROD_HOST`
 - `PROD_PORT` (opcional, default `22`)

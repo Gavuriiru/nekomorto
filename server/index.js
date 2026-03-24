@@ -60,7 +60,7 @@ import {
 } from "./lib/html-bootstrap.js";
 import {
   HTML_CACHE_CONTROL_PRIVATE_REVALIDATE,
-  resolveHtmlCacheControl,
+  applyHtmlCachingHeaders,
 } from "./lib/html-cache-control.js";
 import { createIdempotencyStore } from "./lib/idempotency-store.js";
 import { createJobQueue } from "./lib/job-queue.js";
@@ -2081,13 +2081,10 @@ const sendHtml = async (req, res, html) => {
   }
   const nonce = typeof res.locals?.cspNonce === "string" ? res.locals.cspNonce : "";
   const body = nonce ? injectNonceIntoHtmlScripts(nextHtml, nonce) : nextHtml;
-  res.setHeader(
-    "Cache-Control",
-    resolveHtmlCacheControl({
-      pathname: requestPath,
-      isAuthenticated: Boolean(req?.session?.user),
-    }),
-  );
+  applyHtmlCachingHeaders(res, {
+    pathname: requestPath,
+    isAuthenticated: Boolean(req?.session?.user),
+  });
   return res.type("html").send(body);
 };
 

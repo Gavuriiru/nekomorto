@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -161,6 +161,59 @@ describe("Post bootstrap-first", () => {
     expect(calledEndpoints).not.toContain("/api/link-types");
     expect(screen.queryByTestId("project-embed-card")).not.toBeInTheDocument();
     expect(screen.queryByTestId("comments-section")).not.toBeInTheDocument();
+  });
+
+  it("corrige o estado de permissao quando o bootstrap inicial vem anonimo", async () => {
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
+          return mockJsonResponse(true, { views: 11 });
+        }
+        if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
+          return await new Promise<Response>(() => undefined);
+        }
+        if (endpoint === "/api/public/me" && method === "GET") {
+          return mockJsonResponse(true, {
+            user: {
+              id: "user-1",
+              name: "Admin",
+              username: "admin",
+              permissions: ["posts"],
+            },
+          });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
+
+    (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC_ME__ = null;
+
+    render(
+      <MemoryRouter>
+        <Post />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Post Bootstrap" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Editar postagem" })).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "",
+        "/api/public/me",
+        expect.objectContaining({ auth: true, cache: "no-store" }),
+      );
+    });
+    expect(await screen.findByRole("link", { name: "Editar postagem" })).toHaveAttribute(
+      "href",
+      "/dashboard/posts?edit=post-1",
+    );
   });
 
   afterEach(() => {

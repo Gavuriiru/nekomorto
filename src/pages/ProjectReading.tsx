@@ -12,14 +12,13 @@ import type { Project } from "@/data/projects";
 import { useDeferredVisibility } from "@/hooks/use-deferred-visibility";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { cn } from "@/lib/utils";
 import {
   readWindowPublicBootstrap,
-  readWindowPublicBootstrapCurrentUser,
-  type PublicBootstrapCurrentUser,
 } from "@/lib/public-bootstrap-global";
 import {
   buildDashboardProjectChapterEditorHref,
@@ -100,9 +99,7 @@ const ProjectReading = () => {
   const [bootstrapData] = useState<PublicBootstrapPayload | null>(() =>
     readWindowPublicBootstrap(),
   );
-  const [currentUser] = useState<PublicBootstrapCurrentUser | null>(() =>
-    readWindowPublicBootstrapCurrentUser(),
-  );
+  const { currentUser } = usePublicCurrentUser();
   const bootstrapProject = useMemo(
     () => resolveBootstrapProject(bootstrapData, slug),
     [bootstrapData, slug],
@@ -651,6 +648,11 @@ const ProjectReading = () => {
       ? chapterBadgeLabel
       : `Capítulo ${chapterData?.number ?? chapterNumber}`);
 
+  const chapterEditActionLabel =
+    chapterContent?.entryKind === "extra" || chapterData?.entryKind === "extra"
+      ? "Editar extra"
+      : "Editar capítulo";
+
   const shouldRenderMangaSiteHeader = isImageReader && isMangaReader;
   const imageReaderProps = {
     projectTitle: project.title,
@@ -663,6 +665,7 @@ const ProjectReading = () => {
     baseConfig: chapterReaderConfigResolved,
     currentUserId,
     editHref: canEditChapter ? editChapterHref : undefined,
+    editActionLabel: chapterEditActionLabel,
     chapterOptions,
     currentChapterValue,
     onNavigateChapter: (href: string) => navigate(href),
@@ -703,24 +706,7 @@ const ProjectReading = () => {
                   : "min-h-0 flex-1",
             )}
           >
-            <PublicProjectReader
-              projectTitle={project.title}
-              projectType={project.type || (isLightNovel ? "Light Novel" : "Mangá")}
-              chapterTitle={chapterHeading}
-              chapterLabel={chapterBadgeLabel}
-              synopsis={resolvedChapterSynopsis}
-              volume={activeVolume}
-              pages={chapterPages}
-              baseConfig={chapterReaderConfigResolved}
-              currentUserId={currentUserId}
-              editHref={canEditChapter ? editChapterHref : undefined}
-              chapterOptions={chapterOptions}
-              currentChapterValue={currentChapterValue}
-              onNavigateChapter={(href) => navigate(href)}
-              backHref={`/projeto/${encodeURIComponent(project.id)}`}
-              chromeMode={shouldRenderMangaSiteHeader ? "default" : "cinema"}
-              preferences={imageReaderPreferences}
-            />
+            <PublicProjectReader {...imageReaderProps} />
           </div>
         </div>
       ) : (
@@ -742,11 +728,7 @@ const ProjectReading = () => {
                   <Button asChild variant="outline" className="rounded-full">
                     <Link to={editChapterHref}>
                       <PencilLine className="h-4 w-4" aria-hidden="true" />
-                      <span>
-                        {chapterContent?.entryKind === "extra" || chapterData?.entryKind === "extra"
-                          ? "Editar extra"
-                          : "Editar capítulo"}
-                      </span>
+                      <span>{chapterEditActionLabel}</span>
                     </Link>
                   </Button>
                 ) : null

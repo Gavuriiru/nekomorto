@@ -147,7 +147,7 @@ Trigger:
 
 - push em `main`
 
-Secrets obrigatorios:
+Secrets obrigatorios no ambiente `production` do GitHub:
 
 - `PROD_HOST`
 - `PROD_PORT` (opcional; default 22)

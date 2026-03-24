@@ -558,6 +558,23 @@ const normalizeDefaultShareImageSettings = (value: SiteSettings): SiteSettings =
   };
 };
 
+const sanitizeReaderPresetForDashboardSave = (
+  preset: SiteSettings["reader"]["projectTypes"][ReaderProjectTypeKey],
+  projectType: ReaderProjectTypeKey,
+) => ({
+  ...normalizeProjectReaderConfig(preset, { projectType }),
+  previewLimit: null,
+  purchaseUrl: "",
+  purchasePrice: "",
+});
+
+const sanitizeReaderProjectTypesForDashboardSave = (
+  projectTypes: SiteSettings["reader"]["projectTypes"],
+): SiteSettings["reader"]["projectTypes"] => ({
+  manga: sanitizeReaderPresetForDashboardSave(projectTypes.manga, "manga"),
+  webtoon: sanitizeReaderPresetForDashboardSave(projectTypes.webtoon, "webtoon"),
+});
+
 const DashboardSettings = () => {
   usePageMeta({ title: "Configurações", noIndex: true });
 
@@ -1077,24 +1094,31 @@ const DashboardSettings = () => {
   const saveSettingsResource = useCallback(
     async (snapshot: SiteSettings) => {
       const nextSettings = normalizeDefaultShareImageSettings(snapshot);
-      const socialDiscord = nextSettings.footer.socialLinks.find(
+      const sanitizedSettings: SiteSettings = {
+        ...nextSettings,
+        reader: {
+          ...nextSettings.reader,
+          projectTypes: sanitizeReaderProjectTypesForDashboardSave(nextSettings.reader.projectTypes),
+        },
+      };
+      const socialDiscord = sanitizedSettings.footer.socialLinks.find(
         (link) => String(link.label || "").toLowerCase() === "discord",
       );
       if (socialDiscord?.href) {
-        nextSettings.community.discordUrl = socialDiscord.href;
+        sanitizedSettings.community.discordUrl = socialDiscord.href;
       }
       const response = await apiFetch(apiBase, "/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         auth: true,
-        body: JSON.stringify({ settings: nextSettings }),
+        body: JSON.stringify({ settings: sanitizedSettings }),
       });
       if (!response.ok) {
         throw new Error("save_failed");
       }
       const data = await response.json().catch(() => null);
       const normalizedSettings = normalizeDefaultShareImageSettings(
-        mergeSettings(defaultSettings, data?.settings || nextSettings),
+        mergeSettings(defaultSettings, data?.settings || sanitizedSettings),
       );
       setSettings(normalizedSettings);
       writeDashboardSettingsCache({

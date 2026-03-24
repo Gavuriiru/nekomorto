@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveBranding } from "@/lib/branding";
@@ -27,9 +28,6 @@ import { uiCopy } from "@/lib/ui-copy";
 import type { SearchSuggestion } from "@/types/search-suggestion";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import {
-  asPublicBootstrapCurrentUser,
-  readWindowPublicBootstrap,
-  readWindowPublicBootstrapCurrentUser,
   type PublicBootstrapCurrentUser,
 } from "@/lib/public-bootstrap-global";
 import type { HeaderActionMenusProps } from "@/components/HeaderActionMenus";
@@ -117,13 +115,6 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [shouldRenderActionMenus, setShouldRenderActionMenus] = useState(false);
-  const [hasInlineBootstrapSnapshot] = useState<boolean>(() =>
-    Boolean(readWindowPublicBootstrap()),
-  );
-  const [initialBootstrapUser] = useState<CurrentUser | null>(() =>
-    readWindowPublicBootstrapCurrentUser(),
-  );
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(initialBootstrapUser);
   const [dashboardMenuItems, setDashboardMenuItems] = useState<DashboardMenuItem[]>([]);
   const searchRef = useRef<HTMLDivElement | null>(null);
   const actionsClusterRef = useRef<HTMLDivElement | null>(null);
@@ -133,6 +124,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const isMobile = useIsMobile();
   const { settings } = useSiteSettings();
   const { data: bootstrapData } = usePublicBootstrap();
+  const { currentUser } = usePublicCurrentUser();
   const projects = bootstrapData?.projects || [];
   const posts = bootstrapData?.posts || [];
   const bootstrapMediaVariants = bootstrapData?.mediaVariants || {};
@@ -292,9 +284,6 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   }, [apiBase, hasMinimumSearchQueryLength, isSearchOpen, queryTrimmed]);
 
   const showResults = isSearchOpen && queryTrimmed.length > 0;
-  const shouldRevalidatePublicCurrentUserOnMount =
-    Boolean(initialBootstrapUser) || !hasInlineBootstrapSnapshot;
-
   useEffect(() => {
     if (!isSearchOpen) {
       return;
@@ -428,47 +417,6 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       isActive = false;
     };
   }, [currentUser]);
-
-  useEffect(() => {
-    if (!shouldRevalidatePublicCurrentUserOnMount) {
-      return;
-    }
-    let isActive = true;
-    const loadUser = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/me", { auth: true });
-        if (!isActive) {
-          return;
-        }
-        if (!response.ok) {
-          setCurrentUser(null);
-          return;
-        }
-        const data = await response.json();
-        if (!isActive) {
-          return;
-        }
-        setCurrentUser(asPublicBootstrapCurrentUser(data?.user));
-      } catch {
-        if (!isActive) {
-          return;
-        }
-        // Preserve bootstrap user snapshot on transient network failures.
-      }
-    };
-
-    const cancelIdle = scheduleOnBrowserLoadIdle(
-      () => {
-        void loadUser();
-      },
-      { delayMs: 2500 },
-    );
-
-    return () => {
-      isActive = false;
-      cancelIdle();
-    };
-  }, [apiBase, shouldRevalidatePublicCurrentUserOnMount]);
 
   const dashboardMenuForUser = useMemo(() => {
     if (!currentUser) {

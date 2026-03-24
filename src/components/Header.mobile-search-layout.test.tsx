@@ -206,11 +206,8 @@ describe("Header mobile search layout", () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(scheduleOnBrowserLoadIdleMock).toHaveBeenCalled();
-    });
     expect(getScheduleOnBrowserLoadIdleCallsByDelay(1200)).toHaveLength(0);
-    expect(getScheduleOnBrowserLoadIdleCallsByDelay(2500).length).toBeGreaterThan(0);
+    expect(getScheduleOnBrowserLoadIdleCallsByDelay(2500)).toHaveLength(0);
   });
 
   it("agenda preload de menus em idle no desktop", async () => {
@@ -237,11 +234,8 @@ describe("Header mobile search layout", () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(scheduleOnBrowserLoadIdleMock).toHaveBeenCalled();
-    });
     expect(getScheduleOnBrowserLoadIdleCallsByDelay(1200)).toHaveLength(0);
-    expect(getScheduleOnBrowserLoadIdleCallsByDelay(2500).length).toBeGreaterThan(0);
+    expect(getScheduleOnBrowserLoadIdleCallsByDelay(2500)).toHaveLength(0);
   });
 
   it("aplica gradiente abaixo do header fixo apenas apos scroll", async () => {
@@ -341,7 +335,7 @@ describe("Header mobile search layout", () => {
     expect(apiFetchMock).not.toHaveBeenCalled();
   });
 
-  it("agenda revalidacao de /api/public/me com delay de 2500ms", async () => {
+  it("busca /api/public/me imediatamente quando nao ha bootstrap de usuario", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Header />
@@ -349,22 +343,16 @@ describe("Header mobile search layout", () => {
     );
 
     await waitFor(() => {
-      expect(scheduleOnBrowserLoadIdleMock).toHaveBeenCalled();
-    });
-    expect(scheduleOnBrowserLoadIdleMock).toHaveBeenCalledWith(
-      expect.any(Function),
-      expect.objectContaining({ delayMs: 2500 }),
-    );
-    await waitFor(() => {
       expect(apiFetchMock).toHaveBeenCalledWith(
         "http://api.local",
         "/api/public/me",
         expect.objectContaining({ auth: true }),
       );
     });
+    expect(getScheduleOnBrowserLoadIdleCallsByDelay(2500)).toHaveLength(0);
   });
 
-  it("nao agenda revalidacao de /api/public/me quando bootstrap SSR e anonimo", async () => {
+  it("revalida imediatamente /api/public/me quando bootstrap SSR e anonimo", async () => {
     (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown }).__BOOTSTRAP_PUBLIC__ = {
       projects: [],
       posts: [],
@@ -383,8 +371,10 @@ describe("Header mobile search layout", () => {
     await waitFor(() => {
       expect(getScheduleOnBrowserLoadIdleCallsByDelay(1200).length).toBeGreaterThan(0);
     });
+    await waitFor(() => {
+      expect(getPublicMeCalls()).toHaveLength(1);
+    });
     expect(getScheduleOnBrowserLoadIdleCallsByDelay(2500)).toHaveLength(0);
-    expect(getPublicMeCalls()).toHaveLength(0);
   });
 
   it("agenda revalidacao de /api/public/me quando bootstrap SSR possui usuario", async () => {

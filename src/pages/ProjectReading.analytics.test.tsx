@@ -588,7 +588,7 @@ describe("ProjectReading analytics", () => {
     expect(screen.queryByRole("link", { name: /Editar cap.tulo/i })).not.toBeInTheDocument();
   });
 
-  it("remove a navegacao inferior antiga e concentra os controles no menu do reader", async () => {
+  it("mantem a acao de retorno no hero e deixa os controles do reader no menu em-stage", async () => {
     const project = {
       ...createProjectFixture([
         {
@@ -645,6 +645,7 @@ describe("ProjectReading analytics", () => {
     const chapterContext = within(infoBar).getByTestId("project-reading-chapter-context");
     const synopsis = within(infoBar).getByTestId("project-reading-synopsis");
     const metaRow = within(infoBar).getByTestId("project-reading-meta-row");
+    const actions = within(infoBar).getByTestId("project-reading-actions");
     const heading = within(readerBar).getByRole("heading", { name: /Cap.*tulo 1/i });
     const commentsHandoff = screen.getByTestId("project-reading-comments-handoff");
     const commentsSentinel = screen.getByTestId("project-reading-comments-sentinel");
@@ -665,6 +666,11 @@ describe("ProjectReading analytics", () => {
     expect(projectTitle).toHaveClass("text-primary", "text-sm", "md:text-base");
     expect(chapterContext).toHaveTextContent(/Cap.*tulo 1/i);
     expect(within(contextRow).queryByText(/^manga$/i)).not.toBeInTheDocument();
+    expect(within(actions).getByRole("link", { name: /Voltar ao projeto/i })).toHaveAttribute(
+      "href",
+      "/projeto/projeto-teste",
+    );
+    expect(within(actions).queryByRole("link", { name: /Editar cap.tulo/i })).not.toBeInTheDocument();
     expect(synopsis).toHaveTextContent("Resumo do capitulo");
     expect(heading).toBeInTheDocument();
     expect(heading).toHaveClass("text-2xl", "md:text-3xl");
@@ -707,6 +713,67 @@ describe("ProjectReading analytics", () => {
     expect(screen.getByTestId("project-reading-stage").contains(screen.getByTestId("project-reader-sidebar"))).toBe(true);
     expect(screen.getByRole("combobox", { name: /Selecionar cap.tulo/i })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /Selecionar p.gina/i })).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("project-reader-sidebar")).queryByRole("link", {
+        name: /Voltar ao projeto/i,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("project-reader-sidebar")).queryByRole("link", {
+        name: /Editar cap.tulo/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("mostra Editar extra no hero do leitor de imagens", async () => {
+    const project = {
+      ...createProjectFixture([
+        {
+          number: 1,
+          volume: 2,
+          title: "Extra 1",
+          synopsis: "Resumo do extra",
+          hasPages: true,
+          entryKind: "extra",
+          displayLabel: "Extra 1",
+        },
+      ]),
+      type: "Manga",
+    };
+
+    setupProjectReadingApiMock(undefined, ["projetos"], {
+      project,
+      readerConfig: {
+        layout: "single",
+        imageFit: "both",
+      },
+      chapterResponse: {
+        number: 1,
+        volume: 2,
+        title: "Extra 1",
+        synopsis: "Resumo do extra",
+        contentFormat: "images",
+        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/extra-1.jpg" }],
+        pageCount: 1,
+        hasPages: true,
+        entryKind: "extra",
+        displayLabel: "Extra 1",
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    const actions = within(await screen.findByTestId("project-reading-info-bar")).getByTestId(
+      "project-reading-actions",
+    );
+    expect(within(actions).getByRole("link", { name: /Editar extra/i })).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
+    );
   });
 
   it("usa hasContent e hasPages do payload publico enxuto na navegacao", async () => {
