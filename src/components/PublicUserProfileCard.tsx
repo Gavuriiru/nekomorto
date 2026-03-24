@@ -296,8 +296,8 @@ const PublicUserProfileCard = ({
       className={cn(
         "group overflow-hidden rounded-[28px] border shadow-[0_24px_70px_-36px_rgba(0,0,0,0.75)] transition-colors duration-300",
         retired
-          ? "border-border/35 bg-card/80 hover:border-primary/20 hover:bg-card/85"
-          : "border-border/50 bg-card/85 hover:border-primary/30 hover:bg-card/90",
+          ? "border-border/35 bg-card/80 hover:border-primary/60 hover:bg-card/85"
+          : "border-border/50 bg-card/85 hover:border-primary/60 hover:bg-card/90",
       )}
     >
       <CardContent className="p-5 sm:p-6">
@@ -343,7 +343,7 @@ const PublicUserProfileCard = ({
                         href={resolved.href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/15 bg-background/60 text-primary/80 transition hover:border-primary/35 hover:text-primary"
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/15 bg-background/60 text-primary/80 transition hover:border-primary/60 hover:text-primary"
                         aria-label={resolved.label}
                       >
                         {resolved.customIcon ? (
@@ -365,7 +365,7 @@ const PublicUserProfileCard = ({
             {hasFavoriteWorks ? (
               <button
                 type="button"
-                className="team-member-favorites-toggle inline-flex w-fit items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary transition hover:border-primary/35 hover:bg-primary/15 md:hidden"
+                className="team-member-favorites-toggle inline-flex w-fit items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary transition hover:border-primary/60 hover:bg-primary/15 md:hidden"
                 aria-pressed={isFavoritePanelOpen}
                 aria-label={isFavoritePanelOpen ? "Ver bio" : "Ver obras favoritas"}
                 onClick={() => setFavoritePanelOpen((current) => !current)}

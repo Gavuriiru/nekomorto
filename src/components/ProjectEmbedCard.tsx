@@ -181,7 +181,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
       to={`/projeto/${project?.id ?? projectId}`}
       className="block rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
     >
-      <Card className="border-border bg-card shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
+      <Card className="bg-card shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg">
         <CardContent className="space-y-4 p-4">
           <div
             ref={synopsisRootRef}

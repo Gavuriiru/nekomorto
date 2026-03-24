@@ -160,7 +160,7 @@ const Donations = () => {
               return (
                 <Card
                   key={item.title}
-                  className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+                  className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg"
                 >
                   <CardContent className="space-y-3 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
@@ -183,7 +183,7 @@ const Donations = () => {
         >
           <Card className="border-border/60 bg-card/90 shadow-xl">
             <CardContent className="grid gap-6 p-6 md:grid-cols-[1.1fr_0.9fr] md:p-8">
-              <div className="group/reason space-y-4 rounded-2xl p-2 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40">
+              <div className="group/reason space-y-4 rounded-2xl p-2 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60">
                 <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover/reason:text-primary">
                   {(() => {
                     const ReasonIcon = iconMap[donations.reasonIcon] || HeartHandshake;
@@ -196,11 +196,11 @@ const Donations = () => {
                 <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover/reason:text-foreground/80 md:text-base">
                   {donations.reasonText}
                 </p>
-                <div className="rounded-2xl border border-border/60 bg-background/60 p-4 text-sm text-muted-foreground transition-all duration-300 group-hover/reason:border-primary/30 group-hover/reason:bg-background/70 group-hover/reason:text-foreground/80">
+                <div className="rounded-2xl border border-border/60 bg-background/60 p-4 text-sm text-muted-foreground transition-all duration-300 group-hover/reason:border-primary/60 group-hover/reason:bg-background/70 group-hover/reason:text-foreground/80">
                   {donations.reasonNote}
                 </div>
               </div>
-              <div className="group/pix rounded-2xl border border-border/60 bg-background/50 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/70 hover:shadow-lg">
+              <div className="group/pix rounded-2xl border border-border/60 bg-background/50 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-background/70 hover:shadow-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover/pix:text-primary">
                     {(() => {
@@ -248,7 +248,7 @@ const Donations = () => {
           className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-24 pt-4 reveal`}
           data-reveal
         >
-          <Card className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
+          <Card className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg">
             <CardContent className="p-6 md:p-8">
               <div className="flex items-center gap-3 text-xl font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
                 {(() => {

@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Input } from "@/components/public-form-controls";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import PublicPageContainer from "@/components/PublicPageContainer";
@@ -177,11 +178,11 @@ const Login = () => {
                   <p className="text-sm text-muted-foreground">
                     Digite seu código TOTP ou recovery code para concluir o login.
                   </p>
-                  <input
+                  <Input
                     value={mfaCode}
                     onChange={(event) => setMfaCode(event.target.value)}
                     placeholder="000000 ou ABCDE-12345"
-                    className="w-full rounded-xl border border-border/65 bg-background/70 px-3 py-2 text-sm text-foreground outline-hidden focus:border-primary/50"
+                    className="w-full rounded-xl border-border/65 bg-background/70 text-sm text-foreground"
                   />
                   {mfaError ? <p className="text-xs text-red-300">{mfaError}</p> : null}
                   <Button

@@ -72,7 +72,7 @@ const LatestEpisodeCard = () => {
   return (
     <Card
       lift={false}
-      className="bg-card border-border overflow-hidden reveal shadow-none transition-all duration-300 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+      className="bg-card overflow-hidden reveal shadow-none transition-all duration-300 hover:bg-card/90 hover:shadow-lg"
       data-reveal
     >
       <CardHeader className="px-4 pb-3 pt-4">
@@ -151,7 +151,7 @@ const LatestEpisodeCard = () => {
                     key={update.id}
                     to={`/projeto/${update.projectId}`}
                     style={{ "--card-h": "164px", "--card-pad": "16px" } as CSSProperties}
-                    className="recent-updates-item group relative block h-(--card-h) overflow-hidden rounded-2xl bg-linear-to-br from-background/70 via-background/40 to-background/70 hover:-translate-y-1 reveal"
+                    className="recent-updates-item group relative block h-(--card-h) overflow-hidden rounded-2xl bg-linear-to-br from-background/70 via-background/40 to-background/70 transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-primary/60 reveal"
                     data-reveal
                   >
                     <div className="absolute inset-(--card-pad) flex items-start gap-4">

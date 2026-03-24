@@ -525,7 +525,7 @@ const ProjectPage = () => {
     return (
       <Card
         key={key}
-        className={`group w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-[0_24px_90px_-55px_rgba(0,0,0,0.75)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_28px_100px_-50px_rgba(0,0,0,0.85)] ${
+        className={`group w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-[0_24px_90px_-55px_rgba(0,0,0,0.75)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-[0_28px_100px_-50px_rgba(0,0,0,0.85)] ${
           isAnimeDownloadCard ? "md:h-[210px]" : "md:min-h-[185px]"
         }`}
       >
@@ -707,7 +707,7 @@ const ProjectPage = () => {
     return (
       <Card
         key={key}
-        className="chapter-download-card group/chapter-card w-full !transform-none rounded-2xl border border-border/60 bg-background/40 shadow-[0_6px_14px_-12px_rgba(0,0,0,0.06),0_16px_32px_-24px_rgba(0,0,0,0.1)] transition-all duration-300 hover:!translate-y-0 hover:border-primary/40 hover:bg-background/60 hover:shadow-[0_10px_20px_-14px_rgba(0,0,0,0.08),0_20px_38px_-22px_rgba(0,0,0,0.13)]"
+        className="chapter-download-card group/chapter-card w-full !transform-none rounded-2xl border border-border/60 bg-background/40 shadow-[0_6px_14px_-12px_rgba(0,0,0,0.06),0_16px_32px_-24px_rgba(0,0,0,0.1)] transition-all duration-300 hover:!translate-y-0 hover:border-primary/60 hover:bg-background/60 hover:shadow-[0_10px_20px_-14px_rgba(0,0,0,0.08),0_20px_38px_-22px_rgba(0,0,0,0.13)]"
       >
         <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
           <p
@@ -847,7 +847,7 @@ const ProjectPage = () => {
       <Accordion key={group.label} type="multiple" className="w-full">
         <AccordionItem
           value={group.label}
-          className="group w-full overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_10px_20px_-18px_rgba(0,0,0,0.08),0_24px_48px_-34px_rgba(0,0,0,0.12)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-[0_14px_28px_-20px_rgba(0,0,0,0.1),0_28px_56px_-32px_rgba(0,0,0,0.16)]"
+          className="group w-full overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_10px_20px_-18px_rgba(0,0,0,0.08),0_24px_48px_-34px_rgba(0,0,0,0.12)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-[0_14px_28px_-20px_rgba(0,0,0,0.1),0_28px_56px_-32px_rgba(0,0,0,0.16)]"
         >
           <AccordionTrigger className="items-start gap-3 px-5 py-5 text-left hover:no-underline">
             <div className="grid w-full items-start gap-4 md:grid-cols-[128px_minmax(0,1fr)_auto] md:items-start md:gap-5">
@@ -1101,7 +1101,7 @@ const ProjectPage = () => {
         >
           <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <div className="space-y-8">
-              <Card className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
+              <Card className="bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-card/90 hover:shadow-lg">
                 <CardContent className="space-y-4 p-6">
                   <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                     {isChapterBased ? (
@@ -1147,7 +1147,7 @@ const ProjectPage = () => {
               </Card>
 
               {visibleRelations.length > 0 ? (
-                <Card className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
+                <Card className="bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-card/90 hover:shadow-lg">
                   <CardContent className="space-y-5 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       <Users className="h-4 w-4 text-primary" />
@@ -1164,7 +1164,7 @@ const ProjectPage = () => {
                           <Link
                             key={`${relation.relation}-${relation.title}`}
                             to={targetId ? `/projeto/${targetId}` : "#"}
-                            className="group flex overflow-hidden rounded-xl border border-border/50 bg-background/60 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
+                            className="group flex overflow-hidden rounded-xl border border-border/50 bg-background/60 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-background/80 hover:shadow-lg"
                           >
                             <div
                               className="w-[4.5rem] shrink-0 overflow-hidden bg-secondary sm:w-20"
@@ -1198,7 +1198,7 @@ const ProjectPage = () => {
 
             <div className="space-y-6">
               {project.staff?.length ? (
-                <Card className="border-border/60 bg-card/70 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
+                <Card className="bg-card/70 shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-card/90 hover:shadow-lg">
                   <CardContent className="space-y-5 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       <Users className="h-4 w-4 text-primary" />
@@ -1222,7 +1222,7 @@ const ProjectPage = () => {
               ) : null}
 
               {project.animeStaff?.length ? (
-                <Card className="border-border/60 bg-card/70 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
+                <Card className="bg-card/70 shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-card/90 hover:shadow-lg">
                   <CardContent className="space-y-5 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       <Users className="h-4 w-4 text-primary" />
@@ -1339,7 +1339,7 @@ const ProjectPage = () => {
           data-reveal
         >
           <div className="grid gap-6">
-            <Card className="border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
+            <Card className="bg-card transition-all duration-300 hover:-translate-y-1 hover:bg-card/90 hover:shadow-lg">
               <CardHeader>
                 <CardTitle className="text-lg">Compartilhar</CardTitle>
               </CardHeader>

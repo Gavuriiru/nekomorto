@@ -78,7 +78,7 @@ describe("WorkStatusCard accent mode", () => {
     expect(badge).not.toHaveClass("bg-primary");
     const progressLink = badge.closest("a");
     expect(progressLink).not.toBeNull();
-    expect(progressLink).toHaveClass("hover:-translate-y-1");
+    expect(progressLink).toHaveClass("hover:-translate-y-1", "hover:border-primary/60");
 
     const indicator = container.querySelector(".bg-pink-500");
     expect(indicator).not.toBeNull();
@@ -111,7 +111,7 @@ describe("WorkStatusCard accent mode", () => {
     expect(badge).not.toHaveClass("bg-pink-500/20");
     const progressLink = badge.closest("a");
     expect(progressLink).not.toBeNull();
-    expect(progressLink).toHaveClass("hover:-translate-y-1");
+    expect(progressLink).toHaveClass("hover:-translate-y-1", "hover:border-primary/60");
 
     const indicator = container.querySelector(".bg-primary");
     expect(indicator).not.toBeNull();

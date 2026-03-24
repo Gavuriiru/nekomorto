@@ -93,6 +93,8 @@ describe("ProjectEmbedCard", () => {
     const title = screen.getByText("Projeto Embed");
     const synopsis = screen.getByText("Sinopse");
     const row = screen.getByTestId("project-embed-row");
+    const cardLink = title.closest("a");
+    const cardRoot = cardLink?.firstElementChild as HTMLElement | null;
     const synopsisColumn = container.querySelector<HTMLElement>('[data-synopsis-role="column"]');
     const synopsisTitle = container.querySelector<HTMLElement>('[data-synopsis-role="title"]');
     const synopsisText = container.querySelector<HTMLElement>('[data-synopsis-role="synopsis"]');
@@ -107,6 +109,9 @@ describe("ProjectEmbedCard", () => {
     expect(badgesSection).toHaveClass("mt-auto");
     expect(statusBadge).toHaveClass("max-w-[8.5rem]", "truncate");
     expect(studioBadge).toHaveClass("max-w-[8.5rem]", "truncate");
+    expect(cardRoot).not.toBeNull();
+    expect(cardRoot).not.toHaveClass("border", "border-border");
+    expect(cardRoot).toHaveClass("hover:border-primary/60");
     expect(title).toHaveClass("clamp-safe-2");
     expect(title).not.toHaveClass("sm:line-clamp-none");
     expect(row).toHaveClass("group", "flex", "items-stretch", "gap-4");

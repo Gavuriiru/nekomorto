@@ -18,7 +18,7 @@ const DiscordInviteCard = () => {
         <p className="text-xs text-muted-foreground">{inviteCard.subtitle}</p>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 px-4 pb-4 pt-0">
-        <div className="group/panel space-y-2 rounded-xl border border-border/60 bg-background/40 p-3 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/70 hover:shadow-lg">
+        <div className="group/panel space-y-2 rounded-xl border border-border/60 bg-background/40 p-3 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-background/70 hover:shadow-lg">
           <div className="flex items-center gap-2 text-sm font-semibold text-foreground transition-colors duration-300 group-hover/panel:text-primary">
             <Users
               className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover/panel:text-primary"

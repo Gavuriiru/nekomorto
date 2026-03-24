@@ -274,12 +274,28 @@ describe("Projects query sync", () => {
     );
 
     const searchInput = await screen.findByLabelText("Buscar projetos");
+    const letterFilter = screen.getByRole("combobox", { name: "Filtrar por letra" });
     const pageShell = container.firstElementChild;
 
     expect(searchInput).toHaveValue("studio");
+    expect(searchInput).toHaveClass(
+      "focus-visible:border-primary",
+      "focus-visible:ring-1",
+      "focus-visible:ring-primary/45",
+      "focus-visible:ring-inset",
+    );
+    expect(letterFilter).toHaveClass(
+      "focus-visible:border-primary",
+      "focus-visible:ring-1",
+      "focus-visible:ring-primary/45",
+      "focus-visible:ring-inset",
+    );
     expect(getSearchParams().get("q")).toBe("studio");
     expect(pageShell).toHaveClass("min-h-screen", "text-foreground");
     expect(pageShell).not.toHaveClass("bg-background", "bg-gradient-surface");
+
+    const firstProjectCard = getRenderedProjectCards(container)[0];
+    expect(firstProjectCard).toHaveClass("hover:border-primary/60");
   });
 
   it("aplica debounce na query e mantém input responsivo durante a digitacao", async () => {

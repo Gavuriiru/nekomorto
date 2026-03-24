@@ -122,6 +122,7 @@ describe("ReleasesSection cover fit", () => {
     expect(postCardRoot).not.toBeNull();
     expect(postCardRoot).toHaveClass("shadow-none");
     expect(postCardRoot).not.toHaveClass("shadow-xs");
+    expect(postCardRoot).not.toHaveClass("border", "border-border", "hover:border-primary/60");
     expect(postCardRoot).toHaveClass("hover:shadow-lg");
     expect(coverImage).toHaveAttribute(
       "src",

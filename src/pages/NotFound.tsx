@@ -46,7 +46,7 @@ const NotFound = () => {
               </div>
             </div>
 
-            <Card className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
+            <Card className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg">
               <CardContent className="space-y-4 p-6 md:p-8">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground transition-colors duration-300 group-hover:text-primary">
                   Sugestões rápidas

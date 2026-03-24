@@ -151,6 +151,12 @@ describe("TopProjectsSection", () => {
     expect(screen.queryByText(/views nos.*30 dias/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Em andamento")).not.toBeInTheDocument();
     expect(screen.getByTestId("top-projects-mode-trigger")).toHaveTextContent(/sempre/i);
+    expect(screen.getByTestId("top-projects-mode-trigger")).toHaveClass(
+      "focus-visible:border-primary",
+      "focus-visible:ring-1",
+      "focus-visible:ring-primary/45",
+      "focus-visible:ring-inset",
+    );
 
     fireEvent.click(
       screen.getByRole("combobox", {
@@ -174,7 +180,6 @@ describe("TopProjectsSection", () => {
     expect(listShell).toHaveClass("overflow-hidden");
     expect(list).toHaveClass(
       "no-scrollbar",
-      "-my-1",
       "overflow-y-auto",
       "overscroll-contain",
       "pt-1",
@@ -182,11 +187,13 @@ describe("TopProjectsSection", () => {
       "max-h-[calc((var(--top-card-h)*2)+(var(--top-gap)*1)+0.5rem)]",
       "md:max-h-[calc((var(--top-card-h)*3)+(var(--top-gap)*2)+0.5rem)]",
     );
+    expect(list).not.toHaveClass("-my-1");
     expect(String(list.getAttribute("style") || "")).toContain("--top-card-h: 164px");
     expect(String(list.getAttribute("style") || "")).toContain("--top-gap: 12px");
     const firstItem = screen.getByTestId("top-project-item-1");
     expect(firstItem).toHaveClass("h-(--top-card-h)", "rounded-2xl");
     expect(firstItem).toHaveClass("hover:-translate-y-1");
+    expect(firstItem).toHaveClass("hover:border-primary/60");
     const firstLink = headings[0].closest("a");
     expect(firstLink).toHaveClass("rounded-2xl");
   });

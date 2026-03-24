@@ -63,6 +63,7 @@ describe("DiscordInviteCard", () => {
     const panel = panelDescription.closest("div.group\\/panel");
     expect(panel).not.toBeNull();
     expect(panel).toHaveClass("hover:-translate-y-1");
+    expect(panel).toHaveClass("hover:border-primary/60");
   });
 
   it("usa a ctaUrl configurada quando preenchida", () => {

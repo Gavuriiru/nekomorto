@@ -153,7 +153,7 @@ const Recruitment = () => {
               return (
                 <Card
                   key={role.title}
-                  className="group bg-card/70 animate-fade-in opacity-0 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+                  className="group bg-card/70 animate-fade-in opacity-0 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg"
                   style={{ animationDelay: `${index * 80}ms` }}
                 >
                   <CardContent className="space-y-3 p-5">
@@ -180,7 +180,7 @@ const Recruitment = () => {
           data-reveal
         >
           <Card
-            className="group bg-card/70 animate-fade-in opacity-0 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+            className="group bg-card/70 animate-fade-in opacity-0 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg"
             style={{ animationDelay: "0.4s" }}
           >
             <CardContent className="flex flex-col items-stretch justify-between gap-4 p-6 md:flex-row md:items-center">

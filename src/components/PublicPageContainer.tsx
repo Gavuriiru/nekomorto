@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import {
+  publicPageLayoutTokens,
+  publicStrongFocusScopeClassName,
+} from "@/components/public-page-tokens";
 
 const maxWidthClassMap = {
   "3xl": "max-w-3xl",
@@ -23,7 +26,7 @@ const PublicPageContainer = ({
   maxWidth = "6xl",
 }: PublicPageContainerProps) => {
   return (
-    <main className={cn(publicPageLayoutTokens.main, mainClassName)}>
+    <main className={cn(publicPageLayoutTokens.main, publicStrongFocusScopeClassName, mainClassName)}>
       <section
         className={cn(
           publicPageLayoutTokens.sectionBase,

@@ -4263,7 +4263,7 @@ const DashboardProjectsEditor = () => {
                       key={project.id}
                       data-testid={`dashboard-project-card-${project.id}`}
                       lift={false}
-                      className={`${dashboardPageLayoutTokens.listCardSolid} ${dashboardStrongSurfaceHoverClassName} group overflow-hidden transition animate-slide-up opacity-0`}
+                      className={`${dashboardPageLayoutTokens.listCardSolid} ${dashboardStrongSurfaceHoverClassName} group overflow-hidden transition animate-fade-in opacity-0`}
                       style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                     >
                       <CardContent className="relative p-0">
@@ -4304,7 +4304,7 @@ const DashboardProjectsEditor = () => {
                                     {project.type}
                                   </Badge>
                                 </div>
-                                <h3 className="dashboard-list-card-title clamp-safe-2 break-words text-lg transition-colors duration-300 group-hover:text-primary">
+                                <h3 className="clamp-safe-2 break-words text-lg font-semibold text-muted-foreground transition-colors duration-300 group-hover:text-primary">
                                   {project.title}
                                 </h3>
                                 <p className={`text-xs ${dashboardPageLayoutTokens.cardMetaText}`}>

@@ -2950,7 +2950,7 @@ const DashboardPosts = () => {
                       key={post.id}
                       data-testid={`post-card-${post.id}`}
                       lift={false}
-                      className={`${dashboardPageLayoutTokens.listCardSolid} ${dashboardStrongSurfaceHoverClassName} group cursor-pointer overflow-hidden transition animate-slide-up opacity-0`}
+                      className={`${dashboardPageLayoutTokens.listCardSolid} ${dashboardStrongSurfaceHoverClassName} group cursor-pointer overflow-hidden transition animate-fade-in opacity-0`}
                       style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                       role={canManagePosts ? "button" : undefined}
                       tabIndex={canManagePosts ? 0 : -1}
@@ -3046,7 +3046,7 @@ const DashboardPosts = () => {
                             </div>
 
                             <div data-slot="headline" className="min-h-11">
-                              <h3 className="dashboard-list-card-title clamp-safe-2 text-lg leading-tight lg:clamp-safe-1">
+                              <h3 className="clamp-safe-2 text-lg font-semibold leading-tight text-muted-foreground lg:clamp-safe-1">
                                 {post.title}
                               </h3>
                               <span className={`text-xs ${dashboardPageLayoutTokens.cardMetaText}`}>

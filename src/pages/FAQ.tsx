@@ -138,7 +138,7 @@ const FAQ = () => {
               return (
                 <Card
                   key={card.title}
-                  className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+                  className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg"
                 >
                   <CardContent className="space-y-4 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
@@ -177,7 +177,7 @@ const FAQ = () => {
                       {group.items.map((item) => (
                         <div
                           key={item.question}
-                          className="group/item rounded-2xl border border-border/60 bg-background/60 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/70 hover:shadow-lg"
+                          className="group/item rounded-2xl border border-border/60 bg-background/60 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-background/70 hover:shadow-lg"
                         >
                           <p className="text-sm font-semibold text-foreground transition-colors duration-300 group-hover/item:text-primary">
                             {item.question}

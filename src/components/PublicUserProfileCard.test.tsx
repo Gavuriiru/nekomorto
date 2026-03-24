@@ -13,7 +13,7 @@ vi.mock("@/hooks/use-site-settings", () => ({
 
 describe("PublicUserProfileCard", () => {
   it("renderiza frase, bio, badges e favoritos com toggle mobile", async () => {
-    render(
+    const { container } = render(
       <PublicUserProfileCard
         member={{
           id: "member-1",
@@ -34,9 +34,12 @@ describe("PublicUserProfileCard", () => {
       />,
     );
 
+    const cardRoot = container.firstElementChild as HTMLElement | null;
     const heading = screen.getByRole("heading", { name: "Admin" });
     const favoriteFrame = heading.closest("div.team-member-frame");
 
+    expect(cardRoot).not.toBeNull();
+    expect(cardRoot).toHaveClass("hover:border-primary/60");
     expect(favoriteFrame).not.toBeNull();
     expect(favoriteFrame).toHaveClass("team-member-frame--has-favorites");
     expect(within(favoriteFrame as HTMLElement).getByText('"Frase"')).toBeInTheDocument();

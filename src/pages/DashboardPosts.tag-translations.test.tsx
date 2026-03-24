@@ -62,6 +62,11 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
+const classTokens = (element: Element | null) =>
+  String(element?.getAttribute("class") || "")
+    .split(/\s+/)
+    .filter(Boolean);
+
 describe("DashboardPosts tags translation", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
@@ -172,6 +177,8 @@ describe("DashboardPosts tags translation", () => {
       element.className.includes("lg:h-[280px]"),
     );
     expect(cardLayoutContainer).toBeDefined();
+    expect(classTokens(card)).toContain("animate-fade-in");
+    expect(classTokens(card)).not.toContain("animate-slide-up");
     const rightContentColumn = Array.from(card.querySelectorAll("div")).find((element) =>
       element.className.includes("grid-rows-[auto_auto_minmax(0,1fr)_auto]"),
     );
@@ -325,12 +332,11 @@ describe("DashboardPosts tags translation", () => {
     expect(headlineSlot).not.toBeNull();
     const headlineTitle = within(headlineSlot as HTMLDivElement).getByText("Post com resumo longo");
     const headlineTokens = String(headlineTitle.className).split(/\s+/).filter(Boolean);
-    expect(headlineTokens).toContain("dashboard-list-card-title");
     expect(headlineTokens).toContain("clamp-safe-2");
     expect(headlineTokens).toContain("lg:clamp-safe-1");
     expect(headlineTokens).not.toContain("line-clamp-2");
-    expect(headlineTokens).not.toContain("font-semibold");
-    expect(headlineTokens).not.toContain("text-foreground");
+    expect(headlineTokens).toContain("font-semibold");
+    expect(headlineTokens).toContain("text-muted-foreground");
 
     const rightContentColumn = Array.from(card.querySelectorAll("div")).find((element) =>
       element.className.includes("grid-rows-[auto_auto_minmax(0,1fr)_auto]"),

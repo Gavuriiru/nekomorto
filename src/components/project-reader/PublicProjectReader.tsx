@@ -39,15 +39,15 @@ import {
   useProjectReaderPreferences,
   type ProjectReaderPreferencesState,
 } from "@/components/project-reader/use-project-reader-preferences";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/public-form-controls";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 

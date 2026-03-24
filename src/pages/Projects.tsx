@@ -1,17 +1,21 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import AsyncState from "@/components/ui/async-state";
-import { Input } from "@/components/ui/input";
-import UploadPicture from "@/components/UploadPicture";
 import {
+  Input,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/public-form-controls";
+import {
+  publicPageLayoutTokens,
+  publicStrongSurfaceHoverClassName,
+} from "@/components/public-page-tokens";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import AsyncState from "@/components/ui/async-state";
+import UploadPicture from "@/components/UploadPicture";
 import CompactPagination from "@/components/ui/compact-pagination";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -19,7 +23,6 @@ import type { Project } from "@/data/projects";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
-import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import "@/styles/projects-public.css";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import {
@@ -300,7 +303,7 @@ const ProjectCard = ({
   return (
     <Link
       to={`/projeto/${project.id}`}
-      className="projects-public-card group flex h-50 w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-[transform,border-color,box-shadow,color] duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 md:h-60"
+      className={`projects-public-card group flex h-50 w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-[transform,border-color,box-shadow,color] duration-300 hover:-translate-y-1 ${publicStrongSurfaceHoverClassName} hover:shadow-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 md:h-60`}
     >
       <div
         className="h-39 shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-50"

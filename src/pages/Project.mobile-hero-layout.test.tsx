@@ -468,6 +468,96 @@ describe("Project mobile hero layout", () => {
     expect(relationCover?.style.aspectRatio).toBe("9 / 14");
   });
 
+  it("remove a borda apenas dos cards externos de sobre, relacionados, staff e compartilhar", async () => {
+    const projectWithSections = {
+      ...projectFixture,
+      relations: [
+        {
+          relation: "SEQUEL",
+          title: "Projeto Relacionado",
+          format: "Anime",
+          status: "Em andamento",
+          image: "/uploads/related-cover.jpg",
+          projectId: "project-2",
+        },
+      ],
+      staff: [{ role: "Tradução", members: ["Ana"] }],
+      animeStaff: [{ role: "Director", members: ["Taro"] }],
+    };
+
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+
+        if (endpoint === "/api/public/projects/project-1" && method === "GET") {
+          return mockJsonResponse(true, { project: projectWithSections });
+        }
+        if (endpoint === "/api/public/projects" && method === "GET") {
+          return mockJsonResponse(true, {
+            projects: [projectWithSections, { id: "project-2", title: "Projeto Relacionado" }],
+          });
+        }
+        if (endpoint === "/api/public/tag-translations" && method === "GET") {
+          return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+        }
+        if (endpoint === "/api/public/projects/project-1/view" && method === "POST") {
+          return mockJsonResponse(true, { views: 1 });
+        }
+        if (endpoint === "/api/public/me" && method === "GET") {
+          return mockJsonResponse(true, { user: null });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Sobre o projeto");
+
+    const findSectionCard = (label: string) => {
+      const element = screen.getByText(label);
+      const card = findAncestor(element as HTMLElement, (candidate) => {
+        const tokens = classTokens(candidate);
+        return (
+          tokens.includes("bg-card/80") ||
+          tokens.includes("bg-card/70") ||
+          tokens.includes("bg-card")
+        );
+      });
+
+      expect(card).not.toBeNull();
+      return card as HTMLElement;
+    };
+
+    const sectionCards = [
+      findSectionCard("Sobre o projeto"),
+      findSectionCard("Relacionados"),
+      findSectionCard("Equipe da fansub"),
+      findSectionCard("Staff do anime"),
+      findSectionCard("Compartilhar"),
+    ];
+
+    sectionCards.forEach((card) => {
+      expect(classTokens(card)).not.toContain("border");
+      expect(classTokens(card)).not.toContain("border-border/60");
+      expect(classTokens(card)).not.toContain("border-border");
+      expect(classTokens(card)).not.toContain("hover:border-primary/60");
+      expect(classTokens(card)).toContain("hover:-translate-y-1");
+      expect(classTokens(card)).toContain("hover:bg-card/90");
+      expect(classTokens(card)).toContain("hover:shadow-lg");
+    });
+
+    const relatedItem = screen.getByRole("link", { name: /Projeto Relacionado/i });
+    expect(classTokens(relatedItem)).toContain("border");
+    expect(classTokens(relatedItem)).toContain("border-border/50");
+    expect(classTokens(relatedItem)).toContain("hover:border-primary/60");
+  });
+
   it("renderiza CTA de leitura para light novel com capitulo publicado", async () => {
     apiFetchMock.mockReset();
     apiFetchMock.mockImplementation(

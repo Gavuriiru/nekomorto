@@ -127,7 +127,7 @@ const Footer = () => {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-secondary/70 text-primary/80 transition group-hover:border-primary/40 group-hover:text-primary">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-secondary/70 text-primary/80 transition group-hover:border-primary/60 group-hover:text-primary">
                       {renderCustomIcon ? (
                         <ThemedSvgMaskIcon url={iconValue} label={link.label} className="h-4 w-4" />
                       ) : (

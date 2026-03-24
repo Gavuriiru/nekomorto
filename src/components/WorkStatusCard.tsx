@@ -94,7 +94,7 @@ const WorkStatusCard = () => {
               <Link
                 key={item.id}
                 to={`/projeto/${item.projectId}`}
-                className="group/item block rounded-md border border-border/50 bg-secondary/50 p-3 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-secondary hover:shadow-lg"
+                className="group/item block rounded-md border border-border/50 bg-secondary/50 p-3 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-secondary hover:shadow-lg"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">

@@ -1,3 +1,9 @@
+export const publicStrongFocusFieldClassName =
+  "focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/45 focus-visible:ring-inset";
+export const publicStrongSurfaceHoverClassName = "hover:border-primary/60";
+export const publicStrongGroupSurfaceHoverClassName = "group-hover:border-primary/60";
+export const publicStrongFocusScopeClassName = "public-strong-focus-scope";
+
 export const publicPageLayoutTokens = {
   main: "pb-20",
   sectionBase: "mx-auto w-full px-6 md:px-10",

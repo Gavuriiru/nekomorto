@@ -115,6 +115,17 @@ describe("Login redesign", () => {
     expect(locationHref).toBe("http://api.local/auth/discord");
   });
 
+  it("aplica foco forte fino ao campo MFA publico", () => {
+    renderLogin("/login?mfa=required");
+
+    expect(screen.getByPlaceholderText("000000 ou ABCDE-12345")).toHaveClass(
+      "focus-visible:border-primary",
+      "focus-visible:ring-1",
+      "focus-visible:ring-primary/45",
+      "focus-visible:ring-inset",
+    );
+  });
+
   it("cancela login MFA com logout explicito e redireciona para home", async () => {
     apiFetchMock
       .mockResolvedValueOnce(mockResponse(false))

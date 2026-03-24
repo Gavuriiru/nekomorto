@@ -3,14 +3,15 @@ import type { CSSProperties } from "react";
 import { Eye, Hash } from "lucide-react";
 import { Link } from "react-router-dom";
 import UploadPicture from "@/components/UploadPicture";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/public-form-controls";
+import { publicStrongSurfaceHoverClassName } from "@/components/public-page-tokens";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
@@ -210,7 +211,7 @@ const TopProjectsSection = () => {
               ref={synopsisRootRef}
               data-testid="top-projects-list"
               style={listLayoutStyle}
-              className={`no-scrollbar -my-1 space-y-[var(--top-gap)] overflow-y-auto overscroll-contain pr-1 pt-1 pb-1 max-h-[calc((var(--top-card-h)*${TOP_PROJECTS_VISIBLE_MOBILE})+(var(--top-gap)*${TOP_PROJECTS_VISIBLE_MOBILE - 1})+0.5rem)] md:max-h-[calc((var(--top-card-h)*${TOP_PROJECTS_VISIBLE_DESKTOP})+(var(--top-gap)*${TOP_PROJECTS_VISIBLE_DESKTOP - 1})+0.5rem)]`}
+              className={`no-scrollbar space-y-[var(--top-gap)] overflow-y-auto overscroll-contain pr-1 pt-1 pb-1 max-h-[calc((var(--top-card-h)*${TOP_PROJECTS_VISIBLE_MOBILE})+(var(--top-gap)*${TOP_PROJECTS_VISIBLE_MOBILE - 1})+0.5rem)] md:max-h-[calc((var(--top-card-h)*${TOP_PROJECTS_VISIBLE_DESKTOP})+(var(--top-gap)*${TOP_PROJECTS_VISIBLE_DESKTOP - 1})+0.5rem)]`}
             >
               {topProjects.map((entry, index) => {
                 const metricValue =
@@ -221,7 +222,7 @@ const TopProjectsSection = () => {
                     key={entry.id}
                     data-testid={`top-project-item-${index + 1}`}
                     to={`/projeto/${entry.id}`}
-                    className="group relative block h-(--top-card-h) rounded-2xl border border-border/50 bg-linear-to-br from-background/70 via-background/40 to-background/70 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40"
+                    className={`group relative block h-(--top-card-h) rounded-2xl border border-border/50 bg-linear-to-br from-background/70 via-background/40 to-background/70 transition-all duration-300 hover:-translate-y-1 ${publicStrongSurfaceHoverClassName}`}
                   >
                     <div className="absolute inset-4 flex h-auto items-stretch gap-4">
                       <div

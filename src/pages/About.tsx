@@ -181,7 +181,7 @@ const About = () => {
                 return (
                   <div
                     key={item.label}
-                    className="group rounded-2xl border border-border/60 bg-background/60 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
+                    className="group rounded-2xl border border-border/60 bg-background/60 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-background/80 hover:shadow-lg"
                   >
                     <div
                       className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelXs}`}
@@ -196,7 +196,7 @@ const About = () => {
                 );
               })}
             </div>
-            <Card className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
+            <Card className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg">
               <CardContent className="space-y-5 p-6 md:p-8">
                 <div
                   className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelSm}`}
@@ -230,7 +230,7 @@ const About = () => {
               return (
                 <Card
                   key={pillar.title}
-                  className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+                  className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg"
                 >
                   <CardContent className="space-y-3 p-6">
                     <div
@@ -259,7 +259,7 @@ const About = () => {
               return (
                 <Card
                   key={value.title}
-                  className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+                  className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg"
                 >
                   <CardContent className="space-y-3 p-6">
                     <div

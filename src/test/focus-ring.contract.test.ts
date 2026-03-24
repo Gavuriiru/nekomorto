@@ -21,6 +21,14 @@ const dashboardWrappedFormFiles = [
   "src/pages/DashboardWebhooks.tsx",
 ];
 
+const publicWrappedFormFiles = [
+  "src/components/CommentsSection.tsx",
+  "src/components/TopProjectsSection.tsx",
+  "src/components/project-reader/PublicProjectReader.tsx",
+  "src/pages/Login.tsx",
+  "src/pages/Projects.tsx",
+];
+
 const focusContractFiles = [
   {
     path: "src/components/ui/button-variants.ts",
@@ -207,5 +215,66 @@ describe("focus ring contract", () => {
     expect(muiFieldsSource).not.toContain('boxShadow: "0 0 0 2px hsl(var(--ring))"');
     expect(muiFieldsSource).not.toContain('boxShadow: "inset 0 0 0 2px hsl(var(--primary))"');
     expect(muiFieldsSource).not.toContain('borderColor: "hsl(var(--ring))"');
+  });
+
+  it("keeps public form focus overrides aligned with primary", () => {
+    const publicTokensSource = readFileSync(repoFile("src/components/public-page-tokens.ts"), "utf8");
+    const publicFormControlsSource = readFileSync(
+      repoFile("src/components/public-form-controls.tsx"),
+      "utf8",
+    );
+    const publicPageContainerSource = readFileSync(
+      repoFile("src/components/PublicPageContainer.tsx"),
+      "utf8",
+    );
+    const indexCssSource = readFileSync(repoFile("src/index.css"), "utf8");
+    const loginSource = readFileSync(repoFile("src/pages/Login.tsx"), "utf8");
+
+    expect(publicTokensSource).toContain('publicStrongFocusFieldClassName =');
+    expect(publicTokensSource).toContain(
+      '"focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/45 focus-visible:ring-inset"',
+    );
+    expect(publicTokensSource).toContain(
+      'publicStrongSurfaceHoverClassName = "hover:border-primary/60"',
+    );
+    expect(publicTokensSource).toContain(
+      'publicStrongGroupSurfaceHoverClassName = "group-hover:border-primary/60"',
+    );
+    expect(publicTokensSource).toContain(
+      'publicStrongFocusScopeClassName = "public-strong-focus-scope"',
+    );
+
+    expect(publicFormControlsSource).toContain("publicStrongFocusFieldClassName");
+    expect(publicFormControlsSource).toContain("<BaseInput");
+    expect(publicFormControlsSource).toContain("<BaseTextarea");
+    expect(publicFormControlsSource).toContain("<BaseSelectTrigger");
+
+    expect(publicPageContainerSource).toContain("publicStrongFocusScopeClassName");
+    expect(indexCssSource).toContain(".public-strong-focus-scope");
+    expect(indexCssSource).toContain("border-color: hsl(var(--primary)) !important;");
+    expect(indexCssSource).toContain(
+      "box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.45) !important;",
+    );
+
+    publicWrappedFormFiles.forEach((relativePath) => {
+      const source = readFileSync(repoFile(relativePath), "utf8");
+      expect(source, `${relativePath} should use public form wrappers`).toContain(
+        "@/components/public-form-controls",
+      );
+      if (relativePath !== "src/pages/Login.tsx") {
+        expect(source, `${relativePath} should not import ui/input directly`).not.toContain(
+          '@/components/ui/input',
+        );
+        expect(source, `${relativePath} should not import ui/textarea directly`).not.toContain(
+          '@/components/ui/textarea',
+        );
+        expect(source, `${relativePath} should not import ui/select directly`).not.toContain(
+          '@/components/ui/select',
+        );
+      }
+    });
+
+    expect(loginSource).toContain("<Input");
+    expect(loginSource).not.toContain("<input");
   });
 });

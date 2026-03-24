@@ -103,6 +103,8 @@ describe("LatestEpisodeCard border styles", () => {
     expect(cardRoot).not.toHaveClass("lift-hover");
     expect(cardRoot).toHaveClass("shadow-none");
     expect(cardRoot).not.toHaveClass("shadow-xs");
+    expect(cardRoot).not.toHaveClass("border", "border-border", "hover:border-primary/60");
+    expect(cardRoot).toHaveClass("hover:shadow-lg");
 
     const updateLinks = screen.getAllByRole("link");
     expect(updateLinks).toHaveLength(2);
@@ -113,9 +115,10 @@ describe("LatestEpisodeCard border styles", () => {
     updateLinks.forEach((link) => {
       expect(link).toHaveClass("recent-updates-item");
       expect(link).toHaveClass("overflow-hidden");
+      expect(link).not.toHaveClass("border", "border-transparent");
       expect(link).toHaveClass("hover:-translate-y-1");
       expect(link).not.toHaveClass("border-border/60");
-      expect(link).not.toHaveClass("hover:border-primary/40");
+      expect(link).toHaveClass("hover:border-primary/60");
     });
 
     const firstUpdateLink = updateLinks[0];
