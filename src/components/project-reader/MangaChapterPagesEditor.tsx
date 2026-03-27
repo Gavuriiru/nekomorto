@@ -25,6 +25,7 @@ import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSele
 import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
 import type { Project, ProjectEpisode, ProjectEpisodePage } from "@/data/projects";
 import { apiFetch } from "@/lib/api-client";
+import { fileToDataUrl } from "@/lib/file-data-url";
 import {
   buildReorderAnnouncement,
   getReorderLayoutTransition,
@@ -77,14 +78,6 @@ const getRemovedSpreadPairIds = (
   const nextIds = getSpreadPairIds(nextPages);
   return [...previousIds].filter((spreadPairId) => !nextIds.has(spreadPairId));
 };
-
-const fileToDataUrl = (file: Blob) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("file_read_failed"));
-    reader.readAsDataURL(file);
-  });
 
 const normalizePagesForEditor = (pages: ProjectEpisodePage[]) =>
   normalizeProjectEpisodePages(pages).map((page, index) => ({

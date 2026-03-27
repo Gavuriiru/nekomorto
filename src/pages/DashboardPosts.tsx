@@ -29,6 +29,7 @@ import {
 } from "@/components/dashboard/dashboard-motion";
 import UploadPicture from "@/components/UploadPicture";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
+import LexicalEditorFallback from "@/components/lexical/LexicalEditorFallback";
 import {
   dashboardPageLayoutTokens,
   dashboardStrongSurfaceHoverClassName,
@@ -384,39 +385,6 @@ const writePostsPageCache = (value: Omit<PostsCacheEntry, "expiresAt">) => {
 
 const LexicalEditor = lazy(() => import("@/components/lexical/LexicalEditor"));
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
-
-const LexicalEditorFallback = () => (
-  <div
-    className="min-h-[460px] w-full rounded-2xl border border-border/60 bg-card/60 p-6 lg:min-h-[680px]"
-    role="status"
-    aria-live="polite"
-    aria-busy="true"
-  >
-    <div className="space-y-6">
-      <div className="flex flex-wrap gap-3">
-        <Skeleton className="h-9 w-28" />
-        <Skeleton className="h-9 w-24" />
-        <Skeleton className="h-9 w-32" />
-      </div>
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
-          <Skeleton className="h-10 w-full rounded-xl" />
-          <Skeleton className="h-32 w-full rounded-xl" />
-          <Skeleton className="h-4 w-11/12" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-5/6" />
-          <Skeleton className="h-52 w-full rounded-xl" />
-        </div>
-        <div className="space-y-4">
-          <Skeleton className="h-28 w-full rounded-xl" />
-          <Skeleton className="h-20 w-full rounded-xl" />
-          <Skeleton className="h-20 w-full rounded-xl" />
-        </div>
-      </div>
-    </div>
-    <span className="sr-only">Carregando editor...</span>
-  </div>
-);
 
 const getPostStatusLabel = (status: PostRecord["status"]): string => {
   if (status === "published") {
@@ -2211,7 +2179,14 @@ const DashboardPosts = () => {
                                 className="post-editor-lexical-wrapper min-w-0"
                                 style={postEditorLexicalWrapperStyle}
                               >
-                                <Suspense fallback={<LexicalEditorFallback />}>
+                                <Suspense
+                                  fallback={
+                                    <LexicalEditorFallback
+                                      variant="post"
+                                      minHeightClassName="min-h-[460px] lg:min-h-[680px]"
+                                    />
+                                  }
+                                >
                                   <LexicalEditor
                                     ref={editorRef}
                                     value={formState.contentLexical}

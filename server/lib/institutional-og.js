@@ -17,6 +17,7 @@ import {
   resolveInstitutionalOgPageTitle,
   resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
+import { finalizeVariantUrl, normalizeText } from "./og-shared.js";
 
 const { createElement } = React;
 
@@ -47,7 +48,6 @@ const DEFAULT_LAYOUT = Object.freeze({
   backgroundHeight: 715,
 });
 
-const normalizeText = (value) => String(value || "").trim();
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const normalizeHex = (value) => {
@@ -111,23 +111,6 @@ const buildInstitutionalOverlayGradient = (palette = {}) => {
   ];
 
   return `linear-gradient(180deg, ${stops.map((stop) => `${stop.color} ${stop.offset}`).join(", ")})`;
-};
-
-const finalizeVariantUrl = ({ url, preset, resolveVariantUrl, origin } = {}) => {
-  const normalizedUrl = normalizeText(url);
-  if (!normalizedUrl) {
-    return "";
-  }
-
-  const resolvedVariant =
-    typeof resolveVariantUrl === "function"
-      ? normalizeText(resolveVariantUrl(normalizedUrl, preset))
-      : "";
-  const finalUrl = resolvedVariant || normalizedUrl;
-  if (finalUrl.startsWith("/") && !finalUrl.startsWith("/uploads/") && origin) {
-    return `${String(origin).replace(/\/+$/, "")}${finalUrl}`;
-  }
-  return finalUrl;
 };
 
 const decodeDataUrlBuffer = (value) => {

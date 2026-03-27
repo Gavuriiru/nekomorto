@@ -10,27 +10,12 @@ import {
   buildProjectReadingOgImagePath,
   resolveProjectReadingOgSnapshot,
 } from "../../shared/project-reading-og-seo.js";
+import { finalizeVariantUrl, normalizeText } from "./og-shared.js";
 
 const READING_SUBTITLE_FONT_WEIGHT = 500;
 const READING_SUBTITLE_DIAGONAL_INSET = 48;
 const READING_SUBTITLE_MAX_LINES = 2;
 const READING_MODEL_MAX_PASSES = 4;
-
-const finalizeVariantUrl = ({ url, preset, resolveVariantUrl, origin } = {}) => {
-  const normalizedUrl = String(url || "").trim();
-  if (!normalizedUrl) {
-    return "";
-  }
-  const resolvedVariant =
-    typeof resolveVariantUrl === "function"
-      ? String(resolveVariantUrl(normalizedUrl, preset) || "").trim()
-      : "";
-  const finalUrl = resolvedVariant || normalizedUrl;
-  if (finalUrl.startsWith("/") && !finalUrl.startsWith("/uploads/") && origin) {
-    return `${String(origin).replace(/\/+$/, "")}${finalUrl}`;
-  }
-  return finalUrl;
-};
 
 const measureReadingSubtitleWidth = (text, fontSize) =>
   measureTextWidth({
@@ -56,7 +41,7 @@ const getReadingSubtitleLineMaxWidth = ({ layout, subtitleTop, lineIndex }) => {
 
 const fitReadingSubtitleWordsWithEllipsis = ({ words, maxWidth, fontSize }) => {
   const safeWords = Array.isArray(words)
-    ? words.map((word) => String(word || "").trim()).filter(Boolean)
+    ? words.map((word) => normalizeText(word)).filter(Boolean)
     : [];
   const safeMaxWidth = Number(maxWidth);
   if (safeWords.length === 0 || !Number.isFinite(safeMaxWidth) || safeMaxWidth <= 0) {

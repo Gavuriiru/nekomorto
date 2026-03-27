@@ -16,12 +16,10 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, apiFetchBestEffort } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
 import { extractFirstImageFromPostContent } from "@/lib/post-cover";
-import {
-  readWindowPublicBootstrap,
-} from "@/lib/public-bootstrap-global";
+import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import { estimateReadTime } from "@/lib/post-content";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicBootstrapPayload, PublicBootstrapPost } from "@/types/public-bootstrap";
@@ -242,7 +240,9 @@ const Post = () => {
       return;
     }
     trackedViewsRef.current.add(post.slug);
-    void apiFetch(apiBase, `/api/public/posts/${post.slug}/view`, { method: "POST" });
+    void apiFetchBestEffort(apiBase, `/api/public/posts/${post.slug}/view`, {
+      method: "POST",
+    });
   }, [apiBase, post?.slug]);
 
   const authorCard = useMemo(
@@ -423,36 +423,38 @@ const Post = () => {
             >
               <section data-testid="post-reader-layout">
                 <article data-testid="post-reader-main" className="min-w-0 space-y-8">
-                  <Card className="border-border/60 bg-card/85 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.75)]">
-                    <CardContent className="min-w-0 space-y-7 p-6 text-sm leading-relaxed text-muted-foreground md:p-8">
-                      {post.content ? (
-                        <Suspense fallback={<LexicalViewerFallback />}>
-                          <LexicalViewer
-                            value={post.content}
-                            ariaLabel={`Conteúdo da postagem ${post.title}`}
-                            className="post-content reader-content min-w-0 w-full text-muted-foreground"
-                            pollTarget={post.slug ? { type: "post", slug: post.slug } : undefined}
-                          />
-                        </Suspense>
-                      ) : !hasLoaded ? (
-                        <LexicalViewerFallback />
-                      ) : loadError ? (
-                        <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
-                          O conteúdo completo da postagem não pôde ser carregado agora.
-                        </div>
-                      ) : (
-                        <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
-                          Conteúdo ainda não disponível.
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                  <div className="relative">
+                    <Card className="border-border/60 bg-card/85 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.75)]">
+                      <CardContent className="min-w-0 space-y-7 p-6 text-sm leading-relaxed text-muted-foreground md:p-8">
+                        {post.content ? (
+                          <Suspense fallback={<LexicalViewerFallback />}>
+                            <LexicalViewer
+                              value={post.content}
+                              ariaLabel={`Conteúdo da postagem ${post.title}`}
+                              className="post-content reader-content min-w-0 w-full text-muted-foreground"
+                              pollTarget={post.slug ? { type: "post", slug: post.slug } : undefined}
+                            />
+                          </Suspense>
+                        ) : !hasLoaded ? (
+                          <LexicalViewerFallback />
+                        ) : loadError ? (
+                          <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
+                            O conteúdo completo da postagem não pôde ser carregado agora.
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
+                            Conteúdo ainda não disponível.
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
 
-                  <div
-                    ref={deferredSectionsSentinelRef}
-                    aria-hidden="true"
-                    className="h-px w-full"
-                  />
+                    <div
+                      ref={deferredSectionsSentinelRef}
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-x-0 bottom-0 h-px"
+                    />
+                  </div>
 
                   {areDeferredSectionsVisible && post.projectId ? (
                     <ProjectEmbedCard projectId={post.projectId} />

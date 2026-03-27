@@ -12,6 +12,7 @@ vi.mock("@/lib/api-base", () => ({
 
 vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+  apiFetchBestEffort: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
 vi.mock("@/hooks/use-site-settings", () => ({
@@ -214,6 +215,41 @@ describe("Post bootstrap-first", () => {
       "href",
       "/dashboard/posts?edit=post-1",
     );
+  });
+
+  it("mantem o bootstrap visivel quando o registro de view falha na rede", async () => {
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
+          throw new TypeError("Failed to fetch");
+        }
+        if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
+          return await new Promise<Response>(() => undefined);
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
+
+    render(
+      <MemoryRouter>
+        <Post />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Post Bootstrap" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Editar postagem" })).toHaveAttribute(
+      "href",
+      "/dashboard/posts?edit=post-1",
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "",
+        "/api/public/posts/post-teste/view",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
   });
 
   afterEach(() => {

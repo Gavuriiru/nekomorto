@@ -6,10 +6,13 @@ import { primePublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
 import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
 import { shouldRegisterPwaImmediately } from "@/lib/pwa-navigation";
+import { installVitePreloadRecovery } from "@/lib/vite-preload-recovery";
 import "./styles/fonts.css";
 import "./index.css";
 
 const HOME_HERO_READY_EVENT = "nekomata:hero-ready";
+
+installVitePreloadRecovery();
 
 const titleForPath = (path: string) => {
   const rules: Array<[RegExp, string]> = [

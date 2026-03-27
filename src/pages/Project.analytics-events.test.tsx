@@ -13,6 +13,7 @@ vi.mock("@/lib/api-base", () => ({
 
 vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+  apiFetchBestEffort: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
 vi.mock("@/hooks/use-site-settings", () => ({
@@ -283,6 +284,111 @@ describe("Project analytics events", () => {
       expect(payload.meta?.chapterNumber).toBe(4);
       expect(payload.meta?.volume).toBe(2);
       expect(payload.meta?.sourceLabel).toBe("Google Drive");
+    });
+  });
+
+  it("mantem a pagina utilizavel quando view e analytics sao bloqueados", async () => {
+    const project = {
+      id: "projeto-teste",
+      title: "Projeto Teste",
+      synopsis: "Sinopse",
+      description: "Descricao",
+      type: "Anime",
+      status: "Em andamento",
+      year: "2025",
+      studio: "Studio Teste",
+      episodes: "12 episodios",
+      tags: [],
+      genres: [],
+      cover: "/placeholder.svg",
+      banner: "/placeholder.svg",
+      season: "Temporada 1",
+      schedule: "Sabado",
+      rating: "14",
+      country: "JP",
+      source: "Original",
+      producers: [],
+      score: null,
+      startDate: "",
+      endDate: "",
+      relations: [],
+      staff: [],
+      animeStaff: [],
+      trailerUrl: "",
+      forceHero: false,
+      heroImageUrl: "",
+      views: 1,
+      commentsCount: 0,
+      episodeDownloads: [
+        {
+          number: 1,
+          title: "EpisÃ³dio 1",
+          synopsis: "Sinopse do episÃ³dio",
+          releaseDate: "2025-01-01",
+          duration: "24 min",
+          sourceType: "TV",
+          sources: [
+            {
+              label: "Google Drive",
+              url: "https://example.com/source-1",
+            },
+          ],
+        },
+      ],
+    };
+
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        if (
+          endpoint === "/api/public/projects/projeto-teste" &&
+          (!options?.method || options.method === "GET")
+        ) {
+          return mockJsonResponse(true, { project });
+        }
+        if (endpoint === "/api/public/projects" && (!options?.method || options.method === "GET")) {
+          return mockJsonResponse(true, { projects: [project] });
+        }
+        if (
+          endpoint === "/api/public/tag-translations" &&
+          (!options?.method || options.method === "GET")
+        ) {
+          return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+        }
+        if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+          return mockJsonResponse(true, { user: null });
+        }
+        if (endpoint === "/api/public/projects/projeto-teste/view" && options?.method === "POST") {
+          throw new TypeError("Failed to fetch");
+        }
+        if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+          throw new TypeError("Failed to fetch");
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    const sourceLink = await screen.findByRole("link", { name: "Google Drive" });
+    expect(sourceLink).toBeInTheDocument();
+
+    fireEvent.click(sourceLink);
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "",
+        "/api/public/projects/projeto-teste/view",
+        expect.objectContaining({ method: "POST" }),
+      );
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "",
+        "/api/public/analytics/event",
+        expect.objectContaining({ method: "POST" }),
+      );
     });
   });
 });

@@ -1,21 +1,6 @@
-const DEFAULT_MAX_REDIRECTS = 200;
+import { isReservedPublicPath, normalizePublicPath } from "../../shared/public-paths.js";
 
-const RESERVED_PREFIXES = ["/api", "/auth", "/uploads", "/assets", "/pwa"];
-const RESERVED_EXACT_PATHS = new Set([
-  "/manifest.webmanifest",
-  "/sw.js",
-  "/favicon.ico",
-  "/robots.txt",
-  "/sitemap.xml",
-  "/rss/posts.xml",
-  "/rss/lancamentos.xml",
-  "/api/public/sitemap.xml",
-  "/api/public/rss.xml",
-]);
-const RESERVED_PATH_PATTERNS = [
-  /^\/workbox-[a-z0-9_-]+\.js$/i,
-  /\.(?:js|mjs|cjs|css|map|png|jpe?g|gif|svg|webp|ico|woff2?|ttf|eot|json|xml|webmanifest)$/i,
-];
+const DEFAULT_MAX_REDIRECTS = 200;
 
 const asTrimmedString = (value) => String(value || "").trim();
 
@@ -27,38 +12,9 @@ const clampMaxEntries = (value) => {
   return Math.min(Math.floor(parsed), 1000);
 };
 
-const stripTrailingSlash = (value) => {
-  if (value === "/") {
-    return value;
-  }
-  return value.replace(/\/+$/, "");
-};
+const stripTrailingSlash = (value) => (value === "/" ? value : value.replace(/\/+$/, ""));
 
-export const normalizeRedirectFromPath = (value) => {
-  const raw = asTrimmedString(value);
-  if (!raw) {
-    return "";
-  }
-  if (!raw.startsWith("/") || raw.startsWith("//")) {
-    return "";
-  }
-
-  let path = raw;
-  const hashIndex = path.indexOf("#");
-  if (hashIndex >= 0) {
-    path = path.slice(0, hashIndex);
-  }
-  const queryIndex = path.indexOf("?");
-  if (queryIndex >= 0) {
-    path = path.slice(0, queryIndex);
-  }
-  path = path.replace(/\/{2,}/g, "/");
-  path = stripTrailingSlash(path || "/");
-  if (!path.startsWith("/")) {
-    return "";
-  }
-  return path || "/";
-};
+export const normalizeRedirectFromPath = (value) => normalizePublicPath(value);
 
 const normalizeRedirectTarget = (value) => {
   const raw = asTrimmedString(value);
@@ -127,20 +83,7 @@ const appendSearchToTarget = (target, search) => {
   return `${base}${delimiter}${normalizedSearch}${hash}`;
 };
 
-export const isReservedRedirectPath = (value) => {
-  const normalized = normalizeRedirectFromPath(value);
-  if (!normalized) {
-    return false;
-  }
-  const lower = normalized.toLowerCase();
-  if (RESERVED_EXACT_PATHS.has(lower)) {
-    return true;
-  }
-  if (RESERVED_PREFIXES.some((prefix) => lower === prefix || lower.startsWith(`${prefix}/`))) {
-    return true;
-  }
-  return RESERVED_PATH_PATTERNS.some((pattern) => pattern.test(lower));
-};
+export const isReservedRedirectPath = (value) => isReservedPublicPath(value);
 
 export const normalizePublicRedirects = (value, options = {}) => {
   const items = Array.isArray(value) ? value : [];

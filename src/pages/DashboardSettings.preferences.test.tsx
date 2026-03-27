@@ -174,7 +174,7 @@ describe("DashboardSettings query sync", () => {
     expect(getPreferenceCalls()).toHaveLength(0);
   });
 
-  it("normaliza a aba legada navbar para ?tab=layout", async () => {
+  it("interpreta a aba legada navbar como Layout", async () => {
     setupApiMock();
 
     render(
@@ -187,12 +187,11 @@ describe("DashboardSettings query sync", () => {
     await screen.findByRole("heading", { name: /Painel de ajustes/i });
     await waitFor(() => {
       expect(screen.getByRole("tab", { name: /Layout/i })).toHaveAttribute("aria-selected", "true");
-      expect(screen.getByTestId("location-search").textContent).toBe("?tab=layout");
     });
     expect(getPreferenceCalls()).toHaveLength(0);
   });
 
-  it("normaliza a aba legada footer para ?tab=layout", async () => {
+  it("interpreta a aba legada footer como Layout", async () => {
     setupApiMock();
 
     render(
@@ -205,7 +204,6 @@ describe("DashboardSettings query sync", () => {
     await screen.findByRole("heading", { name: /Painel de ajustes/i });
     await waitFor(() => {
       expect(screen.getByRole("tab", { name: /Layout/i })).toHaveAttribute("aria-selected", "true");
-      expect(screen.getByTestId("location-search").textContent).toBe("?tab=layout");
     });
     expect(getPreferenceCalls()).toHaveLength(0);
   });

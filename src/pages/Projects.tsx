@@ -763,8 +763,21 @@ const Projects = () => {
     if (typeOptions.includes(selectedType)) {
       return;
     }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("type");
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+      return;
+    }
     setSelectedType("Todos");
-  }, [hasProjectsLoadError, isLoadingProjects, selectedType, typeOptions]);
+  }, [
+    hasProjectsLoadError,
+    isLoadingProjects,
+    searchParams,
+    selectedType,
+    setSearchParams,
+    typeOptions,
+  ]);
 
   const normalizedQueryTokens = useMemo(
     () => normalizeSearchText(selectedQuery).split(/\s+/).filter(Boolean),

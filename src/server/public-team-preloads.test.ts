@@ -42,6 +42,7 @@ describe("public team preloads", () => {
       type: "image/avif",
       imagesrcset: "/uploads/_variants/team/active-square-v3.avif 512w",
       imagesizes: "(max-width: 639px) 224px, (max-width: 767px) 240px, 256px",
+      crossorigin: "anonymous",
       fetchpriority: "high",
     });
   });
@@ -63,6 +64,7 @@ describe("public team preloads", () => {
     expect(preload).toEqual({
       href: "/uploads/users/retired.png",
       as: "image",
+      crossorigin: "anonymous",
       fetchpriority: "high",
     });
   });

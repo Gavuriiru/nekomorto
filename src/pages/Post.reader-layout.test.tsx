@@ -20,6 +20,7 @@ vi.mock("@/lib/api-base", () => ({
 
 vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+  apiFetchBestEffort: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
 vi.mock("@/hooks/use-site-settings", () => ({

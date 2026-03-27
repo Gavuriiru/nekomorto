@@ -13,6 +13,7 @@ vi.mock("@/lib/api-base", () => ({
 
 vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+  apiFetchBestEffort: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
 vi.mock("@/hooks/use-page-meta", () => ({
@@ -363,6 +364,37 @@ describe("ProjectReading analytics", () => {
       expect(payload.meta?.projectId).toBe("projeto-teste");
       expect(payload.meta?.chapterNumber).toBe(1);
       expect(payload.meta?.volume).toBe(2);
+    });
+  });
+
+  it("mantem o leitor carregado quando o chapter_view falha na rede", async () => {
+    setupProjectReadingApiMock();
+    const baseImplementation = apiFetchMock.getMockImplementation();
+    if (!baseImplementation) {
+      throw new Error("expected apiFetch mock implementation");
+    }
+    apiFetchMock.mockImplementation(async (apiBase: string, endpoint: string, options?: RequestInit) => {
+      if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+        throw new TypeError("Failed to fetch");
+      }
+      return baseImplementation(apiBase, endpoint, options);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("heading", { name: /Cap.*tulo 1/i })).toBeInTheDocument();
+    expect(await screen.findByTestId("lexical-viewer")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "",
+        "/api/public/analytics/event",
+        expect.objectContaining({ method: "POST" }),
+      );
     });
   });
 

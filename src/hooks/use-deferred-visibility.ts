@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type UseDeferredVisibilityOptions = {
   initialVisible?: boolean;
@@ -9,15 +9,25 @@ export const useDeferredVisibility = ({
   initialVisible = false,
   rootMargin = "400px 0px",
 }: UseDeferredVisibilityOptions = {}) => {
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const [sentinelNode, setSentinelNode] = useState<HTMLDivElement | null>(null);
   const [isVisible, setIsVisible] = useState(initialVisible);
+
+  const sentinelRef = useCallback((node: HTMLDivElement | null) => {
+    setSentinelNode(node);
+  }, []);
+
+  useEffect(() => {
+    if (!initialVisible || isVisible) {
+      return;
+    }
+    setIsVisible(true);
+  }, [initialVisible, isVisible]);
 
   useEffect(() => {
     if (isVisible) {
       return;
     }
-    const sentinel = sentinelRef.current;
-    if (!sentinel) {
+    if (!sentinelNode) {
       return;
     }
     if (typeof window === "undefined" || typeof window.IntersectionObserver !== "function") {
@@ -39,11 +49,11 @@ export const useDeferredVisibility = ({
       },
     );
 
-    observer.observe(sentinel);
+    observer.observe(sentinelNode);
     return () => {
       observer.disconnect();
     };
-  }, [isVisible, rootMargin]);
+  }, [isVisible, rootMargin, sentinelNode]);
 
   return {
     isVisible,

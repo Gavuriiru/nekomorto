@@ -39,7 +39,7 @@ import {
 } from "@/lib/public-project-episodes";
 import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
 import { formatDate } from "@/lib/date";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, apiFetchBestEffort } from "@/lib/api-client";
 import {
   buildTranslationMap,
   sortByTranslatedLabel,
@@ -150,7 +150,9 @@ const ProjectPage = () => {
       return;
     }
     trackedViewsRef.current.add(project.id);
-    void apiFetch(apiBase, `/api/public/projects/${project.id}/view`, { method: "POST" });
+    void apiFetchBestEffort(apiBase, `/api/public/projects/${project.id}/view`, {
+      method: "POST",
+    });
   }, [apiBase, project?.id]);
   useEffect(() => {
     let isActive = true;
@@ -440,7 +442,7 @@ const ProjectPage = () => {
     if (Number.isFinite(volumeNumber)) {
       payload.meta.volume = volumeNumber;
     }
-    void apiFetch(apiBase, "/api/public/analytics/event", {
+    void apiFetchBestEffort(apiBase, "/api/public/analytics/event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

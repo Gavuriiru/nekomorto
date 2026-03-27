@@ -4,6 +4,8 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Dashboard from "@/pages/Dashboard";
+import { DashboardPreferencesProvider } from "@/hooks/dashboard-preferences-provider";
+import { DashboardSessionProvider } from "@/hooks/dashboard-session-provider";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 
@@ -507,5 +509,41 @@ describe("Dashboard overview async states", () => {
     expect(classTokens(metricsCard)).not.toContain("bg-card/60");
     expect(classTokens(analyticsCard)).toContain("bg-card");
     expect(classTokens(analyticsCard)).not.toContain("bg-card/60");
+  });
+
+  it("preserva a contagem de acessos no ranking de projetos", async () => {
+    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = {
+      ...dashboardUser,
+      grants: { usuarios_acesso: true },
+    };
+    installDashboardApiMock({
+      preferencesResponse: mockJsonResponse(true, {
+        preferences: {
+          dashboard: {
+            homeByRole: {
+              admin: {
+                widgets: ["metrics_overview", "analytics_summary", "projects_rank"],
+              },
+            },
+          },
+        },
+      }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <DashboardSessionProvider>
+          <DashboardPreferencesProvider>
+            <Dashboard />
+          </DashboardPreferencesProvider>
+        </DashboardSessionProvider>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Painel de controle da comunidade/i });
+
+    expect(await screen.findByText("Projeto Teste")).toBeInTheDocument();
+    expect(screen.getByText("15 acessos")).toBeInTheDocument();
+    expect(screen.getByText("Em andamento")).toBeInTheDocument();
   });
 });

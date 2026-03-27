@@ -1,6 +1,4 @@
 import DashboardShell from "@/components/DashboardShell";
-import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
-import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import ReorderControls from "@/components/ReorderControls";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import {
@@ -24,6 +22,11 @@ import {
   dashboardStrongFocusFieldClassName,
   dashboardStrongSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
+import EpisodeContentEditor from "@/components/dashboard/project-editor/EpisodeContentEditor";
+import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
+import ProjectEditorImageLibraryDialog from "@/components/dashboard/project-editor/ProjectEditorImageLibraryDialog";
+import ProjectEditorMediaSection from "@/components/dashboard/project-editor/ProjectEditorMediaSection";
+import { useProjectEditorImageLibrary } from "@/components/dashboard/project-editor/useProjectEditorImageLibrary";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
 import {
@@ -67,6 +70,17 @@ import { deriveAniListMediaOrganization } from "@/lib/anilist-media";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import {
+  canonicalToDisplayTime,
+  displayDateToIso,
+  displayTimeToCanonical,
+  formatDateDigitsToDisplay,
+  formatEpisodeReleaseDate,
+  formatTimeDigitsToDisplay,
+  isoToDisplayDate,
+  normalizeCanonicalTimeFromUnknown,
+  normalizeIsoDateFromUnknown,
+} from "@/lib/dashboard-date-time";
+import {
   buildDuplicatedAnimeEpisode,
   cloneEpisodeSources,
   getAnimeEpisodeCompletionIssues,
@@ -83,7 +97,6 @@ import {
   getEpisodeCoverAltFallback,
   resolveAssetAltText,
 } from "@/lib/image-alt";
-import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 import {
   buildDashboardProjectChapterEditorHref,
   buildDashboardProjectChaptersEditorHref,
@@ -99,7 +112,6 @@ import {
   resolveNextExtraTechnicalNumber,
   resolveNextMainEpisodeNumber,
 } from "@/lib/project-episode-key";
-import { buildChapterFolder, resolveProjectImageFolders } from "@/lib/project-image-folders";
 import {
   buildTranslationMap,
   normalizeKey,
@@ -138,35 +150,9 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-
-const LexicalEditor = lazy(() => import("@/components/lexical/LexicalEditor"));
-const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
-
-const LexicalEditorFallback = () => (
-  <div
-    className="min-h-[380px] w-full rounded-2xl border border-border/60 bg-card/60 p-4"
-    role="status"
-    aria-live="polite"
-    aria-busy="true"
-  >
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <Skeleton className="h-8 w-20" />
-        <Skeleton className="h-8 w-24" />
-        <Skeleton className="h-8 w-32" />
-      </div>
-      <Skeleton className="h-10 w-full rounded-xl" />
-      <Skeleton className="h-24 w-full rounded-xl" />
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-4 w-10/12" />
-      <Skeleton className="h-40 w-full rounded-xl" />
-    </div>
-    <span className="sr-only">Carregando editor...</span>
-  </div>
-);
 
 type ProjectRelation = {
   relation: string;
@@ -586,266 +572,6 @@ const normalizeUniqueStringList = (values: Array<string | null | undefined>) => 
   }, []);
 };
 
-const digitsOnly = (value: string) => value.replace(/\D/g, "");
-
-const formatDateDigitsToDisplay = (digits: string) => {
-  const safe = digitsOnly(digits).slice(0, 8);
-  if (!safe) {
-    return "";
-  }
-  if (safe.length <= 2) {
-    return safe;
-  }
-  if (safe.length <= 4) {
-    return `${safe.slice(0, 2)}/${safe.slice(2)}`;
-  }
-  return `${safe.slice(0, 2)}/${safe.slice(2, 4)}/${safe.slice(4)}`;
-};
-
-const formatTimeDigitsToDisplay = (digits: string) => {
-  const safe = digitsOnly(digits).slice(0, 9);
-  if (!safe) {
-    return "";
-  }
-  if (safe.length <= 2) {
-    return safe;
-  }
-  if (safe.length <= 4) {
-    return `${safe.slice(0, safe.length - 2)}:${safe.slice(-2)}`;
-  }
-  return `${safe.slice(0, safe.length - 4)}:${safe.slice(-4, -2)}:${safe.slice(-2)}`;
-};
-
-const displayDateToIso = (value?: string | null) => {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) {
-    return "";
-  }
-  const digits = digitsOnly(trimmed).slice(0, 8);
-  if (digits.length !== 8) {
-    return "";
-  }
-  const day = Number(digits.slice(0, 2));
-  const month = Number(digits.slice(2, 4));
-  const year = Number(digits.slice(4, 8));
-  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) {
-    return "";
-  }
-  if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1000) {
-    return "";
-  }
-  const iso = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  const parsed = new Date(`${iso}T00:00`);
-  if (
-    Number.isNaN(parsed.getTime()) ||
-    parsed.getFullYear() !== year ||
-    parsed.getMonth() + 1 !== month ||
-    parsed.getDate() !== day
-  ) {
-    return "";
-  }
-  return iso;
-};
-
-const isoToDisplayDate = (value?: string | null) => {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) {
-    return "";
-  }
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return `${trimmed.slice(8, 10)}/${trimmed.slice(5, 7)}/${trimmed.slice(0, 4)}`;
-  }
-  if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
-    return trimmed.replace(/-/g, "/");
-  }
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
-    return trimmed;
-  }
-  if (/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(trimmed)) {
-    return `${trimmed.slice(8, 10)}/${trimmed.slice(5, 7)}/${trimmed.slice(0, 4)}`;
-  }
-  const parsed = new Date(trimmed);
-  if (Number.isNaN(parsed.getTime())) {
-    return "";
-  }
-  const dd = String(parsed.getDate()).padStart(2, "0");
-  const mm = String(parsed.getMonth() + 1).padStart(2, "0");
-  const yyyy = String(parsed.getFullYear()).padStart(4, "0");
-  return `${dd}/${mm}/${yyyy}`;
-};
-
-const displayTimeToCanonical = (value?: string | null) => {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) {
-    return "";
-  }
-  const digits = digitsOnly(trimmed).slice(0, 9);
-  if (digits.length < 3) {
-    return "";
-  }
-  let hours = 0;
-  let minutes = 0;
-  let seconds = 0;
-  if (digits.length <= 4) {
-    minutes = Number(digits.slice(0, digits.length - 2));
-    seconds = Number(digits.slice(-2));
-  } else {
-    hours = Number(digits.slice(0, digits.length - 4));
-    minutes = Number(digits.slice(-4, -2));
-    seconds = Number(digits.slice(-2));
-  }
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes) || !Number.isFinite(seconds)) {
-    return "";
-  }
-  if (hours < 0 || minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) {
-    return "";
-  }
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-};
-
-const canonicalToDisplayTime = (value?: string | null) => {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) {
-    return "";
-  }
-  let canonical = "";
-  if (/^\d{1,}:\d{2}:\d{2}$/.test(trimmed)) {
-    const [hoursPart, minutesPart, secondsPart] = trimmed.split(":");
-    const hours = Number(hoursPart);
-    const minutes = Number(minutesPart);
-    const seconds = Number(secondsPart);
-    if (
-      Number.isFinite(hours) &&
-      Number.isFinite(minutes) &&
-      Number.isFinite(seconds) &&
-      hours >= 0 &&
-      minutes >= 0 &&
-      minutes <= 59 &&
-      seconds >= 0 &&
-      seconds <= 59
-    ) {
-      canonical = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-    }
-  } else if (/^\d{1,}:\d{2}$/.test(trimmed)) {
-    const [hoursPart, minutesPart] = trimmed.split(":");
-    const hours = Number(hoursPart);
-    const minutes = Number(minutesPart);
-    if (
-      Number.isFinite(hours) &&
-      Number.isFinite(minutes) &&
-      hours >= 0 &&
-      minutes >= 0 &&
-      minutes <= 59
-    ) {
-      canonical = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
-    }
-  } else {
-    canonical = displayTimeToCanonical(trimmed);
-  }
-  if (!canonical) {
-    return "";
-  }
-  const [hoursPart, minutesPart, secondsPart] = canonical.split(":");
-  const hours = Number(hoursPart);
-  if (!Number.isFinite(hours)) {
-    return canonical;
-  }
-  if (hours === 0) {
-    return `${minutesPart}:${secondsPart}`;
-  }
-  return `${hours}:${minutesPart}:${secondsPart}`;
-};
-
-const normalizeIsoDateFromUnknown = (value?: string | null) => {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) {
-    return "";
-  }
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return trimmed;
-  }
-  if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
-    return displayDateToIso(trimmed);
-  }
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
-    return displayDateToIso(trimmed);
-  }
-  if (/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(trimmed)) {
-    return trimmed.slice(0, 10);
-  }
-  const parsed = new Date(trimmed);
-  if (Number.isNaN(parsed.getTime())) {
-    return "";
-  }
-  const yyyy = String(parsed.getFullYear()).padStart(4, "0");
-  const mm = String(parsed.getMonth() + 1).padStart(2, "0");
-  const dd = String(parsed.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-};
-
-const normalizeCanonicalTimeFromUnknown = (value?: string | null) => {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) {
-    return "";
-  }
-  if (/^\d{1,}:\d{2}:\d{2}$/.test(trimmed)) {
-    const [hoursPart, minutesPart, secondsPart] = trimmed.split(":");
-    const hours = Number(hoursPart);
-    const minutes = Number(minutesPart);
-    const seconds = Number(secondsPart);
-    if (
-      Number.isFinite(hours) &&
-      Number.isFinite(minutes) &&
-      Number.isFinite(seconds) &&
-      hours >= 0 &&
-      minutes >= 0 &&
-      minutes <= 59 &&
-      seconds >= 0 &&
-      seconds <= 59
-    ) {
-      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-    }
-    return "";
-  }
-  if (/^\d{1,}:\d{2}$/.test(trimmed)) {
-    const [hoursPart, minutesPart] = trimmed.split(":");
-    const hours = Number(hoursPart);
-    const minutes = Number(minutesPart);
-    if (
-      Number.isFinite(hours) &&
-      Number.isFinite(minutes) &&
-      hours >= 0 &&
-      minutes >= 0 &&
-      minutes <= 59
-    ) {
-      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
-    }
-    return "";
-  }
-  return displayTimeToCanonical(trimmed);
-};
-
-const formatEpisodeReleaseDate = (dateValue?: string | null, timeValue?: string | null) => {
-  const date = normalizeIsoDateFromUnknown(dateValue);
-  if (!date) {
-    return String(dateValue || "");
-  }
-  const time = normalizeCanonicalTimeFromUnknown(timeValue);
-  const parsed = new Date(`${date}T00:00`);
-  if (Number.isNaN(parsed.getTime())) {
-    return date;
-  }
-  const dateLabel = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(parsed);
-  if (!time) {
-    return dateLabel;
-  }
-  const timeLabel = canonicalToDisplayTime(time);
-  if (!timeLabel) {
-    return dateLabel;
-  }
-  return `${dateLabel} · ${timeLabel}`;
-};
-
 const shiftDraftAfterRemoval = (draft: Record<number, string>, removedIndex: number) => {
   const next: Record<number, string> = {};
   Object.entries(draft).forEach(([key, value]) => {
@@ -954,55 +680,6 @@ const buildProjectEditorSnapshot = (form: ProjectForm, anilistIdInput: string) =
     form,
     anilistIdInput: anilistIdInput.trim(),
   });
-
-const projectEditorAccordionHeaderTextClassName = "min-w-0 flex-1 space-y-1 text-left";
-const projectEditorAccordionTitleClassName =
-  "block text-[15px] font-semibold leading-tight md:text-base";
-const projectEditorAccordionSubtitleClassName = "block text-xs leading-5 text-muted-foreground";
-
-const ProjectEditorAccordionHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
-  <div className={projectEditorAccordionHeaderTextClassName}>
-    <span className={projectEditorAccordionTitleClassName}>{title}</span>
-    <span className={projectEditorAccordionSubtitleClassName}>{subtitle}</span>
-  </div>
-);
-
-type EpisodeContentEditorProps = {
-  value: string;
-  onChange: (value: string) => void;
-  onRegister?: (handlers: LexicalEditorHandle | null) => void;
-  imageLibraryOptions?: ImageLibraryOptions;
-};
-
-const EpisodeContentEditor = ({
-  value,
-  onChange,
-  onRegister,
-  imageLibraryOptions,
-}: EpisodeContentEditorProps) => {
-  const editorRef = useRef<LexicalEditorHandle | null>(null);
-
-  useEffect(() => {
-    if (!onRegister) {
-      return;
-    }
-    onRegister(editorRef.current);
-  }, [onRegister]);
-
-  return (
-    <Suspense fallback={<LexicalEditorFallback />}>
-      <LexicalEditor
-        ref={editorRef}
-        value={value}
-        onChange={onChange}
-        placeholder="Escreva o capítulo..."
-        className="lexical-playground--modal"
-        imageLibraryOptions={imageLibraryOptions}
-        autoFocus={false}
-      />
-    </Suspense>
-  );
-};
 
 const DashboardProjectsEditor = () => {
   usePageMeta({ title: "Projetos", noIndex: true });
@@ -1117,12 +794,6 @@ const DashboardProjectsEditor = () => {
   const [collapsedEpisodes, setCollapsedEpisodes] = useState<Record<number, boolean>>({});
   const [collapsedVolumeGroups, setCollapsedVolumeGroups] = useState<Record<string, boolean>>({});
   const [editorAccordionValue, setEditorAccordionValue] = useState<string[]>(["informacoes"]);
-  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [libraryTarget, setLibraryTarget] = useState<
-    "cover" | "banner" | "hero" | "episode-cover" | "volume-cover"
-  >("cover");
-  const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
-  const [volumeCoverTargetVolume, setVolumeCoverTargetVolume] = useState<number | null>(null);
   const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
   const episodeSizeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const pendingAddAutoScrollRef = useRef(false);
@@ -1177,6 +848,34 @@ const DashboardProjectsEditor = () => {
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
     return permissions.includes("*") || permissions.includes("projetos");
   }, [currentUser]);
+  const resolveVolumeEntryIndexByVolume = useCallback(
+    (entries: ProjectVolumeEntry[], volume?: number) => {
+      if (!Number.isFinite(Number(volume))) {
+        return -1;
+      }
+      const normalizedVolume = Number(volume);
+      return entries.findIndex(
+        (entry) => buildVolumeCoverKey(entry?.volume) === buildVolumeCoverKey(normalizedVolume),
+      );
+    },
+    [],
+  );
+  const {
+    activeLibraryOptions,
+    buildEpisodeLibraryOptions,
+    currentLibrarySelection,
+    handleLibrarySave,
+    isLibraryOpen,
+    openLibraryForEpisodeCover,
+    openLibraryForProjectImage,
+    openLibraryForVolumeCover,
+    setIsLibraryOpen,
+  } = useProjectEditorImageLibrary({
+    canManageProjects,
+    formState,
+    resolveVolumeEntryIndexByVolume,
+    setFormState,
+  });
   const handleEditorOpenChange = (next: boolean) => {
     if (!next && isLibraryOpen) {
       return;
@@ -1432,138 +1131,6 @@ const DashboardProjectsEditor = () => {
     [formState.readerConfig, formState.type],
   );
   const stageOptions = getProjectProgressStagesForEditor(formState.type || "");
-  const {
-    projectRootFolder,
-    projectEpisodesFolder,
-    projectVolumeCoversFolder,
-    projectChaptersFolder,
-  } = useMemo(
-    () => resolveProjectImageFolders(formState.id, formState.title),
-    [formState.id, formState.title],
-  );
-  const scopedProjectImageIds = useMemo(() => {
-    const normalizedProjectId = String(formState.id || "").trim();
-    return normalizedProjectId ? [normalizedProjectId] : [];
-  }, [formState.id]);
-  const filterProjectLibraryFolders = useCallback(
-    (folders: string[]) =>
-      filterImageLibraryFoldersByAccess(folders, {
-        grants: { projetos: canManageProjects },
-      }),
-    [canManageProjects],
-  );
-  const projectAssetLibraryOptions = useMemo(
-    () =>
-      ({
-        uploadFolder: projectRootFolder,
-        listFolders: filterProjectLibraryFolders([projectRootFolder, projectEpisodesFolder]),
-        listAll: false,
-        includeProjectImages: true,
-        projectImageProjectIds: scopedProjectImageIds,
-        projectImagesView: "by-project",
-      }) satisfies ImageLibraryOptions,
-    [filterProjectLibraryFolders, projectEpisodesFolder, projectRootFolder, scopedProjectImageIds],
-  );
-  const buildEpisodeLibraryOptions = useCallback(
-    (episode: EditorProjectEpisode, index: number): ImageLibraryOptions => {
-      if (isChapterBased) {
-        const chapterFolder = buildChapterFolder({
-          projectChaptersFolder,
-          episode,
-          index,
-        });
-        return {
-          uploadFolder: chapterFolder,
-          listFolders: filterProjectLibraryFolders([
-            chapterFolder,
-            projectChaptersFolder,
-            projectEpisodesFolder,
-            projectRootFolder,
-          ]),
-          listAll: false,
-          includeProjectImages: true,
-          projectImageProjectIds: scopedProjectImageIds,
-          projectImagesView: "by-project",
-        };
-      }
-      return {
-        uploadFolder: projectEpisodesFolder,
-        listFolders: filterProjectLibraryFolders([projectEpisodesFolder, projectRootFolder]),
-        listAll: false,
-        includeProjectImages: true,
-        projectImageProjectIds: scopedProjectImageIds,
-        projectImagesView: "by-project",
-      };
-    },
-    [
-      isChapterBased,
-      filterProjectLibraryFolders,
-      projectChaptersFolder,
-      projectEpisodesFolder,
-      projectRootFolder,
-      scopedProjectImageIds,
-    ],
-  );
-  const episodeAssetLibraryOptions = useMemo(() => {
-    if (episodeCoverIndex !== null && formState.episodeDownloads[episodeCoverIndex]) {
-      return buildEpisodeLibraryOptions(
-        formState.episodeDownloads[episodeCoverIndex],
-        episodeCoverIndex,
-      );
-    }
-    return {
-      uploadFolder: projectEpisodesFolder,
-      listFolders: filterProjectLibraryFolders([projectEpisodesFolder, projectRootFolder]),
-      listAll: false,
-      includeProjectImages: true,
-      projectImageProjectIds: scopedProjectImageIds,
-      projectImagesView: "by-project",
-    } satisfies ImageLibraryOptions;
-  }, [
-    buildEpisodeLibraryOptions,
-    episodeCoverIndex,
-    filterProjectLibraryFolders,
-    formState.episodeDownloads,
-    projectEpisodesFolder,
-    projectRootFolder,
-    scopedProjectImageIds,
-  ]);
-  const volumeCoverAssetLibraryOptions = useMemo(
-    () =>
-      ({
-        uploadFolder: projectVolumeCoversFolder,
-        listFolders: filterProjectLibraryFolders([
-          projectVolumeCoversFolder,
-          projectRootFolder,
-          projectEpisodesFolder,
-        ]),
-        listAll: false,
-        includeProjectImages: true,
-        projectImageProjectIds: scopedProjectImageIds,
-        projectImagesView: "by-project",
-      }) satisfies ImageLibraryOptions,
-    [
-      filterProjectLibraryFolders,
-      projectEpisodesFolder,
-      projectRootFolder,
-      projectVolumeCoversFolder,
-      scopedProjectImageIds,
-    ],
-  );
-  const activeLibraryOptions = useMemo(() => {
-    if (libraryTarget === "episode-cover") {
-      return episodeAssetLibraryOptions;
-    }
-    if (libraryTarget === "volume-cover") {
-      return volumeCoverAssetLibraryOptions;
-    }
-    return projectAssetLibraryOptions;
-  }, [
-    episodeAssetLibraryOptions,
-    libraryTarget,
-    projectAssetLibraryOptions,
-    volumeCoverAssetLibraryOptions,
-  ]);
 
   const getEpisodeEntryKind = useCallback(
     (episode: Partial<EditorProjectEpisode> | null | undefined): "main" | "extra" =>
@@ -1624,19 +1191,6 @@ const DashboardProjectsEditor = () => {
   const selectedAnimeEpisodeKeySet = useMemo(
     () => new Set(selectedAnimeEpisodeKeys),
     [selectedAnimeEpisodeKeys],
-  );
-
-  const resolveVolumeEntryIndexByVolume = useCallback(
-    (entries: ProjectVolumeEntry[], volume?: number) => {
-      if (!Number.isFinite(Number(volume))) {
-        return -1;
-      }
-      const normalizedVolume = Number(volume);
-      return entries.findIndex(
-        (entry) => buildVolumeCoverKey(entry?.volume) === buildVolumeCoverKey(normalizedVolume),
-      );
-    },
-    [],
   );
 
   const addVolumeEntry = useCallback(() => {
@@ -2018,97 +1572,6 @@ const DashboardProjectsEditor = () => {
     };
   }, [collapsedVolumeGroups, editorAccordionValue, episodeGroupsForRender]);
 
-  const applyLibraryImage = (url: string, altText?: string) => {
-    const nextUrl = String(url || "").trim();
-    setFormState((prev) => {
-      const next = { ...prev };
-      if (libraryTarget === "cover") {
-        next.cover = nextUrl;
-        next.coverAlt = nextUrl ? resolveAssetAltText(altText, DEFAULT_PROJECT_COVER_ALT) : "";
-      } else if (libraryTarget === "banner") {
-        next.banner = nextUrl;
-        next.bannerAlt = nextUrl ? resolveAssetAltText(altText, DEFAULT_PROJECT_BANNER_ALT) : "";
-      } else if (libraryTarget === "hero") {
-        next.heroImageUrl = nextUrl;
-        next.heroImageAlt = nextUrl ? resolveAssetAltText(altText, DEFAULT_PROJECT_HERO_ALT) : "";
-      } else if (libraryTarget === "episode-cover") {
-        if (episodeCoverIndex === null) {
-          return prev;
-        }
-        const nextEpisodes = [...prev.episodeDownloads];
-        if (!nextEpisodes[episodeCoverIndex]) {
-          return prev;
-        }
-        nextEpisodes[episodeCoverIndex] = {
-          ...nextEpisodes[episodeCoverIndex],
-          coverImageUrl: nextUrl,
-          coverImageAlt: nextUrl
-            ? resolveAssetAltText(
-                altText,
-                getEpisodeCoverAltFallback(isChapterBasedType(prev.type || "")),
-              )
-            : "",
-        };
-        return { ...prev, episodeDownloads: nextEpisodes };
-      } else if (libraryTarget === "volume-cover") {
-        if (volumeCoverTargetVolume === null) {
-          return prev;
-        }
-        const nextVolumeEntries = [...prev.volumeEntries];
-        const targetIndex = resolveVolumeEntryIndexByVolume(
-          nextVolumeEntries,
-          volumeCoverTargetVolume,
-        );
-        if (targetIndex < 0) {
-          nextVolumeEntries.push({
-            volume: volumeCoverTargetVolume,
-            synopsis: "",
-            coverImageUrl: "",
-            coverImageAlt: "",
-          });
-        }
-        const resolvedIndex = resolveVolumeEntryIndexByVolume(
-          nextVolumeEntries,
-          volumeCoverTargetVolume,
-        );
-        if (resolvedIndex < 0) {
-          return prev;
-        }
-        const targetEntry = nextVolumeEntries[resolvedIndex];
-        nextVolumeEntries[resolvedIndex] = {
-          ...targetEntry,
-          coverImageUrl: nextUrl,
-          coverImageAlt: nextUrl
-            ? resolveAssetAltText(altText, `Capa do volume ${targetEntry.volume}`)
-            : "",
-        };
-        nextVolumeEntries.sort((left, right) => left.volume - right.volume);
-        return { ...prev, volumeEntries: nextVolumeEntries };
-      }
-      return next;
-    });
-  };
-
-  const openLibraryForProjectImage = (target: "cover" | "banner" | "hero") => {
-    setLibraryTarget(target);
-    setIsLibraryOpen(true);
-  };
-
-  const openLibraryForEpisodeCover = (index: number) => {
-    setEpisodeCoverIndex(index);
-    setLibraryTarget("episode-cover");
-    setIsLibraryOpen(true);
-  };
-
-  const openLibraryForVolumeCover = (volume?: number) => {
-    if (!Number.isFinite(Number(volume))) {
-      return;
-    }
-    setVolumeCoverTargetVolume(Number(volume));
-    setLibraryTarget("volume-cover");
-    setIsLibraryOpen(true);
-  };
-
   const loadProjects = useCallback(async () => {
     const response = await apiFetch(apiBase, "/api/projects", { auth: true });
     if (!response.ok) {
@@ -2295,14 +1758,6 @@ const DashboardProjectsEditor = () => {
     };
   }, [apiBase, loadVersion]);
 
-  useEffect(() => {
-    if (!isLibraryOpen) {
-      setLibraryTarget("cover");
-      setEpisodeCoverIndex(null);
-      setVolumeCoverTargetVolume(null);
-    }
-  }, [isLibraryOpen]);
-
   const isRestorable = useCallback(
     (project: ProjectRecord) => {
       if (!project.deletedAt) {
@@ -2400,39 +1855,6 @@ const DashboardProjectsEditor = () => {
       return haystack.includes(query);
     });
   }, [activeProjects, searchQuery, selectedType]);
-
-  const currentLibrarySelection = useMemo(() => {
-    if (libraryTarget === "cover") {
-      return formState.cover || "";
-    }
-    if (libraryTarget === "banner") {
-      return formState.banner || "";
-    }
-    if (libraryTarget === "hero") {
-      return formState.heroImageUrl || "";
-    }
-    if (libraryTarget === "episode-cover" && episodeCoverIndex !== null) {
-      return formState.episodeDownloads[episodeCoverIndex]?.coverImageUrl || "";
-    }
-    if (libraryTarget === "volume-cover" && volumeCoverTargetVolume !== null) {
-      const resolvedIndex = resolveVolumeEntryIndexByVolume(
-        formState.volumeEntries,
-        volumeCoverTargetVolume,
-      );
-      return resolvedIndex >= 0 ? formState.volumeEntries[resolvedIndex]?.coverImageUrl || "" : "";
-    }
-    return "";
-  }, [
-    episodeCoverIndex,
-    formState.banner,
-    formState.cover,
-    formState.episodeDownloads,
-    formState.heroImageUrl,
-    formState.volumeEntries,
-    libraryTarget,
-    resolveVolumeEntryIndexByVolume,
-    volumeCoverTargetVolume,
-  ]);
 
   const sortedProjects = useMemo(() => {
     const next = [...filteredProjects];
@@ -5915,105 +5337,15 @@ const DashboardProjectsEditor = () => {
                   </AccordionItem>
                   */}
 
-                  <AccordionItem value="midias" className={editorSectionClassName}>
-                    <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <ProjectEditorAccordionHeader
-                        title="Mídias"
-                        subtitle={`${
-                          [formState.heroImageUrl, formState.cover, formState.banner].filter(
-                            Boolean,
-                          ).length
-                        }/3 selecionadas`}
-                      />
-                    </AccordionTrigger>
-                    <AccordionContent className={editorSectionContentClassName}>
-                      <div className="space-y-4">
-                        <div className="grid gap-3 md:grid-cols-3">
-                          <div className="space-y-2">
-                            <Label>Imagem do carrossel</Label>
-                            <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                              <div className="flex items-center gap-3">
-                                {formState.heroImageUrl ? (
-                                  <img
-                                    src={formState.heroImageUrl}
-                                    alt="Imagem do carrossel"
-                                    className="h-12 w-12 rounded-lg object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                    Sem imagem
-                                  </div>
-                                )}
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="ml-auto"
-                                  onClick={() => openLibraryForProjectImage("hero")}
-                                >
-                                  Biblioteca
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Capa</Label>
-                            <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                              <div className="flex items-center gap-3">
-                                {formState.cover ? (
-                                  <img
-                                    src={formState.cover}
-                                    alt="Capa"
-                                    className="h-12 w-12 rounded-lg object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                    Sem imagem
-                                  </div>
-                                )}
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="ml-auto"
-                                  onClick={() => openLibraryForProjectImage("cover")}
-                                >
-                                  Biblioteca
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Banner</Label>
-                            <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                              <div className="flex items-center gap-3">
-                                {formState.banner ? (
-                                  <img
-                                    src={formState.banner}
-                                    alt="Banner"
-                                    className="h-12 w-12 rounded-lg object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                    Sem imagem
-                                  </div>
-                                )}
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="ml-auto"
-                                  onClick={() => openLibraryForProjectImage("banner")}
-                                >
-                                  Biblioteca
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                  <ProjectEditorMediaSection
+                    banner={formState.banner}
+                    cover={formState.cover}
+                    editorSectionClassName={editorSectionClassName}
+                    editorSectionContentClassName={editorSectionContentClassName}
+                    editorSectionTriggerClassName={editorSectionTriggerClassName}
+                    heroImageUrl={formState.heroImageUrl || ""}
+                    onOpenLibrary={openLibraryForProjectImage}
+                  />
 
                   <AccordionItem value="relacoes" className={editorSectionClassName}>
                     <AccordionTrigger className={editorSectionTriggerClassName}>
@@ -8103,34 +7435,14 @@ const DashboardProjectsEditor = () => {
         </DialogContent>
       </Dialog>
 
-      <Suspense
-        fallback={
-          isLibraryOpen ? (
-            <ImageLibraryDialogLoadingFallback
-              open={isLibraryOpen}
-              onOpenChange={setIsLibraryOpen}
-              description="Envie novas imagens ou selecione uma existente para usar no projeto."
-            />
-          ) : null
-        }
-      >
-        <ImageLibraryDialog
-          open={isLibraryOpen}
-          onOpenChange={setIsLibraryOpen}
-          apiBase={apiBase}
-          description="Envie novas imagens ou selecione uma existente para usar no projeto."
-          uploadFolder={activeLibraryOptions.uploadFolder}
-          listFolders={activeLibraryOptions.listFolders}
-          listAll={activeLibraryOptions.listAll}
-          includeProjectImages={activeLibraryOptions.includeProjectImages}
-          projectImageProjectIds={activeLibraryOptions.projectImageProjectIds}
-          projectImagesView={activeLibraryOptions.projectImagesView}
-          allowDeselect
-          mode="single"
-          currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
-          onSave={({ urls, items }) => applyLibraryImage(urls[0] || "", items[0]?.altText)}
-        />
-      </Suspense>
+      <ProjectEditorImageLibraryDialog
+        activeLibraryOptions={activeLibraryOptions}
+        apiBase={apiBase}
+        currentLibrarySelection={currentLibrarySelection}
+        isOpen={isLibraryOpen}
+        onOpenChange={setIsLibraryOpen}
+        onSave={handleLibrarySave}
+      />
     </>
   );
 };

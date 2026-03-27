@@ -119,6 +119,23 @@ const assertServiceWorkerEndpoint = async (path) => {
   return { path, status: response.status, contentType, workboxScriptPath };
 };
 
+const assertMissingAssetEndpoint = async (path) => {
+  const response = await withTimeout(`${baseUrl}${path}`);
+  if (response.status !== 404) {
+    const body = await response.text();
+    throw new Error(`${path} expected 404, got ${response.status}: ${body}`);
+  }
+  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+  if (contentType.includes("text/html")) {
+    throw new Error(`${path} must not return HTML content-type on 404, got "${contentType}"`);
+  }
+  const body = await response.text();
+  if (/^\s*<!doctype html>/i.test(body)) {
+    throw new Error(`${path} returned HTML instead of a non-HTML 404`);
+  }
+  return { path, status: response.status, contentType };
+};
+
 const main = async () => {
   const checks = [];
 
@@ -260,6 +277,8 @@ const main = async () => {
       contentType: workboxContentType,
     });
   }
+
+  checks.push(await assertMissingAssetEndpoint("/assets/__missing__.js"));
 
   console.log(
     JSON.stringify(

@@ -33,6 +33,16 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import {
+  canonicalToDisplayTime,
+  displayDateToIso,
+  displayTimeToCanonical,
+  formatDateDigitsToDisplay,
+  formatTimeDigitsToDisplay,
+  getTodayIsoDate,
+  isoToDisplayDate,
+} from "@/lib/dashboard-date-time";
+import { buildProjectEpisodeAssetLibraryOptions } from "@/lib/dashboard-image-library";
+import {
   cloneEpisodeSources,
   getAnimeEpisodeCompletionIssues,
   getAnimeEpisodeCompletionLabel,
@@ -45,7 +55,6 @@ import {
   resolveAssetAltText,
   DEFAULT_PROJECT_COVER_ALT,
 } from "@/lib/image-alt";
-import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 import {
   buildDashboardProjectEditorHref,
   buildDashboardProjectEpisodeEditorHref,
@@ -106,118 +115,6 @@ const editorMastheadClassName =
   "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
 const editorCommandBarClassName =
   "sticky top-3 z-20 overflow-hidden rounded-2xl border border-border/60 bg-background/92 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.72)] backdrop-blur supports-backdrop-filter:bg-background/78";
-
-const digitsOnly = (value: string) => value.replace(/\D/g, "");
-
-const formatDateDigitsToDisplay = (value: string) => {
-  const safe = digitsOnly(value).slice(0, 8);
-  if (!safe) {
-    return "";
-  }
-  if (safe.length <= 2) {
-    return safe;
-  }
-  if (safe.length <= 4) {
-    return `${safe.slice(0, 2)}/${safe.slice(2)}`;
-  }
-  return `${safe.slice(0, 2)}/${safe.slice(2, 4)}/${safe.slice(4)}`;
-};
-
-const displayDateToIso = (value: string) => {
-  const digits = digitsOnly(value).slice(0, 8);
-  if (digits.length !== 8) {
-    return "";
-  }
-  const day = Number(digits.slice(0, 2));
-  const month = Number(digits.slice(2, 4));
-  const year = Number(digits.slice(4, 8));
-  if (!day || !month || !year) {
-    return "";
-  }
-  const iso = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  const parsed = new Date(`${iso}T00:00:00`);
-  if (
-    Number.isNaN(parsed.getTime()) ||
-    parsed.getDate() !== day ||
-    parsed.getMonth() + 1 !== month ||
-    parsed.getFullYear() !== year
-  ) {
-    return "";
-  }
-  return iso;
-};
-
-const isoToDisplayDate = (value?: string | null) => {
-  const trimmed = String(value || "").trim();
-  if (!trimmed || !/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return "";
-  }
-  return `${trimmed.slice(8, 10)}/${trimmed.slice(5, 7)}/${trimmed.slice(0, 4)}`;
-};
-
-const getTodayIsoDate = (nowMs = Date.now()) => {
-  const current = new Date(nowMs);
-  const year = current.getFullYear();
-  const month = String(current.getMonth() + 1).padStart(2, "0");
-  const day = String(current.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
-const formatTimeDigitsToDisplay = (value: string) => {
-  const safe = digitsOnly(value).slice(0, 9);
-  if (!safe) {
-    return "";
-  }
-  if (safe.length <= 2) {
-    return safe;
-  }
-  if (safe.length <= 4) {
-    return `${safe.slice(0, safe.length - 2)}:${safe.slice(-2)}`;
-  }
-  return `${safe.slice(0, safe.length - 4)}:${safe.slice(-4, -2)}:${safe.slice(-2)}`;
-};
-
-const displayTimeToCanonical = (value: string) => {
-  const digits = digitsOnly(value).slice(0, 9);
-  if (digits.length < 3) {
-    return "";
-  }
-  let hours = 0;
-  let minutes = 0;
-  let seconds = 0;
-  if (digits.length <= 4) {
-    minutes = Number(digits.slice(0, digits.length - 2));
-    seconds = Number(digits.slice(-2));
-  } else {
-    hours = Number(digits.slice(0, digits.length - 4));
-    minutes = Number(digits.slice(-4, -2));
-    seconds = Number(digits.slice(-2));
-  }
-  if (
-    !Number.isFinite(hours) ||
-    !Number.isFinite(minutes) ||
-    !Number.isFinite(seconds) ||
-    minutes < 0 ||
-    minutes > 59 ||
-    seconds < 0 ||
-    seconds > 59
-  ) {
-    return "";
-  }
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-};
-
-const canonicalToDisplayTime = (value?: string | null) => {
-  const trimmed = String(value || "").trim();
-  if (!trimmed || !/^\d{2}:\d{2}:\d{2}$/.test(trimmed)) {
-    return "";
-  }
-  const [hours, minutes, seconds] = trimmed.split(":");
-  const normalizedHours = Number(hours || 0);
-  return normalizedHours > 0
-    ? `${normalizedHours}:${minutes}:${seconds}`
-    : `${Number(minutes)}:${seconds}`.replace(/^0:/, "");
-};
 
 const formatCountLabel = (count: number, singular: string, plural: string) =>
   `${count} ${count === 1 ? singular : plural}`;
@@ -546,23 +443,16 @@ const DashboardProjectEpisodeEditor = () => {
     [project?.id, project?.title, projectId],
   );
   const libraryOptions = useMemo<ImageLibraryOptions>(
-    () => ({
-      uploadFolder: projectImageFolders.projectEpisodesFolder,
-      listFolders: filterImageLibraryFoldersByAccess(
-        [projectImageFolders.projectEpisodesFolder, projectImageFolders.projectRootFolder],
-        {
-          grants: { projetos: canManageProjects },
-        },
-      ),
-      listAll: false,
-      includeProjectImages: true,
-      projectImageProjectIds: project?.id ? [project.id] : [],
-      projectImagesView: "by-project",
-      currentSelectionUrls:
-        activeDraft?.coverImageUrl && String(activeDraft.coverImageUrl || "").trim()
-          ? [activeDraft.coverImageUrl]
-          : [],
-    }),
+    () =>
+      buildProjectEpisodeAssetLibraryOptions({
+        projectFolders: projectImageFolders,
+        projectId: project?.id,
+        canManageProjects,
+        currentSelectionUrls:
+          activeDraft?.coverImageUrl && String(activeDraft.coverImageUrl || "").trim()
+            ? [activeDraft.coverImageUrl]
+            : [],
+      }),
     [
       activeDraft?.coverImageUrl,
       canManageProjects,

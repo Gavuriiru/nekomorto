@@ -42,6 +42,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
 import type { Project, ProjectEpisode } from "@/data/projects";
 import { apiFetch } from "@/lib/api-client";
+import { fileToDataUrl } from "@/lib/file-data-url";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
 import { buildChapterFolder, resolveProjectImageFolders } from "@/lib/project-image-folders";
 import { cn } from "@/lib/utils";
@@ -236,14 +237,6 @@ const detectChapterTitle = (value: string) => {
   );
   return stripCommonPrefix(withoutPrefix, /^\s*\d+\s*[-_:]?\s*/);
 };
-
-const fileToDataUrl = (file: Blob) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("file_read_failed"));
-    reader.readAsDataURL(file);
-  });
 
 const buildVolumeLabel = (value: number | null | undefined) =>
   Number.isFinite(Number(value)) && Number(value) > 0 ? `Volume ${Number(value)}` : "Sem volume";

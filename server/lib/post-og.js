@@ -6,26 +6,9 @@ import {
   measureTextWidth,
 } from "./project-og.js";
 import { POST_OG_SCENE_VERSION, buildPostOgImagePath } from "../../shared/post-og-seo.js";
+import { finalizeVariantUrl, normalizeText } from "./og-shared.js";
 const POST_OG_SUBTITLE_FONT_WEIGHT = 500;
 const POST_OG_SUBTITLE_DIAGONAL_INSET = 48;
-
-const normalizeText = (value) => String(value || "").trim();
-
-const finalizeVariantUrl = ({ url, preset, resolveVariantUrl, origin } = {}) => {
-  const normalizedUrl = normalizeText(url);
-  if (!normalizedUrl) {
-    return "";
-  }
-  const resolvedVariant =
-    typeof resolveVariantUrl === "function"
-      ? normalizeText(resolveVariantUrl(normalizedUrl, preset))
-      : "";
-  const finalUrl = resolvedVariant || normalizedUrl;
-  if (finalUrl.startsWith("/") && !finalUrl.startsWith("/uploads/") && origin) {
-    return `${String(origin).replace(/\/+$/, "")}${finalUrl}`;
-  }
-  return finalUrl;
-};
 
 const measurePostSubtitleWidth = (text, fontSize) =>
   measureTextWidth({

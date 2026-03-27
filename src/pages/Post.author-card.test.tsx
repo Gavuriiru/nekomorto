@@ -1,10 +1,11 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Post from "@/pages/Post";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
+const originalIntersectionObserver = window.IntersectionObserver;
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "",
@@ -12,6 +13,7 @@ vi.mock("@/lib/api-base", () => ({
 
 vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+  apiFetchBestEffort: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
 vi.mock("@/hooks/use-site-settings", () => ({
@@ -53,6 +55,46 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     status,
     json: async () => payload,
   }) as Response;
+
+const installIntersectionObserver = () => {
+  const observe = vi.fn();
+  const disconnect = vi.fn();
+  let callbackRef: IntersectionObserverCallback | null = null;
+
+  class MockIntersectionObserver {
+    observe = observe;
+    disconnect = disconnect;
+
+    constructor(callback: IntersectionObserverCallback, _options?: IntersectionObserverInit) {
+      callbackRef = callback;
+    }
+  }
+
+  Object.defineProperty(window, "IntersectionObserver", {
+    configurable: true,
+    writable: true,
+    value: MockIntersectionObserver,
+  });
+
+  return {
+    observe,
+    disconnect,
+    triggerIntersecting: (target: Element) => {
+      if (!callbackRef) {
+        return;
+      }
+      callbackRef(
+        [
+          {
+            isIntersecting: true,
+            target,
+          } as IntersectionObserverEntry,
+        ],
+        {} as IntersectionObserver,
+      );
+    },
+  };
+};
 
 const postFixture = {
   id: "post-1",
@@ -151,6 +193,14 @@ const setupApiMock = (users: unknown[]) => {
 };
 
 describe("Post author card", () => {
+  afterEach(() => {
+    Object.defineProperty(window, "IntersectionObserver", {
+      configurable: true,
+      writable: true,
+      value: originalIntersectionObserver,
+    });
+  });
+
   beforeEach(() => {
     apiFetchMock.mockReset();
     delete (
@@ -193,6 +243,51 @@ describe("Post author card", () => {
     const embedCard = screen.getByTestId("project-embed-card");
     const comments = screen.getByTestId("comments-section");
 
+    expect(
+      embedCard.compareDocumentPosition(authorCard) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      authorCard.compareDocumentPosition(comments) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+  });
+
+  it("renderiza autor e comentarios apos observar o sentinel quando a rota nao inicia com hash", async () => {
+    const observer = installIntersectionObserver();
+    setupApiMock([authorFixture]);
+
+    render(
+      <MemoryRouter initialEntries={["/postagem/post-teste"]}>
+        <Post />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Post de Teste" }),
+    ).toBeInTheDocument();
+
+    expect(screen.queryByTestId("project-embed-card")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("post-author-card")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("comments-section")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(observer.observe).toHaveBeenCalledTimes(1);
+    });
+
+    const observedSentinel = observer.observe.mock.calls[0]?.[0] as Element | undefined;
+    expect(observedSentinel).toBeInstanceOf(HTMLDivElement);
+
+    act(() => {
+      observer.triggerIntersecting(observedSentinel as Element);
+    });
+
+    const authorCard = await screen.findByTestId("post-author-card");
+    const embedCard = await screen.findByTestId("project-embed-card");
+    const comments = await screen.findByTestId("comments-section");
+
+    expect(
+      within(authorCard).getByRole("heading", { level: 3, name: "Admin" }),
+    ).toBeInTheDocument();
+    expect(observer.disconnect).toHaveBeenCalled();
     expect(
       embedCard.compareDocumentPosition(authorCard) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);

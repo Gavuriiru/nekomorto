@@ -7,11 +7,6 @@ describe("pwa-navigation", () => {
     "/dashboard",
     "/dashboard/posts",
     "/dashboard/posts?tab=scheduled",
-  ])("uses the app shell for %s", (pathnameAndSearch) => {
-    expect(shouldUsePwaAppShell(pathnameAndSearch)).toBe(true);
-  });
-
-  it.each([
     "/auth/discord?next=%2Fdashboard",
     "/api/me",
     "/login",

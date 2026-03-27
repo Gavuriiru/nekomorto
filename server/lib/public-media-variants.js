@@ -378,6 +378,7 @@ export const resolveHomeHeroPreloadFromSlide = ({
       ? {
           href: fallbackHref,
           as: "image",
+          crossorigin: "anonymous",
           fetchpriority: "high",
         }
       : null;
@@ -556,6 +557,7 @@ export const resolveTeamAvatarPreload = ({
       ? {
           href: fallbackHref,
           as: "image",
+          crossorigin: "anonymous",
           fetchpriority: "high",
         }
       : null;
@@ -581,6 +583,7 @@ export const resolveTeamAvatarPreload = ({
       ? {
           href: fallbackHref,
           as: "image",
+          crossorigin: "anonymous",
           fetchpriority: "high",
         }
       : null;
@@ -596,6 +599,7 @@ export const resolveTeamAvatarPreload = ({
     imagesizes:
       String(imagesizes || "").trim() ||
       "(max-width: 639px) 224px, (max-width: 767px) 240px, 256px",
+    crossorigin: "anonymous",
     fetchpriority: "high",
   };
 };

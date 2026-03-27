@@ -543,6 +543,20 @@ describe("UploadPicture", () => {
     );
   });
 
+  it("propaga crossOrigin para o img renderizado", () => {
+    const { container } = render(
+      <UploadPicture
+        src="/uploads/users/avatar.png"
+        alt="Avatar"
+        preset="square"
+        mediaVariants={{}}
+        crossOrigin="anonymous"
+      />,
+    );
+
+    expect(container.querySelector("img")).toHaveAttribute("crossorigin", "anonymous");
+  });
+
   it("faz fallback para o src original quando a variant falha sem repetir o erro indefinidamente", () => {
     const mediaVariants: UploadMediaVariantsMap = {
       "/uploads/posts/capa.png": {

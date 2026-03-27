@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
 import {
   Input,
   Select,
@@ -1389,7 +1390,7 @@ const DashboardUsers = () => {
   const editorSectionClassName =
     "project-editor-section rounded-2xl border border-border/60 bg-card/70 px-4";
   const editorSectionTriggerClassName =
-    "project-editor-section-trigger py-2 text-sm font-semibold hover:no-underline";
+    "project-editor-section-trigger flex w-full items-start gap-4 py-3.5 text-left hover:no-underline md:py-4";
   const editorSectionContentClassName = "project-editor-section-content pb-2.5 px-1";
   const subtleReorderButtonClassName =
     "h-8 w-8 border-transparent bg-transparent text-muted-foreground/70 shadow-none hover:border-border/60 hover:bg-background/60 hover:text-foreground focus-visible:ring-primary/60 [&_svg]:opacity-70";
@@ -1862,10 +1863,10 @@ const DashboardUsers = () => {
               >
                 <AccordionItem value="dados-principais" className={editorSectionClassName}>
                   <AccordionTrigger className={editorSectionTriggerClassName}>
-                    <div className="flex w-full items-center justify-between gap-4 text-left">
-                      <span>Dados principais</span>
-                      <span className="text-xs text-muted-foreground">{editorUserTitle}</span>
-                    </div>
+                    <ProjectEditorAccordionHeader
+                      title="Dados principais"
+                      subtitle={editorUserTitle}
+                    />
                   </AccordionTrigger>
                   <AccordionContent className={editorSectionContentClassName}>
                     <div className="grid gap-4 md:grid-cols-2">
@@ -1924,12 +1925,10 @@ const DashboardUsers = () => {
 
                 <AccordionItem value="perfil-publico" className={editorSectionClassName}>
                   <AccordionTrigger className={editorSectionTriggerClassName}>
-                    <div className="flex w-full items-center justify-between gap-4 text-left">
-                      <span>Perfil público</span>
-                      <span className="text-xs text-muted-foreground">
-                        {formState.socials.length} redes • avatar e obras
-                      </span>
-                    </div>
+                    <ProjectEditorAccordionHeader
+                      title="Perfil público"
+                      subtitle={`${formState.socials.length} redes • avatar e obras`}
+                    />
                   </AccordionTrigger>
                   <AccordionContent className={editorSectionContentClassName}>
                     <div className="grid gap-4">
@@ -2186,12 +2185,10 @@ const DashboardUsers = () => {
                 {showSelfSecuritySection ? (
                   <AccordionItem value="seguranca" className={editorSectionClassName}>
                     <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <div className="flex w-full items-center justify-between gap-4 text-left">
-                        <span>Segurança</span>
-                        <span className="text-xs text-muted-foreground">
-                          2FA {securitySummary?.totpEnabled ? "ativo" : "inativo"}
-                        </span>
-                      </div>
+                      <ProjectEditorAccordionHeader
+                        title="Segurança"
+                        subtitle={`2FA ${securitySummary?.totpEnabled ? "ativo" : "inativo"}`}
+                      />
                     </AccordionTrigger>
                     <AccordionContent className={editorSectionContentClassName}>
                       <div className="grid gap-3 rounded-2xl border border-border/60 bg-card/60 p-4">
@@ -2459,12 +2456,12 @@ const DashboardUsers = () => {
                 ) : null}
                 <AccordionItem value="acesso-permissoes" className={editorSectionClassName}>
                   <AccordionTrigger className={editorSectionTriggerClassName}>
-                    <div className="flex w-full items-center justify-between gap-4 text-left">
-                      <span>Acesso e permissões</span>
-                      <span className="text-xs text-muted-foreground">
-                        {editorAccessRoleLabel} • {stripOwnerRole(formState.roles).length} funções
-                      </span>
-                    </div>
+                    <ProjectEditorAccordionHeader
+                      title="Acesso e permissões"
+                      subtitle={`${editorAccessRoleLabel} • ${
+                        stripOwnerRole(formState.roles).length
+                      } funções`}
+                    />
                   </AccordionTrigger>
                   <AccordionContent className={editorSectionContentClassName}>
                     <div className="grid gap-4">

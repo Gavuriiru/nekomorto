@@ -41,6 +41,18 @@ export const apiFetch = (apiBase: string, path: string, options: ApiOptions = {}
   return fetch(url, requestInit);
 };
 
+export const apiFetchBestEffort = async (
+  apiBase: string,
+  path: string,
+  options: ApiOptions = {},
+): Promise<Response | null> => {
+  try {
+    return await apiFetch(apiBase, path, options);
+  } catch {
+    return null;
+  }
+};
+
 export const apiJson = async <T = unknown>(
   apiBase: string,
   path: string,

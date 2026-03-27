@@ -48,8 +48,65 @@ const ChartContainer = React.forwardRef<
   } = props;
   const uniqueId = React.useId();
   const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
   const pointerFocusRef = React.useRef(false);
   const blurFrameRef = React.useRef<number | null>(null);
+  const [containerSize, setContainerSize] = React.useState<{ width: number; height: number } | null>(
+    null,
+  );
+
+  const handleContainerRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      containerRef.current = node;
+      if (typeof ref === "function") {
+        ref(node);
+        return;
+      }
+      if (ref) {
+        ref.current = node;
+      }
+    },
+    [ref],
+  );
+
+  React.useEffect(() => {
+    const element = containerRef.current;
+    if (!element) {
+      setContainerSize(null);
+      return;
+    }
+
+    const updateSize = () => {
+      const rect = element.getBoundingClientRect();
+      const width = Math.round(rect.width);
+      const height = Math.round(rect.height);
+
+      setContainerSize((currentSize) => {
+        if (width <= 0 || height <= 0) {
+          return currentSize === null ? currentSize : null;
+        }
+        if (currentSize && currentSize.width === width && currentSize.height === height) {
+          return currentSize;
+        }
+        return { width, height };
+      });
+    };
+
+    updateSize();
+
+    if (typeof window.ResizeObserver !== "function") {
+      return;
+    }
+
+    const resizeObserver = new window.ResizeObserver(() => {
+      updateSize();
+    });
+
+    resizeObserver.observe(element);
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   React.useEffect(() => {
     const handleWindowKeyDown = () => {
@@ -121,19 +178,28 @@ const ChartContainer = React.forwardRef<
     <ChartContext.Provider value={{ config }}>
       <div
         data-chart={chartId}
-        ref={ref}
+        ref={handleContainerRef}
         onPointerDownCapture={handlePointerDownCapture}
         onTouchStartCapture={handleTouchStartCapture}
         onKeyDownCapture={handleKeyDownCapture}
         onFocusCapture={handleFocusCapture}
         className={cn(
-          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-hidden [&_.recharts-surface]:outline-hidden",
+          "flex min-h-0 min-w-0 justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-hidden [&_.recharts-surface]:outline-hidden",
           className,
         )}
         {...divProps}
       >
         <ChartStyle id={chartId} config={config} />
-        <RechartsPrimitive.ResponsiveContainer>{children}</RechartsPrimitive.ResponsiveContainer>
+        {containerSize ? (
+          <RechartsPrimitive.ResponsiveContainer
+            minWidth={0}
+            initialDimension={containerSize}
+          >
+            {children}
+          </RechartsPrimitive.ResponsiveContainer>
+        ) : (
+          <div aria-hidden="true" className="h-full w-full" />
+        )}
       </div>
     </ChartContext.Provider>
   );

@@ -1,6 +1,3 @@
-import { performance } from "node:perf_hooks";
-
-import { buildOgRenderCacheKey } from "./og-render-cache.js";
 import {
   buildProjectReadingOgCardModel,
   buildProjectReadingOgImagePath,
@@ -15,9 +12,10 @@ import {
   loadProjectOgProcessedBackdropDataUrl,
 } from "./project-og.js";
 import {
-  optimizeOgPublicImageBuffer,
-  resolveOgPublicImageEncodingConfig,
-} from "./og-image-output.js";
+  buildOgDeliveryHeaders,
+  getCachedOgRender,
+  renderOptimizedOgBuffer,
+} from "./og-delivery-shared.js";
 
 const PROJECT_READING_OG_TIMING_ORDER = [
   "cache_read",
@@ -28,15 +26,7 @@ const PROJECT_READING_OG_TIMING_ORDER = [
   "total",
 ];
 
-const roundTimingMs = (value) => Number(Math.max(0, Number(value) || 0).toFixed(2));
 const normalizeRevision = (value) => String(value || "").trim();
-
-const measureTiming = async (timings, key, factory) => {
-  const startedAt = performance.now();
-  const result = await factory();
-  timings[key] = roundTimingMs(performance.now() - startedAt);
-  return result;
-};
 
 const buildProjectReadingOgBaseModel = ({
   project,
@@ -72,16 +62,11 @@ export const buildVersionedProjectReadingOgImagePath = ({
   });
 
 export const buildProjectReadingOgDeliveryHeaders = ({ cacheHit, timings } = {}) => {
-  const serverTiming = PROJECT_READING_OG_TIMING_ORDER.filter((key) =>
-    Number.isFinite(Number(timings?.[key])),
-  )
-    .map((key) => `${key};dur=${roundTimingMs(timings[key])}`)
-    .join(", ");
-
-  return {
-    serverTiming,
-    cache: cacheHit ? "hit" : "miss",
-  };
+  return buildOgDeliveryHeaders({
+    cacheHit,
+    timings,
+    timingOrder: PROJECT_READING_OG_TIMING_ORDER,
+  });
 };
 
 export const buildProjectReadingOgRevisionValue = ({
@@ -102,50 +87,31 @@ export const buildProjectReadingOgRevisionValue = ({
   });
 
 const renderProjectReadingOgBuffer = async ({ baseModel, origin } = {}) => {
-  const timings = {};
-  const imageEncodingConfig = resolveOgPublicImageEncodingConfig();
-  const [artworkDataUrl, backdropDataUrl] = await Promise.all([
-    measureTiming(timings, "artwork_load", async () =>
-      loadProjectOgArtworkDataUrl({
-        artworkUrl: baseModel?.artworkUrl,
-        origin,
-      }),
-    ),
-    measureTiming(timings, "backdrop_process", async () =>
-      loadProjectOgProcessedBackdropDataUrl({
-        artworkUrl: baseModel?.backdropUrl,
-        origin,
-        layout: baseModel?.layout,
-      }),
-    ),
-  ]);
-
-  const imageResponse = buildProjectReadingOgImageResponse({
-    ...baseModel,
-    artworkDataUrl,
-    backdropDataUrl,
+  return renderOptimizedOgBuffer({
+    baseModel,
+    loadAssets: async ({ baseModel: model, timings, measureTiming }) => {
+      const [artworkDataUrl, backdropDataUrl] = await Promise.all([
+        measureTiming(timings, "artwork_load", async () =>
+          loadProjectOgArtworkDataUrl({
+            artworkUrl: model?.artworkUrl,
+            origin,
+          }),
+        ),
+        measureTiming(timings, "backdrop_process", async () =>
+          loadProjectOgProcessedBackdropDataUrl({
+            artworkUrl: model?.backdropUrl,
+            origin,
+            layout: model?.layout,
+          }),
+        ),
+      ]);
+      return {
+        artworkDataUrl,
+        backdropDataUrl,
+      };
+    },
+    buildImageResponse: (model) => buildProjectReadingOgImageResponse(model),
   });
-  const sourceContentType = imageResponse.headers.get("content-type") || "image/png";
-  const rawBuffer = await measureTiming(timings, "image_render", async () =>
-    Buffer.from(await imageResponse.arrayBuffer()),
-  );
-  const optimizedAsset = await measureTiming(timings, "image_optimize", async () =>
-    optimizeOgPublicImageBuffer({
-      buffer: rawBuffer,
-      sourceContentType,
-      targetFormat: "jpeg",
-      profile: "visually-lossless",
-      maxBytes: imageEncodingConfig.maxBytes,
-      qualityLadder: imageEncodingConfig.qualityLadder,
-    }),
-  );
-
-  return {
-    buffer: optimizedAsset.buffer,
-    contentType: optimizedAsset.contentType || sourceContentType,
-    timings,
-    model: baseModel,
-  };
 };
 
 export const getProjectReadingOgCachedRender = async ({
@@ -158,67 +124,25 @@ export const getProjectReadingOgCachedRender = async ({
   resolveVariantUrl,
   ogRenderCache,
 } = {}) => {
-  const totalStartedAt = performance.now();
-  const timings = {};
-  const model = buildProjectReadingOgBaseModel({
-    project,
-    chapterNumber,
-    volume,
-    settings,
-    translations,
-    origin,
-    resolveVariantUrl,
-  });
-  if (!model) {
-    return null;
-  }
-
-  const cacheKey = buildOgRenderCacheKey({
+  return getCachedOgRender({
     kind: "project-reading",
-    id: `${String(project?.id || "").trim()}:${String(model.chapterNumberResolved || "").trim()}:${String(model.volumeResolved ?? "").trim()}`,
-    model,
+    ogRenderCache,
+    buildModel: () =>
+      buildProjectReadingOgBaseModel({
+        project,
+        chapterNumber,
+        volume,
+        settings,
+        translations,
+        origin,
+        resolveVariantUrl,
+      }),
+    resolveId: (model) =>
+      `${String(project?.id || "").trim()}:${String(model?.chapterNumberResolved || "").trim()}:${String(model?.volumeResolved ?? "").trim()}`,
+    renderModel: ({ model }) =>
+      renderProjectReadingOgBuffer({
+        baseModel: model,
+        origin,
+      }),
   });
-  const cached = await measureTiming(
-    timings,
-    "cache_read",
-    async () => ogRenderCache?.read?.(cacheKey) || null,
-  );
-
-  if (cached) {
-    timings.total = roundTimingMs(performance.now() - totalStartedAt);
-    return {
-      buffer: Buffer.from(cached.buffer),
-      contentType: cached.contentType || "image/png",
-      cacheHit: true,
-      cacheKey,
-      model,
-      timings,
-    };
-  }
-
-  const renderFactory = async () => {
-    const rendered = await renderProjectReadingOgBuffer({
-      baseModel: model,
-      origin,
-    });
-    ogRenderCache?.write?.(cacheKey, {
-      buffer: rendered.buffer,
-      contentType: rendered.contentType,
-    });
-    return rendered;
-  };
-  const rendered = ogRenderCache?.getOrCreateInFlight
-    ? await ogRenderCache.getOrCreateInFlight(cacheKey, renderFactory)
-    : await renderFactory();
-
-  Object.assign(timings, rendered.timings || {});
-  timings.total = roundTimingMs(performance.now() - totalStartedAt);
-  return {
-    buffer: Buffer.from(rendered.buffer),
-    contentType: rendered.contentType || "image/png",
-    cacheHit: false,
-    cacheKey,
-    model,
-    timings,
-  };
 };

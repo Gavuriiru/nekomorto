@@ -1,0 +1,142 @@
+import type { DragEvent } from "react";
+import { Loader2, Search } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+export type ImageLibraryUploadPanelProps = {
+  cropAvatar: boolean;
+  handleDrop: (event: DragEvent<HTMLDivElement>) => void;
+  handleImportFromUrl: () => Promise<void> | void;
+  handleUploadFiles: (files: File[] | FileList | null | undefined) => Promise<void> | void;
+  isDragActive: boolean;
+  isUploading: boolean;
+  mode: "single" | "multiple";
+  searchQuery: string;
+  setIsDragActive: (value: boolean) => void;
+  setSearchQuery: (value: string) => void;
+  setUrlInput: (value: string) => void;
+  showUrlImport: boolean;
+  urlInput: string;
+};
+
+const ImageLibraryUploadPanel = ({
+  cropAvatar,
+  handleDrop,
+  handleImportFromUrl,
+  handleUploadFiles,
+  isDragActive,
+  isUploading,
+  mode,
+  searchQuery,
+  setIsDragActive,
+  setSearchQuery,
+  setUrlInput,
+  showUrlImport,
+  urlInput,
+}: ImageLibraryUploadPanelProps) => (
+  <div className="mt-2 grid gap-2 sm:gap-3 lg:grid-cols-[1.25fr_0.95fr]">
+    <div
+      className={`flex h-full flex-col rounded-2xl border border-dashed border-border/70 bg-card/50 p-3 text-sm text-muted-foreground transition sm:p-4 ${
+        isDragActive ? "ring-2 ring-inset ring-primary/60 border-primary/60" : ""
+      }`}
+      aria-busy={isUploading}
+      onDragOver={(event) => {
+        event.preventDefault();
+        setIsDragActive(true);
+      }}
+      onDragEnter={(event) => {
+        event.preventDefault();
+        setIsDragActive(true);
+      }}
+      onDragLeave={(event) => {
+        event.preventDefault();
+        setIsDragActive(false);
+      }}
+      onDrop={handleDrop}
+    >
+      <div className="flex flex-1 flex-col justify-center">
+        <p className="font-medium text-foreground">Arraste, cole (Ctrl+V) ou escolha arquivos</p>
+        <p className="mt-1 text-xs text-muted-foreground">Upload direto para o servidor.</p>
+      </div>
+      <div className="mt-3">
+        <Input
+          type="file"
+          accept="image/*"
+          multiple={mode === "multiple"}
+          disabled={isUploading}
+          onChange={(event) => {
+            void handleUploadFiles(event.target.files);
+          }}
+        />
+        {isUploading ? (
+          <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Processando upload...
+          </p>
+        ) : null}
+      </div>
+      <div className="mt-4 space-y-2 border-t border-border/50 pt-4">
+        <Label htmlFor="image-library-search-input" className="text-xs font-medium">
+          Pesquisar na biblioteca
+        </Label>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/80" />
+          <Input
+            id="image-library-search-input"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Pesquisar por nome, projeto ou URL..."
+            className="h-9 w-full border-border/60 bg-background/80 pl-9 text-sm transition-colors"
+          />
+        </div>
+      </div>
+    </div>
+    <div
+      className="rounded-2xl border border-border/60 bg-card/70 p-3 space-y-3 sm:p-4"
+      aria-busy={isUploading}
+    >
+      {showUrlImport ? (
+        <div className="space-y-2">
+          <Label>Importar por URL</Label>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+            <Input
+              value={urlInput}
+              onChange={(event) => setUrlInput(event.target.value)}
+              placeholder="https://site.com/imagem.png"
+            />
+            <Button
+              type="button"
+              size="sm"
+              className="shrink-0 px-3"
+              onClick={() => void handleImportFromUrl()}
+              disabled={isUploading || !urlInput.trim()}
+              aria-busy={isUploading}
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Importando...
+                </>
+              ) : (
+                "Importar URL"
+              )}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">Importação por URL desativada.</p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {mode === "multiple"
+          ? "Clique para alternar seleção. A ordem de clique vira a ordem de inserção."
+          : cropAvatar
+            ? "Clique na imagem para selecionar e abrir o editor de avatar."
+            : "Clique para selecionar. A imagem só será aplicada ao clicar em Salvar."}
+      </p>
+    </div>
+  </div>
+);
+
+export default ImageLibraryUploadPanel;

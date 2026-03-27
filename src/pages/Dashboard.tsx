@@ -60,6 +60,10 @@ type DashboardQuickProject = {
   status: string;
 };
 
+type DashboardRankedProject = DashboardQuickProject & {
+  views: number;
+};
+
 type DashboardOverviewMetrics = {
   totalProjects: number;
   totalMedia: number;
@@ -163,7 +167,7 @@ const EMPTY_DASHBOARD_OVERVIEW = Object.freeze({
     totalPostViewsLast7: 0,
   } satisfies DashboardOverviewMetrics,
   analyticsSeries7d: [] as Array<{ date: string; value: number }>,
-  rankedProjects: [] as DashboardQuickProject[],
+  rankedProjects: [] as DashboardRankedProject[],
   recentPosts: [] as DashboardPost[],
   recentComments: [] as DashboardComment[],
   pendingCommentsCount: 0,
@@ -189,6 +193,17 @@ const normalizeDashboardOverview = (value: unknown) => {
       id,
       title: String(candidate.title || ""),
       status: String(candidate.status || ""),
+    };
+  };
+  const normalizeRankedProject = (item: unknown): DashboardRankedProject | null => {
+    const project = normalizeQuickProject(item);
+    if (!project || !item || typeof item !== "object") {
+      return null;
+    }
+    const candidate = item as Record<string, unknown>;
+    return {
+      ...project,
+      views: Number(candidate.views || 0),
     };
   };
   const normalizePost = (item: unknown): DashboardPost | null => {
@@ -256,8 +271,8 @@ const normalizeDashboardOverview = (value: unknown) => {
       : [],
     rankedProjects: Array.isArray(input.rankedProjects)
       ? input.rankedProjects
-          .map(normalizeQuickProject)
-          .filter((item): item is DashboardQuickProject => Boolean(item))
+          .map(normalizeRankedProject)
+          .filter((item): item is DashboardRankedProject => Boolean(item))
       : [],
     recentPosts: Array.isArray(input.recentPosts)
       ? input.recentPosts.map(normalizePost).filter((item): item is DashboardPost => Boolean(item))

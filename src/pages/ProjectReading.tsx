@@ -14,7 +14,7 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, apiFetchBestEffort } from "@/lib/api-client";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { cn } from "@/lib/utils";
 import {
@@ -583,7 +583,7 @@ const ProjectReading = () => {
     if (Number.isFinite(volumeValue)) {
       payload.meta.volume = volumeValue;
     }
-    void apiFetch(apiBase, "/api/public/analytics/event", {
+    void apiFetchBestEffort(apiBase, "/api/public/analytics/event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

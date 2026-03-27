@@ -1,5 +1,4 @@
 import DashboardShell from "@/components/DashboardShell";
-import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import {
   Input,
@@ -12,7 +11,9 @@ import {
 } from "@/components/dashboard/dashboard-form-controls";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
+import { useChapterEditorLeaveGuard } from "@/components/dashboard/chapter-editor/useChapterEditorLeaveGuard";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
+import LexicalEditorFallback from "@/components/lexical/LexicalEditorFallback";
 import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
 import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
 import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
@@ -54,14 +55,37 @@ import { refetchPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import {
+  buildProjectChapterAssetLibraryOptions,
+  buildProjectVolumeAssetLibraryOptions,
+} from "@/lib/dashboard-image-library";
 import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
+import {
+  buildChapterStructureGroupKey,
+  buildChapterVolumeLabel,
+  buildEditableVolumeOptions,
+  chapterHasContent,
+  chapterStatusLabel,
+  compareChapterStructureGroupKeys,
+  groupChaptersByStructureKey,
+  groupStageChaptersByStructureKey,
+  matchesChapterSearch,
+  matchesFilter,
+  matchesStageChapterFilter,
+  matchesStageChapterSearch,
+  normalizeEpubImportPreviewPayload,
+  resolveImportedChapterCount,
+  sortChapters,
+  supportsStructureChapterReordering,
+  type ChapterFilterMode,
+  type EditableVolumeOption,
+} from "@/lib/dashboard-project-chapter";
 import { formatBuildMetadataLabel, getFrontendBuildMetadata } from "@/lib/frontend-build";
 import {
   DEFAULT_PROJECT_COVER_ALT,
   getEpisodeCoverAltFallback,
   resolveAssetAltText,
 } from "@/lib/image-alt";
-import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 import { createSlug } from "@/lib/post-content";
 import { findIncompleteDownloadSourceIndex } from "@/lib/project-download-sources";
 import { cn } from "@/lib/utils";
@@ -79,7 +103,6 @@ import {
   EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE,
   EPUB_NETWORK_ERROR_MESSAGE,
   type EpubImportJob,
-  type EpubImportPreviewPayload,
   type EpubRouteStatus,
   buildEpubImportProjectSnapshot,
   buildProjectSnapshotForEpubExport,
@@ -111,7 +134,7 @@ import {
   resolveEpisodeLookup,
   resolveNextMainEpisodeNumber,
 } from "@/lib/project-episode-key";
-import { buildChapterFolder, resolveProjectImageFolders } from "@/lib/project-image-folders";
+import { resolveProjectImageFolders } from "@/lib/project-image-folders";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
@@ -156,7 +179,6 @@ import {
 } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
-  hasProjectEpisodeReadableContent,
   normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,
 } from "../../shared/project-reader.js";
@@ -166,32 +188,6 @@ const loadLexicalEditor = () => import("@/components/lexical/LexicalEditor");
 const LexicalEditor = lazy(loadLexicalEditor);
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 const chapterEditorLexicalMinHeightClassName = "min-h-[420px] lg:min-h-[620px]";
-
-const LexicalEditorFallback = () => (
-  <div
-    className={`${chapterEditorLexicalMinHeightClassName} chapter-editor-lexical-fallback w-full rounded-2xl border border-border/60 bg-card/60 p-4`}
-    data-testid="chapter-lexical-fallback"
-    role="status"
-    aria-live="polite"
-    aria-busy="true"
-  >
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <div className="h-8 w-20 rounded-lg bg-muted/60" />
-        <div className="h-8 w-24 rounded-lg bg-muted/60" />
-        <div className="h-8 w-32 rounded-lg bg-muted/60" />
-      </div>
-      <div className="h-10 w-full rounded-xl bg-muted/60" />
-      <div className="h-24 w-full rounded-xl bg-muted/60" />
-      <div className="h-4 w-full rounded bg-muted/60" />
-      <div className="h-4 w-10/12 rounded bg-muted/60" />
-      <div className="h-40 w-full rounded-xl bg-muted/60" />
-    </div>
-    <span className="sr-only">Carregando editor...</span>
-  </div>
-);
-
-type ChapterFilterMode = "all" | "draft" | "published" | "with-content" | "without-content";
 
 type ChapterStructureGroup = {
   key: string;
@@ -203,12 +199,6 @@ type ChapterStructureGroup = {
   visibleItems: ProjectEpisode[];
   pendingItems: StageChapter[];
   visiblePendingItems: StageChapter[];
-};
-
-type EditableVolumeOption = {
-  volume: number;
-  chapterCount: number;
-  hasMetadata: boolean;
 };
 
 type StructureScrollAnchor = {
@@ -229,12 +219,6 @@ type DeleteDialogState =
       description: string;
       volume: number;
     };
-
-type LeaveGuardDialogState = {
-  chapterDirty: boolean;
-  volumeDirty: boolean;
-  mangaWorkflowDirty: boolean;
-};
 
 type VolumeSelectionOptions = {
   preserveScrollAnchor?: StructureScrollAnchor | null;
@@ -391,6 +375,10 @@ const workspaceSectionMutedClassName =
   "overflow-hidden rounded-2xl border border-border/60 bg-card/65";
 const IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE =
   "Capitulos em imagem precisam ter ao menos uma pagina para serem publicados.";
+const VOLUME_REQUIRED_IDENTITY_MESSAGE =
+  "Informe o volume para salvar um cap\u00edtulo com n\u00famero amb\u00edguo.";
+const VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION =
+  "Esse salvamento foi bloqueado porque a URL do editor ficaria amb\u00edgua. Informe o volume antes de salvar este cap\u00edtulo.";
 
 const toastIncompleteDownloadSources = () => {
   toast({
@@ -408,147 +396,6 @@ const EditorAccordionHeader = ({ title, subtitle }: { title: string; subtitle: s
 );
 
 const WorkspaceSectionCard = ProjectEditorSectionCard;
-
-const chapterHasContent = (episode: ProjectEpisode | null | undefined) =>
-  hasProjectEpisodeReadableContent(episode);
-
-const chapterStatusLabel = (episode: ProjectEpisode | null | undefined) =>
-  episode?.publicationStatus === "draft" ? "Rascunho" : "Publicado";
-
-const sortChapters = (episodes: ProjectEpisode[]) =>
-  [...episodes].sort((left, right) => {
-    const leftReadingOrder = Number(left.readingOrder);
-    const rightReadingOrder = Number(right.readingOrder);
-    const hasLeftReadingOrder = Number.isFinite(leftReadingOrder);
-    const hasRightReadingOrder = Number.isFinite(rightReadingOrder);
-    if (hasLeftReadingOrder || hasRightReadingOrder) {
-      if (!hasLeftReadingOrder) {
-        return 1;
-      }
-      if (!hasRightReadingOrder) {
-        return -1;
-      }
-      if (leftReadingOrder !== rightReadingOrder) {
-        return leftReadingOrder - rightReadingOrder;
-      }
-    }
-    const volumeDelta = (Number(left.volume) || 0) - (Number(right.volume) || 0);
-    if (volumeDelta !== 0) {
-      return volumeDelta;
-    }
-    const numberDelta = (Number(left.number) || 0) - (Number(right.number) || 0);
-    if (numberDelta !== 0) {
-      return numberDelta;
-    }
-    return String(left.title || "").localeCompare(String(right.title || ""), "pt-BR");
-  });
-
-const buildChapterVolumeLabel = (value: unknown) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return "Sem volume";
-  }
-  return `Volume ${Math.floor(parsed)}`;
-};
-
-const buildChapterStructureGroupKey = (value: unknown) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? String(Math.floor(parsed)) : "none";
-};
-
-const groupChaptersByStructureKey = (episodes: ProjectEpisode[]) => {
-  const groups = new Map<string, ProjectEpisode[]>();
-  (Array.isArray(episodes) ? episodes : []).forEach((episode) => {
-    const key = buildChapterStructureGroupKey(episode.volume);
-    if (!groups.has(key)) {
-      groups.set(key, []);
-    }
-    groups.get(key)?.push(episode);
-  });
-  return groups;
-};
-
-const groupStageChaptersByStructureKey = (chapters: StageChapter[]) => {
-  const groups = new Map<string, StageChapter[]>();
-  (Array.isArray(chapters) ? chapters : []).forEach((chapter) => {
-    const key = buildChapterStructureGroupKey(chapter.volume);
-    if (!groups.has(key)) {
-      groups.set(key, []);
-    }
-    groups.get(key)?.push(chapter);
-  });
-  return groups;
-};
-
-const matchesFilter = (episode: ProjectEpisode, mode: ChapterFilterMode) => {
-  if (mode === "draft") {
-    return episode.publicationStatus === "draft";
-  }
-  if (mode === "published") {
-    return episode.publicationStatus !== "draft";
-  }
-  if (mode === "with-content") {
-    return chapterHasContent(episode);
-  }
-  if (mode === "without-content") {
-    return !chapterHasContent(episode);
-  }
-  return true;
-};
-
-const matchesChapterSearch = (episode: ProjectEpisode, query: string) => {
-  const normalizedQuery = String(query || "")
-    .trim()
-    .toLowerCase();
-  if (!normalizedQuery) {
-    return true;
-  }
-  const haystack = [
-    episode.number,
-    episode.volume,
-    episode.title,
-    episode.displayLabel,
-    episode.synopsis,
-  ]
-    .map((value) => String(value || "").toLowerCase())
-    .join(" ");
-  return haystack.includes(normalizedQuery);
-};
-
-const matchesStageChapterFilter = (chapter: StageChapter, mode: ChapterFilterMode) => {
-  if (mode === "draft") {
-    return chapter.publicationStatus === "draft";
-  }
-  if (mode === "published") {
-    return chapter.publicationStatus !== "draft";
-  }
-  if (mode === "with-content") {
-    return chapter.pages.length > 0;
-  }
-  if (mode === "without-content") {
-    return chapter.pages.length === 0;
-  }
-  return true;
-};
-
-const matchesStageChapterSearch = (chapter: StageChapter, query: string) => {
-  const normalizedQuery = String(query || "")
-    .trim()
-    .toLowerCase();
-  if (!normalizedQuery) {
-    return true;
-  }
-  const haystack = [
-    chapter.number,
-    chapter.volume,
-    chapter.title,
-    chapter.sourceLabel,
-    chapter.titleDetected,
-  ]
-    .map((value) => String(value || "").toLowerCase())
-    .join(" ");
-  return haystack.includes(normalizedQuery);
-};
 
 const normalizePositiveInteger = (value: number, fallback?: number) => {
   if (!Number.isFinite(value)) {
@@ -707,19 +554,6 @@ const normalizeVolumeEntriesForSave = (entries: ProjectVolumeEntry[] | null | un
 const buildVolumeEntriesSnapshot = (entries: ProjectVolumeEntry[] | null | undefined) =>
   JSON.stringify(normalizeProjectVolumeEntries(entries));
 
-const normalizeEpubImportPreviewPayload = (value: unknown): EpubImportPreviewPayload | null =>
-  value && typeof value === "object" && !Array.isArray(value)
-    ? (value as EpubImportPreviewPayload)
-    : null;
-
-const resolveImportedChapterCount = (
-  payload: EpubImportPreviewPayload | null | undefined,
-  chapters: ProjectEpisode[],
-) => {
-  const summaryChapterCount = Number(payload?.summary?.chapters);
-  return Number.isFinite(summaryChapterCount) ? summaryChapterCount : chapters.length;
-};
-
 const findStructureGroupElement = (groupKey: string) => {
   if (typeof document === "undefined") {
     return null;
@@ -744,22 +578,6 @@ const buildProjectSnapshotWithVolumeEntries = <T extends ProjectRecord>(
     volumeEntries,
     volumeCovers,
   };
-};
-
-const supportsStructureChapterReordering = (projectType?: string | null) =>
-  isLightNovelType(projectType) || isMangaType(projectType);
-
-const compareChapterStructureGroupKeys = (leftKey: string, rightKey: string) => {
-  if (leftKey === rightKey) {
-    return 0;
-  }
-  if (leftKey === "none") {
-    return 1;
-  }
-  if (rightKey === "none") {
-    return -1;
-  }
-  return (Number(leftKey) || 0) - (Number(rightKey) || 0);
 };
 
 const hasExplicitReadingOrder = (episodes: ProjectEpisode[]) =>
@@ -917,38 +735,6 @@ const normalizeProjectSnapshotChapterOrderForPersist = (
   };
 };
 
-const buildEditableVolumeOptions = (
-  snapshot: Pick<ProjectRecord, "episodeDownloads"> | null | undefined,
-  entries: ProjectVolumeEntry[] | null | undefined,
-): EditableVolumeOption[] => {
-  if (!snapshot) {
-    return [];
-  }
-  const chapterCountByVolume = new Map<number, number>();
-  const metadataVolumeKeys = new Set(
-    normalizeProjectVolumeEntries(entries).map((entry) => buildVolumeCoverKey(entry.volume)),
-  );
-  (Array.isArray(snapshot.episodeDownloads) ? snapshot.episodeDownloads : []).forEach((episode) => {
-    const parsedVolume = Number(episode?.volume);
-    if (!Number.isFinite(parsedVolume) || parsedVolume <= 0) {
-      return;
-    }
-    chapterCountByVolume.set(parsedVolume, (chapterCountByVolume.get(parsedVolume) || 0) + 1);
-  });
-  normalizeProjectVolumeEntries(entries).forEach((entry) => {
-    if (!chapterCountByVolume.has(entry.volume)) {
-      chapterCountByVolume.set(entry.volume, 0);
-    }
-  });
-  return Array.from(chapterCountByVolume.entries())
-    .sort((left, right) => left[0] - right[0])
-    .map(([volume, chapterCount]) => ({
-      volume,
-      chapterCount,
-      hasMetadata: metadataVolumeKeys.has(buildVolumeCoverKey(volume)),
-    }));
-};
-
 const normalizeStructureGroupKeys = (
   nextKeys: string[] | null | undefined,
   structureGroups: ChapterStructureGroup[],
@@ -1038,16 +824,16 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     const apiBase = getApiBase();
     const editorRef = useRef<LexicalEditorHandle | null>(null);
     const mangaWorkflowRef = useRef<MangaWorkflowPanelHandle | null>(null);
-    const bypassNextLeaveGuardRef = useRef(false);
-    const leaveDialogResolversRef = useRef<Array<(value: boolean) => void>>([]);
+    const cancelLeaveDialogRef = useRef<(() => void) | null>(null);
+    const hasPendingLeaveDialogRef = useRef(false);
     const [identityError, setIdentityError] = useState<string | null>(null);
+    const [isVolumeRequiredSaveDialogOpen, setIsVolumeRequiredSaveDialogOpen] = useState(false);
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
     const [libraryTarget, setLibraryTarget] = useState<"chapter-cover" | "volume-cover" | null>(
       null,
     );
     const [isSavingChapter, setIsSavingChapter] = useState(false);
     const [structureVolumeExportKey, setStructureVolumeExportKey] = useState<string | null>(null);
-    const [leaveDialogState, setLeaveDialogState] = useState<LeaveGuardDialogState | null>(null);
     const hasActiveChapter = Boolean(activeChapter && activeChapterKey);
     const normalizeEditorChapter = useCallback(
       (chapter: ProjectEpisode) => normalizeChapterForEditor(chapter, "manga"),
@@ -1101,80 +887,29 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     );
     const isDirty = hasActiveChapter && draftSnapshot !== activeChapterSnapshot;
 
-    const scopedProjectImageIds = useMemo(() => {
-      const normalizedProjectId = String(project.id || "").trim();
-      return normalizedProjectId ? [normalizedProjectId] : [];
-    }, [project.id]);
-    const {
-      projectRootFolder,
-      projectEpisodesFolder,
-      projectVolumeCoversFolder,
-      projectChaptersFolder,
-    } = useMemo(
+    const projectImageFolders = useMemo(
       () => resolveProjectImageFolders(project.id, project.title),
       [project.id, project.title],
     );
-    const filterProjectLibraryFolders = useCallback(
-      (folders: string[]) =>
-        filterImageLibraryFoldersByAccess(folders, {
-          grants: { projetos: true },
-        }),
-      [],
-    );
-    const chapterFolder = useMemo(
+    const chapterImageLibraryOptions = useMemo(
       () =>
-        buildChapterFolder({
-          projectChaptersFolder,
+        buildProjectChapterAssetLibraryOptions({
+          projectFolders: projectImageFolders,
+          projectId: project.id,
           episode: draft,
           index: Math.max(chapterIndex, 0),
+          onRequestNavigateToUploads: onNavigateToUploads,
         }),
-      [chapterIndex, draft, projectChaptersFolder],
+      [chapterIndex, draft, onNavigateToUploads, project.id, projectImageFolders],
     );
-    const chapterImageLibraryOptions = useMemo(
-      (): ImageLibraryOptions => ({
-        uploadFolder: chapterFolder,
-        listFolders: filterProjectLibraryFolders([
-          chapterFolder,
-          projectChaptersFolder,
-          projectEpisodesFolder,
-          projectRootFolder,
-        ]),
-        listAll: false,
-        includeProjectImages: true,
-        projectImageProjectIds: scopedProjectImageIds,
-        projectImagesView: "by-project",
-        onRequestNavigateToUploads: onNavigateToUploads,
-      }),
-      [
-        chapterFolder,
-        filterProjectLibraryFolders,
-        onNavigateToUploads,
-        projectChaptersFolder,
-        projectEpisodesFolder,
-        projectRootFolder,
-        scopedProjectImageIds,
-      ],
-    );
+    const chapterFolder = chapterImageLibraryOptions.uploadFolder;
     const volumeImageLibraryOptions = useMemo(
-      (): ImageLibraryOptions => ({
-        uploadFolder: projectVolumeCoversFolder,
-        listFolders: filterProjectLibraryFolders([
-          projectVolumeCoversFolder,
-          projectRootFolder,
-          projectEpisodesFolder,
-        ]),
-        listAll: false,
-        includeProjectImages: true,
-        projectImageProjectIds: scopedProjectImageIds,
-        projectImagesView: "by-project",
-      }),
-      [
-        filterProjectLibraryFolders,
-        projectEpisodesFolder,
-        projectRootFolder,
-        projectVolumeCoversFolder,
-        scopedProjectImageIds,
-      ],
+      () =>
+        buildProjectVolumeAssetLibraryOptions({
+          projectFolders: projectImageFolders,
+          projectId: project.id,
+        }),
+      [project.id, projectImageFolders],
     );
     const selectedVolumeEntry = useMemo(() => {
       if (selectedVolume === null || !Number.isFinite(Number(selectedVolume))) {
@@ -1213,6 +948,33 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       setLibraryTarget("volume-cover");
       setIsLibraryOpen(true);
     }, [selectedVolumeNumber]);
+
+    const blockAmbiguousChapterSave = useCallback(
+      (snapshot: ProjectEpisode) => {
+        const normalizedSnapshot = normalizeChapterForSave(snapshot, "manga");
+        if (normalizedSnapshot.volume !== undefined) {
+          return false;
+        }
+        const nextProjectSnapshot = overlayDraftOnProject(project, activeChapterKey, normalizedSnapshot);
+        const saveLookup = resolveEpisodeLookup(
+          Array.isArray(nextProjectSnapshot.episodeDownloads)
+            ? nextProjectSnapshot.episodeDownloads
+            : [],
+          normalizedSnapshot.number,
+          normalizedSnapshot.volume,
+        );
+        if (saveLookup.ok || saveLookup.code !== "volume_required") {
+          return false;
+        }
+        setIdentityError(VOLUME_REQUIRED_IDENTITY_MESSAGE);
+        if (hasPendingLeaveDialogRef.current) {
+          cancelLeaveDialogRef.current?.();
+        }
+        setIsVolumeRequiredSaveDialogOpen(true);
+        return true;
+      },
+      [activeChapterKey, project],
+    );
 
     const persistChapter = useCallback(
       async (snapshot: ProjectEpisode) => {
@@ -1321,12 +1083,16 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         if (!shouldPersist) {
           return true;
         }
+        const nextSnapshot = {
+          ...draft,
+          publicationStatus: resolvedPublicationStatus,
+        };
+        if (blockAmbiguousChapterSave(nextSnapshot)) {
+          return false;
+        }
         setIsSavingChapter(true);
         try {
-          await persistChapter({
-            ...draft,
-            publicationStatus: resolvedPublicationStatus,
-          });
+          await persistChapter(nextSnapshot);
           return true;
         } catch {
           return false;
@@ -1341,6 +1107,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         isDirty,
         isPublishedImageChapterMissingPages,
         isSavingChapter,
+        blockAmbiguousChapterSave,
         persistChapter,
       ],
     );
@@ -1352,135 +1119,65 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       return handleChapterSave(draft.publicationStatus);
     }, [draft.publicationStatus, handleChapterSave, hasActiveChapter]);
 
-    const resolveLeaveDialog = useCallback((nextValue: boolean) => {
-      const resolvers = [...leaveDialogResolversRef.current];
-      leaveDialogResolversRef.current = [];
-      setLeaveDialogState(null);
-      resolvers.forEach((resolve) => resolve(nextValue));
-    }, []);
-
-    const isEditorRouteHref = useCallback(
-      (href?: string | null) => {
-        const normalizedHref = String(href || "").trim();
-        if (!normalizedHref) {
-          return false;
-        }
-        try {
-          const resolvedUrl = new URL(normalizedHref, window.location.origin);
-          const editorBaseUrl = new URL(neutralHref, window.location.origin);
-          const editorPath = editorBaseUrl.pathname.replace(/\/+$/, "");
-          const candidatePath = resolvedUrl.pathname.replace(/\/+$/, "");
-          return (
-            resolvedUrl.origin === editorBaseUrl.origin &&
-            (candidatePath === editorPath || candidatePath.startsWith(`${editorPath}/`))
-          );
-        } catch {
-          return false;
-        }
-      },
-      [neutralHref],
-    );
-
-    const hasUnsavedChanges = useCallback(
-      (options?: { nextHref?: string; routeExit?: boolean }) => {
-        const chapterDirty = hasActiveChapter && isDirty;
-        const volumeDirty = isVolumeDirty;
-        const shouldCheckMangaWorkflow =
-          Boolean(options?.routeExit) ||
-          (!!options?.nextHref && !isEditorRouteHref(options.nextHref));
-        const mangaWorkflowDirty =
-          shouldCheckMangaWorkflow &&
-          isMangaProject &&
-          Boolean(mangaWorkflowRef.current?.hasUnsavedChanges());
-        return chapterDirty || volumeDirty || mangaWorkflowDirty;
-      },
-      [hasActiveChapter, isDirty, isMangaProject, isVolumeDirty, isEditorRouteHref],
-    );
-
-    const requestLeave = useCallback(
-      async (options?: { nextHref?: string; routeExit?: boolean }) => {
-        if (bypassNextLeaveGuardRef.current) {
-          bypassNextLeaveGuardRef.current = false;
-          return true;
-        }
-        const chapterDirty = hasActiveChapter && isDirty;
-        const volumeDirty = isVolumeDirty;
-        const mangaWorkflowDirty =
-          (Boolean(options?.routeExit) ||
-            (!!options?.nextHref && !isEditorRouteHref(options.nextHref))) &&
-          isMangaProject &&
-          Boolean(mangaWorkflowRef.current?.hasUnsavedChanges());
-        if (!chapterDirty && !volumeDirty && !mangaWorkflowDirty) {
-          return true;
-        }
-        return await new Promise<boolean>((resolve) => {
-          leaveDialogResolversRef.current.push(resolve);
-          setLeaveDialogState({ chapterDirty, volumeDirty, mangaWorkflowDirty });
-        });
-      },
-      [hasActiveChapter, isDirty, isMangaProject, isVolumeDirty, isEditorRouteHref],
-    );
-
-    const handleLeaveDialogSaveAndContinue = useCallback(
-      async (publicationStatus: "draft" | "published") => {
-        const shouldPersistChapter = Boolean(leaveDialogState?.chapterDirty && hasActiveChapter);
-        const shouldPersistVolumes = Boolean(leaveDialogState?.volumeDirty);
-        const shouldPersistMangaWorkflow = Boolean(leaveDialogState?.mangaWorkflowDirty);
-        if (shouldPersistChapter) {
-          const didSaveChapter = await handleChapterSave(
-            shouldPersistMangaWorkflow ? "draft" : publicationStatus,
-          );
-          if (!didSaveChapter) {
-            return;
-          }
-        }
-        if (shouldPersistVolumes) {
-          const didSaveVolumes = await onSaveVolumes();
-          if (!didSaveVolumes) {
-            return;
-          }
-        }
-        if (shouldPersistMangaWorkflow) {
-          const didSavePreparedChapters =
-            (await mangaWorkflowRef.current?.savePreparedChaptersAsDraft()) ?? true;
-          if (!didSavePreparedChapters) {
-            return;
-          }
-        }
-        resolveLeaveDialog(true);
-      },
-      [
-        handleChapterSave,
-        hasActiveChapter,
-        leaveDialogState?.chapterDirty,
-        leaveDialogState?.mangaWorkflowDirty,
-        leaveDialogState?.volumeDirty,
-        onSaveVolumes,
-        resolveLeaveDialog,
-      ],
-    );
-
-    const handleLeaveDialogDiscardAndContinue = useCallback(() => {
-      if (leaveDialogState?.mangaWorkflowDirty) {
+    const {
+      handleCloseSelectedVolume,
+      handleLeaveDialogCancel,
+      handleLeaveDialogDiscardAndContinue,
+      handleLeaveDialogSaveAndContinue,
+      hasUnsavedChanges,
+      leaveDialogState,
+      requestLeave,
+    } = useChapterEditorLeaveGuard({
+      hasActiveChapter,
+      hasMangaWorkflowUnsavedChanges: () => Boolean(mangaWorkflowRef.current?.hasUnsavedChanges()),
+      isDirty,
+      isMangaProject,
+      isVolumeDirty,
+      neutralHref,
+      onClearSelectedVolume,
+      onDiscardPreparedChapters: () => {
         mangaWorkflowRef.current?.discardPreparedChapters();
-      }
-      resolveLeaveDialog(true);
-    }, [leaveDialogState?.mangaWorkflowDirty, resolveLeaveDialog]);
+      },
+      onSaveChapter: handleChapterSave,
+      onSavePreparedChaptersAsDraft: async () =>
+        (await mangaWorkflowRef.current?.savePreparedChaptersAsDraft()) ?? true,
+      onSaveVolumes,
+      selectedVolumeNumber,
+    });
 
-    const handleLeaveDialogCancel = useCallback(() => {
-      resolveLeaveDialog(false);
-    }, [resolveLeaveDialog]);
+    cancelLeaveDialogRef.current = handleLeaveDialogCancel;
+    hasPendingLeaveDialogRef.current = Boolean(leaveDialogState);
 
-    const handleCloseSelectedVolume = useCallback(async () => {
-      if (selectedVolumeNumber === null || hasActiveChapter) {
+    const focusChapterVolumeInput = useCallback(() => {
+      if (typeof document === "undefined") {
         return;
       }
-      const canLeave = await requestLeave();
-      if (!canLeave) {
+      const volumeInput = document.getElementById(
+        isImageChapter ? "chapter-volume-image" : "chapter-volume-standard",
+      );
+      if (!(volumeInput instanceof HTMLInputElement)) {
         return;
       }
-      onClearSelectedVolume();
-    }, [hasActiveChapter, onClearSelectedVolume, requestLeave, selectedVolumeNumber]);
+      volumeInput.focus();
+      if (typeof volumeInput.select === "function") {
+        volumeInput.select();
+      }
+    }, [isImageChapter]);
+
+    const closeVolumeRequiredSaveDialog = useCallback(() => {
+      setIsVolumeRequiredSaveDialogOpen(false);
+      if (typeof window === "undefined") {
+        return;
+      }
+      const scheduleFocus =
+        typeof window.requestAnimationFrame === "function"
+          ? window.requestAnimationFrame.bind(window)
+          : (callback: FrameRequestCallback) =>
+              window.setTimeout(() => callback(performance.now()), 0);
+      scheduleFocus(() => {
+        focusChapterVolumeInput();
+      });
+    }, [focusChapterVolumeInput]);
 
     useImperativeHandle(
       ref,
@@ -1490,31 +1187,6 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       }),
       [hasUnsavedChanges, requestLeave],
     );
-
-    useEffect(
-      () => () => {
-        if (leaveDialogResolversRef.current.length > 0) {
-          const resolvers = [...leaveDialogResolversRef.current];
-          leaveDialogResolversRef.current = [];
-          resolvers.forEach((resolve) => resolve(false));
-        }
-      },
-      [],
-    );
-
-    useEffect(() => {
-      const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-        const mangaWorkflowDirty =
-          isMangaProject && Boolean(mangaWorkflowRef.current?.hasUnsavedChanges());
-        if ((!hasActiveChapter || !isDirty) && !isVolumeDirty && !mangaWorkflowDirty) {
-          return;
-        }
-        event.preventDefault();
-        event.returnValue = "";
-      };
-      window.addEventListener("beforeunload", handleBeforeUnload);
-      return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-    }, [hasActiveChapter, isDirty, isMangaProject, isVolumeDirty]);
 
     useEffect(() => {
       if (!hasActiveChapter && !isVolumeDirty) {
@@ -3363,7 +3035,16 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     className={`chapter-editor-lexical-wrapper min-w-0 rounded-[22px] border border-border/50 bg-background/40 p-2 md:p-3 ${chapterEditorLexicalMinHeightClassName}`}
                     data-testid="chapter-lexical-wrapper"
                   >
-                    <Suspense fallback={<LexicalEditorFallback />}>
+                    <Suspense
+                      fallback={
+                        <LexicalEditorFallback
+                          variant="chapter"
+                          minHeightClassName={chapterEditorLexicalMinHeightClassName}
+                          className="chapter-editor-lexical-fallback"
+                          testId="chapter-lexical-fallback"
+                        />
+                      }
+                    >
                       <LexicalEditor
                         ref={editorRef}
                         value={draft.content || ""}
@@ -3452,15 +3133,16 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   min={1}
                   step={1}
                   value={draft.volume ?? ""}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    setIdentityError(null);
                     updateDraft((current) => ({
                       ...current,
                       volume:
                         event.target.value.trim() === ""
                           ? undefined
                           : normalizePositiveInteger(Number(event.target.value)),
-                    }))
-                  }
+                    }));
+                  }}
                   placeholder="Sem volume"
                   className="w-full sm:w-[132px]"
                 />
@@ -3473,13 +3155,14 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   min={1}
                   step={1}
                   value={draft.number}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    setIdentityError(null);
                     updateDraft((current) => ({
                       ...current,
                       number:
                         normalizePositiveInteger(Number(event.target.value), 1) ?? current.number,
-                    }))
-                  }
+                    }));
+                  }}
                   className="w-full sm:w-[132px]"
                 />
               </DashboardFieldStack>
@@ -3598,13 +3281,14 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   min={1}
                   step={1}
                   value={draft.number}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    setIdentityError(null);
                     updateDraft((current) => ({
                       ...current,
                       number:
                         normalizePositiveInteger(Number(event.target.value), 1) ?? current.number,
-                    }))
-                  }
+                    }));
+                  }}
                   className="w-full sm:w-[132px]"
                 />
               </DashboardFieldStack>
@@ -3616,15 +3300,16 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   min={1}
                   step={1}
                   value={draft.volume ?? ""}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    setIdentityError(null);
                     updateDraft((current) => ({
                       ...current,
                       volume:
                         event.target.value.trim() === ""
                           ? undefined
                           : normalizePositiveInteger(Number(event.target.value)),
-                    }))
-                  }
+                    }));
+                  }}
                   placeholder="Sem volume"
                   className="w-full sm:w-[132px]"
                 />
@@ -4761,6 +4446,27 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     : "Salvar volume e continuar"}
                 </Button>
               )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={isVolumeRequiredSaveDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeVolumeRequiredSaveDialog();
+            }
+          }}
+        >
+          <DialogContent className="max-w-md" data-testid="chapter-save-volume-required-dialog">
+            <DialogHeader>
+              <DialogTitle>{"Volume obrigat\u00f3rio"}</DialogTitle>
+              <DialogDescription>{VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION}</DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end">
+              <Button type="button" onClick={closeVolumeRequiredSaveDialog}>
+                Entendi
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
