@@ -53,4 +53,28 @@ describe("Dialog mobile rounded", () => {
     expect(tokens).not.toContain("w-[calc(100vw-1rem)]");
     expect(tokens).not.toContain("max-w-lg");
   });
+
+  it("permite customizar separadamente o wrapper e o overlay", async () => {
+    render(
+      <Dialog open>
+        <DialogContent containerClassName="z-200" overlayClassName="z-190">
+          <DialogHeader>
+            <DialogTitle>Dialog em camadas</DialogTitle>
+            <DialogDescription>Descricao do dialog em camadas</DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>,
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    const wrapper = dialog.parentElement;
+    const overlay = Array.from(document.body.querySelectorAll("div")).find((element) =>
+      String(element.className).includes("bg-black/80"),
+    );
+
+    expect(wrapper).toBeTruthy();
+    expect(wrapper).toHaveClass("z-200");
+    expect(overlay).toBeTruthy();
+    expect(overlay).toHaveClass("z-190");
+  });
 });

@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { useCallback, useMemo, type FocusEvent } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
@@ -18,7 +18,6 @@ import {
   dashboardStrongSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardShell from "@/components/DashboardShell";
-import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import {
   dashboardAnimationDelay,
   dashboardMotionDelays,
@@ -36,9 +35,8 @@ import { resolveBranding } from "@/lib/branding";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import {
-  DashboardSettingsProvider,
-} from "@/components/dashboard/settings/dashboard-settings-context";
+import { DashboardSettingsProvider } from "@/components/dashboard/settings/dashboard-settings-context";
+import type { DashboardSettingsContextValue } from "@/components/dashboard/settings/dashboard-settings-types";
 import { DashboardSettingsGeneralTab } from "@/components/dashboard/settings/DashboardSettingsGeneralTab";
 import { DashboardSettingsReaderTab } from "@/components/dashboard/settings/DashboardSettingsReaderTab";
 import { DashboardSettingsSeoTab } from "@/components/dashboard/settings/DashboardSettingsSeoTab";
@@ -49,13 +47,26 @@ import { DashboardSettingsSocialLinksTab } from "@/components/dashboard/settings
 import { DashboardSettingsTranslationsTab } from "@/components/dashboard/settings/DashboardSettingsTranslationsTab";
 import { useDashboardSettingsResource } from "@/components/dashboard/settings/use-dashboard-settings-resource";
 import { useDashboardSettingsMedia } from "@/components/dashboard/settings/use-dashboard-settings-media";
+import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
 import {
   type LogoEditorField,
   readLogoField,
   type SettingsTabKey,
 } from "@/components/dashboard/settings/shared";
 
-const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
+const dashboardSettingsTabComponents = [
+  { key: "geral", Component: DashboardSettingsGeneralTab },
+  { key: "leitor", Component: DashboardSettingsReaderTab },
+  { key: "seo", Component: DashboardSettingsSeoTab },
+  { key: "downloads", Component: DashboardSettingsDownloadsTab },
+  { key: "equipe", Component: DashboardSettingsTeamTab },
+  { key: "layout", Component: DashboardSettingsLayoutTab },
+  { key: "redes-usuarios", Component: DashboardSettingsSocialLinksTab },
+  { key: "traducoes", Component: DashboardSettingsTranslationsTab },
+] as const satisfies ReadonlyArray<{
+  key: SettingsTabKey;
+  Component: typeof DashboardSettingsGeneralTab;
+}>;
 
 // focus-ring contract markers:
 // dashboardStrongFocusTriggerClassName
@@ -63,15 +74,14 @@ const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"))
 // dashboardStrongSurfaceHoverClassName
 // panelClassName={dashboardStrongFocusScopeClassName}
 
-const DashboardSettings = () => {
+const DashboardSettingsContent = () => {
   usePageMeta({ title: "Configurações", noIndex: true });
 
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const apiBase = getApiBase();
   const { settings: publicSettings, refresh } = useSiteSettings();
-  const { currentUser, isLoadingUser } = useDashboardCurrentUser();
   const resource = useDashboardSettingsResource({
     apiBase,
     location,
@@ -79,7 +89,6 @@ const DashboardSettings = () => {
     publicSettings,
     refresh,
     searchParams,
-    setSearchParams,
   });
   const media = useDashboardSettingsMedia({
     apiBase,
@@ -89,7 +98,10 @@ const DashboardSettings = () => {
     setSettings: resource.setSettings,
   });
 
-  const branding = resolveBranding(resource.settings);
+  const branding = useMemo(() => resolveBranding(resource.settings), [resource.settings]);
+  const ActiveSettingsTab =
+    dashboardSettingsTabComponents.find(({ key }) => key === resource.activeTab)?.Component ??
+    DashboardSettingsGeneralTab;
   const siteNamePreview = (resource.settings.site.name || "Nekomata").trim() || "Nekomata";
   const footerBrandNamePreview =
     (resource.settings.site.name || resource.settings.footer.brandName || "Nekomata").trim() ||
@@ -109,165 +121,193 @@ const DashboardSettings = () => {
     ? "border-border/70 bg-card text-foreground"
     : "border-border/70 bg-sidebar-accent/45 text-sidebar-foreground";
 
-  const logoFieldState = {
-    "branding.assets.symbolUrl": {
-      value: branding.direct.symbolAssetUrl,
-      preview: branding.assets.symbolUrl,
-      status: branding.direct.symbolAssetUrl
-        ? "Símbolo principal ativo."
-        : branding.legacy.siteSymbolUrl
-          ? "Sem valor no modelo novo. Usando fallback legado."
-          : "Sem símbolo definido.",
-    },
-    "branding.assets.wordmarkUrl": {
-      value: branding.direct.wordmarkAssetUrl,
-      preview: branding.assets.wordmarkUrl,
-      status: branding.direct.wordmarkAssetUrl
-        ? "Logotipo principal ativo."
-        : branding.legacy.wordmarkUrl ||
-            branding.legacy.navbarWordmarkUrl ||
-            branding.legacy.footerWordmarkUrl
-          ? "Sem valor no modelo novo. Usando fallback legado."
-          : "Sem logotipo definido.",
-    },
-    "site.faviconUrl": {
-      value: resource.settings.site.faviconUrl?.trim() || "",
-      preview: resource.settings.site.faviconUrl?.trim() || "",
-      status: resource.settings.site.faviconUrl?.trim()
-        ? "Favicon ativa na aba do navegador."
-        : "Sem favicon definida.",
-    },
-    "site.defaultShareImage": {
-      value: resource.settings.site.defaultShareImage?.trim() || "",
-      preview: resource.settings.site.defaultShareImage?.trim() || "",
-      status: resource.settings.site.defaultShareImage?.trim()
-        ? "Imagem padrão de compartilhamento ativa."
-        : "Sem imagem padrão de compartilhamento.",
-    },
-    "branding.overrides.navbarWordmarkUrl": {
-      value: branding.direct.navbarWordmarkOverrideUrl,
-      preview: branding.navbar.wordmarkUrl,
-      status: branding.direct.navbarWordmarkOverrideUrl
-        ? "Override da navbar ativo."
-        : branding.navbar.wordmarkUrl
-          ? "Sem override. Navegação usa o logotipo principal."
-          : "Sem imagem disponível para a wordmark da navbar.",
-    },
-    "branding.overrides.footerWordmarkUrl": {
-      value: branding.direct.footerWordmarkOverrideUrl,
-      preview: branding.footer.wordmarkUrl,
-      status: branding.direct.footerWordmarkOverrideUrl
-        ? "Override do footer ativo."
-        : branding.footer.wordmarkUrl
-          ? "Sem override. Rodapé usa o logotipo principal."
-          : "Sem imagem disponível para a wordmark do footer.",
-    },
-    "branding.overrides.navbarSymbolUrl": {
-      value: branding.direct.navbarSymbolOverrideUrl,
-      preview: branding.navbar.symbolUrl,
-      status: branding.direct.navbarSymbolOverrideUrl
-        ? "Override da navbar ativo."
-        : branding.navbar.symbolUrl
-          ? "Sem override. Navegação usa o símbolo principal."
-          : "Sem símbolo disponível para a navbar.",
-    },
-    "branding.overrides.footerSymbolUrl": {
-      value: branding.direct.footerSymbolOverrideUrl,
-      preview: branding.footer.symbolUrl,
-      status: branding.direct.footerSymbolOverrideUrl
-        ? "Override do footer ativo."
-        : branding.footer.symbolUrl
-          ? "Sem override. Rodapé usa o símbolo principal."
-          : "Sem símbolo disponível para o footer.",
-    },
-  } satisfies Record<string, { value: string; preview: string; status: string }>;
+  const logoFieldState = useMemo(() => {
+    return {
+      "branding.assets.symbolUrl": {
+        value: branding.direct.symbolAssetUrl,
+        preview: branding.assets.symbolUrl,
+        status: branding.direct.symbolAssetUrl
+          ? "Símbolo principal ativo."
+          : branding.legacy.siteSymbolUrl
+            ? "Sem valor no modelo novo. Usando fallback legado."
+            : "Sem símbolo definido.",
+      },
+      "branding.assets.wordmarkUrl": {
+        value: branding.direct.wordmarkAssetUrl,
+        preview: branding.assets.wordmarkUrl,
+        status: branding.direct.wordmarkAssetUrl
+          ? "Logotipo principal ativo."
+          : branding.legacy.wordmarkUrl ||
+              branding.legacy.navbarWordmarkUrl ||
+              branding.legacy.footerWordmarkUrl
+            ? "Sem valor no modelo novo. Usando fallback legado."
+            : "Sem logotipo definido.",
+      },
+      "site.faviconUrl": {
+        value: resource.settings.site.faviconUrl?.trim() || "",
+        preview: resource.settings.site.faviconUrl?.trim() || "",
+        status: resource.settings.site.faviconUrl?.trim()
+          ? "Favicon ativa na aba do navegador."
+          : "Sem favicon definida.",
+      },
+      "site.defaultShareImage": {
+        value: resource.settings.site.defaultShareImage?.trim() || "",
+        preview: resource.settings.site.defaultShareImage?.trim() || "",
+        status: resource.settings.site.defaultShareImage?.trim()
+          ? "Imagem padrão de compartilhamento ativa."
+          : "Sem imagem padrão de compartilhamento.",
+      },
+      "branding.overrides.navbarWordmarkUrl": {
+        value: branding.direct.navbarWordmarkOverrideUrl,
+        preview: branding.navbar.wordmarkUrl,
+        status: branding.direct.navbarWordmarkOverrideUrl
+          ? "Override da navbar ativo."
+          : branding.navbar.wordmarkUrl
+            ? "Sem override. Navegação usa o logotipo principal."
+            : "Sem imagem disponível para a wordmark da navbar.",
+      },
+      "branding.overrides.footerWordmarkUrl": {
+        value: branding.direct.footerWordmarkOverrideUrl,
+        preview: branding.footer.wordmarkUrl,
+        status: branding.direct.footerWordmarkOverrideUrl
+          ? "Override do footer ativo."
+          : branding.footer.wordmarkUrl
+            ? "Sem override. Rodapé usa o logotipo principal."
+            : "Sem imagem disponível para a wordmark do footer.",
+      },
+      "branding.overrides.navbarSymbolUrl": {
+        value: branding.direct.navbarSymbolOverrideUrl,
+        preview: branding.navbar.symbolUrl,
+        status: branding.direct.navbarSymbolOverrideUrl
+          ? "Override da navbar ativo."
+          : branding.navbar.symbolUrl
+            ? "Sem override. Navegação usa o símbolo principal."
+            : "Sem símbolo disponível para a navbar.",
+      },
+      "branding.overrides.footerSymbolUrl": {
+        value: branding.direct.footerSymbolOverrideUrl,
+        preview: branding.footer.symbolUrl,
+        status: branding.direct.footerSymbolOverrideUrl
+          ? "Override do footer ativo."
+          : branding.footer.symbolUrl
+            ? "Sem override. Rodapé usa o símbolo principal."
+            : "Sem símbolo disponível para o footer.",
+      },
+    } satisfies Record<string, { value: string; preview: string; status: string }>;
+  }, [branding, resource.settings.site.defaultShareImage, resource.settings.site.faviconUrl]);
 
-  const renderLogoEditorCards = (fields: LogoEditorField[]) => (
-    <div className="grid gap-4 lg:grid-cols-2">
-      {fields.map((field) => {
-        const state = logoFieldState[field.target];
-        const hasDirectValue = Boolean(state.value);
-        return (
-          <div
-            key={field.target}
-            className="rounded-2xl border border-border/70 bg-background p-4 space-y-3"
-          >
-            <div>
-              <p className="text-sm font-semibold">{field.label}</p>
-              <p className="text-xs text-foreground/70">{field.description}</p>
-            </div>
-
+  const renderLogoEditorCards = useCallback(
+    (fields: LogoEditorField[]) => (
+      <div className="grid gap-4 lg:grid-cols-2">
+        {fields.map((field) => {
+          const state = logoFieldState[field.target];
+          const hasDirectValue = Boolean(state.value);
+          return (
             <div
-              className={`flex items-center justify-center rounded-xl border border-border/70 bg-background p-3 ${field.frameClassName}`}
+              key={field.target}
+              className="rounded-2xl border border-border/70 bg-background p-4 space-y-3"
             >
-              {state.preview ? (
-                <img src={state.preview} alt={field.label} className={field.imageClassName} />
-              ) : (
-                <span className="text-xs text-foreground/70">Sem imagem definida</span>
-              )}
-            </div>
+              <div>
+                <p className="text-sm font-semibold">{field.label}</p>
+                <p className="text-xs text-foreground/70">{field.description}</p>
+              </div>
 
-            <p className="text-[11px] text-foreground/70">{state.status}</p>
+              <div
+                className={`flex items-center justify-center rounded-xl border border-border/70 bg-background p-3 ${field.frameClassName}`}
+              >
+                {state.preview ? (
+                  <img src={state.preview} alt={field.label} className={field.imageClassName} />
+                ) : (
+                  <span className="text-xs text-foreground/70">Sem imagem definida</span>
+                )}
+              </div>
 
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="flex-1"
-                onClick={() => media.openLibrary(field.target)}
-              >
-                Biblioteca
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={!hasDirectValue}
-                onClick={() => media.clearLibraryImage(field.target)}
-              >
-                Limpar
-              </Button>
+              <p className="text-[11px] text-foreground/70">{state.status}</p>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => media.openLibrary(field.target)}
+                >
+                  Biblioteca
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={!hasDirectValue}
+                  onClick={() => media.clearLibraryImage(field.target)}
+                >
+                  Limpar
+                </Button>
+              </div>
             </div>
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+    ),
+    [logoFieldState, media],
   );
 
-  const contextValue = {
-    ...resource,
-    ...media,
-    footerBrandNamePreview,
-    footerBrandNameUpperPreview,
-    footerMode,
-    navbarMode,
-    navbarPreviewFallbackClass,
-    navbarPreviewShellClass,
-    renderLogoEditorCards,
-    resolvedFooterSymbolUrl: branding.footer.symbolUrl,
-    resolvedFooterWordmarkUrl: branding.footer.wordmarkUrl,
-    resolvedNavbarSymbolUrl: branding.navbar.symbolUrl,
-    resolvedNavbarWordmarkUrl: branding.navbar.wordmarkUrl,
-    showNavbarSymbolPreview,
-    showNavbarTextPreview,
-    showWordmarkInFooterPreview,
-    showWordmarkInNavbarPreview,
-    siteNamePreview,
-  };
+  const contextValue = useMemo<DashboardSettingsContextValue>(
+    () => ({
+      ...resource,
+      ...media,
+      footerBrandNamePreview,
+      footerBrandNameUpperPreview,
+      footerMode,
+      navbarMode,
+      navbarPreviewFallbackClass,
+      navbarPreviewShellClass,
+      renderLogoEditorCards,
+      resolvedFooterSymbolUrl: branding.footer.symbolUrl,
+      resolvedFooterWordmarkUrl: branding.footer.wordmarkUrl,
+      resolvedNavbarSymbolUrl: branding.navbar.symbolUrl,
+      resolvedNavbarWordmarkUrl: branding.navbar.wordmarkUrl,
+      showNavbarSymbolPreview,
+      showNavbarTextPreview,
+      showWordmarkInFooterPreview,
+      showWordmarkInNavbarPreview,
+      siteNamePreview,
+    }),
+    [
+      branding.footer.symbolUrl,
+      branding.footer.wordmarkUrl,
+      branding.navbar.symbolUrl,
+      branding.navbar.wordmarkUrl,
+      footerBrandNamePreview,
+      footerBrandNameUpperPreview,
+      footerMode,
+      media,
+      navbarMode,
+      navbarPreviewFallbackClass,
+      navbarPreviewShellClass,
+      renderLogoEditorCards,
+      resource,
+      showNavbarSymbolPreview,
+      showNavbarTextPreview,
+      showWordmarkInFooterPreview,
+      showWordmarkInNavbarPreview,
+      siteNamePreview,
+    ],
+  );
+  const handleMainBlurCapture = useCallback(
+    (event: FocusEvent<HTMLElement>) => {
+      const nextTarget = event.relatedTarget as Node | null;
+      if (nextTarget && event.currentTarget.contains(nextTarget)) {
+        return;
+      }
+      resource.flushAllAutosave();
+    },
+    [resource],
+  );
 
   return (
-    <DashboardShell
-      currentUser={currentUser}
-      isLoadingUser={isLoadingUser}
-      onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
-    >
-      <main
-        className="pt-24"
-        onBlurCapture={() => {
-          resource.flushAllAutosave();
-        }}
-      >
+    <>
+      <main className="pt-24" onBlurCapture={handleMainBlurCapture}>
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -306,7 +346,8 @@ const DashboardSettings = () => {
 
           <Tabs
             value={resource.activeTab}
-            onValueChange={(value) => resource.setActiveTab(value as SettingsTabKey)}
+            onValueChange={resource.setActiveTab}
+            activationMode="manual"
             className="mt-8 animate-slide-up opacity-0"
             style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
           >
@@ -384,14 +425,7 @@ const DashboardSettings = () => {
                   </Card>
                 ) : (
                   <DashboardSettingsProvider value={contextValue}>
-                    <DashboardSettingsGeneralTab />
-                    <DashboardSettingsReaderTab />
-                    <DashboardSettingsTranslationsTab />
-                    <DashboardSettingsDownloadsTab />
-                    <DashboardSettingsTeamTab />
-                    <DashboardSettingsSocialLinksTab />
-                    <DashboardSettingsLayoutTab />
-                    <DashboardSettingsSeoTab />
+                    <ActiveSettingsTab />
                   </DashboardSettingsProvider>
                 )}
               </>
@@ -399,32 +433,38 @@ const DashboardSettings = () => {
           </Tabs>
         </section>
       </main>
-      <Suspense
-        fallback={
-          media.isLibraryOpen ? (
-            <ImageLibraryDialogLoadingFallback
-              open={media.isLibraryOpen}
-              onOpenChange={media.setIsLibraryOpen}
-              description="Selecione uma imagem já enviada para reutilizar ou exclua itens que não estejam em uso."
-            />
-          ) : null
-        }
-      >
-        <ImageLibraryDialog
-          open={media.isLibraryOpen}
-          onOpenChange={media.setIsLibraryOpen}
-          apiBase={apiBase}
-          description="Selecione uma imagem já enviada para reutilizar ou exclua itens que não estejam em uso."
-          uploadFolder="branding"
-          listFolders={media.rootLibraryFolders}
-          includeProjectImages={false}
-          showUrlImport={false}
-          allowDeselect
-          mode="single"
-          currentSelectionUrls={media.currentLibrarySelection ? [media.currentLibrarySelection] : []}
-          onSave={({ urls, items }) => media.applyLibraryImage(urls[0] || "", items[0]?.altText)}
-        />
-      </Suspense>
+      <LazyImageLibraryDialog
+        open={media.isLibraryOpen}
+        onOpenChange={media.setIsLibraryOpen}
+        apiBase={apiBase}
+        description="Selecione uma imagem já enviada para reutilizar ou exclua itens que não estejam em uso."
+        uploadFolder="branding"
+        listFolders={media.rootLibraryFolders}
+        includeProjectImages={false}
+        showUrlImport={false}
+        allowDeselect
+        mode="single"
+        currentSelectionUrls={media.currentLibrarySelection ? [media.currentLibrarySelection] : []}
+        onSave={({ urls, items }) => media.applyLibraryImage(urls[0] || "", items[0]?.altText)}
+      />
+    </>
+  );
+};
+
+const DashboardSettings = () => {
+  const navigate = useNavigate();
+  const { currentUser, isLoadingUser } = useDashboardCurrentUser();
+  const handleUserCardClick = useCallback(() => {
+    navigate("/dashboard/usuarios?edit=me");
+  }, [navigate]);
+
+  return (
+    <DashboardShell
+      currentUser={currentUser}
+      isLoadingUser={isLoadingUser}
+      onUserCardClick={handleUserCardClick}
+    >
+      <DashboardSettingsContent />
     </DashboardShell>
   );
 };

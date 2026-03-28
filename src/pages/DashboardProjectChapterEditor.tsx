@@ -1,5 +1,4 @@
 import DashboardShell from "@/components/DashboardShell";
-import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import {
   Input,
   Select,
@@ -12,6 +11,13 @@ import {
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import { useChapterEditorLeaveGuard } from "@/components/dashboard/chapter-editor/useChapterEditorLeaveGuard";
+import ChapterEditorEpubToolsSection from "@/components/dashboard/chapter-editor/ChapterEditorEpubToolsSection";
+import ChapterEditorStructureSection from "@/components/dashboard/chapter-editor/ChapterEditorStructureSection";
+import type { ChapterStructureGroup } from "@/components/dashboard/chapter-editor/ChapterEditorStructureSection";
+import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
+import LazyLexicalEditor, {
+  loadLexicalEditor,
+} from "@/components/lazy/LazyLexicalEditor";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import LexicalEditorFallback from "@/components/lexical/LexicalEditorFallback";
 import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
@@ -64,6 +70,9 @@ import {
   buildChapterStructureGroupKey,
   buildChapterVolumeLabel,
   buildEditableVolumeOptions,
+  buildChapterSnapshot,
+  buildProjectSnapshotWithVolumeEntries,
+  buildVolumeCoverAltFallback,
   chapterHasContent,
   chapterStatusLabel,
   compareChapterStructureGroupKeys,
@@ -74,7 +83,18 @@ import {
   matchesStageChapterFilter,
   matchesStageChapterSearch,
   normalizeEpubImportPreviewPayload,
+  normalizeProjectSnapshotChapterOrderForPersist,
+  normalizeStructureGroupKeys,
+  normalizeChapterForEditor,
+  normalizeChapterForSave,
+  normalizeOriginLabel,
+  normalizePositiveInteger,
+  normalizeNonNegativeInteger,
+  resolveChapterEntrySubtype,
   resolveImportedChapterCount,
+  buildVolumeEntriesSnapshot,
+  normalizeVolumeEntriesForSave,
+  reorderChaptersWithinStructureGroup,
   sortChapters,
   supportsStructureChapterReordering,
   type ChapterFilterMode,
@@ -166,9 +186,7 @@ import type {
   SetStateAction,
 } from "react";
 import {
-  Suspense,
   forwardRef,
-  lazy,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -184,9 +202,6 @@ import {
 } from "../../shared/project-reader.js";
 import NotFound from "./NotFound";
 
-const loadLexicalEditor = () => import("@/components/lexical/LexicalEditor");
-const LexicalEditor = lazy(loadLexicalEditor);
-const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 const chapterEditorLexicalMinHeightClassName = "min-h-[420px] lg:min-h-[620px]";
 
 type ChapterStructureGroup = {
@@ -376,9 +391,9 @@ const workspaceSectionMutedClassName =
 const IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE =
   "Capitulos em imagem precisam ter ao menos uma pagina para serem publicados.";
 const VOLUME_REQUIRED_IDENTITY_MESSAGE =
-  "Informe o volume para salvar um cap\u00edtulo com n\u00famero amb\u00edguo.";
+  "Informe o volume para salvar um capítulo com número ambíguo.";
 const VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION =
-  "Esse salvamento foi bloqueado porque a URL do editor ficaria amb\u00edgua. Informe o volume antes de salvar este cap\u00edtulo.";
+  "Esse salvamento foi bloqueado porque a URL do editor ficaria ambígua. Informe o volume antes de salvar este capítulo.";
 
 const toastIncompleteDownloadSources = () => {
   toast({
@@ -396,99 +411,6 @@ const EditorAccordionHeader = ({ title, subtitle }: { title: string; subtitle: s
 );
 
 const WorkspaceSectionCard = ProjectEditorSectionCard;
-
-const normalizePositiveInteger = (value: number, fallback?: number) => {
-  if (!Number.isFinite(value)) {
-    return fallback;
-  }
-  const normalized = Math.floor(value);
-  return normalized > 0 ? normalized : fallback;
-};
-
-const normalizeNonNegativeInteger = (value: unknown, fallback?: number) => {
-  if (value === null || value === undefined || String(value).trim() === "") {
-    return fallback;
-  }
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
-  const normalized = Math.floor(parsed);
-  return normalized >= 0 ? normalized : fallback;
-};
-
-const resolveChapterEntrySubtype = (entryKind: ProjectEpisode["entryKind"]) =>
-  entryKind === "extra" ? "extra" : "chapter";
-
-const normalizeChapterState = (
-  chapter: ProjectEpisode,
-  progressKind?: ProjectProgressKind,
-  options?: { preserveEmptySources?: boolean },
-): ProjectEpisode => {
-  const parsedNumber = Number(chapter.number);
-  const parsedReadingOrder = Number(chapter.readingOrder);
-  const parsedSizeBytes = Number(chapter.sizeBytes);
-  const entryKind =
-    String(chapter.entryKind || "")
-      .trim()
-      .toLowerCase() === "extra"
-      ? "extra"
-      : "main";
-  const normalizedPages = normalizeProjectEpisodePages(chapter.pages);
-  const contentFormat = normalizeProjectEpisodeContentFormat(
-    chapter.contentFormat,
-    normalizedPages.length > 0 ? "images" : "lexical",
-  );
-  const normalizedChapter = {
-    ...chapter,
-    number: normalizePositiveInteger(parsedNumber, 1) ?? 1,
-    volume: normalizeNonNegativeInteger(chapter.volume),
-    title: String(chapter.title || ""),
-    entryKind,
-    entrySubtype: resolveChapterEntrySubtype(entryKind),
-    readingOrder: Number.isFinite(parsedReadingOrder) ? Math.floor(parsedReadingOrder) : undefined,
-    displayLabel:
-      entryKind === "extra" ? String(chapter.displayLabel || "").trim() || undefined : undefined,
-    synopsis: String(chapter.synopsis || ""),
-    releaseDate: String(chapter.releaseDate || "").trim(),
-    duration: String(chapter.duration || "").trim(),
-    coverImageAlt: String(chapter.coverImageAlt || ""),
-    sourceType:
-      chapter.sourceType === "Web" || chapter.sourceType === "Blu-ray" ? chapter.sourceType : "TV",
-    sources: (Array.isArray(chapter.sources) ? chapter.sources : [])
-      .map((source) => ({
-        label: String(source.label || "").trim(),
-        url: String(source.url || "").trim(),
-      }))
-      .filter((source) => options?.preserveEmptySources || source.label || source.url),
-    hash: String(chapter.hash || "").trim() || undefined,
-    sizeBytes:
-      Number.isFinite(parsedSizeBytes) && parsedSizeBytes > 0
-        ? Math.floor(parsedSizeBytes)
-        : undefined,
-    progressStage: String(chapter.progressStage || "").trim() || undefined,
-    completedStages: Array.isArray(chapter.completedStages)
-      ? Array.from(
-          new Set(chapter.completedStages.map((item) => String(item || "").trim()).filter(Boolean)),
-        )
-      : [],
-    content: contentFormat === "images" ? "" : String(chapter.content || ""),
-    contentFormat,
-    pages: normalizedPages,
-    pageCount: normalizedPages.length,
-    hasPages: normalizedPages.length > 0,
-    coverImageUrl: String(chapter.coverImageUrl || "").trim() || normalizedPages[0]?.imageUrl || "",
-    publicationStatus: chapter.publicationStatus === "published" ? "published" : "draft",
-    chapterUpdatedAt: String(chapter.chapterUpdatedAt || "").trim() || undefined,
-  };
-  return progressKind ? syncProjectProgress(normalizedChapter, progressKind) : normalizedChapter;
-};
-
-const normalizeChapterForSave = (chapter: ProjectEpisode, progressKind?: ProjectProgressKind) =>
-  normalizeChapterState(chapter, progressKind);
-
-const normalizeChapterForEditor = (chapter: ProjectEpisode, progressKind?: ProjectProgressKind) =>
-  normalizeChapterState(chapter, progressKind, { preserveEmptySources: true });
 
 const buildNewChapterDraft = (
   episodes: ProjectEpisode[],
@@ -526,227 +448,11 @@ const buildNewChapterDraft = (
     publicationStatus: "draft",
   });
 
-const normalizeOriginLabel = (value: unknown) => {
-  const normalized = String(value || "").trim();
-  return normalized || "indisponivel";
-};
-
-const buildChapterSnapshot = (
-  chapter: ProjectEpisode | null,
-  progressKind?: ProjectProgressKind,
-) => (chapter ? JSON.stringify(normalizeChapterForEditor(chapter, progressKind)) : "");
-
-const buildVolumeCoverAltFallback = (volume: number) => `Capa do volume ${volume}`;
-
-const normalizeVolumeEntriesForSave = (entries: ProjectVolumeEntry[] | null | undefined) =>
-  normalizeProjectVolumeEntries(entries).map((entry) => {
-    const coverImageUrl = String(entry.coverImageUrl || "").trim();
-    return {
-      volume: entry.volume,
-      synopsis: String(entry.synopsis || "").trim(),
-      coverImageUrl,
-      coverImageAlt: coverImageUrl
-        ? resolveAssetAltText(entry.coverImageAlt, buildVolumeCoverAltFallback(entry.volume))
-        : "",
-    };
-  });
-
-const buildVolumeEntriesSnapshot = (entries: ProjectVolumeEntry[] | null | undefined) =>
-  JSON.stringify(normalizeProjectVolumeEntries(entries));
-
 const findStructureGroupElement = (groupKey: string) => {
   if (typeof document === "undefined") {
     return null;
   }
   return document.querySelector<HTMLElement>(`[data-testid="chapter-structure-group-${groupKey}"]`);
-};
-
-const buildProjectSnapshotWithVolumeEntries = <T extends ProjectRecord>(
-  project: T,
-  entries: ProjectVolumeEntry[] | null | undefined,
-): T => {
-  const volumeEntries = normalizeVolumeEntriesForSave(entries);
-  const volumeCovers = volumeEntries
-    .filter((entry) => String(entry.coverImageUrl || "").trim())
-    .map((entry) => ({
-      volume: entry.volume,
-      coverImageUrl: entry.coverImageUrl,
-      coverImageAlt: entry.coverImageAlt || buildVolumeCoverAltFallback(entry.volume),
-    }));
-  return {
-    ...project,
-    volumeEntries,
-    volumeCovers,
-  };
-};
-
-const hasExplicitReadingOrder = (episodes: ProjectEpisode[]) =>
-  (Array.isArray(episodes) ? episodes : []).some((episode) =>
-    Number.isFinite(Number(episode?.readingOrder)),
-  );
-
-const renumberChapterReadingOrderSequence = (episodes: ProjectEpisode[]) =>
-  episodes.map((episode, index) =>
-    normalizeChapterForSave({
-      ...episode,
-      readingOrder: index + 1,
-    }),
-  );
-
-const insertEpisodesAtGroupBoundary = (
-  orderedEpisodes: ProjectEpisode[],
-  groupKey: string,
-  insertedEpisodes: ProjectEpisode[],
-) => {
-  if (!insertedEpisodes.length) {
-    return orderedEpisodes;
-  }
-
-  const lastGroupIndex = orderedEpisodes.reduce((lastIndex, episode, index) => {
-    return buildChapterStructureGroupKey(episode.volume) === groupKey ? index : lastIndex;
-  }, -1);
-
-  if (lastGroupIndex >= 0) {
-    return [
-      ...orderedEpisodes.slice(0, lastGroupIndex + 1),
-      ...insertedEpisodes,
-      ...orderedEpisodes.slice(lastGroupIndex + 1),
-    ];
-  }
-
-  const nextGroupIndex = orderedEpisodes.findIndex(
-    (episode) =>
-      compareChapterStructureGroupKeys(buildChapterStructureGroupKey(episode.volume), groupKey) > 0,
-  );
-
-  if (nextGroupIndex >= 0) {
-    return [
-      ...orderedEpisodes.slice(0, nextGroupIndex),
-      ...insertedEpisodes,
-      ...orderedEpisodes.slice(nextGroupIndex),
-    ];
-  }
-
-  return [...orderedEpisodes, ...insertedEpisodes];
-};
-
-const preserveManualChapterReadingOrder = (
-  previousEpisodes: ProjectEpisode[],
-  nextEpisodes: ProjectEpisode[],
-) => {
-  const normalizedPreviousEpisodes = sortChapters(previousEpisodes).map((episode) =>
-    normalizeChapterForSave(episode),
-  );
-  if (!hasExplicitReadingOrder(normalizedPreviousEpisodes)) {
-    return nextEpisodes;
-  }
-
-  const normalizedNextEpisodes = (Array.isArray(nextEpisodes) ? nextEpisodes : []).map((episode) =>
-    normalizeChapterForSave(episode),
-  );
-  const nextEpisodeByKey = new Map(
-    normalizedNextEpisodes.map((episode) => [
-      buildEpisodeKey(episode.number, episode.volume),
-      episode,
-    ]),
-  );
-
-  let orderedEpisodes = normalizedPreviousEpisodes
-    .map((episode) => nextEpisodeByKey.get(buildEpisodeKey(episode.number, episode.volume)) || null)
-    .filter((episode): episode is ProjectEpisode => Boolean(episode));
-
-  const existingEpisodeKeySet = new Set(
-    orderedEpisodes.map((episode) => buildEpisodeKey(episode.number, episode.volume)),
-  );
-  const insertedEpisodes = normalizedNextEpisodes.filter(
-    (episode) => !existingEpisodeKeySet.has(buildEpisodeKey(episode.number, episode.volume)),
-  );
-  const insertedEpisodesByGroup = groupChaptersByStructureKey(sortChapters(insertedEpisodes));
-
-  Array.from(insertedEpisodesByGroup.keys())
-    .sort(compareChapterStructureGroupKeys)
-    .forEach((groupKey) => {
-      orderedEpisodes = insertEpisodesAtGroupBoundary(
-        orderedEpisodes,
-        groupKey,
-        insertedEpisodesByGroup.get(groupKey) || [],
-      );
-    });
-
-  return renumberChapterReadingOrderSequence(orderedEpisodes);
-};
-
-const reorderChaptersWithinStructureGroup = (
-  episodes: ProjectEpisode[],
-  chapterKey: string,
-  direction: "up" | "down",
-) => {
-  const orderedEpisodes = sortChapters(episodes).map((episode) => normalizeChapterForSave(episode));
-  const targetIndex = orderedEpisodes.findIndex(
-    (episode) => buildEpisodeKey(episode.number, episode.volume) === chapterKey,
-  );
-  if (targetIndex < 0) {
-    return null;
-  }
-
-  const targetGroupKey = buildChapterStructureGroupKey(orderedEpisodes[targetIndex]?.volume);
-  const groupIndexes = orderedEpisodes.reduce<number[]>((indexes, episode, index) => {
-    if (buildChapterStructureGroupKey(episode.volume) === targetGroupKey) {
-      indexes.push(index);
-    }
-    return indexes;
-  }, []);
-  const currentGroupIndex = groupIndexes.indexOf(targetIndex);
-  const nextGroupIndex = direction === "up" ? currentGroupIndex - 1 : currentGroupIndex + 1;
-
-  if (currentGroupIndex < 0 || nextGroupIndex < 0 || nextGroupIndex >= groupIndexes.length) {
-    return null;
-  }
-
-  const swapTargetIndex = groupIndexes[nextGroupIndex];
-  const reorderedEpisodes = [...orderedEpisodes];
-  const [movedEpisode] = reorderedEpisodes.splice(targetIndex, 1);
-  reorderedEpisodes.splice(swapTargetIndex, 0, movedEpisode);
-  return renumberChapterReadingOrderSequence(reorderedEpisodes);
-};
-
-const normalizeProjectSnapshotChapterOrderForPersist = (
-  previousProject: Pick<ProjectRecord, "episodeDownloads" | "type"> | null | undefined,
-  nextProject: ProjectRecord,
-) => {
-  if (!supportsStructureChapterReordering(nextProject.type || previousProject?.type || "")) {
-    return nextProject;
-  }
-
-  const previousEpisodes = Array.isArray(previousProject?.episodeDownloads)
-    ? previousProject.episodeDownloads
-    : [];
-  const nextEpisodes = Array.isArray(nextProject.episodeDownloads)
-    ? nextProject.episodeDownloads
-    : [];
-
-  if (!hasExplicitReadingOrder(previousEpisodes)) {
-    return nextProject;
-  }
-
-  return {
-    ...nextProject,
-    episodeDownloads: preserveManualChapterReadingOrder(previousEpisodes, nextEpisodes),
-  };
-};
-
-const normalizeStructureGroupKeys = (
-  nextKeys: string[] | null | undefined,
-  structureGroups: ChapterStructureGroup[],
-) => {
-  const availableKeys = new Set(structureGroups.map((group) => group.key));
-  return Array.from(
-    new Set(
-      (Array.isArray(nextKeys) ? nextKeys : []).filter(
-        (key): key is string => typeof key === "string" && availableKeys.has(key),
-      ),
-    ),
-  );
 };
 
 const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneProps>(
@@ -1335,59 +1041,6 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       selectedVolumeNumber,
       structureGroups,
     ]);
-    const [openStructureGroupKeys, setOpenStructureGroupKeys] = useState<string[]>(() => {
-      const initialKeys = normalizeStructureGroupKeys(
-        initialOpenStructureGroupKeys,
-        structureGroups,
-      );
-      if (initialKeys.length > 0) {
-        return initialKeys;
-      }
-      return activeStructureGroupKey ? [activeStructureGroupKey] : [];
-    });
-    const lastAutoSyncedStructureGroupKeyRef = useRef(activeStructureGroupKey);
-
-    useEffect(() => {
-      setOpenStructureGroupKeys((currentKeys) => {
-        const fallbackGroupKey = structureGroups[0]?.key || "";
-        const normalizedActiveStructureGroupKey =
-          activeStructureGroupKey &&
-          structureGroups.some((group) => group.key === activeStructureGroupKey)
-            ? activeStructureGroupKey
-            : fallbackGroupKey;
-        const normalizedCurrentKeys = normalizeStructureGroupKeys(currentKeys, structureGroups);
-
-        if (normalizedActiveStructureGroupKey !== lastAutoSyncedStructureGroupKeyRef.current) {
-          lastAutoSyncedStructureGroupKeyRef.current = normalizedActiveStructureGroupKey;
-          if (
-            !normalizedActiveStructureGroupKey ||
-            normalizedCurrentKeys.includes(normalizedActiveStructureGroupKey)
-          ) {
-            return normalizedCurrentKeys;
-          }
-          return [...normalizedCurrentKeys, normalizedActiveStructureGroupKey];
-        }
-
-        return normalizedCurrentKeys;
-      });
-    }, [activeStructureGroupKey, structureGroups]);
-
-    useEffect(() => {
-      onStructureGroupKeysChange(openStructureGroupKeys);
-    }, [onStructureGroupKeysChange, openStructureGroupKeys]);
-
-    const toggleStructureGroup = useCallback(
-      (groupKey: string) => {
-        setOpenStructureGroupKeys((currentKeys) => {
-          const normalizedCurrentKeys = normalizeStructureGroupKeys(currentKeys, structureGroups);
-          return normalizedCurrentKeys.includes(groupKey)
-            ? normalizedCurrentKeys.filter((key) => key !== groupKey)
-            : [...normalizedCurrentKeys, groupKey];
-        });
-      },
-      [structureGroups],
-    );
-
     const handleStructureVolumeInteraction = useCallback(
       async (groupKey: string, nextVolume: number) => {
         const normalizedVolume = Number(nextVolume);
@@ -1397,7 +1050,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
 
         const scrollAnchorElement = findStructureGroupElement(groupKey);
         const scrollAnchorTop = scrollAnchorElement?.getBoundingClientRect().top;
-        const previousOpenGroupKeys = openStructureGroupKeys;
+        const previousOpenGroupKeys = openStructureGroupKeysRef.current;
         const nextOpenGroupKeys = previousOpenGroupKeys.includes(groupKey)
           ? previousOpenGroupKeys.filter((key) => key !== groupKey)
           : [...previousOpenGroupKeys, groupKey];
@@ -1419,13 +1072,13 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         });
         if (didSelectVolume === false) {
           setOpenStructureGroupKeys(previousOpenGroupKeys);
+          return;
         }
       },
       [
         hasActiveChapter,
         isVolumeDirty,
         onSelectedVolumeChange,
-        openStructureGroupKeys,
         requestLeave,
         selectedVolumeNumber,
       ],
@@ -1589,6 +1242,65 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         onUpdateVolumeEntry(selectedVolumeNumber, updater);
       },
       [onUpdateVolumeEntry, selectedVolumeNumber],
+    );
+
+    const openStructureGroupKeysRef = useRef<string[]>([]);
+
+    const [openStructureGroupKeys, setOpenStructureGroupKeys] = useState<string[]>(() => {
+      const initialKeys = normalizeStructureGroupKeys(
+        initialOpenStructureGroupKeys,
+        structureGroups,
+      );
+      if (initialKeys.length > 0) {
+        return initialKeys;
+      }
+      return activeStructureGroupKey ? [activeStructureGroupKey] : [];
+    });
+    const lastAutoSyncedStructureGroupKeyRef = useRef(activeStructureGroupKey);
+
+    useEffect(() => {
+      setOpenStructureGroupKeys((currentKeys) => {
+        const fallbackGroupKey = structureGroups[0]?.key || "";
+        const normalizedActiveStructureGroupKey =
+          activeStructureGroupKey &&
+          structureGroups.some((group) => group.key === activeStructureGroupKey)
+            ? activeStructureGroupKey
+            : fallbackGroupKey;
+        const normalizedCurrentKeys = normalizeStructureGroupKeys(currentKeys, structureGroups);
+
+        if (normalizedActiveStructureGroupKey !== lastAutoSyncedStructureGroupKeyRef.current) {
+          lastAutoSyncedStructureGroupKeyRef.current = normalizedActiveStructureGroupKey;
+          if (
+            !normalizedActiveStructureGroupKey ||
+            normalizedCurrentKeys.includes(normalizedActiveStructureGroupKey)
+          ) {
+            return normalizedCurrentKeys;
+          }
+          return [...normalizedCurrentKeys, normalizedActiveStructureGroupKey];
+        }
+
+        return normalizedCurrentKeys;
+      });
+    }, [activeStructureGroupKey, structureGroups]);
+
+    useEffect(() => {
+      onStructureGroupKeysChange(openStructureGroupKeys);
+    }, [onStructureGroupKeysChange, openStructureGroupKeys]);
+
+    useEffect(() => {
+      openStructureGroupKeysRef.current = openStructureGroupKeys;
+    }, [openStructureGroupKeys]);
+
+    const toggleStructureGroup = useCallback(
+      (groupKey: string) => {
+        setOpenStructureGroupKeys((currentKeys) => {
+          const normalizedCurrentKeys = normalizeStructureGroupKeys(currentKeys, structureGroups);
+          return normalizedCurrentKeys.includes(groupKey)
+            ? normalizedCurrentKeys.filter((key) => key !== groupKey)
+            : [...normalizedCurrentKeys, groupKey];
+        });
+      },
+      [structureGroups],
     );
 
     const epubToolsAccordion = supportsEpubTools ? (
@@ -3035,8 +2747,25 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     className={`chapter-editor-lexical-wrapper min-w-0 rounded-[22px] border border-border/50 bg-background/40 p-2 md:p-3 ${chapterEditorLexicalMinHeightClassName}`}
                     data-testid="chapter-lexical-wrapper"
                   >
-                    <Suspense
-                      fallback={
+                    <LazyLexicalEditor
+                      ref={editorRef}
+                      value={draft.content || ""}
+                      onChange={(nextValue) =>
+                        updateDraft((current) => ({
+                          ...current,
+                          content: nextValue,
+                          contentFormat: "lexical",
+                          pages: [],
+                          pageCount: 0,
+                          hasPages: false,
+                        }))
+                      }
+                      placeholder="Escreva o capítulo..."
+                      className="lexical-playground--modal lexical-playground--stretch lexical-playground--chapter-editor min-w-0 w-full"
+                      imageLibraryOptions={chapterImageLibraryOptions}
+                      autoFocus={false}
+                      followCaretScroll
+                      loadingFallback={
                         <LexicalEditorFallback
                           variant="chapter"
                           minHeightClassName={chapterEditorLexicalMinHeightClassName}
@@ -3044,27 +2773,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                           testId="chapter-lexical-fallback"
                         />
                       }
-                    >
-                      <LexicalEditor
-                        ref={editorRef}
-                        value={draft.content || ""}
-                        onChange={(nextValue) =>
-                          updateDraft((current) => ({
-                            ...current,
-                            content: nextValue,
-                            contentFormat: "lexical",
-                            pages: [],
-                            pageCount: 0,
-                            hasPages: false,
-                          }))
-                        }
-                        placeholder="Escreva o capítulo..."
-                        className="lexical-playground--modal lexical-playground--stretch lexical-playground--chapter-editor min-w-0 w-full"
-                        imageLibraryOptions={chapterImageLibraryOptions}
-                        autoFocus={false}
-                        followCaretScroll
-                      />
-                    </Suspense>
+                    />
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-border/50 bg-background/35 px-4 py-3 text-xs text-muted-foreground">
                     <span>
@@ -3508,7 +3217,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 </p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   {hasActiveChapter
-                    ? `${chapterTitle} — ${chapterPositionLabel}`
+                    ? `${chapterTitle} ? ${chapterPositionLabel}`
                     : selectedVolumeNumber !== null
                       ? `${selectedVolumeLabel} · ${selectedVolumeChapterCount} capítulo(s)`
                       : `${chapterCount} capítulo(s) disponível(is)`}
@@ -4460,7 +4169,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         >
           <DialogContent className="max-w-md" data-testid="chapter-save-volume-required-dialog">
             <DialogHeader>
-              <DialogTitle>{"Volume obrigat\u00f3rio"}</DialogTitle>
+              <DialogTitle>Volume obrigatório</DialogTitle>
               <DialogDescription>{VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION}</DialogDescription>
             </DialogHeader>
             <div className="flex justify-end">
@@ -4472,99 +4181,88 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         </Dialog>
 
         {libraryTarget ? (
-          <Suspense
-            fallback={
-              isLibraryOpen ? (
-                <ImageLibraryDialogLoadingFallback
-                  open={isLibraryOpen}
-                  onOpenChange={setIsLibraryOpen}
-                  description={
-                    libraryTarget === "volume-cover"
-                      ? "Selecione uma capa para o volume."
-                      : "Selecione uma capa para o capítulo."
-                  }
-                />
-              ) : null
-            }
-          >
-            <ImageLibraryDialog
-              open={isLibraryOpen}
-              onOpenChange={(nextOpen) => {
-                setIsLibraryOpen(nextOpen);
-                if (!nextOpen) {
-                  setLibraryTarget(null);
-                }
-              }}
-              apiBase={apiBase}
-              uploadFolder={
-                libraryTarget === "volume-cover"
-                  ? volumeImageLibraryOptions.uploadFolder
-                  : chapterImageLibraryOptions.uploadFolder
-              }
-              listFolders={
-                libraryTarget === "volume-cover"
-                  ? volumeImageLibraryOptions.listFolders
-                  : chapterImageLibraryOptions.listFolders
-              }
-              listAll={
-                libraryTarget === "volume-cover"
-                  ? volumeImageLibraryOptions.listAll
-                  : chapterImageLibraryOptions.listAll
-              }
-              includeProjectImages={
-                libraryTarget === "volume-cover"
-                  ? volumeImageLibraryOptions.includeProjectImages
-                  : chapterImageLibraryOptions.includeProjectImages
-              }
-              projectImageProjectIds={
-                libraryTarget === "volume-cover"
-                  ? volumeImageLibraryOptions.projectImageProjectIds
-                  : chapterImageLibraryOptions.projectImageProjectIds
-              }
-              projectImagesView={
-                libraryTarget === "volume-cover"
-                  ? volumeImageLibraryOptions.projectImagesView
-                  : chapterImageLibraryOptions.projectImagesView
-              }
-              allowDeselect
-              mode="single"
-              onRequestNavigateToUploads={onNavigateToUploads}
-              currentSelectionUrls={
-                libraryTarget === "volume-cover"
-                  ? selectedVolumeEntry?.coverImageUrl
-                    ? [selectedVolumeEntry.coverImageUrl]
-                    : []
-                  : draft.coverImageUrl
-                    ? [draft.coverImageUrl]
-                    : []
-              }
-              onSave={({ urls, items }) => {
-                const nextUrl = String(urls[0] || "").trim();
-                if (libraryTarget === "volume-cover" && selectedVolumeNumber !== null) {
-                  updateSelectedVolumeEntry((entry) => ({
-                    ...entry,
-                    coverImageUrl: nextUrl,
-                    coverImageAlt: nextUrl
-                      ? resolveAssetAltText(
-                          items[0]?.altText,
-                          buildVolumeCoverAltFallback(selectedVolumeNumber),
-                        )
-                      : "",
-                  }));
-                } else {
-                  updateDraft((current) => ({
-                    ...current,
-                    coverImageUrl: nextUrl,
-                    coverImageAlt: nextUrl
-                      ? resolveAssetAltText(items[0]?.altText, getEpisodeCoverAltFallback(true))
-                      : "",
-                  }));
-                }
-                setIsLibraryOpen(false);
+          <LazyImageLibraryDialog
+            open={isLibraryOpen}
+            onOpenChange={(nextOpen) => {
+              setIsLibraryOpen(nextOpen);
+              if (!nextOpen) {
                 setLibraryTarget(null);
-              }}
-            />
-          </Suspense>
+              }
+            }}
+            apiBase={apiBase}
+            uploadFolder={
+              libraryTarget === "volume-cover"
+                ? volumeImageLibraryOptions.uploadFolder
+                : chapterImageLibraryOptions.uploadFolder
+            }
+            listFolders={
+              libraryTarget === "volume-cover"
+                ? volumeImageLibraryOptions.listFolders
+                : chapterImageLibraryOptions.listFolders
+            }
+            listAll={
+              libraryTarget === "volume-cover"
+                ? volumeImageLibraryOptions.listAll
+                : chapterImageLibraryOptions.listAll
+            }
+            includeProjectImages={
+              libraryTarget === "volume-cover"
+                ? volumeImageLibraryOptions.includeProjectImages
+                : chapterImageLibraryOptions.includeProjectImages
+            }
+            projectImageProjectIds={
+              libraryTarget === "volume-cover"
+                ? volumeImageLibraryOptions.projectImageProjectIds
+                : chapterImageLibraryOptions.projectImageProjectIds
+            }
+            projectImagesView={
+              libraryTarget === "volume-cover"
+                ? volumeImageLibraryOptions.projectImagesView
+                : chapterImageLibraryOptions.projectImagesView
+            }
+            description={
+              libraryTarget === "volume-cover"
+                ? "Selecione uma capa para o volume."
+                : "Selecione uma capa para o capítulo."
+            }
+            allowDeselect
+            mode="single"
+            onRequestNavigateToUploads={onNavigateToUploads}
+            currentSelectionUrls={
+              libraryTarget === "volume-cover"
+                ? selectedVolumeEntry?.coverImageUrl
+                  ? [selectedVolumeEntry.coverImageUrl]
+                  : []
+                : draft.coverImageUrl
+                  ? [draft.coverImageUrl]
+                  : []
+            }
+            onSave={({ urls, items }) => {
+              const nextUrl = String(urls[0] || "").trim();
+              if (libraryTarget === "volume-cover" && selectedVolumeNumber !== null) {
+                updateSelectedVolumeEntry((entry) => ({
+                  ...entry,
+                  coverImageUrl: nextUrl,
+                  coverImageAlt: nextUrl
+                    ? resolveAssetAltText(
+                        items[0]?.altText,
+                        buildVolumeCoverAltFallback(selectedVolumeNumber),
+                      )
+                    : "",
+                }));
+              } else {
+                updateDraft((current) => ({
+                  ...current,
+                  coverImageUrl: nextUrl,
+                  coverImageAlt: nextUrl
+                    ? resolveAssetAltText(items[0]?.altText, getEpisodeCoverAltFallback(true))
+                    : "",
+                }));
+              }
+              setIsLibraryOpen(false);
+              setLibraryTarget(null);
+            }}
+          />
         ) : null}
       </>
     );
@@ -4620,6 +4318,8 @@ const DashboardProjectChapterEditor = () => {
   const pendingEpubImportIdsRef = useRef<Set<string>>(new Set());
   const pendingNeutralSelectedVolumeRef = useRef<number | null>(null);
   const pendingNeutralScrollAnchorRef = useRef<StructureScrollAnchor | null>(null);
+  const pendingChapterNavigationHrefRef = useRef<string | null>(null);
+  const fallbackNeutralToastKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (import.meta.env.MODE === "test") {
@@ -4953,6 +4653,39 @@ const DashboardProjectChapterEditor = () => {
   const availableVolumes = useMemo<EditableVolumeOption[]>(() => {
     return buildEditableVolumeOptions(projectSnapshot, volumeEntriesDraft);
   }, [projectSnapshot, volumeEntriesDraft]);
+  const shouldFallbackToNeutralRoute = Boolean(
+    project &&
+      isChapterBased &&
+      chapterNumber &&
+      !activeChapter &&
+      !pendingChapterNavigationHrefRef.current &&
+      !activeChapterLookup.ok &&
+      activeChapterLookup.code !== "volume_required",
+  );
+  const fallbackNeutralSelectedVolume = useMemo(() => {
+    if (!shouldFallbackToNeutralRoute || !Number.isFinite(resolvedVolume)) {
+      return null;
+    }
+    const normalizedVolume = Number(resolvedVolume);
+    return availableVolumes.some((volumeOption) => volumeOption.volume === normalizedVolume)
+      ? normalizedVolume
+      : null;
+  }, [availableVolumes, resolvedVolume, shouldFallbackToNeutralRoute]);
+  const fallbackNeutralToastKey = `${project?.id || projectId || ""}:${String(chapterNumber || "")}:${String(volumeParam || "")}`;
+  const neutralHref = buildDashboardProjectChaptersEditorHref(project?.id || projectId || "");
+  const currentEditorHref = chapterNumber
+    ? buildDashboardProjectChapterEditorHref(
+        project?.id || projectId || "",
+        chapterNumber,
+        resolvedVolume,
+      )
+    : neutralHref;
+
+  useEffect(() => {
+    if (pendingChapterNavigationHrefRef.current === currentEditorHref) {
+      pendingChapterNavigationHrefRef.current = null;
+    }
+  }, [currentEditorHref]);
 
   useEffect(() => {
     if (!chapterNumber) {
@@ -4979,8 +4712,41 @@ const DashboardProjectChapterEditor = () => {
       setSelectedVolume(activeVolume);
       return;
     }
+    if (shouldFallbackToNeutralRoute && fallbackNeutralSelectedVolume !== null) {
+      setSelectedVolume(fallbackNeutralSelectedVolume);
+      return;
+    }
     setSelectedVolume(null);
-  }, [activeChapter?.volume, availableVolumes, chapterNumber]);
+  }, [
+    activeChapter?.volume,
+    availableVolumes,
+    chapterNumber,
+    fallbackNeutralSelectedVolume,
+    shouldFallbackToNeutralRoute,
+  ]);
+
+  useEffect(() => {
+    if (!shouldFallbackToNeutralRoute) {
+      fallbackNeutralToastKeyRef.current = null;
+      return;
+    }
+    if (fallbackNeutralToastKeyRef.current !== fallbackNeutralToastKey) {
+      fallbackNeutralToastKeyRef.current = fallbackNeutralToastKey;
+      toast({
+        title: "Capítulo não encontrado. Mostrando a lista.",
+        intent: "warning",
+      });
+    }
+    pendingNeutralSelectedVolumeRef.current = fallbackNeutralSelectedVolume;
+    pendingNeutralScrollAnchorRef.current = null;
+    navigate(neutralHref, { replace: true });
+  }, [
+    fallbackNeutralToastKey,
+    fallbackNeutralSelectedVolume,
+    navigate,
+    neutralHref,
+    shouldFallbackToNeutralRoute,
+  ]);
 
   useLayoutEffect(() => {
     if (chapterNumber) {
@@ -5265,8 +5031,6 @@ const DashboardProjectChapterEditor = () => {
           navigableChapters[activeNavigableChapterIndex + 1]?.volume,
         )
       : null;
-  const neutralHref = buildDashboardProjectChaptersEditorHref(project?.id || projectId || "");
-
   const isChapterEditorRouteHref = useCallback(
     (href?: string | null) => {
       const normalizedHref = String(href || "").trim();
@@ -5287,6 +5051,23 @@ const DashboardProjectChapterEditor = () => {
       }
     },
     [neutralHref],
+  );
+  const navigateToChapterEditor = useCallback(
+    (
+      targetProjectId: string,
+      targetChapterNumber: unknown,
+      targetVolume?: unknown,
+      options?: { replace?: boolean },
+    ) => {
+      const href = buildDashboardProjectChapterEditorHref(
+        targetProjectId,
+        targetChapterNumber,
+        targetVolume,
+      );
+      pendingChapterNavigationHrefRef.current = href;
+      navigate(href, options);
+    },
+    [navigate],
   );
 
   const requestNavigateToHref = useCallback(
@@ -5459,19 +5240,14 @@ const DashboardProjectChapterEditor = () => {
           : null,
       );
       setActiveDraft(resolvedChapter);
-      navigate(
-        buildDashboardProjectChapterEditorHref(
-          nextProject.id,
-          resolvedChapter.number,
-          resolvedChapter.volume,
-        ),
-        { replace: true },
-      );
+      navigateToChapterEditor(nextProject.id, resolvedChapter.number, resolvedChapter.volume, {
+        replace: true,
+      });
     },
     [
       activeChapter?.volume,
       activeDraft?.volume,
-      navigate,
+      navigateToChapterEditor,
       normalizeChapterDraft,
       resolvedVolume,
     ],
@@ -5875,12 +5651,10 @@ const DashboardProjectChapterEditor = () => {
       );
       setSelectedStageChapterId(null);
       setActiveDraft(normalizedPersistedChapter);
-      navigate(
-        buildDashboardProjectChapterEditorHref(
-          persistedProject.id,
-          normalizedPersistedChapter.number,
-          normalizedPersistedChapter.volume,
-        ),
+      navigateToChapterEditor(
+        persistedProject.id,
+        normalizedPersistedChapter.number,
+        normalizedPersistedChapter.volume,
       );
       toast({
         title: "Capítulo criado",
@@ -5888,7 +5662,13 @@ const DashboardProjectChapterEditor = () => {
         intent: "success",
       });
     },
-    [chapterSearchQuery, filterMode, navigate, normalizeChapterDraft, persistProjectSnapshot],
+    [
+      chapterSearchQuery,
+      filterMode,
+      navigateToChapterEditor,
+      normalizeChapterDraft,
+      persistProjectSnapshot,
+    ],
   );
 
   const openEpubImportPicker = useCallback(
@@ -6030,12 +5810,10 @@ const DashboardProjectChapterEditor = () => {
       if (currentPersistedChapter) {
         setActiveDraft(normalizeChapterDraft(currentPersistedChapter));
       } else if (firstImportedChapter) {
-        navigate(
-          buildDashboardProjectChapterEditorHref(
-            persistedProject.id,
-            firstImportedChapter.number,
-            firstImportedChapter.volume,
-          ),
+        navigateToChapterEditor(
+          persistedProject.id,
+          firstImportedChapter.number,
+          firstImportedChapter.volume,
           { replace: true },
         );
       }
@@ -6050,7 +5828,7 @@ const DashboardProjectChapterEditor = () => {
     [
       activeChapterKey,
       clearPendingEpubImportIds,
-      navigate,
+      navigateToChapterEditor,
       persistProjectSnapshot,
       registerPendingEpubImportIds,
     ],
@@ -6250,12 +6028,10 @@ const DashboardProjectChapterEditor = () => {
         if (currentPersistedChapter) {
           setActiveDraft(normalizeChapterDraft(currentPersistedChapter));
         } else if (firstImportedChapter) {
-          navigate(
-            buildDashboardProjectChapterEditorHref(
-              persistedProject.id,
-              firstImportedChapter.number,
-              firstImportedChapter.volume,
-            ),
+          navigateToChapterEditor(
+            persistedProject.id,
+            firstImportedChapter.number,
+            firstImportedChapter.volume,
             { replace: true },
           );
         }
@@ -6295,7 +6071,7 @@ const DashboardProjectChapterEditor = () => {
       epubImportTargetVolume,
       isImportingEpub,
       logEpubParityIssue,
-      navigate,
+      navigateToChapterEditor,
       persistProjectSnapshot,
       projectSnapshot,
       registerPendingEpubImportIds,
@@ -6635,12 +6411,14 @@ const DashboardProjectChapterEditor = () => {
                   <Link to={buildDashboardProjectEditorHref(projectId)}>Voltar ao projeto</Link>
                 </Button>
               }
-            />
-          </DashboardPageContainer>
-        </DashboardShell>
-      );
+          />
+        </DashboardPageContainer>
+      </DashboardShell>
+    );
     }
-    return <NotFound />;
+    if (!shouldFallbackToNeutralRoute) {
+      return <NotFound />;
+    }
   }
 
   return (
@@ -6775,3 +6553,4 @@ const DashboardProjectChapterEditor = () => {
 };
 
 export default DashboardProjectChapterEditor;
+

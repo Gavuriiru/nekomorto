@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardPages, { __testing } from "@/pages/DashboardPages";
 
@@ -86,11 +86,29 @@ const LocationProbe = () => {
   );
 };
 
+const ExternalNavigateButton = ({ to, label }: { to: string; label: string }) => {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate(to, { replace: true })}>
+      {label}
+    </button>
+  );
+};
+
+const setBrowserLocation = (path: string) => {
+  window.history.replaceState(window.history.state, "", path);
+};
+
 describe("DashboardPages query sync", () => {
   beforeEach(() => {
+    setBrowserLocation("/");
     window.localStorage.clear();
     apiFetchMock.mockReset();
     __testing.clearDashboardPagesCache();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("aplica aba vinda de ?tab=", async () => {
@@ -134,7 +152,6 @@ describe("DashboardPages query sync", () => {
     render(
       <MemoryRouter initialEntries={["/dashboard/paginas"]}>
         <DashboardPages />
-        <LocationProbe />
       </MemoryRouter>,
     );
 
@@ -142,9 +159,64 @@ describe("DashboardPages query sync", () => {
     fireEvent.mouseDown(screen.getByRole("tab", { name: "FAQ" }));
 
     await waitFor(() => {
-      const search = String(screen.getByTestId("location-search").textContent || "");
-      expect(search).toContain("tab=faq");
+      expect(window.location.pathname).toBe("/dashboard/paginas");
+      expect(window.location.search).toBe("?tab=faq");
     });
+    expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
+  it("estabiliza na ultima aba ao alternar rapidamente", async () => {
+    setupApiMock();
+    setBrowserLocation("/dashboard/paginas");
+    const replaceStateSpy = vi.spyOn(window.history, "replaceState");
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/paginas"]}>
+        <DashboardPages />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    const faqTab = screen.getByRole("tab", { name: "FAQ" });
+    const teamTab = screen.getByRole("tab", { name: /Equipe/i });
+
+    fireEvent.mouseDown(faqTab);
+    fireEvent.mouseDown(teamTab);
+    fireEvent.mouseDown(faqTab);
+    fireEvent.mouseDown(teamTab);
+
+    await waitFor(() => {
+      expect(teamTab).toHaveAttribute("aria-selected", "true");
+      expect(window.location.pathname).toBe("/dashboard/paginas");
+      expect(window.location.search).toBe("?tab=team");
+    });
+    expect(faqTab).toHaveAttribute("aria-selected", "false");
+    expect(replaceStateSpy).toHaveBeenCalledTimes(1);
+    expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
+  it("nao reprocessa a URL ao clicar na aba ja ativa", async () => {
+    setupApiMock();
+    setBrowserLocation("/dashboard/paginas?tab=faq");
+    const replaceStateSpy = vi.spyOn(window.history, "replaceState");
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/paginas?tab=faq"]}>
+        <DashboardPages />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    const faqTab = screen.getByRole("tab", { name: "FAQ" });
+
+    fireEvent.mouseDown(faqTab);
+
+    await waitFor(() => {
+      expect(faqTab).toHaveAttribute("aria-selected", "true");
+      expect(window.location.pathname).toBe("/dashboard/paginas");
+      expect(window.location.search).toBe("?tab=faq");
+    });
+    expect(replaceStateSpy).not.toHaveBeenCalled();
     expect(getPreferenceCalls()).toHaveLength(0);
   });
 
@@ -154,15 +226,14 @@ describe("DashboardPages query sync", () => {
     render(
       <MemoryRouter initialEntries={["/dashboard/paginas?tab=preview-paginas"]}>
         <DashboardPages />
-        <LocationProbe />
       </MemoryRouter>,
     );
 
     await screen.findByRole("heading", { name: /Gerenciar/i });
     await waitFor(() => {
       expect(screen.getByRole("tab", { name: /Prévia/i })).toHaveAttribute("aria-selected", "true");
-      expect(screen.getByTestId("location-path").textContent).toBe("/dashboard/paginas");
-      expect(screen.getByTestId("location-search").textContent).toBe("?tab=preview");
+      expect(window.location.pathname).toBe("/dashboard/paginas");
+      expect(window.location.search).toBe("?tab=preview");
     });
     expect(getPreferenceCalls()).toHaveLength(0);
   });
@@ -173,7 +244,6 @@ describe("DashboardPages query sync", () => {
     render(
       <MemoryRouter initialEntries={["/dashboard/paginas?tab=faq"]}>
         <DashboardPages />
-        <LocationProbe />
       </MemoryRouter>,
     );
 
@@ -181,7 +251,29 @@ describe("DashboardPages query sync", () => {
     fireEvent.mouseDown(screen.getByRole("tab", { name: /^Doa/i }));
 
     await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toBe("");
+      expect(window.location.pathname).toBe("/dashboard/paginas");
+      expect(window.location.search).toBe("");
+    });
+    expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
+  it("reconcilia mudanca externa de URL sem perder a aba ativa correta", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/paginas"]}>
+        <DashboardPages />
+        <LocationProbe />
+        <ExternalNavigateButton to="/dashboard/paginas?tab=team" label="nav-team" />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    fireEvent.click(screen.getByRole("button", { name: "nav-team" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /Equipe/i })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByTestId("location-search").textContent).toBe("?tab=team");
     });
     expect(getPreferenceCalls()).toHaveLength(0);
   });
@@ -192,15 +284,56 @@ describe("DashboardPages query sync", () => {
     render(
       <MemoryRouter initialEntries={["/dashboard/paginas?tab=invalida"]}>
         <DashboardPages />
-        <LocationProbe />
       </MemoryRouter>,
     );
 
     await screen.findByRole("heading", { name: /Gerenciar/i });
     await waitFor(() => {
       expect(screen.getByRole("tab", { name: /^Doa/i })).toHaveAttribute("aria-selected", "true");
-      expect(screen.getByTestId("location-search").textContent).toBe("");
+      expect(window.location.pathname).toBe("/dashboard/paginas");
+      expect(window.location.search).toBe("");
     });
     expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
+  it("renderiza somente o painel ativo entre doacoes e previa", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/paginas"]}>
+        <DashboardPages />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    expect(screen.getByText(/^Custos$/i)).toBeVisible();
+    expect(screen.queryByText(/Pr.vias de compartilhamento/i)).not.toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Pr.via/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Pr.vias de compartilhamento/i)).toBeVisible();
+      expect(screen.queryByText(/^Custos$/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it("mantem a aba atual ao apenas focar outro trigger", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/paginas"]}>
+        <DashboardPages />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    const donationsTab = screen.getByRole("tab", { name: /^Doa/i });
+    const faqTab = screen.getByRole("tab", { name: "FAQ" });
+
+    expect(donationsTab).toHaveAttribute("aria-selected", "true");
+    fireEvent.focus(faqTab);
+
+    expect(donationsTab).toHaveAttribute("aria-selected", "true");
+    expect(faqTab).toHaveAttribute("aria-selected", "false");
   });
 });

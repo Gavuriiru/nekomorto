@@ -187,6 +187,19 @@ const classTokens = (element: Element | null) =>
     .split(/\s+/)
     .filter(Boolean);
 
+const expectOverviewBadgeClasses = (element: Element | null) => {
+  const tokens = classTokens(element);
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "border-primary/35",
+      "bg-primary/10",
+      "text-foreground",
+      "hover:bg-primary/15",
+    ]),
+  );
+  expect(tokens).not.toContain("bg-background");
+};
+
 describe("Dashboard overview async states", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
@@ -438,7 +451,10 @@ describe("Dashboard overview async states", () => {
 
     await screen.findByRole("heading", { name: /Painel de controle da comunidade/i });
 
-    expect(screen.getByText("2 pendentes")).toBeInTheDocument();
+    const pendingBadge = screen.getByText("2 pendentes");
+
+    expect(pendingBadge).toBeInTheDocument();
+    expectOverviewBadgeClasses(pendingBadge);
     expect(await screen.findByText("Nenhum comentário aprovado ainda.")).toBeInTheDocument();
     expect(screen.queryByText("Nenhum comentário registrado ainda.")).not.toBeInTheDocument();
   });
@@ -544,6 +560,12 @@ describe("Dashboard overview async states", () => {
 
     expect(await screen.findByText("Projeto Teste")).toBeInTheDocument();
     expect(screen.getByText("15 acessos")).toBeInTheDocument();
-    expect(screen.getByText("Em andamento")).toBeInTheDocument();
+    const last7DaysBadge = screen.getByText(/7 dias/i);
+    const projectStatusBadge = screen.getByText("Em andamento");
+
+    expect(last7DaysBadge).toBeInTheDocument();
+    expectOverviewBadgeClasses(last7DaysBadge);
+    expect(projectStatusBadge).toBeInTheDocument();
+    expectOverviewBadgeClasses(projectStatusBadge);
   });
 });

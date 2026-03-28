@@ -180,6 +180,50 @@ describe("DashboardPages autosave", () => {
     expect(getPutPageCalls()).toHaveLength(1);
   });
 
+  it("troca de aba nao força save imediato durante blur interno", async () => {
+    renderDashboardPages();
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+
+    const pixInput = await screen.findByDisplayValue("PIX-INIT");
+    const previewTab = screen.getByRole("tab", { name: /Pr.via/i });
+
+    apiFetchMock.mockClear();
+    fireEvent.change(pixInput, { target: { value: "pix-sem-trava" } });
+    fireEvent.blur(pixInput, { relatedTarget: previewTab });
+    fireEvent.mouseDown(previewTab);
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /Pr.via/i })).toHaveAttribute("aria-selected", "true");
+    });
+    expect(getPutPageCalls()).toHaveLength(0);
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    expect(getPutPageCalls()).toHaveLength(1);
+  });
+
+  it("blur para fora da tela faz flush imediato das paginas pendentes", async () => {
+    renderDashboardPages();
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+
+    const pixInput = await screen.findByDisplayValue("PIX-INIT");
+    const outsideButton = document.createElement("button");
+    document.body.appendChild(outsideButton);
+
+    apiFetchMock.mockClear();
+    fireEvent.change(pixInput, { target: { value: "pix-fora" } });
+    fireEvent.blur(pixInput, { relatedTarget: outsideButton });
+
+    await waitFor(() => {
+      expect(getPutPageCalls()).toHaveLength(1);
+    });
+
+    document.body.removeChild(outsideButton);
+  });
+
   it("editar preview dispara PUT /api/pages apos debounce", async () => {
     renderDashboardPages();
     await screen.findByRole("heading", { name: /Gerenciar/i });

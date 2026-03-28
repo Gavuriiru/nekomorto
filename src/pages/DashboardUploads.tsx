@@ -610,6 +610,8 @@ const DashboardUploads = () => {
   const cleanupTimestampLabel = hasCleanupLoadedOnce
     ? formatDateTime(cleanupPreview.generatedAt)
     : "aguardando dados";
+  const cleanupCardClassName =
+    showCleanupShell || cleanupPreview.examples.length > 0 ? "min-h-[28rem]" : "";
 
   useDashboardRefreshToast({
     active: isAnyRefreshing && (hasSummaryLoadedOnce || hasCleanupLoadedOnce),
@@ -854,7 +856,7 @@ const DashboardUploads = () => {
 
           {!isForbidden ? (
             <article
-              className={`min-h-[34rem] overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
+              className={`${cleanupCardClassName} overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
               style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
               data-testid="dashboard-uploads-cleanup-card"
             >
@@ -886,7 +888,7 @@ const DashboardUploads = () => {
                   data-testid="dashboard-uploads-cleanup-pending"
                   aria-busy="true"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-foreground">
                         Analise de limpeza em andamento
@@ -949,7 +951,7 @@ const DashboardUploads = () => {
                 </div>
               ) : (
                 <div className="space-y-4 px-5 py-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-foreground">
                         {cleanupPreview.unusedUploadCount} uploads sem uso

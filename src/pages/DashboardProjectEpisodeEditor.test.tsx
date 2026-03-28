@@ -690,5 +690,50 @@ describe("DashboardProjectEpisodeEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/episodios/1");
 
     expect(await screen.findByTestId("not-found")).toBeInTheDocument();
+    expect(toastMock).not.toHaveBeenCalled();
+  });
+
+  it("faz fallback para o estado neutro quando a rota aponta para um episodio inexistente", async () => {
+    renderEditor("/dashboard/projetos/project-1/episodios/99");
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        "/dashboard/projetos/project-1/episodios",
+      ),
+    );
+
+    expect(screen.getByTestId("anime-episode-empty-state")).toBeInTheDocument();
+    expect(screen.queryByTestId("not-found")).not.toBeInTheDocument();
+    expect(toastMock).toHaveBeenCalledTimes(1);
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Episódio não encontrado. Mostrando a lista.",
+        intent: "warning",
+      }),
+    );
+  });
+
+  it("faz fallback para o estado neutro quando a rota recebe um numero de episodio invalido", async () => {
+    renderEditor("/dashboard/projetos/project-1/episodios/abc");
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        "/dashboard/projetos/project-1/episodios",
+      ),
+    );
+
+    expect(screen.getByTestId("anime-episode-empty-state")).toBeInTheDocument();
+    expect(screen.queryByTestId("not-found")).not.toBeInTheDocument();
+    expect(toastMock).toHaveBeenCalledTimes(1);
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Episódio não encontrado. Mostrando a lista.",
+        intent: "warning",
+      }),
+    );
   });
 });

@@ -25,7 +25,7 @@ export type LexicalEditorHandle = {
   blur: () => void;
 };
 
-type LexicalEditorProps = {
+export type LexicalEditorProps = {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;

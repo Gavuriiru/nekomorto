@@ -2,14 +2,16 @@ import { useCallback, useMemo } from "react";
 
 import { isAvatarGeneratedUsersUpload } from "@/components/image-library/avatar-selection";
 import {
-  buildInitialOpenUploadGroupKeys,
+  buildInitialUploadAccordionState,
   buildInitialProjectAccordionState,
   buildProjectImageGroups,
+  buildUploadFolderFilterOptionLabels,
   buildUploadFolderFilterOptions,
   buildUploadFolderGroups,
   hasHiddenProjectUploadsInTopSection,
   hasProjectFolderContextExcludedFromUploadFilter,
   resolveUploadFolderForFilterOption,
+  shouldCollapseProjectFoldersInUploadFilter,
 } from "@/components/image-library/groups";
 import { toComparableSelectionKey } from "@/components/image-library/selection";
 import type {
@@ -46,7 +48,10 @@ type UseImageLibraryBrowserDerivedStateResult = {
   filteredProjectImages: LibraryImageItem[];
   filteredUploads: LibraryImageItem[];
   hasUploadsInResolvedFolderContext: boolean;
-  initialOpenUploadGroupKeys: string[];
+  initialUploadAccordionState: {
+    groupKeys: string[];
+    folderKeysByGroup: Record<string, string[]>;
+  };
   initialProjectAccordionState: {
     groupKeys: string[];
     folderKeysByGroup: Record<string, string[]>;
@@ -59,6 +64,7 @@ type UseImageLibraryBrowserDerivedStateResult = {
   resolvedUploadFolderForFilterOption: string;
   shouldRenderUploadsFolderFilter: boolean;
   shouldShowAllFoldersFilterOption: boolean;
+  uploadFolderFilterOptionLabels: Record<string, string>;
   uploadFolderFilterOptions: string[];
   uploadFolderGroups: UploadFolderGroup[];
 };
@@ -180,18 +186,39 @@ export const useImageLibraryBrowserDerivedState = ({
     [matchesSearch, projectImages, sortLibraryItems],
   );
 
+  const shouldExcludeProjectFoldersFromUploadFilter = includeProjectImages;
+
+  const collapseProjectFoldersInUploadFilter = useMemo(
+    () =>
+      shouldCollapseProjectFoldersInUploadFilter({
+        normalizedListFolders,
+        resolvedUploadFolderForFilter,
+        shouldExcludeProjectFoldersFromUploadFilter,
+      }),
+    [
+      normalizedListFolders,
+      resolvedUploadFolderForFilter,
+      shouldExcludeProjectFoldersFromUploadFilter,
+    ],
+  );
+
   const uploadFolderGroups = useMemo(
     () =>
       buildUploadFolderGroups({
+        collapseProjectFoldersToRoots: collapseProjectFoldersInUploadFilter,
         filteredUploads,
-        isBroadProjectLibraryContext,
+        preferFullProjectPath: isBroadProjectLibraryContext,
         resolvedUploadFolderForFilter,
         sortItems: sortLibraryItems,
       }),
-    [filteredUploads, isBroadProjectLibraryContext, resolvedUploadFolderForFilter, sortLibraryItems],
+    [
+      collapseProjectFoldersInUploadFilter,
+      filteredUploads,
+      isBroadProjectLibraryContext,
+      resolvedUploadFolderForFilter,
+      sortLibraryItems,
+    ],
   );
-
-  const shouldExcludeProjectFoldersFromUploadFilter = includeProjectImages;
 
   const resolvedUploadFolderForFilterOption = useMemo(
     () =>
@@ -230,17 +257,29 @@ export const useImageLibraryBrowserDerivedState = ({
   const uploadFolderFilterOptions = useMemo(
     () =>
       buildUploadFolderFilterOptions({
+        collapseProjectFoldersToRoots: collapseProjectFoldersInUploadFilter,
         normalizedListFolders,
         renderableUploads,
         resolvedUploadFolderForFilter,
         shouldExcludeProjectFoldersFromUploadFilter,
       }),
     [
+      collapseProjectFoldersInUploadFilter,
       normalizedListFolders,
       renderableUploads,
       resolvedUploadFolderForFilter,
       shouldExcludeProjectFoldersFromUploadFilter,
     ],
+  );
+
+  const uploadFolderFilterOptionLabels = useMemo(
+    () =>
+      buildUploadFolderFilterOptionLabels({
+        preferProjectTitles: collapseProjectFoldersInUploadFilter,
+        renderableUploads,
+        uploadFolderFilterOptions,
+      }),
+    [collapseProjectFoldersInUploadFilter, renderableUploads, uploadFolderFilterOptions],
   );
 
   const shouldShowAllFoldersFilterOption = useMemo(() => {
@@ -306,11 +345,11 @@ export const useImageLibraryBrowserDerivedState = ({
     [filteredProjectImages],
   );
 
-  const initialOpenUploadGroupKeys = useMemo(
+  const initialUploadAccordionState = useMemo(
     () =>
-      buildInitialOpenUploadGroupKeys({
-        uploadFolderGroups,
+      buildInitialUploadAccordionState({
         resolvedUploadFolderForFilter,
+        uploadFolderGroups,
       }),
     [resolvedUploadFolderForFilter, uploadFolderGroups],
   );
@@ -329,7 +368,7 @@ export const useImageLibraryBrowserDerivedState = ({
     filteredProjectImages,
     filteredUploads,
     hasUploadsInResolvedFolderContext,
-    initialOpenUploadGroupKeys,
+    initialUploadAccordionState,
     initialProjectAccordionState,
     isUploadsFilterReadyForInitialExpansion,
     matchesSearch,
@@ -339,6 +378,7 @@ export const useImageLibraryBrowserDerivedState = ({
     resolvedUploadFolderForFilterOption,
     shouldRenderUploadsFolderFilter,
     shouldShowAllFoldersFilterOption,
+    uploadFolderFilterOptionLabels,
     uploadFolderFilterOptions,
     uploadFolderGroups,
   };

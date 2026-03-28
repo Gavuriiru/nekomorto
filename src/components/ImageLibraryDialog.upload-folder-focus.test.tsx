@@ -123,6 +123,20 @@ const renderAvatarDialog = (listFolders: string[]) =>
     />,
   );
 
+const renderBrandingDialog = () =>
+  render(
+    <ImageLibraryDialog
+      open
+      onOpenChange={() => undefined}
+      apiBase="http://api.local"
+      uploadFolder="branding"
+      listFolders={[""]}
+      includeProjectImages={false}
+      mode="single"
+      onSave={() => undefined}
+    />,
+  );
+
 const renderBroadProjectDialog = () =>
   render(
     <ImageLibraryDialog
@@ -713,6 +727,158 @@ describe("ImageLibraryDialog upload folder focus", () => {
     }
     expect(await screen.findByText("Avatar Atual")).toBeInTheDocument();
     expect(await screen.findByText("Biblioteca Posts")).toBeInTheDocument();
+  });
+
+  it("colapsa subpastas de projeto para a raiz com titulo fora do editor de projetos", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.includes("folder=users")) {
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "manual-avatar.png",
+              label: "Avatar Atual",
+              fileName: "manual-avatar.png",
+              folder: "users",
+              mime: "image/png",
+              size: 100,
+              url: "/uploads/users/manual-avatar.png",
+            },
+          ],
+        });
+      }
+      if (path.includes("folder=projects")) {
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "pagina-1.png",
+              label: "Pagina 1",
+              fileName: "pagina-1.png",
+              folder: "projects/proj-1/capitulos/volume-1/capitulo-2",
+              mime: "image/png",
+              size: 100,
+              url: "/uploads/projects/proj-1/capitulos/volume-1/capitulo-2/pagina-1.png",
+              projectId: "proj-1",
+              projectTitle: "Projeto Um",
+            },
+          ],
+        });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderAvatarDialog(["users", "projects"]);
+
+    const folderSelect = await getFolderFilterTrigger();
+    folderSelect.focus();
+    fireEvent.keyDown(folderSelect, { key: "ArrowDown", code: "ArrowDown" });
+
+    expect(await screen.findByRole("option", { name: "users" })).toBeVisible();
+    expect(await screen.findByRole("option", { name: "Projeto Um" })).toBeVisible();
+    expect(
+      screen.queryByRole("option", {
+        name: "projects/proj-1/capitulos/volume-1/capitulo-2",
+      }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "projects" })).not.toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole("option", { name: "Projeto Um" }));
+
+    await waitFor(() => {
+      expect(folderSelect).toHaveTextContent("Projeto Um");
+    });
+
+    const projectTrigger = await screen.findByRole("button", { name: /Projeto Um/i });
+    expect(
+      screen.queryByRole("button", {
+        name: /capitulos\/volume-1\/capitulo-2/i,
+      }),
+    ).not.toBeInTheDocument();
+
+    if (projectTrigger.getAttribute("aria-expanded") !== "true") {
+      fireEvent.click(projectTrigger);
+    }
+
+    const chapterTrigger = await screen.findByRole("button", {
+      name: /capitulos\/volume-1\/capitulo-2/i,
+    });
+    if (chapterTrigger.getAttribute("aria-expanded") !== "true") {
+      fireEvent.click(chapterTrigger);
+    }
+
+    await waitFor(() => {
+      expect(projectTrigger).toHaveAttribute("aria-expanded", "true");
+      expect(chapterTrigger).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByText("Pagina 1")).toBeInTheDocument();
+    });
+  });
+
+  it("mantem o request normal de branding com folder escopado e __all__", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path === "/api/uploads/list?folder=branding&recursive=1") {
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "logo.png",
+              label: "Logo principal",
+              fileName: "logo.png",
+              folder: "branding",
+              mime: "image/png",
+              size: 100,
+              url: "/uploads/branding/logo.png",
+            },
+          ],
+        });
+      }
+      if (path === "/api/uploads/list?folder=__all__") {
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "logo.png",
+              label: "Logo principal",
+              fileName: "logo.png",
+              folder: "branding",
+              mime: "image/png",
+              size: 100,
+              url: "/uploads/branding/logo.png",
+            },
+            {
+              name: "wordmark.png",
+              label: "Wordmark",
+              fileName: "wordmark.png",
+              folder: "branding",
+              mime: "image/png",
+              size: 120,
+              url: "/uploads/branding/wordmark.png",
+            },
+          ],
+        });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderBrandingDialog();
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "http://api.local",
+        "/api/uploads/list?folder=branding&recursive=1",
+        expect.any(Object),
+      );
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "http://api.local",
+        "/api/uploads/list?folder=__all__",
+        expect.any(Object),
+      );
+    });
+
+    expect(await screen.findByText("Logo principal")).toBeInTheDocument();
+    expect(await screen.findByText("Wordmark")).toBeInTheDocument();
   });
 
   it("revela novamente o retorno do segundo upload depois de um dedupe hit inicial", async () => {

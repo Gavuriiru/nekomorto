@@ -8,7 +8,7 @@ export const DashboardSettingsSeoTab = () => {
   const { renderLogoEditorCards } = useDashboardSettingsContext();
 
   return (
-    <TabsContent value="seo" className="mt-6 space-y-6">
+    <TabsContent forceMount value="seo" className="mt-6 space-y-6 data-[state=inactive]:hidden">
       <Card lift={false} className={dashboardSettingsCardClassName}>
         <CardContent className="space-y-6 p-6">
           <div>

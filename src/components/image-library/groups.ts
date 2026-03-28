@@ -17,6 +17,41 @@ import {
   toRelativeProjectFolderLabel,
 } from "@/components/image-library/utils";
 
+export const shouldCollapseProjectFoldersInUploadFilter = ({
+  normalizedListFolders,
+  resolvedUploadFolderForFilter,
+  shouldExcludeProjectFoldersFromUploadFilter,
+}: {
+  normalizedListFolders: string[];
+  resolvedUploadFolderForFilter: string;
+  shouldExcludeProjectFoldersFromUploadFilter: boolean;
+}) => {
+  if (shouldExcludeProjectFoldersFromUploadFilter) {
+    return false;
+  }
+  if (resolveProjectRootFromFolder(resolvedUploadFolderForFilter)) {
+    return false;
+  }
+  return !normalizedListFolders.some((folder) => Boolean(resolveProjectRootFromFolder(folder)));
+};
+
+export const resolveUploadFolderFilterValue = ({
+  collapseProjectFoldersToRoots,
+  folder,
+}: {
+  collapseProjectFoldersToRoots: boolean;
+  folder: string | null | undefined;
+}) => {
+  const normalizedFolder = sanitizeUploadFolderForComparison(folder);
+  if (!normalizedFolder) {
+    return "";
+  }
+  if (!collapseProjectFoldersToRoots) {
+    return normalizedFolder;
+  }
+  return resolveProjectRootFromFolder(normalizedFolder) || normalizedFolder;
+};
+
 export const buildProjectScopeFolders = ({
   normalizedListFolders,
   resolvedUploadFolderForFilter,
@@ -88,19 +123,33 @@ export const buildFoldersToRequest = (folders: string[]) => {
 };
 
 export const buildUploadFolderGroups = ({
+  collapseProjectFoldersToRoots,
   filteredUploads,
-  isBroadProjectLibraryContext,
+  preferFullProjectPath,
   resolvedUploadFolderForFilter,
   sortItems,
 }: {
+  collapseProjectFoldersToRoots: boolean;
   filteredUploads: LibraryImageItem[];
-  isBroadProjectLibraryContext: boolean;
+  preferFullProjectPath: boolean;
   resolvedUploadFolderForFilter: string;
   sortItems: (items: LibraryImageItem[]) => LibraryImageItem[];
 }) => {
+  const projectTitleByRoot = new Map<string, string>();
+  filteredUploads.forEach((item) => {
+    const projectRoot = resolveProjectRootFromFolder(resolveItemFolder(item));
+    const projectTitle = String(item.projectTitle || "").trim();
+    if (projectRoot && projectTitle && !projectTitleByRoot.has(projectRoot)) {
+      projectTitleByRoot.set(projectRoot, projectTitle);
+    }
+  });
+
   const groupMap = new Map<string, LibraryImageItem[]>();
   filteredUploads.forEach((item) => {
-    const folder = resolveItemFolder(item);
+    const resolvedFolder = resolveItemFolder(item);
+    const folder = collapseProjectFoldersToRoots
+      ? resolveProjectRootFromFolder(resolvedFolder) || resolvedFolder
+      : resolvedFolder;
     const key = folder || "__sem-pasta__";
     if (!groupMap.has(key)) {
       groupMap.set(key, []);
@@ -108,22 +157,55 @@ export const buildUploadFolderGroups = ({
     groupMap.get(key)?.push(item);
   });
 
-  const scopedProjectRoot = isBroadProjectLibraryContext
+  const scopedProjectRoot = collapseProjectFoldersToRoots
     ? ""
     : resolveProjectRootFromFolder(resolvedUploadFolderForFilter);
 
   return Array.from(groupMap.entries())
     .map(([key, items]) => {
       const folder = key === "__sem-pasta__" ? "" : key;
+      const projectRoot = resolveProjectRootFromFolder(folder);
+      const projectTitle =
+        collapseProjectFoldersToRoots && projectRoot && projectRoot === folder
+          ? projectTitleByRoot.get(projectRoot) || ""
+          : "";
+      const folders =
+        collapseProjectFoldersToRoots && projectRoot && projectRoot === folder
+          ? Array.from(
+              items.reduce<Map<string, ProjectImageFolderGroup>>((folderMap, item) => {
+                const itemFolder = resolveItemFolder(item);
+                const folderKey = itemFolder || "__sem-pasta__";
+                if (!folderMap.has(folderKey)) {
+                  folderMap.set(folderKey, {
+                    key: `upload-folder:${key}:folder:${folderKey}`,
+                    folder: itemFolder,
+                    title: toRelativeProjectFolderLabel({
+                      folder: itemFolder,
+                      projectRoot,
+                    }),
+                    items: [],
+                  });
+                }
+                folderMap.get(folderKey)?.items.push(item);
+                return folderMap;
+              }, new Map()).values(),
+            ).sort(compareProjectFolderGroupsRootFirst)
+          : [];
       return {
         key: `upload-folder:${key}`,
         folder,
-        title: resolveUploadFolderGroupTitle({
-          folder,
-          scopedProjectRoot,
-          preferFullProjectPath: isBroadProjectLibraryContext,
-        }),
+        title:
+          projectTitle ||
+          resolveUploadFolderGroupTitle({
+            folder,
+            scopedProjectRoot,
+            preferFullProjectPath: !collapseProjectFoldersToRoots && preferFullProjectPath,
+          }),
         items: sortItems(items),
+        folders: folders.map((childGroup) => ({
+          ...childGroup,
+          items: sortItems(childGroup.items),
+        })),
       } satisfies UploadFolderGroup;
     })
     .sort(compareProjectFolderGroupsRootFirst);
@@ -172,24 +254,47 @@ export const hasProjectFolderContextExcludedFromUploadFilter = ({
     hasHiddenProjectUploads);
 
 export const buildUploadFolderFilterOptions = ({
+  collapseProjectFoldersToRoots,
   normalizedListFolders,
   renderableUploads,
   resolvedUploadFolderForFilter,
   shouldExcludeProjectFoldersFromUploadFilter,
 }: {
+  collapseProjectFoldersToRoots: boolean;
   normalizedListFolders: string[];
   renderableUploads: LibraryImageItem[];
   resolvedUploadFolderForFilter: string;
   shouldExcludeProjectFoldersFromUploadFilter: boolean;
 }) => {
   const set = new Set<string>();
+  let hasProjectsNamespaceCandidate = false;
+  let hasConcreteProjectRoot = false;
 
   const registerFolderCandidates = (folder: string | null | undefined) => {
     listFolderAncestors(folder).forEach((candidate) => {
-      if (shouldExcludeProjectFoldersFromUploadFilter && isProjectsNamespaceFolder(candidate)) {
+      const normalizedCandidate = sanitizeUploadFolderForComparison(candidate);
+      if (!normalizedCandidate) {
         return;
       }
-      set.add(candidate);
+      if (
+        shouldExcludeProjectFoldersFromUploadFilter &&
+        isProjectsNamespaceFolder(normalizedCandidate)
+      ) {
+        return;
+      }
+      if (collapseProjectFoldersToRoots && isProjectsNamespaceFolder(normalizedCandidate)) {
+        const projectRoot = resolveProjectRootFromFolder(normalizedCandidate);
+        if (projectRoot) {
+          hasConcreteProjectRoot = true;
+          set.add(projectRoot);
+          return;
+        }
+        if (normalizedCandidate === "projects") {
+          hasProjectsNamespaceCandidate = true;
+        }
+        return;
+      }
+      set.add(normalizedCandidate);
     });
   };
 
@@ -201,7 +306,42 @@ export const buildUploadFolderFilterOptions = ({
     registerFolderCandidates(resolveItemFolder(item));
   });
 
+  if (collapseProjectFoldersToRoots && hasProjectsNamespaceCandidate && !hasConcreteProjectRoot) {
+    set.add("projects");
+  }
+
   return Array.from(set).sort(compareNaturalTextPtBr);
+};
+
+export const buildUploadFolderFilterOptionLabels = ({
+  preferProjectTitles,
+  renderableUploads,
+  uploadFolderFilterOptions,
+}: {
+  preferProjectTitles: boolean;
+  renderableUploads: LibraryImageItem[];
+  uploadFolderFilterOptions: string[];
+}) => {
+  const projectTitleByRoot = new Map<string, string>();
+
+  renderableUploads.forEach((item) => {
+    const projectRoot = resolveProjectRootFromFolder(resolveItemFolder(item));
+    const projectTitle = String(item.projectTitle || "").trim();
+    if (projectRoot && projectTitle && !projectTitleByRoot.has(projectRoot)) {
+      projectTitleByRoot.set(projectRoot, projectTitle);
+    }
+  });
+
+  return uploadFolderFilterOptions.reduce<Record<string, string>>((labels, folder) => {
+    const normalizedFolder = sanitizeUploadFolderForComparison(folder);
+    const projectRoot = resolveProjectRootFromFolder(normalizedFolder);
+    if (preferProjectTitles && projectRoot && projectRoot === normalizedFolder) {
+      labels[folder] = projectTitleByRoot.get(projectRoot) || folder;
+      return labels;
+    }
+    labels[folder] = folder;
+    return labels;
+  }, {});
 };
 
 export const buildProjectImageGroups = ({
@@ -322,6 +462,37 @@ export const buildInitialOpenUploadGroupKeys = ({
     return [contextGroupKey];
   }
   return uploadFolderGroups[0]?.key ? [uploadFolderGroups[0].key] : [];
+};
+
+export const buildInitialUploadAccordionState = ({
+  resolvedUploadFolderForFilter,
+  uploadFolderGroups,
+}: {
+  resolvedUploadFolderForFilter: string;
+  uploadFolderGroups: UploadFolderGroup[];
+}) => {
+  const groupKey = resolveClosestFolderGroupKey(uploadFolderGroups, resolvedUploadFolderForFilter);
+  if (!groupKey) {
+    return {
+      groupKeys: uploadFolderGroups[0]?.key ? [uploadFolderGroups[0].key] : [],
+      folderKeysByGroup: {} as Record<string, string[]>,
+    };
+  }
+
+  const targetGroup = uploadFolderGroups.find((group) => group.key === groupKey);
+  const targetFolderKey =
+    targetGroup && targetGroup.folders.length > 0
+      ? resolveClosestFolderGroupKey(targetGroup.folders, resolvedUploadFolderForFilter)
+      : "";
+
+  return {
+    groupKeys: [groupKey],
+    folderKeysByGroup: targetFolderKey
+      ? {
+          [groupKey]: [targetFolderKey],
+        }
+      : ({} as Record<string, string[]>),
+  };
 };
 
 export const buildInitialProjectAccordionState = ({

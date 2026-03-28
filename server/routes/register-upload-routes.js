@@ -22,6 +22,22 @@ const resolveProjectLibraryFolders = ({ createSlug, project }) => {
   };
 };
 
+const resolveProjectRootFolder = (folder) => {
+  const normalized = String(folder || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+  if (!normalized.startsWith("projects/")) {
+    return "";
+  }
+  const segments = normalized.split("/").filter(Boolean);
+  if (segments.length < 2) {
+    return "";
+  }
+  return `${segments[0]}/${segments[1]}`;
+};
+
 const resolveVolumeFolderSegment = (volume) => {
   const normalizedVolume = Number.isFinite(Number(volume)) ? Number(volume) : null;
   return normalizedVolume === null ? "volume-sem-volume" : `volume-${normalizedVolume}`;
@@ -619,12 +635,24 @@ export const registerUploadRoutes = ({
     const listRecursively =
       listAll || (Boolean(folder) && (recursive === "1" || recursive === "true"));
     try {
+      const normalizedProjects = normalizeProjects(loadProjects());
+      const projectTitleByRoot = new Map(
+        normalizedProjects
+          .map((project) => {
+            const projectRootFolder = resolveProjectLibraryFolders({
+              createSlug,
+              project,
+            }).projectRootFolder;
+            return [projectRootFolder, String(project?.title || "").trim()];
+          })
+          .filter(([projectRootFolder, projectTitle]) => Boolean(projectRootFolder && projectTitle)),
+      );
       const usedUrls = getUsedUploadUrls({
         loadComments,
         loadLinkTypes,
         loadPages,
         loadPosts,
-        loadProjects,
+        loadProjects: () => normalizedProjects,
         loadSiteSettings,
         loadUpdates,
         loadUsers,
@@ -665,6 +693,9 @@ export const registerUploadRoutes = ({
           }
           const inUse = usedUrls.has(normalizedUrl);
           const focalState = readUploadFocalState(meta);
+          const projectRootFolder = resolveProjectRootFolder(resolvedFolder);
+          const projectId = projectRootFolder ? String(projectRootFolder.split("/")[1] || "") : "";
+          const projectTitle = projectTitleByRoot.get(projectRootFolder) || "";
           return {
             id: meta?.id || null,
             name: meta?.fileName || path.basename(relative),
@@ -696,6 +727,8 @@ export const registerUploadRoutes = ({
             slot: readUploadSlot(meta) || undefined,
             slotManaged: readUploadSlotManaged(meta),
             storageProvider: readUploadStorageProvider(meta, "local"),
+            projectId,
+            projectTitle,
             inUse,
             canDelete: !inUse,
           };
@@ -737,6 +770,9 @@ export const registerUploadRoutes = ({
           }
           const stat = fs.statSync(fullPath);
           const inUse = usedUrls.has(normalizedUrl);
+          const projectRootFolder = resolveProjectRootFolder(resolvedFolder);
+          const projectId = projectRootFolder ? String(projectRootFolder.split("/")[1] || "") : "";
+          const projectTitle = projectTitleByRoot.get(projectRootFolder) || "";
           return [
             {
               id: null,
@@ -762,6 +798,8 @@ export const registerUploadRoutes = ({
               slot: undefined,
               slotManaged: false,
               storageProvider: "local",
+              projectId,
+              projectTitle,
               inUse,
               canDelete: !inUse,
             },

@@ -1,10 +1,8 @@
-import { Suspense, lazy, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
-import LexicalEditorFallback from "@/components/lexical/LexicalEditorFallback";
-
-const LexicalEditor = lazy(() => import("@/components/lexical/LexicalEditor"));
+import LazyLexicalEditor from "@/components/lazy/LazyLexicalEditor";
 
 export type EpisodeContentEditorProps = {
   value: string;
@@ -29,17 +27,15 @@ const EpisodeContentEditor = ({
   }, [onRegister]);
 
   return (
-    <Suspense fallback={<LexicalEditorFallback />}>
-      <LexicalEditor
-        ref={editorRef}
-        value={value}
-        onChange={onChange}
-        placeholder="Escreva o capítulo..."
-        className="lexical-playground--modal"
-        imageLibraryOptions={imageLibraryOptions}
-        autoFocus={false}
-      />
-    </Suspense>
+    <LazyLexicalEditor
+      ref={editorRef}
+      value={value}
+      onChange={onChange}
+      placeholder="Escreva o capÃ­tulo..."
+      className="lexical-playground--modal"
+      imageLibraryOptions={imageLibraryOptions}
+      autoFocus={false}
+    />
   );
 };
 

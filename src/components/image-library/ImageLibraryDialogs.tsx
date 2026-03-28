@@ -95,7 +95,8 @@ const ImageLibraryDialogs = ({
       }}
     >
       <DialogContent
-        className="max-h-[92vh] max-w-xl overflow-auto z-240 data-[state=open]:animate-none data-[state=closed]:animate-none"
+        className="max-h-[92vh] max-w-xl overflow-auto data-[state=open]:animate-none data-[state=closed]:animate-none"
+        containerClassName="z-240"
         overlayClassName="z-230 data-[state=open]:animate-none data-[state=closed]:animate-none"
       >
         <DialogHeader>
@@ -130,7 +131,8 @@ const ImageLibraryDialogs = ({
       }}
     >
       <DialogContent
-        className="flex h-[92vh] w-[96vw] max-w-[96vw] flex-col overflow-hidden z-240 data-[state=open]:animate-none data-[state=closed]:animate-none"
+        className="flex h-[92vh] w-[96vw] max-w-[96vw] flex-col overflow-hidden data-[state=open]:animate-none data-[state=closed]:animate-none"
+        containerClassName="z-240"
         overlayClassName="z-230 data-[state=open]:animate-none data-[state=closed]:animate-none"
       >
         <DialogHeader>
@@ -175,7 +177,7 @@ const ImageLibraryDialogs = ({
     </Dialog>
 
     <Dialog open={Boolean(deleteTarget)} onOpenChange={(next) => !next && setDeleteTarget(null)}>
-      <DialogContent className="max-w-md z-240" overlayClassName="z-230">
+      <DialogContent className="max-w-md" containerClassName="z-240" overlayClassName="z-230">
         <DialogHeader>
           <DialogTitle>Excluir imagem?</DialogTitle>
           <DialogDescription>
@@ -222,7 +224,7 @@ const ImageLibraryDialogs = ({
         }
       }}
     >
-      <DialogContent className="max-w-md z-240" overlayClassName="z-230">
+      <DialogContent className="max-w-md" containerClassName="z-240" overlayClassName="z-230">
         <DialogHeader>
           <DialogTitle>Editar texto alternativo</DialogTitle>
           <DialogDescription>
@@ -262,7 +264,7 @@ const ImageLibraryDialogs = ({
     </Dialog>
 
     <Dialog open={Boolean(renameTarget)} onOpenChange={(next) => !next && setRenameTarget(null)}>
-      <DialogContent className="max-w-md z-240" overlayClassName="z-230">
+      <DialogContent className="max-w-md" containerClassName="z-240" overlayClassName="z-230">
         <DialogHeader>
           <DialogTitle>Renomear imagem</DialogTitle>
           <DialogDescription>

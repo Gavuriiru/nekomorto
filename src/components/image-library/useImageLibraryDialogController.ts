@@ -57,6 +57,9 @@ export const useImageLibraryDialogController = ({
   const [sortMode, setSortMode] = useState<"recent" | "oldest" | "name">("recent");
   const [uploadsFolderFilter, setUploadsFolderFilter] = useState<string>("__all__");
   const [openUploadGroupKeys, setOpenUploadGroupKeys] = useState<string[]>([]);
+  const [openUploadFolderKeysByGroup, setOpenUploadFolderKeysByGroup] = useState<
+    Record<string, string[]>
+  >({});
   const [openProjectGroupKeys, setOpenProjectGroupKeys] = useState<string[]>([]);
   const [openProjectFolderKeysByGroup, setOpenProjectFolderKeysByGroup] = useState<
     Record<string, string[]>
@@ -197,6 +200,7 @@ export const useImageLibraryDialogController = ({
     setUploadCardRef,
     shouldRenderUploadsFolderFilter,
     shouldShowAllFoldersFilterOption,
+    uploadFolderFilterOptionLabels,
     uploadFolderFilterOptions,
     uploadFolderGroups,
   } = useImageLibraryBrowserOrchestration({
@@ -216,6 +220,7 @@ export const useImageLibraryDialogController = ({
     mode,
     normalizedListFolders,
     open,
+    openUploadFolderKeysByGroup,
     openProjectFolderKeysByGroup,
     openProjectGroupKeys,
     openUploadGroupKeys,
@@ -229,6 +234,7 @@ export const useImageLibraryDialogController = ({
     selectedResolvedUrlSet,
     setIsCropDialogOpen,
     setIsDragActive,
+    setOpenUploadFolderKeysByGroup,
     setOpenProjectFolderKeysByGroup,
     setOpenProjectGroupKeys,
     setOpenUploadGroupKeys,
@@ -283,6 +289,7 @@ export const useImageLibraryDialogController = ({
       isLoading,
       mode,
       normalizedSearch,
+      openUploadFolderKeysByGroup,
       onRequestDelete: setDeleteTarget,
       onRequestRename: requestRename,
       openProjectFolderKeysByGroup,
@@ -292,6 +299,7 @@ export const useImageLibraryDialogController = ({
       projectImagesView,
       selectedResolvedUrlSet,
       selectedUrlsCount: selectedUrls.length,
+      setOpenUploadFolderKeysByGroup,
       setOpenProjectFolderKeysByGroup,
       setOpenProjectGroupKeys,
       setOpenUploadGroupKeys,
@@ -303,6 +311,7 @@ export const useImageLibraryDialogController = ({
       shouldRenderUploadsFolderFilter,
       shouldShowAllFoldersFilterOption,
       sortMode,
+      uploadFolderFilterOptionLabels,
       uploadFolderFilterOptions,
       uploadFolderGroups,
       uploadsFolderFilter,
@@ -319,6 +328,7 @@ export const useImageLibraryDialogController = ({
       isLoading,
       mode,
       normalizedSearch,
+      openUploadFolderKeysByGroup,
       openProjectFolderKeysByGroup,
       openProjectGroupKeys,
       openUploadGroupKeys,
@@ -327,12 +337,14 @@ export const useImageLibraryDialogController = ({
       requestRename,
       selectedResolvedUrlSet,
       selectedUrls.length,
+      setOpenUploadFolderKeysByGroup,
       setProjectCardRef,
       setSelection,
       setUploadCardRef,
       shouldRenderUploadsFolderFilter,
       shouldShowAllFoldersFilterOption,
       sortMode,
+      uploadFolderFilterOptionLabels,
       uploadFolderFilterOptions,
       uploadFolderGroups,
       uploadsFolderFilter,

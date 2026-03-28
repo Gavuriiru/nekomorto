@@ -299,7 +299,8 @@ const dashboardOverviewInsetDashedClassName =
 const dashboardOverviewInteractiveSurfaceClassName = `${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5`;
 const dashboardOverviewActionButtonClassName =
   "border-border/70 bg-background text-foreground/70 hover:bg-background hover:text-foreground";
-const dashboardOverviewBadgeClassName = "bg-background text-foreground/70";
+const dashboardOverviewBadgeClassName =
+  "border-primary/35 bg-primary/10 text-foreground hover:bg-primary/15";
 const dashboardOverviewMetaTextClassName = dashboardPageLayoutTokens.cardMetaText;
 
 const DashboardLoadingSkeleton = () => (

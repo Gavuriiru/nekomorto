@@ -8,6 +8,10 @@ import {
 
 import useImageLibraryBrowserDerivedState from "@/components/image-library/useImageLibraryBrowserDerivedState";
 import useImageLibraryBrowserInteractions from "@/components/image-library/useImageLibraryBrowserInteractions";
+import {
+  resolveUploadFolderFilterValue,
+  shouldCollapseProjectFoldersInUploadFilter,
+} from "@/components/image-library/groups";
 import useImageLibraryRevealOrchestration from "@/components/image-library/useImageLibraryRevealOrchestration";
 import useImageLibrarySelectionLifecycle from "@/components/image-library/useImageLibrarySelectionLifecycle";
 import type {
@@ -39,6 +43,7 @@ type UseImageLibraryBrowserOrchestrationParams = {
   mode: "single" | "multiple";
   normalizedListFolders: string[];
   open: boolean;
+  openUploadFolderKeysByGroup: Record<string, string[]>;
   openProjectFolderKeysByGroup: Record<string, string[]>;
   openProjectGroupKeys: string[];
   openUploadGroupKeys: string[];
@@ -52,6 +57,7 @@ type UseImageLibraryBrowserOrchestrationParams = {
   selectedResolvedUrlSet: Set<string>;
   setIsCropDialogOpen: Dispatch<SetStateAction<boolean>>;
   setIsDragActive: Dispatch<SetStateAction<boolean>>;
+  setOpenUploadFolderKeysByGroup: Dispatch<SetStateAction<Record<string, string[]>>>;
   setOpenProjectFolderKeysByGroup: Dispatch<SetStateAction<Record<string, string[]>>>;
   setOpenProjectGroupKeys: Dispatch<SetStateAction<string[]>>;
   setOpenUploadGroupKeys: Dispatch<SetStateAction<string[]>>;
@@ -75,6 +81,7 @@ type UseImageLibraryBrowserOrchestrationResult = {
   setUploadCardRef: (url: string, node: HTMLButtonElement | null) => void;
   shouldRenderUploadsFolderFilter: boolean;
   shouldShowAllFoldersFilterOption: boolean;
+  uploadFolderFilterOptionLabels: Record<string, string>;
   uploadFolderFilterOptions: string[];
   uploadFolderGroups: UploadFolderGroup[];
 };
@@ -96,6 +103,7 @@ export const useImageLibraryBrowserOrchestration = ({
   mode,
   normalizedListFolders,
   open,
+  openUploadFolderKeysByGroup,
   openProjectFolderKeysByGroup,
   openProjectGroupKeys,
   openUploadGroupKeys,
@@ -109,6 +117,7 @@ export const useImageLibraryBrowserOrchestration = ({
   selectedResolvedUrlSet,
   setIsCropDialogOpen,
   setIsDragActive,
+  setOpenUploadFolderKeysByGroup,
   setOpenProjectFolderKeysByGroup,
   setOpenProjectGroupKeys,
   setOpenUploadGroupKeys,
@@ -128,7 +137,7 @@ export const useImageLibraryBrowserOrchestration = ({
     filteredProjectImages,
     filteredUploads,
     hasUploadsInResolvedFolderContext,
-    initialOpenUploadGroupKeys,
+    initialUploadAccordionState,
     initialProjectAccordionState,
     isUploadsFilterReadyForInitialExpansion,
     matchesSearch,
@@ -138,6 +147,7 @@ export const useImageLibraryBrowserOrchestration = ({
     resolvedUploadFolderForFilterOption,
     shouldRenderUploadsFolderFilter,
     shouldShowAllFoldersFilterOption,
+    uploadFolderFilterOptionLabels,
     uploadFolderFilterOptions,
     uploadFolderGroups,
   } = useImageLibraryBrowserDerivedState({
@@ -155,6 +165,12 @@ export const useImageLibraryBrowserOrchestration = ({
     sortMode,
     uploads,
     uploadsFolderFilter,
+  });
+
+  const collapseProjectFoldersToRoots = shouldCollapseProjectFoldersInUploadFilter({
+    normalizedListFolders,
+    resolvedUploadFolderForFilter,
+    shouldExcludeProjectFoldersFromUploadFilter: includeProjectImages,
   });
 
   useEffect(() => {
@@ -227,13 +243,14 @@ export const useImageLibraryBrowserOrchestration = ({
     filteredUploads,
     hasInitializedProjectAccordionStateForOpenRef,
     hasInitializedUploadAccordionStateForOpenRef,
-    initialOpenUploadGroupKeys,
+    initialUploadAccordionState,
     initialProjectAccordionState,
     isLibraryHydratedForOpen,
     isUploadsFilterReadyForInitialExpansion,
     matchesSearch,
     normalizedSearch,
     open,
+    openUploadFolderKeysByGroup,
     openProjectFolderKeysByGroup,
     openProjectGroupKeys,
     openUploadGroupKeys,
@@ -243,12 +260,18 @@ export const useImageLibraryBrowserOrchestration = ({
     projectImagesView,
     renderableUploads,
     setIsCropDialogOpen,
+    setOpenUploadFolderKeysByGroup,
     setOpenProjectFolderKeysByGroup,
     setOpenProjectGroupKeys,
     setOpenUploadGroupKeys,
     setPendingRevealRequest,
     setSearchQuery,
     setUploadsFolderFilter,
+    resolveUploadsFolderFilterValue: (folder) =>
+      resolveUploadFolderFilterValue({
+        collapseProjectFoldersToRoots,
+        folder,
+      }),
     shouldAutoOpenAvatarCrop,
     uploadFolderGroups,
     uploads,
@@ -278,6 +301,7 @@ export const useImageLibraryBrowserOrchestration = ({
     setUploadCardRef,
     shouldRenderUploadsFolderFilter,
     shouldShowAllFoldersFilterOption,
+    uploadFolderFilterOptionLabels,
     uploadFolderFilterOptions,
     uploadFolderGroups,
   };

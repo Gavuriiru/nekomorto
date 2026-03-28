@@ -1,4 +1,4 @@
-﻿import { Suspense, lazy, useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import QRCode from "qrcode";
 import DashboardShell from "@/components/DashboardShell";
@@ -23,9 +23,9 @@ import {
   dashboardClampedStaggerMs,
   dashboardMotionDelays,
 } from "@/components/dashboard/dashboard-motion";
-import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import ReorderControls from "@/components/ReorderControls";
 import AsyncState from "@/components/ui/async-state";
+import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,8 +78,6 @@ import { toast } from "@/components/ui/use-toast";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { type AccessRole, permissionIds } from "@/lib/access-control";
 import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
-
-const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
 const FAVORITE_WORK_CATEGORIES = ["manga", "anime"] as const;
 type FavoriteWorkCategory = (typeof FAVORITE_WORK_CATEGORIES)[number];
@@ -1732,36 +1730,24 @@ const DashboardUsers = () => {
           </section>
         </main>
       </DashboardShell>
-      <Suspense
-        fallback={
-          isLibraryOpen ? (
-            <ImageLibraryDialogLoadingFallback
-              open={isLibraryOpen}
-              onOpenChange={handleLibraryOpenChange}
-              description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
-            />
-          ) : null
-        }
-      >
-        <ImageLibraryDialog
-          open={isLibraryOpen}
-          onOpenChange={handleLibraryOpenChange}
-          apiBase={apiBase}
-          description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
-          uploadFolder="users"
-          listFolders={avatarLibraryFolders}
-          listAll={false}
-          allowDeselect
-          mode="single"
-          cropAvatar
-          cropTargetFolder="users"
-          cropSlot={formState.id ? `avatar-${formState.id}` : undefined}
-          currentSelectionUrls={formState.avatarUrl ? [formState.avatarUrl] : undefined}
-          scopeUserId={isEditingSelf ? currentUser?.id : undefined}
-          allowUploadManagementActions={actorCanUploadManagement}
-          onSave={({ urls, items }) => handleLibrarySave({ urls, items })}
-        />
-      </Suspense>
+      <LazyImageLibraryDialog
+        open={isLibraryOpen}
+        onOpenChange={handleLibraryOpenChange}
+        apiBase={apiBase}
+        description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
+        uploadFolder="users"
+        listFolders={avatarLibraryFolders}
+        listAll={false}
+        allowDeselect
+        mode="single"
+        cropAvatar
+        cropTargetFolder="users"
+        cropSlot={formState.id ? `avatar-${formState.id}` : undefined}
+        currentSelectionUrls={formState.avatarUrl ? [formState.avatarUrl] : undefined}
+        scopeUserId={isEditingSelf ? currentUser?.id : undefined}
+        allowUploadManagementActions={actorCanUploadManagement}
+        onSave={({ urls, items }) => handleLibrarySave({ urls, items })}
+      />
 
       {isDialogOpen ? (
         <div
@@ -2698,3 +2684,5 @@ const DashboardUsers = () => {
 };
 
 export default DashboardUsers;
+
+

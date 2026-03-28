@@ -9,6 +9,9 @@ import express from "express";
 import session from "express-session";
 import multer from "multer";
 import { Pool } from "pg";
+import { createServerRouteContext } from "./bootstrap/create-server-route-context.js";
+import { registerServerRoutes } from "./bootstrap/register-server-routes.js";
+import { startServerJobs } from "./bootstrap/start-server-jobs.js";
 import {
   ADMIN_EXPORT_DATASETS,
   filterByDateRange,
@@ -67,6 +70,12 @@ import { createIdempotencyStore } from "./lib/idempotency-store.js";
 import { createJobQueue } from "./lib/job-queue.js";
 import { createJsonFileCache } from "./lib/json-file-cache.js";
 import { truncateMetaDescription } from "./lib/meta-description.js";
+import {
+  createAbsoluteUrlResolver,
+  createHtmlSender,
+  createIndexHtmlLoader,
+  createMetaHtmlRenderer,
+} from "./lib/meta-html.js";
 import { registerAuthRoutes } from "./lib/register-auth-routes.js";
 import { createMetricsRegistry } from "./lib/metrics.js";
 import { createOgRenderCache } from "./lib/og-render-cache.js";
@@ -81,9 +90,6 @@ import {
   buildOperationalAlertsV1,
 } from "./lib/operational-alerts.js";
 import { registerOperationalRoutes } from "./lib/register-operational-routes.js";
-import { registerAppRoutes } from "./routes/register-app-routes.js";
-import { registerAdminRoutes } from "./routes/register-admin-routes.js";
-import { registerIntegrationRoutes } from "./routes/register-integration-routes.js";
 import {
   buildOriginConfig,
   isAllowedOrigin as isAllowedOriginByConfig,
@@ -96,6 +102,7 @@ import {
   buildVersionedPostOgImagePath,
 } from "../shared/post-og-seo.js";
 import { getPostOgCachedRender } from "./lib/post-og-delivery.js";
+import { extractFirstImageFromPostContent, resolvePostCover } from "./lib/post-cover.js";
 import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
 import { resolvePostStatus } from "./lib/post-status.js";
 import { dedupePostVersionRecordsNewestFirst } from "./lib/post-version-dedupe.js";
@@ -209,14 +216,6 @@ import { buildRssXml } from "./lib/rss-xml.js";
 import { registerRuntimeMiddleware } from "./lib/register-runtime-middleware.js";
 import { registerSessionRoutes } from "./lib/register-session-routes.js";
 import { registerSelfServiceRoutes } from "./lib/register-self-service-routes.js";
-import { registerOgRoutes } from "./routes/register-og-routes.js";
-import { registerContentRoutes } from "./routes/register-content-routes.js";
-import { registerPublicRoutes } from "./routes/register-public-routes.js";
-import { registerSiteConfigRoutes } from "./routes/register-site-config-routes.js";
-import { registerSiteRoutes } from "./routes/register-site-routes.js";
-import { registerProjectRoutes } from "./routes/register-project-routes.js";
-import { registerUploadRoutes } from "./routes/register-upload-routes.js";
-import { registerUserRoutes } from "./routes/register-user-routes.js";
 import { buildSchemaOrgPayload, serializeSchemaOrgEntry } from "./lib/schema-org.js";
 import {
   decryptStringWithKeyring,
@@ -240,6 +239,7 @@ import {
 } from "./lib/session-auth.js";
 import { buildSessionCookieConfig } from "./lib/session-cookie-config.js";
 import { buildSitemapXml } from "./lib/sitemap-xml.js";
+import { createSiteMetaBuilders, stripHtml } from "./lib/site-meta-builders.js";
 import {
   buildOtpAuthUrl,
   generateRecoveryCodes,
@@ -264,6 +264,15 @@ import {
   resolveUploadVariantPresetKeysForArea,
 } from "./lib/upload-media.js";
 import { buildDiskStorageAreaSummary, runUploadsCleanup } from "./lib/uploads-cleanup.js";
+import {
+  buildWebhookAuditMeta,
+  clampWebhookInteger,
+  createBuildEditorialWebhookImageContext,
+  createResolveEditorialAuthorFromPost,
+  createWebhookAuditReqFromContext as createWebhookAuditReqFromContextBase,
+  pickFirstNonEmptyText,
+  resolveWebhookAuditActions as resolveWebhookAuditActionsBase,
+} from "./lib/webhook-support.js";
 import {
   invalidateUploadsCleanupPreviewCache,
   loadCachedUploadsCleanupPreview,
@@ -1971,678 +1980,14 @@ const clientIndexPath = resolveClientIndexPath({
 });
 const httpServer = createHttpServer(app);
 const viteDevServer = await createViteDevServer({ isProduction, httpServer });
-let cachedIndexHtml = null;
-
-const getIndexHtml = () => {
-  if (isProduction) {
-    if (!cachedIndexHtml) {
-      cachedIndexHtml = fs.readFileSync(clientIndexPath, "utf-8");
-    }
-    return cachedIndexHtml;
-  }
-  return fs.readFileSync(clientIndexPath, "utf-8");
-};
-
-const escapeHtml = (value) =>
-  String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-
-const toAbsoluteUrl = (value) => {
-  const input = String(value || "").trim();
-  if (!input) {
-    return "";
-  }
-  if (input.startsWith("http://") || input.startsWith("https://") || input.startsWith("data:")) {
-    return input;
-  }
-  try {
-    return new URL(input, PRIMARY_APP_ORIGIN).toString();
-  } catch {
-    return input;
-  }
-};
-
-const upsertMeta = (html, attr, key, content) => {
-  const escaped = escapeHtml(content);
-  const tag = `<meta ${attr}="${key}" content="${escaped}" />`;
-  const regex = new RegExp(`<meta[^>]*${attr}="${key}"[^>]*>`, "i");
-  if (regex.test(html)) {
-    return html.replace(regex, tag);
-  }
-  return html.replace("</head>", `  ${tag}\n</head>`);
-};
-
-const upsertLink = (html, rel, href) => {
-  const escaped = escapeHtml(href);
-  const tag = `<link rel="${rel}" href="${escaped}" />`;
-  const regex = new RegExp(`<link[^>]*rel="${rel}"[^>]*>`, "i");
-  if (regex.test(html)) {
-    return html.replace(regex, tag);
-  }
-  return html.replace("</head>", `  ${tag}\n</head>`);
-};
-
-const replaceTitle = (html, title) =>
-  html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(title)}</title>`);
-
-const appendStructuredDataScripts = (html, structuredData) => {
-  const entries = Array.isArray(structuredData) ? structuredData : [];
-  if (entries.length === 0) {
-    return html;
-  }
-  const scripts = entries
-    .filter((entry) => entry && typeof entry === "object")
-    .map(
-      (entry) =>
-        `  <script type="application/ld+json" data-schema-org="true">${serializeSchemaOrgEntry(entry)}</script>`,
-    );
-  if (scripts.length === 0) {
-    return html;
-  }
-  return html.replace("</head>", `${scripts.join("\n")}\n</head>`);
-};
-
-const renderMetaHtml = ({
-  title,
-  description,
-  image,
-  imageAlt,
-  url,
-  themeColor,
-  type = "website",
-  siteName,
-  favicon,
-  structuredData = [],
-}) => {
-  let html = getIndexHtml();
-  const safeUrl = url || PRIMARY_APP_ORIGIN;
-  const safeImage = image ? toAbsoluteUrl(resolveMetaImageVariantUrl(image)) : "";
-  const safeDescription = truncateMetaDescription(description);
-  const safeThemeColor = String(themeColor || "#9667e0");
-  html = replaceTitle(html, title);
-  html = upsertMeta(html, "name", "description", safeDescription);
-  html = upsertMeta(html, "name", "theme-color", safeThemeColor);
-  html = upsertMeta(html, "property", "og:title", title);
-  html = upsertMeta(html, "property", "og:description", safeDescription);
-  html = upsertMeta(html, "property", "og:type", type);
-  html = upsertMeta(html, "property", "og:url", safeUrl);
-  html = upsertMeta(html, "property", "og:site_name", siteName);
-  html = upsertMeta(html, "property", "og:locale", "pt_BR");
-  if (safeImage) {
-    html = upsertMeta(html, "property", "og:image", safeImage);
-    html = upsertMeta(html, "property", "og:image:alt", String(imageAlt || ""));
-    html = upsertMeta(html, "name", "twitter:image", safeImage);
-    html = upsertMeta(html, "name", "twitter:image:alt", String(imageAlt || ""));
-  }
-  html = upsertMeta(html, "name", "twitter:title", title);
-  html = upsertMeta(html, "name", "twitter:description", safeDescription);
-  html = upsertMeta(html, "name", "twitter:card", safeImage ? "summary_large_image" : "summary");
-  html = upsertLink(html, "canonical", safeUrl);
-  if (favicon) {
-    html = upsertLink(html, "icon", toAbsoluteUrl(favicon));
-  }
-  html = appendStructuredDataScripts(html, structuredData);
-  return html;
-};
-
-const sendHtml = async (req, res, html) => {
-  let nextHtml = html;
-  const requestPath = req.originalUrl || req.url || "/";
-  if (viteDevServer) {
-    nextHtml = await viteDevServer.transformIndexHtml(requestPath, nextHtml);
-  }
-  const nonce = typeof res.locals?.cspNonce === "string" ? res.locals.cspNonce : "";
-  const body = nonce ? injectNonceIntoHtmlScripts(nextHtml, nonce) : nextHtml;
-  applyHtmlCachingHeaders(res, {
-    pathname: requestPath,
-    isAuthenticated: Boolean(req?.session?.user),
-  });
-  return res.type("html").send(body);
-};
-
-const stripHtml = (value) =>
-  String(value || "")
-    .replace(/<[^>]*>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-const isValidPostCoverImageUrl = (value) => {
-  if (typeof value !== "string") {
-    return false;
-  }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return false;
-  }
-  if (/^(data|blob):/i.test(trimmed)) {
-    return false;
-  }
-  if (/^https?:\/\//i.test(trimmed)) {
-    return true;
-  }
-  return trimmed.startsWith("/");
-};
-
-const findFirstLexicalImage = (node) => {
-  if (!node) {
-    return null;
-  }
-  if (Array.isArray(node)) {
-    for (const item of node) {
-      const found = findFirstLexicalImage(item);
-      if (found) {
-        return found;
-      }
-    }
-    return null;
-  }
-  if (typeof node !== "object") {
-    return null;
-  }
-
-  const imageType = typeof node.type === "string" ? node.type.toLowerCase() : "";
-  const src = typeof node.src === "string" ? node.src.trim() : "";
-  if (imageType === "image" && isValidPostCoverImageUrl(src)) {
-    return {
-      coverImageUrl: src,
-      coverAlt: typeof node.altText === "string" ? node.altText.trim() : "",
-    };
-  }
-
-  if (Array.isArray(node.children)) {
-    const foundInChildren = findFirstLexicalImage(node.children);
-    if (foundInChildren) {
-      return foundInChildren;
-    }
-  }
-
-  for (const [key, value] of Object.entries(node)) {
-    if (key === "children" || key === "src" || key === "altText") {
-      continue;
-    }
-    const found = findFirstLexicalImage(value);
-    if (found) {
-      return found;
-    }
-  }
-  return null;
-};
-
-const extractFirstImageFromHtml = (value) => {
-  const regex = /<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi;
-  let match = regex.exec(String(value || ""));
-  while (match) {
-    const url = String(match[1] || "").trim();
-    if (isValidPostCoverImageUrl(url)) {
-      const tag = String(match[0] || "");
-      const altMatch = tag.match(/\balt\s*=\s*["']([^"']*)["']/i);
-      return {
-        coverImageUrl: url,
-        coverAlt: altMatch ? String(altMatch[1] || "").trim() : "",
-        index: typeof match.index === "number" ? match.index : Number.MAX_SAFE_INTEGER,
-      };
-    }
-    match = regex.exec(String(value || ""));
-  }
-  return null;
-};
-
-const extractFirstImageFromMarkdown = (value) => {
-  const regex = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/gi;
-  let match = regex.exec(String(value || ""));
-  while (match) {
-    const url = String(match[2] || "").trim();
-    if (isValidPostCoverImageUrl(url)) {
-      return {
-        coverImageUrl: url,
-        coverAlt: String(match[1] || "").trim(),
-        index: typeof match.index === "number" ? match.index : Number.MAX_SAFE_INTEGER,
-      };
-    }
-    match = regex.exec(String(value || ""));
-  }
-  return null;
-};
-
-const extractFirstImageFromPostContent = (content, contentFormat) => {
-  const rawContent = String(content || "");
-  if (!rawContent.trim()) {
-    return null;
-  }
-
-  if (contentFormat === "lexical") {
-    try {
-      const parsed = JSON.parse(rawContent);
-      return findFirstLexicalImage(parsed?.root || parsed);
-    } catch {
-      return null;
-    }
-  }
-
-  const htmlCandidate = extractFirstImageFromHtml(rawContent);
-  const markdownCandidate = extractFirstImageFromMarkdown(rawContent);
-  if (!htmlCandidate && !markdownCandidate) {
-    return null;
-  }
-  if (htmlCandidate && !markdownCandidate) {
-    return htmlCandidate;
-  }
-  if (!htmlCandidate && markdownCandidate) {
-    return markdownCandidate;
-  }
-  return htmlCandidate.index <= markdownCandidate.index ? htmlCandidate : markdownCandidate;
-};
-
-const resolvePostCover = (post) => {
-  const manualCover = typeof post?.coverImageUrl === "string" ? post.coverImageUrl.trim() : "";
-  if (isValidPostCoverImageUrl(manualCover)) {
-    return {
-      coverImageUrl: manualCover,
-      coverAlt: typeof post?.coverAlt === "string" ? post.coverAlt.trim() : "",
-      source: "manual",
-    };
-  }
-
-  const extracted = extractFirstImageFromPostContent(post?.content, post?.contentFormat);
-  if (extracted?.coverImageUrl) {
-    return {
-      coverImageUrl: extracted.coverImageUrl,
-      coverAlt: extracted.coverAlt || String(post?.title || "").trim() || "",
-      source: "content",
-    };
-  }
-
-  return {
-    coverImageUrl: null,
-    coverAlt: "",
-    source: "none",
-  };
-};
-
-const buildSiteMetaWithSettings = (settings) => ({
-  title: settings.site?.name || "Nekomata",
-  description: truncateMetaDescription(settings.site?.description || ""),
-  image: settings.site?.defaultShareImage || "",
-  imageAlt: settings.site?.defaultShareImageAlt || "",
-  url: PRIMARY_APP_ORIGIN,
-  type: "website",
-  siteName: settings.site?.name || "Nekomata",
-  favicon: settings.site?.faviconUrl || "",
+const getIndexHtml = createIndexHtmlLoader({
+  fs,
+  clientIndexPath,
+  isProduction,
 });
-
-const buildSiteMeta = () => buildSiteMetaWithSettings(loadSiteSettings());
-
-const buildInstitutionalPageMeta = (
-  pageKey,
-  { settings = loadSiteSettings(), pages = loadPages() } = {},
-) => {
-  const resolvedPageKey = String(pageKey || "").trim();
-  const titleText = resolveInstitutionalOgPageTitle(resolvedPageKey);
-  if (!titleText) {
-    return buildSiteMetaWithSettings(settings);
-  }
-
-  const siteName = settings.site?.name || "Nekomata";
-  const separator = settings.site?.titleSeparator ?? "";
-  const description = truncateMetaDescription(
-    resolveInstitutionalOgSupportText({
-      pageKey: resolvedPageKey,
-      pages,
-      settings,
-    }) ||
-      settings.site?.description ||
-      "",
-  );
-  const imageRevision = buildInstitutionalOgRevisionValue({
-    pageKey: resolvedPageKey,
-    pages,
-    settings,
-  });
-  const image = buildVersionedInstitutionalOgImagePath({
-    pageKey: resolvedPageKey,
-    revision: imageRevision,
-  });
-
-  return {
-    title: `${titleText}${separator}${siteName}`,
-    description,
-    image,
-    imageAlt: buildInstitutionalOgImageAlt(resolvedPageKey),
-    url: `${PRIMARY_APP_ORIGIN}${resolveInstitutionalOgPagePath(resolvedPageKey)}`,
-    type: "website",
-    siteName,
-    favicon: settings.site?.faviconUrl || "",
-  };
-};
-
-const getPageTitleFromPathLegacy = (value) => {
-  const pathValue = String(value || "/");
-  const rules = [
-    [/^\/$/, "Início"],
-    [/^\/postagem\/.+/, "Postagem"],
-    [/^\/equipe\/?$/, "Equipe"],
-    [/^\/sobre\/?$/, "Sobre"],
-    [/^\/doacoes\/?$/, "Doações"],
-    [/^\/faq\/?$/, "FAQ"],
-    [/^\/projetos\/?$/, "Projetos"],
-    [/^\/projeto\/.+\/leitura\/.+/, "Leitura"],
-    [/^\/projeto\/.+/, "Projeto"],
-    [/^\/projetos\/.+\/leitura\/.+/, "Leitura"],
-    [/^\/projetos\/.+/, "Projeto"],
-    [/^\/recrutamento\/?$/, "Recrutamento"],
-    [/^\/login\/?$/, "Login"],
-    [/^\/dashboard\/usuarios\/?$/, "Usuários"],
-    [/^\/dashboard\/posts\/?$/, "Posts"],
-    [/^\/dashboard\/projetos\/?$/, "Projetos"],
-    [/^\/dashboard\/comentarios\/?$/, "Comentários"],
-    [/^\/dashboard\/paginas\/?$/, "Páginas"],
-    [/^\/dashboard\/configuracoes\/?$/, "Configurações"],
-    [/^\/dashboard\/redirecionamentos\/?$/, "Redirecionamentos"],
-    [/^\/dashboard\/?$/, "Dashboard"],
-  ];
-  const match = rules.find(([regex]) => regex.test(pathValue));
-  return match ? match[1] : getPageTitleFromPathLegacy(pathValue);
-};
-
-const getPageTitleFromPath = (value) => {
-  const pathValue = String(value || "/");
-  const rules = [
-    [/^\/$/, "In\u00edcio"],
-    [/^\/postagem\/.+/, "Postagem"],
-    [/^\/equipe\/?$/, "Equipe"],
-    [/^\/sobre\/?$/, "Sobre"],
-    [/^\/doacoes\/?$/, "Doa\u00e7\u00f5es"],
-    [/^\/faq\/?$/, "FAQ"],
-    [/^\/projetos\/?$/, "Projetos"],
-    [/^\/projeto\/.+\/leitura\/.+/, "Leitura"],
-    [/^\/projeto\/.+/, "Projeto"],
-    [/^\/projetos\/.+\/leitura\/.+/, "Leitura"],
-    [/^\/projetos\/.+/, "Projeto"],
-    [/^\/recrutamento\/?$/, "Recrutamento"],
-    [/^\/login\/?$/, "Login"],
-    [/^\/dashboard\/usuarios\/?$/, "Usu\u00e1rios"],
-    [/^\/dashboard\/posts\/?$/, "Posts"],
-    [/^\/dashboard\/projetos\/?$/, "Projetos"],
-    [/^\/dashboard\/comentarios\/?$/, "Coment\u00e1rios"],
-    [/^\/dashboard\/paginas\/?$/, "P\u00e1ginas"],
-    [/^\/dashboard\/configuracoes\/?$/, "Configura\u00e7\u00f5es"],
-    [/^\/dashboard\/redirecionamentos\/?$/, "Redirecionamentos"],
-    [/^\/dashboard\/?$/, "Dashboard"],
-  ];
-  const match = rules.find(([regex]) => regex.test(pathValue));
-  return match ? match[1] : "";
-};
-
-const buildProjectMeta = (
-  project,
-  { settings = loadSiteSettings(), translations = loadTagTranslations() } = {},
-) => {
-  const siteName = settings.site?.name || "Nekomata";
-  const title = project?.title ? `${project.title} | ${siteName}` : siteName;
-  const description = truncateMetaDescription(
-    stripHtml(project?.synopsis || project?.description || "") || settings.site?.description || "",
-  );
-  const imageRevision = buildProjectOgRevision({
-    project,
-    settings,
-    translations,
-    origin: PRIMARY_APP_ORIGIN,
-    resolveVariantUrl: resolveMetaImageVariantUrl,
-  });
-  const image = buildVersionedProjectOgImagePath({
-    projectId: project?.id || "",
-    revision: imageRevision,
-  });
-  const imageAlt = `Card de compartilhamento do projeto ${String(project?.title || "Projeto").trim() || "Projeto"}`;
-  return {
-    title,
-    description,
-    image,
-    imageAlt,
-    url: `${PRIMARY_APP_ORIGIN}/projeto/${project?.id || ""}`,
-    type: "article",
-    siteName,
-    favicon: settings.site?.faviconUrl || "",
-  };
-};
-
-const buildProjectReadingMeta = (
-  project,
-  {
-    chapterNumber,
-    volume,
-    settings = loadSiteSettings(),
-    translations = loadTagTranslations(),
-  } = {},
-) => {
-  const model = buildProjectReadingOgCardModel({
-    project,
-    chapterNumber,
-    volume,
-    settings,
-    tagTranslations: translations?.tags,
-    genreTranslations: translations?.genres,
-    origin: PRIMARY_APP_ORIGIN,
-    resolveVariantUrl: resolveMetaImageVariantUrl,
-  });
-  if (!model) {
-    return null;
-  }
-
-  const siteName = settings.site?.name || "Nekomata";
-  const title = model?.seoTitle ? `${model.seoTitle} | ${siteName}` : siteName;
-  const description = truncateMetaDescription(
-    stripHtml(model?.seoDescription || "") || settings.site?.description || "",
-  );
-  const imageRevision = buildProjectReadingOgRevisionValue({
-    project,
-    chapterNumber,
-    volume,
-    settings,
-    translations,
-  });
-  const image = buildVersionedProjectReadingOgImagePath({
-    projectId: project?.id || "",
-    chapterNumber: model.chapterNumberResolved ?? chapterNumber,
-    volume: model.volumeResolved,
-    revision: imageRevision,
-  });
-  const volumeQuery = Number.isFinite(Number(model.volumeResolved))
-    ? `?volume=${encodeURIComponent(String(model.volumeResolved))}`
-    : "";
-
-  return {
-    title,
-    description,
-    image,
-    imageAlt:
-      String(model?.imageAlt || "").trim() ||
-      `Card de compartilhamento da leitura de ${String(project?.title || "Projeto").trim() || "Projeto"}`,
-    url: `${PRIMARY_APP_ORIGIN}/projeto/${encodeURIComponent(String(project?.id || "").trim())}/leitura/${encodeURIComponent(String(model.chapterNumberResolved ?? chapterNumber))}${volumeQuery}`,
-    type: "article",
-    siteName,
-    favicon: settings.site?.faviconUrl || "",
-  };
-};
-
-const buildPostMeta = (post) => {
-  const settings = loadSiteSettings();
-  const siteName = settings.site?.name || "Nekomata";
-  const title = post?.title ? `${post.title} | ${siteName}` : siteName;
-  const description = truncateMetaDescription(
-    stripHtml(post?.seoDescription || post?.excerpt || post?.content || "") ||
-      settings.site?.description ||
-      "",
-  );
-  const resolvedCover = resolvePostCover(post);
-  const firstPostImage = extractFirstImageFromPostContent(post?.content, post?.contentFormat);
-  const imageRevision = buildPostOgRevision({
-    post,
-    settings,
-    coverImageUrl: resolvedCover?.coverImageUrl,
-    firstPostImageUrl: firstPostImage?.coverImageUrl,
-  });
-  const image = buildVersionedPostOgImagePath({
-    slug: post?.slug || "",
-    revision: imageRevision,
-  });
-  const imageAlt = buildPostOgImageAlt(post?.title);
-  return {
-    title,
-    description,
-    image,
-    imageAlt,
-    url: `${PRIMARY_APP_ORIGIN}/postagem/${post?.slug || ""}`,
-    type: "article",
-    siteName,
-    favicon: settings.site?.faviconUrl || "",
-  };
-};
-
-const pickFirstNonEmptyText = (...values) => {
-  for (const value of values) {
-    const normalized = String(value || "").trim();
-    if (normalized) {
-      return normalized;
-    }
-  }
-  return "";
-};
-
-const buildEditorialWebhookImageContext = ({
-  post = null,
-  project = null,
-  chapter = null,
-  settings = loadSiteSettings(),
-  translations = loadTagTranslations(),
-} = {}) => {
-  const safePost = post && typeof post === "object" ? post : null;
-  const safeProject = project && typeof project === "object" ? project : null;
-  const safeChapter = chapter && typeof chapter === "object" ? chapter : null;
-  const fallbackSiteImageUrl = pickFirstNonEmptyText(
-    settings?.site?.defaultShareImage,
-    "/placeholder.svg",
-  );
-
-  const resolvedPostCover = safePost ? resolvePostCover(safePost) : null;
-  const firstPostImage = safePost
-    ? extractFirstImageFromPostContent(safePost.content, safePost.contentFormat)
-    : null;
-
-  const postSlug = String(safePost?.slug || "").trim();
-  const postOgImageUrl = postSlug
-    ? buildVersionedPostOgImagePath({
-        slug: postSlug,
-        revision: buildPostOgRevision({
-          post: safePost,
-          settings,
-          coverImageUrl: resolvedPostCover?.coverImageUrl,
-          firstPostImageUrl: firstPostImage?.coverImageUrl,
-        }),
-      })
-    : "";
-
-  const projectId = String(safeProject?.id || "").trim();
-  const projectOgImageUrl = projectId
-    ? buildVersionedProjectOgImagePath({
-        projectId,
-        revision: buildProjectOgRevision({
-          project: safeProject,
-          settings,
-          translations,
-          origin: PRIMARY_APP_ORIGIN,
-          resolveVariantUrl: resolveMetaImageVariantUrl,
-        }),
-      })
-    : "";
-
-  const chapterNumber = Number(safeChapter?.number);
-  const chapterVolume = Number(safeChapter?.volume);
-  let chapterOgImageUrl = "";
-  if (projectId && Number.isFinite(chapterNumber)) {
-    const chapterModel = buildProjectReadingOgCardModel({
-      project: safeProject,
-      chapterNumber,
-      volume: Number.isFinite(chapterVolume) ? chapterVolume : undefined,
-      settings,
-      tagTranslations: translations?.tags,
-      genreTranslations: translations?.genres,
-      origin: PRIMARY_APP_ORIGIN,
-      resolveVariantUrl: resolveMetaImageVariantUrl,
-    });
-    if (chapterModel) {
-      const chapterNumberResolved = Number.isFinite(Number(chapterModel.chapterNumberResolved))
-        ? Number(chapterModel.chapterNumberResolved)
-        : chapterNumber;
-      const chapterVolumeResolved = Number.isFinite(Number(chapterModel.volumeResolved))
-        ? Number(chapterModel.volumeResolved)
-        : Number.isFinite(chapterVolume)
-          ? chapterVolume
-          : undefined;
-      chapterOgImageUrl = buildVersionedProjectReadingOgImagePath({
-        projectId,
-        chapterNumber: chapterNumberResolved,
-        volume: chapterVolumeResolved,
-        revision: buildProjectReadingOgRevisionValue({
-          project: safeProject,
-          chapterNumber: chapterNumberResolved,
-          volume: chapterVolumeResolved,
-          settings,
-          translations,
-        }),
-      });
-    }
-  }
-
-  const resolvedProjectOgImageUrl = pickFirstNonEmptyText(projectOgImageUrl);
-  const resolvedChapterOgImageUrl = pickFirstNonEmptyText(
-    chapterOgImageUrl,
-    resolvedProjectOgImageUrl,
-  );
-
-  return {
-    postImageUrl: pickFirstNonEmptyText(
-      resolvedPostCover?.coverImageUrl,
-      firstPostImage?.coverImageUrl,
-      postOgImageUrl,
-      fallbackSiteImageUrl,
-      "/placeholder.svg",
-    ),
-    postOgImageUrl,
-    projectImageUrl: pickFirstNonEmptyText(
-      safeProject?.cover,
-      safeProject?.heroImageUrl,
-      safeProject?.banner,
-      projectOgImageUrl,
-      fallbackSiteImageUrl,
-      "/placeholder.svg",
-    ),
-    projectBackdropImageUrl: pickFirstNonEmptyText(
-      safeProject?.banner,
-      safeProject?.heroImageUrl,
-      safeProject?.cover,
-      projectOgImageUrl,
-      fallbackSiteImageUrl,
-      "/placeholder.svg",
-    ),
-    projectOgImageUrl,
-    chapterImageUrl: pickFirstNonEmptyText(
-      safeChapter?.coverImageUrl,
-      safeProject?.heroImageUrl,
-      safeProject?.banner,
-      safeProject?.cover,
-      resolvedChapterOgImageUrl,
-      resolvedProjectOgImageUrl,
-      fallbackSiteImageUrl,
-      "/placeholder.svg",
-    ),
-    chapterOgImageUrl: resolvedChapterOgImageUrl,
-  };
-};
+const toAbsoluteUrl = createAbsoluteUrlResolver({
+  origin: PRIMARY_APP_ORIGIN,
+});
 const MAX_SVG_SIZE_BYTES = 256 * 1024;
 const MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024;
 const MAX_UPLOAD_IMAGE_DIMENSION = 8192;
@@ -5507,6 +4852,64 @@ const loadSiteSettings = () => {
   return normalized;
 };
 
+const { renderMetaHtml } = createMetaHtmlRenderer({
+  getIndexHtml,
+  primaryAppOrigin: PRIMARY_APP_ORIGIN,
+  resolveMetaImageVariantUrl,
+  serializeSchemaOrgEntry,
+  toAbsoluteUrl,
+  truncateMetaDescription,
+});
+const sendHtml = createHtmlSender({
+  applyHtmlCachingHeaders,
+  injectNonceIntoHtmlScripts,
+  viteDevServer,
+});
+const {
+  buildInstitutionalPageMeta,
+  buildPostMeta,
+  buildProjectMeta,
+  buildProjectReadingMeta,
+  buildSiteMetaWithSettings,
+  getPageTitleFromPath,
+} = createSiteMetaBuilders({
+  buildInstitutionalOgImageAlt,
+  buildInstitutionalOgRevisionValue,
+  buildPostOgImageAlt,
+  buildPostOgRevision,
+  buildProjectOgRevision,
+  buildProjectReadingOgCardModel,
+  buildProjectReadingOgRevisionValue,
+  buildVersionedInstitutionalOgImagePath,
+  buildVersionedPostOgImagePath,
+  buildVersionedProjectOgImagePath,
+  buildVersionedProjectReadingOgImagePath,
+  extractFirstImageFromPostContent,
+  loadPages,
+  loadSiteSettings,
+  loadTagTranslations,
+  primaryAppOrigin: PRIMARY_APP_ORIGIN,
+  resolveInstitutionalOgPagePath,
+  resolveInstitutionalOgPageTitle,
+  resolveInstitutionalOgSupportText,
+  resolveMetaImageVariantUrl,
+  resolvePostCover,
+  truncateMetaDescription,
+});
+const buildEditorialWebhookImageContext = createBuildEditorialWebhookImageContext({
+  buildPostOgRevision,
+  buildProjectOgRevision,
+  buildProjectReadingOgCardModel,
+  buildProjectReadingOgRevisionValue,
+  buildVersionedPostOgImagePath,
+  buildVersionedProjectOgImagePath,
+  buildVersionedProjectReadingOgImagePath,
+  extractFirstImageFromPostContent,
+  primaryAppOrigin: PRIMARY_APP_ORIGIN,
+  resolveMetaImageVariantUrl,
+  resolvePostCover,
+});
+
 const writeSiteSettings = (settings) => {
   const normalized = normalizeSiteSettings(settings);
   const storagePayload = buildSiteSettingsStoragePayload(normalized);
@@ -6768,97 +6171,11 @@ const findProjectChapterByEpisodeNumber = (project, episodeNumber, volume) => {
   };
 };
 
-const clampWebhookInteger = (value, min, max, fallback) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
-  return Math.min(max, Math.max(min, Math.floor(parsed)));
-};
+const createWebhookAuditReqFromContext = (contextInput = {}) =>
+  createWebhookAuditReqFromContextBase(contextInput, crypto.randomUUID);
 
-const resolveEditorialAuthorFromPost = (postInput) => {
-  const post = postInput && typeof postInput === "object" ? postInput : null;
-  const authorName = String(post?.author || "").trim();
-  if (!authorName) {
-    return {
-      name: "",
-      avatarUrl: "",
-    };
-  }
-  const normalizedAuthorName = normalizeTypeLookupKey(authorName);
-  const user =
-    normalizeUsers(loadUsers()).find((item) => {
-      if (item?.status !== "active") {
-        return false;
-      }
-      return normalizeTypeLookupKey(item?.name || "") === normalizedAuthorName;
-    }) || null;
-  return {
-    name: authorName,
-    avatarUrl: String(user?.avatarUrl || "").trim(),
-  };
-};
-
-const createWebhookAuditReqFromContext = (contextInput = {}) => {
-  const context =
-    contextInput && typeof contextInput === "object" && !Array.isArray(contextInput)
-      ? contextInput
-      : {};
-  return {
-    headers: {},
-    ip: String(context.actorIp || "127.0.0.1"),
-    session: {
-      user: {
-        id: String(context.actorId || "system"),
-        name: String(context.actorName || "System"),
-      },
-    },
-    requestId: String(context.requestId || `webhook-${crypto.randomUUID()}`),
-  };
-};
-
-const resolveWebhookAuditActions = (scope) => {
-  if (scope === WEBHOOK_DELIVERY_SCOPE.OPS_ALERTS) {
-    return {
-      resource: "system",
-      queuedAction: "ops_alerts.webhook.queued",
-      sentAction: "ops_alerts.webhook.sent",
-      failedAction: "ops_alerts.webhook.failed",
-    };
-  }
-  if (scope === WEBHOOK_DELIVERY_SCOPE.SECURITY) {
-    return {
-      resource: "security",
-      queuedAction: "security.webhook.queued",
-      sentAction: "security.webhook.sent",
-      failedAction: "security.webhook.failed",
-    };
-  }
-  return {
-    resource: "integrations",
-    queuedAction: "editorial_webhook.queued",
-    sentAction: "editorial_webhook.sent",
-    failedAction: "editorial_webhook.failed",
-  };
-};
-
-const buildWebhookAuditMeta = (delivery, extra = {}) => {
-  const context =
-    delivery?.context && typeof delivery.context === "object" && !Array.isArray(delivery.context)
-      ? delivery.context
-      : {};
-  return {
-    deliveryId: delivery?.id || null,
-    scope: delivery?.scope || null,
-    channel: delivery?.channel || null,
-    eventKey: delivery?.eventKey || null,
-    eventLabel: context.eventLabel || null,
-    postId: context.postId || null,
-    projectId: context.projectId || null,
-    securityEventId: context.securityEventId || null,
-    ...extra,
-  };
-};
+const resolveWebhookAuditActions = (scope) =>
+  resolveWebhookAuditActionsBase(scope, WEBHOOK_DELIVERY_SCOPE);
 
 const enqueueWebhookDelivery = ({
   scope,
@@ -8950,6 +8267,12 @@ const normalizeUsers = (users) => {
   });
 };
 
+const resolveEditorialAuthorFromPost = createResolveEditorialAuthorFromPost({
+  loadUsers,
+  normalizeTypeLookupKey,
+  normalizeUsers,
+});
+
 const applyOwnerRole = (user) => {
   const isOwnerUser = isOwner(user.id);
   return {
@@ -10177,71 +9500,6 @@ const injectDashboardBootstrapHtml = ({ html, req, settings }) => {
   return nextHtml;
 };
 
-registerAdminRoutes({
-  ADMIN_EXPORT_DATASETS,
-  AUDIT_CSV_MAX_ROWS,
-  SecurityEventSeverity,
-  SecurityEventStatus,
-  WEBHOOK_DELIVERY_STATUS,
-  app,
-  appendAuditLog,
-  appendSecretRotation,
-  buildAnalyticsRange,
-  buildDashboardOverviewResponsePayload,
-  canManageComments,
-  canManageIntegrations,
-  canManageSecurityAdmin,
-  canManageSettings,
-  canViewAnalytics,
-  canViewAuditLog,
-  dataEncryptionKeyring,
-  deleteUserMfaTotpRecord,
-  emitSecurityEvent,
-  enqueueAdminExportJob,
-  evaluateOperationalMonitoring,
-  filterAnalyticsEvents,
-  filterByDateRange,
-  filterExportEntries,
-  getDayKeyFromTs,
-  incrementCounter,
-  isAuditActionEnabled,
-  isOwner,
-  isPrimaryOwner,
-  listActiveSessionsForUser,
-  loadAdminExportJobs,
-  loadAnalyticsEvents,
-  loadAuditLog,
-  loadComments,
-  loadPosts,
-  loadProjects,
-  loadSecretRotations,
-  loadSecurityEvents,
-  loadUserSessionIndexRecords,
-  loadUsers,
-  loadWebhookDeliveries,
-  metricsRegistry,
-  normalizeAnalyticsTypeFilter,
-  normalizeExportDataset,
-  normalizeExportFilters,
-  normalizeExportFormat,
-  normalizeExportStatus,
-  normalizePosts,
-  normalizeProjects,
-  normalizeUsers,
-  parseAnalyticsRangeDays,
-  parseAnalyticsTs,
-  parseAuditTs,
-  parseDashboardNotificationsLimit,
-  requireAuth,
-  revokeSessionBySid,
-  sessionCookieConfig,
-  toAdminExportJobApiResponse,
-  toDashboardNotificationId,
-  toSecurityEventApiResponse,
-  updateSecurityEventStatus,
-  upsertAdminExportJob,
-});
-
 registerAuthRoutes({
   app,
   appendAuditLog,
@@ -10275,143 +9533,135 @@ registerAuthRoutes({
   verifyTotpOrRecoveryCode,
 });
 
-registerUserRoutes({
-  AccessRole,
+registerServerRoutes(
+  createServerRouteContext({
+    ADMIN_EXPORT_DATASETS,
+    AccessRole,
+  ANILIST_API,
+  AUDIT_CSV_MAX_ROWS,
   BASIC_PROFILE_FIELDS,
   BOOTSTRAP_TOKEN,
+  MAX_SVG_SIZE_BYTES,
+  MAX_UPLOAD_SIZE_BYTES,
   PermissionId,
-  SecurityEventSeverity,
-  app,
-  appendAuditLog,
-  applyOwnerRole,
-  buildPublicMediaVariants,
-  buildPublicTeamMembers,
-  buildUserProfileRevisionToken,
-  can,
-  canBootstrap,
-  canManageUsersAccess,
-  canManageUsersBasic,
-  defaultPermissionsForRole,
-  emitSecurityEvent,
-  enforceUserAccessInvariants,
-  ensureNoEditConflict,
-  ensureOwnerUser,
-  getPrimaryOwnerId,
-  getUserAccessContextById,
-  isAdminUser,
-  isBasicProfileField,
-  isOwner,
-  isPrimaryOwner,
-  isRbacV2Enabled,
-  loadOwnerIds,
-  loadUploads,
-  loadUsers,
-  normalizeAccessRole,
-  normalizeAvatarDisplay,
-  normalizeUsers,
-  parseEditRevisionOptions,
-  pickBasicProfilePatch,
-  removeOwnerRoleLabel,
-  requireAuth,
-  requirePrimaryOwner,
-  resolveDiscordAvatarFallbackUrl,
-  sanitizeFavoriteWorksByCategory,
-  sanitizePermissionsForStorage,
-  sanitizeSocials,
-  shouldEmitSecurityRuleEvent,
-  syncAllowedUsers,
-  syncSessionUserDisplayProfile,
-  userWithAccessForResponse,
-  withEffectiveAvatarUrl,
-  withUserProfileRevision,
-  writeOwnerIds,
-  writeUsers,
-});
-
-registerContentRoutes({
   PRIMARY_APP_ORIGIN,
+  PUBLIC_ANALYTICS_EVENT_TYPE_SET,
+  PUBLIC_ANALYTICS_RESOURCE_TYPE_SET,
+  PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
+  PUBLIC_BOOTSTRAP_MODE_FULL,
   PUBLIC_READ_CACHE_TAGS,
   PUBLIC_READ_CACHE_TTL_MS,
+  PUBLIC_UPLOADS_DIR,
+  STATIC_DEFAULT_CACHE_CONTROL,
+  SecurityEventSeverity,
+  SecurityEventStatus,
+  WEBHOOK_DELIVERY_STATUS,
   app,
   appendAnalyticsEvent,
   appendAuditLog,
   appendPostVersion,
+  appendSecretRotation,
+  appendWebhookQueuedAuditLog,
   applyCommentCountToPosts,
   applyCommentCountToProjects,
+  applyEpisodePublicationMetadata,
+  applyOwnerRole,
   applyPostSnapshotForRollback,
+  applyProjectChapterUpdate,
+  attachUploadMediaMetadata,
+  buildAnalyticsRange,
+  buildDashboardOverviewResponsePayload,
   buildEditorialCalendarItems,
-  buildGravatarUrl,
+  buildInstitutionalOgDeliveryHeaders,
+  buildInstitutionalPageMeta,
+  buildLaunchesRssItems,
+  buildManagedStorageAreaSummary,
+  buildOperationalAlertsWebhookPayload,
+  buildOperationalWebhookTestTransition,
+  buildPostMeta,
+  buildPostsRssItems,
+  buildProjectImageExportDownloadPath,
+  buildProjectMeta,
+  buildProjectOgDeliveryHeaders,
+  buildProjectOgRevision,
+  buildProjectReadingMeta,
+  buildProjectReadingOgDeliveryHeaders,
+  buildPublicBootstrapResponsePayload,
   buildPublicMediaVariants,
+  buildPublicSearchSuggestions,
+  buildPublicSitemapEntries,
+  buildPublicTeamMembers,
+  buildRssXml,
+  buildSchemaOrgPayload,
+  buildSecurityWebhookPayload,
+  buildSecurityWebhookTestEvent,
+  buildSiteMetaWithSettings,
+  buildSitemapXml,
+  buildUserProfileRevisionToken,
   bulkModeratePendingComments,
+  can,
+  canBootstrap,
   canManageComments,
+  canManageIntegrations,
+  canManagePages,
   canManagePosts,
+  canManageProjects,
+  canManageSecurityAdmin,
   canManageSettings,
+  canManageUploads,
+  canManageUsersAccess,
+  canManageUsersBasic,
   canRegisterPollVote,
   canRegisterView,
   canSubmitComment,
+  canUploadImage,
+  canViewAnalytics,
+  canViewAuditLog,
+  cleanupProjectEpubImportTempUploads,
+  cleanupUploadStagingWorkspace,
+  collectDownloadIconUploads,
+  collectEpisodeUpdatesByVisibility,
   collectLinkTypeIconUploads,
+  computeBufferSha256,
   createGravatarHash,
+  buildGravatarUrl,
   createRevisionToken,
   createSlug,
   createUniqueSlug,
+  createUploadStagingWorkspace,
+  crypto,
+  dataEncryptionKeyring,
+  defaultPermissionsForRole,
+  deleteManagedUploadEntryAssets,
   deletePrivateUploadByUrl,
-  dispatchEditorialWebhookEvent,
-  ensureNoEditConflict,
-  incrementPostViews,
-  isWithinRestoreWindow,
-  listPostVersions,
-  loadComments,
-  loadLinkTypes,
-  loadPostVersions,
-  loadPosts,
-  loadProjects,
-  normalizeEmail,
-  normalizeLinkTypes,
-  normalizePosts,
-  normalizeProjects,
-  normalizeTags,
-  parseEditRevisionOptions,
-  postVersionReasonLabel,
-  readPublicCachedJson,
-  requireAuth,
-  resolveEpisodeLookup,
-  resolveGravatarAvatarUrl,
-  resolvePostCover,
-  resolvePostStatus,
-  runAutoUploadReorganization,
-  updateLexicalPollVotes,
-  writeComments,
-  writeLinkTypes,
-  writePosts,
-  writeProjects,
-  writePublicCachedJson,
-});
-registerProjectRoutes({
-  PRIMARY_APP_ORIGIN,
-  PUBLIC_UPLOADS_DIR,
-  app,
-  appendAuditLog,
-  applyEpisodePublicationMetadata,
-  applyProjectChapterUpdate,
-  buildProjectImageExportDownloadPath,
-  canManageIntegrations,
-  canManageProjects,
-  cleanupProjectEpubImportTempUploads,
-  collectEpisodeUpdatesByVisibility,
-  createRevisionToken,
+  deleteUserMfaTotpRecord,
   deriveAniListMediaOrganization,
+  deriveChapterSynopsis,
   dispatchEditorialWebhookEvent,
+  dispatchWebhookMessage,
+  emitSecurityEvent,
+  enforceUserAccessInvariants,
+  enqueueAdminExportJob,
   enqueueEpubImportJob,
   enqueueProjectImageExportJob,
   enqueueProjectImageImportJob,
   enqueueProjectOgPrewarm,
+  ensureEditorialWebhookSettingsNoConflict,
   ensureNoEditConflict,
+  ensureOwnerUser,
+  ensureUploadEntryHasRequiredVariants,
+  evaluateOperationalMonitoring,
   expireEpubImportJob,
   expireProjectImageExportJob,
   expireProjectImageImportJob,
   exportProjectEpub,
   exportProjectImageChapter,
+  extractFirstImageFromPostContent,
+  extractRequestedUploadFocalPayload,
   fetchAniListMediaById,
+  filterAnalyticsEvents,
+  filterByDateRange,
+  filterExportEntries,
   findDuplicateEpisodeKey,
   findDuplicateVolumeCover,
   findEpubImportJobForUser,
@@ -10419,386 +9669,235 @@ registerProjectRoutes({
   findProjectImageExportJobForUser,
   findProjectImageImportJobForUser,
   findPublishedImageEpisodeWithoutPages,
+  findUploadByHash,
+  findWebhookDelivery,
   getActiveProjectTypes,
+  getDayKeyFromTs,
+  getIndexHtml,
+  getInstitutionalOgCachedRender,
+  getPageTitleFromPath,
+  getPostOgCachedRender,
+  getPrimaryOwnerId,
+  getProjectEpisodePageCount,
+  getProjectOgCachedRender,
+  getProjectReadingOgCachedRender,
+  getPublicReadableProjects,
+  getPublicVisibleProjects,
+  getPublicVisibleUpdates,
+  getUploadExtFromMime,
+  getUploadFolderFromUrlValue,
+  getUploadMimeFromExtension,
+  getUploadVariantUrlPrefix,
   getUsedUploadUrls,
+  getUserAccessContextById,
+  hasOwnField,
+  hasProjectEpisodePages,
   importProjectEpub,
   importRemoteImageFile,
+  incrementCounter,
+  incrementPostViews,
+  incrementProjectViews,
+  injectDashboardBootstrapHtml,
+  injectPublicBootstrapHtml,
+  invalidateUploadsCleanupPreviewCache,
+  isAdminUser,
+  isAllowedOrigin,
+  isAuditActionEnabled,
+  isBasicProfileField,
+  isChapterBasedType,
   isEpubImportJobStorageAvailable,
+  isHomeHeroShellEnabled,
+  isOwner,
+  isPrimaryOwner,
+  isPrivateUploadFolder,
   isProjectImageExportJobStorageAvailable,
   isProjectImageImportJobStorageAvailable,
+  isRbacV2Enabled,
+  isTotpEnabledForUser,
+  isUploadFolderAllowedInScope,
   isWithinRestoreWindow,
-  localizeProjectImageFields,
+  listActiveSessionsForUser,
+  listPostVersions,
+  loadAdminExportJobs,
+  loadAllowedUsers,
+  loadAnalyticsEvents,
+  loadAuditLog,
+  loadCachedUploadsCleanupPreview,
+  loadComments,
+  loadIntegrationSettings,
+  loadIntegrationSettingsSources,
+  loadLinkTypes,
+  loadOwnerIds,
+  loadPages,
+  loadPostVersions,
+  loadPosts,
   loadProjects,
+  loadSecretRotations,
+  loadSecurityEvents,
   loadSiteSettings,
+  loadTagTranslations,
   loadUpdates,
   loadUploads,
+  loadUserSessionIndexRecords,
+  loadUsers,
+  loadWebhookDeliveries,
+  localizeProjectImageFields,
+  logProjectOgDelivery,
   mapEpubImportExecutionError,
   mapProjectImageImportExecutionError,
+  materializeUploadEntrySourceToStaging,
+  metricsRegistry,
+  migrateEditorialMentionPlaceholdersInSettings,
+  normalizeAccessRole,
+  normalizeAnalyticsTypeFilter,
+  normalizeAvatarDisplay,
+  normalizeEditorialWebhookSettings,
+  normalizeEmail,
+  normalizeExportDataset,
+  normalizeExportFilters,
+  normalizeExportFormat,
+  normalizeExportStatus,
+  normalizeLinkTypes,
+  normalizePosts,
+  normalizeProjectEpisodeContentFormat,
+  normalizeProjectEpisodePages,
   normalizeProjectSnapshotForEpubImport,
   normalizeProjects,
+  normalizeSearchQuery,
+  normalizeSiteSettings,
+  normalizeTags,
+  normalizeUnifiedWebhookSettingsForRequest,
+  normalizeUploadMime,
+  normalizeUploadScopeUserId,
+  normalizeUsers,
+  normalizeVariants,
+  ogRenderCache,
+  parseAnalyticsRangeDays,
+  parseAnalyticsTs,
+  parseAuditTs,
+  parseDashboardNotificationsLimit,
   parseEditRevisionOptions,
   parseEpubImportRequestBody,
   parseProjectImageImportRequestBody,
+  parseSearchLimit,
+  parseSearchScope,
+  persistUploadEntryFromStaging,
+  pickBasicProfilePatch,
+  postVersionReasonLabel,
+  prepareEditorialWebhookDispatch,
   previewProjectImageImport,
+  publicSearchConfig,
   readEpubImportJobResult,
   readProjectImageImportJobResult,
-  requireAuth,
-  resolveEpisodeLookup,
-  resolveEpubImportRequestInput,
-  resolveProjectImageImportRequestInput,
-  resolveProjectWebhookEventKey,
-  runAutoUploadReorganization,
-  toEpubImportJobApiResponse,
-  toProjectImageExportJobApiResponse,
-  toProjectImageImportJobApiResponse,
-  upsertEpubImportJob,
-  upsertProjectImageExportJob,
-  upsertProjectImageImportJob,
-  upsertUploadEntries,
-  writeProjects,
-  writeUpdates,
-  writeUploads,
-});
-registerUploadRoutes({
-  MAX_SVG_SIZE_BYTES,
-  MAX_UPLOAD_SIZE_BYTES,
-  PRIMARY_APP_ORIGIN,
-  PUBLIC_UPLOADS_DIR,
-  STATIC_DEFAULT_CACHE_CONTROL,
-  app,
-  attachUploadMediaMetadata,
-  appendAuditLog,
-  buildManagedStorageAreaSummary,
-  canManageUploads,
-  canUploadImage,
-  cleanupUploadStagingWorkspace,
-  computeBufferSha256,
-  createSlug,
-  createUploadStagingWorkspace,
-  deleteManagedUploadEntryAssets,
-  ensureUploadEntryHasRequiredVariants,
-  extractRequestedUploadFocalPayload,
-  findUploadByHash,
-  getUploadFolderFromUrlValue,
-  getUploadExtFromMime,
-  getUploadMimeFromExtension,
-  getUploadVariantUrlPrefix,
-  hasOwnField,
-  importRemoteImageFile,
-  invalidateUploadsCleanupPreviewCache,
-  isChapterBasedType,
-  isPrivateUploadFolder,
-  isUploadFolderAllowedInScope,
-  loadCachedUploadsCleanupPreview,
-  loadComments,
-  loadLinkTypes,
-  loadPages,
-  loadPosts,
-  loadProjects,
-  loadSiteSettings,
-  loadUpdates,
-  loadUploads,
-  loadUsers,
-  materializeUploadEntrySourceToStaging,
-  normalizeProjects,
-  normalizeUploadMime,
-  normalizeUploadScopeUserId,
-  normalizeVariants,
-  persistUploadEntryFromStaging,
+  readPublicCachedJson,
   readUploadAltText,
   readUploadFocalState,
   readUploadSlot,
   readUploadSlotManaged,
   readUploadStorageProvider,
+  removeOwnerRoleLabel,
+  renderMetaHtml,
   requireAuth,
+  requirePrimaryOwner,
+  resolveEditorialAuthorFromPost,
+  resolveEditorialEventChannel,
+  resolveEpisodeLookup,
+  resolveEpubImportRequestInput,
+  resolveGravatarAvatarUrl,
   resolveIncomingUploadFocalState,
+  resolveInstitutionalOgPageKeyFromPath,
+  resolveInstitutionalOgPageTitle,
+  resolveMetaImageVariantUrl,
+  resolvePostCover,
+  resolvePostStatus,
+  resolveProjectImageImportRequestInput,
+  resolveProjectReaderConfig,
+  resolveProjectUpdateUnitLabel,
+  resolveProjectWebhookEventKey,
   resolveRequestUploadAccessScope,
+  resolvePublicRedirect,
+  resolveThemeColor,
   resolveUploadAbsolutePath,
   resolveUploadVariantPresetKeysForArea,
+  resolveDiscordAvatarFallbackUrl,
+  revokeSessionBySid,
+  runAutoUploadReorganization,
   runUploadsCleanup,
+  runWebhookDeliveryWorkerTick,
+  sanitizeFavoriteWorksByCategory,
+  sanitizePermissionsForStorage,
+  sanitizeSocials,
   sanitizeSvg,
   sanitizeUploadBaseName,
   sanitizeUploadFolder,
   sanitizeUploadSlot,
+  sendHtml,
+  sendXmlResponse,
+  sessionCookieConfig,
+  shouldEmitSecurityRuleEvent,
   shouldIncludeUploadInHashDedupe,
-  upsertUploadEntries,
-  uploadStorageService,
-  validateUploadImageBuffer,
-  writeComments,
-  writeLinkTypes,
-  writePages,
-  writePosts,
-  writeProjects,
-  writeSiteSettings,
-  writeUploadBufferToStaging,
-  writeUpdates,
-  writeUploads,
-  writeUsers,
-});
-registerSiteConfigRoutes({
-  app,
-  ANILIST_API,
-  appendAuditLog,
-  buildPublicMediaVariants,
-  canManageIntegrations,
-  canManagePages,
-  canManageSettings,
-  collectDownloadIconUploads,
-  createRevisionToken,
-  deletePrivateUploadByUrl,
-  enqueueProjectOgPrewarm,
-  ensureNoEditConflict,
-  loadPages,
-  loadSiteSettings,
-  loadTagTranslations,
-  normalizeSiteSettings,
-  parseEditRevisionOptions,
-  requireAuth,
-  writePages,
-  writeSiteSettings,
-  writeTagTranslations,
-});
-registerIntegrationRoutes({
-  app,
-  crypto,
-  WEBHOOK_DELIVERY_STATUS,
-  appendAuditLog,
-  appendWebhookQueuedAuditLog,
-  buildOperationalAlertsWebhookPayload,
-  buildOperationalWebhookTestTransition,
-  buildSecurityWebhookPayload,
-  buildSecurityWebhookTestEvent,
-  canManageIntegrations,
-  createRevisionToken,
-  deriveChapterSynopsis,
-  dispatchWebhookMessage,
-  ensureEditorialWebhookSettingsNoConflict,
-  ensureWebhookSettingsNoConflict,
-  findWebhookDelivery,
-  getActiveProjectTypes,
-  loadIntegrationSettings,
-  loadIntegrationSettingsSources,
-  loadPosts,
-  loadProjects,
-  loadWebhookDeliveries,
-  normalizeEditorialWebhookSettings,
-  normalizePosts,
-  normalizeProjects,
-  normalizeUnifiedWebhookSettingsForRequest,
-  parseEditRevisionOptions,
-  prepareEditorialWebhookDispatch,
-  requireAuth,
-  resolveEditorialEventChannel,
-  resolveProjectUpdateUnitLabel,
-  runWebhookDeliveryWorkerTick,
   summarizeWebhookDeliveries,
+  syncAllowedUsers,
+  syncPersistedDiscordAvatarForLogin,
+  syncSessionUserDisplayProfile,
   toAbsoluteUrl,
+  toAdminExportJobApiResponse,
+  toDashboardNotificationId,
+  toEpubImportJobApiResponse,
+  toProjectImageExportJobApiResponse,
+  toProjectImageImportJobApiResponse,
+  toSecurityEventApiResponse,
   toWebhookDeliveryApiResponse,
+  updateLexicalPollVotes,
+  updateSecurityEventStatus,
+  upsertAdminExportJob,
+  upsertEpubImportJob,
+  upsertProjectImageExportJob,
+  upsertProjectImageImportJob,
+  upsertUploadEntries,
   upsertWebhookDelivery,
+  uploadStorageService,
+  userWithAccessForResponse,
   validateEditorialWebhookChannelUrls,
   validateEditorialWebhookSettingsPlaceholders,
   validateUnifiedWebhookSettingsUrls,
+  validateUploadImageBuffer,
+  withEffectiveAvatarUrl,
+  withUserProfileRevision,
+  writeComments,
   writeIntegrationSettings,
-  migrateEditorialMentionPlaceholdersInSettings,
-});
-registerPublicRoutes({
-  app,
-  PRIMARY_APP_ORIGIN,
-  PUBLIC_BOOTSTRAP_MODE_FULL,
-  PUBLIC_READ_CACHE_TAGS,
-  PUBLIC_READ_CACHE_TTL_MS,
-  PUBLIC_ANALYTICS_EVENT_TYPE_SET,
-  PUBLIC_ANALYTICS_RESOURCE_TYPE_SET,
-  appendAnalyticsEvent,
-  buildLaunchesRssItems,
-  buildPostsRssItems,
-  buildProjectOgRevision,
-  buildPublicBootstrapResponsePayload,
-  buildPublicMediaVariants,
-  buildPublicSearchSuggestions,
-  buildPublicSitemapEntries,
-  buildRssXml,
-  canRegisterPollVote,
-  canRegisterView,
-  deriveChapterSynopsis,
-  getProjectEpisodePageCount,
-  getPublicReadableProjects,
-  getPublicVisibleProjects,
-  getPublicVisibleUpdates,
-  hasProjectEpisodePages,
-  incrementProjectViews,
-  loadPosts,
-  loadProjects,
-  loadSiteSettings,
-  loadTagTranslations,
-  normalizeProjectEpisodeContentFormat,
-  normalizeProjectEpisodePages,
-  normalizePosts,
-  normalizeProjects,
-  normalizeSearchQuery,
-  parseSearchLimit,
-  parseSearchScope,
-  publicSearchConfig,
-  readPublicCachedJson,
-  resolveEpisodeLookup,
-  resolveMetaImageVariantUrl,
-  resolvePostCover,
-  resolveProjectReaderConfig,
-  sendXmlResponse,
-  updateLexicalPollVotes,
+  writeLinkTypes,
+  writeOwnerIds,
+  writePages,
+  writePosts,
   writeProjects,
   writePublicCachedJson,
-  buildSitemapXml,
-});
-registerOgRoutes({
-  app,
-  PRIMARY_APP_ORIGIN,
-  resolveInstitutionalOgPageTitle,
-  loadSiteSettings,
-  loadPages,
-  loadTagTranslations,
-  getPublicVisibleProjects,
-  ogRenderCache,
-  resolveMetaImageVariantUrl,
-  getInstitutionalOgCachedRender,
-  buildInstitutionalOgDeliveryHeaders,
-  getProjectReadingOgCachedRender,
-  buildProjectReadingOgDeliveryHeaders,
-  getProjectOgCachedRender,
-  buildProjectOgDeliveryHeaders,
-  logProjectOgDelivery,
-  normalizePosts,
-  loadPosts,
-  resolvePostCover,
-  extractFirstImageFromPostContent,
-  resolveEditorialAuthorFromPost,
-  getPostOgCachedRender,
-});
-
-registerSiteRoutes({
-  app,
-  PRIMARY_APP_ORIGIN,
-  loadSiteSettings,
-  loadTagTranslations,
-  loadPages,
-  resolvePublicRedirect,
-  buildPostMeta,
-  buildSiteMetaWithSettings,
-  buildProjectReadingMeta,
-  buildProjectMeta,
-  buildSchemaOrgPayload,
-  resolveThemeColor,
-  injectPublicBootstrapHtml,
-  renderMetaHtml,
-  sendHtml,
-  getIndexHtml,
-  normalizePosts,
-  loadPosts,
-  normalizeProjects,
-  loadProjects,
-  PUBLIC_BOOTSTRAP_MODE_FULL,
-  PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
-  isHomeHeroShellEnabled,
-});
-
-registerAppRoutes({
-  app,
-  PRIMARY_APP_ORIGIN,
-  loadSiteSettings,
-  loadPages,
-  resolveInstitutionalOgPageKeyFromPath,
-  buildInstitutionalPageMeta,
-  buildSiteMetaWithSettings,
-  resolveThemeColor,
-  getPageTitleFromPath,
-  buildSchemaOrgPayload,
-  renderMetaHtml,
-  injectPublicBootstrapHtml,
-  injectDashboardBootstrapHtml,
-  sendHtml,
-  getIndexHtml,
-  PUBLIC_BOOTSTRAP_MODE_FULL,
-  PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
-  isHomeHeroShellEnabled,
-});
-
-const runStartupMaintenance = async () => {
-  try {
-    runStartupSecuritySanitization();
-  } catch {
-    // ignore startup sanitization failures on boot
-  }
-
-  try {
-    await enqueueAnalyticsCompactionJob({ trigger: "startup" });
-  } catch {
-    // ignore analytics compaction failures on boot
-  }
-
-  if (isAutoUploadReorganizationOnStartupEnabled) {
-    try {
-      await runAutoUploadReorganization({ trigger: "startup" });
-    } catch {
-      // ignore auto-reorganization failures on boot
-    }
-  }
-};
+  writeSiteSettings,
+  writeTagTranslations,
+  writeUpdates,
+  writeUploadBufferToStaging,
+  writeUploads,
+    writeUsers,
+  }),
+);
 
 const listenPort = Number(PORT);
-httpServer.listen(listenPort, () => {
-  console.log(
-    `[server] listening on :${listenPort} (data_source=db, maintenance=${isMaintenanceMode})`,
-  );
-  setImmediate(() => {
-    void runStartupMaintenance();
-  });
-  analyticsCompactionState.timer = setInterval(() => {
-    void enqueueAnalyticsCompactionJob({ trigger: "interval" }).catch(() => undefined);
-  }, ANALYTICS_COMPACTION_INTERVAL_MS);
-  analyticsCompactionState.timer.unref?.();
-  webhookDeliveryWorkerState.timer = setInterval(() => {
-    void runWebhookDeliveryWorkerTick();
-  }, WEBHOOK_WORKER_POLL_INTERVAL_MS);
-  webhookDeliveryWorkerState.timer.unref?.();
-  setImmediate(() => {
-    void runWebhookDeliveryWorkerTick();
-  });
-  operationalAlertsWebhookState.timer = setInterval(() => {
-    void runOperationalAlertsSchedulerTick();
-  }, OPERATIONAL_ALERTS_SCHEDULER_POLL_MS);
-  operationalAlertsWebhookState.timer.unref?.();
-  setImmediate(() => {
-    void runOperationalAlertsSchedulerTick();
-  });
-});
-
-httpServer.on("error", (error) => {
-  if (error?.code === "EADDRINUSE") {
-    console.error(
-      `[server] Port ${listenPort} is already in use. Stop the existing process or run "npm run dev" to perform automatic cleanup.`,
-    );
-    process.exit(1);
-    return;
-  }
-  console.error(
-    `[server] Failed to start HTTP server on :${listenPort}. ${String(error?.message || "Unknown error")}`,
-  );
-  process.exit(1);
-});
-
-httpServer.on("close", () => {
-  if (analyticsCompactionState.timer) {
-    clearInterval(analyticsCompactionState.timer);
-    analyticsCompactionState.timer = null;
-  }
-  if (webhookDeliveryWorkerState.timer) {
-    clearInterval(webhookDeliveryWorkerState.timer);
-    webhookDeliveryWorkerState.timer = null;
-  }
-  if (operationalAlertsWebhookState.timer) {
-    clearInterval(operationalAlertsWebhookState.timer);
-    operationalAlertsWebhookState.timer = null;
-  }
-  void rateLimiter.close();
+startServerJobs({
+  ANALYTICS_COMPACTION_INTERVAL_MS,
+  OPERATIONAL_ALERTS_SCHEDULER_POLL_MS,
+  WEBHOOK_WORKER_POLL_INTERVAL_MS,
+  analyticsCompactionState,
+  enqueueAnalyticsCompactionJob,
+  httpServer,
+  isAutoUploadReorganizationOnStartupEnabled,
+  isMaintenanceMode,
+  listenPort,
+  operationalAlertsWebhookState,
+  rateLimiter,
+  runAutoUploadReorganization,
+  runOperationalAlertsSchedulerTick,
+  runStartupSecuritySanitization,
+  runWebhookDeliveryWorkerTick,
+  webhookDeliveryWorkerState,
 });
 

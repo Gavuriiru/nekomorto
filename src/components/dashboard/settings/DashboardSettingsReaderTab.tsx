@@ -129,19 +129,19 @@ export const DashboardSettingsReaderTab = () => {
   } = useDashboardSettingsContext();
 
   return (
-    <TabsContent value="leitor" className="mt-6 space-y-6">
-                          {readerProjectTypeMeta.map((presetMeta) => {
-                            const preset = readerPresets[presetMeta.key];
-                            return (
-                              <DashboardReaderPresetCard
-                                key={presetMeta.key}
-                                cardClassName={dashboardSettingsCardClassName}
-                                preset={preset}
-                                presetMeta={presetMeta}
-                                onUpdate={updateReaderPreset}
-                              />
-                            );
-                            /*
+    <TabsContent forceMount value="leitor" className="mt-6 space-y-6 data-[state=inactive]:hidden">
+      {readerProjectTypeMeta.map((presetMeta) => {
+        const preset = readerPresets[presetMeta.key];
+        return (
+          <DashboardReaderPresetCard
+            key={presetMeta.key}
+            cardClassName={dashboardSettingsCardClassName}
+            preset={preset}
+            presetMeta={presetMeta}
+            onUpdate={updateReaderPreset}
+          />
+        );
+        /*
                             return (
                               <Card
                                 key={presetMeta.key}
@@ -352,8 +352,8 @@ export const DashboardSettingsReaderTab = () => {
                               </Card>
                             );
                             */
-                          })}
-                        </TabsContent>
+      })}
+    </TabsContent>
   );
 };
 

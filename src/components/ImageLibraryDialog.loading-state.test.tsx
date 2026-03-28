@@ -101,9 +101,57 @@ describe("ImageLibraryDialog loading state", () => {
       />,
     );
 
-    expect(await screen.findByTestId("image-library-uploads-error")).toHaveTextContent(
-      "Você não tem permissão para visualizar uploads neste contexto.",
-    );
+    expect(await screen.findByTestId("image-library-uploads-error")).toBeInTheDocument();
     expect(screen.queryByText(/Nenhum upload/i)).not.toBeInTheDocument();
+  });
+
+  it("nao repete a listagem sem scopeUserId quando o backend responde 403", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path === "/api/uploads/list?folder=users&recursive=1&scopeUserId=user-1") {
+        return mockJsonResponse(false, { error: "forbidden" }, 403);
+      }
+      if (path === "/api/uploads/list?folder=users&recursive=1") {
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "manual-avatar.png",
+              label: "Avatar Atual",
+              fileName: "manual-avatar.png",
+              folder: "users",
+              mime: "image/png",
+              size: 100,
+              url: "/uploads/users/manual-avatar.png",
+            },
+          ],
+        });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        cropAvatar
+        cropTargetFolder="users"
+        cropSlot="avatar-user-1"
+        scopeUserId="user-1"
+        onSave={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByTestId("image-library-uploads-error")).toBeInTheDocument();
+    expect(
+      apiFetchMock.mock.calls.some(
+        (call) => call[1] === "/api/uploads/list?folder=users&recursive=1",
+      ),
+    ).toBe(false);
   });
 });

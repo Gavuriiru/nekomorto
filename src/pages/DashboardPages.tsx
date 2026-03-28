@@ -1,21 +1,26 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FocusEvent,
+} from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
+import DashboardLightSelect, {
+  type DashboardLightSelectOption,
+} from "@/components/dashboard/DashboardLightSelect";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import {
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardShell from "@/components/DashboardShell";
-import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import ReorderControls from "@/components/ReorderControls";
+import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
 import {
   dashboardAnimationDelay,
   dashboardMotionDelays,
@@ -74,8 +79,6 @@ import { usePixQrCode } from "@/hooks/use-pix-qr-code";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { getShareImageAltFallback, resolveAssetAltText } from "@/lib/image-alt";
 import { normalizeAssetUrl } from "@/lib/asset-url";
-
-const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
 type AboutHighlight = { label: string; text: string; icon: string };
 type AboutValue = { title: string; description: string; icon: string };
@@ -277,7 +280,8 @@ type DashboardPagesCacheEntry = {
 
 let dashboardPagesCache: DashboardPagesCacheEntry | null = null;
 
-const clonePagesConfig = (value: PagesConfig) => JSON.parse(JSON.stringify(value)) as PagesConfig;
+const clonePagesConfig = (value: PagesConfig) =>
+  JSON.parse(JSON.stringify(value)) as PagesConfig;
 
 const readDashboardPagesCache = () => {
   if (!dashboardPagesCache) {
@@ -297,7 +301,9 @@ const writeDashboardPagesCache = (value: PagesConfig) => {
   };
 };
 
-const mergePagesConfig = (value: Partial<PagesConfig> | null | undefined): PagesConfig => {
+const mergePagesConfig = (
+  value: Partial<PagesConfig> | null | undefined,
+): PagesConfig => {
   const incoming = value || {};
   return {
     ...defaultPages,
@@ -308,7 +314,10 @@ const mergePagesConfig = (value: Partial<PagesConfig> | null | undefined): Pages
     donations: { ...defaultPages.donations, ...(incoming.donations || {}) },
     faq: { ...defaultPages.faq, ...(incoming.faq || {}) },
     team: { ...defaultPages.team, ...(incoming.team || {}) },
-    recruitment: { ...defaultPages.recruitment, ...(incoming.recruitment || {}) },
+    recruitment: {
+      ...defaultPages.recruitment,
+      ...(incoming.recruitment || {}),
+    },
   };
 };
 
@@ -356,7 +365,9 @@ const normalizePageShareImage = <T extends PageWithShareImage>(
   return {
     ...page,
     shareImage,
-    shareImageAlt: shareImage ? shareImageAlt || getShareImageAltFallback(pageKey) : "",
+    shareImageAlt: shareImage
+      ? shareImageAlt || getShareImageAltFallback(pageKey)
+      : "",
   };
 };
 
@@ -377,7 +388,33 @@ const DASHBOARD_PAGES_TAB_SET = new Set<DashboardPagesTabKey>(
 );
 const isDashboardPagesTab = (value: string): value is DashboardPagesTabKey =>
   DASHBOARD_PAGES_TAB_SET.has(value as DashboardPagesTabKey);
-const parseDashboardPagesTabParam = (value: string | null): DashboardPagesTabKey => {
+const buildDashboardPagesTabSearchParams = (
+  currentParams: URLSearchParams,
+  tab: DashboardPagesTabKey,
+) => {
+  const nextParams = new URLSearchParams(currentParams);
+  if (tab === DASHBOARD_PAGES_DEFAULT_TAB) {
+    nextParams.delete("tab");
+  } else {
+    nextParams.set("tab", tab);
+  }
+  return nextParams;
+};
+
+const buildDashboardPagesTabUrl = (
+  pathname: string,
+  hash: string,
+  currentParams: URLSearchParams,
+  tab: DashboardPagesTabKey,
+) => {
+  const nextParams = buildDashboardPagesTabSearchParams(currentParams, tab);
+  const nextSearch = nextParams.toString();
+  return `${pathname}${nextSearch ? `?${nextSearch}` : ""}${hash}`;
+};
+
+const parseDashboardPagesTabParam = (
+  value: string | null,
+): DashboardPagesTabKey => {
   const normalized = String(value || "").trim();
   if (normalized === "preview-paginas") {
     return "preview";
@@ -396,69 +433,90 @@ const reorder = <T,>(items: T[], from: number, to: number) => {
 };
 
 const dashboardPagesCardClassName = dashboardPageLayoutTokens.surfaceSolid;
-const dashboardPagesInsetSurfaceClassName = dashboardPageLayoutTokens.groupedFieldSurface;
-const dashboardPagesControlSurfaceClassName = dashboardPageLayoutTokens.controlSurface;
+const dashboardPagesInsetSurfaceClassName =
+  dashboardPageLayoutTokens.groupedFieldSurface;
+const dashboardPagesControlSurfaceClassName =
+  dashboardPageLayoutTokens.controlSurface;
 const dashboardPagesMetaTextClassName = dashboardPageLayoutTokens.cardMetaText;
 
-const IconSelect = ({ value, onChange }: { value: string; onChange: (next: string) => void }) => {
-  const CurrentIcon = editorIconMap[value] || Sparkles;
+type DashboardPagesContentProps = {
+  currentUser: ReturnType<typeof useDashboardCurrentUser>["currentUser"];
+};
+
+const dashboardPageIconOptions: DashboardLightSelectOption[] = iconOptions.map(
+  (icon) => ({
+    value: icon,
+    label: icon,
+    icon: editorIconMap[icon] || Sparkles,
+  }),
+);
+
+const IconSelect = ({
+  value,
+  onChange,
+  ariaLabel = "Selecionar ícone",
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  ariaLabel?: string;
+}) => {
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-9 border-border/70 bg-background">
-        <SelectValue>
-          <span className="inline-flex items-center gap-2 text-sm">
-            <CurrentIcon className="h-4 w-4 text-primary" />
-            {value}
-          </span>
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        {iconOptions.map((icon) => {
-          const Icon = editorIconMap[icon] || Sparkles;
-          return (
-            <SelectItem key={icon} value={icon}>
-              <span className="inline-flex items-center gap-2">
-                <Icon className="h-4 w-4 text-primary" />
-                {icon}
-              </span>
-            </SelectItem>
-          );
-        })}
-      </SelectContent>
-    </Select>
+    <DashboardLightSelect
+      ariaLabel={ariaLabel}
+      value={value}
+      options={dashboardPageIconOptions}
+      onValueChange={onChange}
+      className="h-9 border-border/70 bg-background"
+    />
   );
 };
 
-const DashboardPages = () => {
-  usePageMeta({ title: "Páginas", noIndex: true });
+const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
   const apiBase = getApiBase();
   const { settings } = useSiteSettings();
+  const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const initialAutosaveEnabledRef = useRef(
     autosaveRuntimeConfig.enabledByDefault &&
       readAutosavePreference(autosaveStorageKeys.pages, true),
   );
   const initialCacheRef = useRef(readDashboardPagesCache());
-  const [pages, setPages] = useState<PagesConfig>(initialCacheRef.current ?? defaultPages);
-  const [isInitialLoading, setIsInitialLoading] = useState(!initialCacheRef.current);
-  const [isRefreshing, setIsRefreshing] = useState(Boolean(initialCacheRef.current));
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(Boolean(initialCacheRef.current));
-  const [hasResolvedPages, setHasResolvedPages] = useState(Boolean(initialCacheRef.current));
+  const [pages, setPages] = useState<PagesConfig>(
+    initialCacheRef.current ?? defaultPages,
+  );
+  const [isInitialLoading, setIsInitialLoading] = useState(
+    !initialCacheRef.current,
+  );
+  const [isRefreshing, setIsRefreshing] = useState(
+    Boolean(initialCacheRef.current),
+  );
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(
+    Boolean(initialCacheRef.current),
+  );
+  const [hasResolvedPages, setHasResolvedPages] = useState(
+    Boolean(initialCacheRef.current),
+  );
   const [hasLoadError, setHasLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
   const [activeTab, setActiveTab] = useState<DashboardPagesTabKey>(() =>
     parseDashboardPagesTabParam(searchParams.get("tab")),
   );
-  const [dragState, setDragState] = useState<{ list: string; index: number } | null>(null);
-  const { currentUser, isLoadingUser } = useDashboardCurrentUser();
+  const [dragState, setDragState] = useState<{
+    list: string;
+    index: number;
+  } | null>(null);
   const [isPreviewLibraryOpen, setIsPreviewLibraryOpen] = useState(false);
-  const [previewLibraryTarget, setPreviewLibraryTarget] = useState<ShareImagePageKey>("home");
+  const [previewLibraryTarget, setPreviewLibraryTarget] =
+    useState<ShareImagePageKey>("home");
   const requestIdRef = useRef(0);
   const hasLoadedOnceRef = useRef(hasLoadedOnce);
+  const tabUrlSyncTimeoutRef = useRef<number | null>(null);
 
   const merchantName =
-    String(settings.site.name || settings.footer.brandName || "NEKOMATA").trim() || "NEKOMATA";
+    String(
+      settings.site.name || settings.footer.brandName || "NEKOMATA",
+    ).trim() || "NEKOMATA";
   const previewLibraryFolders = useMemo(
     () =>
       filterImageLibraryFoldersByAccess(["shared", "posts", "projects"], {
@@ -474,22 +532,56 @@ const DashboardPages = () => {
     merchantName,
   });
 
-  useEffect(() => {
-    const nextTab = parseDashboardPagesTabParam(searchParams.get("tab"));
-    setActiveTab((previous) => (previous === nextTab ? previous : nextTab));
-  }, [searchParams]);
+  const clearPendingTabUrlSync = useCallback(() => {
+    if (tabUrlSyncTimeoutRef.current === null) {
+      return;
+    }
+    window.clearTimeout(tabUrlSyncTimeoutRef.current);
+    tabUrlSyncTimeoutRef.current = null;
+  }, []);
 
   useEffect(() => {
-    const nextParams = new URLSearchParams(searchParams);
-    if (activeTab === DASHBOARD_PAGES_DEFAULT_TAB) {
-      nextParams.delete("tab");
-    } else {
-      nextParams.set("tab", activeTab);
+    clearPendingTabUrlSync();
+    const nextTab = parseDashboardPagesTabParam(searchParams.get("tab"));
+    setActiveTab((previous) => (previous === nextTab ? previous : nextTab));
+    const nextUrl = buildDashboardPagesTabUrl(
+      location.pathname,
+      location.hash,
+      searchParams,
+      nextTab,
+    );
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (nextUrl !== currentUrl) {
+      window.history.replaceState(window.history.state, "", nextUrl);
     }
-    if (nextParams.toString() !== searchParams.toString()) {
-      setSearchParams(nextParams, { replace: true });
-    }
-  }, [activeTab, searchParams, setSearchParams]);
+  }, [clearPendingTabUrlSync, location.hash, location.pathname, searchParams]);
+
+  const setDashboardPagesTab = useCallback(
+    (value: string) => {
+      if (!isDashboardPagesTab(value)) {
+        return;
+      }
+      setActiveTab((previous) => (previous === value ? previous : value));
+      clearPendingTabUrlSync();
+      const nextUrl = buildDashboardPagesTabUrl(
+        location.pathname,
+        location.hash,
+        new URLSearchParams(window.location.search),
+        value,
+      );
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (nextUrl === currentUrl) {
+        return;
+      }
+      tabUrlSyncTimeoutRef.current = window.setTimeout(() => {
+        window.history.replaceState(window.history.state, "", nextUrl);
+        tabUrlSyncTimeoutRef.current = null;
+      }, 0);
+    },
+    [clearPendingTabUrlSync, location.hash, location.pathname],
+  );
+
+  useEffect(() => clearPendingTabUrlSync, [clearPendingTabUrlSync]);
 
   useEffect(() => {
     hasLoadedOnceRef.current = hasLoadedOnce;
@@ -517,7 +609,9 @@ const DashboardPages = () => {
           return;
         }
         const data = await response.json();
-        const nextPages = normalizePagesShareImages(mergePagesConfig(data.pages));
+        const nextPages = normalizePagesShareImages(
+          mergePagesConfig(data.pages),
+        );
         setPages(nextPages);
         setHasLoadedOnce(true);
         setHasResolvedPages(true);
@@ -554,7 +648,10 @@ const DashboardPages = () => {
       }
       const data = await response.json().catch(() => null);
       const normalizedPages = normalizePagesShareImages(
-        mergePagesConfig((data?.pages as Partial<PagesConfig> | undefined) || normalizedNextPages),
+        mergePagesConfig(
+          (data?.pages as Partial<PagesConfig> | undefined) ||
+            normalizedNextPages,
+        ),
       );
       setPages(normalizedPages);
       writeDashboardPagesCache(normalizedPages);
@@ -622,26 +719,36 @@ const DashboardPages = () => {
   const updateAbout = (patch: Partial<PagesConfig["about"]>) =>
     setPages((prev) => ({ ...prev, about: { ...prev.about, ...patch } }));
   const updateDonations = (patch: Partial<PagesConfig["donations"]>) =>
-    setPages((prev) => ({ ...prev, donations: { ...prev.donations, ...patch } }));
+    setPages((prev) => ({
+      ...prev,
+      donations: { ...prev.donations, ...patch },
+    }));
   const updateFaq = (patch: Partial<PagesConfig["faq"]>) =>
     setPages((prev) => ({ ...prev, faq: { ...prev.faq, ...patch } }));
   const updateTeam = (patch: Partial<PagesConfig["team"]>) =>
     setPages((prev) => ({ ...prev, team: { ...prev.team, ...patch } }));
   const updateRecruitment = (patch: Partial<PagesConfig["recruitment"]>) =>
-    setPages((prev) => ({ ...prev, recruitment: { ...prev.recruitment, ...patch } }));
-  const readPageShareImage = useCallback(
-    (pageKey: ShareImagePageKey) => String(pages[pageKey]?.shareImage || "").trim(),
-    [pages],
-  );
-  const updatePageShareImage = useCallback((pageKey: ShareImagePageKey, shareImage: string) => {
     setPages((prev) => ({
       ...prev,
-      [pageKey]: {
-        ...prev[pageKey],
-        shareImage,
-      },
+      recruitment: { ...prev.recruitment, ...patch },
     }));
-  }, []);
+  const readPageShareImage = useCallback(
+    (pageKey: ShareImagePageKey) =>
+      String(pages[pageKey]?.shareImage || "").trim(),
+    [pages],
+  );
+  const updatePageShareImage = useCallback(
+    (pageKey: ShareImagePageKey, shareImage: string) => {
+      setPages((prev) => ({
+        ...prev,
+        [pageKey]: {
+          ...prev[pageKey],
+          shareImage,
+        },
+      }));
+    },
+    [],
+  );
   const applyPageShareImage = useCallback(
     (pageKey: ShareImagePageKey, shareImage: string, altText?: string) => {
       const normalizedShareImage = String(shareImage || "").trim();
@@ -712,6 +819,19 @@ const DashboardPages = () => {
     setDragState(null);
   };
 
+  const handleMainBlurCapture = useCallback(
+    (event: FocusEvent<HTMLElement>) => {
+      const nextTarget = event.relatedTarget as Node | null;
+      if (nextTarget && event.currentTarget.contains(nextTarget)) {
+        return;
+      }
+      if (pagesAutosave.enabled) {
+        void pagesAutosave.flushNow();
+      }
+    },
+    [pagesAutosave],
+  );
+
   const hasBlockingLoadError = !hasLoadedOnce && hasLoadError;
   const hasRetainedLoadError = hasLoadedOnce && hasLoadError;
 
@@ -721,68 +841,9 @@ const DashboardPages = () => {
     description: "Buscando a configuração pública mais recente.",
   });
 
-  if (false) {
-    return (
-      <DashboardShell
-        currentUser={currentUser}
-        isLoadingUser={isLoadingUser}
-        onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
-      >
-        <main className="pt-24">
-          <section className="mx-auto w-full max-w-5xl px-6 pb-20 md:px-10">
-            <AsyncState
-              kind="loading"
-              title="Carregando páginas"
-              description="Buscando a configuração atual das páginas públicas."
-            />
-          </section>
-        </main>
-      </DashboardShell>
-    );
-  }
-
-  if (false) {
-    return (
-      <DashboardShell
-        currentUser={currentUser}
-        isLoadingUser={isLoadingUser}
-        onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
-      >
-        <main className="pt-24">
-          <section className="mx-auto w-full max-w-5xl px-6 pb-20 md:px-10">
-            <AsyncState
-              kind="error"
-              title="Não foi possível carregar as páginas"
-              description="Tente novamente em alguns instantes."
-              action={
-                <Button
-                  variant="outline"
-                  onClick={() => setLoadVersion((previous) => previous + 1)}
-                >
-                  Tentar novamente
-                </Button>
-              }
-            />
-          </section>
-        </main>
-      </DashboardShell>
-    );
-  }
-
   return (
-    <DashboardShell
-      currentUser={currentUser}
-      isLoadingUser={isLoadingUser}
-      onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
-    >
-      <main
-        className="pt-24"
-        onBlurCapture={() => {
-          if (pagesAutosave.enabled) {
-            void pagesAutosave.flushNow();
-          }
-        }}
-      >
+    <>
+      <main className="pt-24" onBlurCapture={handleMainBlurCapture}>
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -792,14 +853,19 @@ const DashboardPages = () => {
               </h1>
               <p
                 className={`mt-2 text-sm ${dashboardPagesMetaTextClassName} animate-slide-up opacity-0`}
-                style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
+                style={dashboardAnimationDelay(
+                  dashboardMotionDelays.headerDescriptionMs,
+                )}
               >
-                Edite textos e previews de compartilhamento das páginas públicas.
+                Edite textos e previews de compartilhamento das páginas
+                públicas.
               </p>
             </div>
             <div
               className="w-full animate-slide-up opacity-0 sm:w-auto"
-              style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
+              style={dashboardAnimationDelay(
+                dashboardMotionDelays.headerActionsMs,
+              )}
               data-testid="dashboard-pages-autosave-reveal"
             >
               <DashboardAutosaveStatus
@@ -823,7 +889,9 @@ const DashboardPages = () => {
                   void handleSave();
                 }}
                 manualActionLabel={
-                  pagesAutosave.status === "saving" ? "Salvando..." : "Salvar alterações"
+                  pagesAutosave.status === "saving"
+                    ? "Salvando..."
+                    : "Salvar alterações"
                 }
                 manualActionDisabled={pagesAutosave.status === "saving"}
               />
@@ -832,17 +900,18 @@ const DashboardPages = () => {
 
           <Tabs
             value={activeTab}
-            onValueChange={(value) => {
-              if (isDashboardPagesTab(value)) {
-                setActiveTab(value);
-              }
-            }}
+            onValueChange={setDashboardPagesTab}
+            activationMode="manual"
             className="mt-8 animate-slide-up opacity-0"
             style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
           >
             <TabsList className="no-scrollbar flex w-full flex-nowrap justify-start overflow-x-auto overscroll-x-contain md:grid md:grid-cols-6 md:overflow-visible">
               {orderedPageTabs.map((tab) => (
-                <TabsTrigger key={tab.key} value={tab.key} className="shrink-0 md:w-full">
+                <TabsTrigger
+                  key={tab.key}
+                  value={tab.key}
+                  className="shrink-0 md:w-full"
+                >
                   <span>{tab.label}</span>
                 </TabsTrigger>
               ))}
@@ -851,7 +920,7 @@ const DashboardPages = () => {
               <div className="mt-6">
                 <AsyncState
                   kind="error"
-                  title="NÃ£o foi possÃ­vel carregar as pÃ¡ginas"
+                  title="Não foi possível carregar as páginas"
                   description="Tente novamente em alguns instantes."
                   action={
                     <Button
@@ -869,11 +938,15 @@ const DashboardPages = () => {
                   <Alert className="mt-6">
                     <AlertTitle>Atualização parcial indisponível</AlertTitle>
                     <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-                      <span>Mantendo a última configuração pública carregada.</span>
+                      <span>
+                        Mantendo a última configuração pública carregada.
+                      </span>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setLoadVersion((previous) => previous + 1)}
+                        onClick={() =>
+                          setLoadVersion((previous) => previous + 1)
+                        }
                       >
                         Tentar novamente
                       </Button>
@@ -908,1370 +981,1820 @@ const DashboardPages = () => {
                   </Card>
                 ) : (
                   <>
-                    <TabsContent value="preview" className="mt-6 space-y-6">
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="space-y-6 p-6">
-                          <div>
-                            <h2 className="text-lg font-semibold">Prévias de compartilhamento</h2>
-                            <p className={`text-xs ${dashboardPagesMetaTextClassName}`}>
-                              Defina a imagem OG de cada página para links compartilhados.
-                            </p>
-                          </div>
+                    {activeTab === "preview" ? (
+                      <TabsContent
+                        forceMount
+                        value="preview"
+                        className="mt-6 space-y-6 data-[state=inactive]:hidden"
+                      >
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="space-y-6 p-6">
+                            <div>
+                              <h2 className="text-lg font-semibold">
+                                Prévias de compartilhamento
+                              </h2>
+                              <p
+                                className={`text-xs ${dashboardPagesMetaTextClassName}`}
+                              >
+                                Defina a imagem OG de cada página para links
+                                compartilhados.
+                              </p>
+                            </div>
 
-                          <div className="grid gap-4 md:grid-cols-2">
-                            {shareImagePageKeys.map((pageKey) => {
-                              const shareImage = readPageShareImage(pageKey);
-                              return (
-                                <div
-                                  key={pageKey}
-                                  className={`${dashboardPagesInsetSurfaceClassName} p-4 space-y-3`}
-                                >
-                                  <div className="space-y-1">
-                                    <p className="text-sm font-semibold">
-                                      {shareImagePageLabels[pageKey]}
-                                    </p>
-                                    <p className={`text-xs ${dashboardPagesMetaTextClassName}`}>
-                                      Imagem exibida no card social ao compartilhar essa URL.
-                                    </p>
-                                  </div>
-
-                                  {shareImage ? (
-                                    <div className="space-y-2">
-                                      <div className="overflow-hidden rounded-lg border border-border/70 bg-background">
-                                        <img
-                                          src={normalizeAssetUrl(shareImage)}
-                                          alt={`Prévia de ${shareImagePageLabels[pageKey]}`}
-                                          className="aspect-3/2 w-full object-cover"
-                                          loading="lazy"
-                                        />
-                                      </div>
+                            <div className="grid gap-4 md:grid-cols-2">
+                              {shareImagePageKeys.map((pageKey) => {
+                                const shareImage = readPageShareImage(pageKey);
+                                return (
+                                  <div
+                                    key={pageKey}
+                                    className={`${dashboardPagesInsetSurfaceClassName} p-4 space-y-3`}
+                                  >
+                                    <div className="space-y-1">
+                                      <p className="text-sm font-semibold">
+                                        {shareImagePageLabels[pageKey]}
+                                      </p>
                                       <p
-                                        className={`text-xs ${dashboardPagesMetaTextClassName} break-all`}
+                                        className={`text-xs ${dashboardPagesMetaTextClassName}`}
                                       >
-                                        {shareImage}
+                                        Imagem exibida no card social ao
+                                        compartilhar essa URL.
                                       </p>
                                     </div>
-                                  ) : (
-                                    <p className={`text-xs ${dashboardPagesMetaTextClassName}`}>
-                                      Sem imagem de preview definida.
-                                    </p>
-                                  )}
 
-                                  <div className="space-y-2">
-                                    <Label htmlFor={`page-preview-${pageKey}`}>URL da imagem</Label>
-                                    <Input
-                                      id={`page-preview-${pageKey}`}
-                                      value={shareImage}
-                                      placeholder="/uploads/shared/og-pagina.jpg"
-                                      onChange={(event) =>
-                                        updatePageShareImage(
-                                          pageKey,
-                                          String(event.target.value || "").trim(),
-                                        )
-                                      }
-                                    />
+                                    {shareImage ? (
+                                      <div className="space-y-2">
+                                        <div className="overflow-hidden rounded-lg border border-border/70 bg-background">
+                                          <img
+                                            src={normalizeAssetUrl(shareImage)}
+                                            alt={`Prévia de ${shareImagePageLabels[pageKey]}`}
+                                            className="aspect-3/2 w-full object-cover"
+                                            loading="lazy"
+                                          />
+                                        </div>
+                                        <p
+                                          className={`text-xs ${dashboardPagesMetaTextClassName} break-all`}
+                                        >
+                                          {shareImage}
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      <p
+                                        className={`text-xs ${dashboardPagesMetaTextClassName}`}
+                                      >
+                                        Sem imagem de preview definida.
+                                      </p>
+                                    )}
+
+                                    <div className="space-y-2">
+                                      <Label
+                                        htmlFor={`page-preview-${pageKey}`}
+                                      >
+                                        URL da imagem
+                                      </Label>
+                                      <Input
+                                        id={`page-preview-${pageKey}`}
+                                        value={shareImage}
+                                        placeholder="/uploads/shared/og-pagina.jpg"
+                                        onChange={(event) =>
+                                          updatePageShareImage(
+                                            pageKey,
+                                            String(
+                                              event.target.value || "",
+                                            ).trim(),
+                                          )
+                                        }
+                                      />
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          openPreviewLibrary(pageKey)
+                                        }
+                                      >
+                                        Biblioteca
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={!shareImage}
+                                        onClick={() => {
+                                          applyPageShareImage(pageKey, "");
+                                        }}
+                                      >
+                                        Limpar
+                                      </Button>
+                                    </div>
                                   </div>
+                                );
+                              })}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </TabsContent>
+                    ) : null}
 
-                                  <div className="flex flex-wrap gap-2">
+                    {activeTab === "about" ? (
+                      <TabsContent
+                        forceMount
+                        value="about"
+                        className="mt-6 space-y-6 data-[state=inactive]:hidden"
+                      >
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                            <DashboardFieldStack>
+                              <Label>Badge</Label>
+                              <Input
+                                value={pages.about.heroBadge}
+                                onChange={(e) =>
+                                  updateAbout({ heroBadge: e.target.value })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
+                              <Label>Título</Label>
+                              <Input
+                                value={pages.about.heroTitle}
+                                onChange={(e) =>
+                                  updateAbout({ heroTitle: e.target.value })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack className="md:col-span-2">
+                              <Label>Subtítulo</Label>
+                              <Textarea
+                                value={pages.about.heroSubtitle}
+                                onChange={(e) =>
+                                  updateAbout({ heroSubtitle: e.target.value })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack className="md:col-span-2">
+                              <Label>Badges do topo</Label>
+                              <div className="flex flex-wrap gap-2">
+                                {pages.about.heroBadges.map((badge, index) => (
+                                  <div
+                                    key={`${badge}-${index}`}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <Input
+                                      value={badge}
+                                      onChange={(e) => {
+                                        const next = [
+                                          ...pages.about.heroBadges,
+                                        ];
+                                        next[index] = e.target.value;
+                                        updateAbout({ heroBadges: next });
+                                      }}
+                                    />
                                     <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => openPreviewLibrary(pageKey)}
-                                    >
-                                      Biblioteca
-                                    </Button>
-                                    <Button
-                                      type="button"
                                       variant="ghost"
-                                      size="sm"
-                                      disabled={!shareImage}
+                                      size="icon"
                                       onClick={() => {
-                                        applyPageShareImage(pageKey, "");
+                                        const next =
+                                          pages.about.heroBadges.filter(
+                                            (_, i) => i !== index,
+                                          );
+                                        updateAbout({ heroBadges: next });
                                       }}
                                     >
-                                      Limpar
+                                      <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
+                                ))}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    updateAbout({
+                                      heroBadges: [
+                                        ...pages.about.heroBadges,
+                                        "Nova badge",
+                                      ],
+                                    })
+                                  }
+                                >
+                                  <Plus className="mr-2 h-4 w-4" />
+                                  Adicionar badge
+                                </Button>
+                              </div>
+                            </DashboardFieldStack>
+                          </CardContent>
+                        </Card>
 
-                    <TabsContent value="about" className="mt-6 space-y-6">
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                          <DashboardFieldStack>
-                            <Label>Badge</Label>
-                            <Input
-                              value={pages.about.heroBadge}
-                              onChange={(e) => updateAbout({ heroBadge: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack>
-                            <Label>Título</Label>
-                            <Input
-                              value={pages.about.heroTitle}
-                              onChange={(e) => updateAbout({ heroTitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack className="md:col-span-2">
-                            <Label>Subtítulo</Label>
-                            <Textarea
-                              value={pages.about.heroSubtitle}
-                              onChange={(e) => updateAbout({ heroSubtitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack className="md:col-span-2">
-                            <Label>Badges do topo</Label>
-                            <div className="flex flex-wrap gap-2">
-                              {pages.about.heroBadges.map((badge, index) => (
-                                <div key={`${badge}-${index}`} className="flex items-center gap-2">
-                                  <Input
-                                    value={badge}
-                                    onChange={(e) => {
-                                      const next = [...pages.about.heroBadges];
-                                      next[index] = e.target.value;
-                                      updateAbout({ heroBadges: next });
-                                    }}
-                                  />
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => {
-                                      const next = pages.about.heroBadges.filter(
-                                        (_, i) => i !== index,
-                                      );
-                                      updateAbout({ heroBadges: next });
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              ))}
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="space-y-4 p-6">
+                            <div className="flex items-center justify-between">
+                              <h2
+                                className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                              >
+                                Destaques
+                              </h2>
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
                                   updateAbout({
-                                    heroBadges: [...pages.about.heroBadges, "Nova badge"],
+                                    highlights: [
+                                      ...pages.about.highlights,
+                                      {
+                                        label: "Novo destaque",
+                                        text: "",
+                                        icon: "Sparkles",
+                                      },
+                                    ],
                                   })
                                 }
                               >
                                 <Plus className="mr-2 h-4 w-4" />
-                                Adicionar badge
+                                Adicionar
                               </Button>
                             </div>
-                          </DashboardFieldStack>
-                        </CardContent>
-                      </Card>
-
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="space-y-4 p-6">
-                          <div className="flex items-center justify-between">
-                            <h2
-                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
-                            >
-                              Destaques
-                            </h2>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                updateAbout({
-                                  highlights: [
-                                    ...pages.about.highlights,
-                                    { label: "Novo destaque", text: "", icon: "Sparkles" },
-                                  ],
-                                })
-                              }
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              Adicionar
-                            </Button>
-                          </div>
-                          <div className="grid gap-4">
-                            {pages.about.highlights.map((item, index) => (
-                              <div
-                                key={`${item.label}-${index}`}
-                                draggable
-                                onDragStart={() => handleDragStart("about.highlights", index)}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={() => handleDrop("about.highlights", index)}
-                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
-                              >
-                                <div className="flex items-center justify-between gap-2">
-                                  <div
-                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
-                                  >
-                                    <GripVertical className="h-4 w-4" />
-                                    Arraste para reordenar
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <ReorderControls
-                                      label={`destaque ${index + 1}`}
-                                      index={index}
-                                      total={pages.about.highlights.length}
-                                      onMove={(targetIndex) =>
-                                        moveListItem("about.highlights", index, targetIndex)
-                                      }
-                                    />
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() =>
-                                        updateAbout({
-                                          highlights: pages.about.highlights.filter(
-                                            (_, i) => i !== index,
-                                          ),
-                                        })
-                                      }
+                            <div className="grid gap-4">
+                              {pages.about.highlights.map((item, index) => (
+                                <div
+                                  key={`${item.label}-${index}`}
+                                  draggable
+                                  onDragStart={() =>
+                                    handleDragStart("about.highlights", index)
+                                  }
+                                  onDragOver={(event) => event.preventDefault()}
+                                  onDrop={() =>
+                                    handleDrop("about.highlights", index)
+                                  }
+                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div
+                                      className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
                                     >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                      <GripVertical className="h-4 w-4" />
+                                      Arraste para reordenar
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <ReorderControls
+                                        label={`destaque ${index + 1}`}
+                                        index={index}
+                                        total={pages.about.highlights.length}
+                                        onMove={(targetIndex) =>
+                                          moveListItem(
+                                            "about.highlights",
+                                            index,
+                                            targetIndex,
+                                          )
+                                        }
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                          updateAbout({
+                                            highlights:
+                                              pages.about.highlights.filter(
+                                                (_, i) => i !== index,
+                                              ),
+                                          })
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                   </div>
-                                </div>
-                                <div className="mt-3 grid gap-2">
-                                  <Input
-                                    value={item.label}
-                                    onChange={(e) => {
-                                      const next = [...pages.about.highlights];
-                                      next[index] = { ...item, label: e.target.value };
-                                      updateAbout({ highlights: next });
-                                    }}
-                                  />
-                                  <Textarea
-                                    value={item.text}
-                                    onChange={(e) => {
-                                      const next = [...pages.about.highlights];
-                                      next[index] = { ...item, text: e.target.value };
-                                      updateAbout({ highlights: next });
-                                    }}
-                                  />
-                                  <div className="grid gap-2">
-                                    <Label>Ícone</Label>
-                                    <IconSelect
-                                      value={item.icon || "Sparkles"}
-                                      onChange={(nextIcon) => {
-                                        const next = [...pages.about.highlights];
-                                        next[index] = { ...item, icon: nextIcon };
+                                  <div className="mt-3 grid gap-2">
+                                    <Input
+                                      value={item.label}
+                                      onChange={(e) => {
+                                        const next = [
+                                          ...pages.about.highlights,
+                                        ];
+                                        next[index] = {
+                                          ...item,
+                                          label: e.target.value,
+                                        };
                                         updateAbout({ highlights: next });
                                       }}
                                     />
+                                    <Textarea
+                                      value={item.text}
+                                      onChange={(e) => {
+                                        const next = [
+                                          ...pages.about.highlights,
+                                        ];
+                                        next[index] = {
+                                          ...item,
+                                          text: e.target.value,
+                                        };
+                                        updateAbout({ highlights: next });
+                                      }}
+                                    />
+                                    <div className="grid gap-2">
+                                      <Label>Ícone</Label>
+                                      <IconSelect
+                                        value={item.icon || "Sparkles"}
+                                        onChange={(nextIcon) => {
+                                          const next = [
+                                            ...pages.about.highlights,
+                                          ];
+                                          next[index] = {
+                                            ...item,
+                                            icon: nextIcon,
+                                          };
+                                          updateAbout({ highlights: next });
+                                        }}
+                                      />
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
 
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="space-y-4 p-6">
-                          <DashboardFieldStack>
-                            <Label>Título do manifesto</Label>
-                            <Input
-                              value={pages.about.manifestoTitle}
-                              onChange={(e) => updateAbout({ manifestoTitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack>
-                            <Label>Ícone do manifesto</Label>
-                            <IconSelect
-                              value={pages.about.manifestoIcon || "Flame"}
-                              onChange={(nextIcon) => updateAbout({ manifestoIcon: nextIcon })}
-                            />
-                          </DashboardFieldStack>
-                          <div className="grid gap-3">
-                            {pages.about.manifestoParagraphs.map((paragraph, index) => (
-                              <div key={`${paragraph}-${index}`} className="flex gap-2">
-                                <Textarea
-                                  value={paragraph}
-                                  onChange={(e) => {
-                                    const next = [...pages.about.manifestoParagraphs];
-                                    next[index] = e.target.value;
-                                    updateAbout({ manifestoParagraphs: next });
-                                  }}
-                                />
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => {
-                                    const next = pages.about.manifestoParagraphs.filter(
-                                      (_, i) => i !== index,
-                                    );
-                                    updateAbout({ manifestoParagraphs: next });
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                updateAbout({
-                                  manifestoParagraphs: [...pages.about.manifestoParagraphs, ""],
-                                })
-                              }
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              Adicionar parágrafo
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="space-y-4 p-6">
-                          <div className="flex items-center justify-between">
-                            <h2
-                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
-                            >
-                              Pilares
-                            </h2>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                updateAbout({
-                                  pillars: [
-                                    ...pages.about.pillars,
-                                    { title: "Novo pilar", description: "", icon: "Sparkles" },
-                                  ],
-                                })
-                              }
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              Adicionar
-                            </Button>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            {pages.about.pillars.map((item, index) => (
-                              <div
-                                key={`${item.title}-${index}`}
-                                draggable
-                                onDragStart={() => handleDragStart("about.pillars", index)}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={() => handleDrop("about.pillars", index)}
-                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
-                              >
-                                <div className="flex items-center justify-between gap-2">
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="space-y-4 p-6">
+                            <DashboardFieldStack>
+                              <Label>Título do manifesto</Label>
+                              <Input
+                                value={pages.about.manifestoTitle}
+                                onChange={(e) =>
+                                  updateAbout({
+                                    manifestoTitle: e.target.value,
+                                  })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
+                              <Label>Ícone do manifesto</Label>
+                              <IconSelect
+                                value={pages.about.manifestoIcon || "Flame"}
+                                onChange={(nextIcon) =>
+                                  updateAbout({ manifestoIcon: nextIcon })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <div className="grid gap-3">
+                              {pages.about.manifestoParagraphs.map(
+                                (paragraph, index) => (
                                   <div
-                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                    key={`${paragraph}-${index}`}
+                                    className="flex gap-2"
                                   >
-                                    <GripVertical className="h-4 w-4" />
-                                    Arraste para reordenar
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <ReorderControls
-                                      label={`pilar ${index + 1}`}
-                                      index={index}
-                                      total={pages.about.pillars.length}
-                                      onMove={(targetIndex) =>
-                                        moveListItem("about.pillars", index, targetIndex)
-                                      }
+                                    <Textarea
+                                      value={paragraph}
+                                      onChange={(e) => {
+                                        const next = [
+                                          ...pages.about.manifestoParagraphs,
+                                        ];
+                                        next[index] = e.target.value;
+                                        updateAbout({
+                                          manifestoParagraphs: next,
+                                        });
+                                      }}
                                     />
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      onClick={() =>
-                                        updateAbout({
-                                          pillars: pages.about.pillars.filter(
+                                      onClick={() => {
+                                        const next =
+                                          pages.about.manifestoParagraphs.filter(
                                             (_, i) => i !== index,
-                                          ),
-                                        })
-                                      }
+                                          );
+                                        updateAbout({
+                                          manifestoParagraphs: next,
+                                        });
+                                      }}
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </div>
-                                </div>
-                                <div className="mt-3 grid gap-2">
-                                  <Input
-                                    value={item.title}
-                                    onChange={(e) => {
-                                      const next = [...pages.about.pillars];
-                                      next[index] = { ...item, title: e.target.value };
-                                      updateAbout({ pillars: next });
-                                    }}
-                                  />
-                                  <Textarea
-                                    value={item.description}
-                                    onChange={(e) => {
-                                      const next = [...pages.about.pillars];
-                                      next[index] = { ...item, description: e.target.value };
-                                      updateAbout({ pillars: next });
-                                    }}
-                                  />
-                                  <DashboardFieldStack>
-                                    <Label>Ícone</Label>
-                                    <IconSelect
-                                      value={item.icon}
-                                      onChange={(nextIcon) => {
+                                ),
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  updateAbout({
+                                    manifestoParagraphs: [
+                                      ...pages.about.manifestoParagraphs,
+                                      "",
+                                    ],
+                                  })
+                                }
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Adicionar parágrafo
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="space-y-4 p-6">
+                            <div className="flex items-center justify-between">
+                              <h2
+                                className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                              >
+                                Pilares
+                              </h2>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  updateAbout({
+                                    pillars: [
+                                      ...pages.about.pillars,
+                                      {
+                                        title: "Novo pilar",
+                                        description: "",
+                                        icon: "Sparkles",
+                                      },
+                                    ],
+                                  })
+                                }
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Adicionar
+                              </Button>
+                            </div>
+                            <div className="grid gap-4 md:grid-cols-2">
+                              {pages.about.pillars.map((item, index) => (
+                                <div
+                                  key={`${item.title}-${index}`}
+                                  draggable
+                                  onDragStart={() =>
+                                    handleDragStart("about.pillars", index)
+                                  }
+                                  onDragOver={(event) => event.preventDefault()}
+                                  onDrop={() =>
+                                    handleDrop("about.pillars", index)
+                                  }
+                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div
+                                      className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                    >
+                                      <GripVertical className="h-4 w-4" />
+                                      Arraste para reordenar
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <ReorderControls
+                                        label={`pilar ${index + 1}`}
+                                        index={index}
+                                        total={pages.about.pillars.length}
+                                        onMove={(targetIndex) =>
+                                          moveListItem(
+                                            "about.pillars",
+                                            index,
+                                            targetIndex,
+                                          )
+                                        }
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                          updateAbout({
+                                            pillars: pages.about.pillars.filter(
+                                              (_, i) => i !== index,
+                                            ),
+                                          })
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="mt-3 grid gap-2">
+                                    <Input
+                                      value={item.title}
+                                      onChange={(e) => {
                                         const next = [...pages.about.pillars];
-                                        next[index] = { ...item, icon: nextIcon };
+                                        next[index] = {
+                                          ...item,
+                                          title: e.target.value,
+                                        };
                                         updateAbout({ pillars: next });
                                       }}
                                     />
-                                  </DashboardFieldStack>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="space-y-4 p-6">
-                          <div className="flex items-center justify-between">
-                            <h2
-                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
-                            >
-                              Valores
-                            </h2>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                updateAbout({
-                                  values: [
-                                    ...pages.about.values,
-                                    { title: "Novo valor", description: "", icon: "Heart" },
-                                  ],
-                                })
-                              }
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              Adicionar
-                            </Button>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            {pages.about.values.map((item, index) => (
-                              <div
-                                key={`${item.title}-${index}`}
-                                draggable
-                                onDragStart={() => handleDragStart("about.values", index)}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={() => handleDrop("about.values", index)}
-                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
-                              >
-                                <div className="flex items-center justify-between gap-2">
-                                  <div
-                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
-                                  >
-                                    <GripVertical className="h-4 w-4" />
-                                    Arraste para reordenar
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <ReorderControls
-                                      label={`valor ${index + 1}`}
-                                      index={index}
-                                      total={pages.about.values.length}
-                                      onMove={(targetIndex) =>
-                                        moveListItem("about.values", index, targetIndex)
-                                      }
+                                    <Textarea
+                                      value={item.description}
+                                      onChange={(e) => {
+                                        const next = [...pages.about.pillars];
+                                        next[index] = {
+                                          ...item,
+                                          description: e.target.value,
+                                        };
+                                        updateAbout({ pillars: next });
+                                      }}
                                     />
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() =>
-                                        updateAbout({
-                                          values: pages.about.values.filter((_, i) => i !== index),
-                                        })
-                                      }
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    <DashboardFieldStack>
+                                      <Label>Ícone</Label>
+                                      <IconSelect
+                                        value={item.icon}
+                                        onChange={(nextIcon) => {
+                                          const next = [...pages.about.pillars];
+                                          next[index] = {
+                                            ...item,
+                                            icon: nextIcon,
+                                          };
+                                          updateAbout({ pillars: next });
+                                        }}
+                                      />
+                                    </DashboardFieldStack>
                                   </div>
                                 </div>
-                                <div className="mt-3 grid gap-2">
-                                  <Input
-                                    value={item.title}
-                                    onChange={(e) => {
-                                      const next = [...pages.about.values];
-                                      next[index] = { ...item, title: e.target.value };
-                                      updateAbout({ values: next });
-                                    }}
-                                  />
-                                  <Textarea
-                                    value={item.description}
-                                    onChange={(e) => {
-                                      const next = [...pages.about.values];
-                                      next[index] = { ...item, description: e.target.value };
-                                      updateAbout({ values: next });
-                                    }}
-                                  />
-                                  <DashboardFieldStack>
-                                    <Label>Ícone</Label>
-                                    <IconSelect
-                                      value={item.icon}
-                                      onChange={(nextIcon) => {
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="space-y-4 p-6">
+                            <div className="flex items-center justify-between">
+                              <h2
+                                className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                              >
+                                Valores
+                              </h2>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  updateAbout({
+                                    values: [
+                                      ...pages.about.values,
+                                      {
+                                        title: "Novo valor",
+                                        description: "",
+                                        icon: "Heart",
+                                      },
+                                    ],
+                                  })
+                                }
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Adicionar
+                              </Button>
+                            </div>
+                            <div className="grid gap-4 md:grid-cols-2">
+                              {pages.about.values.map((item, index) => (
+                                <div
+                                  key={`${item.title}-${index}`}
+                                  draggable
+                                  onDragStart={() =>
+                                    handleDragStart("about.values", index)
+                                  }
+                                  onDragOver={(event) => event.preventDefault()}
+                                  onDrop={() =>
+                                    handleDrop("about.values", index)
+                                  }
+                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div
+                                      className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                    >
+                                      <GripVertical className="h-4 w-4" />
+                                      Arraste para reordenar
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <ReorderControls
+                                        label={`valor ${index + 1}`}
+                                        index={index}
+                                        total={pages.about.values.length}
+                                        onMove={(targetIndex) =>
+                                          moveListItem(
+                                            "about.values",
+                                            index,
+                                            targetIndex,
+                                          )
+                                        }
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                          updateAbout({
+                                            values: pages.about.values.filter(
+                                              (_, i) => i !== index,
+                                            ),
+                                          })
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="mt-3 grid gap-2">
+                                    <Input
+                                      value={item.title}
+                                      onChange={(e) => {
                                         const next = [...pages.about.values];
-                                        next[index] = { ...item, icon: nextIcon };
+                                        next[index] = {
+                                          ...item,
+                                          title: e.target.value,
+                                        };
                                         updateAbout({ values: next });
                                       }}
                                     />
-                                  </DashboardFieldStack>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
-
-                    <TabsContent value="donations" className="mt-6 space-y-6">
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                          <DashboardFieldStack>
-                            <Label>Título</Label>
-                            <Input
-                              value={pages.donations.heroTitle}
-                              onChange={(e) => updateDonations({ heroTitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack className="md:col-span-2">
-                            <Label>Subtítulo</Label>
-                            <Textarea
-                              value={pages.donations.heroSubtitle}
-                              onChange={(e) => updateDonations({ heroSubtitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                        </CardContent>
-                      </Card>
-
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="space-y-4 p-6">
-                          <div className="flex items-center justify-between">
-                            <h2
-                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
-                            >
-                              Custos
-                            </h2>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                updateDonations({
-                                  costs: [
-                                    ...pages.donations.costs,
-                                    { title: "Novo custo", description: "", icon: "Server" },
-                                  ],
-                                })
-                              }
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              Adicionar
-                            </Button>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            {pages.donations.costs.map((item, index) => (
-                              <div
-                                key={`${item.title}-${index}`}
-                                draggable
-                                onDragStart={() => handleDragStart("donations.costs", index)}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={() => handleDrop("donations.costs", index)}
-                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
-                              >
-                                <div className="flex items-center justify-between gap-2">
-                                  <div
-                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
-                                  >
-                                    <GripVertical className="h-4 w-4" />
-                                    Arraste para reordenar
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <ReorderControls
-                                      label={`custo ${index + 1}`}
-                                      index={index}
-                                      total={pages.donations.costs.length}
-                                      onMove={(targetIndex) =>
-                                        moveListItem("donations.costs", index, targetIndex)
-                                      }
+                                    <Textarea
+                                      value={item.description}
+                                      onChange={(e) => {
+                                        const next = [...pages.about.values];
+                                        next[index] = {
+                                          ...item,
+                                          description: e.target.value,
+                                        };
+                                        updateAbout({ values: next });
+                                      }}
                                     />
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() =>
-                                        updateDonations({
-                                          costs: pages.donations.costs.filter(
-                                            (_, i) => i !== index,
-                                          ),
-                                        })
-                                      }
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    <DashboardFieldStack>
+                                      <Label>Ícone</Label>
+                                      <IconSelect
+                                        value={item.icon}
+                                        onChange={(nextIcon) => {
+                                          const next = [...pages.about.values];
+                                          next[index] = {
+                                            ...item,
+                                            icon: nextIcon,
+                                          };
+                                          updateAbout({ values: next });
+                                        }}
+                                      />
+                                    </DashboardFieldStack>
                                   </div>
                                 </div>
-                                <div className="mt-3 grid gap-2">
-                                  <Input
-                                    value={item.title}
-                                    onChange={(e) => {
-                                      const next = [...pages.donations.costs];
-                                      next[index] = { ...item, title: e.target.value };
-                                      updateDonations({ costs: next });
-                                    }}
-                                  />
-                                  <Textarea
-                                    value={item.description}
-                                    onChange={(e) => {
-                                      const next = [...pages.donations.costs];
-                                      next[index] = { ...item, description: e.target.value };
-                                      updateDonations({ costs: next });
-                                    }}
-                                  />
-                                  <DashboardFieldStack>
-                                    <Label>Ícone</Label>
-                                    <IconSelect
-                                      value={item.icon}
-                                      onChange={(nextIcon) => {
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </TabsContent>
+                    ) : null}
+
+                    {activeTab === "donations" ? (
+                      <TabsContent
+                        forceMount
+                        value="donations"
+                        className="mt-6 space-y-6 data-[state=inactive]:hidden"
+                      >
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                            <DashboardFieldStack>
+                              <Label>Título</Label>
+                              <Input
+                                value={pages.donations.heroTitle}
+                                onChange={(e) =>
+                                  updateDonations({ heroTitle: e.target.value })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack className="md:col-span-2">
+                              <Label>Subtítulo</Label>
+                              <Textarea
+                                value={pages.donations.heroSubtitle}
+                                onChange={(e) =>
+                                  updateDonations({
+                                    heroSubtitle: e.target.value,
+                                  })
+                                }
+                              />
+                            </DashboardFieldStack>
+                          </CardContent>
+                        </Card>
+
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="space-y-4 p-6">
+                            <div className="flex items-center justify-between">
+                              <h2
+                                className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                              >
+                                Custos
+                              </h2>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  updateDonations({
+                                    costs: [
+                                      ...pages.donations.costs,
+                                      {
+                                        title: "Novo custo",
+                                        description: "",
+                                        icon: "Server",
+                                      },
+                                    ],
+                                  })
+                                }
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Adicionar
+                              </Button>
+                            </div>
+                            <div className="grid gap-4 md:grid-cols-2">
+                              {pages.donations.costs.map((item, index) => (
+                                <div
+                                  key={`${item.title}-${index}`}
+                                  draggable
+                                  onDragStart={() =>
+                                    handleDragStart("donations.costs", index)
+                                  }
+                                  onDragOver={(event) => event.preventDefault()}
+                                  onDrop={() =>
+                                    handleDrop("donations.costs", index)
+                                  }
+                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div
+                                      className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                    >
+                                      <GripVertical className="h-4 w-4" />
+                                      Arraste para reordenar
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <ReorderControls
+                                        label={`custo ${index + 1}`}
+                                        index={index}
+                                        total={pages.donations.costs.length}
+                                        onMove={(targetIndex) =>
+                                          moveListItem(
+                                            "donations.costs",
+                                            index,
+                                            targetIndex,
+                                          )
+                                        }
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                          updateDonations({
+                                            costs: pages.donations.costs.filter(
+                                              (_, i) => i !== index,
+                                            ),
+                                          })
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="mt-3 grid gap-2">
+                                    <Input
+                                      value={item.title}
+                                      onChange={(e) => {
                                         const next = [...pages.donations.costs];
-                                        next[index] = { ...item, icon: nextIcon };
+                                        next[index] = {
+                                          ...item,
+                                          title: e.target.value,
+                                        };
                                         updateDonations({ costs: next });
                                       }}
                                     />
-                                  </DashboardFieldStack>
+                                    <Textarea
+                                      value={item.description}
+                                      onChange={(e) => {
+                                        const next = [...pages.donations.costs];
+                                        next[index] = {
+                                          ...item,
+                                          description: e.target.value,
+                                        };
+                                        updateDonations({ costs: next });
+                                      }}
+                                    />
+                                    <DashboardFieldStack>
+                                      <Label>Ícone</Label>
+                                      <IconSelect
+                                        value={item.icon}
+                                        onChange={(nextIcon) => {
+                                          const next = [
+                                            ...pages.donations.costs,
+                                          ];
+                                          next[index] = {
+                                            ...item,
+                                            icon: nextIcon,
+                                          };
+                                          updateDonations({ costs: next });
+                                        }}
+                                      />
+                                    </DashboardFieldStack>
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
 
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                          <DashboardFieldStack>
-                            <Label>Título do bloco</Label>
-                            <Input
-                              value={pages.donations.reasonTitle}
-                              onChange={(e) => updateDonations({ reasonTitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack>
-                            <Label>Ícone do bloco</Label>
-                            <IconSelect
-                              value={pages.donations.reasonIcon || "HeartHandshake"}
-                              onChange={(nextIcon) => updateDonations({ reasonIcon: nextIcon })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack className="md:col-span-2">
-                            <Label>Texto</Label>
-                            <Textarea
-                              value={pages.donations.reasonText}
-                              onChange={(e) => updateDonations({ reasonText: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack className="md:col-span-2">
-                            <Label>Nota</Label>
-                            <Textarea
-                              value={pages.donations.reasonNote}
-                              onChange={(e) => updateDonations({ reasonNote: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                        </CardContent>
-                      </Card>
-
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="grid gap-4 p-6 md:grid-cols-[1.2fr_0.8fr]">
-                          <div className="space-y-4">
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                             <DashboardFieldStack>
-                              <Label>Ícone do Pix</Label>
+                              <Label>Título do bloco</Label>
+                              <Input
+                                value={pages.donations.reasonTitle}
+                                onChange={(e) =>
+                                  updateDonations({
+                                    reasonTitle: e.target.value,
+                                  })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
+                              <Label>Ícone do bloco</Label>
                               <IconSelect
-                                value={pages.donations.pixIcon || "QrCode"}
-                                onChange={(nextIcon) => updateDonations({ pixIcon: nextIcon })}
+                                value={
+                                  pages.donations.reasonIcon || "HeartHandshake"
+                                }
+                                onChange={(nextIcon) =>
+                                  updateDonations({ reasonIcon: nextIcon })
+                                }
                               />
                             </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Chave Pix</Label>
-                              <Input
-                                value={pages.donations.pixKey}
-                                onChange={(e) => updateDonations({ pixKey: e.target.value })}
+                            <DashboardFieldStack className="md:col-span-2">
+                              <Label>Texto</Label>
+                              <Textarea
+                                value={pages.donations.reasonText}
+                                onChange={(e) =>
+                                  updateDonations({
+                                    reasonText: e.target.value,
+                                  })
+                                }
                               />
                             </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Descrição no QR (opcional)</Label>
-                              <Input
-                                value={pages.donations.pixNote}
-                                onChange={(e) => updateDonations({ pixNote: e.target.value })}
+                            <DashboardFieldStack className="md:col-span-2">
+                              <Label>Nota</Label>
+                              <Textarea
+                                value={pages.donations.reasonNote}
+                                onChange={(e) =>
+                                  updateDonations({
+                                    reasonNote: e.target.value,
+                                  })
+                                }
                               />
                             </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Cidade do recebedor (opcional)</Label>
-                              <DashboardFieldStack density="compact">
-                                <Input
-                                  value={pages.donations.pixCity}
-                                  onChange={(e) => updateDonations({ pixCity: e.target.value })}
-                                  placeholder="CIDADE"
+                          </CardContent>
+                        </Card>
+
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="grid gap-4 p-6 md:grid-cols-[1.2fr_0.8fr]">
+                            <div className="space-y-4">
+                              <DashboardFieldStack>
+                                <Label>Ícone do Pix</Label>
+                                <IconSelect
+                                  value={pages.donations.pixIcon || "QrCode"}
+                                  onChange={(nextIcon) =>
+                                    updateDonations({ pixIcon: nextIcon })
+                                  }
                                 />
-                                <p className={`text-xs ${dashboardPagesMetaTextClassName}`}>
-                                  Se vazio, o QR Pix usa CIDADE como fallback.
-                                </p>
                               </DashboardFieldStack>
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>QR Code (URL customizada)</Label>
-                              <Input
-                                value={pages.donations.qrCustomUrl}
-                                onChange={(e) => updateDonations({ qrCustomUrl: e.target.value })}
-                                placeholder="Opcional"
-                              />
-                            </DashboardFieldStack>
-                          </div>
-                          <div
-                            className={`flex items-center justify-center ${dashboardPagesControlSurfaceClassName} p-4`}
-                          >
-                            <img
-                              src={qrPreview}
-                              alt="Prévia QR Code"
-                              className="h-40 w-40 object-cover"
-                            />
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="space-y-4 p-6">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <h2
-                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                              <DashboardFieldStack>
+                                <Label>Chave Pix</Label>
+                                <Input
+                                  value={pages.donations.pixKey}
+                                  onChange={(e) =>
+                                    updateDonations({ pixKey: e.target.value })
+                                  }
+                                />
+                              </DashboardFieldStack>
+                              <DashboardFieldStack>
+                                <Label>Descrição no QR (opcional)</Label>
+                                <Input
+                                  value={pages.donations.pixNote}
+                                  onChange={(e) =>
+                                    updateDonations({ pixNote: e.target.value })
+                                  }
+                                />
+                              </DashboardFieldStack>
+                              <DashboardFieldStack>
+                                <Label>Cidade do recebedor (opcional)</Label>
+                                <DashboardFieldStack density="compact">
+                                  <Input
+                                    value={pages.donations.pixCity}
+                                    onChange={(e) =>
+                                      updateDonations({
+                                        pixCity: e.target.value,
+                                      })
+                                    }
+                                    placeholder="CIDADE"
+                                  />
+                                  <p
+                                    className={`text-xs ${dashboardPagesMetaTextClassName}`}
+                                  >
+                                    Se vazio, o QR Pix usa CIDADE como fallback.
+                                  </p>
+                                </DashboardFieldStack>
+                              </DashboardFieldStack>
+                              <DashboardFieldStack>
+                                <Label>QR Code (URL customizada)</Label>
+                                <Input
+                                  value={pages.donations.qrCustomUrl}
+                                  onChange={(e) =>
+                                    updateDonations({
+                                      qrCustomUrl: e.target.value,
+                                    })
+                                  }
+                                  placeholder="Opcional"
+                                />
+                              </DashboardFieldStack>
+                            </div>
+                            <div
+                              className={`flex items-center justify-center ${dashboardPagesControlSurfaceClassName} p-4`}
                             >
-                              Doadores
-                            </h2>
-                            <div className="w-full md:w-56">
-                              <IconSelect
-                                value={pages.donations.donorsIcon || "PiggyBank"}
-                                onChange={(nextIcon) => updateDonations({ donorsIcon: nextIcon })}
+                              <img
+                                src={qrPreview}
+                                alt="Prévia QR Code"
+                                className="h-40 w-40 object-cover"
                               />
                             </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                updateDonations({
-                                  donors: [
-                                    ...pages.donations.donors,
-                                    { name: "Novo doador", amount: "", goal: "", date: "" },
-                                  ],
-                                })
-                              }
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              Adicionar
-                            </Button>
-                          </div>
-                          <div className="grid gap-4">
-                            {pages.donations.donors.map((donor, index) => (
-                              <div
-                                key={`${donor.name}-${index}`}
-                                draggable
-                                onDragStart={() => handleDragStart("donations.donors", index)}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={() => handleDrop("donations.donors", index)}
-                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                          </CardContent>
+                        </Card>
+
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="space-y-4 p-6">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <h2
+                                className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
                               >
-                                <div className="flex items-center justify-between gap-2">
-                                  <div
-                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
-                                  >
-                                    <GripVertical className="h-4 w-4" />
-                                    Arraste para reordenar
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <ReorderControls
-                                      label={`doador ${index + 1}`}
-                                      index={index}
-                                      total={pages.donations.donors.length}
-                                      onMove={(targetIndex) =>
-                                        moveListItem("donations.donors", index, targetIndex)
-                                      }
-                                    />
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() =>
-                                        updateDonations({
-                                          donors: pages.donations.donors.filter(
-                                            (_, i) => i !== index,
-                                          ),
-                                        })
-                                      }
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                                <div className="mt-3 grid gap-2 md:grid-cols-4">
-                                  <Input
-                                    value={donor.name}
-                                    onChange={(e) => {
-                                      const next = [...pages.donations.donors];
-                                      next[index] = { ...donor, name: e.target.value };
-                                      updateDonations({ donors: next });
-                                    }}
-                                    placeholder="Doador"
-                                  />
-                                  <Input
-                                    value={donor.amount}
-                                    onChange={(e) => {
-                                      const next = [...pages.donations.donors];
-                                      next[index] = { ...donor, amount: e.target.value };
-                                      updateDonations({ donors: next });
-                                    }}
-                                    placeholder="Valor"
-                                  />
-                                  <Input
-                                    value={donor.goal}
-                                    onChange={(e) => {
-                                      const next = [...pages.donations.donors];
-                                      next[index] = { ...donor, goal: e.target.value };
-                                      updateDonations({ donors: next });
-                                    }}
-                                    placeholder="Objetivo"
-                                  />
-                                  <Input
-                                    value={donor.date}
-                                    onChange={(e) => {
-                                      const next = [...pages.donations.donors];
-                                      next[index] = { ...donor, date: e.target.value };
-                                      updateDonations({ donors: next });
-                                    }}
-                                    placeholder="Mês/Ano"
-                                  />
-                                </div>
+                                Doadores
+                              </h2>
+                              <div className="w-full md:w-56">
+                                <IconSelect
+                                  value={
+                                    pages.donations.donorsIcon || "PiggyBank"
+                                  }
+                                  onChange={(nextIcon) =>
+                                    updateDonations({ donorsIcon: nextIcon })
+                                  }
+                                />
                               </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
-
-                    <TabsContent value="faq" className="mt-6 space-y-6">
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                          <DashboardFieldStack>
-                            <Label>Título</Label>
-                            <Input
-                              value={pages.faq.heroTitle}
-                              onChange={(e) => updateFaq({ heroTitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack className="md:col-span-2">
-                            <Label>Subtítulo</Label>
-                            <Textarea
-                              value={pages.faq.heroSubtitle}
-                              onChange={(e) => updateFaq({ heroSubtitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                        </CardContent>
-                      </Card>
-
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="space-y-4 p-6">
-                          <div className="flex items-center justify-between">
-                            <h2
-                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
-                            >
-                              Cards introdutórios
-                            </h2>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                updateFaq({
-                                  introCards: [
-                                    ...pages.faq.introCards,
-                                    { title: "Novo card", icon: "Info", text: "", note: "" },
-                                  ],
-                                })
-                              }
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              Adicionar
-                            </Button>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            {pages.faq.introCards.map((card, index) => (
-                              <div
-                                key={`${card.title}-${index}`}
-                                draggable
-                                onDragStart={() => handleDragStart("faq.intro", index)}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={() => handleDrop("faq.intro", index)}
-                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  updateDonations({
+                                    donors: [
+                                      ...pages.donations.donors,
+                                      {
+                                        name: "Novo doador",
+                                        amount: "",
+                                        goal: "",
+                                        date: "",
+                                      },
+                                    ],
+                                  })
+                                }
                               >
-                                <div className="flex items-center justify-between gap-2">
-                                  <div
-                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
-                                  >
-                                    <GripVertical className="h-4 w-4" />
-                                    Arraste para reordenar
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <ReorderControls
-                                      label={`card introdutorio ${index + 1}`}
-                                      index={index}
-                                      total={pages.faq.introCards.length}
-                                      onMove={(targetIndex) =>
-                                        moveListItem("faq.intro", index, targetIndex)
-                                      }
-                                    />
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() =>
-                                        updateFaq({
-                                          introCards: pages.faq.introCards.filter(
-                                            (_, i) => i !== index,
-                                          ),
-                                        })
-                                      }
+                                <Plus className="mr-2 h-4 w-4" />
+                                Adicionar
+                              </Button>
+                            </div>
+                            <div className="grid gap-4">
+                              {pages.donations.donors.map((donor, index) => (
+                                <div
+                                  key={`${donor.name}-${index}`}
+                                  draggable
+                                  onDragStart={() =>
+                                    handleDragStart("donations.donors", index)
+                                  }
+                                  onDragOver={(event) => event.preventDefault()}
+                                  onDrop={() =>
+                                    handleDrop("donations.donors", index)
+                                  }
+                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div
+                                      className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
                                     >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                      <GripVertical className="h-4 w-4" />
+                                      Arraste para reordenar
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <ReorderControls
+                                        label={`doador ${index + 1}`}
+                                        index={index}
+                                        total={pages.donations.donors.length}
+                                        onMove={(targetIndex) =>
+                                          moveListItem(
+                                            "donations.donors",
+                                            index,
+                                            targetIndex,
+                                          )
+                                        }
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                          updateDonations({
+                                            donors:
+                                              pages.donations.donors.filter(
+                                                (_, i) => i !== index,
+                                              ),
+                                          })
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="mt-3 grid gap-2 md:grid-cols-4">
+                                    <Input
+                                      value={donor.name}
+                                      onChange={(e) => {
+                                        const next = [
+                                          ...pages.donations.donors,
+                                        ];
+                                        next[index] = {
+                                          ...donor,
+                                          name: e.target.value,
+                                        };
+                                        updateDonations({ donors: next });
+                                      }}
+                                      placeholder="Doador"
+                                    />
+                                    <Input
+                                      value={donor.amount}
+                                      onChange={(e) => {
+                                        const next = [
+                                          ...pages.donations.donors,
+                                        ];
+                                        next[index] = {
+                                          ...donor,
+                                          amount: e.target.value,
+                                        };
+                                        updateDonations({ donors: next });
+                                      }}
+                                      placeholder="Valor"
+                                    />
+                                    <Input
+                                      value={donor.goal}
+                                      onChange={(e) => {
+                                        const next = [
+                                          ...pages.donations.donors,
+                                        ];
+                                        next[index] = {
+                                          ...donor,
+                                          goal: e.target.value,
+                                        };
+                                        updateDonations({ donors: next });
+                                      }}
+                                      placeholder="Objetivo"
+                                    />
+                                    <Input
+                                      value={donor.date}
+                                      onChange={(e) => {
+                                        const next = [
+                                          ...pages.donations.donors,
+                                        ];
+                                        next[index] = {
+                                          ...donor,
+                                          date: e.target.value,
+                                        };
+                                        updateDonations({ donors: next });
+                                      }}
+                                      placeholder="Mês/Ano"
+                                    />
                                   </div>
                                 </div>
-                                <div className="mt-3 grid gap-2">
-                                  <Input
-                                    value={card.title}
-                                    onChange={(e) => {
-                                      const next = [...pages.faq.introCards];
-                                      next[index] = { ...card, title: e.target.value };
-                                      updateFaq({ introCards: next });
-                                    }}
-                                  />
-                                  <Textarea
-                                    value={card.text}
-                                    onChange={(e) => {
-                                      const next = [...pages.faq.introCards];
-                                      next[index] = { ...card, text: e.target.value };
-                                      updateFaq({ introCards: next });
-                                    }}
-                                  />
-                                  <Textarea
-                                    value={card.note}
-                                    onChange={(e) => {
-                                      const next = [...pages.faq.introCards];
-                                      next[index] = { ...card, note: e.target.value };
-                                      updateFaq({ introCards: next });
-                                    }}
-                                  />
-                                  <IconSelect
-                                    value={card.icon}
-                                    onChange={(nextIcon) => {
-                                      const next = [...pages.faq.introCards];
-                                      next[index] = { ...card, icon: nextIcon };
-                                      updateFaq({ introCards: next });
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </TabsContent>
+                    ) : null}
 
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="space-y-4 p-6">
-                          <div className="flex items-center justify-between">
-                            <h2
-                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
-                            >
-                              Grupos de FAQ
-                            </h2>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                updateFaq({
-                                  groups: [
-                                    ...pages.faq.groups,
-                                    { title: "Novo grupo", icon: "Info", items: [] },
-                                  ],
-                                })
-                              }
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              Adicionar grupo
-                            </Button>
-                          </div>
-                          <div className="grid gap-4">
-                            {pages.faq.groups.map((group, groupIndex) => (
-                              <div
-                                key={`${group.title}-${groupIndex}`}
-                                draggable
-                                onDragStart={() => handleDragStart("faq.groups", groupIndex)}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={() => handleDrop("faq.groups", groupIndex)}
-                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                    {activeTab === "faq" ? (
+                      <TabsContent
+                        forceMount
+                        value="faq"
+                        className="mt-6 space-y-6 data-[state=inactive]:hidden"
+                      >
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                            <DashboardFieldStack>
+                              <Label>Título</Label>
+                              <Input
+                                value={pages.faq.heroTitle}
+                                onChange={(e) =>
+                                  updateFaq({ heroTitle: e.target.value })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack className="md:col-span-2">
+                              <Label>Subtítulo</Label>
+                              <Textarea
+                                value={pages.faq.heroSubtitle}
+                                onChange={(e) =>
+                                  updateFaq({ heroSubtitle: e.target.value })
+                                }
+                              />
+                            </DashboardFieldStack>
+                          </CardContent>
+                        </Card>
+
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="space-y-4 p-6">
+                            <div className="flex items-center justify-between">
+                              <h2
+                                className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
                               >
-                                <div className="flex items-center justify-between gap-2">
-                                  <div
-                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
-                                  >
-                                    <GripVertical className="h-4 w-4" />
-                                    Arraste para reordenar
+                                Cards introdutórios
+                              </h2>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  updateFaq({
+                                    introCards: [
+                                      ...pages.faq.introCards,
+                                      {
+                                        title: "Novo card",
+                                        icon: "Info",
+                                        text: "",
+                                        note: "",
+                                      },
+                                    ],
+                                  })
+                                }
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Adicionar
+                              </Button>
+                            </div>
+                            <div className="grid gap-4 md:grid-cols-2">
+                              {pages.faq.introCards.map((card, index) => (
+                                <div
+                                  key={`${card.title}-${index}`}
+                                  draggable
+                                  onDragStart={() =>
+                                    handleDragStart("faq.intro", index)
+                                  }
+                                  onDragOver={(event) => event.preventDefault()}
+                                  onDrop={() => handleDrop("faq.intro", index)}
+                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div
+                                      className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                    >
+                                      <GripVertical className="h-4 w-4" />
+                                      Arraste para reordenar
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <ReorderControls
+                                        label={`card introdutorio ${index + 1}`}
+                                        index={index}
+                                        total={pages.faq.introCards.length}
+                                        onMove={(targetIndex) =>
+                                          moveListItem(
+                                            "faq.intro",
+                                            index,
+                                            targetIndex,
+                                          )
+                                        }
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                          updateFaq({
+                                            introCards:
+                                              pages.faq.introCards.filter(
+                                                (_, i) => i !== index,
+                                              ),
+                                          })
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <ReorderControls
-                                      label={`grupo de faq ${groupIndex + 1}`}
-                                      index={groupIndex}
-                                      total={pages.faq.groups.length}
-                                      onMove={(targetIndex) =>
-                                        moveListItem("faq.groups", groupIndex, targetIndex)
-                                      }
+                                  <div className="mt-3 grid gap-2">
+                                    <Input
+                                      value={card.title}
+                                      onChange={(e) => {
+                                        const next = [...pages.faq.introCards];
+                                        next[index] = {
+                                          ...card,
+                                          title: e.target.value,
+                                        };
+                                        updateFaq({ introCards: next });
+                                      }}
                                     />
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() =>
-                                        updateFaq({
-                                          groups: pages.faq.groups.filter(
-                                            (_, i) => i !== groupIndex,
-                                          ),
-                                        })
-                                      }
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    <Textarea
+                                      value={card.text}
+                                      onChange={(e) => {
+                                        const next = [...pages.faq.introCards];
+                                        next[index] = {
+                                          ...card,
+                                          text: e.target.value,
+                                        };
+                                        updateFaq({ introCards: next });
+                                      }}
+                                    />
+                                    <Textarea
+                                      value={card.note}
+                                      onChange={(e) => {
+                                        const next = [...pages.faq.introCards];
+                                        next[index] = {
+                                          ...card,
+                                          note: e.target.value,
+                                        };
+                                        updateFaq({ introCards: next });
+                                      }}
+                                    />
+                                    <IconSelect
+                                      value={card.icon}
+                                      onChange={(nextIcon) => {
+                                        const next = [...pages.faq.introCards];
+                                        next[index] = {
+                                          ...card,
+                                          icon: nextIcon,
+                                        };
+                                        updateFaq({ introCards: next });
+                                      }}
+                                    />
                                   </div>
                                 </div>
-                                <div className="mt-3 grid gap-2">
-                                  <Input
-                                    value={group.title}
-                                    onChange={(e) => {
-                                      const next = [...pages.faq.groups];
-                                      next[groupIndex] = { ...group, title: e.target.value };
-                                      updateFaq({ groups: next });
-                                    }}
-                                  />
-                                  <IconSelect
-                                    value={group.icon}
-                                    onChange={(nextIcon) => {
-                                      const next = [...pages.faq.groups];
-                                      next[groupIndex] = { ...group, icon: nextIcon };
-                                      updateFaq({ groups: next });
-                                    }}
-                                  />
-                                </div>
-                                <div className="mt-4 space-y-3">
-                                  <div className="flex items-center justify-between">
-                                    <span
-                                      className={`text-xs font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="space-y-4 p-6">
+                            <div className="flex items-center justify-between">
+                              <h2
+                                className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                              >
+                                Grupos de FAQ
+                              </h2>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  updateFaq({
+                                    groups: [
+                                      ...pages.faq.groups,
+                                      {
+                                        title: "Novo grupo",
+                                        icon: "Info",
+                                        items: [],
+                                      },
+                                    ],
+                                  })
+                                }
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Adicionar grupo
+                              </Button>
+                            </div>
+                            <div className="grid gap-4">
+                              {pages.faq.groups.map((group, groupIndex) => (
+                                <div
+                                  key={`${group.title}-${groupIndex}`}
+                                  draggable
+                                  onDragStart={() =>
+                                    handleDragStart("faq.groups", groupIndex)
+                                  }
+                                  onDragOver={(event) => event.preventDefault()}
+                                  onDrop={() =>
+                                    handleDrop("faq.groups", groupIndex)
+                                  }
+                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div
+                                      className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
                                     >
-                                      Perguntas
-                                    </span>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => {
+                                      <GripVertical className="h-4 w-4" />
+                                      Arraste para reordenar
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <ReorderControls
+                                        label={`grupo de faq ${groupIndex + 1}`}
+                                        index={groupIndex}
+                                        total={pages.faq.groups.length}
+                                        onMove={(targetIndex) =>
+                                          moveListItem(
+                                            "faq.groups",
+                                            groupIndex,
+                                            targetIndex,
+                                          )
+                                        }
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                          updateFaq({
+                                            groups: pages.faq.groups.filter(
+                                              (_, i) => i !== groupIndex,
+                                            ),
+                                          })
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="mt-3 grid gap-2">
+                                    <Input
+                                      value={group.title}
+                                      onChange={(e) => {
                                         const next = [...pages.faq.groups];
                                         next[groupIndex] = {
                                           ...group,
-                                          items: [
-                                            ...group.items,
-                                            { question: "Nova pergunta", answer: "" },
-                                          ],
+                                          title: e.target.value,
                                         };
                                         updateFaq({ groups: next });
                                       }}
-                                    >
-                                      <Plus className="mr-2 h-4 w-4" />
-                                      Adicionar
-                                    </Button>
+                                    />
+                                    <IconSelect
+                                      value={group.icon}
+                                      onChange={(nextIcon) => {
+                                        const next = [...pages.faq.groups];
+                                        next[groupIndex] = {
+                                          ...group,
+                                          icon: nextIcon,
+                                        };
+                                        updateFaq({ groups: next });
+                                      }}
+                                    />
                                   </div>
-                                  <div className="grid gap-3">
-                                    {group.items.map((item, itemIndex) => (
-                                      <div
-                                        key={`${item.question}-${itemIndex}`}
-                                        draggable
-                                        onDragStart={(event) => {
-                                          // Avoid parent FAQ group dragstart overriding item drag state.
-                                          event.stopPropagation();
-                                          handleDragStart(`faq.items.${groupIndex}`, itemIndex);
-                                        }}
-                                        onDragOver={(event) => event.preventDefault()}
-                                        onDrop={() =>
-                                          handleDrop(`faq.items.${groupIndex}`, itemIndex)
-                                        }
-                                        className={`${dashboardPagesControlSurfaceClassName} p-3`}
+                                  <div className="mt-4 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <span
+                                        className={`text-xs font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
                                       >
-                                        <div className="flex items-center justify-between gap-2">
-                                          <div
-                                            className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
-                                          >
-                                            <GripVertical className="h-4 w-4" />
-                                            Arraste para reordenar
+                                        Perguntas
+                                      </span>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          const next = [...pages.faq.groups];
+                                          next[groupIndex] = {
+                                            ...group,
+                                            items: [
+                                              ...group.items,
+                                              {
+                                                question: "Nova pergunta",
+                                                answer: "",
+                                              },
+                                            ],
+                                          };
+                                          updateFaq({ groups: next });
+                                        }}
+                                      >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Adicionar
+                                      </Button>
+                                    </div>
+                                    <div className="grid gap-3">
+                                      {group.items.map((item, itemIndex) => (
+                                        <div
+                                          key={`${item.question}-${itemIndex}`}
+                                          draggable
+                                          onDragStart={(event) => {
+                                            // Avoid parent FAQ group dragstart overriding item drag state.
+                                            event.stopPropagation();
+                                            handleDragStart(
+                                              `faq.items.${groupIndex}`,
+                                              itemIndex,
+                                            );
+                                          }}
+                                          onDragOver={(event) =>
+                                            event.preventDefault()
+                                          }
+                                          onDrop={() =>
+                                            handleDrop(
+                                              `faq.items.${groupIndex}`,
+                                              itemIndex,
+                                            )
+                                          }
+                                          className={`${dashboardPagesControlSurfaceClassName} p-3`}
+                                        >
+                                          <div className="flex items-center justify-between gap-2">
+                                            <div
+                                              className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                            >
+                                              <GripVertical className="h-4 w-4" />
+                                              Arraste para reordenar
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <ReorderControls
+                                                label={`pergunta ${itemIndex + 1}`}
+                                                index={itemIndex}
+                                                total={group.items.length}
+                                                onMove={(targetIndex) =>
+                                                  moveListItem(
+                                                    `faq.items.${groupIndex}`,
+                                                    itemIndex,
+                                                    targetIndex,
+                                                  )
+                                                }
+                                              />
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => {
+                                                  const next = [
+                                                    ...pages.faq.groups,
+                                                  ];
+                                                  const items =
+                                                    group.items.filter(
+                                                      (_, i) => i !== itemIndex,
+                                                    );
+                                                  next[groupIndex] = {
+                                                    ...group,
+                                                    items,
+                                                  };
+                                                  updateFaq({ groups: next });
+                                                }}
+                                              >
+                                                <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                            </div>
                                           </div>
-                                          <div className="flex items-center gap-2">
-                                            <ReorderControls
-                                              label={`pergunta ${itemIndex + 1}`}
-                                              index={itemIndex}
-                                              total={group.items.length}
-                                              onMove={(targetIndex) =>
-                                                moveListItem(
-                                                  `faq.items.${groupIndex}`,
-                                                  itemIndex,
-                                                  targetIndex,
-                                                )
-                                              }
-                                            />
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              onClick={() => {
-                                                const next = [...pages.faq.groups];
-                                                const items = group.items.filter(
-                                                  (_, i) => i !== itemIndex,
-                                                );
-                                                next[groupIndex] = { ...group, items };
+                                          <div className="mt-2 grid gap-2">
+                                            <Input
+                                              value={item.question}
+                                              onChange={(e) => {
+                                                const next = [
+                                                  ...pages.faq.groups,
+                                                ];
+                                                const items = [...group.items];
+                                                items[itemIndex] = {
+                                                  ...item,
+                                                  question: e.target.value,
+                                                };
+                                                next[groupIndex] = {
+                                                  ...group,
+                                                  items,
+                                                };
                                                 updateFaq({ groups: next });
                                               }}
-                                            >
-                                              <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                            />
+                                            <Textarea
+                                              value={item.answer}
+                                              onChange={(e) => {
+                                                const next = [
+                                                  ...pages.faq.groups,
+                                                ];
+                                                const items = [...group.items];
+                                                items[itemIndex] = {
+                                                  ...item,
+                                                  answer: e.target.value,
+                                                };
+                                                next[groupIndex] = {
+                                                  ...group,
+                                                  items,
+                                                };
+                                                updateFaq({ groups: next });
+                                              }}
+                                            />
                                           </div>
                                         </div>
-                                        <div className="mt-2 grid gap-2">
-                                          <Input
-                                            value={item.question}
-                                            onChange={(e) => {
-                                              const next = [...pages.faq.groups];
-                                              const items = [...group.items];
-                                              items[itemIndex] = {
-                                                ...item,
-                                                question: e.target.value,
-                                              };
-                                              next[groupIndex] = { ...group, items };
-                                              updateFaq({ groups: next });
-                                            }}
-                                          />
-                                          <Textarea
-                                            value={item.answer}
-                                            onChange={(e) => {
-                                              const next = [...pages.faq.groups];
-                                              const items = [...group.items];
-                                              items[itemIndex] = {
-                                                ...item,
-                                                answer: e.target.value,
-                                              };
-                                              next[groupIndex] = { ...group, items };
-                                              updateFaq({ groups: next });
-                                            }}
-                                          />
-                                        </div>
-                                      </div>
-                                    ))}
+                                      ))}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </TabsContent>
+                    ) : null}
 
-                    <TabsContent value="team" className="mt-6 space-y-6">
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                          <DashboardFieldStack>
-                            <Label>Badge</Label>
-                            <Input
-                              value={pages.team.heroBadge}
-                              onChange={(e) => updateTeam({ heroBadge: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack>
-                            <Label>Título</Label>
-                            <Input
-                              value={pages.team.heroTitle}
-                              onChange={(e) => updateTeam({ heroTitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack className="md:col-span-2">
-                            <Label>Subtítulo</Label>
-                            <Textarea
-                              value={pages.team.heroSubtitle}
-                              onChange={(e) => updateTeam({ heroSubtitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack>
-                            <Label>Título aposentados</Label>
-                            <Input
-                              value={pages.team.retiredTitle}
-                              onChange={(e) => updateTeam({ retiredTitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack className="md:col-span-2">
-                            <Label>Subtítulo aposentados</Label>
-                            <Textarea
-                              value={pages.team.retiredSubtitle}
-                              onChange={(e) => updateTeam({ retiredSubtitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
+                    {activeTab === "team" ? (
+                      <TabsContent
+                        forceMount
+                        value="team"
+                        className="mt-6 space-y-6 data-[state=inactive]:hidden"
+                      >
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                            <DashboardFieldStack>
+                              <Label>Badge</Label>
+                              <Input
+                                value={pages.team.heroBadge}
+                                onChange={(e) =>
+                                  updateTeam({ heroBadge: e.target.value })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
+                              <Label>Título</Label>
+                              <Input
+                                value={pages.team.heroTitle}
+                                onChange={(e) =>
+                                  updateTeam({ heroTitle: e.target.value })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack className="md:col-span-2">
+                              <Label>Subtítulo</Label>
+                              <Textarea
+                                value={pages.team.heroSubtitle}
+                                onChange={(e) =>
+                                  updateTeam({ heroSubtitle: e.target.value })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
+                              <Label>Título aposentados</Label>
+                              <Input
+                                value={pages.team.retiredTitle}
+                                onChange={(e) =>
+                                  updateTeam({ retiredTitle: e.target.value })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack className="md:col-span-2">
+                              <Label>Subtítulo aposentados</Label>
+                              <Textarea
+                                value={pages.team.retiredSubtitle}
+                                onChange={(e) =>
+                                  updateTeam({
+                                    retiredSubtitle: e.target.value,
+                                  })
+                                }
+                              />
+                            </DashboardFieldStack>
+                          </CardContent>
+                        </Card>
+                      </TabsContent>
+                    ) : null}
 
-                    <TabsContent value="recruitment" className="mt-6 space-y-6">
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                          <DashboardFieldStack>
-                            <Label>Badge</Label>
-                            <Input
-                              value={pages.recruitment.heroBadge}
-                              onChange={(e) => updateRecruitment({ heroBadge: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack>
-                            <Label>Título</Label>
-                            <Input
-                              value={pages.recruitment.heroTitle}
-                              onChange={(e) => updateRecruitment({ heroTitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack className="md:col-span-2">
-                            <Label>Subtítulo</Label>
-                            <Textarea
-                              value={pages.recruitment.heroSubtitle}
-                              onChange={(e) => updateRecruitment({ heroSubtitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                        </CardContent>
-                      </Card>
+                    {activeTab === "recruitment" ? (
+                      <TabsContent
+                        forceMount
+                        value="recruitment"
+                        className="mt-6 space-y-6 data-[state=inactive]:hidden"
+                      >
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                            <DashboardFieldStack>
+                              <Label>Badge</Label>
+                              <Input
+                                value={pages.recruitment.heroBadge}
+                                onChange={(e) =>
+                                  updateRecruitment({
+                                    heroBadge: e.target.value,
+                                  })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
+                              <Label>Título</Label>
+                              <Input
+                                value={pages.recruitment.heroTitle}
+                                onChange={(e) =>
+                                  updateRecruitment({
+                                    heroTitle: e.target.value,
+                                  })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack className="md:col-span-2">
+                              <Label>Subtítulo</Label>
+                              <Textarea
+                                value={pages.recruitment.heroSubtitle}
+                                onChange={(e) =>
+                                  updateRecruitment({
+                                    heroSubtitle: e.target.value,
+                                  })
+                                }
+                              />
+                            </DashboardFieldStack>
+                          </CardContent>
+                        </Card>
 
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="space-y-4 p-6">
-                          <div className="flex items-center justify-between">
-                            <h2
-                              className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
-                            >
-                              Funções
-                            </h2>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                updateRecruitment({
-                                  roles: [
-                                    ...pages.recruitment.roles,
-                                    { title: "Nova função", description: "", icon: "Sparkles" },
-                                  ],
-                                })
-                              }
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              Adicionar
-                            </Button>
-                          </div>
-                          <div className="grid gap-4">
-                            {pages.recruitment.roles.map((role, index) => (
-                              <div
-                                key={`${role.title}-${index}`}
-                                draggable
-                                onDragStart={() => handleDragStart("recruitment.roles", index)}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={() => handleDrop("recruitment.roles", index)}
-                                className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="space-y-4 p-6">
+                            <div className="flex items-center justify-between">
+                              <h2
+                                className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
                               >
-                                <div className="flex items-center justify-between gap-2">
-                                  <div
-                                    className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
-                                  >
-                                    <GripVertical className="h-4 w-4" />
-                                    Arraste para reordenar
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <ReorderControls
-                                      label={`funcao ${index + 1}`}
-                                      index={index}
-                                      total={pages.recruitment.roles.length}
-                                      onMove={(targetIndex) =>
-                                        moveListItem("recruitment.roles", index, targetIndex)
-                                      }
-                                    />
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() =>
-                                        updateRecruitment({
-                                          roles: pages.recruitment.roles.filter(
-                                            (_, i) => i !== index,
-                                          ),
-                                        })
-                                      }
+                                Funções
+                              </h2>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  updateRecruitment({
+                                    roles: [
+                                      ...pages.recruitment.roles,
+                                      {
+                                        title: "Nova função",
+                                        description: "",
+                                        icon: "Sparkles",
+                                      },
+                                    ],
+                                  })
+                                }
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Adicionar
+                              </Button>
+                            </div>
+                            <div className="grid gap-4">
+                              {pages.recruitment.roles.map((role, index) => (
+                                <div
+                                  key={`${role.title}-${index}`}
+                                  draggable
+                                  onDragStart={() =>
+                                    handleDragStart("recruitment.roles", index)
+                                  }
+                                  onDragOver={(event) => event.preventDefault()}
+                                  onDrop={() =>
+                                    handleDrop("recruitment.roles", index)
+                                  }
+                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div
+                                      className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
                                     >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                      <GripVertical className="h-4 w-4" />
+                                      Arraste para reordenar
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <ReorderControls
+                                        label={`funcao ${index + 1}`}
+                                        index={index}
+                                        total={pages.recruitment.roles.length}
+                                        onMove={(targetIndex) =>
+                                          moveListItem(
+                                            "recruitment.roles",
+                                            index,
+                                            targetIndex,
+                                          )
+                                        }
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                          updateRecruitment({
+                                            roles:
+                                              pages.recruitment.roles.filter(
+                                                (_, i) => i !== index,
+                                              ),
+                                          })
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                                    <Input
+                                      value={role.title}
+                                      onChange={(e) => {
+                                        const next = [
+                                          ...pages.recruitment.roles,
+                                        ];
+                                        next[index] = {
+                                          ...role,
+                                          title: e.target.value,
+                                        };
+                                        updateRecruitment({ roles: next });
+                                      }}
+                                    />
+                                    <IconSelect
+                                      value={role.icon}
+                                      onChange={(nextIcon) => {
+                                        const next = [
+                                          ...pages.recruitment.roles,
+                                        ];
+                                        next[index] = {
+                                          ...role,
+                                          icon: nextIcon,
+                                        };
+                                        updateRecruitment({ roles: next });
+                                      }}
+                                    />
+                                    <Textarea
+                                      className="md:col-span-2"
+                                      value={role.description}
+                                      onChange={(e) => {
+                                        const next = [
+                                          ...pages.recruitment.roles,
+                                        ];
+                                        next[index] = {
+                                          ...role,
+                                          description: e.target.value,
+                                        };
+                                        updateRecruitment({ roles: next });
+                                      }}
+                                    />
                                   </div>
                                 </div>
-                                <div className="mt-3 grid gap-2 md:grid-cols-2">
-                                  <Input
-                                    value={role.title}
-                                    onChange={(e) => {
-                                      const next = [...pages.recruitment.roles];
-                                      next[index] = { ...role, title: e.target.value };
-                                      updateRecruitment({ roles: next });
-                                    }}
-                                  />
-                                  <IconSelect
-                                    value={role.icon}
-                                    onChange={(nextIcon) => {
-                                      const next = [...pages.recruitment.roles];
-                                      next[index] = { ...role, icon: nextIcon };
-                                      updateRecruitment({ roles: next });
-                                    }}
-                                  />
-                                  <Textarea
-                                    className="md:col-span-2"
-                                    value={role.description}
-                                    onChange={(e) => {
-                                      const next = [...pages.recruitment.roles];
-                                      next[index] = { ...role, description: e.target.value };
-                                      updateRecruitment({ roles: next });
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
 
-                      <Card lift={false} className={dashboardPagesCardClassName}>
-                        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                          <DashboardFieldStack>
-                            <Label>Título do CTA</Label>
-                            <Input
-                              value={pages.recruitment.ctaTitle}
-                              onChange={(e) => updateRecruitment({ ctaTitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack>
-                            <Label>Texto do CTA</Label>
-                            <Input
-                              value={pages.recruitment.ctaSubtitle}
-                              onChange={(e) => updateRecruitment({ ctaSubtitle: e.target.value })}
-                            />
-                          </DashboardFieldStack>
-                          <DashboardFieldStack className="md:col-span-2">
-                            <Label>Texto do botão</Label>
-                            <Input
-                              value={pages.recruitment.ctaButtonLabel}
-                              onChange={(e) =>
-                                updateRecruitment({ ctaButtonLabel: e.target.value })
-                              }
-                            />
-                          </DashboardFieldStack>
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
+                          <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                            <DashboardFieldStack>
+                              <Label>Título do CTA</Label>
+                              <Input
+                                value={pages.recruitment.ctaTitle}
+                                onChange={(e) =>
+                                  updateRecruitment({
+                                    ctaTitle: e.target.value,
+                                  })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
+                              <Label>Texto do CTA</Label>
+                              <Input
+                                value={pages.recruitment.ctaSubtitle}
+                                onChange={(e) =>
+                                  updateRecruitment({
+                                    ctaSubtitle: e.target.value,
+                                  })
+                                }
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack className="md:col-span-2">
+                              <Label>Texto do botão</Label>
+                              <Input
+                                value={pages.recruitment.ctaButtonLabel}
+                                onChange={(e) =>
+                                  updateRecruitment({
+                                    ctaButtonLabel: e.target.value,
+                                  })
+                                }
+                              />
+                            </DashboardFieldStack>
+                          </CardContent>
+                        </Card>
+                      </TabsContent>
+                    ) : null}
                   </>
                 )}
               </>
@@ -2279,41 +2802,48 @@ const DashboardPages = () => {
           </Tabs>
         </section>
       </main>
-      <Suspense
-        fallback={
-          isPreviewLibraryOpen ? (
-            <ImageLibraryDialogLoadingFallback
-              open={isPreviewLibraryOpen}
-              onOpenChange={setIsPreviewLibraryOpen}
-              description="Escolha uma imagem para o preview de compartilhamento da página."
-            />
-          ) : null
+      <LazyImageLibraryDialog
+        open={isPreviewLibraryOpen}
+        onOpenChange={setIsPreviewLibraryOpen}
+        apiBase={apiBase}
+        description="Escolha uma imagem para o preview de compartilhamento da página."
+        uploadFolder="shared"
+        listFolders={previewLibraryFolders}
+        listAll={false}
+        includeProjectImages
+        projectImagesView="by-project"
+        allowDeselect
+        mode="single"
+        currentSelectionUrls={
+          currentPreviewLibrarySelection ? [currentPreviewLibrarySelection] : []
         }
-      >
-        <ImageLibraryDialog
-          open={isPreviewLibraryOpen}
-          onOpenChange={setIsPreviewLibraryOpen}
-          apiBase={apiBase}
-          description="Escolha uma imagem para o preview de compartilhamento da página."
-          uploadFolder="shared"
-          listFolders={previewLibraryFolders}
-          listAll={false}
-          includeProjectImages
-          projectImagesView="by-project"
-          allowDeselect
-          mode="single"
-          currentSelectionUrls={
-            currentPreviewLibrarySelection ? [currentPreviewLibrarySelection] : []
-          }
-          onSave={({ urls, items }) =>
-            applyPageShareImage(
-              previewLibraryTarget,
-              String(urls[0] || "").trim(),
-              items[0]?.altText,
-            )
-          }
-        />
-      </Suspense>
+        onSave={({ urls, items }) =>
+          applyPageShareImage(
+            previewLibraryTarget,
+            String(urls[0] || "").trim(),
+            items[0]?.altText,
+          )
+        }
+      />
+    </>
+  );
+};
+
+const DashboardPages = () => {
+  usePageMeta({ title: "Páginas", noIndex: true });
+  const navigate = useNavigate();
+  const { currentUser, isLoadingUser } = useDashboardCurrentUser();
+  const handleUserCardClick = useCallback(() => {
+    navigate("/dashboard/usuarios?edit=me");
+  }, [navigate]);
+
+  return (
+    <DashboardShell
+      currentUser={currentUser}
+      isLoadingUser={isLoadingUser}
+      onUserCardClick={handleUserCardClick}
+    >
+      <DashboardPagesContent currentUser={currentUser} />
     </DashboardShell>
   );
 };

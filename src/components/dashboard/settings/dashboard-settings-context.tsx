@@ -1,6 +1,8 @@
 import { createContext, useContext } from "react";
 
-const DashboardSettingsContext = createContext<any>(null);
+import type { DashboardSettingsContextValue } from "./dashboard-settings-types";
+
+const DashboardSettingsContext = createContext<DashboardSettingsContextValue | null>(null);
 
 export const DashboardSettingsProvider = DashboardSettingsContext.Provider;
 

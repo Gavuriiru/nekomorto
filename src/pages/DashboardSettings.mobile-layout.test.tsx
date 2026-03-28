@@ -17,13 +17,19 @@ const settingsWithUploadIcons = {
   downloads: {
     ...defaultSettings.downloads,
     sources: defaultSettings.downloads.sources.map((source, index) =>
-      index === 0 ? { ...source, icon: "/uploads/downloads/google-drive.svg" } : source,
+      index === 0
+        ? { ...source, icon: "/uploads/downloads/google-drive.svg" }
+        : source,
     ),
   },
 };
 
 const linkTypesResponse = [
-  { id: "instagram", label: "Instagram", icon: "/uploads/socials/instagram.svg" },
+  {
+    id: "instagram",
+    label: "Instagram",
+    icon: "/uploads/socials/instagram.svg",
+  },
 ];
 
 vi.mock("@/components/DashboardShell", () => ({
@@ -35,7 +41,9 @@ vi.mock("@/components/ImageLibraryDialog", () => ({
 }));
 
 vi.mock("@/components/ThemedSvgLogo", () => ({
-  default: ({ label }: { label?: string }) => <span aria-hidden="true" data-label={label || ""} />,
+  default: ({ label }: { label?: string }) => (
+    <span aria-hidden="true" data-label={label || ""} />
+  ),
 }));
 
 vi.mock("@/hooks/use-page-meta", () => ({
@@ -58,14 +66,21 @@ vi.mock("@/lib/api-client", () => ({
 }));
 
 vi.mock("react-router-dom", async () => {
-  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  const actual =
+    await vi.importActual<typeof import("react-router-dom")>(
+      "react-router-dom",
+    );
   return {
     ...actual,
     useNavigate: () => navigateMock,
   };
 });
 
-const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
+const mockJsonResponse = (
+  ok: boolean,
+  payload: unknown,
+  status = ok ? 200 : 500,
+) =>
   ({
     ok,
     status,
@@ -106,9 +121,15 @@ describe("DashboardSettings mobile layout", () => {
     refreshMock.mockClear();
 
     apiFetchMock.mockImplementation(async (_base, path, options) => {
-      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      const method = String(
+        (options as RequestInit | undefined)?.method || "GET",
+      ).toUpperCase();
       if (path === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
+        return mockJsonResponse(true, {
+          id: "1",
+          name: "Admin",
+          username: "admin",
+        });
       }
       if (path === "/api/settings" && method === "GET") {
         return mockJsonResponse(true, { settings: settingsWithUploadIcons });
@@ -131,7 +152,9 @@ describe("DashboardSettings mobile layout", () => {
         const payload =
           (request.json as { settings?: unknown } | undefined) ||
           JSON.parse(String(request.body || "{}"));
-        return mockJsonResponse(true, { settings: payload.settings || settingsWithUploadIcons });
+        return mockJsonResponse(true, {
+          settings: payload.settings || settingsWithUploadIcons,
+        });
       }
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
@@ -146,7 +169,9 @@ describe("DashboardSettings mobile layout", () => {
 
     const nameInput = screen.getByDisplayValue("Google Drive");
     const card = findAncestor(nameInput, (candidate) =>
-      classTokens(candidate).includes("md:grid-cols-[1.2fr_0.25fr_0.6fr_1.6fr_auto]"),
+      classTokens(candidate).includes(
+        "md:grid-cols-[1.2fr_0.25fr_0.6fr_1.6fr_auto]",
+      ),
     );
 
     expect(card).not.toBeNull();
@@ -218,7 +243,9 @@ describe("DashboardSettings mobile layout", () => {
     expect(previewRow).not.toBeNull();
     expect(previewRow?.parentElement).toBe(card as HTMLElement);
 
-    const previewStatus = within(previewRow as HTMLElement).getByText("SVG atual");
+    const previewStatus = within(previewRow as HTMLElement).getByText(
+      "SVG atual",
+    );
     const previewStatusTokens = classTokens(previewStatus as HTMLElement);
     expect(previewStatusTokens).toContain("flex-1");
     expect(previewStatusTokens).toContain("truncate");
@@ -233,19 +260,27 @@ describe("DashboardSettings mobile layout", () => {
 
     const mobileRemoveButton = Array.from(
       (uploadActionCluster as HTMLElement).querySelectorAll("button"),
-    ).find((candidate) => classTokens(candidate as HTMLElement).includes("text-destructive"));
+    ).find((candidate) =>
+      classTokens(candidate as HTMLElement).includes("text-destructive"),
+    );
     expect(mobileRemoveButton).toBeDefined();
-    const mobileRemoveButtonTokens = classTokens(mobileRemoveButton as HTMLElement);
+    const mobileRemoveButtonTokens = classTokens(
+      mobileRemoveButton as HTMLElement,
+    );
     expect(mobileRemoveButtonTokens).toContain("h-7");
     expect(mobileRemoveButtonTokens).toContain("w-7");
     expect(mobileRemoveButtonTokens).toContain("md:hidden");
 
-    const desktopRemoveButton = Array.from((card as HTMLElement).querySelectorAll("button")).find(
-      (candidate) => classTokens(candidate as HTMLElement).includes("md:inline-flex"),
+    const desktopRemoveButton = Array.from(
+      (card as HTMLElement).querySelectorAll("button"),
+    ).find((candidate) =>
+      classTokens(candidate as HTMLElement).includes("md:inline-flex"),
     );
     expect(desktopRemoveButton).toBeDefined();
     expect(desktopRemoveButton?.parentElement).toBe(card as HTMLElement);
-    const desktopRemoveButtonTokens = classTokens(desktopRemoveButton as HTMLElement);
+    const desktopRemoveButtonTokens = classTokens(
+      desktopRemoveButton as HTMLElement,
+    );
     expect(desktopRemoveButtonTokens).toContain("hidden");
     expect(desktopRemoveButtonTokens).toContain("md:inline-flex");
   });
@@ -292,7 +327,9 @@ describe("DashboardSettings mobile layout", () => {
     expect(previewRow).not.toBeNull();
     expect(previewRow?.parentElement).toBe(card as HTMLElement);
 
-    const previewStatus = within(previewRow as HTMLElement).getByText("SVG atual");
+    const previewStatus = within(previewRow as HTMLElement).getByText(
+      "SVG atual",
+    );
     const previewStatusTokens = classTokens(previewStatus as HTMLElement);
     expect(previewStatusTokens).toContain("flex-1");
     expect(previewStatusTokens).toContain("truncate");
@@ -307,19 +344,27 @@ describe("DashboardSettings mobile layout", () => {
 
     const mobileRemoveButton = Array.from(
       (uploadActionCluster as HTMLElement).querySelectorAll("button"),
-    ).find((candidate) => classTokens(candidate as HTMLElement).includes("text-destructive"));
+    ).find((candidate) =>
+      classTokens(candidate as HTMLElement).includes("text-destructive"),
+    );
     expect(mobileRemoveButton).toBeDefined();
-    const mobileRemoveButtonTokens = classTokens(mobileRemoveButton as HTMLElement);
+    const mobileRemoveButtonTokens = classTokens(
+      mobileRemoveButton as HTMLElement,
+    );
     expect(mobileRemoveButtonTokens).toContain("h-7");
     expect(mobileRemoveButtonTokens).toContain("w-7");
     expect(mobileRemoveButtonTokens).toContain("md:hidden");
 
-    const desktopRemoveButton = Array.from((card as HTMLElement).querySelectorAll("button")).find(
-      (candidate) => classTokens(candidate as HTMLElement).includes("md:inline-flex"),
+    const desktopRemoveButton = Array.from(
+      (card as HTMLElement).querySelectorAll("button"),
+    ).find((candidate) =>
+      classTokens(candidate as HTMLElement).includes("md:inline-flex"),
     );
     expect(desktopRemoveButton).toBeDefined();
     expect(desktopRemoveButton?.parentElement).toBe(card as HTMLElement);
-    const desktopRemoveButtonTokens = classTokens(desktopRemoveButton as HTMLElement);
+    const desktopRemoveButtonTokens = classTokens(
+      desktopRemoveButton as HTMLElement,
+    );
     expect(desktopRemoveButtonTokens).toContain("hidden");
     expect(desktopRemoveButtonTokens).toContain("md:inline-flex");
   });
@@ -344,13 +389,17 @@ describe("DashboardSettings mobile layout", () => {
     expect(teamCardTokens).toContain("shadow-sm");
     expect(teamCardTokens).toContain("md:items-center");
 
-    const teamSelectTrigger = within(teamCard as HTMLElement).getByRole("combobox");
+    const teamSelectTrigger = within(teamCard as HTMLElement).getByRole(
+      "combobox",
+    );
     const teamSelectTokens = classTokens(teamSelectTrigger as HTMLElement);
     expect(teamSelectTokens).toContain("w-full");
     expect(teamSelectTokens).toContain("min-w-0");
 
-    const teamRemoveButton = Array.from((teamCard as HTMLElement).querySelectorAll("button")).find(
-      (candidate) => classTokens(candidate as HTMLElement).includes("text-destructive"),
+    const teamRemoveButton = Array.from(
+      (teamCard as HTMLElement).querySelectorAll("button"),
+    ).find((candidate) =>
+      classTokens(candidate as HTMLElement).includes("text-destructive"),
     );
     expect(teamRemoveButton).toBeDefined();
     const teamRemoveTokens = classTokens(teamRemoveButton as HTMLElement);
@@ -362,11 +411,18 @@ describe("DashboardSettings mobile layout", () => {
     expect(teamRemoveTokens).toContain("md:justify-self-auto");
 
     fireEvent.mouseDown(screen.getByRole("tab", { name: /Layout/i }));
-    const navbarHeading = await screen.findByRole("heading", { name: /Links do menu/i });
-    const navbarCardContent = navbarHeading.closest("div.space-y-6") as HTMLElement | null;
+    const navbarHeading = await screen.findByRole("heading", {
+      name: /Links do menu/i,
+    });
+    const navbarCardContent = navbarHeading.closest(
+      "div.space-y-6",
+    ) as HTMLElement | null;
     expect(navbarCardContent).not.toBeNull();
 
-    const navbarLabelInput = within(navbarCardContent as HTMLElement).getByDisplayValue("Projetos");
+    const navbarLabelInput = within(navbarCardContent as HTMLElement)
+      .getAllByDisplayValue("Projetos")
+      .find((candidate) => candidate.tagName === "INPUT");
+    expect(navbarLabelInput).toBeDefined();
     const navbarCard = findAncestor(navbarLabelInput, (candidate) =>
       classTokens(candidate).includes("md:grid-cols-[0.85fr_1fr_1.6fr_auto]"),
     );
@@ -379,17 +435,23 @@ describe("DashboardSettings mobile layout", () => {
     expect(navbarCardTokens).toContain("shadow-sm");
     expect(navbarCardTokens).toContain("md:items-center");
 
-    const navbarSelectTrigger = within(navbarCard as HTMLElement).getByRole("combobox");
+    const navbarSelectTrigger = within(navbarCard as HTMLElement).getByRole(
+      "combobox",
+    );
     const navbarSelectTokens = classTokens(navbarSelectTrigger as HTMLElement);
     expect(navbarSelectTokens).toContain("w-full");
     expect(navbarSelectTokens).toContain("min-w-0");
 
-    const navbarUrlInput = within(navbarCard as HTMLElement).getByDisplayValue("/projetos");
+    const navbarUrlInput = within(navbarCard as HTMLElement).getByDisplayValue(
+      "/projetos",
+    );
     expect(navbarUrlInput).toBeInTheDocument();
 
     const navbarRemoveButton = Array.from(
       (navbarCard as HTMLElement).querySelectorAll("button"),
-    ).find((candidate) => classTokens(candidate as HTMLElement).includes("text-destructive"));
+    ).find((candidate) =>
+      classTokens(candidate as HTMLElement).includes("text-destructive"),
+    );
     expect(navbarRemoveButton).toBeDefined();
     const navbarRemoveTokens = classTokens(navbarRemoveButton as HTMLElement);
     expect(navbarRemoveTokens).toContain("h-7");
@@ -421,15 +483,21 @@ describe("DashboardSettings mobile layout", () => {
 
     const columnHeaderRemove = Array.from(
       (columnCard as HTMLElement).querySelectorAll("button"),
-    ).find((candidate) => classTokens(candidate as HTMLElement).includes("self-end"));
+    ).find((candidate) =>
+      classTokens(candidate as HTMLElement).includes("self-end"),
+    );
     expect(columnHeaderRemove).toBeDefined();
-    const columnHeaderRemoveTokens = classTokens(columnHeaderRemove as HTMLElement);
+    const columnHeaderRemoveTokens = classTokens(
+      columnHeaderRemove as HTMLElement,
+    );
     expect(columnHeaderRemoveTokens).toContain("h-7");
     expect(columnHeaderRemoveTokens).toContain("w-7");
     expect(columnHeaderRemoveTokens).toContain("self-end");
     expect(columnHeaderRemoveTokens).toContain("md:self-auto");
 
-    const footerLinkInput = within(columnCard as HTMLElement).getByDisplayValue("Sobre");
+    const footerLinkInput = within(columnCard as HTMLElement).getByDisplayValue(
+      "Sobre",
+    );
     const footerLinkCard = findAncestor(footerLinkInput, (candidate) =>
       classTokens(candidate).includes("md:grid-cols-[1fr_1.6fr_auto]"),
     );
@@ -442,7 +510,9 @@ describe("DashboardSettings mobile layout", () => {
 
     const footerLinkRemove = Array.from(
       (footerLinkCard as HTMLElement).querySelectorAll("button"),
-    ).find((candidate) => classTokens(candidate as HTMLElement).includes("text-destructive"));
+    ).find((candidate) =>
+      classTokens(candidate as HTMLElement).includes("text-destructive"),
+    );
     expect(footerLinkRemove).toBeDefined();
     const footerLinkRemoveTokens = classTokens(footerLinkRemove as HTMLElement);
     expect(footerLinkRemoveTokens).toContain("justify-self-end");
@@ -453,28 +523,45 @@ describe("DashboardSettings mobile layout", () => {
     expect(footerSocialRowTokens).toContain("rounded-2xl");
     expect(footerSocialRowTokens).toContain("p-3");
     expect(footerSocialRowTokens).toContain("shadow-sm");
-    expect(footerSocialRowTokens).toContain("md:overflow-x-auto");
+    expect(footerSocialRowTokens).not.toContain("md:overflow-x-auto");
     expect(footerSocialRowTokens).not.toContain("overflow-x-auto");
 
-    const footerSocialGrid = Array.from(footerSocialRow.querySelectorAll("div")).find((candidate) =>
-      classTokens(candidate as HTMLElement).includes("md:min-w-[720px]"),
+    const footerSocialGrid = Array.from(
+      footerSocialRow.querySelectorAll("div"),
+    ).find((candidate) =>
+      classTokens(candidate as HTMLElement).includes(
+        "md:grid-cols-[auto_auto_minmax(180px,0.95fr)_minmax(260px,1.55fr)_auto]",
+      ),
     );
     expect(footerSocialGrid).not.toBeNull();
     const footerSocialGridTokens = classTokens(footerSocialGrid as HTMLElement);
     expect(footerSocialGridTokens).toContain("grid");
-    expect(footerSocialGridTokens).toContain("md:min-w-[720px]");
+    expect(footerSocialGridTokens).not.toContain("md:min-w-[720px]");
+    expect(footerSocialGridTokens).toContain(
+      "md:grid-cols-[auto_auto_minmax(180px,0.95fr)_minmax(260px,1.55fr)_auto]",
+    );
 
-    const footerSocialTopRow = Array.from(footerSocialRow.querySelectorAll("div")).find(
-      (candidate) => classTokens(candidate as HTMLElement).includes("grid-cols-[auto_1fr_auto]"),
+    const footerSocialTopRow = Array.from(
+      footerSocialRow.querySelectorAll("div"),
+    ).find((candidate) =>
+      classTokens(candidate as HTMLElement).includes(
+        "grid-cols-[auto_1fr_auto]",
+      ),
     );
     expect(footerSocialTopRow).not.toBeNull();
-    const footerSocialTopRowTokens = classTokens(footerSocialTopRow as HTMLElement);
+    const footerSocialTopRowTokens = classTokens(
+      footerSocialTopRow as HTMLElement,
+    );
     expect(footerSocialTopRowTokens).toContain("md:contents");
 
-    const footerSocialDragButton = within(footerSocialTopRow as HTMLElement).getByRole("button", {
+    const footerSocialDragButton = within(
+      footerSocialTopRow as HTMLElement,
+    ).getByRole("button", {
       name: /Arrastar rede Instagram/i,
     });
-    const footerSocialDragTokens = classTokens(footerSocialDragButton as HTMLElement);
+    const footerSocialDragTokens = classTokens(
+      footerSocialDragButton as HTMLElement,
+    );
     expect(footerSocialDragTokens).toContain("h-7");
     expect(footerSocialDragTokens).toContain("w-7");
     expect(footerSocialDragTokens).toContain("md:h-9");
@@ -482,15 +569,22 @@ describe("DashboardSettings mobile layout", () => {
 
     const footerSocialMobileRemove = Array.from(
       (footerSocialTopRow as HTMLElement).querySelectorAll("button"),
-    ).find((candidate) => classTokens(candidate as HTMLElement).includes("md:hidden"));
+    ).find((candidate) =>
+      classTokens(candidate as HTMLElement).includes("md:hidden"),
+    );
     expect(footerSocialMobileRemove).toBeDefined();
-    const footerSocialDesktopRemove = Array.from(footerSocialRow.querySelectorAll("button")).find(
-      (candidate) => classTokens(candidate as HTMLElement).includes("md:inline-flex"),
+    const footerSocialDesktopRemove = Array.from(
+      footerSocialRow.querySelectorAll("button"),
+    ).find((candidate) =>
+      classTokens(candidate as HTMLElement).includes("md:inline-flex"),
     );
     expect(footerSocialDesktopRemove).toBeDefined();
 
-    const legalHeading = screen.getByRole("heading", { name: /Textos legais/i });
-    const legalCardContent = legalHeading.parentElement?.parentElement as HTMLElement | null;
+    const legalHeading = screen.getByRole("heading", {
+      name: /Textos legais/i,
+    });
+    const legalCardContent = legalHeading.parentElement
+      ?.parentElement as HTMLElement | null;
     expect(legalCardContent).not.toBeNull();
     const legalCardTokens = classTokens(legalCardContent as HTMLElement);
     expect(legalCardTokens).toContain("space-y-4");
@@ -498,9 +592,9 @@ describe("DashboardSettings mobile layout", () => {
     expect(legalCardTokens).toContain("md:space-y-6");
     expect(legalCardTokens).toContain("md:p-6");
 
-    const disclaimerTextarea = within(legalCardContent as HTMLElement).getByDisplayValue(
-      /Todo o conte/i,
-    );
+    const disclaimerTextarea = within(
+      legalCardContent as HTMLElement,
+    ).getByDisplayValue(/Todo o conte/i);
     const disclaimerCard = findAncestor(disclaimerTextarea, (candidate) =>
       classTokens(candidate).includes("md:grid-cols-[1fr_auto]"),
     );
@@ -512,26 +606,34 @@ describe("DashboardSettings mobile layout", () => {
     expect(disclaimerCardTokens).toContain("shadow-sm");
     expect(disclaimerCardTokens).toContain("md:items-start");
 
-    const disclaimerTextareaTokens = classTokens(disclaimerTextarea as HTMLElement);
+    const disclaimerTextareaTokens = classTokens(
+      disclaimerTextarea as HTMLElement,
+    );
     expect(disclaimerTextareaTokens).toContain("min-h-[96px]");
     expect(disclaimerTextareaTokens).toContain("md:min-h-[80px]");
 
     const disclaimerRemove = Array.from(
       (disclaimerCard as HTMLElement).querySelectorAll("button"),
-    ).find((candidate) => classTokens(candidate as HTMLElement).includes("text-destructive"));
+    ).find((candidate) =>
+      classTokens(candidate as HTMLElement).includes("text-destructive"),
+    );
     expect(disclaimerRemove).toBeDefined();
     const disclaimerRemoveTokens = classTokens(disclaimerRemove as HTMLElement);
     expect(disclaimerRemoveTokens).toContain("justify-self-end");
     expect(disclaimerRemoveTokens).toContain("md:justify-self-auto");
 
-    const addParagraphButton = within(legalCardContent as HTMLElement).getByRole("button", {
+    const addParagraphButton = within(
+      legalCardContent as HTMLElement,
+    ).getByRole("button", {
       name: /Adicionar par/i,
     });
     const addParagraphTokens = classTokens(addParagraphButton as HTMLElement);
     expect(addParagraphTokens).toContain("w-full");
     expect(addParagraphTokens).toContain("md:w-auto");
 
-    const highlightInput = within(legalCardContent as HTMLElement).getByDisplayValue(/Atribui/i);
+    const highlightInput = within(
+      legalCardContent as HTMLElement,
+    ).getByDisplayValue(/Atribui/i);
     const highlightGrid = findAncestor(highlightInput, (candidate) =>
       classTokens(candidate).includes("md:grid-cols-2"),
     );

@@ -27,6 +27,11 @@ import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/
 import ProjectEditorImageLibraryDialog from "@/components/dashboard/project-editor/ProjectEditorImageLibraryDialog";
 import ProjectEditorMediaSection from "@/components/dashboard/project-editor/ProjectEditorMediaSection";
 import { useProjectEditorImageLibrary } from "@/components/dashboard/project-editor/useProjectEditorImageLibrary";
+import { useDashboardProjectsEditorAnimeBatch } from "@/components/dashboard/project-editor/useDashboardProjectsEditorAnimeBatch";
+import {
+  clearProjectsPageCache,
+  useDashboardProjectsEditorResource,
+} from "@/components/dashboard/project-editor/useDashboardProjectsEditorResource";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
 import {
@@ -81,12 +86,9 @@ import {
   normalizeIsoDateFromUnknown,
 } from "@/lib/dashboard-date-time";
 import {
-  buildDuplicatedAnimeEpisode,
-  cloneEpisodeSources,
   getAnimeEpisodeCompletionIssues,
   getAnimeEpisodeCompletionLabel,
   matchesAnimeEpisodeQuickFilter,
-  shiftIsoDateByDays,
   type AnimeEpisodeQuickFilter,
 } from "@/lib/project-anime-episodes";
 import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
@@ -112,15 +114,7 @@ import {
   resolveNextExtraTechnicalNumber,
   resolveNextMainEpisodeNumber,
 } from "@/lib/project-episode-key";
-import {
-  buildTranslationMap,
-  normalizeKey,
-  sortByTranslatedLabel,
-  translateAnilistRole,
-  translateGenre,
-  translateRelation,
-  translateTag,
-} from "@/lib/project-taxonomy";
+import { buildTranslationMap, normalizeKey, sortByTranslatedLabel, translateAnilistRole, translateGenre, translateRelation, translateTag } from "@/lib/project-taxonomy";
 import {
   getProjectProgressStagesForEditor,
   getProjectProgressStateForEditor,
@@ -152,7 +146,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 type ProjectRelation = {
   relation: string;
@@ -242,47 +236,6 @@ type ProjectRecord = {
   updatedAt?: string;
   deletedAt?: string | null;
   deletedBy?: string | null;
-};
-
-const PROJECTS_PAGE_CACHE_TTL_MS = 60_000;
-
-type ProjectsPageCacheEntry = {
-  projects: ProjectRecord[];
-  projectTypeOptions: string[];
-  memberDirectory: string[];
-  tagTranslations: Record<string, string>;
-  genreTranslations: Record<string, string>;
-  staffRoleTranslations: Record<string, string>;
-  expiresAt: number;
-};
-
-let projectsPageCache: ProjectsPageCacheEntry | null = null;
-
-const cloneProjectsPageCache = (value: Omit<ProjectsPageCacheEntry, "expiresAt">) => ({
-  projects: JSON.parse(JSON.stringify(value.projects)) as ProjectRecord[],
-  projectTypeOptions: [...value.projectTypeOptions],
-  memberDirectory: [...value.memberDirectory],
-  tagTranslations: { ...value.tagTranslations },
-  genreTranslations: { ...value.genreTranslations },
-  staffRoleTranslations: { ...value.staffRoleTranslations },
-});
-
-const readProjectsPageCache = () => {
-  if (!projectsPageCache) {
-    return null;
-  }
-  if (projectsPageCache.expiresAt <= Date.now()) {
-    projectsPageCache = null;
-    return null;
-  }
-  return cloneProjectsPageCache(projectsPageCache);
-};
-
-const writeProjectsPageCache = (value: Omit<ProjectsPageCacheEntry, "expiresAt">) => {
-  projectsPageCache = {
-    ...cloneProjectsPageCache(value),
-    expiresAt: Date.now() + PROJECTS_PAGE_CACHE_TTL_MS,
-  };
 };
 
 const appendUniqueValue = (values: string[], nextValue: string) =>
@@ -659,22 +612,6 @@ const moveIndexedItem = <T,>(items: T[], from: number, to: number) => {
   return next;
 };
 
-const parsePageParam = (value: string | null) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return 1;
-  }
-  return Math.floor(parsed);
-};
-
-const parseTypeParam = (value: string | null) => {
-  const normalized = String(value || "").trim();
-  if (!normalized) {
-    return "Todos";
-  }
-  return normalized;
-};
-
 const buildProjectEditorSnapshot = (form: ProjectForm, anilistIdInput: string) =>
   JSON.stringify({
     form,
@@ -689,47 +626,7 @@ const DashboardProjectsEditor = () => {
   const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
   const { currentUser, isLoadingUser } = useDashboardCurrentUser();
   const hasLoadedCurrentUser = !isLoadingUser;
-  const initialCacheRef = useRef(readProjectsPageCache());
-  const [projects, setProjects] = useState<ProjectRecord[]>(
-    initialCacheRef.current?.projects ?? [],
-  );
-  const [projectTypeOptions, setProjectTypeOptions] = useState<string[]>(
-    initialCacheRef.current?.projectTypeOptions ?? defaultFormatOptions,
-  );
-  const [isInitialLoading, setIsInitialLoading] = useState(!initialCacheRef.current);
-  const [isRefreshing, setIsRefreshing] = useState(Boolean(initialCacheRef.current));
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(Boolean(initialCacheRef.current));
-  const [hasResolvedProjects, setHasResolvedProjects] = useState(Boolean(initialCacheRef.current));
-  const [hasResolvedProjectTypes, setHasResolvedProjectTypes] = useState(
-    Boolean(initialCacheRef.current),
-  );
-  const [hasResolvedMemberDirectory, setHasResolvedMemberDirectory] = useState(
-    Boolean(initialCacheRef.current),
-  );
-  const [hasResolvedTranslations, setHasResolvedTranslations] = useState(
-    Boolean(initialCacheRef.current),
-  );
-  const [hasLoadError, setHasLoadError] = useState(false);
-  const [loadVersion, setLoadVersion] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [sortMode, setSortMode] = useState<"alpha" | "status" | "views" | "comments" | "recent">(
-    () => {
-      const sortParam = searchParams.get("sort");
-      if (
-        sortParam === "alpha" ||
-        sortParam === "status" ||
-        sortParam === "views" ||
-        sortParam === "comments" ||
-        sortParam === "recent"
-      ) {
-        return sortParam;
-      }
-      return "alpha";
-    },
-  );
-  const [currentPage, setCurrentPage] = useState(() => parsePageParam(searchParams.get("page")));
-  const [selectedType, setSelectedType] = useState(() => parseTypeParam(searchParams.get("type")));
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   useEditorScrollLock(isEditorOpen);
   useEditorScrollStability(isEditorOpen);
@@ -743,15 +640,32 @@ const DashboardProjectsEditor = () => {
   const [genreInput, setGenreInput] = useState("");
   const [animationStudioInput, setAnimationStudioInput] = useState("");
   const [producerInput, setProducerInput] = useState("");
-  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
-    initialCacheRef.current?.tagTranslations ?? {},
-  );
-  const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>(
-    initialCacheRef.current?.genreTranslations ?? {},
-  );
-  const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>(
-    initialCacheRef.current?.staffRoleTranslations ?? {},
-  );
+  const {
+    currentPage,
+    genreTranslations,
+    hasLoadError,
+    hasLoadedOnce,
+    hasResolvedMemberDirectory,
+    hasResolvedProjectTypes,
+    hasResolvedProjects,
+    hasResolvedTranslations,
+    isInitialLoading,
+    isRefreshing,
+    memberDirectory,
+    projectTypeOptions,
+    projects,
+    refreshProjects,
+    searchParams,
+    selectedType,
+    setCurrentPage,
+    setProjects,
+    setSearchParams,
+    setSelectedType,
+    setSortMode,
+    sortMode,
+    staffRoleTranslations,
+    tagTranslations,
+  } = useDashboardProjectsEditorResource(apiBase);
   const [episodeDragId, setEpisodeDragId] = useState<number | null>(null);
   const [relationDragIndex, setRelationDragIndex] = useState<number | null>(null);
   const [staffDragIndex, setStaffDragIndex] = useState<number | null>(null);
@@ -762,35 +676,6 @@ const DashboardProjectsEditor = () => {
   const [episodeTimeDraft, setEpisodeTimeDraft] = useState<Record<number, string>>({});
   const [episodeSizeDrafts, setEpisodeSizeDrafts] = useState<Record<number, string>>({});
   const [episodeSizeErrors, setEpisodeSizeErrors] = useState<Record<number, string>>({});
-  const [animeEpisodeFilter, setAnimeEpisodeFilter] = useState<AnimeEpisodeQuickFilter>("all");
-  const [selectedAnimeEpisodeKeys, setSelectedAnimeEpisodeKeys] = useState<string[]>([]);
-  const [removedAnimeEpisode, setRemovedAnimeEpisode] = useState<{
-    episode: EditorProjectEpisode;
-    index: number;
-  } | null>(null);
-  const [animeBatchCreateOpen, setAnimeBatchCreateOpen] = useState(false);
-  const [animeBatchStartNumber, setAnimeBatchStartNumber] = useState("");
-  const [animeBatchQuantity, setAnimeBatchQuantity] = useState("3");
-  const [animeBatchCadenceDays, setAnimeBatchCadenceDays] = useState("");
-  const [animeBatchDurationInput, setAnimeBatchDurationInput] = useState("");
-  const [animeBatchSourceType, setAnimeBatchSourceType] =
-    useState<EditorProjectEpisode["sourceType"]>("TV");
-  const [animeBatchPublicationStatus, setAnimeBatchPublicationStatus] = useState<
-    "draft" | "published"
-  >("draft");
-  const [animeBatchOperationDuration, setAnimeBatchOperationDuration] = useState("");
-  const [animeBatchOperationSourceType, setAnimeBatchOperationSourceType] =
-    useState<EditorProjectEpisode["sourceType"]>("TV");
-  const [animeBatchOperationPublicationStatus, setAnimeBatchOperationPublicationStatus] = useState<
-    "draft" | "published"
-  >("draft");
-  const [animeBatchOperationShiftDays, setAnimeBatchOperationShiftDays] = useState("");
-  const [animeBatchOperationCompletedStages, setAnimeBatchOperationCompletedStages] = useState<
-    string[]
-  >([]);
-  const [memberDirectory, setMemberDirectory] = useState<string[]>(
-    initialCacheRef.current?.memberDirectory ?? [],
-  );
   const [collapsedEpisodes, setCollapsedEpisodes] = useState<Record<number, boolean>>({});
   const [collapsedVolumeGroups, setCollapsedVolumeGroups] = useState<Record<string, boolean>>({});
   const [editorAccordionValue, setEditorAccordionValue] = useState<string[]>(["informacoes"]);
@@ -829,14 +714,6 @@ const DashboardProjectsEditor = () => {
   const confirmActionRef = useRef<(() => void) | null>(null);
   const confirmCancelRef = useRef<(() => void) | null>(null);
   const autoEditHandledRef = useRef<string | null>(null);
-  const isApplyingSearchParamsRef = useRef(false);
-  const requestIdRef = useRef(0);
-  const hasLoadedOnceRef = useRef(hasLoadedOnce);
-  const queryStateRef = useRef({
-    sortMode,
-    currentPage,
-    selectedType,
-  });
   const hasInitializedListFiltersRef = useRef(false);
   const editorInitialSnapshotRef = useRef<string>(buildProjectEditorSnapshot(emptyProject, ""));
   const isDirty = useMemo(
@@ -1047,74 +924,6 @@ const DashboardProjectsEditor = () => {
   }, [formState.genres, genreInput, genreSuggestionOptions]);
 
   useEffect(() => {
-    queryStateRef.current = {
-      sortMode,
-      currentPage,
-      selectedType,
-    };
-  }, [currentPage, selectedType, sortMode]);
-
-  useEffect(() => {
-    const sortParam = searchParams.get("sort");
-    const nextSort =
-      sortParam === "alpha" ||
-      sortParam === "status" ||
-      sortParam === "views" ||
-      sortParam === "comments" ||
-      sortParam === "recent"
-        ? sortParam
-        : "alpha";
-    const nextPage = parsePageParam(searchParams.get("page"));
-    const nextType = parseTypeParam(searchParams.get("type"));
-    const {
-      sortMode: currentSortMode,
-      currentPage: currentCurrentPage,
-      selectedType: currentSelectedType,
-    } = queryStateRef.current;
-    const shouldApply =
-      currentSortMode !== nextSort ||
-      currentCurrentPage !== nextPage ||
-      currentSelectedType !== nextType;
-    if (!shouldApply) {
-      return;
-    }
-    isApplyingSearchParamsRef.current = true;
-    setSortMode((prev) => (prev === nextSort ? prev : nextSort));
-    setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
-    setSelectedType((prev) => (prev === nextType ? prev : nextType));
-  }, [searchParams]);
-
-  useEffect(() => {
-    const nextParams = new URLSearchParams(searchParams);
-    if (sortMode === "alpha") {
-      nextParams.delete("sort");
-    } else {
-      nextParams.set("sort", sortMode);
-    }
-    if (currentPage <= 1) {
-      nextParams.delete("page");
-    } else {
-      nextParams.set("page", String(currentPage));
-    }
-    if (selectedType === "Todos") {
-      nextParams.delete("type");
-    } else {
-      nextParams.set("type", selectedType);
-    }
-    const currentQuery = searchParams.toString();
-    const nextQuery = nextParams.toString();
-    if (isApplyingSearchParamsRef.current) {
-      if (nextQuery === currentQuery) {
-        isApplyingSearchParamsRef.current = false;
-      }
-      return;
-    }
-    if (nextQuery !== currentQuery) {
-      setSearchParams(nextParams, { replace: true });
-    }
-  }, [currentPage, searchParams, selectedType, setSearchParams, sortMode]);
-
-  useEffect(() => {
     if (!hasInitializedListFiltersRef.current) {
       hasInitializedListFiltersRef.current = true;
       return;
@@ -1173,25 +982,62 @@ const DashboardProjectsEditor = () => {
       .sort((a, b) => compareEpisodeOrdering(a.episode, b.episode));
   }, [compareEpisodeOrdering, formState.episodeDownloads, isChapterBased]);
 
-  const filteredAnimeEpisodeItems = useMemo(
-    () =>
-      isChapterBased
-        ? []
-        : sortedEpisodeDownloads.filter(({ episode }) =>
-            matchesAnimeEpisodeQuickFilter(episode, animeEpisodeFilter),
-          ),
-    [animeEpisodeFilter, isChapterBased, sortedEpisodeDownloads],
-  );
-
-  const filteredAnimeEpisodeKeySet = useMemo(
-    () => new Set(filteredAnimeEpisodeItems.map(({ episode }) => String(episode._editorKey || ""))),
-    [filteredAnimeEpisodeItems],
-  );
-
-  const selectedAnimeEpisodeKeySet = useMemo(
-    () => new Set(selectedAnimeEpisodeKeys),
-    [selectedAnimeEpisodeKeys],
-  );
+  const {
+    animeBatchCadenceDays,
+    animeBatchCreateOpen,
+    animeBatchDurationInput,
+    animeBatchOperationCompletedStages,
+    animeBatchOperationDuration,
+    animeBatchOperationPublicationStatus,
+    animeBatchOperationShiftDays,
+    animeBatchOperationSourceType,
+    animeBatchPublicationStatus,
+    animeBatchQuantity,
+    animeBatchSourceType,
+    animeBatchStartNumber,
+    animeEpisodeFilter,
+    applyAnimeBatchCompletedStages,
+    applyAnimeBatchDuration,
+    applyAnimeBatchPublicationStatus,
+    applyAnimeBatchReplicateSources,
+    applyAnimeBatchShiftReleaseDates,
+    applyAnimeBatchSourceType,
+    clearSelectedAnimeEpisodes,
+    clearRemovedAnimeEpisode,
+    createAnimeEpisodeBatch,
+    duplicateAnimeEpisode,
+    filteredAnimeEpisodeItems,
+    removedAnimeEpisode,
+    selectAllFilteredAnimeEpisodes,
+    selectedAnimeEpisodeKeys,
+    selectedAnimeEpisodeKeySet,
+    setAnimeBatchCadenceDays,
+    setAnimeBatchCreateOpen,
+    setAnimeBatchDurationInput,
+    setAnimeBatchOperationCompletedStages,
+    setAnimeBatchOperationDuration,
+    setAnimeBatchOperationPublicationStatus,
+    setAnimeBatchOperationShiftDays,
+    setAnimeBatchOperationSourceType,
+    setAnimeBatchPublicationStatus,
+    setAnimeBatchQuantity,
+    setAnimeBatchSourceType,
+    setAnimeBatchStartNumber,
+    setAnimeEpisodeFilter,
+    toggleSelectedAnimeEpisode,
+    undoRemoveAnimeEpisode,
+  } = useDashboardProjectsEditorAnimeBatch({
+    formState,
+    isChapterBased,
+    pendingEpisodeToScrollRef,
+    setCollapsedEpisodes,
+    setEpisodeDateDraft,
+    setEpisodeSizeDrafts,
+    setEpisodeSizeErrors,
+    setEpisodeTimeDraft,
+    setFormState,
+    sortedEpisodeDownloads,
+  });
 
   const addVolumeEntry = useCallback(() => {
     setFormState((prev) => {
@@ -1392,18 +1238,6 @@ const DashboardProjectsEditor = () => {
     [sortedEpisodeDownloads],
   );
 
-  useEffect(() => {
-    if (isChapterBased) {
-      setSelectedAnimeEpisodeKeys([]);
-      setRemovedAnimeEpisode(null);
-      return;
-    }
-    const availableKeys = new Set(
-      formState.episodeDownloads.map((episode) => String(episode._editorKey || "")),
-    );
-    setSelectedAnimeEpisodeKeys((current) => current.filter((key) => availableKeys.has(key)));
-  }, [formState.episodeDownloads, isChapterBased]);
-
   const toggleEpisodeCollapsed = useCallback((index: number) => {
     setCollapsedEpisodes((prev) => ({
       ...prev,
@@ -1572,192 +1406,6 @@ const DashboardProjectsEditor = () => {
     };
   }, [collapsedVolumeGroups, editorAccordionValue, episodeGroupsForRender]);
 
-  const loadProjects = useCallback(async () => {
-    const response = await apiFetch(apiBase, "/api/projects", { auth: true });
-    if (!response.ok) {
-      throw new Error("projects_load_failed");
-    }
-    const data = await response.json();
-    const nextProjects = Array.isArray(data.projects) ? data.projects : [];
-    setProjects(nextProjects);
-    setHasResolvedProjects(true);
-    setHasLoadedOnce(true);
-    setHasLoadError(false);
-    writeProjectsPageCache({
-      projects: nextProjects,
-      projectTypeOptions,
-      memberDirectory,
-      tagTranslations,
-      genreTranslations,
-      staffRoleTranslations,
-    });
-    return nextProjects;
-  }, [
-    apiBase,
-    genreTranslations,
-    memberDirectory,
-    projectTypeOptions,
-    staffRoleTranslations,
-    tagTranslations,
-  ]);
-
-  const loadProjectTypes = useCallback(async () => {
-    const response = await apiFetch(apiBase, "/api/project-types", {
-      auth: true,
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      throw new Error("project_types_load_failed");
-    }
-    const data = await response.json();
-    const remoteTypes = Array.isArray(data?.types)
-      ? data.types.map((item: unknown) => String(item || "").trim()).filter(Boolean)
-      : [];
-    const uniqueTypes = Array.from(new Set([...remoteTypes, ...defaultFormatOptions]));
-    const nextProjectTypeOptions = uniqueTypes.length > 0 ? uniqueTypes : defaultFormatOptions;
-    setProjectTypeOptions(nextProjectTypeOptions);
-    setHasResolvedProjectTypes(true);
-    return nextProjectTypeOptions;
-  }, [apiBase]);
-
-  useEffect(() => {
-    hasLoadedOnceRef.current = hasLoadedOnce;
-  }, [hasLoadedOnce]);
-
-  useEffect(() => {
-    let isActive = true;
-    const load = async () => {
-      const requestId = requestIdRef.current + 1;
-      requestIdRef.current = requestId;
-      const background = hasLoadedOnceRef.current;
-      const cached = initialCacheRef.current;
-
-      setHasLoadError(false);
-      if (background) {
-        setIsRefreshing(true);
-      } else {
-        setIsInitialLoading(true);
-        setHasResolvedProjects(false);
-      }
-      if (!cached) {
-        setHasResolvedProjectTypes(false);
-        setHasResolvedMemberDirectory(false);
-        setHasResolvedTranslations(false);
-      }
-
-      try {
-        const projectsPromise = loadProjects();
-        const projectTypesPromise = loadProjectTypes();
-        const usersPromise = apiFetch(apiBase, "/api/users", { auth: true });
-        const translationsPromise = apiFetch(apiBase, "/api/public/tag-translations", {
-          cache: "no-store",
-        });
-
-        const nextProjects = await projectsPromise;
-        if (!isActive || requestIdRef.current !== requestId) {
-          return;
-        }
-
-        setIsInitialLoading(false);
-
-        let nextProjectTypeOptions = projectTypeOptions;
-        let nextMemberDirectory = memberDirectory;
-        let nextTagTranslations = tagTranslations;
-        let nextGenreTranslations = genreTranslations;
-        let nextStaffRoleTranslations = staffRoleTranslations;
-
-        const [projectTypesResult, usersResult, translationsResult] = await Promise.allSettled([
-          projectTypesPromise,
-          usersPromise,
-          translationsPromise,
-        ]);
-        if (!isActive || requestIdRef.current !== requestId) {
-          return;
-        }
-
-        if (projectTypesResult.status === "rejected") {
-          nextProjectTypeOptions = defaultFormatOptions;
-          setProjectTypeOptions(defaultFormatOptions);
-        } else {
-          nextProjectTypeOptions = projectTypesResult.value;
-        }
-        setHasResolvedProjectTypes(true);
-
-        if (usersResult.status === "fulfilled" && usersResult.value.ok) {
-          const data = (await usersResult.value.json()) as {
-            users?: Array<{ name?: string; status?: string }>;
-          };
-          const names = Array.isArray(data.users)
-            ? data.users
-                .filter((user) => user.status === "active")
-                .map((user) => user.name)
-                .filter((name): name is string => Boolean(name))
-            : [];
-          nextMemberDirectory = Array.from(new Set(names)).sort((a, b) =>
-            a.localeCompare(b, "pt-BR"),
-          );
-        } else {
-          nextMemberDirectory = [];
-        }
-        setMemberDirectory(nextMemberDirectory);
-        setHasResolvedMemberDirectory(true);
-
-        if (translationsResult.status === "fulfilled" && translationsResult.value.ok) {
-          const data = await translationsResult.value.json();
-          nextTagTranslations = data?.tags || {};
-          nextGenreTranslations = data?.genres || {};
-          nextStaffRoleTranslations = data?.staffRoles || {};
-        } else {
-          nextTagTranslations = {};
-          nextGenreTranslations = {};
-          nextStaffRoleTranslations = {};
-        }
-        setTagTranslations(nextTagTranslations);
-        setGenreTranslations(nextGenreTranslations);
-        setStaffRoleTranslations(nextStaffRoleTranslations);
-        setHasResolvedTranslations(true);
-
-        writeProjectsPageCache({
-          projects: nextProjects,
-          projectTypeOptions: nextProjectTypeOptions,
-          memberDirectory: nextMemberDirectory,
-          tagTranslations: nextTagTranslations,
-          genreTranslations: nextGenreTranslations,
-          staffRoleTranslations: nextStaffRoleTranslations,
-        });
-      } catch {
-        if (isActive && requestIdRef.current === requestId) {
-          if (!hasLoadedOnceRef.current) {
-            setProjects([]);
-            setProjectTypeOptions(defaultFormatOptions);
-            setMemberDirectory([]);
-            setTagTranslations({});
-            setGenreTranslations({});
-            setStaffRoleTranslations({});
-            setHasResolvedProjectTypes(false);
-            setHasResolvedMemberDirectory(false);
-            setHasResolvedTranslations(false);
-          }
-          setHasLoadError(true);
-        }
-      } finally {
-        if (isActive && requestIdRef.current === requestId) {
-          setIsInitialLoading(false);
-          setIsRefreshing(false);
-          if (cached) {
-            setHasResolvedProjectTypes(true);
-            setHasResolvedMemberDirectory(true);
-            setHasResolvedTranslations(true);
-          }
-        }
-      }
-    };
-    void load();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase, loadVersion]);
-
   const isRestorable = useCallback(
     (project: ProjectRecord) => {
       if (!project.deletedAt) {
@@ -1909,8 +1557,8 @@ const DashboardProjectsEditor = () => {
     setEpisodeSizeDrafts({});
     setEpisodeSizeErrors({});
     setAnimeEpisodeFilter("all");
-    setSelectedAnimeEpisodeKeys([]);
-    setRemovedAnimeEpisode(null);
+    clearSelectedAnimeEpisodes();
+    clearRemovedAnimeEpisode();
     setAnimeBatchCreateOpen(false);
     setAnimeBatchStartNumber("");
     setAnimeBatchQuantity("3");
@@ -2068,8 +1716,8 @@ const DashboardProjectsEditor = () => {
       setEpisodeSizeDrafts({});
       setEpisodeSizeErrors({});
       setAnimeEpisodeFilter("all");
-      setSelectedAnimeEpisodeKeys([]);
-      setRemovedAnimeEpisode(null);
+      clearSelectedAnimeEpisodes();
+      clearRemovedAnimeEpisode();
       setAnimeBatchCreateOpen(false);
       setAnimeBatchQuantity("3");
       setAnimeBatchCadenceDays("");
@@ -3137,273 +2785,6 @@ const DashboardProjectsEditor = () => {
     });
   };
 
-  const toggleAnimeEpisodeSelection = useCallback((episodeKey: string) => {
-    if (!episodeKey) {
-      return;
-    }
-    setSelectedAnimeEpisodeKeys((current) =>
-      current.includes(episodeKey)
-        ? current.filter((item) => item !== episodeKey)
-        : [...current, episodeKey],
-    );
-  }, []);
-
-  const selectAllFilteredAnimeEpisodes = useCallback(() => {
-    setSelectedAnimeEpisodeKeys(
-      filteredAnimeEpisodeItems
-        .map(({ episode }) => String(episode._editorKey || ""))
-        .filter(Boolean),
-    );
-  }, [filteredAnimeEpisodeItems]);
-
-  const clearSelectedAnimeEpisodes = useCallback(() => {
-    setSelectedAnimeEpisodeKeys([]);
-  }, []);
-
-  const applyAnimeBatchUpdate = useCallback(
-    (updater: (episode: EditorProjectEpisode) => EditorProjectEpisode) => {
-      if (!selectedAnimeEpisodeKeys.length) {
-        return;
-      }
-      const selectedSet = new Set(selectedAnimeEpisodeKeys);
-      setFormState((prev) => ({
-        ...prev,
-        episodeDownloads: prev.episodeDownloads.map((episode) =>
-          selectedSet.has(String(episode._editorKey || "")) ? updater(episode) : episode,
-        ),
-      }));
-    },
-    [selectedAnimeEpisodeKeys],
-  );
-
-  const removeAnimeEpisodeAtIndex = useCallback((index: number) => {
-    setFormState((prev) => {
-      const removed = prev.episodeDownloads[index];
-      if (!removed) {
-        return prev;
-      }
-      const nextEpisodes = prev.episodeDownloads.filter((_, idx) => idx !== index);
-      setRemovedAnimeEpisode({
-        episode: {
-          ...removed,
-          _editorKey: removed._editorKey || generateLocalId(),
-        },
-        index,
-      });
-      setSelectedAnimeEpisodeKeys((current) =>
-        current.filter((key) => key !== String(removed._editorKey || "")),
-      );
-      return {
-        ...prev,
-        episodeDownloads: nextEpisodes,
-      };
-    });
-    setEpisodeDateDraft((prev) => shiftDraftAfterRemoval(prev, index));
-    setEpisodeTimeDraft((prev) => shiftDraftAfterRemoval(prev, index));
-    setEpisodeSizeDrafts((prev) => shiftDraftAfterRemoval(prev, index));
-    setEpisodeSizeErrors((prev) => shiftDraftAfterRemoval(prev, index));
-    setCollapsedEpisodes((prev) => shiftCollapsedEpisodesAfterRemoval(prev, index));
-  }, []);
-
-  const undoRemoveAnimeEpisode = useCallback(() => {
-    if (!removedAnimeEpisode) {
-      return;
-    }
-    const { episode, index } = removedAnimeEpisode;
-    pendingEpisodeToScrollRef.current = episode;
-    setFormState((prev) => {
-      const nextEpisodes = [...prev.episodeDownloads];
-      nextEpisodes.splice(Math.min(index, nextEpisodes.length), 0, episode);
-      return {
-        ...prev,
-        episodeDownloads: nextEpisodes,
-      };
-    });
-    setCollapsedEpisodes((prev) => ({
-      ...prev,
-      [index]: false,
-    }));
-    setRemovedAnimeEpisode(null);
-  }, [removedAnimeEpisode]);
-
-  const duplicateAnimeEpisode = useCallback(
-    (episode: EditorProjectEpisode) => {
-      const duplicatedEpisode = buildDuplicatedAnimeEpisode(episode, formState.episodeDownloads);
-      pendingEpisodeToScrollRef.current = duplicatedEpisode;
-      setFormState((prev) => ({
-        ...prev,
-        episodeDownloads: [...prev.episodeDownloads, duplicatedEpisode],
-      }));
-      setCollapsedEpisodes((prev) => ({
-        ...prev,
-        [formState.episodeDownloads.length]: false,
-      }));
-    },
-    [formState.episodeDownloads],
-  );
-
-  const createAnimeEpisodeBatch = useCallback(() => {
-    const startNumber = Math.max(1, Number(animeBatchStartNumber) || 0);
-    const quantity = Math.max(1, Number(animeBatchQuantity) || 0);
-    if (!startNumber || !quantity) {
-      toast({
-        title: "Parametros invalidos",
-        description: "Informe episodio inicial e quantidade validos.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const durationValue = displayTimeToCanonical(animeBatchDurationInput);
-    const cadenceDays = Math.max(0, Number(animeBatchCadenceDays) || 0);
-    const existingNumbers = new Set(
-      formState.episodeDownloads.map((episode) => Number(episode.number)),
-    );
-    const duplicatedNumbers = Array.from(
-      { length: quantity },
-      (_, index) => startNumber + index,
-    ).filter((value) => existingNumbers.has(value));
-    if (duplicatedNumbers.length > 0) {
-      toast({
-        title: "Faixa ocupada",
-        description: "A faixa escolhida conflita com episodios ja existentes.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const latestDatedEpisode = [...sortedEpisodeDownloads]
-      .map(({ episode }) => episode)
-      .reverse()
-      .find((episode) => String(episode.releaseDate || "").trim());
-    const initialDate = latestDatedEpisode?.releaseDate || "";
-    const createdEpisodes = Array.from({ length: quantity }, (_, index) => {
-      const episodeNumber = startNumber + index;
-      const releaseDate =
-        cadenceDays > 0 && initialDate
-          ? shiftIsoDateByDays(initialDate, cadenceDays * (index + 1))
-          : "";
-      return {
-        _editorKey: generateLocalId(),
-        number: episodeNumber,
-        title: "",
-        synopsis: "",
-        releaseDate,
-        duration: durationValue,
-        sourceType: animeBatchSourceType,
-        sources: [],
-        progressStage: "aguardando-raw",
-        completedStages: [],
-        content: "",
-        contentFormat: "lexical" as const,
-        publicationStatus: animeBatchPublicationStatus,
-        coverImageUrl: "",
-        coverImageAlt: "",
-      } satisfies EditorProjectEpisode;
-    });
-    const lastCreatedEpisode = createdEpisodes[createdEpisodes.length - 1] || null;
-    if (lastCreatedEpisode) {
-      pendingEpisodeToScrollRef.current = lastCreatedEpisode;
-    }
-    setFormState((prev) => ({
-      ...prev,
-      episodeDownloads: [...prev.episodeDownloads, ...createdEpisodes],
-    }));
-    setCollapsedEpisodes((prev) => {
-      const next = { ...prev };
-      createdEpisodes.forEach((_, offset) => {
-        next[formState.episodeDownloads.length + offset] = false;
-      });
-      return next;
-    });
-    setAnimeBatchCreateOpen(false);
-    setAnimeBatchQuantity("3");
-    setAnimeBatchCadenceDays("");
-    setAnimeBatchDurationInput("");
-    setAnimeBatchPublicationStatus("draft");
-    setAnimeBatchSourceType("TV");
-    toast({
-      title: "Episodios criados",
-      description: `${createdEpisodes.length} episodio(s) adicionados ao formulario.`,
-      intent: "success",
-    });
-  }, [
-    animeBatchCadenceDays,
-    animeBatchDurationInput,
-    animeBatchPublicationStatus,
-    animeBatchQuantity,
-    animeBatchSourceType,
-    animeBatchStartNumber,
-    formState.episodeDownloads,
-    sortedEpisodeDownloads,
-  ]);
-
-  const applyAnimeBatchDuration = useCallback(() => {
-    const canonicalDuration = displayTimeToCanonical(animeBatchOperationDuration);
-    if (!canonicalDuration) {
-      toast({
-        title: "Duracao invalida",
-        description: "Use MM:SS ou H:MM:SS para aplicar a duracao em lote.",
-        variant: "destructive",
-      });
-      return;
-    }
-    applyAnimeBatchUpdate((episode) => ({
-      ...episode,
-      duration: canonicalDuration,
-    }));
-  }, [animeBatchOperationDuration, applyAnimeBatchUpdate]);
-
-  const applyAnimeBatchSourceType = useCallback(() => {
-    applyAnimeBatchUpdate((episode) => ({
-      ...episode,
-      sourceType: animeBatchOperationSourceType,
-    }));
-  }, [animeBatchOperationSourceType, applyAnimeBatchUpdate]);
-
-  const applyAnimeBatchPublicationStatus = useCallback(() => {
-    applyAnimeBatchUpdate((episode) => ({
-      ...episode,
-      publicationStatus: animeBatchOperationPublicationStatus,
-    }));
-  }, [animeBatchOperationPublicationStatus, applyAnimeBatchUpdate]);
-
-  const applyAnimeBatchCompletedStages = useCallback(() => {
-    applyAnimeBatchUpdate((episode) => ({
-      ...episode,
-      completedStages: [...animeBatchOperationCompletedStages],
-    }));
-  }, [animeBatchOperationCompletedStages, applyAnimeBatchUpdate]);
-
-  const applyAnimeBatchShiftReleaseDates = useCallback(() => {
-    const dayOffset = Number(animeBatchOperationShiftDays);
-    if (!Number.isFinite(dayOffset) || dayOffset === 0) {
-      toast({
-        title: "Deslocamento invalido",
-        description: "Informe um numero inteiro de dias para deslocar as datas.",
-        variant: "destructive",
-      });
-      return;
-    }
-    applyAnimeBatchUpdate((episode) => ({
-      ...episode,
-      releaseDate: shiftIsoDateByDays(episode.releaseDate, dayOffset),
-    }));
-  }, [animeBatchOperationShiftDays, applyAnimeBatchUpdate]);
-
-  const applyAnimeBatchReplicateSources = useCallback(() => {
-    const sourceEpisode =
-      sortedEpisodeDownloads.find(({ episode }) =>
-        selectedAnimeEpisodeKeySet.has(String(episode._editorKey || "")),
-      )?.episode || null;
-    if (!sourceEpisode) {
-      return;
-    }
-    const nextSources = cloneEpisodeSources(sourceEpisode.sources);
-    applyAnimeBatchUpdate((episode) => ({
-      ...episode,
-      sources: cloneEpisodeSources(nextSources),
-    }));
-  }, [applyAnimeBatchUpdate, selectedAnimeEpisodeKeySet, sortedEpisodeDownloads]);
-
   const moveRelationItem = useCallback((from: number, to: number) => {
     if (from === to) {
       return;
@@ -3606,7 +2987,7 @@ const DashboardProjectsEditor = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setLoadVersion((previous) => previous + 1)}
+                    onClick={refreshProjects}
                   >
                     Tentar novamente
                   </Button>
@@ -3621,7 +3002,7 @@ const DashboardProjectsEditor = () => {
                 action={
                   <Button
                     variant="outline"
-                    onClick={() => setLoadVersion((previous) => previous + 1)}
+                    onClick={refreshProjects}
                   >
                     Recarregar
                   </Button>
@@ -6021,7 +5402,7 @@ const DashboardProjectsEditor = () => {
                                                         <Checkbox
                                                           checked={isAnimeEpisodeSelected}
                                                           onCheckedChange={() =>
-                                                            toggleAnimeEpisodeSelection(
+                                                            toggleSelectedAnimeEpisode(
                                                               String(episode._editorKey || ""),
                                                             )
                                                           }
@@ -7449,7 +6830,7 @@ const DashboardProjectsEditor = () => {
 
 export const __testing = {
   clearProjectsPageCache: () => {
-    projectsPageCache = null;
+    clearProjectsPageCache();
   },
 };
 

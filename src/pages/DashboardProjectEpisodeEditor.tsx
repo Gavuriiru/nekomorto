@@ -1,6 +1,5 @@
 import DashboardShell from "@/components/DashboardShell";
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
-import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import {
   Input,
   Select,
@@ -11,6 +10,7 @@ import {
 } from "@/components/dashboard/dashboard-form-controls";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
+import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
 import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
 import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
 import AsyncState from "@/components/ui/async-state";
@@ -76,12 +76,10 @@ import { resolveProjectImageFolders } from "@/lib/project-image-folders";
 import { findIncompleteDownloadSourceIndex } from "@/lib/project-download-sources";
 import { isChapterBasedType } from "@/lib/project-utils";
 import { Search, ArrowLeft, ExternalLink, ImagePlus, Loader2, Plus, Trash2 } from "lucide-react";
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import NotFound from "./NotFound";
-
-const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
 type ProjectRecord = Project & {
   revision?: string;
@@ -300,6 +298,7 @@ const DashboardProjectEpisodeEditor = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const focusTitleOnNextOpenRef = useRef(false);
+  const fallbackNeutralToastKeyRef = useRef<string | null>(null);
 
   const canManageProjects = useMemo(() => {
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
@@ -432,6 +431,31 @@ const DashboardProjectEpisodeEditor = () => {
   const neutralHref = project
     ? buildDashboardProjectEpisodesEditorHref(project.id)
     : buildDashboardProjectEditorHref(projectId || "");
+  const fallbackNeutralToastKey = `${project?.id || projectId || ""}:${String(episodeNumber || "")}`;
+  const shouldFallbackToNeutralRoute = Boolean(
+    project &&
+      !isChapterBased &&
+      episodeNumber &&
+      !activeEpisode &&
+      !activeDraft &&
+      !activeEpisodeLookup.ok,
+  );
+
+  useEffect(() => {
+    if (!shouldFallbackToNeutralRoute) {
+      fallbackNeutralToastKeyRef.current = null;
+      return;
+    }
+    if (fallbackNeutralToastKeyRef.current !== fallbackNeutralToastKey) {
+      fallbackNeutralToastKeyRef.current = fallbackNeutralToastKey;
+      toast({
+        title: "Episódio não encontrado. Mostrando a lista.",
+        intent: "warning",
+      });
+    }
+    navigate(neutralHref, { replace: true });
+  }, [fallbackNeutralToastKey, navigate, neutralHref, shouldFallbackToNeutralRoute]);
+
   const publicProjectHref = project ? buildProjectPublicHref(project.id) : "";
   const stageOptions = getProjectProgressStagesForEditor(project?.type || "Anime");
   const progressState = useMemo(
@@ -752,7 +776,7 @@ const DashboardProjectEpisodeEditor = () => {
     return <NotFound />;
   }
 
-  if (!activeEpisode && episodeNumber) {
+  if (!activeEpisode && episodeNumber && !shouldFallbackToNeutralRoute) {
     return <NotFound />;
   }
 
@@ -1636,49 +1660,37 @@ const DashboardProjectEpisodeEditor = () => {
         </DialogContent>
       </Dialog>
 
-      <Suspense
-        fallback={
-          isLibraryOpen ? (
-            <ImageLibraryDialogLoadingFallback
-              open={isLibraryOpen}
-              onOpenChange={setIsLibraryOpen}
-              title="Selecionar capa do episódio"
-              description="Escolha a capa que representa este episódio."
-            />
-          ) : null
-        }
-      >
-        <ImageLibraryDialog
-          open={isLibraryOpen}
-          onOpenChange={setIsLibraryOpen}
-          apiBase={apiBase}
-          title="Selecionar capa do episódio"
-          description="Escolha a capa que representa este episódio."
-          uploadFolder={libraryOptions.uploadFolder}
-          listFolders={libraryOptions.listFolders}
-          listAll={libraryOptions.listAll}
-          includeProjectImages={libraryOptions.includeProjectImages}
-          projectImageProjectIds={libraryOptions.projectImageProjectIds}
-          projectImagesView={libraryOptions.projectImagesView}
-          currentSelectionUrls={libraryOptions.currentSelectionUrls}
-          onSave={({ urls, items }) => {
-            const nextUrl = String(urls[0] || "").trim();
-            if (!nextUrl) {
-              return;
-            }
-            updateDraft((current) => ({
-              ...current,
-              coverImageUrl: nextUrl,
-              coverImageAlt:
-                current.coverImageAlt ||
-                resolveAssetAltText(items[0]?.altText, getEpisodeCoverAltFallback(false)),
-            }));
-            setIsLibraryOpen(false);
-          }}
-        />
-      </Suspense>
+      <LazyImageLibraryDialog
+        open={isLibraryOpen}
+        onOpenChange={setIsLibraryOpen}
+        apiBase={apiBase}
+        title="Selecionar capa do episódio"
+        description="Escolha a capa que representa este episódio."
+        uploadFolder={libraryOptions.uploadFolder}
+        listFolders={libraryOptions.listFolders}
+        listAll={libraryOptions.listAll}
+        includeProjectImages={libraryOptions.includeProjectImages}
+        projectImageProjectIds={libraryOptions.projectImageProjectIds}
+        projectImagesView={libraryOptions.projectImagesView}
+        currentSelectionUrls={libraryOptions.currentSelectionUrls}
+        onSave={({ urls, items }) => {
+          const nextUrl = String(urls[0] || "").trim();
+          if (!nextUrl) {
+            return;
+          }
+          updateDraft((current) => ({
+            ...current,
+            coverImageUrl: nextUrl,
+            coverImageAlt:
+              current.coverImageAlt ||
+              resolveAssetAltText(items[0]?.altText, getEpisodeCoverAltFallback(false)),
+          }));
+          setIsLibraryOpen(false);
+        }}
+      />
     </>
   );
 };
 
 export default DashboardProjectEpisodeEditor;
+

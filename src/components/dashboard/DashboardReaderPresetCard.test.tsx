@@ -6,6 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPresetCard";
 
 const mojibakePattern = /(?:\u00C3.|\u00E2.|\uFFFD)/;
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 describe("DashboardReaderPresetCard", () => {
   it("shows only the default and hidden progress styles", async () => {
@@ -84,6 +86,17 @@ describe("DashboardReaderPresetCard", () => {
     expect(screen.queryByLabelText(/Limite de preview/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/URL de compra/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Preço exibido/i)).not.toBeInTheDocument();
+
+    const rtlBadgeReveal = screen.getByText("RTL").parentElement?.parentElement;
+    const singleBadgeReveal = screen.getByText("Única").parentElement?.parentElement;
+
+    expect(rtlBadgeReveal).not.toBeNull();
+    expect(classTokens(rtlBadgeReveal as HTMLElement)).not.toContain("reveal");
+    expect(rtlBadgeReveal).not.toHaveAttribute("data-reveal");
+
+    expect(singleBadgeReveal).not.toBeNull();
+    expect(classTokens(singleBadgeReveal as HTMLElement)).not.toContain("reveal");
+    expect(singleBadgeReveal).not.toHaveAttribute("data-reveal");
   });
 
   it("does not contain mojibake in the source file", () => {

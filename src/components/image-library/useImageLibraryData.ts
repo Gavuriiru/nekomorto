@@ -33,6 +33,21 @@ type UseImageLibraryDataResult = {
   uploadsLoadError: string;
 };
 
+const buildUploadsListPath = (folder: string, scopeUserId?: string) => {
+  const params = new URLSearchParams();
+  if (folder) {
+    params.set("folder", folder);
+    if (folder !== "__all__") {
+      params.set("recursive", "1");
+    }
+  }
+  if (scopeUserId) {
+    params.set("scopeUserId", scopeUserId);
+  }
+  const query = params.toString();
+  return `/api/uploads/list${query ? `?${query}` : ""}`;
+};
+
 export const useImageLibraryData = ({
   allowedProjectImageIdSet,
   apiBase,
@@ -52,20 +67,9 @@ export const useImageLibraryData = ({
     setUploadsLoadError("");
     try {
       const responses = await Promise.all(
-        foldersToRequest.map((folder) => {
-          const params = new URLSearchParams();
-          if (folder) {
-            params.set("folder", folder);
-            if (folder !== "__all__") {
-              params.set("recursive", "1");
-            }
-          }
-          if (scopeUserId) {
-            params.set("scopeUserId", scopeUserId);
-          }
-          const query = params.toString();
-          return apiFetch(apiBase, `/api/uploads/list${query ? `?${query}` : ""}`, { auth: true });
-        }),
+        foldersToRequest.map((folder) =>
+          apiFetch(apiBase, buildUploadsListPath(folder, scopeUserId), { auth: true }),
+        ),
       );
       const files: LibraryImageItem[] = [];
       let successfulResponses = 0;
@@ -123,6 +127,8 @@ export const useImageLibraryData = ({
             altText: typeof file.altText === "string" ? file.altText : "",
             slot: typeof file.slot === "string" ? file.slot : undefined,
             slotManaged: typeof file.slotManaged === "boolean" ? file.slotManaged : undefined,
+            projectId: typeof file.projectId === "string" ? file.projectId : "",
+            projectTitle: typeof file.projectTitle === "string" ? file.projectTitle : "",
           });
         }
       }

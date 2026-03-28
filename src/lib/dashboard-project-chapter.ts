@@ -1,9 +1,15 @@
-import type { ProjectEpisode, ProjectVolumeEntry } from "@/data/projects";
+import type { ProjectEpisode, ProjectVolumeCover, ProjectVolumeEntry } from "@/data/projects";
 import type { ProjectProgressKind } from "@/lib/project-progress";
+import { syncProjectProgress } from "@/lib/project-progress";
+import { buildEpisodeKey } from "@/lib/project-episode-key";
 import { buildVolumeCoverKey } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import { isLightNovelType, isMangaType } from "@/lib/project-utils";
 import type { EpubImportPreviewPayload } from "@/lib/project-epub";
+import {
+  normalizeProjectEpisodeContentFormat,
+  normalizeProjectEpisodePages,
+} from "../../shared/project-reader.js";
 import { hasProjectEpisodeReadableContent } from "../../shared/project-reader.js";
 import type { StageChapter } from "@/components/project-reader/MangaWorkflowPanel";
 
@@ -15,11 +21,51 @@ export type EditableVolumeOption = {
   hasMetadata: boolean;
 };
 
+export type ChapterStructureGroup = {
+  key: string;
+  label: string;
+  volume: number | null;
+  hasMetadata: boolean;
+  chapterCount: number;
+  allItems: ProjectEpisode[];
+  visibleItems: ProjectEpisode[];
+  pendingItems: StageChapter[];
+  visiblePendingItems: StageChapter[];
+};
+
+type ProjectSnapshotWithVolumes = {
+  volumeEntries?: ProjectVolumeEntry[] | null;
+  volumeCovers?: ProjectVolumeCover[] | null;
+};
+
 export const chapterHasContent = (episode: ProjectEpisode | null | undefined) =>
   hasProjectEpisodeReadableContent(episode);
 
 export const chapterStatusLabel = (episode: ProjectEpisode | null | undefined) =>
   episode?.publicationStatus === "draft" ? "Rascunho" : "Publicado";
+
+export const normalizePositiveInteger = (value: number, fallback?: number) => {
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+  const normalized = Math.floor(value);
+  return normalized > 0 ? normalized : fallback;
+};
+
+export const normalizeNonNegativeInteger = (value: unknown, fallback?: number) => {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return fallback;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  const normalized = Math.floor(parsed);
+  return normalized >= 0 ? normalized : fallback;
+};
+
+export const resolveChapterEntrySubtype = (entryKind: ProjectEpisode["entryKind"]) =>
+  entryKind === "extra" ? "extra" : "chapter";
 
 export const sortChapters = (episodes: ProjectEpisode[]) =>
   [...episodes].sort((left, right) => {
@@ -171,6 +217,292 @@ export const compareChapterStructureGroupKeys = (leftKey: string, rightKey: stri
     return -1;
   }
   return (Number(leftKey) || 0) - (Number(rightKey) || 0);
+};
+
+export const normalizeChapterState = (
+  chapter: ProjectEpisode,
+  progressKind?: ProjectProgressKind,
+  options?: { preserveEmptySources?: boolean },
+): ProjectEpisode => {
+  const parsedNumber = Number(chapter.number);
+  const parsedReadingOrder = Number(chapter.readingOrder);
+  const parsedSizeBytes = Number(chapter.sizeBytes);
+  const entryKind =
+    String(chapter.entryKind || "")
+      .trim()
+      .toLowerCase() === "extra"
+      ? "extra"
+      : "main";
+  const normalizedPages = normalizeProjectEpisodePages(chapter.pages);
+  const contentFormat = normalizeProjectEpisodeContentFormat(
+    chapter.contentFormat,
+    normalizedPages.length > 0 ? "images" : "lexical",
+  );
+  const normalizedChapter = {
+    ...chapter,
+    number: normalizePositiveInteger(parsedNumber, 1) ?? 1,
+    volume: normalizeNonNegativeInteger(chapter.volume),
+    title: String(chapter.title || ""),
+    entryKind,
+    entrySubtype: resolveChapterEntrySubtype(entryKind),
+    readingOrder: Number.isFinite(parsedReadingOrder) ? Math.floor(parsedReadingOrder) : undefined,
+    displayLabel:
+      entryKind === "extra" ? String(chapter.displayLabel || "").trim() || undefined : undefined,
+    synopsis: String(chapter.synopsis || ""),
+    releaseDate: String(chapter.releaseDate || "").trim(),
+    duration: String(chapter.duration || "").trim(),
+    coverImageAlt: String(chapter.coverImageAlt || ""),
+    sourceType:
+      chapter.sourceType === "Web" || chapter.sourceType === "Blu-ray" ? chapter.sourceType : "TV",
+    sources: (Array.isArray(chapter.sources) ? chapter.sources : [])
+      .map((source) => ({
+        label: String(source.label || "").trim(),
+        url: String(source.url || "").trim(),
+      }))
+      .filter((source) => options?.preserveEmptySources || source.label || source.url),
+    hash: String(chapter.hash || "").trim() || undefined,
+    sizeBytes:
+      Number.isFinite(parsedSizeBytes) && parsedSizeBytes > 0
+        ? Math.floor(parsedSizeBytes)
+        : undefined,
+    progressStage: String(chapter.progressStage || "").trim() || undefined,
+    completedStages: Array.isArray(chapter.completedStages)
+      ? Array.from(
+          new Set(chapter.completedStages.map((item) => String(item || "").trim()).filter(Boolean)),
+        )
+      : [],
+    content: contentFormat === "images" ? "" : String(chapter.content || ""),
+    contentFormat,
+    pages: normalizedPages,
+    pageCount: normalizedPages.length,
+    hasPages: normalizedPages.length > 0,
+    coverImageUrl: String(chapter.coverImageUrl || "").trim() || normalizedPages[0]?.imageUrl || "",
+    publicationStatus: chapter.publicationStatus === "published" ? "published" : "draft",
+    chapterUpdatedAt: String(chapter.chapterUpdatedAt || "").trim() || undefined,
+  };
+  return progressKind ? syncProjectProgress(normalizedChapter, progressKind) : normalizedChapter;
+};
+
+export const normalizeChapterForSave = (chapter: ProjectEpisode, progressKind?: ProjectProgressKind) =>
+  normalizeChapterState(chapter, progressKind);
+
+export const normalizeChapterForEditor = (chapter: ProjectEpisode, progressKind?: ProjectProgressKind) =>
+  normalizeChapterState(chapter, progressKind, { preserveEmptySources: true });
+
+export const buildChapterSnapshot = (
+  chapter: ProjectEpisode | null,
+  progressKind?: ProjectProgressKind,
+) => (chapter ? JSON.stringify(normalizeChapterForEditor(chapter, progressKind)) : "");
+
+export const normalizeOriginLabel = (value: unknown) => {
+  const normalized = String(value || "").trim();
+  return normalized || "indisponivel";
+};
+
+export const buildVolumeCoverAltFallback = (volume: number) => `Capa do volume ${volume}`;
+
+export const normalizeVolumeEntriesForSave = (entries: ProjectVolumeEntry[] | null | undefined) =>
+  normalizeProjectVolumeEntries(entries).map((entry) => {
+    const coverImageUrl = String(entry.coverImageUrl || "").trim();
+    return {
+      volume: entry.volume,
+      synopsis: String(entry.synopsis || "").trim(),
+      coverImageUrl,
+      coverImageAlt: coverImageUrl
+        ? String(entry.coverImageAlt || "").trim() || buildVolumeCoverAltFallback(entry.volume)
+        : "",
+    };
+  });
+
+export const buildVolumeEntriesSnapshot = (entries: ProjectVolumeEntry[] | null | undefined) =>
+  JSON.stringify(normalizeProjectVolumeEntries(entries));
+
+export const buildProjectSnapshotWithVolumeEntries = <T extends ProjectSnapshotWithVolumes>(
+  project: T,
+  entries: ProjectVolumeEntry[] | null | undefined,
+): T => {
+  const volumeEntries = normalizeVolumeEntriesForSave(entries);
+  const volumeCovers = volumeEntries
+    .filter((entry) => String(entry.coverImageUrl || "").trim())
+    .map((entry) => ({
+      volume: entry.volume,
+      coverImageUrl: entry.coverImageUrl,
+      coverImageAlt: entry.coverImageAlt || buildVolumeCoverAltFallback(entry.volume),
+    }));
+  return {
+    ...project,
+    volumeEntries,
+    volumeCovers,
+  };
+};
+
+export const hasExplicitReadingOrder = (episodes: ProjectEpisode[]) =>
+  (Array.isArray(episodes) ? episodes : []).some((episode) =>
+    Number.isFinite(Number(episode?.readingOrder)),
+  );
+
+export const renumberChapterReadingOrderSequence = (episodes: ProjectEpisode[]) =>
+  episodes.map((episode, index) =>
+    normalizeChapterForSave({
+      ...episode,
+      readingOrder: index + 1,
+    }),
+  );
+
+export const insertEpisodesAtGroupBoundary = (
+  orderedEpisodes: ProjectEpisode[],
+  groupKey: string,
+  insertedEpisodes: ProjectEpisode[],
+) => {
+  if (!insertedEpisodes.length) {
+    return orderedEpisodes;
+  }
+
+  const lastGroupIndex = orderedEpisodes.reduce((lastIndex, episode, index) => {
+    return buildChapterStructureGroupKey(episode.volume) === groupKey ? index : lastIndex;
+  }, -1);
+
+  if (lastGroupIndex >= 0) {
+    return [
+      ...orderedEpisodes.slice(0, lastGroupIndex + 1),
+      ...insertedEpisodes,
+      ...orderedEpisodes.slice(lastGroupIndex + 1),
+    ];
+  }
+
+  const nextGroupIndex = orderedEpisodes.findIndex(
+    (episode) =>
+      compareChapterStructureGroupKeys(buildChapterStructureGroupKey(episode.volume), groupKey) > 0,
+  );
+
+  if (nextGroupIndex >= 0) {
+    return [
+      ...orderedEpisodes.slice(0, nextGroupIndex),
+      ...insertedEpisodes,
+      ...orderedEpisodes.slice(nextGroupIndex),
+    ];
+  }
+
+  return [...orderedEpisodes, ...insertedEpisodes];
+};
+
+export const preserveManualChapterReadingOrder = (
+  previousEpisodes: ProjectEpisode[],
+  nextEpisodes: ProjectEpisode[],
+) => {
+  const normalizedPreviousEpisodes = sortChapters(previousEpisodes).map((episode) =>
+    normalizeChapterForSave(episode),
+  );
+  if (!hasExplicitReadingOrder(normalizedPreviousEpisodes)) {
+    return nextEpisodes;
+  }
+
+  const normalizedNextEpisodes = (Array.isArray(nextEpisodes) ? nextEpisodes : []).map((episode) =>
+    normalizeChapterForSave(episode),
+  );
+  const nextEpisodeByKey = new Map(
+    normalizedNextEpisodes.map((episode) => [
+      buildEpisodeKey(episode.number, episode.volume),
+      episode,
+    ]),
+  );
+
+  let orderedEpisodes = normalizedPreviousEpisodes
+    .map((episode) => nextEpisodeByKey.get(buildEpisodeKey(episode.number, episode.volume)) || null)
+    .filter((episode): episode is ProjectEpisode => Boolean(episode));
+
+  const existingEpisodeKeySet = new Set(
+    orderedEpisodes.map((episode) => buildEpisodeKey(episode.number, episode.volume)),
+  );
+  const insertedEpisodes = normalizedNextEpisodes.filter(
+    (episode) => !existingEpisodeKeySet.has(buildEpisodeKey(episode.number, episode.volume)),
+  );
+  const insertedEpisodesByGroup = groupChaptersByStructureKey(sortChapters(insertedEpisodes));
+
+  Array.from(insertedEpisodesByGroup.keys())
+    .sort(compareChapterStructureGroupKeys)
+    .forEach((groupKey) => {
+      orderedEpisodes = insertEpisodesAtGroupBoundary(
+        orderedEpisodes,
+        groupKey,
+        insertedEpisodesByGroup.get(groupKey) || [],
+      );
+    });
+
+  return renumberChapterReadingOrderSequence(orderedEpisodes);
+};
+
+export const reorderChaptersWithinStructureGroup = (
+  episodes: ProjectEpisode[],
+  chapterKey: string,
+  direction: "up" | "down",
+) => {
+  const orderedEpisodes = sortChapters(episodes).map((episode) => normalizeChapterForSave(episode));
+  const targetIndex = orderedEpisodes.findIndex(
+    (episode) => buildEpisodeKey(episode.number, episode.volume) === chapterKey,
+  );
+  if (targetIndex < 0) {
+    return null;
+  }
+
+  const targetGroupKey = buildChapterStructureGroupKey(orderedEpisodes[targetIndex]?.volume);
+  const groupIndexes = orderedEpisodes.reduce<number[]>((indexes, episode, index) => {
+    if (buildChapterStructureGroupKey(episode.volume) === targetGroupKey) {
+      indexes.push(index);
+    }
+    return indexes;
+  }, []);
+  const currentGroupIndex = groupIndexes.indexOf(targetIndex);
+  const nextGroupIndex = direction === "up" ? currentGroupIndex - 1 : currentGroupIndex + 1;
+
+  if (currentGroupIndex < 0 || nextGroupIndex < 0 || nextGroupIndex >= groupIndexes.length) {
+    return null;
+  }
+
+  const swapTargetIndex = groupIndexes[nextGroupIndex];
+  const reorderedEpisodes = [...orderedEpisodes];
+  const [movedEpisode] = reorderedEpisodes.splice(targetIndex, 1);
+  reorderedEpisodes.splice(swapTargetIndex, 0, movedEpisode);
+  return renumberChapterReadingOrderSequence(reorderedEpisodes);
+};
+
+export const normalizeProjectSnapshotChapterOrderForPersist = (
+  previousProject: Pick<ProjectSnapshotWithVolumes & { episodeDownloads?: ProjectEpisode[]; type?: string }, "episodeDownloads" | "type"> | null | undefined,
+  nextProject: { episodeDownloads?: ProjectEpisode[]; type?: string } & ProjectSnapshotWithVolumes,
+) => {
+  if (!supportsStructureChapterReordering(nextProject.type || previousProject?.type || "")) {
+    return nextProject;
+  }
+
+  const previousEpisodes = Array.isArray(previousProject?.episodeDownloads)
+    ? previousProject.episodeDownloads
+    : [];
+  const nextEpisodes = Array.isArray(nextProject.episodeDownloads)
+    ? nextProject.episodeDownloads
+    : [];
+
+  if (!hasExplicitReadingOrder(previousEpisodes)) {
+    return nextProject;
+  }
+
+  return {
+    ...nextProject,
+    episodeDownloads: preserveManualChapterReadingOrder(previousEpisodes, nextEpisodes),
+  };
+};
+
+export const normalizeStructureGroupKeys = (
+  nextKeys: string[] | null | undefined,
+  structureGroups: ChapterStructureGroup[],
+) => {
+  const availableKeys = new Set(structureGroups.map((group) => group.key));
+  return Array.from(
+    new Set(
+      (Array.isArray(nextKeys) ? nextKeys : []).filter(
+        (key): key is string => typeof key === "string" && availableKeys.has(key),
+      ),
+    ),
+  );
 };
 
 export const buildEditableVolumeOptions = (

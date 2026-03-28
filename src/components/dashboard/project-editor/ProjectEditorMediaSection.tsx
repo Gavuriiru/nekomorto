@@ -1,4 +1,4 @@
-import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
+﻿import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -69,7 +69,7 @@ const ProjectEditorMediaSection = ({
     <AccordionItem value="midias" className={editorSectionClassName}>
       <AccordionTrigger className={editorSectionTriggerClassName}>
         <ProjectEditorAccordionHeader
-          title="MÃ­dias"
+          title="Mídias"
           subtitle={`${selectedMediaCount}/3 selecionadas`}
         />
       </AccordionTrigger>
@@ -102,3 +102,5 @@ const ProjectEditorMediaSection = ({
 };
 
 export default ProjectEditorMediaSection;
+
+

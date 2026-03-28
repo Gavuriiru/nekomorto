@@ -193,6 +193,52 @@ describe("DashboardSettings autosave", () => {
     expect(putCalls[0][1]).toBe("/api/settings");
   }, 10000);
 
+  it("troca de aba nao força save imediato durante blur interno", async () => {
+    renderDashboardSettings();
+    await screen.findByRole("heading", { name: /Painel/i });
+
+    const siteNameInput = await screen.findByDisplayValue(defaultSettings.site.name);
+    const seoTab = screen.getByRole("tab", { name: /SEO/i });
+
+    apiFetchMock.mockClear();
+    fireEvent.change(siteNameInput, { target: { value: "Troca fluida" } });
+    fireEvent.blur(siteNameInput, { relatedTarget: seoTab });
+    fireEvent.mouseDown(seoTab);
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /SEO/i })).toHaveAttribute("aria-selected", "true");
+    });
+    expect(getPutCalls()).toHaveLength(0);
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    const putCalls = getPutCalls();
+    expect(putCalls).toHaveLength(1);
+    expect(putCalls[0][1]).toBe("/api/settings");
+  }, 10000);
+
+  it("blur para fora da tela faz flush imediato das configuracoes pendentes", async () => {
+    renderDashboardSettings();
+    await screen.findByRole("heading", { name: /Painel/i });
+
+    const siteNameInput = await screen.findByDisplayValue(defaultSettings.site.name);
+    const outsideButton = document.createElement("button");
+    document.body.appendChild(outsideButton);
+
+    apiFetchMock.mockClear();
+    fireEvent.change(siteNameInput, { target: { value: "Saindo da tela" } });
+    fireEvent.blur(siteNameInput, { relatedTarget: outsideButton });
+
+    await waitFor(() => {
+      expect(getPutCalls().filter((call) => call[1] === "/api/settings")).toHaveLength(1);
+    });
+
+    document.body.removeChild(outsideButton);
+  }, 10000);
+
   it("envia theme.mode no payload de configuracoes", async () => {
     renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });

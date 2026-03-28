@@ -34,7 +34,8 @@ const ImageLibraryDialog = ({
     <>
       <Dialog open={props.open} onOpenChange={props.onOpenChange}>
         <DialogContent
-          className="z-200 flex h-[92vh] w-[96vw] max-w-5xl flex-col overflow-hidden p-3 data-[state=open]:animate-none data-[state=closed]:animate-none sm:h-[90vh] sm:w-[92vw] sm:p-6 [&>button]:hidden"
+          className="flex h-[92vh] w-[96vw] max-w-5xl flex-col overflow-hidden p-3 data-[state=open]:animate-none data-[state=closed]:animate-none sm:h-[90vh] sm:w-[92vw] sm:p-6 [&>button]:hidden"
+          containerClassName="z-200"
           overlayClassName="z-190 data-[state=open]:animate-none data-[state=closed]:animate-none"
           onEscapeKeyDown={(event) => event.preventDefault()}
         >

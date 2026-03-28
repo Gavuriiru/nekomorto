@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { ProjectEpisode, ProjectVolumeCover, ProjectVolumeEntry } from "@/data/projects";
 import DashboardProjectChapterEditor from "@/pages/DashboardProjectChapterEditor";
 
 const originalScrollIntoView = window.HTMLElement.prototype.scrollIntoView;
@@ -432,7 +433,56 @@ const createMockDomRect = (top: number, height = 40, width = 320): DOMRect =>
     toJSON: () => ({}),
   }) as DOMRect;
 
-const baseProject = {
+type ChapterEditorTestProject = {
+  id: string;
+  revision: string;
+  title: string;
+  titleOriginal: string;
+  titleEnglish: string;
+  synopsis: string;
+  description: string;
+  type: string;
+  status: string;
+  year: string;
+  studio: string;
+  episodes: string;
+  tags: string[];
+  genres: string[];
+  cover: string;
+  banner: string;
+  season: string;
+  schedule: string;
+  rating: string;
+  country: string;
+  source: string;
+  producers: string[];
+  score: number | null;
+  startDate: string;
+  endDate: string;
+  relations: unknown[];
+  staff: unknown[];
+  animeStaff: unknown[];
+  trailerUrl: string;
+  forceHero: boolean;
+  heroImageUrl: string;
+  heroImageAlt: string;
+  volumeEntries: ProjectVolumeEntry[];
+  volumeCovers: ProjectVolumeCover[];
+  views: number;
+  commentsCount: number;
+  order: number;
+  episodeDownloads: ProjectEpisode[];
+};
+
+const getLastItem = <T,>(items: readonly T[]) =>
+  items.length > 0 ? items[items.length - 1] : undefined;
+
+const getLastPathSegment = (path: string) => {
+  const segments = path.split("/");
+  return segments[segments.length - 1] || "";
+};
+
+const baseProject: ChapterEditorTestProject = {
   id: "project-ln-1",
   revision: "rev-1",
   title: "Projeto Light Novel",
@@ -509,7 +559,7 @@ const baseProject = {
   ],
 };
 
-const buildProject = (overrides: Partial<typeof baseProject> = {}) => ({
+const buildProject = (overrides: Partial<ChapterEditorTestProject> = {}): ChapterEditorTestProject => ({
   ...baseProject,
   ...overrides,
   volumeEntries: Array.isArray(overrides.volumeEntries)
@@ -894,13 +944,13 @@ const setupApiMock = ({
 
       if (path.startsWith("/api/projects/epub/import/jobs/") && method === "GET") {
         if (typeof epubImportJobStatusResponse === "function") {
-          return epubImportJobStatusResponse(path.split("/").at(-1) || "");
+          return epubImportJobStatusResponse(getLastPathSegment(path));
         }
         return (
           epubImportJobStatusResponse ||
           mockJsonResponse(true, {
             job: {
-              id: path.split("/").at(-1) || "job-1",
+              id: getLastPathSegment(path) || "job-1",
               projectId: project.id,
               requestedBy: "user-1",
               status: "completed",
@@ -1131,7 +1181,7 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByTestId("manga-workflow-panel");
     expect(screen.queryByTestId("chapter-epub-tools")).not.toBeInTheDocument();
 
-    const initialWorkflowProps = mangaWorkflowPropsSpy.mock.calls.at(-1)?.[0] as {
+    const initialWorkflowProps = getLastItem(mangaWorkflowPropsSpy.mock.calls)?.[0] as {
       filteredChapters?: Array<{ title?: string }>;
       filterMode?: string;
     };
@@ -1143,7 +1193,7 @@ describe("DashboardProjectChapterEditor", () => {
     });
 
     await waitFor(() => {
-      const latestWorkflowProps = mangaWorkflowPropsSpy.mock.calls.at(-1)?.[0] as {
+      const latestWorkflowProps = getLastItem(mangaWorkflowPropsSpy.mock.calls)?.[0] as {
         filteredChapters?: Array<{ title?: string }>;
       };
       expect(latestWorkflowProps.filteredChapters).toHaveLength(1);
@@ -2387,7 +2437,7 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
     await screen.findByTestId("mock-lexical");
 
-    const lexicalProps = lexicalEditorPropsSpy.mock.calls.at(-1)?.[0] as {
+    const lexicalProps = getLastItem(lexicalEditorPropsSpy.mock.calls)?.[0] as {
       imageLibraryOptions?: {
         onRequestNavigateToUploads?: () => boolean | Promise<boolean>;
       };
@@ -2403,7 +2453,7 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.click((await screen.findAllByRole("button", { name: "Biblioteca" }))[0]);
     await screen.findByTestId("image-library-dialog");
 
-    const dialogProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
+    const dialogProps = getLastItem(imageLibraryPropsSpy.mock.calls)?.[0] as {
       onRequestNavigateToUploads?: () => boolean | Promise<boolean>;
     };
     expect(dialogProps.onRequestNavigateToUploads).toEqual(expect.any(Function));
@@ -4119,6 +4169,7 @@ describe("DashboardProjectChapterEditor", () => {
         title: "Volume obrigatório",
       }),
     );
+    expect(toastMock).not.toHaveBeenCalled();
   });
 
   it("compensa o scroll para acompanhar o card do volume ao fechar o capítulo", async () => {
@@ -4235,5 +4286,87 @@ describe("DashboardProjectChapterEditor", () => {
       );
     });
     expect(screen.getByTestId("location-search").textContent).toBe("?volume=1");
+  });
+
+  it("faz fallback para o estado neutro quando a rota aponta para um capitulo inexistente", async () => {
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/99");
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos",
+      );
+    });
+
+    expect(screen.getByTestId("location-search").textContent).toBe("");
+    expect(screen.getByTestId("chapter-epub-tools")).toBeInTheDocument();
+    expect(screen.queryByTestId("not-found")).not.toBeInTheDocument();
+    expect(toastMock).toHaveBeenCalledTimes(1);
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Capítulo não encontrado. Mostrando a lista.",
+        intent: "warning",
+      }),
+    );
+  });
+
+  it("faz fallback para o estado neutro quando a rota recebe um numero de capitulo invalido", async () => {
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/abc");
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos",
+      );
+    });
+
+    expect(screen.getByTestId("location-search").textContent).toBe("");
+    expect(screen.getByTestId("chapter-epub-tools")).toBeInTheDocument();
+    expect(screen.queryByTestId("not-found")).not.toBeInTheDocument();
+    expect(toastMock).toHaveBeenCalledTimes(1);
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Capítulo não encontrado. Mostrando a lista.",
+        intent: "warning",
+      }),
+    );
+  });
+
+  it("preserva o volume valido ao cair para o estado neutro por rota de capitulo invalida", async () => {
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/99?volume=2");
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos",
+      );
+    });
+
+    expect(screen.getByTestId("location-search").textContent).toBe("");
+    expect(
+      within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 2"),
+    ).toBeInTheDocument();
+  });
+
+  it("limpa a selecao de volume ao cair para o estado neutro com volume invalido na URL", async () => {
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/99?volume=999");
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos",
+      );
+    });
+
+    expect(screen.getByTestId("location-search").textContent).toBe("");
+    expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
   });
 });

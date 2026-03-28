@@ -96,4 +96,5 @@ export type UploadFolderGroup = {
   folder: string;
   title: string;
   items: LibraryImageItem[];
+  folders: ProjectImageFolderGroup[];
 };

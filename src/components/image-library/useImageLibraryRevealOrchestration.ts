@@ -27,7 +27,10 @@ type UseImageLibraryRevealOrchestrationParams = {
   filteredUploads: LibraryImageItem[];
   hasInitializedProjectAccordionStateForOpenRef: MutableRefObject<boolean>;
   hasInitializedUploadAccordionStateForOpenRef: MutableRefObject<boolean>;
-  initialOpenUploadGroupKeys: string[];
+  initialUploadAccordionState: {
+    groupKeys: string[];
+    folderKeysByGroup: Record<string, string[]>;
+  };
   initialProjectAccordionState: {
     groupKeys: string[];
     folderKeysByGroup: Record<string, string[]>;
@@ -37,6 +40,7 @@ type UseImageLibraryRevealOrchestrationParams = {
   matchesSearch: (item: LibraryImageItem) => boolean;
   normalizedSearch: string;
   open: boolean;
+  openUploadFolderKeysByGroup: Record<string, string[]>;
   openProjectFolderKeysByGroup: Record<string, string[]>;
   openProjectGroupKeys: string[];
   openUploadGroupKeys: string[];
@@ -46,12 +50,14 @@ type UseImageLibraryRevealOrchestrationParams = {
   projectImagesView: "flat" | "by-project";
   renderableUploads: LibraryImageItem[];
   setIsCropDialogOpen: Dispatch<SetStateAction<boolean>>;
+  setOpenUploadFolderKeysByGroup: Dispatch<SetStateAction<Record<string, string[]>>>;
   setOpenProjectFolderKeysByGroup: Dispatch<SetStateAction<Record<string, string[]>>>;
   setOpenProjectGroupKeys: Dispatch<SetStateAction<string[]>>;
   setOpenUploadGroupKeys: Dispatch<SetStateAction<string[]>>;
   setPendingRevealRequest: Dispatch<SetStateAction<PendingRevealRequest | null>>;
   setSearchQuery: Dispatch<SetStateAction<string>>;
   setUploadsFolderFilter: Dispatch<SetStateAction<string>>;
+  resolveUploadsFolderFilterValue: (folder: string | null | undefined) => string;
   shouldAutoOpenAvatarCrop: (url: string) => boolean;
   uploadFolderGroups: UploadFolderGroup[];
   uploads: LibraryImageItem[];
@@ -68,13 +74,14 @@ export const useImageLibraryRevealOrchestration = ({
   filteredUploads,
   hasInitializedProjectAccordionStateForOpenRef,
   hasInitializedUploadAccordionStateForOpenRef,
-  initialOpenUploadGroupKeys,
+  initialUploadAccordionState,
   initialProjectAccordionState,
   isLibraryHydratedForOpen,
   isUploadsFilterReadyForInitialExpansion,
   matchesSearch,
   normalizedSearch,
   open,
+  openUploadFolderKeysByGroup,
   openProjectFolderKeysByGroup,
   openProjectGroupKeys,
   openUploadGroupKeys,
@@ -84,12 +91,14 @@ export const useImageLibraryRevealOrchestration = ({
   projectImagesView,
   renderableUploads,
   setIsCropDialogOpen,
+  setOpenUploadFolderKeysByGroup,
   setOpenProjectFolderKeysByGroup,
   setOpenProjectGroupKeys,
   setOpenUploadGroupKeys,
   setPendingRevealRequest,
   setSearchQuery,
   setUploadsFolderFilter,
+  resolveUploadsFolderFilterValue,
   shouldAutoOpenAvatarCrop,
   uploadFolderGroups,
   uploads,
@@ -111,12 +120,14 @@ export const useImageLibraryRevealOrchestration = ({
       hasInitializedUploadAccordionStateForOpenRef.current = false;
       hasInitializedProjectAccordionStateForOpenRef.current = false;
       setOpenUploadGroupKeys([]);
+      setOpenUploadFolderKeysByGroup({});
       setOpenProjectGroupKeys([]);
       setOpenProjectFolderKeysByGroup({});
       setPendingRevealRequest(null);
     }
   }, [
     open,
+    setOpenUploadFolderKeysByGroup,
     setOpenProjectFolderKeysByGroup,
     setOpenProjectGroupKeys,
     setOpenUploadGroupKeys,
@@ -134,12 +145,14 @@ export const useImageLibraryRevealOrchestration = ({
       return;
     }
     hasInitializedUploadAccordionStateForOpenRef.current = true;
-    setOpenUploadGroupKeys(initialOpenUploadGroupKeys);
+    setOpenUploadGroupKeys(initialUploadAccordionState.groupKeys);
+    setOpenUploadFolderKeysByGroup(initialUploadAccordionState.folderKeysByGroup);
   }, [
-    initialOpenUploadGroupKeys,
+    initialUploadAccordionState,
     isLibraryHydratedForOpen,
     isUploadsFilterReadyForInitialExpansion,
     open,
+    setOpenUploadFolderKeysByGroup,
     setOpenUploadGroupKeys,
     uploadFolderGroups.length,
   ]);
@@ -193,16 +206,17 @@ export const useImageLibraryRevealOrchestration = ({
     );
     if (matchedUpload && isUploadRenderable) {
       const targetFolder = resolveItemFolder(matchedUpload);
+      const targetFilterFolder = resolveUploadsFolderFilterValue(targetFolder);
       const shouldFocusExactFolder =
-        Boolean(targetFolder) &&
+        Boolean(targetFilterFolder) &&
         (uploadsFolderFilter === "__all__" ||
           !isFolderWithinSelection({
             itemFolder: targetFolder,
             selectedFolder: uploadsFolderFilter,
           }) ||
-          uploadsFolderFilter !== targetFolder);
+          uploadsFolderFilter !== targetFilterFolder);
       if (shouldFocusExactFolder) {
-        setUploadsFolderFilter(targetFolder || "__all__");
+        setUploadsFolderFilter(targetFilterFolder || "__all__");
         return;
       }
       const isVisibleInFilteredUploads = filteredUploads.some(
@@ -217,6 +231,21 @@ export const useImageLibraryRevealOrchestration = ({
       if (targetUploadGroup && !openUploadGroupKeys.includes(targetUploadGroup.key)) {
         setOpenUploadGroupKeys([targetUploadGroup.key]);
         return;
+      }
+      if (targetUploadGroup?.folders.length) {
+        const targetUploadFolder = targetUploadGroup.folders.find((folderGroup) =>
+          folderGroup.items.some((item) => toComparableSelectionKey(item.url) === targetKey),
+        );
+        if (targetUploadFolder) {
+          const openUploadFolderKeys = openUploadFolderKeysByGroup[targetUploadGroup.key] || [];
+          if (!openUploadFolderKeys.includes(targetUploadFolder.key)) {
+            setOpenUploadFolderKeysByGroup((prev) => ({
+              ...prev,
+              [targetUploadGroup.key]: [targetUploadFolder.key],
+            }));
+            return;
+          }
+        }
       }
       const targetUploadCard = uploadCardRefs.current[targetKey];
       if (!targetUploadCard) {
@@ -294,6 +323,7 @@ export const useImageLibraryRevealOrchestration = ({
     matchesSearch,
     normalizedSearch,
     open,
+    openUploadFolderKeysByGroup,
     openProjectFolderKeysByGroup,
     openProjectGroupKeys,
     openUploadGroupKeys,
@@ -303,12 +333,14 @@ export const useImageLibraryRevealOrchestration = ({
     projectImagesView,
     renderableUploads,
     setIsCropDialogOpen,
+    setOpenUploadFolderKeysByGroup,
     setOpenProjectFolderKeysByGroup,
     setOpenProjectGroupKeys,
     setOpenUploadGroupKeys,
     setPendingRevealRequest,
     setSearchQuery,
     setUploadsFolderFilter,
+    resolveUploadsFolderFilterValue,
     shouldAutoOpenAvatarCrop,
     uploadFolderGroups,
     uploads,

@@ -1,3 +1,5 @@
+import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
+import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import {
   Select,
   SelectContent,
@@ -5,20 +7,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/dashboard/dashboard-form-controls";
-import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
-import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { SiteSettings } from "@/types/site-settings";
 import {
+  normalizeProjectReaderConfig,
   PROJECT_READER_BACKGROUNDS,
   PROJECT_READER_DIRECTIONS,
   PROJECT_READER_IMAGE_FITS,
   PROJECT_READER_LAYOUTS,
   PROJECT_READER_PROGRESS_POSITIONS,
   PROJECT_READER_PROGRESS_STYLES,
-  normalizeProjectReaderConfig,
 } from "../../../shared/project-reader.js";
 
 type ReaderProjectTypeKey = keyof SiteSettings["reader"]["projectTypes"];
@@ -76,10 +76,10 @@ const DashboardReaderPresetCard = ({
             <p className="text-xs text-foreground/70">{presetMeta.description}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <DashboardPageBadge>
+            <DashboardPageBadge reveal={false}>
               {preset.direction === PROJECT_READER_DIRECTIONS.RTL ? "RTL" : "LTR"}
             </DashboardPageBadge>
-            <DashboardPageBadge>
+            <DashboardPageBadge reveal={false}>
               {resolveLayoutBadgeLabel(String(preset.layout || ""))}
             </DashboardPageBadge>
           </div>

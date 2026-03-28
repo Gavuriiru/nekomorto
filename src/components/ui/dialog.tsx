@@ -28,16 +28,22 @@ const DialogOverlay = React.forwardRef<
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+  containerClassName?: string;
   overlayClassName?: string;
 };
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, overlayClassName, ...props }, ref) => (
+>(({ className, children, containerClassName, overlayClassName, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay className={overlayClassName} />
-    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto">
+    <div
+      className={cn(
+        "fixed inset-0 z-50 grid place-items-center overflow-y-auto",
+        containerClassName,
+      )}
+    >
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
