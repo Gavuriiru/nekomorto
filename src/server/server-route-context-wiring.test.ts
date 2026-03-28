@@ -1,14 +1,22 @@
-import fs from "fs";
-import path from "path";
 import { describe, expect, it } from "vitest";
 
-describe("server route context wiring", () => {
-  it("passes upload scope helpers into createServerRouteContext from server/index.js", () => {
-    const serverIndexPath = path.resolve(process.cwd(), "server/index.js");
-    const source = fs.readFileSync(serverIndexPath, "utf-8");
+import { createServerRouteDependencies } from "../../server/bootstrap/create-server-route-dependencies.js";
 
-    expect(source).toMatch(
-      /registerServerRoutes\(\s*createServerRouteContext\(\{[\s\S]*\bnormalizeUploadScopeUserId,\s*[\s\S]*\bresolveRequestUploadAccessScope,\s*[\s\S]*\}\),\s*\)\s*;/,
+describe("server route dependency wiring", () => {
+  it("routes upload scope helpers into the upload domain without leaking them at the root", () => {
+    const app = { get: () => {} };
+    const context = createServerRouteDependencies({
+      app,
+      normalizeUploadScopeUserId: "normalizeUploadScopeUserId",
+      resolveRequestUploadAccessScope: "resolveRequestUploadAccessScope",
+    });
+
+    expect(context.app).toBe(app);
+    expect(context.upload.normalizeUploadScopeUserId).toBe("normalizeUploadScopeUserId");
+    expect(context.upload.resolveRequestUploadAccessScope).toBe(
+      "resolveRequestUploadAccessScope",
     );
+    expect(context).not.toHaveProperty("normalizeUploadScopeUserId");
+    expect(context).not.toHaveProperty("resolveRequestUploadAccessScope");
   });
 });

@@ -68,19 +68,6 @@ export const shiftCollapsedEpisodesAfterRemoval = (
   return next;
 };
 
-export const moveIndexedItem = <T,>(items: T[], from: number, to: number) => {
-  if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) {
-    return items;
-  }
-  const next = [...items];
-  const [moved] = next.splice(from, 1);
-  if (typeof moved === "undefined") {
-    return items;
-  }
-  next.splice(to, 0, moved);
-  return next;
-};
-
 export const buildCompletionBadges = (episode: Partial<EditorProjectEpisode> | null | undefined) =>
   getAnimeEpisodeCompletionIssues(episode).map((issue) => ({
     issue,

@@ -378,7 +378,6 @@ export const resolveHomeHeroPreloadFromSlide = ({
       ? {
           href: fallbackHref,
           as: "image",
-          crossorigin: "anonymous",
           fetchpriority: "high",
         }
       : null;

@@ -26,12 +26,24 @@ import EpisodeContentEditor from "@/components/dashboard/project-editor/EpisodeC
 import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
 import ProjectEditorImageLibraryDialog from "@/components/dashboard/project-editor/ProjectEditorImageLibraryDialog";
 import ProjectEditorMediaSection from "@/components/dashboard/project-editor/ProjectEditorMediaSection";
+import { useProjectEditorDialogState } from "@/components/dashboard/project-editor/useProjectEditorDialogState";
 import { useProjectEditorImageLibrary } from "@/components/dashboard/project-editor/useProjectEditorImageLibrary";
 import { useDashboardProjectsEditorAnimeBatch } from "@/components/dashboard/project-editor/useDashboardProjectsEditorAnimeBatch";
 import {
   clearProjectsPageCache,
   useDashboardProjectsEditorResource,
 } from "@/components/dashboard/project-editor/useDashboardProjectsEditorResource";
+import { useProjectEditorTaxonomy } from "@/components/dashboard/project-editor/useProjectEditorTaxonomy";
+import type {
+  AniListMedia,
+  EditorProjectEpisode,
+  EpisodeVolumeGroup,
+  ProjectForm,
+  ProjectRecord,
+  ProjectRelation,
+  ProjectStaff,
+  SortedEpisodeItem,
+} from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
 import {
@@ -58,12 +70,7 @@ import CompactPagination from "@/components/ui/compact-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
-import type {
-  ProjectEpisode,
-  ProjectReaderConfig,
-  ProjectVolumeCover,
-  ProjectVolumeEntry,
-} from "@/data/projects";
+import type { ProjectEpisode, ProjectVolumeEntry } from "@/data/projects";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
@@ -114,7 +121,13 @@ import {
   resolveNextExtraTechnicalNumber,
   resolveNextMainEpisodeNumber,
 } from "@/lib/project-episode-key";
-import { buildTranslationMap, normalizeKey, sortByTranslatedLabel, translateAnilistRole, translateGenre, translateRelation, translateTag } from "@/lib/project-taxonomy";
+import {
+  sortByTranslatedLabel,
+  translateAnilistRole,
+  translateGenre,
+  translateRelation,
+  translateTag,
+} from "@/lib/project-taxonomy";
 import {
   getProjectProgressStagesForEditor,
   getProjectProgressStateForEditor,
@@ -122,6 +135,7 @@ import {
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
+import { reorderItems } from "@/lib/reorder-items";
 import {
   normalizeProjectReaderConfig,
   PROJECT_READER_DIRECTIONS,
@@ -148,32 +162,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-type ProjectRelation = {
-  relation: string;
-  title: string;
-  format: string;
-  status: string;
-  image: string;
-  anilistId?: number;
-  projectId?: string;
-};
-
-type ProjectStaff = {
-  role: string;
-  members: string[];
-};
-
-type TaxonomySuggestionOption = {
-  value: string;
-  label: string;
-  normalizedValue: string;
-  normalizedLabel: string;
-};
-
-type EditorProjectEpisode = ProjectEpisode & {
-  _editorKey?: string;
-};
-
 const getDedicatedEditorCtaIcon = (projectType?: string | null): LucideIcon => {
   const normalizedType = String(projectType || "").trim();
   if (!normalizedType) {
@@ -188,192 +176,8 @@ const getDedicatedEditorCtaIcon = (projectType?: string | null): LucideIcon => {
   return Clapperboard;
 };
 
-type ProjectRecord = {
-  id: string;
-  anilistId?: number | null;
-  title: string;
-  titleOriginal?: string;
-  titleEnglish?: string;
-  synopsis: string;
-  description: string;
-  type: string;
-  status: string;
-  year: string;
-  studio: string;
-  animationStudios: string[];
-  episodes: string;
-  tags: string[];
-  genres: string[];
-  cover: string;
-  coverAlt: string;
-  banner: string;
-  bannerAlt: string;
-  season: string;
-  schedule: string;
-  rating: string;
-  country: string;
-  source: string;
-  discordRoleId?: string;
-  producers: string[];
-  score: number | null;
-  startDate: string;
-  endDate: string;
-  relations: ProjectRelation[];
-  staff: ProjectStaff[];
-  animeStaff: ProjectStaff[];
-  trailerUrl: string;
-  forceHero?: boolean;
-  heroImageUrl?: string;
-  heroImageAlt: string;
-  readerConfig?: ProjectReaderConfig;
-  volumeEntries: ProjectVolumeEntry[];
-  volumeCovers: ProjectVolumeCover[];
-  episodeDownloads: ProjectEpisode[];
-  views: number;
-  commentsCount: number;
-  order: number;
-  createdAt?: string;
-  updatedAt?: string;
-  deletedAt?: string | null;
-  deletedBy?: string | null;
-};
-
 const appendUniqueValue = (values: string[], nextValue: string) =>
   values.includes(nextValue) ? values : [...values, nextValue];
-
-const buildTaxonomySuggestionOptions = (
-  values: string[],
-  translate: (value: string) => string,
-): TaxonomySuggestionOption[] => {
-  const uniqueValues = Array.from(
-    new Set(values.map((value) => String(value || "").trim()).filter(Boolean)),
-  );
-
-  return sortByTranslatedLabel(uniqueValues, translate).map((value) => {
-    const label = translate(value);
-    return {
-      value,
-      label,
-      normalizedValue: normalizeKey(value),
-      normalizedLabel: normalizeKey(label),
-    };
-  });
-};
-
-const buildTaxonomySuggestionLookup = (options: TaxonomySuggestionOption[]) => {
-  const lookup = new Map<string, string>();
-
-  options.forEach((option) => {
-    if (option.normalizedValue && !lookup.has(option.normalizedValue)) {
-      lookup.set(option.normalizedValue, option.value);
-    }
-    if (option.normalizedLabel && !lookup.has(option.normalizedLabel)) {
-      lookup.set(option.normalizedLabel, option.value);
-    }
-  });
-
-  return lookup;
-};
-
-const filterTaxonomySuggestions = (
-  options: TaxonomySuggestionOption[],
-  query: string,
-  selectedValues: string[],
-) => {
-  const normalizedQuery = normalizeKey(query);
-  if (!normalizedQuery) {
-    return [];
-  }
-
-  const selectedSet = new Set(selectedValues);
-  return options
-    .filter(
-      (option) =>
-        !selectedSet.has(option.value) &&
-        (option.normalizedValue.includes(normalizedQuery) ||
-          option.normalizedLabel.includes(normalizedQuery)),
-    )
-    .slice(0, 6);
-};
-
-const resolveTaxonomyInputValue = (input: string, lookup: Map<string, string>) => {
-  const trimmedInput = String(input || "").trim();
-  if (!trimmedInput) {
-    return "";
-  }
-  return lookup.get(normalizeKey(trimmedInput)) || trimmedInput;
-};
-
-type ProjectForm = Omit<ProjectRecord, "views" | "commentsCount" | "order" | "episodeDownloads"> & {
-  episodeDownloads: EditorProjectEpisode[];
-};
-
-type SortedEpisodeItem = {
-  episode: EditorProjectEpisode;
-  index: number;
-};
-
-type EpisodeVolumeGroup = {
-  key: string;
-  volume?: number;
-  hasNumericVolume: boolean;
-  volumeEntryIndex: number | null;
-  episodeItems: SortedEpisodeItem[];
-};
-
-type AniListMedia = {
-  id: number;
-  title: {
-    romaji?: string | null;
-    english?: string | null;
-    native?: string | null;
-  };
-  description?: string | null;
-  episodes?: number | null;
-  genres?: string[] | null;
-  format?: string | null;
-  status?: string | null;
-  countryOfOrigin?: string | null;
-  season?: string | null;
-  seasonYear?: number | null;
-  startDate?: { year?: number | null; month?: number | null; day?: number | null } | null;
-  endDate?: { year?: number | null; month?: number | null; day?: number | null } | null;
-  source?: string | null;
-  averageScore?: number | null;
-  bannerImage?: string | null;
-  coverImage?: { extraLarge?: string | null; large?: string | null } | null;
-  studios?: {
-    edges?: Array<{
-      isMain?: boolean | null;
-      node?: {
-        id?: number | string | null;
-        name?: string | null;
-        isAnimationStudio?: boolean | null;
-      } | null;
-    }>;
-  } | null;
-  organization?: {
-    studio?: string | null;
-    animationStudios?: string[] | null;
-    producers?: string[] | null;
-  } | null;
-  tags?: Array<{ name: string; rank?: number | null; isMediaSpoiler?: boolean | null }> | null;
-  trailer?: { id?: string | null; site?: string | null } | null;
-  relations?: {
-    edges?: Array<{ relationType?: string | null }>;
-    nodes?: Array<{
-      id: number;
-      title?: { romaji?: string | null } | null;
-      format?: string | null;
-      status?: string | null;
-      coverImage?: { large?: string | null } | null;
-    }>;
-  } | null;
-  staff?: {
-    edges?: Array<{ role?: string | null }>;
-    nodes?: Array<{ name?: { full?: string | null } | null }>;
-  } | null;
-};
 
 const emptyProject: ProjectForm = {
   id: "",
@@ -593,30 +397,11 @@ const resolveEpisodeEditorKey = (episode: Partial<EditorProjectEpisode> | null |
   return currentKey || generateLocalId();
 };
 
-const buildCompletionBadges = (episode: Partial<ProjectEpisode> | null | undefined) =>
+const buildCompletionBadges = (episode: Partial<EditorProjectEpisode> | null | undefined) =>
   getAnimeEpisodeCompletionIssues(episode).map((issue) => ({
     issue,
     label: getAnimeEpisodeCompletionLabel(issue),
   }));
-
-const moveIndexedItem = <T,>(items: T[], from: number, to: number) => {
-  if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) {
-    return items;
-  }
-  const next = [...items];
-  const [moved] = next.splice(from, 1);
-  if (typeof moved === "undefined") {
-    return items;
-  }
-  next.splice(to, 0, moved);
-  return next;
-};
-
-const buildProjectEditorSnapshot = (form: ProjectForm, anilistIdInput: string) =>
-  JSON.stringify({
-    form,
-    anilistIdInput: anilistIdInput.trim(),
-  });
 
 const DashboardProjectsEditor = () => {
   usePageMeta({ title: "Projetos", noIndex: true });
@@ -627,10 +412,6 @@ const DashboardProjectsEditor = () => {
   const { currentUser, isLoadingUser } = useDashboardCurrentUser();
   const hasLoadedCurrentUser = !isLoadingUser;
   const [searchQuery, setSearchQuery] = useState("");
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
-  useEditorScrollLock(isEditorOpen);
-  useEditorScrollStability(isEditorOpen);
-  const [isEditorDialogScrolled, setIsEditorDialogScrolled] = useState(false);
 
   const [editingProject, setEditingProject] = useState<ProjectRecord | null>(null);
   const [formState, setFormState] = useState<ProjectForm>(emptyProject);
@@ -686,7 +467,6 @@ const DashboardProjectsEditor = () => {
   const pendingVolumeGroupToScrollRef = useRef<string | null>(null);
   const pendingContentSectionScrollRef = useRef(false);
   const pendingEpisodeToScrollRef = useRef<EditorProjectEpisode | null>(null);
-  const pendingEpisodeFocusRef = useRef<{ number: number; volume?: number } | null>(null);
   const previousEpisodeCountRef = useRef(0);
   const episodeCardNodeMapRef = useRef<WeakMap<EditorProjectEpisode, HTMLDivElement>>(
     new WeakMap(),
@@ -700,27 +480,7 @@ const DashboardProjectsEditor = () => {
     pendingContentSectionScrollRef.current = false;
     volumeGroupNodeMapRef.current.clear();
   }, []);
-  const closeEditor = useCallback(() => {
-    pendingEpisodeFocusRef.current = null;
-    resetPendingContentNavigation();
-    setIsEditorOpen(false);
-    setEditingProject(null);
-  }, [resetPendingContentNavigation]);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmTitle, setConfirmTitle] = useState("Sair da edição?");
-  const [confirmDescription, setConfirmDescription] = useState(
-    "Você tem alterações não salvas. Deseja continuar?",
-  );
-  const confirmActionRef = useRef<(() => void) | null>(null);
-  const confirmCancelRef = useRef<(() => void) | null>(null);
-  const autoEditHandledRef = useRef<string | null>(null);
   const hasInitializedListFiltersRef = useRef(false);
-  const editorInitialSnapshotRef = useRef<string>(buildProjectEditorSnapshot(emptyProject, ""));
-  const isDirty = useMemo(
-    () =>
-      buildProjectEditorSnapshot(formState, anilistIdInput) !== editorInitialSnapshotRef.current,
-    [anilistIdInput, formState],
-  );
   const canManageProjects = useMemo(() => {
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
     return permissions.includes("*") || permissions.includes("projetos");
@@ -753,34 +513,36 @@ const DashboardProjectsEditor = () => {
     resolveVolumeEntryIndexByVolume,
     setFormState,
   });
-  const handleEditorOpenChange = (next: boolean) => {
-    if (!next && isLibraryOpen) {
-      return;
-    }
-    if (!next) {
-      if (!isDirty) {
-        closeEditor();
-        return;
-      }
-      setConfirmTitle("Sair da edição?");
-      setConfirmDescription("Você tem alterações não salvas. Deseja continuar?");
-      confirmActionRef.current = () => {
-        closeEditor();
-      };
-      confirmCancelRef.current = () => {
-        setConfirmOpen(false);
-      };
-      setConfirmOpen(true);
-      return;
-    }
-    setIsEditorOpen(true);
-  };
-
-  useEffect(() => {
-    if (!isEditorOpen) {
-      setIsEditorDialogScrolled(false);
-    }
-  }, [isEditorOpen]);
+  const {
+    autoEditHandledRef,
+    closeEditor,
+    confirmActionRef,
+    confirmCancelRef,
+    confirmDescription,
+    confirmOpen,
+    confirmTitle,
+    handleEditorOpenChange,
+    isDirty,
+    isEditorDialogScrolled,
+    isEditorOpen,
+    markEditorSnapshot,
+    pendingEpisodeFocusRef,
+    requestCloseEditor,
+    setConfirmOpen,
+    setIsEditorDialogScrolled,
+    setIsEditorOpen,
+  } = useProjectEditorDialogState({
+    anilistIdInput,
+    formState,
+    initialFormState: emptyProject,
+    isLibraryOpen,
+    onCloseEditor: () => {
+      resetPendingContentNavigation();
+      setEditingProject(null);
+    },
+  });
+  useEditorScrollLock(isEditorOpen);
+  useEditorScrollStability(isEditorOpen);
 
   useEffect(() => {
     const maxEpisodeIndex = formState.episodeDownloads.length - 1;
@@ -818,110 +580,25 @@ const DashboardProjectsEditor = () => {
     return Array.from(new Set(fallback));
   }, [publicSettings.teamRoles, formState.staff]);
 
-  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
-  const genreTranslationMap = useMemo(
-    () => buildTranslationMap(genreTranslations),
-    [genreTranslations],
-  );
-  const staffRoleTranslationMap = useMemo(
-    () => buildTranslationMap(staffRoleTranslations),
-    [staffRoleTranslations],
-  );
-
-  const translatedSortedEditorTags = useMemo(
-    () => sortByTranslatedLabel(formState.tags, (tag) => translateTag(tag, tagTranslationMap)),
-    [formState.tags, tagTranslationMap],
-  );
-
-  const translatedSortedEditorGenres = useMemo(
-    () =>
-      sortByTranslatedLabel(formState.genres, (genre) =>
-        translateGenre(genre, genreTranslationMap),
-      ),
-    [formState.genres, genreTranslationMap],
-  );
-
-  const knownTagValues = useMemo(() => {
-    const set = new Set<string>();
-    projects.forEach((project) => {
-      (project.tags || []).forEach((tag) => {
-        const normalizedTag = String(tag || "").trim();
-        if (normalizedTag) {
-          set.add(normalizedTag);
-        }
-      });
-    });
-    Object.keys(tagTranslations).forEach((tag) => {
-      const normalizedTag = String(tag || "").trim();
-      if (normalizedTag) {
-        set.add(normalizedTag);
-      }
-    });
-    formState.tags.forEach((tag) => {
-      const normalizedTag = String(tag || "").trim();
-      if (normalizedTag) {
-        set.add(normalizedTag);
-      }
-    });
-    return Array.from(set);
-  }, [formState.tags, projects, tagTranslations]);
-
-  const knownGenresValues = useMemo(() => {
-    const set = new Set<string>();
-    projects.forEach((project) => {
-      (project.genres || []).forEach((genre) => {
-        const normalizedGenre = String(genre || "").trim();
-        if (normalizedGenre) {
-          set.add(normalizedGenre);
-        }
-      });
-    });
-    Object.keys(genreTranslations).forEach((genre) => {
-      const normalizedGenre = String(genre || "").trim();
-      if (normalizedGenre) {
-        set.add(normalizedGenre);
-      }
-    });
-    formState.genres.forEach((genre) => {
-      const normalizedGenre = String(genre || "").trim();
-      if (normalizedGenre) {
-        set.add(normalizedGenre);
-      }
-    });
-    return Array.from(set);
-  }, [formState.genres, genreTranslations, projects]);
-
-  const tagSuggestionOptions = useMemo(
-    () =>
-      buildTaxonomySuggestionOptions(knownTagValues, (tag) => translateTag(tag, tagTranslationMap)),
-    [knownTagValues, tagTranslationMap],
-  );
-
-  const genreSuggestionOptions = useMemo(
-    () =>
-      buildTaxonomySuggestionOptions(knownGenresValues, (genre) =>
-        translateGenre(genre, genreTranslationMap),
-      ),
-    [genreTranslationMap, knownGenresValues],
-  );
-
-  const tagSuggestionLookup = useMemo(
-    () => buildTaxonomySuggestionLookup(tagSuggestionOptions),
-    [tagSuggestionOptions],
-  );
-
-  const genreSuggestionLookup = useMemo(
-    () => buildTaxonomySuggestionLookup(genreSuggestionOptions),
-    [genreSuggestionOptions],
-  );
-
-  const tagSuggestions = useMemo(() => {
-    return filterTaxonomySuggestions(tagSuggestionOptions, tagInput, formState.tags);
-  }, [formState.tags, tagInput, tagSuggestionOptions]);
-
-  const genreSuggestions = useMemo(() => {
-    return filterTaxonomySuggestions(genreSuggestionOptions, genreInput, formState.genres);
-  }, [formState.genres, genreInput, genreSuggestionOptions]);
+  const {
+    genreTranslationMap,
+    genreSuggestions,
+    resolveGenreInputValue,
+    resolveTagInputValue,
+    staffRoleTranslationMap,
+    tagTranslationMap,
+    tagSuggestions,
+    translatedSortedEditorGenres,
+    translatedSortedEditorTags,
+  } = useProjectEditorTaxonomy({
+    formState,
+    genreInput,
+    genreTranslations,
+    projects,
+    staffRoleTranslations,
+    tagInput,
+    tagTranslations,
+  });
 
   useEffect(() => {
     if (!hasInitializedListFiltersRef.current) {
@@ -1570,7 +1247,7 @@ const DashboardProjectsEditor = () => {
     episodeSizeInputRefs.current = {};
     setStaffMemberInput({});
     setAnimeStaffMemberInput({});
-    editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, "");
+    markEditorSnapshot(nextForm, "");
     setCollapsedEpisodes({});
     setCollapsedVolumeGroups({});
     setIsEditorOpen(true);
@@ -1728,7 +1405,7 @@ const DashboardProjectsEditor = () => {
       episodeSizeInputRefs.current = {};
       setStaffMemberInput({});
       setAnimeStaffMemberInput({});
-      editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, nextAniListInput);
+      markEditorSnapshot(nextForm, nextAniListInput);
       pendingEpisodeToScrollRef.current = focusedEpisode;
       setCollapsedEpisodes(() => {
         const next: Record<number, boolean> = {};
@@ -1829,22 +1506,6 @@ const DashboardProjectsEditor = () => {
     searchParams,
     setSearchParams,
   ]);
-
-  const requestCloseEditor = () => {
-    if (!isDirty) {
-      closeEditor();
-      return;
-    }
-    setConfirmTitle("Sair da edição?");
-    setConfirmDescription("Você tem alterações não salvas. Deseja continuar?");
-    confirmActionRef.current = () => {
-      closeEditor();
-    };
-    confirmCancelRef.current = () => {
-      setConfirmOpen(false);
-    };
-    setConfirmOpen(true);
-  };
 
   const revealEpisodeAtIndex = useCallback(
     (index: number) => {
@@ -2285,10 +1946,7 @@ const DashboardProjectsEditor = () => {
     } else {
       setProjects((prev) => [...prev, data.project]);
     }
-    editorInitialSnapshotRef.current = buildProjectEditorSnapshot(
-      (data?.project || payload) as ProjectForm,
-      anilistIdInput,
-    );
+    markEditorSnapshot((data?.project || payload) as ProjectForm, anilistIdInput);
     toast({
       title: editingProject ? "Projeto atualizado" : "Projeto criado",
       description: "As alterações foram salvas com sucesso.",
@@ -2564,7 +2222,7 @@ const DashboardProjectsEditor = () => {
   };
 
   const handleAddTag = () => {
-    const next = resolveTaxonomyInputValue(tagInput, tagSuggestionLookup);
+    const next = resolveTagInputValue(tagInput);
     if (!next) {
       return;
     }
@@ -2573,7 +2231,7 @@ const DashboardProjectsEditor = () => {
   };
 
   const handleAddGenre = () => {
-    const next = resolveTaxonomyInputValue(genreInput, genreSuggestionLookup);
+    const next = resolveGenreInputValue(genreInput);
     if (!next) {
       return;
     }
@@ -2791,7 +2449,7 @@ const DashboardProjectsEditor = () => {
     }
     setFormState((prev) => ({
       ...prev,
-      relations: moveIndexedItem(prev.relations, from, to),
+      relations: reorderItems(prev.relations, from, to),
     }));
   }, []);
 
@@ -2801,7 +2459,7 @@ const DashboardProjectsEditor = () => {
     }
     setFormState((prev) => ({
       ...prev,
-      staff: moveIndexedItem(prev.staff, from, to),
+      staff: reorderItems(prev.staff, from, to),
     }));
     setStaffMemberInput({});
   }, []);
@@ -2812,7 +2470,7 @@ const DashboardProjectsEditor = () => {
     }
     setFormState((prev) => ({
       ...prev,
-      animeStaff: moveIndexedItem(prev.animeStaff, from, to),
+      animeStaff: reorderItems(prev.animeStaff, from, to),
     }));
     setAnimeStaffMemberInput({});
   }, []);
@@ -2824,14 +2482,14 @@ const DashboardProjectsEditor = () => {
       }
       setFormState((prev) => ({
         ...prev,
-        episodeDownloads: moveIndexedItem(prev.episodeDownloads, from, to),
+        episodeDownloads: reorderItems(prev.episodeDownloads, from, to),
       }));
       setCollapsedEpisodes((prev) => {
         const flags = Array.from(
           { length: formState.episodeDownloads.length },
           (_, idx) => prev[idx] ?? false,
         );
-        const nextFlags = moveIndexedItem(flags, from, to);
+        const nextFlags = reorderItems(flags, from, to);
         const next: Record<number, boolean> = {};
         nextFlags.forEach((value, idx) => {
           next[idx] = value;

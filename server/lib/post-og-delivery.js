@@ -5,8 +5,8 @@ import {
 } from "./project-og.js";
 import {
   getCachedOgRender,
-  renderOptimizedOgBuffer,
 } from "./og-delivery-shared.js";
+import { renderProjectStyleOgBuffer } from "./og-project-render.js";
 
 const buildPostOgBaseModel = ({
   post,
@@ -35,36 +35,19 @@ const buildPostOgBaseModel = ({
   });
 
 const renderPostOgBuffer = async ({ baseModel, origin } = {}) => {
-  return renderOptimizedOgBuffer({
+  return renderProjectStyleOgBuffer({
     baseModel,
-    loadAssets: async ({ baseModel: model, timings, measureTiming }) => {
-      const [artworkDataUrl, backdropDataUrl, subtitleAvatarDataUrl] = await Promise.all([
-        measureTiming(timings, "artwork_load", async () =>
-          loadProjectOgArtworkDataUrl({
-            artworkUrl: model?.artworkUrl,
-            origin,
-          }),
-        ),
-        measureTiming(timings, "backdrop_process", async () =>
-          loadProjectOgProcessedBackdropDataUrl({
-            artworkUrl: model?.backdropUrl,
-            origin,
-            layout: model?.layout,
-          }),
-        ),
-        measureTiming(timings, "avatar_load", async () =>
-          loadProjectOgArtworkDataUrl({
-            artworkUrl: model?.subtitleAvatarUrl,
-            origin,
-          }),
-        ),
-      ]);
-      return {
-        artworkDataUrl,
-        backdropDataUrl,
-        subtitleAvatarDataUrl,
-      };
-    },
+    origin,
+    loadArtworkDataUrl: loadProjectOgArtworkDataUrl,
+    loadProcessedBackdropDataUrl: loadProjectOgProcessedBackdropDataUrl,
+    loadAdditionalAssets: async ({ baseModel: model, timings, measureTiming, origin: renderOrigin }) => ({
+      subtitleAvatarDataUrl: await measureTiming(timings, "avatar_load", async () =>
+        loadProjectOgArtworkDataUrl({
+          artworkUrl: model?.subtitleAvatarUrl,
+          origin: renderOrigin,
+        }),
+      ),
+    }),
     buildImageResponse: (model) =>
       buildPostOgImageResponse({
         ...model,

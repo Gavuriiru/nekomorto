@@ -9,7 +9,7 @@ import express from "express";
 import session from "express-session";
 import multer from "multer";
 import { Pool } from "pg";
-import { createServerRouteContext } from "./bootstrap/create-server-route-context.js";
+import { createServerRouteDependencies } from "./bootstrap/create-server-route-dependencies.js";
 import { registerServerRoutes } from "./bootstrap/register-server-routes.js";
 import { startServerJobs } from "./bootstrap/start-server-jobs.js";
 import {
@@ -22,8 +22,10 @@ import {
   normalizeExportStatus,
   writeExportFile,
 } from "./lib/admin-exports.js";
+import { createAnalyticsStore } from "./lib/analytics-store.js";
 import { API_CONTRACT_VERSION, buildApiContractV1 } from "./lib/api-contract-v1.js";
 import { ANILIST_API, fetchAniListMediaById } from "./lib/anilist-client.js";
+import { createAuditLogStore } from "./lib/audit-log-store.js";
 import {
   AccessRole,
   BASIC_PROFILE_FIELDS,
@@ -50,6 +52,7 @@ import { getBuildMetadata } from "./lib/build-metadata.js";
 import { deriveChapterSynopsis } from "./lib/chapter-synopsis.js";
 import { buildCommentTargetInfo } from "./lib/comment-target-info.js";
 import { bulkModeratePendingComments } from "./lib/comments-bulk-moderation.js";
+import { createPublicMediaRuntime } from "./lib/public-media-runtime.js";
 import { selectRecentApprovedComments } from "./lib/dashboard-recent-comments.js";
 import { createDataRepository } from "./lib/data-repository.js";
 import { proxyDiscordAvatarRequest } from "./lib/discord-avatar-proxy.js";
@@ -733,216 +736,18 @@ const AUDIT_META_ALLOWLIST = {
   ],
 };
 
-const parseAuditTs = (value) => {
-  const ts = new Date(value || 0).getTime();
-  return Number.isFinite(ts) ? ts : null;
-};
-
-const inferAuditStatus = (action) => {
-  const normalized = String(action || "").toLowerCase();
-  if (!normalized) {
-    return "success";
-  }
-  if (normalized.includes("denied")) {
-    return "denied";
-  }
-  if (normalized.includes("failed") || normalized.includes("rate_limited")) {
-    return "failed";
-  }
-  return "success";
-};
-
-const isAuditActionEnabled = (action) => {
-  const normalized = String(action || "").toLowerCase();
-  if (!normalized) {
-    return false;
-  }
-  if (normalized === "integrations.webhooks_editorial.read") {
-    return true;
-  }
-  if (
-    normalized.includes(".read") ||
-    normalized.endsWith(".read") ||
-    normalized.includes("_read")
-  ) {
-    return false;
-  }
-  return AUDIT_ENABLED_ACTION_PATTERN.test(normalized);
-};
-
-const truncateAuditString = (value) => {
-  const text = String(value || "");
-  if (text.length <= AUDIT_META_STRING_MAX) {
-    return text;
-  }
-  return `${text.slice(0, AUDIT_META_STRING_MAX)}...`;
-};
-
-const redactSignedUrl = (value) => {
-  const text = String(value || "");
-  const hasSensitiveQuery = /[?&](token|signature|sig|x-amz-signature|x-goog-signature)=/i.test(
-    text,
-  );
-  if (!hasSensitiveQuery) {
-    return null;
-  }
-  try {
-    const parsed = new URL(text, PRIMARY_APP_ORIGIN);
-    return `${parsed.origin}${parsed.pathname}?[redacted]`;
-  } catch {
-    return "[redacted_url]";
-  }
-};
-
-const isSensitiveAuditKey = (key) =>
-  /(token|secret|password|cookie|authorization|session|credential|jwt|signature|sig)/i.test(
-    String(key || ""),
-  );
-
-const redactSensitiveFields = (value, key = "", depth = 0) => {
-  if (depth > 4) {
-    return "[max_depth]";
-  }
-  if (value === null || value === undefined) {
-    return value;
-  }
-  if (typeof value === "string") {
-    if (isSensitiveAuditKey(key)) {
-      return "[redacted]";
-    }
-    const redactedUrl = redactSignedUrl(value);
-    return redactedUrl || truncateAuditString(value);
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.slice(0, 20).map((item) => redactSensitiveFields(item, key, depth + 1));
-  }
-  if (typeof value === "object") {
-    const next = {};
-    Object.keys(value)
-      .slice(0, 30)
-      .forEach((entryKey) => {
-        if (isSensitiveAuditKey(entryKey)) {
-          next[entryKey] = "[redacted]";
-          return;
-        }
-        next[entryKey] = redactSensitiveFields(value[entryKey], entryKey, depth + 1);
-      });
-    return next;
-  }
-  return truncateAuditString(value);
-};
-
-const sanitizeAuditMeta = (meta, action) => {
-  if (!meta || typeof meta !== "object" || Array.isArray(meta)) {
-    return {};
-  }
-  const keys = AUDIT_META_ALLOWLIST[action] || AUDIT_DEFAULT_META_KEYS;
-  const next = {};
-  keys.forEach((key) => {
-    if (!(key in meta)) {
-      return;
-    }
-    next[key] = redactSensitiveFields(meta[key], key);
-  });
-  return next;
-};
-
-const compactAuditEntries = (entries, nowTs = Date.now()) => {
-  const cutoff = nowTs - AUDIT_RETENTION_MS;
-  const filtered = entries
-    .filter((item) => parseAuditTs(item?.ts) !== null)
-    .filter((item) => parseAuditTs(item.ts) >= cutoff)
-    .sort((a, b) => parseAuditTs(a.ts) - parseAuditTs(b.ts));
-  if (filtered.length <= AUDIT_MAX_ENTRIES) {
-    return filtered;
-  }
-  return filtered.slice(filtered.length - AUDIT_MAX_ENTRIES);
-};
-
-const normalizeAuditEntry = (item) => {
-  const normalizedAction = String(item?.action || "").trim();
-  return {
-    id: String(item?.id || crypto.randomUUID()),
-    ts: item?.ts || new Date().toISOString(),
-    actorId: String(item?.actorId || "anonymous"),
-    actorName: String(item?.actorName || "anonymous"),
-    ip: String(item?.ip || ""),
-    action: normalizedAction,
-    resource: String(item?.resource || ""),
-    resourceId: item?.resourceId ? String(item.resourceId) : null,
-    status: ["success", "failed", "denied"].includes(item?.status)
-      ? item.status
-      : inferAuditStatus(normalizedAction),
-    requestId: item?.requestId ? String(item.requestId) : null,
-    meta: sanitizeAuditMeta(item?.meta, normalizedAction),
-  };
-};
-
-const loadAuditLog = () => {
-  if (!dataRepository) {
-    return [];
-  }
-  const entries = dataRepository.loadAuditLog();
-  return (Array.isArray(entries) ? entries : []).map(normalizeAuditEntry);
-};
-
-const writeAuditLog = (entries) => {
-  const compacted = compactAuditEntries(Array.isArray(entries) ? entries : []);
-  if (dataRepository) {
-    dataRepository.writeAuditLog(compacted);
-  }
-};
-
-const appendAuditLog = (req, action, resource, meta = {}) => {
-  try {
-    if (!isAuditActionEnabled(action)) {
-      return;
-    }
-    const now = new Date();
-    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-    const sessionUser = req.session?.user || null;
-    const sanitizedMeta = sanitizeAuditMeta(meta, action);
-    const resourceId =
-      sanitizedMeta?.resourceId ||
-      sanitizedMeta?.id ||
-      sanitizedMeta?.slug ||
-      sanitizedMeta?.projectId ||
-      sanitizedMeta?.userId ||
-      null;
-    const actorNameRaw = sessionUser?.name || "anonymous";
-    const actorNameFixed =
-      typeof fixMojibakeText === "function" ? fixMojibakeText(actorNameRaw) : String(actorNameRaw);
-    const actorName =
-      String(actorNameFixed || "anonymous")
-        .replace(/\uFFFD/g, "")
-        .trim() || "anonymous";
-    const entry = {
-      id: crypto.randomUUID(),
-      ts: now.toISOString(),
-      actorId: sessionUser?.id || "anonymous",
-      actorName,
-      ip: String(ip || ""),
-      action: String(action || ""),
-      resource: String(resource || ""),
-      resourceId,
-      status: inferAuditStatus(action),
-      requestId: req.requestId ? String(req.requestId) : null,
-      meta: sanitizedMeta,
-    };
-    if (dataRepository && typeof dataRepository.appendAuditLogEntry === "function") {
-      dataRepository.appendAuditLogEntry(entry);
-      return;
-    }
-    const existing = loadAuditLog();
-    existing.push(entry);
-    writeAuditLog(existing);
-  } catch {
-    // ignore audit errors
-  }
-};
+const { appendAuditLog, isAuditActionEnabled, loadAuditLog, parseAuditTs } = createAuditLogStore({
+  auditDefaultMetaKeys: AUDIT_DEFAULT_META_KEYS,
+  auditEnabledActionPattern: AUDIT_ENABLED_ACTION_PATTERN,
+  auditMaxEntries: AUDIT_MAX_ENTRIES,
+  auditMetaAllowlist: AUDIT_META_ALLOWLIST,
+  auditMetaStringMax: AUDIT_META_STRING_MAX,
+  auditRetentionMs: AUDIT_RETENTION_MS,
+  crypto,
+  fixMojibakeText,
+  getDataRepository: () => dataRepository,
+  getPrimaryAppOrigin: () => PRIMARY_APP_ORIGIN,
+});
 
 const SECURITY_EVENT_MAX_ROWS = 20_000;
 const SECURITY_EVENT_COOLDOWN_MS = 10 * 60 * 1000;
@@ -1478,54 +1283,6 @@ dataRepository = await createDataRepository({
   analyticsAggRetentionDays: ANALYTICS_AGG_RETENTION_DAYS,
 });
 
-const parseAnalyticsTs = (value) => {
-  const ts = new Date(value || 0).getTime();
-  return Number.isFinite(ts) ? ts : null;
-};
-
-const getDayKeyFromTs = (value) => {
-  const ts = Number(value);
-  if (!Number.isFinite(ts)) {
-    return new Date().toISOString().slice(0, 10);
-  }
-  return new Date(ts).toISOString().slice(0, 10);
-};
-
-const normalizeAnalyticsTypeFilter = (value) => {
-  const normalized = String(value || "")
-    .trim()
-    .toLowerCase();
-  if (["post", "project"].includes(normalized)) {
-    return normalized;
-  }
-  return "all";
-};
-
-const parseAnalyticsRangeDays = (value) => {
-  const normalized = String(value || "")
-    .trim()
-    .toLowerCase();
-  if (normalized === "7d") return 7;
-  if (normalized === "30d") return 30;
-  if (normalized === "90d") return 90;
-  return 30;
-};
-
-const sanitizeAnalyticsText = (value) => {
-  const text = String(value || "").trim();
-  if (!text) return "";
-  if (text.length <= ANALYTICS_META_STRING_MAX) {
-    return text;
-  }
-  return `${text.slice(0, ANALYTICS_META_STRING_MAX)}...`;
-};
-
-const sanitizeUtmValue = (value) =>
-  sanitizeAnalyticsText(value)
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]/g, "_")
-    .slice(0, 64);
-
 const getRequestIp = (req) => req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "";
 
 const serializeQueryForCache = (query) => {
@@ -1598,378 +1355,38 @@ const invalidatePublicReadCacheTags = (tags) => {
   publicReadCache.invalidateTags(tags);
 };
 
-const getVisitorHash = (req) => {
-  const ip = getRequestIp(req);
-  if (!ip) {
-    return "anonymous";
-  }
-  const salt = ANALYTICS_IP_SALT || SESSION_SECRET || "dev-analytics-salt";
-  return crypto.createHash("sha256").update(`${salt}:${ip}`).digest("hex");
-};
-
-const getRequestAcquisition = (req) => {
-  const refererHeader = String(req.headers.referer || "");
-  const fallback = {
-    referrerHost: "(direct)",
-    utm: { source: "", medium: "", campaign: "" },
-  };
-  if (!refererHeader) {
-    return fallback;
-  }
-  try {
-    const parsed = new URL(refererHeader, PRIMARY_APP_ORIGIN);
-    const host = String(parsed.host || "")
-      .trim()
-      .toLowerCase();
-    const utm = {
-      source: sanitizeUtmValue(parsed.searchParams.get("utm_source") || ""),
-      medium: sanitizeUtmValue(parsed.searchParams.get("utm_medium") || ""),
-      campaign: sanitizeUtmValue(parsed.searchParams.get("utm_campaign") || ""),
-    };
-    if (!host) {
-      return { ...fallback, utm };
-    }
-    const referrerHost = host === PRIMARY_APP_HOST ? "(internal)" : host;
-    return { referrerHost, utm };
-  } catch {
-    return fallback;
-  }
-};
-
-const sanitizeAnalyticsMeta = (value) => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
-  }
-  const allowlist = [
-    "targetType",
-    "targetId",
-    "status",
-    "action",
-    "resourceType",
-    "resourceId",
-    "projectId",
-    "chapterNumber",
-    "volume",
-    "sourceLabel",
-    "surface",
-    "platform",
-    "browser",
-    "displayMode",
-    "outcome",
-  ];
-  const output = {};
-  allowlist.forEach((key) => {
-    if (!(key in value)) {
-      return;
-    }
-    output[key] = sanitizeAnalyticsText(value[key]);
-  });
-  return output;
-};
-
-const normalizeAnalyticsEvent = (event) => {
-  const eventType = String(event?.eventType || "")
-    .trim()
-    .toLowerCase();
-  const normalizedType = ANALYTICS_EVENT_TYPE_SET.has(eventType) ? eventType : "view";
-  const resourceTypeRaw = String(event?.resourceType || "")
-    .trim()
-    .toLowerCase();
-  const resourceType = resourceTypeRaw || "post";
-  return {
-    id: String(event?.id || crypto.randomUUID()),
-    ts: event?.ts || new Date().toISOString(),
-    day: String(event?.day || getDayKeyFromTs(parseAnalyticsTs(event?.ts) || Date.now())),
-    eventType: normalizedType,
-    resourceType,
-    resourceId: String(event?.resourceId || "").trim(),
-    visitorHash: String(event?.visitorHash || "anonymous"),
-    referrerHost: sanitizeAnalyticsText(event?.referrerHost || "(direct)") || "(direct)",
-    utm: {
-      source: sanitizeUtmValue(event?.utm?.source || ""),
-      medium: sanitizeUtmValue(event?.utm?.medium || ""),
-      campaign: sanitizeUtmValue(event?.utm?.campaign || ""),
-    },
-    isAuthenticated: Boolean(event?.isAuthenticated),
-    meta: sanitizeAnalyticsMeta(event?.meta || {}),
-  };
-};
-
-const loadAnalyticsEvents = () => {
-  if (!dataRepository) {
-    return [];
-  }
-  const events = dataRepository.loadAnalyticsEvents();
-  return (Array.isArray(events) ? events : [])
-    .map((event) => normalizeAnalyticsEvent(event))
-    .filter(Boolean);
-};
-
-const writeAnalyticsEvents = (events) => {
-  const lines = (Array.isArray(events) ? events : [])
-    .map((event) => normalizeAnalyticsEvent(event))
-    .filter(Boolean);
-  if (dataRepository) {
-    dataRepository.writeAnalyticsEvents(lines);
-  }
-};
-
-const appendAnalyticsEventEntry = (event) => {
-  const normalizedEvent = normalizeAnalyticsEvent(event);
-  if (!dataRepository) {
-    return;
-  }
-  if (typeof dataRepository.appendAnalyticsEventEntry === "function") {
-    dataRepository.appendAnalyticsEventEntry(normalizedEvent);
-    return;
-  }
-  const events = loadAnalyticsEvents();
-  events.push(normalizedEvent);
-  writeAnalyticsEvents(events);
-};
-
-const loadAnalyticsDaily = () => {
-  const fallback = {
-    schemaVersion: ANALYTICS_SCHEMA_VERSION,
-    generatedAt: new Date().toISOString(),
-    days: {},
-  };
-  if (!dataRepository) {
-    return fallback;
-  }
-  const parsed = dataRepository.loadAnalyticsDaily();
-  if (!parsed || typeof parsed !== "object") {
-    return fallback;
-  }
-  return {
-    schemaVersion: Number(parsed.schemaVersion) || ANALYTICS_SCHEMA_VERSION,
-    generatedAt: String(parsed.generatedAt || fallback.generatedAt),
-    days: parsed.days && typeof parsed.days === "object" ? parsed.days : {},
-  };
-};
-
-const writeAnalyticsDaily = (data) => {
-  if (!dataRepository) {
-    return;
-  }
-  dataRepository.writeAnalyticsDaily({
-    schemaVersion: ANALYTICS_SCHEMA_VERSION,
-    generatedAt: data?.generatedAt || new Date().toISOString(),
-    days: data?.days && typeof data.days === "object" ? data.days : {},
-  });
-};
-
-const writeAnalyticsMeta = (value) => {
-  const payload = {
-    schemaVersion: ANALYTICS_SCHEMA_VERSION,
-    retentionDays: ANALYTICS_RETENTION_DAYS,
-    aggregateRetentionDays: ANALYTICS_AGG_RETENTION_DAYS,
-    updatedAt: new Date().toISOString(),
-    ...(value && typeof value === "object" ? value : {}),
-  };
-  if (dataRepository) {
-    dataRepository.writeAnalyticsMeta(payload);
-  }
-};
-
-const ensureAnalyticsDayBucket = (days, dayKey) => {
-  if (!days[dayKey]) {
-    days[dayKey] = {
-      totals: {
-        views: 0,
-        chapterViews: 0,
-        downloadClicks: 0,
-        commentsCreated: 0,
-        commentsApproved: 0,
-      },
-      byResourceType: {
-        post: { views: 0 },
-        project: { views: 0 },
-      },
-      acquisition: {
-        referrerHost: {},
-        utmSource: {},
-        utmMedium: {},
-        utmCampaign: {},
-      },
-    };
-  }
-  return days[dayKey];
-};
-
-const incrementCounter = (target, key, amount = 1) => {
-  const normalizedKey = String(key || "").trim();
-  if (!normalizedKey) {
-    return;
-  }
-  target[normalizedKey] = Number(target[normalizedKey] || 0) + amount;
-};
-
-const buildAnalyticsDailyFromEvents = (events, nowTs = Date.now()) => {
-  const cutoff = nowTs - ANALYTICS_AGG_RETENTION_MS;
-  const days = {};
-  events.forEach((event) => {
-    const ts = parseAnalyticsTs(event.ts);
-    if (ts === null || ts < cutoff) {
-      return;
-    }
-    const dayKey = getDayKeyFromTs(ts);
-    const bucket = ensureAnalyticsDayBucket(days, dayKey);
-    if (event.eventType === "view") {
-      bucket.totals.views += 1;
-      if (event.resourceType === "post" || event.resourceType === "project") {
-        bucket.byResourceType[event.resourceType].views += 1;
-      }
-      incrementCounter(bucket.acquisition.referrerHost, event.referrerHost || "(direct)");
-      if (event.utm?.source) incrementCounter(bucket.acquisition.utmSource, event.utm.source);
-      if (event.utm?.medium) incrementCounter(bucket.acquisition.utmMedium, event.utm.medium);
-      if (event.utm?.campaign) incrementCounter(bucket.acquisition.utmCampaign, event.utm.campaign);
-    }
-    if (event.eventType === "chapter_view") {
-      bucket.totals.chapterViews += 1;
-    }
-    if (event.eventType === "download_click") {
-      bucket.totals.downloadClicks += 1;
-    }
-    if (event.eventType === "comment_created") {
-      bucket.totals.commentsCreated += 1;
-    }
-    if (event.eventType === "comment_approved") {
-      bucket.totals.commentsApproved += 1;
-    }
-  });
-  return {
-    schemaVersion: ANALYTICS_SCHEMA_VERSION,
-    generatedAt: new Date().toISOString(),
-    days,
-  };
-};
-
-const compactAnalyticsData = (nowTs = Date.now()) => {
-  const cutoff = nowTs - ANALYTICS_RETENTION_MS;
-  const compacted = loadAnalyticsEvents()
-    .filter((event) => parseAnalyticsTs(event.ts) !== null)
-    .filter((event) => parseAnalyticsTs(event.ts) >= cutoff)
-    .sort((a, b) => (parseAnalyticsTs(a.ts) || 0) - (parseAnalyticsTs(b.ts) || 0));
-  writeAnalyticsEvents(compacted);
-  const daily = buildAnalyticsDailyFromEvents(compacted, nowTs);
-  writeAnalyticsDaily(daily);
-  writeAnalyticsMeta({
-    eventCount: compacted.length,
-    lastCompactionAt: new Date().toISOString(),
-  });
-  return { events: compacted, daily };
-};
-
-const enqueueAnalyticsCompactionJob = ({ trigger = "manual" } = {}) =>
-  backgroundJobQueue.enqueue({
-    type: "analytics.compaction",
-    payload: { trigger },
-    run: async () => compactAnalyticsData(),
-  });
-
-const shouldRegisterAnalyticsView = (visitorHash, resourceType, resourceId, nowTs = Date.now()) => {
-  const key = `${visitorHash}|${resourceType}|${resourceId}`;
-  const previous = analyticsViewCooldown.get(key);
-  if (Number.isFinite(previous) && nowTs - previous < ANALYTICS_VIEW_COOLDOWN_MS) {
-    return false;
-  }
-  analyticsViewCooldown.set(key, nowTs);
-  if (analyticsViewCooldown.size > 20000) {
-    const expirationTs = nowTs - ANALYTICS_VIEW_COOLDOWN_MS;
-    Array.from(analyticsViewCooldown.entries()).forEach(([entryKey, ts]) => {
-      if (ts < expirationTs) {
-        analyticsViewCooldown.delete(entryKey);
-      }
-    });
-  }
-  return true;
-};
-
-const appendAnalyticsEvent = (req, payload) => {
-  try {
-    const normalizedPayload = payload && typeof payload === "object" ? payload : {};
-    const eventType = String(normalizedPayload.eventType || "")
-      .trim()
-      .toLowerCase();
-    if (!ANALYTICS_EVENT_TYPE_SET.has(eventType)) {
-      return { ok: false, reason: "invalid_event_type" };
-    }
-    const resourceType = String(normalizedPayload.resourceType || "")
-      .trim()
-      .toLowerCase();
-    const resourceId = String(normalizedPayload.resourceId || "").trim();
-    if (!resourceType || !resourceId) {
-      return { ok: false, reason: "invalid_resource" };
-    }
-    const now = new Date();
-    const visitorHash = getVisitorHash(req);
-    if (
-      ANALYTICS_COOLDOWN_EVENT_TYPE_SET.has(eventType) &&
-      ANALYTICS_COOLDOWN_RESOURCE_SET.has(resourceType) &&
-      !shouldRegisterAnalyticsView(visitorHash, resourceType, resourceId, now.getTime())
-    ) {
-      return { ok: false, reason: "cooldown" };
-    }
-    const acquisition = getRequestAcquisition(req);
-    const event = normalizeAnalyticsEvent({
-      id: crypto.randomUUID(),
-      ts: now.toISOString(),
-      day: getDayKeyFromTs(now.getTime()),
-      eventType,
-      resourceType,
-      resourceId,
-      visitorHash,
-      referrerHost: acquisition.referrerHost,
-      utm: acquisition.utm,
-      isAuthenticated: Boolean(req.session?.user),
-      meta: sanitizeAnalyticsMeta(normalizedPayload.meta || {}),
-    });
-    appendAnalyticsEventEntry(event);
-    return { ok: true };
-  } catch {
-    return { ok: false, reason: "error" };
-  }
-};
-
-const buildAnalyticsRange = (rangeDays, nowTs = Date.now()) => {
-  const safeDays = Number.isFinite(rangeDays) ? Math.max(1, Math.floor(rangeDays)) : 30;
-  const endDate = new Date(nowTs);
-  endDate.setUTCHours(23, 59, 59, 999);
-  const startDate = new Date(endDate);
-  startDate.setUTCDate(endDate.getUTCDate() - (safeDays - 1));
-  startDate.setUTCHours(0, 0, 0, 0);
-  const keys = [];
-  for (let index = 0; index < safeDays; index += 1) {
-    const day = new Date(startDate);
-    day.setUTCDate(startDate.getUTCDate() + index);
-    keys.push(day.toISOString().slice(0, 10));
-  }
-  return {
-    rangeDays: safeDays,
-    fromTs: startDate.getTime(),
-    toTs: endDate.getTime(),
-    dayKeys: keys,
-  };
-};
-
-const filterAnalyticsEvents = (events, fromTs, toTs, type) =>
-  events.filter((event) => {
-    const ts = parseAnalyticsTs(event.ts);
-    if (ts === null || ts < fromTs || ts > toTs) {
-      return false;
-    }
-    if (type !== "all" && event.resourceType !== type) {
-      if (event.resourceType === "comment") {
-        return String(event.meta?.targetType || "").toLowerCase() === type;
-      }
-      if (event.resourceType === "chapter" && type === "project") {
-        return true;
-      }
-      return false;
-    }
-    return true;
-  });
+const {
+  appendAnalyticsEvent,
+  buildAnalyticsRange,
+  enqueueAnalyticsCompactionJob,
+  filterAnalyticsEvents,
+  getDayKeyFromTs,
+  incrementCounter,
+  loadAnalyticsEvents,
+  normalizeAnalyticsTypeFilter,
+  parseAnalyticsRangeDays,
+  parseAnalyticsTs,
+} = createAnalyticsStore({
+  analyticsAggRetentionDays: ANALYTICS_AGG_RETENTION_DAYS,
+  analyticsAggRetentionMs: ANALYTICS_AGG_RETENTION_MS,
+  analyticsCooldownEventTypeSet: ANALYTICS_COOLDOWN_EVENT_TYPE_SET,
+  analyticsCooldownResourceSet: ANALYTICS_COOLDOWN_RESOURCE_SET,
+  analyticsEventTypeSet: ANALYTICS_EVENT_TYPE_SET,
+  analyticsIpSalt: ANALYTICS_IP_SALT,
+  analyticsMetaStringMax: ANALYTICS_META_STRING_MAX,
+  analyticsRetentionDays: ANALYTICS_RETENTION_DAYS,
+  analyticsRetentionMs: ANALYTICS_RETENTION_MS,
+  analyticsSchemaVersion: ANALYTICS_SCHEMA_VERSION,
+  analyticsViewCooldown,
+  analyticsViewCooldownMs: ANALYTICS_VIEW_COOLDOWN_MS,
+  backgroundJobQueue,
+  crypto,
+  getDataRepository: () => dataRepository,
+  getRequestIp,
+  primaryAppHost: PRIMARY_APP_HOST,
+  primaryAppOrigin: PRIMARY_APP_ORIGIN,
+  sessionSecret: SESSION_SECRET,
+});
 
 const clientRootDir = path.join(__dirname, "..");
 const clientDistDir = path.join(clientRootDir, "dist");
@@ -3532,7 +2949,7 @@ const mergeSettings = (base, override) => {
 };
 
 const hasMojibake = (value) => /\u00C3|\u00C2|\uFFFD/.test(String(value || ""));
-const fixMojibakeText = (value) => {
+function fixMojibakeText(value) {
   if (typeof value !== "string") {
     return value;
   }
@@ -3544,7 +2961,7 @@ const fixMojibakeText = (value) => {
   } catch {
     return value;
   }
-};
+}
 const fixMojibakeDeep = (value) => {
   if (Array.isArray(value)) {
     return value.map((item) => fixMojibakeDeep(item));
@@ -4531,251 +3948,43 @@ const getUploadFolderFromUrlValue = (value) => {
   return relative.slice(0, lastSlash);
 };
 
-const collectPublicUploadUrls = (value, urls, seen = new WeakSet()) => {
-  if (!value) {
-    return;
-  }
-  if (typeof value === "string") {
-    const normalized = normalizeUploadUrlValue(value);
-    if (normalized) {
-      urls.add(normalized);
-    }
-    return;
-  }
-  if (Array.isArray(value)) {
-    value.forEach((item) => collectPublicUploadUrls(item, urls, seen));
-    return;
-  }
-  if (typeof value === "object") {
-    if (seen.has(value)) {
-      return;
-    }
-    seen.add(value);
-    Object.values(value).forEach((item) => collectPublicUploadUrls(item, urls, seen));
-  }
-};
-
-const collectManagedUploadUrls = (value, urls) => {
-  if (!value) {
-    return;
-  }
-  if (typeof value === "string") {
-    const direct = normalizeUploadUrl(value);
-    if (direct) {
-      urls.add(direct);
-    }
-    extractUploadUrlsFromText(value).forEach((item) => urls.add(item));
-    return;
-  }
-  if (Array.isArray(value)) {
-    value.forEach((item) => collectManagedUploadUrls(item, urls));
-    return;
-  }
-  if (typeof value === "object") {
-    Object.values(value).forEach((item) => collectManagedUploadUrls(item, urls));
-  }
-};
-
-const getUsedUploadUrls = () => {
-  const urls = new Set();
-  collectManagedUploadUrls(loadSiteSettings(), urls);
-  collectManagedUploadUrls(loadPosts(), urls);
-  collectManagedUploadUrls(loadProjects(), urls);
-  collectManagedUploadUrls(loadUsers(), urls);
-  collectManagedUploadUrls(loadPages(), urls);
-  collectManagedUploadUrls(loadComments(), urls);
-  collectManagedUploadUrls(loadUpdates(), urls);
-  collectManagedUploadUrls(loadLinkTypes(), urls);
-  return urls;
-};
-
-const buildPublicMediaVariants = (sourcesInput, options = {}) => {
-  const sources = Array.isArray(sourcesInput) ? sourcesInput : [sourcesInput];
-  const urls = new Set();
-  sources.forEach((source) => collectPublicUploadUrls(source, urls));
-  if (urls.size === 0) {
-    return {};
-  }
-  const allowPrivateUrls = Array.isArray(options?.allowPrivateUrls) ? options.allowPrivateUrls : [];
-  const uploads = loadUploads();
-  const mediaVariants = {};
-  uploads.forEach((entry) => {
-    const normalizedUrl = normalizeUploadUrlValue(entry?.url);
-    if (!normalizedUrl || !urls.has(normalizedUrl)) {
-      return;
-    }
-    const folder = String(entry?.folder || getUploadFolderFromUrlValue(normalizedUrl) || "");
-    if (
-      !shouldExposePublicUploadInMediaVariants({
-        uploadUrl: normalizedUrl,
-        folder,
-        allowPrivateUrls,
-      })
-    ) {
-      return;
-    }
-    const variants = normalizeVariants(entry?.variants);
-    if (!variants || Object.keys(variants).length === 0) {
-      return;
-    }
-    const variantsVersionRaw = Number(entry?.variantsVersion);
-    const variantsVersion = Number.isFinite(variantsVersionRaw)
-      ? Math.max(1, Math.floor(variantsVersionRaw))
-      : 1;
-    const focalState = readUploadFocalState(entry);
-    const sanitizedEntry = sanitizePublicMediaVariantEntry(
-      {
-        variantsVersion,
-        variants,
-        focalPoints: focalState.focalPoints,
-        focalPoint: focalState.focalPoint,
-      },
-      {
-        uploadsDir: PUBLIC_UPLOADS_DIR,
-        assetExists: readUploadStorageProvider(entry, "local") === "s3" ? () => true : undefined,
-      },
-    );
-    if (!sanitizedEntry) {
-      return;
-    }
-    mediaVariants[normalizedUrl] = sanitizedEntry;
-  });
-  return mediaVariants;
-};
-
-const resolveUploadVariantUrlFromEntry = ({ entry, preset, fallbackUrl }) =>
-  resolveExistingPublicVariantUrl({
-    entry,
-    preset,
-    fallbackUrl,
-    uploadsDir: PUBLIC_UPLOADS_DIR,
-    assetExists: readUploadStorageProvider(entry, "local") === "s3" ? () => true : undefined,
-  });
-
-const resolveMetaImageVariantUrl = (value, preset = "og") => {
-  const fallbackUrl = String(value || "").trim();
-  if (!fallbackUrl) {
-    return "";
-  }
-  const normalizedUrl = normalizeUploadUrlValue(fallbackUrl);
-  if (!normalizedUrl) {
-    return fallbackUrl;
-  }
-  const entry =
-    loadUploads().find((item) => normalizeUploadUrlValue(item?.url) === normalizedUrl) || null;
-  if (!entry) {
-    return fallbackUrl;
-  }
-  return resolveUploadVariantUrlFromEntry({
-    entry,
-    preset,
-    fallbackUrl,
-  });
-};
-
-const MAX_PROJECT_OG_LOG_USER_AGENT_LENGTH = 200;
-
-const selectVisibleProjectsForOgPrewarm = (projectIds) => {
-  const visibleProjects = getPublicVisibleProjects();
-  const normalizedIds = Array.isArray(projectIds)
-    ? projectIds.map((value) => String(value || "").trim()).filter(Boolean)
-    : [];
-  if (normalizedIds.length === 0) {
-    return visibleProjects;
-  }
-  const allowedIds = new Set(normalizedIds);
-  return visibleProjects.filter((project) => allowedIds.has(String(project?.id || "").trim()));
-};
-
-const enqueueProjectOgPrewarm = ({ reason = "manual", projectIds } = {}) =>
-  backgroundJobQueue.enqueue({
-    type: "project-og-prewarm",
-    payload: {
-      reason: String(reason || "manual").trim() || "manual",
-      projectIds: Array.isArray(projectIds)
-        ? projectIds.map((value) => String(value || "").trim()).filter(Boolean)
-        : [],
-    },
-    run: async () => {
-      const selectedProjects = selectVisibleProjectsForOgPrewarm(projectIds);
-      if (selectedProjects.length === 0) {
-        return {
-          total: 0,
-          warmed: 0,
-          cacheHits: 0,
-        };
-      }
-      return prewarmProjectOgCache({
-        projects: selectedProjects,
-        settings: loadSiteSettings(),
-        translations: loadTagTranslations(),
-        origin: PRIMARY_APP_ORIGIN,
-        resolveVariantUrl: resolveMetaImageVariantUrl,
-        ogRenderCache,
-      });
-    },
-  });
-
-const logProjectOgDelivery = ({ projectId, cacheHit, timings, userAgent } = {}) => {
-  const totalMs = Number(timings?.total || 0);
-  if (cacheHit && totalMs <= 500) {
-    return;
-  }
-  console.info("project_og_delivery", {
-    projectId: String(projectId || "").trim() || null,
-    cacheHit: Boolean(cacheHit),
-    totalMs,
-    timings:
-      timings && typeof timings === "object"
-        ? Object.fromEntries(
-            Object.entries(timings)
-              .filter(([, value]) => Number.isFinite(Number(value)))
-              .map(([key, value]) => [key, Number(value)]),
-          )
-        : {},
-    userAgent:
-      String(userAgent || "")
-        .trim()
-        .slice(0, MAX_PROJECT_OG_LOG_USER_AGENT_LENGTH) || null,
-  });
-};
-
-const collectDownloadIconUploads = (settings) => {
-  const urls = new Set();
-  const sources = settings?.downloads?.sources;
-  if (!Array.isArray(sources)) {
-    return urls;
-  }
-  sources.forEach((source) => {
-    const normalized = normalizeUploadUrlValue(source?.icon);
-    if (!normalized) {
-      return;
-    }
-    const relative = normalized.replace(/^\/uploads\//, "");
-    if (isPrivateUploadFolder(relative)) {
-      urls.add(normalized);
-    }
-  });
-  return urls;
-};
-
-const collectLinkTypeIconUploads = (items) => {
-  const urls = new Set();
-  if (!Array.isArray(items)) {
-    return urls;
-  }
-  items.forEach((item) => {
-    const normalized = normalizeUploadUrlValue(item?.icon);
-    if (!normalized) {
-      return;
-    }
-    const relative = normalized.replace(/^\/uploads\//, "");
-    if (isPrivateUploadFolder(relative)) {
-      urls.add(normalized);
-    }
-  });
-  return urls;
-};
+const {
+  buildPublicMediaVariants,
+  collectDownloadIconUploads,
+  collectLinkTypeIconUploads,
+  enqueueProjectOgPrewarm,
+  getUsedUploadUrls,
+  logProjectOgDelivery,
+  resolveMetaImageVariantUrl,
+} = createPublicMediaRuntime({
+  backgroundJobQueue,
+  extractUploadUrlsFromText,
+  getPublicVisibleProjects: () => getPublicVisibleProjects(),
+  getUploadFolderFromUrlValue,
+  isPrivateUploadFolder,
+  loadComments: () => loadComments(),
+  loadLinkTypes: () => loadLinkTypes(),
+  loadPages: () => loadPages(),
+  loadPosts: () => loadPosts(),
+  loadProjects: () => loadProjects(),
+  loadSiteSettings: () => loadSiteSettings(),
+  loadTagTranslations: () => loadTagTranslations(),
+  loadUpdates: () => loadUpdates(),
+  loadUploads: () => loadUploads(),
+  loadUsers: () => loadUsers(),
+  normalizeUploadUrl,
+  normalizeUploadUrlValue,
+  normalizeVariants,
+  ogRenderCache,
+  prewarmProjectOgCache,
+  primaryAppOrigin: PRIMARY_APP_ORIGIN,
+  publicUploadsDir: PUBLIC_UPLOADS_DIR,
+  readUploadFocalState,
+  readUploadStorageProvider,
+  resolveExistingPublicVariantUrl,
+  sanitizePublicMediaVariantEntry,
+  shouldExposePublicUploadInMediaVariants,
+});
 
 const deletePrivateUploadByUrl = (value) => {
   try {
@@ -9534,7 +8743,7 @@ registerAuthRoutes({
 });
 
 registerServerRoutes(
-  createServerRouteContext({
+  createServerRouteDependencies({
     ADMIN_EXPORT_DATASETS,
     AccessRole,
   ANILIST_API,

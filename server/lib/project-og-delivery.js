@@ -9,18 +9,9 @@ import {
 import {
   buildOgDeliveryHeaders,
   getCachedOgRender,
-  renderOptimizedOgBuffer,
 } from "./og-delivery-shared.js";
+import { PROJECT_STYLE_OG_TIMING_ORDER, renderProjectStyleOgBuffer } from "./og-project-render.js";
 import { createRevisionToken } from "./revision-token.js";
-
-const PROJECT_OG_TIMING_ORDER = [
-  "cache_read",
-  "artwork_load",
-  "backdrop_process",
-  "image_render",
-  "image_optimize",
-  "total",
-];
 
 const normalizeRevision = (value) => String(value || "").trim();
 
@@ -77,34 +68,16 @@ export const buildProjectOgDeliveryHeaders = ({ cacheHit, timings } = {}) => {
   return buildOgDeliveryHeaders({
     cacheHit,
     timings,
-    timingOrder: PROJECT_OG_TIMING_ORDER,
+    timingOrder: PROJECT_STYLE_OG_TIMING_ORDER,
   });
 };
 
 const renderProjectOgBuffer = async ({ baseModel, origin } = {}) => {
-  return renderOptimizedOgBuffer({
+  return renderProjectStyleOgBuffer({
     baseModel,
-    loadAssets: async ({ baseModel: model, timings, measureTiming }) => {
-      const [artworkDataUrl, backdropDataUrl] = await Promise.all([
-        measureTiming(timings, "artwork_load", async () =>
-          loadProjectOgArtworkDataUrl({
-            artworkUrl: model?.artworkUrl,
-            origin,
-          }),
-        ),
-        measureTiming(timings, "backdrop_process", async () =>
-          loadProjectOgProcessedBackdropDataUrl({
-            artworkUrl: model?.backdropUrl,
-            origin,
-            layout: model?.layout,
-          }),
-        ),
-      ]);
-      return {
-        artworkDataUrl,
-        backdropDataUrl,
-      };
-    },
+    origin,
+    loadArtworkDataUrl: loadProjectOgArtworkDataUrl,
+    loadProcessedBackdropDataUrl: loadProjectOgProcessedBackdropDataUrl,
     buildImageResponse: (model) => buildProjectOgImageResponse(model),
   });
 };

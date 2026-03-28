@@ -9,6 +9,7 @@ import {
   loadProjectOgArtworkDataUrl,
   resolveProjectOgPalette,
 } from "./project-og.js";
+import { mixHexColors, normalizeHex } from "./og-color.js";
 import {
   INSTITUTIONAL_OG_SCENE_VERSION,
   buildInstitutionalOgImageAlt,
@@ -48,65 +49,16 @@ const DEFAULT_LAYOUT = Object.freeze({
   backgroundHeight: 715,
 });
 
-const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-
-const normalizeHex = (value) => {
-  const cleaned = String(value || "")
-    .trim()
-    .replace(/^#/, "");
-  if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(cleaned)) {
-    return "";
-  }
-  if (cleaned.length === 3) {
-    return `#${cleaned
-      .split("")
-      .map((char) => `${char}${char}`)
-      .join("")
-      .toLowerCase()}`;
-  }
-  return `#${cleaned.toLowerCase()}`;
-};
-
-const hexToRgb = (value) => {
-  const normalized = normalizeHex(value);
-  if (!normalized) {
-    return null;
-  }
-  return {
-    r: Number.parseInt(normalized.slice(1, 3), 16),
-    g: Number.parseInt(normalized.slice(3, 5), 16),
-    b: Number.parseInt(normalized.slice(5, 7), 16),
-  };
-};
-
-const rgbToHex = ({ r, g, b }) =>
-  `#${[r, g, b]
-    .map((channel) => clamp(Math.round(channel), 0, 255).toString(16).padStart(2, "0"))
-    .join("")}`;
-
-const mixHexColors = (startHex, endHex, amount) => {
-  const start = hexToRgb(startHex);
-  const end = hexToRgb(endHex);
-  if (!start || !end) {
-    return normalizeHex(startHex) || normalizeHex(endHex) || INSTITUTIONAL_OVERLAY_FALLBACK_END;
-  }
-  return rgbToHex({
-    r: start.r + (end.r - start.r) * amount,
-    g: start.g + (end.g - start.g) * amount,
-    b: start.b + (end.b - start.b) * amount,
-  });
-};
-
 const buildInstitutionalOverlayGradient = (palette = {}) => {
   const start = normalizeHex(palette?.accentDarkStart) || INSTITUTIONAL_OVERLAY_FALLBACK_START;
   const end = normalizeHex(palette?.accentDarkEnd) || INSTITUTIONAL_OVERLAY_FALLBACK_END;
   const stops = [
     { offset: "0%", color: start },
-    { offset: "12%", color: mixHexColors(start, end, 0.12) },
-    { offset: "28%", color: mixHexColors(start, end, 0.28) },
-    { offset: "46%", color: mixHexColors(start, end, 0.46) },
-    { offset: "66%", color: mixHexColors(start, end, 0.66) },
-    { offset: "84%", color: mixHexColors(start, end, 0.84) },
+    { offset: "12%", color: mixHexColors(start, end, 0.12, INSTITUTIONAL_OVERLAY_FALLBACK_END) },
+    { offset: "28%", color: mixHexColors(start, end, 0.28, INSTITUTIONAL_OVERLAY_FALLBACK_END) },
+    { offset: "46%", color: mixHexColors(start, end, 0.46, INSTITUTIONAL_OVERLAY_FALLBACK_END) },
+    { offset: "66%", color: mixHexColors(start, end, 0.66, INSTITUTIONAL_OVERLAY_FALLBACK_END) },
+    { offset: "84%", color: mixHexColors(start, end, 0.84, INSTITUTIONAL_OVERLAY_FALLBACK_END) },
     { offset: "100%", color: end },
   ];
 
