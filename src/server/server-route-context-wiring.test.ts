@@ -19,4 +19,19 @@ describe("server route dependency wiring", () => {
     expect(context).not.toHaveProperty("normalizeUploadScopeUserId");
     expect(context).not.toHaveProperty("resolveRequestUploadAccessScope");
   });
+
+  it("routes OG helpers into the og domain without leaking them at the root", () => {
+    const app = { get: () => {} };
+    const context = createServerRouteDependencies({
+      app,
+      buildProjectOgDeliveryHeaders: "buildProjectOgDeliveryHeaders",
+      getProjectOgCachedRender: "getProjectOgCachedRender",
+    });
+
+    expect(context.app).toBe(app);
+    expect(context.og.buildProjectOgDeliveryHeaders).toBe("buildProjectOgDeliveryHeaders");
+    expect(context.og.getProjectOgCachedRender).toBe("getProjectOgCachedRender");
+    expect(context).not.toHaveProperty("buildProjectOgDeliveryHeaders");
+    expect(context).not.toHaveProperty("getProjectOgCachedRender");
+  });
 });

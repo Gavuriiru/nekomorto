@@ -1,0 +1,421 @@
+const REQUIRED_DEPENDENCY_KEYS = [
+  "authFailedBurstCritical",
+  "authFailedBurstWarning",
+  "authFailedByIpCounter",
+  "buildOtpAuthUrl",
+  "createEnrollmentToken",
+  "emitSecurityEvent",
+  "excessiveSessionsWarning",
+  "generateTotpSecret",
+  "getIpv4Network24",
+  "getRequestIp",
+  "getUserTotpSecret",
+  "hashRecoveryCode",
+  "listActiveSessionsForUser",
+  "loadSiteSettings",
+  "loadUserMfaTotpRecord",
+  "loadUserSessionIndexRecords",
+  "metricsRegistry",
+  "mfaEnrollmentTtlMs",
+  "mfaFailedBurstWarning",
+  "mfaFailedByUserCounter",
+  "mfaRecoveryCodePepper",
+  "newNetworkLookbackMs",
+  "primaryAppOrigin",
+  "sanitizeAssetUrl",
+  "securityEventSeverity",
+  "sessionIndexTouchMinIntervalMs",
+  "sessionIndexTouchTsBySid",
+  "shouldEmitSecurityRuleEvent",
+  "upsertUserSessionIndexRecord",
+  "verifyTotpCode",
+  "writeUserMfaTotpRecord",
+];
+
+const assertRequiredDependencies = (dependencies = {}) => {
+  const missing = REQUIRED_DEPENDENCY_KEYS.filter((key) => dependencies[key] === undefined);
+  if (missing.length === 0) {
+    return;
+  }
+  throw new Error(
+    `[auth-security-runtime] missing required dependencies: ${missing.sort().join(", ")}`,
+  );
+};
+
+export const createAuthSecurityRuntime = (dependencies = {}) => {
+  assertRequiredDependencies(dependencies);
+
+  const {
+    authFailedBurstCritical,
+    authFailedBurstWarning,
+    authFailedByIpCounter,
+    buildOtpAuthUrl,
+    createEnrollmentToken,
+    emitSecurityEvent,
+    excessiveSessionsWarning,
+    generateTotpSecret,
+    getIpv4Network24,
+    getRequestIp,
+    getUserTotpSecret,
+    hashRecoveryCode,
+    listActiveSessionsForUser,
+    loadSiteSettings,
+    loadUserMfaTotpRecord,
+    loadUserSessionIndexRecords,
+    metricsRegistry,
+    mfaEnrollmentTtlMs,
+    mfaFailedBurstWarning,
+    mfaFailedByUserCounter,
+    mfaIconUrl,
+    mfaIssuer,
+    mfaRecoveryCodePepper,
+    newNetworkLookbackMs,
+    primaryAppOrigin,
+    sanitizeAssetUrl,
+    securityEventSeverity,
+    sessionIndexTouchMinIntervalMs,
+    sessionIndexTouchTsBySid,
+    shouldEmitSecurityRuleEvent,
+    upsertUserSessionIndexRecord,
+    verifyTotpCode,
+    writeUserMfaTotpRecord,
+  } = dependencies;
+
+  const resolveRecoveryCodesRemaining = (record) => {
+    const list = Array.isArray(record?.recoveryCodesHashed) ? record.recoveryCodesHashed : [];
+    return list.filter((item) => typeof item === "string" && item.trim()).length;
+  };
+
+  const verifyTotpOrRecoveryCode = ({
+    userId,
+    codeOrRecoveryCode,
+    consumeRecoveryCode = true,
+  } = {}) => {
+    const normalizedUserId = String(userId || "").trim();
+    if (!normalizedUserId) {
+      return { ok: false, reason: "invalid_user" };
+    }
+    const code = String(codeOrRecoveryCode || "").trim();
+    if (!code) {
+      return { ok: false, reason: "code_required" };
+    }
+
+    const secret = getUserTotpSecret(normalizedUserId);
+    if (secret && verifyTotpCode({ secret, code })) {
+      return {
+        ok: true,
+        method: "totp",
+        remainingRecoveryCodes: resolveRecoveryCodesRemaining(
+          loadUserMfaTotpRecord(normalizedUserId),
+        ),
+      };
+    }
+
+    const record = loadUserMfaTotpRecord(normalizedUserId);
+    if (!record) {
+      return { ok: false, reason: "mfa_not_enabled" };
+    }
+    const hashes = Array.isArray(record.recoveryCodesHashed) ? record.recoveryCodesHashed : [];
+    const targetHash = hashRecoveryCode({ code, pepper: mfaRecoveryCodePepper });
+    if (!targetHash) {
+      return { ok: false, reason: "invalid_code" };
+    }
+    const index = hashes.findIndex((item) => item === targetHash);
+    if (index < 0) {
+      return { ok: false, reason: "invalid_code" };
+    }
+
+    const remainingHashes = consumeRecoveryCode
+      ? hashes.filter((item, itemIndex) => itemIndex !== index)
+      : hashes;
+    if (consumeRecoveryCode) {
+      writeUserMfaTotpRecord(normalizedUserId, {
+        ...record,
+        recoveryCodesHashed: remainingHashes,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    return {
+      ok: true,
+      method: "recovery_code",
+      remainingRecoveryCodes: remainingHashes.length,
+    };
+  };
+
+  const toAbsoluteAssetUrl = (value) => {
+    const normalized = sanitizeAssetUrl(value);
+    if (!normalized) {
+      return "";
+    }
+    if (normalized.startsWith("/")) {
+      return `${primaryAppOrigin}${normalized}`;
+    }
+    return normalized;
+  };
+
+  const resolveMfaMetadata = ({ req, userId, accountName } = {}) => {
+    const normalizedUserId = String(userId || "").trim();
+    const sessionUser = req?.session?.user || req?.session?.pendingMfaUser || null;
+    const issuer = String(mfaIssuer || "Nekomata").trim() || "Nekomata";
+    const accountLabel =
+      String(
+        accountName || sessionUser?.username || sessionUser?.name || normalizedUserId || "user",
+      ).trim() || "user";
+    const siteSettings = loadSiteSettings();
+    const iconUrl = toAbsoluteAssetUrl(
+      sessionUser?.avatarUrl || mfaIconUrl || siteSettings?.site?.faviconUrl || "",
+    );
+    return {
+      issuer,
+      accountLabel,
+      iconUrl,
+    };
+  };
+
+  const startTotpEnrollment = ({ req, userId, accountName, issuer, iconUrl } = {}) => {
+    if (!req?.session || !userId) {
+      return null;
+    }
+    const secret = generateTotpSecret();
+    const enrollmentToken = createEnrollmentToken();
+    req.session.mfaEnrollment = {
+      token: enrollmentToken,
+      secret,
+      userId: String(userId),
+      createdAt: Date.now(),
+      accountName: String(accountName || userId),
+      issuer: String(issuer || mfaIssuer || "Nekomata"),
+      iconUrl: String(iconUrl || ""),
+    };
+    return {
+      enrollmentToken,
+      secret,
+      otpauthUrl: buildOtpAuthUrl({
+        issuer: String(issuer || mfaIssuer || "Nekomata"),
+        accountName: String(accountName || userId),
+        secret,
+        iconUrl: String(iconUrl || ""),
+      }),
+    };
+  };
+
+  const resolveEnrollmentFromSession = ({ req, enrollmentToken, userId } = {}) => {
+    const stored = req?.session?.mfaEnrollment;
+    if (!stored || typeof stored !== "object") {
+      return null;
+    }
+    if (String(stored.userId || "") !== String(userId || "")) {
+      return null;
+    }
+    if (String(stored.token || "") !== String(enrollmentToken || "")) {
+      return null;
+    }
+    const createdAt = Number(stored.createdAt || 0);
+    if (!Number.isFinite(createdAt) || Date.now() - createdAt > mfaEnrollmentTtlMs) {
+      return null;
+    }
+    return stored;
+  };
+
+  const clearEnrollmentFromSession = (req) => {
+    if (!req?.session) {
+      return;
+    }
+    req.session.mfaEnrollment = null;
+  };
+
+  const buildMySecuritySummary = ({ req, userId } = {}) => {
+    const record = loadUserMfaTotpRecord(userId);
+    const activeSessions = listActiveSessionsForUser(userId);
+    const metadata = resolveMfaMetadata({ req, userId });
+    return {
+      totpEnabled: Boolean(record && record.enabledAt && !record.disabledAt),
+      recoveryCodesRemaining: resolveRecoveryCodesRemaining(record),
+      activeSessionsCount: activeSessions.length,
+      issuer: metadata.issuer,
+      accountLabel: metadata.accountLabel,
+      iconUrl: metadata.iconUrl,
+    };
+  };
+
+  const updateSessionIndexFromRequest = (req, { force = false } = {}) => {
+    const sid = String(req?.sessionID || "").trim();
+    const userId = String(req?.session?.user?.id || "").trim();
+    const isPendingMfa = Boolean(req?.session?.pendingMfaUser?.id && !req?.session?.user?.id);
+    if (!sid || (!userId && !isPendingMfa)) {
+      return;
+    }
+    const nowTs = Date.now();
+    const lastTouchTs = Number(sessionIndexTouchTsBySid.get(sid) || 0);
+    if (
+      !force &&
+      Number.isFinite(lastTouchTs) &&
+      nowTs - lastTouchTs < sessionIndexTouchMinIntervalMs
+    ) {
+      return;
+    }
+    sessionIndexTouchTsBySid.set(sid, nowTs);
+    upsertUserSessionIndexRecord({
+      sid,
+      userId: userId || String(req?.session?.pendingMfaUser?.id || ""),
+      createdAt: req?.session?.createdAt || new Date(nowTs).toISOString(),
+      lastSeenAt: new Date(nowTs).toISOString(),
+      lastIp: getRequestIp(req) || "",
+      userAgent: String(req?.headers?.["user-agent"] || "").slice(0, 512),
+      revokedAt: null,
+      revokedBy: null,
+      revokeReason: null,
+      isPendingMfa,
+    });
+  };
+
+  const maybeEmitNewNetworkLoginEvent = ({ req, userId } = {}) => {
+    const network = getIpv4Network24(getRequestIp(req));
+    if (!network || !userId) {
+      return;
+    }
+    const nowTs = Date.now();
+    const seen = loadUserSessionIndexRecords({ userId, includeRevoked: true }).some((item) => {
+      const ts = new Date(item?.lastSeenAt || 0).getTime();
+      if (!Number.isFinite(ts) || nowTs - ts > newNetworkLookbackMs) {
+        return false;
+      }
+      return getIpv4Network24(item?.lastIp) === network;
+    });
+    if (seen || !shouldEmitSecurityRuleEvent("new_network_login_warning", `${userId}:${network}`)) {
+      return;
+    }
+    emitSecurityEvent({
+      req,
+      type: "new_network_login_warning",
+      severity: securityEventSeverity.WARNING,
+      riskScore: 55,
+      actorUserId: userId,
+      targetUserId: userId,
+      data: { network, lookbackDays: 30 },
+    });
+  };
+
+  const maybeEmitExcessiveSessionsEvent = ({ req, userId } = {}) => {
+    const activeCount = listActiveSessionsForUser(userId).length;
+    if (
+      activeCount <= excessiveSessionsWarning ||
+      !shouldEmitSecurityRuleEvent("excessive_sessions_warning", userId)
+    ) {
+      return;
+    }
+    emitSecurityEvent({
+      req,
+      type: "excessive_sessions_warning",
+      severity: securityEventSeverity.WARNING,
+      riskScore: 45,
+      actorUserId: userId,
+      targetUserId: userId,
+      data: {
+        activeSessions: activeCount,
+        threshold: excessiveSessionsWarning,
+      },
+    });
+  };
+
+  const handleAuthFailureSecuritySignals = ({ req, error = "login_failed" } = {}) => {
+    const ip = getRequestIp(req);
+    if (!ip) {
+      return;
+    }
+    const warningWindowCount = authFailedByIpCounter.record({
+      key: ip,
+      windowMs: authFailedBurstWarning.windowMs,
+    }).count;
+    const criticalWindowCount = authFailedByIpCounter.count({
+      key: ip,
+      windowMs: authFailedBurstCritical.windowMs,
+    });
+
+    if (
+      criticalWindowCount >= authFailedBurstCritical.threshold &&
+      shouldEmitSecurityRuleEvent("auth_failed_burst_ip_critical", ip)
+    ) {
+      emitSecurityEvent({
+        req,
+        type: "auth_failed_burst_ip_critical",
+        severity: securityEventSeverity.CRITICAL,
+        riskScore: 90,
+        data: {
+          ip,
+          attempts: criticalWindowCount,
+          windowMs: authFailedBurstCritical.windowMs,
+          error: String(error || "login_failed"),
+        },
+      });
+      return;
+    }
+
+    if (
+      warningWindowCount >= authFailedBurstWarning.threshold &&
+      shouldEmitSecurityRuleEvent("auth_failed_burst_ip_warning", ip)
+    ) {
+      emitSecurityEvent({
+        req,
+        type: "auth_failed_burst_ip_warning",
+        severity: securityEventSeverity.WARNING,
+        riskScore: 65,
+        data: {
+          ip,
+          attempts: warningWindowCount,
+          windowMs: authFailedBurstWarning.windowMs,
+          error: String(error || "login_failed"),
+        },
+      });
+    }
+  };
+
+  const handleMfaFailureSecuritySignals = ({ req, userId, error = "mfa_invalid_code" } = {}) => {
+    const normalizedUserId = String(userId || "").trim();
+    if (!normalizedUserId) {
+      return;
+    }
+    metricsRegistry.inc("auth_mfa_verify_total", { status: "failed" });
+    const count = mfaFailedByUserCounter.record({
+      key: normalizedUserId,
+      windowMs: mfaFailedBurstWarning.windowMs,
+    }).count;
+    if (
+      count >= mfaFailedBurstWarning.threshold &&
+      shouldEmitSecurityRuleEvent("mfa_failed_burst_user_warning", normalizedUserId)
+    ) {
+      emitSecurityEvent({
+        req,
+        type: "mfa_failed_burst_user_warning",
+        severity: securityEventSeverity.WARNING,
+        riskScore: 70,
+        actorUserId: normalizedUserId,
+        targetUserId: normalizedUserId,
+        data: {
+          userId: normalizedUserId,
+          attempts: count,
+          windowMs: mfaFailedBurstWarning.windowMs,
+          error: String(error || "mfa_invalid_code"),
+        },
+      });
+    }
+  };
+
+  return {
+    buildMySecuritySummary,
+    clearEnrollmentFromSession,
+    handleAuthFailureSecuritySignals,
+    handleMfaFailureSecuritySignals,
+    maybeEmitExcessiveSessionsEvent,
+    maybeEmitNewNetworkLoginEvent,
+    resolveEnrollmentFromSession,
+    resolveMfaMetadata,
+    resolveRecoveryCodesRemaining,
+    startTotpEnrollment,
+    updateSessionIndexFromRequest,
+    verifyTotpOrRecoveryCode,
+  };
+};
+
+export default createAuthSecurityRuntime;

@@ -1,3 +1,8 @@
+import {
+  collectUploadUrlsDeep,
+  collectUploadUrlsFromDatasets,
+} from "./upload-reference-utils.js";
+
 export const createPublicMediaRuntime = ({
   backgroundJobQueue,
   extractUploadUrlsFromText,
@@ -28,61 +33,30 @@ export const createPublicMediaRuntime = ({
   shouldExposePublicUploadInMediaVariants,
 } = {}) => {
   const collectPublicUploadUrls = (value, urls, seen = new WeakSet()) => {
-    if (!value) {
-      return;
-    }
-    if (typeof value === "string") {
-      const normalized = normalizeUploadUrlValue(value);
-      if (normalized) {
-        urls.add(normalized);
-      }
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach((item) => collectPublicUploadUrls(item, urls, seen));
-      return;
-    }
-    if (typeof value === "object") {
-      if (seen.has(value)) {
-        return;
-      }
-      seen.add(value);
-      Object.values(value).forEach((item) => collectPublicUploadUrls(item, urls, seen));
-    }
-  };
-
-  const collectManagedUploadUrls = (value, urls) => {
-    if (!value) {
-      return;
-    }
-    if (typeof value === "string") {
-      const direct = normalizeUploadUrl(value);
-      if (direct) {
-        urls.add(direct);
-      }
-      extractUploadUrlsFromText(value).forEach((item) => urls.add(item));
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach((item) => collectManagedUploadUrls(item, urls));
-      return;
-    }
-    if (typeof value === "object") {
-      Object.values(value).forEach((item) => collectManagedUploadUrls(item, urls));
-    }
+    return collectUploadUrlsDeep(value, urls, {
+      normalizeDirectUrl: normalizeUploadUrlValue,
+      trackObjects: true,
+      seen,
+    });
   };
 
   const getUsedUploadUrls = () => {
-    const urls = new Set();
-    collectManagedUploadUrls(loadSiteSettings(), urls);
-    collectManagedUploadUrls(loadPosts(), urls);
-    collectManagedUploadUrls(loadProjects(), urls);
-    collectManagedUploadUrls(loadUsers(), urls);
-    collectManagedUploadUrls(loadPages(), urls);
-    collectManagedUploadUrls(loadComments(), urls);
-    collectManagedUploadUrls(loadUpdates(), urls);
-    collectManagedUploadUrls(loadLinkTypes(), urls);
-    return urls;
+    return collectUploadUrlsFromDatasets(
+      {
+        loadComments,
+        loadLinkTypes,
+        loadPages,
+        loadPosts,
+        loadProjects,
+        loadSiteSettings,
+        loadUpdates,
+        loadUsers,
+      },
+      {
+        normalizeDirectUrl: normalizeUploadUrl,
+        extractTextUrls: extractUploadUrlsFromText,
+      },
+    );
   };
 
   const buildPublicMediaVariants = (sourcesInput, options = {}) => {

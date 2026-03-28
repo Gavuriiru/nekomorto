@@ -9,6 +9,8 @@ import express from "express";
 import session from "express-session";
 import multer from "multer";
 import { Pool } from "pg";
+import { buildDirectRouteDependencies } from "./bootstrap/build-direct-route-dependencies.js";
+import { buildServerRouteDependencySource } from "./bootstrap/build-server-route-dependency-source.js";
 import { createServerRouteDependencies } from "./bootstrap/create-server-route-dependencies.js";
 import { registerServerRoutes } from "./bootstrap/register-server-routes.js";
 import { startServerJobs } from "./bootstrap/start-server-jobs.js";
@@ -22,9 +24,11 @@ import {
   normalizeExportStatus,
   writeExportFile,
 } from "./lib/admin-exports.js";
+import { createAdminExportRuntime } from "./lib/admin-export-runtime.js";
 import { createAnalyticsStore } from "./lib/analytics-store.js";
 import { API_CONTRACT_VERSION, buildApiContractV1 } from "./lib/api-contract-v1.js";
 import { ANILIST_API, fetchAniListMediaById } from "./lib/anilist-client.js";
+import { createAuthSecurityRuntime } from "./lib/auth-security-runtime.js";
 import { createAuditLogStore } from "./lib/audit-log-store.js";
 import {
   AccessRole,
@@ -92,6 +96,9 @@ import {
   buildOperationalAlertsResponse,
   buildOperationalAlertsV1,
 } from "./lib/operational-alerts.js";
+import { createOperationalMonitoringRuntime } from "./lib/operational-monitoring-runtime.js";
+import { createEditorialWebhooksRuntime } from "./lib/editorial-webhooks-runtime.js";
+import { createOperationalWebhooksRuntime } from "./lib/operational-webhooks-runtime.js";
 import { registerOperationalRoutes } from "./lib/register-operational-routes.js";
 import {
   buildOriginConfig,
@@ -276,6 +283,7 @@ import {
   pickFirstNonEmptyText,
   resolveWebhookAuditActions as resolveWebhookAuditActionsBase,
 } from "./lib/webhook-support.js";
+import { createWebhookDeliveryRuntime } from "./lib/webhook-delivery-runtime.js";
 import {
   invalidateUploadsCleanupPreviewCache,
   loadCachedUploadsCleanupPreview,
@@ -2191,327 +2199,6 @@ const revokeSessionBySid = async ({
   return true;
 };
 
-const resolveRecoveryCodesRemaining = (record) => {
-  const list = Array.isArray(record?.recoveryCodesHashed) ? record.recoveryCodesHashed : [];
-  return list.filter((item) => typeof item === "string" && item.trim()).length;
-};
-
-const verifyTotpOrRecoveryCode = ({
-  userId,
-  codeOrRecoveryCode,
-  consumeRecoveryCode = true,
-} = {}) => {
-  const normalizedUserId = String(userId || "").trim();
-  if (!normalizedUserId) {
-    return { ok: false, reason: "invalid_user" };
-  }
-  const code = String(codeOrRecoveryCode || "").trim();
-  if (!code) {
-    return { ok: false, reason: "code_required" };
-  }
-
-  const secret = getUserTotpSecret(normalizedUserId);
-  if (secret && verifyTotpCode({ secret, code })) {
-    return {
-      ok: true,
-      method: "totp",
-      remainingRecoveryCodes: resolveRecoveryCodesRemaining(
-        loadUserMfaTotpRecord(normalizedUserId),
-      ),
-    };
-  }
-
-  const record = loadUserMfaTotpRecord(normalizedUserId);
-  if (!record) {
-    return { ok: false, reason: "mfa_not_enabled" };
-  }
-  const hashes = Array.isArray(record.recoveryCodesHashed) ? record.recoveryCodesHashed : [];
-  const targetHash = hashRecoveryCode({ code, pepper: MFA_RECOVERY_CODE_PEPPER });
-  if (!targetHash) {
-    return { ok: false, reason: "invalid_code" };
-  }
-  const index = hashes.findIndex((item) => item === targetHash);
-  if (index < 0) {
-    return { ok: false, reason: "invalid_code" };
-  }
-
-  const remainingHashes = consumeRecoveryCode
-    ? hashes.filter((item, itemIndex) => itemIndex !== index)
-    : hashes;
-  if (consumeRecoveryCode) {
-    writeUserMfaTotpRecord(normalizedUserId, {
-      ...record,
-      recoveryCodesHashed: remainingHashes,
-      updatedAt: new Date().toISOString(),
-    });
-  }
-
-  return {
-    ok: true,
-    method: "recovery_code",
-    remainingRecoveryCodes: remainingHashes.length,
-  };
-};
-
-const toAbsoluteAssetUrl = (value) => {
-  const normalized = sanitizeAssetUrl(value);
-  if (!normalized) {
-    return "";
-  }
-  if (normalized.startsWith("/")) {
-    return `${PRIMARY_APP_ORIGIN}${normalized}`;
-  }
-  return normalized;
-};
-
-const resolveMfaMetadata = ({ req, userId, accountName } = {}) => {
-  const normalizedUserId = String(userId || "").trim();
-  const sessionUser = req?.session?.user || req?.session?.pendingMfaUser || null;
-  const issuer = String(MFA_ISSUER || "Nekomata").trim() || "Nekomata";
-  const accountLabel =
-    String(
-      accountName || sessionUser?.username || sessionUser?.name || normalizedUserId || "user",
-    ).trim() || "user";
-  const siteSettings = loadSiteSettings();
-  const iconUrl = toAbsoluteAssetUrl(
-    sessionUser?.avatarUrl || MFA_ICON_URL || siteSettings?.site?.faviconUrl || "",
-  );
-  return {
-    issuer,
-    accountLabel,
-    iconUrl,
-  };
-};
-
-const startTotpEnrollment = ({ req, userId, accountName, issuer, iconUrl } = {}) => {
-  if (!req?.session || !userId) {
-    return null;
-  }
-  const secret = generateTotpSecret();
-  const enrollmentToken = crypto.randomUUID();
-  req.session.mfaEnrollment = {
-    token: enrollmentToken,
-    secret,
-    userId: String(userId),
-    createdAt: Date.now(),
-    accountName: String(accountName || userId),
-    issuer: String(issuer || MFA_ISSUER || "Nekomata"),
-    iconUrl: String(iconUrl || ""),
-  };
-  return {
-    enrollmentToken,
-    secret,
-    otpauthUrl: buildOtpAuthUrl({
-      issuer: String(issuer || MFA_ISSUER || "Nekomata"),
-      accountName: String(accountName || userId),
-      secret,
-      iconUrl: String(iconUrl || ""),
-    }),
-  };
-};
-
-const resolveEnrollmentFromSession = ({ req, enrollmentToken, userId } = {}) => {
-  const stored = req?.session?.mfaEnrollment;
-  if (!stored || typeof stored !== "object") {
-    return null;
-  }
-  if (String(stored.userId || "") !== String(userId || "")) {
-    return null;
-  }
-  if (String(stored.token || "") !== String(enrollmentToken || "")) {
-    return null;
-  }
-  const createdAt = Number(stored.createdAt || 0);
-  if (!Number.isFinite(createdAt) || Date.now() - createdAt > MFA_ENROLLMENT_TTL_MS) {
-    return null;
-  }
-  return stored;
-};
-
-const clearEnrollmentFromSession = (req) => {
-  if (!req?.session) {
-    return;
-  }
-  req.session.mfaEnrollment = null;
-};
-
-const buildMySecuritySummary = ({ req, userId } = {}) => {
-  const record = loadUserMfaTotpRecord(userId);
-  const activeSessions = listActiveSessionsForUser(userId);
-  const metadata = resolveMfaMetadata({ req, userId });
-  return {
-    totpEnabled: Boolean(record && record.enabledAt && !record.disabledAt),
-    recoveryCodesRemaining: resolveRecoveryCodesRemaining(record),
-    activeSessionsCount: activeSessions.length,
-    issuer: metadata.issuer,
-    accountLabel: metadata.accountLabel,
-    iconUrl: metadata.iconUrl,
-  };
-};
-
-const updateSessionIndexFromRequest = (req, { force = false } = {}) => {
-  const sid = String(req?.sessionID || "").trim();
-  const userId = String(req?.session?.user?.id || "").trim();
-  const isPendingMfa = Boolean(req?.session?.pendingMfaUser?.id && !req?.session?.user?.id);
-  if (!sid || (!userId && !isPendingMfa)) {
-    return;
-  }
-  const nowTs = Date.now();
-  const lastTouchTs = Number(sessionIndexTouchTsBySid.get(sid) || 0);
-  if (
-    !force &&
-    Number.isFinite(lastTouchTs) &&
-    nowTs - lastTouchTs < SESSION_INDEX_TOUCH_MIN_INTERVAL_MS
-  ) {
-    return;
-  }
-  sessionIndexTouchTsBySid.set(sid, nowTs);
-  upsertUserSessionIndexRecord({
-    sid,
-    userId: userId || String(req?.session?.pendingMfaUser?.id || ""),
-    createdAt: req?.session?.createdAt || new Date(nowTs).toISOString(),
-    lastSeenAt: new Date(nowTs).toISOString(),
-    lastIp: getRequestIp(req) || "",
-    userAgent: String(req?.headers?.["user-agent"] || "").slice(0, 512),
-    revokedAt: null,
-    revokedBy: null,
-    revokeReason: null,
-    isPendingMfa,
-  });
-};
-
-const maybeEmitNewNetworkLoginEvent = ({ req, userId } = {}) => {
-  const network = getIpv4Network24(getRequestIp(req));
-  if (!network || !userId) {
-    return;
-  }
-  const nowTs = Date.now();
-  const seen = loadUserSessionIndexRecords({ userId, includeRevoked: true }).some((item) => {
-    const ts = new Date(item?.lastSeenAt || 0).getTime();
-    if (!Number.isFinite(ts) || nowTs - ts > NEW_NETWORK_LOOKBACK_MS) {
-      return false;
-    }
-    return getIpv4Network24(item?.lastIp) === network;
-  });
-  if (seen || !shouldEmitSecurityRuleEvent("new_network_login_warning", `${userId}:${network}`)) {
-    return;
-  }
-  emitSecurityEvent({
-    req,
-    type: "new_network_login_warning",
-    severity: SecurityEventSeverity.WARNING,
-    riskScore: 55,
-    actorUserId: userId,
-    targetUserId: userId,
-    data: { network, lookbackDays: 30 },
-  });
-};
-
-const maybeEmitExcessiveSessionsEvent = ({ req, userId } = {}) => {
-  const activeCount = listActiveSessionsForUser(userId).length;
-  if (
-    activeCount <= EXCESSIVE_SESSIONS_WARNING ||
-    !shouldEmitSecurityRuleEvent("excessive_sessions_warning", userId)
-  ) {
-    return;
-  }
-  emitSecurityEvent({
-    req,
-    type: "excessive_sessions_warning",
-    severity: SecurityEventSeverity.WARNING,
-    riskScore: 45,
-    actorUserId: userId,
-    targetUserId: userId,
-    data: {
-      activeSessions: activeCount,
-      threshold: EXCESSIVE_SESSIONS_WARNING,
-    },
-  });
-};
-
-const handleAuthFailureSecuritySignals = ({ req, error = "login_failed" } = {}) => {
-  const ip = getRequestIp(req);
-  if (!ip) {
-    return;
-  }
-  const warningWindowCount = authFailedByIpCounter.record({
-    key: ip,
-    windowMs: AUTH_FAILED_BURST_WARNING.windowMs,
-  }).count;
-  const criticalWindowCount = authFailedByIpCounter.count({
-    key: ip,
-    windowMs: AUTH_FAILED_BURST_CRITICAL.windowMs,
-  });
-
-  if (
-    criticalWindowCount >= AUTH_FAILED_BURST_CRITICAL.threshold &&
-    shouldEmitSecurityRuleEvent("auth_failed_burst_ip_critical", ip)
-  ) {
-    emitSecurityEvent({
-      req,
-      type: "auth_failed_burst_ip_critical",
-      severity: SecurityEventSeverity.CRITICAL,
-      riskScore: 90,
-      data: {
-        ip,
-        attempts: criticalWindowCount,
-        windowMs: AUTH_FAILED_BURST_CRITICAL.windowMs,
-        error: String(error || "login_failed"),
-      },
-    });
-    return;
-  }
-
-  if (
-    warningWindowCount >= AUTH_FAILED_BURST_WARNING.threshold &&
-    shouldEmitSecurityRuleEvent("auth_failed_burst_ip_warning", ip)
-  ) {
-    emitSecurityEvent({
-      req,
-      type: "auth_failed_burst_ip_warning",
-      severity: SecurityEventSeverity.WARNING,
-      riskScore: 65,
-      data: {
-        ip,
-        attempts: warningWindowCount,
-        windowMs: AUTH_FAILED_BURST_WARNING.windowMs,
-        error: String(error || "login_failed"),
-      },
-    });
-  }
-};
-
-const handleMfaFailureSecuritySignals = ({ req, userId, error = "mfa_invalid_code" } = {}) => {
-  const normalizedUserId = String(userId || "").trim();
-  if (!normalizedUserId) {
-    return;
-  }
-  metricsRegistry.inc("auth_mfa_verify_total", { status: "failed" });
-  const count = mfaFailedByUserCounter.record({
-    key: normalizedUserId,
-    windowMs: MFA_FAILED_BURST_WARNING.windowMs,
-  }).count;
-  if (
-    count >= MFA_FAILED_BURST_WARNING.threshold &&
-    shouldEmitSecurityRuleEvent("mfa_failed_burst_user_warning", normalizedUserId)
-  ) {
-    emitSecurityEvent({
-      req,
-      type: "mfa_failed_burst_user_warning",
-      severity: SecurityEventSeverity.WARNING,
-      riskScore: 70,
-      actorUserId: normalizedUserId,
-      targetUserId: normalizedUserId,
-      data: {
-        userId: normalizedUserId,
-        attempts: count,
-        windowMs: MFA_FAILED_BURST_WARNING.windowMs,
-        error: String(error || "mfa_invalid_code"),
-      },
-    });
-  }
-};
-
 const maybeEmitAdminActionFromNewNetwork = (req) => {
   const userId = String(req?.session?.user?.id || "").trim();
   if (!userId || !String(req?.path || "").startsWith("/api/admin")) {
@@ -3948,15 +3635,7 @@ const getUploadFolderFromUrlValue = (value) => {
   return relative.slice(0, lastSlash);
 };
 
-const {
-  buildPublicMediaVariants,
-  collectDownloadIconUploads,
-  collectLinkTypeIconUploads,
-  enqueueProjectOgPrewarm,
-  getUsedUploadUrls,
-  logProjectOgDelivery,
-  resolveMetaImageVariantUrl,
-} = createPublicMediaRuntime({
+const publicMediaRuntime = createPublicMediaRuntime({
   backgroundJobQueue,
   extractUploadUrlsFromText,
   getPublicVisibleProjects: () => getPublicVisibleProjects(),
@@ -3985,6 +3664,16 @@ const {
   sanitizePublicMediaVariantEntry,
   shouldExposePublicUploadInMediaVariants,
 });
+
+const {
+  buildPublicMediaVariants,
+  collectDownloadIconUploads,
+  collectLinkTypeIconUploads,
+  enqueueProjectOgPrewarm,
+  getUsedUploadUrls,
+  logProjectOgDelivery,
+  resolveMetaImageVariantUrl,
+} = publicMediaRuntime;
 
 const deletePrivateUploadByUrl = (value) => {
   try {
@@ -4060,6 +3749,54 @@ const loadSiteSettings = () => {
   writeJsonFileToCache("site-settings", normalized);
   return normalized;
 };
+
+const {
+  buildMySecuritySummary,
+  clearEnrollmentFromSession,
+  handleAuthFailureSecuritySignals,
+  handleMfaFailureSecuritySignals,
+  maybeEmitExcessiveSessionsEvent,
+  maybeEmitNewNetworkLoginEvent,
+  resolveEnrollmentFromSession,
+  resolveMfaMetadata,
+  startTotpEnrollment,
+  updateSessionIndexFromRequest,
+  verifyTotpOrRecoveryCode,
+} = createAuthSecurityRuntime({
+  authFailedBurstCritical: AUTH_FAILED_BURST_CRITICAL,
+  authFailedBurstWarning: AUTH_FAILED_BURST_WARNING,
+  authFailedByIpCounter,
+  buildOtpAuthUrl,
+  createEnrollmentToken: () => crypto.randomUUID(),
+  emitSecurityEvent,
+  excessiveSessionsWarning: EXCESSIVE_SESSIONS_WARNING,
+  generateTotpSecret,
+  getIpv4Network24,
+  getRequestIp,
+  getUserTotpSecret,
+  hashRecoveryCode,
+  listActiveSessionsForUser,
+  loadSiteSettings,
+  loadUserMfaTotpRecord,
+  loadUserSessionIndexRecords,
+  metricsRegistry,
+  mfaEnrollmentTtlMs: MFA_ENROLLMENT_TTL_MS,
+  mfaFailedBurstWarning: MFA_FAILED_BURST_WARNING,
+  mfaFailedByUserCounter,
+  mfaIconUrl: MFA_ICON_URL,
+  mfaIssuer: MFA_ISSUER,
+  mfaRecoveryCodePepper: MFA_RECOVERY_CODE_PEPPER,
+  newNetworkLookbackMs: NEW_NETWORK_LOOKBACK_MS,
+  primaryAppOrigin: PRIMARY_APP_ORIGIN,
+  sanitizeAssetUrl,
+  securityEventSeverity: SecurityEventSeverity,
+  sessionIndexTouchMinIntervalMs: SESSION_INDEX_TOUCH_MIN_INTERVAL_MS,
+  sessionIndexTouchTsBySid,
+  shouldEmitSecurityRuleEvent,
+  upsertUserSessionIndexRecord,
+  verifyTotpCode,
+  writeUserMfaTotpRecord,
+});
 
 const { renderMetaHtml } = createMetaHtmlRenderer({
   getIndexHtml,
@@ -5346,339 +5083,21 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
   return updates;
 };
 
-const resolveProjectWebhookEventKey = (kind) => {
-  const normalized = String(kind || "")
-    .trim()
-    .toLowerCase();
-  if (normalized.startsWith("lan")) {
-    return "project_release";
-  }
-  if (normalized.startsWith("aju")) {
-    return "project_adjust";
-  }
-  return "";
-};
-
-const findProjectChapterByEpisodeNumber = (project, episodeNumber, volume) => {
-  const lookup = resolveEpisodeLookup(project, episodeNumber, volume);
-  if (!lookup.ok) {
-    return null;
-  }
-  const chapter = lookup.episode;
-  const synopsis = deriveChapterSynopsis(chapter);
-  return {
-    number: Number.isFinite(Number(chapter.number))
-      ? Number(chapter.number)
-      : Number(episodeNumber),
-    volume: Number.isFinite(Number(chapter.volume)) ? Number(chapter.volume) : "",
-    title: String(chapter.title || ""),
-    synopsis,
-    content: String(chapter.content || ""),
-    releaseDate: String(chapter.releaseDate || ""),
-    updatedAt: String(chapter.chapterUpdatedAt || chapter.updatedAt || ""),
-    coverImageUrl: String(chapter.coverImageUrl || ""),
-  };
-};
-
-const createWebhookAuditReqFromContext = (contextInput = {}) =>
-  createWebhookAuditReqFromContextBase(contextInput, crypto.randomUUID);
-
-const resolveWebhookAuditActions = (scope) =>
-  resolveWebhookAuditActionsBase(scope, WEBHOOK_DELIVERY_SCOPE);
-
-const enqueueWebhookDelivery = ({
-  scope,
-  provider = "discord",
-  webhookUrl,
-  payload,
-  channel = "",
-  eventKey = "",
-  timeoutMs = 5000,
-  maxAttempts = 1,
-  targetLabel = "",
-  context = {},
-} = {}) => {
-  const validated = validateWebhookUrlForProvider({ provider, webhookUrl });
-  if (!validated.ok) {
-    return {
-      ok: false,
-      status: validated.code === "missing_webhook_url" ? "skipped" : "failed",
-      code: validated.code,
-    };
-  }
-  const now = new Date().toISOString();
-  const record = upsertWebhookDelivery({
-    id: crypto.randomUUID(),
-    scope: String(scope || "").trim(),
-    provider: String(provider || "").trim().toLowerCase(),
-    channel: String(channel || "").trim() || null,
-    eventKey: String(eventKey || "").trim() || null,
-    status: WEBHOOK_DELIVERY_STATUS.QUEUED,
-    targetUrl: validated.url,
-    targetLabel: String(targetLabel || "").trim() || buildWebhookTargetLabel(validated.url),
-    payload: payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {},
-    context:
-      context && typeof context === "object" && !Array.isArray(context)
-        ? {
-            ...context,
-            timeoutMs: clampWebhookInteger(timeoutMs, 1000, 30000, 5000),
-          }
-        : { timeoutMs: clampWebhookInteger(timeoutMs, 1000, 30000, 5000) },
-    attemptCount: 0,
-    maxAttempts: clampWebhookInteger(maxAttempts, 1, 10, 1),
-    nextAttemptAt: now,
-    createdAt: now,
-    updatedAt: now,
-  });
-  if (!record) {
-    return { ok: false, status: "failed", code: "delivery_enqueue_failed" };
-  }
-  return {
-    ok: true,
-    status: "queued",
-    code: "queued",
-    deliveryId: record.id,
-    delivery: record,
-  };
-};
-
-const prepareEditorialWebhookDispatch = ({
-  eventKey,
-  post = null,
-  project = null,
-  update = null,
-  chapter = null,
-  settings: settingsInput = null,
-  allowDisabled = false,
-} = {}) => {
-  const channelKey = resolveEditorialEventChannel(eventKey);
-  if (!channelKey) {
-    return { ok: false, status: "skipped", code: "invalid_event_key" };
-  }
-  const projectTypes = getActiveProjectTypes();
-  const baseSettings =
-    settingsInput && typeof settingsInput === "object"
-      ? settingsInput
-      : loadIntegrationSettings().editorial;
-  const settings = normalizeEditorialWebhookSettings(baseSettings, {
-    projectTypes,
-  });
-  const channel = settings?.channels?.[channelKey];
-  if (!channel || typeof channel !== "object") {
-    return { ok: false, status: "skipped", code: "missing_channel", channel: channelKey };
-  }
-  if (!allowDisabled && channel.enabled !== true) {
-    return { ok: false, status: "skipped", code: "channel_disabled", channel: channelKey };
-  }
-  if (!allowDisabled && channel?.events?.[eventKey] !== true) {
-    return { ok: false, status: "skipped", code: "event_disabled", channel: channelKey };
-  }
-
-  const webhookUrl = String(channel?.webhookUrl || "").trim();
-  if (!webhookUrl) {
-    return { ok: false, status: "skipped", code: "missing_webhook_url", channel: channelKey };
-  }
-  const webhookValidation = validateWebhookUrlForProvider({
-    provider: "discord",
-    webhookUrl,
-  });
-  if (!webhookValidation.ok) {
-    return { ok: false, status: "failed", code: webhookValidation.code, channel: channelKey };
-  }
-
-  const template = channel?.templates?.[eventKey];
-  if (!template || typeof template !== "object") {
-    return { ok: false, status: "skipped", code: "missing_template", channel: channelKey };
-  }
-
-  const safeProject =
-    project && typeof project === "object"
-      ? project
-      : post?.projectId
-        ? normalizeProjects(loadProjects()).find((item) => item.id === String(post.projectId)) ||
-          null
-        : null;
-  const safeChapter =
-    chapter && typeof chapter === "object"
-      ? chapter
-      : safeProject
-        ? findProjectChapterByEpisodeNumber(safeProject, update?.episodeNumber, update?.volume)
-        : null;
-  const author = resolveEditorialAuthorFromPost(post);
-  const safePost =
-    post && typeof post === "object"
-      ? {
-          ...post,
-          authorAvatarUrl: author.avatarUrl || String(post.authorAvatarUrl || "").trim(),
-        }
-      : post;
-  const mentions = buildEditorialMentions({
-    settings,
-    eventKey,
-    projectType: safeProject?.type || "",
-    projectDiscordRoleId: safeProject?.discordRoleId || "",
-    includeProjectRole: channelKey === "projects",
-  });
-  const occurredAt =
-    String(update?.updatedAt || safePost?.updatedAt || safeProject?.updatedAt || "").trim() ||
-    new Date().toISOString();
-  const siteSettings = loadSiteSettings();
-  const translations = loadTagTranslations();
-  const siteName = String(siteSettings?.site?.name || "Nekomata").trim() || "Nekomata";
-  const siteUrl = PRIMARY_APP_ORIGIN;
-  const siteLogoUrl =
-    String(
-      siteSettings?.site?.logoUrl ||
-        siteSettings?.branding?.assets?.symbolUrl ||
-        siteSettings?.branding?.assets?.wordmarkUrl ||
-        "",
-    ).trim() || "";
-  const siteCoverImageUrl = String(siteSettings?.site?.defaultShareImage || "").trim();
-  const siteFaviconUrl = String(siteSettings?.site?.faviconUrl || "").trim();
-  const imageContext = buildEditorialWebhookImageContext({
-    post: safePost,
-    project: safeProject,
-    chapter: safeChapter,
-    settings: siteSettings,
-    translations,
-  });
-  const context = buildEditorialEventContext({
-    eventKey,
-    occurredAt,
-    siteName,
-    siteUrl,
-    siteLogoUrl,
-    siteCoverImageUrl,
-    siteFaviconUrl,
-    origin: PRIMARY_APP_ORIGIN,
-    mentions,
-    author,
-    post: safePost,
-    project: safeProject,
-    chapter: safeChapter,
-    update,
-    postImageUrl: imageContext.postImageUrl,
-    postOgImageUrl: imageContext.postOgImageUrl,
-    projectImageUrl: imageContext.projectImageUrl,
-    projectBackdropImageUrl: imageContext.projectBackdropImageUrl,
-    projectOgImageUrl: imageContext.projectOgImageUrl,
-    chapterImageUrl: imageContext.chapterImageUrl,
-    chapterOgImageUrl: imageContext.chapterOgImageUrl,
-  });
-  const rendered = renderWebhookTemplate(template, context);
-  const payload = toDiscordWebhookPayload({
-    content: rendered?.content || "",
-    origin: PRIMARY_APP_ORIGIN,
-    embed: {
-      title: rendered?.embed?.title || "",
-      description: rendered?.embed?.description || "",
-      footerText: rendered?.embed?.footerText || rendered?.embed?.footer || "",
-      footerIconUrl: rendered?.embed?.footerIconUrl || "",
-      url: rendered?.embed?.url || "",
-      color: rendered?.embed?.color || "",
-      authorName: rendered?.embed?.authorName || "",
-      authorIconUrl: rendered?.embed?.authorIconUrl || "",
-      authorUrl: rendered?.embed?.authorUrl || "",
-      thumbnailUrl: rendered?.embed?.thumbnailUrl || "",
-      imageUrl: rendered?.embed?.imageUrl || "",
-      fields: Array.isArray(rendered?.embed?.fields) ? rendered.embed.fields : [],
-      timestamp: occurredAt,
-    },
-    allowedMentionsRoleIds: mentions.roleIds || [],
-  });
-  const hasContent = String(payload?.content || "").trim().length > 0;
-  const hasEmbeds = Array.isArray(payload?.embeds) && payload.embeds.length > 0;
-  if (!hasContent && !hasEmbeds) {
-    return { ok: false, status: "skipped", code: "empty_payload", channel: channelKey };
-  }
-
-  return {
-    ok: true,
-    channel: channelKey,
-    eventKey,
-    webhookUrl,
-    targetLabel: buildWebhookTargetLabel(webhookValidation.url),
-    timeoutMs: clampWebhookInteger(channel.timeoutMs, 1000, 30000, 5000),
-    retries: clampWebhookInteger(channel.retries, 0, 5, 1),
-    maxAttempts: clampWebhookInteger(channel.retries, 0, 5, 1) + 1,
-    payload,
-    mentionsRoleIds: Array.isArray(mentions.roleIds) ? mentions.roleIds : [],
-    context,
-  };
-};
-
-const dispatchEditorialWebhookEvent = async ({
-  eventKey,
-  post = null,
-  project = null,
-  update = null,
-  chapter = null,
-  req = null,
-} = {}) => {
-  const actorReq = req || createSystemAuditReq();
-  const prepared = prepareEditorialWebhookDispatch({
-    eventKey,
-    post,
-    project,
-    update,
-    chapter,
-  });
-  if (!prepared.ok) {
-    appendAuditLog(actorReq, "editorial_webhook.skipped", "integrations", {
-      eventKey,
-      channel: prepared.channel || resolveEditorialEventChannel(eventKey),
-      code: prepared.code || "skipped",
-      postId: post?.id || null,
-      projectId: project?.id || post?.projectId || null,
-    });
-    return prepared;
-  }
-
-  const queued = enqueueWebhookDelivery({
-    scope: WEBHOOK_DELIVERY_SCOPE.EDITORIAL,
-    provider: "discord",
-    webhookUrl: prepared.webhookUrl,
-    payload: prepared.payload,
-    channel: prepared.channel,
-    eventKey: prepared.eventKey,
-    timeoutMs: prepared.timeoutMs,
-    maxAttempts: prepared.maxAttempts,
-    targetLabel: prepared.targetLabel,
-    context: {
-      ...prepared.context,
-      eventLabel: resolveEditorialEventLabel(eventKey),
-      postId: post?.id || "",
-      projectId: project?.id || post?.projectId || "",
-      actorId: actorReq.session?.user?.id || "system",
-      actorName: actorReq.session?.user?.name || "System",
-      actorIp: actorReq.ip || actorReq.headers?.["x-forwarded-for"] || "",
-      requestId: actorReq.requestId || "",
-    },
-  });
-  if (!queued.ok) {
-    appendAuditLog(actorReq, "editorial_webhook.failed", "integrations", {
-      eventKey,
-      eventLabel: resolveEditorialEventLabel(eventKey),
-      channel: prepared.channel,
-      code: queued.code || "delivery_enqueue_failed",
-      postId: post?.id || null,
-      projectId: project?.id || post?.projectId || null,
-    });
-    return queued;
-  }
-
-  appendAuditLog(actorReq, "editorial_webhook.queued", "integrations", {
-    ...buildWebhookAuditMeta(queued.delivery),
-    attempt: 0,
-  });
-  void runWebhookDeliveryWorkerTick();
-
-  return {
-    ...queued,
-    eventKey,
-    channel: prepared.channel,
-  };
-};
+const {
+  createWebhookAuditReqFromContext,
+  enqueueWebhookDelivery,
+  resolveWebhookAuditActions,
+} = createWebhookDeliveryRuntime({
+  buildWebhookTargetLabel,
+  clampWebhookInteger,
+  createRequestId: () => crypto.randomUUID(),
+  createWebhookAuditReqFromContextBase,
+  resolveWebhookAuditActionsBase,
+  upsertWebhookDelivery,
+  validateWebhookUrlForProvider,
+  webhookDeliveryScope: WEBHOOK_DELIVERY_SCOPE,
+  webhookDeliveryStatus: WEBHOOK_DELIVERY_STATUS,
+});
 
 const normalizeTags = (value) => {
   if (Array.isArray(value)) {
@@ -5838,186 +5257,23 @@ const buildUserPayload = (sessionUser) => {
   return withUserProfileRevision(payload, uploads);
 };
 
-const getRepositoryHealthSnapshot = () => {
-  if (!dataRepository || typeof dataRepository.getHealthSnapshot !== "function") {
-    return {
-      queueDepth: 0,
-      oldestPendingMs: 0,
-      lastPersistStartedAt: null,
-      lastPersistCompletedAt: null,
-      lastPersistErrorAt: null,
-      lastPersistErrorLabel: null,
-      lastPersistErrorMessage: null,
-    };
-  }
-  return dataRepository.getHealthSnapshot();
-};
-
-const OPERATIONAL_PERSIST_ERROR_RECENT_WINDOW_MS = 15 * 60 * 1000;
-
-const buildMaintenanceHealthCheck = () => ({
-  name: "maintenance_mode",
-  status: isMaintenanceMode ? "warning" : "ok",
-  message: isMaintenanceMode ? "Modo de manutenção ativo." : "Modo de manutenção desativado.",
+const { evaluateOperationalMonitoring } = createOperationalMonitoringRuntime({
+  backgroundJobQueue,
+  buildHealthStatusResponse,
+  buildOperationalAlertsResponse,
+  buildOperationalAlertsV1,
+  dataRepository,
+  dbLatencyWarningMs: OPS_ALERTS_DB_LATENCY_WARNING_MS,
+  fsAccess: (targetPath, mode) => fs.promises.access(targetPath, mode),
+  fsConstants: fs.constants,
+  isMaintenanceMode,
+  isProduction,
+  prisma,
+  publicUploadsDir: PUBLIC_UPLOADS_DIR,
+  rateLimiter,
+  redisUrl: REDIS_URL,
+  sessionCookieConfig,
 });
-
-const buildSessionConfigHealthCheck = () => ({
-  name: "session_config",
-  status: sessionCookieConfig.usesDefaultSecretInProduction ? "warning" : "ok",
-  message: sessionCookieConfig.usesDefaultSecretInProduction
-    ? "SESSION_SECRET fallback em produção."
-    : "Configuração de sessão válida.",
-  meta: {
-    cookieName: sessionCookieConfig.name,
-    secure: Boolean(sessionCookieConfig.cookie?.secure),
-    sameSite: sessionCookieConfig.cookie?.sameSite || "lax",
-    path: sessionCookieConfig.cookie?.path || "/",
-  },
-});
-
-const buildRepositoryHealthCheck = () => {
-  const snapshot = getRepositoryHealthSnapshot();
-  const lastErrorTs = snapshot.lastPersistErrorAt
-    ? new Date(snapshot.lastPersistErrorAt).getTime()
-    : null;
-  const hasRecentError =
-    Number.isFinite(lastErrorTs) &&
-    Date.now() - Number(lastErrorTs) <= OPERATIONAL_PERSIST_ERROR_RECENT_WINDOW_MS;
-  const backlog =
-    Number(snapshot.queueDepth || 0) > 10 || Number(snapshot.oldestPendingMs || 0) > 30_000;
-  return {
-    name: "data_repository",
-    status: hasRecentError ? "warning" : backlog ? "warning" : "ok",
-    message: hasRecentError
-      ? "Houve erro recente na persistência em background."
-      : backlog
-        ? "Fila de persistência acumulada."
-        : "Persistência em background saudável.",
-    meta: snapshot,
-  };
-};
-
-const buildBackgroundJobQueueHealthCheck = () => {
-  const snapshot = backgroundJobQueue.snapshot();
-  const maxRuntimeMs = Array.isArray(snapshot.activeJobs)
-    ? snapshot.activeJobs.reduce((max, job) => Math.max(max, Number(job.runtimeMs || 0)), 0)
-    : 0;
-  const hasBacklog = Number(snapshot.pending || 0) > 20 || maxRuntimeMs > 120000;
-  return {
-    name: "background_jobs",
-    status: hasBacklog ? "warning" : "ok",
-    message: hasBacklog ? "Fila de jobs em atraso." : "Fila de jobs operacional.",
-    meta: {
-      pending: Number(snapshot.pending || 0),
-      running: Number(snapshot.running || 0),
-      maxRuntimeMs,
-    },
-  };
-};
-
-const buildRateLimiterHealthCheck = () => {
-  const usingRedis = rateLimiter.mode === "redis";
-  return {
-    name: "rate_limit_backend",
-    status: isProduction && !usingRedis ? "warning" : "ok",
-    message: usingRedis ? "Rate limit distribuido ativo (Redis)." : "Rate limit local em memoria.",
-    meta: {
-      mode: rateLimiter.mode,
-      redisConfigured: Boolean(String(REDIS_URL || "").trim()),
-    },
-  };
-};
-
-const probeDbHealthCheck = async () => {
-  const startedAt = Date.now();
-  try {
-    await prisma.$queryRawUnsafe("SELECT 1");
-    const latencyMs = Date.now() - startedAt;
-    return {
-      name: "database",
-      status: latencyMs > OPS_ALERTS_DB_LATENCY_WARNING_MS ? "warning" : "ok",
-      latencyMs,
-      message:
-        latencyMs > OPS_ALERTS_DB_LATENCY_WARNING_MS
-          ? "Banco respondeu acima do limite de latência."
-          : "Banco respondeu ao ping.",
-    };
-  } catch (error) {
-    return {
-      name: "database",
-      status: "critical",
-      latencyMs: Date.now() - startedAt,
-      message: String(error?.message || error || "db_ping_failed"),
-    };
-  }
-};
-
-const probeUploadsDirHealthCheck = async () => {
-  const startedAt = Date.now();
-  try {
-    await fs.promises.access(PUBLIC_UPLOADS_DIR, fs.constants.R_OK | fs.constants.W_OK);
-    return {
-      name: "uploads_dir",
-      status: "ok",
-      latencyMs: Date.now() - startedAt,
-      message: "Diretório de uploads acessível.",
-      meta: { path: PUBLIC_UPLOADS_DIR },
-    };
-  } catch (error) {
-    return {
-      name: "uploads_dir",
-      status: "warning",
-      latencyMs: Date.now() - startedAt,
-      message: String(error?.message || error || "uploads_dir_unavailable"),
-      meta: { path: PUBLIC_UPLOADS_DIR },
-    };
-  }
-};
-
-const evaluateOperationalMonitoring = async () => {
-  const dbCheck = await probeDbHealthCheck();
-  const repositoryHealth = getRepositoryHealthSnapshot();
-  const checks = [
-    dbCheck,
-    buildRepositoryHealthCheck(),
-    buildBackgroundJobQueueHealthCheck(),
-    buildRateLimiterHealthCheck(),
-    await probeUploadsDirHealthCheck(),
-    buildSessionConfigHealthCheck(),
-    buildMaintenanceHealthCheck(),
-  ];
-  const health = buildHealthStatusResponse({
-    checks,
-    dataSource: dataRepository?.getDataSource?.() || "db",
-    maintenanceMode: isMaintenanceMode,
-    ts: new Date().toISOString(),
-  });
-  const alerts = buildOperationalAlertsV1({
-    maintenanceMode: isMaintenanceMode,
-    dbCheck,
-    repositoryHealth,
-    session: {
-      usesDefaultSecretInProduction: sessionCookieConfig.usesDefaultSecretInProduction,
-    },
-    thresholds: {
-      dbLatencyWarningMs: OPS_ALERTS_DB_LATENCY_WARNING_MS,
-    },
-    now: health.ts,
-  });
-  const alertsResponse = buildOperationalAlertsResponse({
-    alerts,
-    checks: health.checks,
-    generatedAt: health.ts,
-  });
-  return {
-    ts: health.ts,
-    checks: health.checks,
-    health,
-    alerts: alertsResponse,
-    repositoryHealth,
-    dbCheck,
-  };
-};
 
 const setNoStoreJson = (res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -6153,502 +5409,81 @@ const buildRuntimeMetadata = () => ({
   ...getBuildMetadata(),
 });
 
-registerSessionRoutes({
-  app,
-  apiContractVersion: API_CONTRACT_VERSION,
-  buildApiContractV1Payload: () =>
-    buildApiContractV1({
-      capabilities: {
-        project_epub_import_async: isEpubImportJobStorageAvailable(),
-        project_manga_import_async: isProjectImageImportJobStorageAvailable(),
-      },
-    }),
-  buildRuntimeMetadata,
-  buildUserPayload,
-  proxyDiscordAvatarRequest,
-});
+const earlyDirectRouteDependencies = buildDirectRouteDependencies(
+  {
+    routes: ["session", "operational"],
+  },
+  {
+    app,
+    apiContractVersion: API_CONTRACT_VERSION,
+    buildApiContractV1Payload: () =>
+      buildApiContractV1({
+        capabilities: {
+          project_epub_import_async: isEpubImportJobStorageAvailable(),
+          project_manga_import_async: isProjectImageImportJobStorageAvailable(),
+        },
+      }),
+    buildRuntimeMetadata,
+    buildUserPayload,
+    evaluateOperationalMonitoring,
+    isMetricsEnabled,
+    loadSecurityEvents,
+    loadUserSessionIndexRecords,
+    metricsRegistry,
+    metricsTokenNormalized: METRICS_TOKEN_NORMALIZED,
+    proxyDiscordAvatarRequest,
+    securityEventStatusOpen: SecurityEventStatus.OPEN,
+  },
+);
 
-registerOperationalRoutes({
-  app,
-  buildRuntimeMetadata,
-  evaluateOperationalMonitoring,
-  isMetricsEnabled,
-  loadSecurityEvents,
-  loadUserSessionIndexRecords,
-  metricsRegistry,
-  metricsTokenNormalized: METRICS_TOKEN_NORMALIZED,
-  securityEventStatusOpen: SecurityEventStatus.OPEN,
-});
+registerSessionRoutes(earlyDirectRouteDependencies.session);
+registerOperationalRoutes(earlyDirectRouteDependencies.operational);
 
-const WEBHOOK_STATE_KEY_OPS_ALERTS_BASELINE = "ops_alerts_baseline";
 const WEBHOOK_WORKER_POLL_INTERVAL_MS = 5_000;
 const OPERATIONAL_ALERTS_SCHEDULER_POLL_MS = 5_000;
 
-const operationalAlertsWebhookState = {
-  inFlight: null,
-  timer: null,
-  lastStartedAt: 0,
-};
-const webhookDeliveryWorkerState = {
-  inFlight: null,
-  timer: null,
-  workerId: createWebhookWorkerId("backend-webhook"),
-};
 const analyticsCompactionState = {
   timer: null,
 };
 
-const buildOperationalDashboardUrl = () => `${PRIMARY_APP_ORIGIN}/dashboard`;
-
-const loadOperationalWebhookSettings = () => loadIntegrationSettings().operational;
-
-const loadSecurityWebhookSettings = () => loadIntegrationSettings().security;
-
-const loadWebhookSettingsSources = () => loadIntegrationSettingsSources();
-
-const resolveOperationalWebhookIntervalMs = (settings) =>
-  Math.min(
-    Math.max(
-      Math.floor(Number(settings?.intervalMs) || OPERATIONAL_WEBHOOK_INTERVAL_DEFAULT_MS),
-      OPERATIONAL_WEBHOOK_INTERVAL_MIN_MS,
-    ),
-    OPERATIONAL_WEBHOOK_INTERVAL_MAX_MS,
-  );
-
-const loadOperationalAlertsBaseline = () => {
-  const state = loadWebhookState(WEBHOOK_STATE_KEY_OPS_ALERTS_BASELINE);
-  return Array.isArray(state?.data?.alerts) ? state.data.alerts : [];
-};
-
-const writeOperationalAlertsBaseline = ({ alerts = [], generatedAt = "" } = {}) =>
-  writeWebhookState(WEBHOOK_STATE_KEY_OPS_ALERTS_BASELINE, {
-    alerts: Array.isArray(alerts) ? alerts : [],
-    generatedAt: String(generatedAt || new Date().toISOString()),
-  });
-
-const buildWebhookFailureDetail = (result) =>
-  String(result?.bodyText || result?.message || result?.code || "")
-    .trim()
-    .slice(0, 500);
-
-const appendWebhookQueuedAuditLog = ({ scope, delivery, req } = {}) => {
-  const auditConfig = resolveWebhookAuditActions(scope);
-  appendAuditLog(req || createWebhookAuditReqFromContext(delivery?.context), auditConfig.queuedAction, auditConfig.resource, {
-    ...buildWebhookAuditMeta(delivery),
-    attempt: 0,
-  });
-};
-
-const appendWebhookDeliveryAttemptAuditLog = ({ delivery, result, nextAttemptAt = null, terminal = false } = {}) => {
-  const auditConfig = resolveWebhookAuditActions(delivery?.scope);
-  const action = result?.ok ? auditConfig.sentAction : auditConfig.failedAction;
-  appendAuditLog(
-    createWebhookAuditReqFromContext(delivery?.context),
-    action,
-    auditConfig.resource,
-    {
-      ...buildWebhookAuditMeta(delivery),
-      status: result?.ok ? "sent" : terminal ? "failed" : "retrying",
-      code: result?.code || null,
-      statusCode: result?.statusCode || null,
-      attempt: result?.attempt || null,
-      durationMs: result?.durationMs || null,
-      nextAttemptAt,
-      error: result?.ok ? null : buildWebhookFailureDetail(result) || null,
-    },
-  );
-};
-
-const resolveWebhookDeliveryTimeoutMs = (delivery) => {
-  const timeoutMs = delivery?.context?.timeoutMs;
-  return clampWebhookInteger(timeoutMs, 1000, 30000, 5000);
-};
-
-const processWebhookDelivery = async (delivery) => {
-  const now = new Date();
-  const attemptedCount = clampWebhookInteger(delivery?.attemptCount, 0, 1000, 0) + 1;
-  const result = await dispatchWebhookMessage({
-    provider: delivery?.provider,
-    webhookUrl: delivery?.targetUrl,
-    message: delivery?.payload,
-    timeoutMs: resolveWebhookDeliveryTimeoutMs(delivery),
-    retries: 0,
-  });
-  const updatedBase = {
-    ...delivery,
-    attemptCount: attemptedCount,
-    lastAttemptAt: now.toISOString(),
-    lastStatusCode: result?.statusCode || null,
-    lastErrorCode: result?.ok ? null : result?.code || null,
-    lastError: result?.ok ? null : buildWebhookFailureDetail(result) || null,
-    processingOwner: null,
-    processingStartedAt: null,
-    updatedAt: now.toISOString(),
-  };
-  if (result.ok) {
-    const persisted = upsertWebhookDelivery({
-      ...updatedBase,
-      status: WEBHOOK_DELIVERY_STATUS.SENT,
-      nextAttemptAt: null,
-      sentAt: now.toISOString(),
-    });
-    appendWebhookDeliveryAttemptAuditLog({
-      delivery: persisted || updatedBase,
-      result: { ...result, attempt: attemptedCount },
-      terminal: true,
-    });
-    return persisted || updatedBase;
-  }
-
-  if (result.retryable && attemptedCount < clampWebhookInteger(delivery?.maxAttempts, 1, 10, 1)) {
-    const delayMs = computeWebhookRetryDelayMs({
-      attemptCount: attemptedCount,
-      retryAfterMs: result?.retryAfterMs,
-    });
-    const nextAttemptAt = new Date(Date.now() + delayMs).toISOString();
-    const persisted = upsertWebhookDelivery({
-      ...updatedBase,
-      status: WEBHOOK_DELIVERY_STATUS.RETRYING,
-      nextAttemptAt,
-    });
-    appendWebhookDeliveryAttemptAuditLog({
-      delivery: persisted || updatedBase,
-      result: { ...result, attempt: attemptedCount },
-      nextAttemptAt,
-      terminal: false,
-    });
-    return persisted || updatedBase;
-  }
-
-  const persisted = upsertWebhookDelivery({
-    ...updatedBase,
-    status: WEBHOOK_DELIVERY_STATUS.FAILED,
-    nextAttemptAt: null,
-  });
-  appendWebhookDeliveryAttemptAuditLog({
-    delivery: persisted || updatedBase,
-    result: { ...result, attempt: attemptedCount },
-    terminal: true,
-  });
-  return persisted || updatedBase;
-};
-
-const runWebhookDeliveryWorkerTick = async () => {
-  if (webhookDeliveryWorkerState.inFlight) {
-    return webhookDeliveryWorkerState.inFlight;
-  }
-  webhookDeliveryWorkerState.inFlight = (async () => {
-    let processed = 0;
-    try {
-      while (true) {
-        const delivery = await claimWebhookDelivery({
-          workerId: webhookDeliveryWorkerState.workerId,
-          now: new Date().toISOString(),
-        });
-        if (!delivery) {
-          break;
-        }
-        processed += 1;
-        await processWebhookDelivery(delivery);
-      }
-      return { ok: true, processed };
-    } catch (error) {
-      console.error("[webhook-worker] failed", error);
-      return {
-        ok: false,
-        processed,
-        error: String(error?.message || error || "webhook_worker_failed"),
-      };
-    } finally {
-      webhookDeliveryWorkerState.inFlight = null;
-    }
-  })();
-  return webhookDeliveryWorkerState.inFlight;
-};
-
-const buildSecurityWebhookPayloadLegacy = (event) => {
-  const title = `Evento crítico de segurança: ${String(event?.type || "security_event")}`;
-  const description = [
-    `Status: ${String(event?.status || "open")}`,
-    `Risco: ${Number(event?.riskScore || 0)}`,
-    event?.actorUserId ? `Ator: ${event.actorUserId}` : "",
-    event?.targetUserId ? `Alvo: ${event.targetUserId}` : "",
-    event?.ip ? `IP: ${event.ip}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-  return {
-    content: "Alerta crítico de segurança detectado.",
-    embeds: [
-      {
-        title,
-        description: description || "Sem detalhes adicionais.",
-        color: 0xff4d4f,
-        timestamp: new Date(event?.ts || Date.now()).toISOString(),
-        fields: [
-          {
-            name: "Dashboard",
-            value: buildOperationalDashboardUrl(),
-            inline: false,
-          },
-          {
-            name: "Event ID",
-            value: String(event?.id || "unknown"),
-            inline: false,
-          },
-        ],
-      },
-    ],
-    allowed_mentions: { parse: [] },
-  };
-};
-
-const buildSecurityWebhookPayload = (event) => {
-  const title = `Evento crítico de segurança: ${String(event?.type || "security_event")}`;
-  const description = [
-    `Status: ${String(event?.status || "open")}`,
-    `Risco: ${Number(event?.riskScore || 0)}`,
-    event?.actorUserId ? `Ator: ${event.actorUserId}` : "",
-    event?.targetUserId ? `Alvo: ${event.targetUserId}` : "",
-    event?.ip ? `IP: ${event.ip}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-  return {
-    content: "Alerta crítico de segurança detectado.",
-    embeds: [
-      {
-        title,
-        description: description || "Sem detalhes adicionais.",
-        color: 0xff4d4f,
-        timestamp: new Date(event?.ts || Date.now()).toISOString(),
-        fields: [
-          {
-            name: "Dashboard",
-            value: buildOperationalDashboardUrl(),
-            inline: false,
-          },
-          {
-            name: "Event ID",
-            value: String(event?.id || "unknown"),
-            inline: false,
-          },
-        ],
-      },
-    ],
-    allowed_mentions: { parse: [] },
-  };
-};
-
-const buildOperationalAlertsWebhookPayload = ({ transition, generatedAt }) =>
-  toDiscordWebhookPayload(
-    buildOperationalAlertsWebhookNotification({
-      transition,
-      dashboardUrl: buildOperationalDashboardUrl(),
-      generatedAt,
-    }),
-  );
-
-const dispatchCriticalSecurityEventWebhook = async (event) => {
-  const securitySettings = loadSecurityWebhookSettings();
-  if (!event || securitySettings.enabled !== true) {
-    return { ok: false, status: "skipped", code: "disabled" };
-  }
-  if (!securitySettings.webhookUrl) {
-    return { ok: false, status: "skipped", code: "missing_webhook_url" };
-  }
-  if (securitySettings.provider !== "discord") {
-    return { ok: false, status: "skipped", code: "unsupported_provider" };
-  }
-  const payload = buildSecurityWebhookPayload(event);
-  const title = `Evento crítico de segurança: ${String(event.type || "security_event")}`;
-  const description = [
-    `Status: ${String(event.status || "open")}`,
-    `Risco: ${Number(event.riskScore || 0)}`,
-    event.actorUserId ? `Ator: ${event.actorUserId}` : "",
-    event.targetUserId ? `Alvo: ${event.targetUserId}` : "",
-    event.ip ? `IP: ${event.ip}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-  const payloadLegacy = {
-    content: "Alerta crítico de segurança detectado.",
-    embeds: [
-      {
-        title,
-        description: description || "Sem detalhes adicionais.",
-        color: 0xff4d4f,
-        timestamp: new Date(event.ts || Date.now()).toISOString(),
-        fields: [
-          {
-            name: "Dashboard",
-            value: buildOperationalDashboardUrl(),
-            inline: false,
-          },
-          {
-            name: "Event ID",
-            value: String(event.id || "unknown"),
-            inline: false,
-          },
-        ],
-      },
-    ],
-    allowed_mentions: { parse: [] },
-  };
-  const queued = enqueueWebhookDelivery({
-    scope: WEBHOOK_DELIVERY_SCOPE.SECURITY,
-    provider: "discord",
-    webhookUrl: securitySettings.webhookUrl,
-    payload,
-    timeoutMs: securitySettings.timeoutMs,
-    maxAttempts: 4,
-    targetLabel: buildWebhookTargetLabel(securitySettings.webhookUrl),
-    context: {
-      eventLabel: String(event.type || "security_event"),
-      securityEventId: String(event.id || ""),
-      actorId: "system",
-      actorName: "System",
-      requestId: `security-webhook-${String(event.id || crypto.randomUUID())}`,
-    },
-  });
-  if (!queued.ok) {
-    appendAuditLog(createSystemAuditReq(), "security.webhook.failed", "security", {
-      id: event.id,
-      type: event.type,
-      severity: event.severity,
-      code: queued.code || null,
-    });
-    return queued;
-  }
-  appendWebhookQueuedAuditLog({
-    scope: WEBHOOK_DELIVERY_SCOPE.SECURITY,
-    delivery: queued.delivery,
-    req: createSystemAuditReq(),
-  });
-  void runWebhookDeliveryWorkerTick();
-  return queued;
-};
-
-const dispatchOperationalAlertsWebhookTransition = async ({ transition, generatedAt }) => {
-  const operationalSettings = loadOperationalWebhookSettings();
-  if (!transition?.hasChanges) {
-    return { ok: false, status: "skipped", code: "no_change" };
-  }
-
-  if (operationalSettings.enabled !== true) {
-    appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.skipped", "system", {
-      reason: "disabled",
-      changes:
-        Number(transition.triggered?.length || 0) +
-        Number(transition.changed?.length || 0) +
-        Number(transition.resolved?.length || 0),
-    });
-    return { ok: false, status: "skipped", code: "disabled" };
-  }
-
-  if (!operationalSettings.webhookUrl) {
-    appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.skipped", "system", {
-      reason: "missing_webhook_url",
-    });
-    return { ok: false, status: "skipped", code: "missing_webhook_url" };
-  }
-
-  if (operationalSettings.provider !== "discord") {
-    appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.skipped", "system", {
-      reason: "unsupported_provider",
-      provider: operationalSettings.provider,
-    });
-    return { ok: false, status: "skipped", code: "unsupported_provider" };
-  }
-
-  const payload = buildOperationalAlertsWebhookPayload({ transition, generatedAt });
-  const queued = enqueueWebhookDelivery({
-    scope: WEBHOOK_DELIVERY_SCOPE.OPS_ALERTS,
-    provider: operationalSettings.provider,
-    webhookUrl: operationalSettings.webhookUrl,
-    payload,
-    timeoutMs: operationalSettings.timeoutMs,
-    maxAttempts: 4,
-    targetLabel: buildWebhookTargetLabel(operationalSettings.webhookUrl),
-    context: {
-      eventLabel: "Alertas operacionais",
-      triggeredCount: Number(transition.triggered?.length || 0),
-      changedCount: Number(transition.changed?.length || 0),
-      resolvedCount: Number(transition.resolved?.length || 0),
-      generatedAt: String(generatedAt || ""),
-      actorId: "system",
-      actorName: "System",
-      requestId: `ops-alerts-webhook-${crypto.randomUUID()}`,
-    },
-  });
-  if (!queued.ok) {
-    appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.failed", "system", {
-      provider: operationalSettings.provider,
-      code: queued.code || "delivery_enqueue_failed",
-    });
-    return queued;
-  }
-  appendWebhookQueuedAuditLog({
-    scope: WEBHOOK_DELIVERY_SCOPE.OPS_ALERTS,
-    delivery: queued.delivery,
-    req: createSystemAuditReq(),
-  });
-  void runWebhookDeliveryWorkerTick();
-  return queued;
-};
-
-const runOperationalAlertsWebhookTick = async () => {
-  if (operationalAlertsWebhookState.inFlight) {
-    return operationalAlertsWebhookState.inFlight;
-  }
-  operationalAlertsWebhookState.inFlight = (async () => {
-    try {
-      const snapshot = await evaluateOperationalMonitoring();
-      const transition = diffOperationalAlertSets({
-        previousAlerts: loadOperationalAlertsBaseline(),
-        currentAlerts: snapshot.alerts.alerts,
-      });
-      const result = await dispatchOperationalAlertsWebhookTransition({
-        transition,
-        generatedAt: snapshot.alerts.generatedAt,
-      });
-      if (result.ok) {
-        writeOperationalAlertsBaseline({
-          alerts: Array.isArray(snapshot.alerts.alerts) ? snapshot.alerts.alerts : [],
-          generatedAt: snapshot.alerts.generatedAt,
-        });
-      }
-      return result;
-    } catch (error) {
-      appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.failed", "system", {
-        provider: operationalSettings.provider,
-        code: "tick_failed",
-        error: String(error?.message || error || "tick_failed"),
-      });
-      return { ok: false, status: "failed", code: "tick_failed" };
-    } finally {
-      operationalAlertsWebhookState.inFlight = null;
-    }
-  })();
-  return operationalAlertsWebhookState.inFlight;
-};
-
-const runOperationalAlertsSchedulerTick = async () => {
-  const operationalSettings = loadOperationalWebhookSettings();
-  if (operationalSettings.enabled !== true) {
-    return { ok: false, status: "skipped", code: "disabled" };
-  }
-  const now = Date.now();
-  const intervalMs = resolveOperationalWebhookIntervalMs(operationalSettings);
-  if (
-    operationalAlertsWebhookState.lastStartedAt > 0 &&
-    now - operationalAlertsWebhookState.lastStartedAt < intervalMs
-  ) {
-    return { ok: false, status: "skipped", code: "not_due" };
-  }
-  operationalAlertsWebhookState.lastStartedAt = now;
-  return runOperationalAlertsWebhookTick();
-};
+const {
+  appendWebhookQueuedAuditLog,
+  buildOperationalAlertsWebhookPayload,
+  buildSecurityWebhookPayload,
+  dispatchCriticalSecurityEventWebhook,
+  operationalAlertsWebhookState,
+  runOperationalAlertsSchedulerTick,
+  runWebhookDeliveryWorkerTick,
+  webhookDeliveryWorkerState,
+} = createOperationalWebhooksRuntime({
+  appendAuditLog,
+  buildOperationalAlertsWebhookNotification,
+  buildWebhookAuditMeta,
+  buildWebhookTargetLabel,
+  clampWebhookInteger,
+  claimWebhookDelivery,
+  computeWebhookRetryDelayMs,
+  createRequestId: () => crypto.randomUUID(),
+  createSystemAuditReq,
+  createWebhookAuditReqFromContext,
+  createWebhookWorkerId,
+  diffOperationalAlertSets,
+  dispatchWebhookMessage,
+  enqueueWebhookDelivery,
+  evaluateOperationalMonitoring,
+  loadIntegrationSettings,
+  loadWebhookState,
+  operationalWebhookIntervalDefaultMs: OPERATIONAL_WEBHOOK_INTERVAL_DEFAULT_MS,
+  operationalWebhookIntervalMaxMs: OPERATIONAL_WEBHOOK_INTERVAL_MAX_MS,
+  operationalWebhookIntervalMinMs: OPERATIONAL_WEBHOOK_INTERVAL_MIN_MS,
+  primaryAppOrigin: PRIMARY_APP_ORIGIN,
+  resolveWebhookAuditActions,
+  toDiscordWebhookPayload,
+  upsertWebhookDelivery,
+  webhookDeliveryScope: WEBHOOK_DELIVERY_SCOPE,
+  webhookDeliveryStatus: WEBHOOK_DELIVERY_STATUS,
+  writeWebhookState,
+});
 
 const requireAuth = (req, res, next) => {
   if (!req.session?.user) {
@@ -6671,36 +5506,43 @@ const requirePrimaryOwner = (req, res, next) => {
   return next();
 };
 
-registerSelfServiceRoutes({
-  app,
-  appendAuditLog,
-  buildMySecuritySummary,
-  clearEnrollmentFromSession,
-  dataEncryptionKeyring,
-  deleteUserMfaTotpRecord,
-  encryptStringWithKeyring,
-  generateRecoveryCodes,
-  handleMfaFailureSecuritySignals,
-  hashRecoveryCode,
-  isPlainObject,
-  isTotpEnabledForUser,
-  listActiveSessionsForUser,
-  metricsRegistry,
-  mfaRecoveryCodePepper: MFA_RECOVERY_CODE_PEPPER,
-  normalizeUserPreferences,
-  requireAuth,
-  resolveEnrollmentFromSession,
-  resolveMfaMetadata,
-  revokeSessionBySid,
-  saveSessionState,
-  startTotpEnrollment,
-  userPreferencesMaxBytes: USER_PREFERENCES_MAX_BYTES,
-  verifyTotpCode,
-  verifyTotpOrRecoveryCode,
-  loadUserPreferences,
-  writeUserMfaTotpRecord,
-  writeUserPreferences,
-});
+const selfServiceRouteDependencies = buildDirectRouteDependencies(
+  {
+    routes: ["selfService"],
+  },
+  {
+    app,
+    appendAuditLog,
+    buildMySecuritySummary,
+    clearEnrollmentFromSession,
+    dataEncryptionKeyring,
+    deleteUserMfaTotpRecord,
+    encryptStringWithKeyring,
+    generateRecoveryCodes,
+    handleMfaFailureSecuritySignals,
+    hashRecoveryCode,
+    isPlainObject,
+    isTotpEnabledForUser,
+    listActiveSessionsForUser,
+    loadUserPreferences,
+    metricsRegistry,
+    mfaRecoveryCodePepper: MFA_RECOVERY_CODE_PEPPER,
+    normalizeUserPreferences,
+    requireAuth,
+    resolveEnrollmentFromSession,
+    resolveMfaMetadata,
+    revokeSessionBySid,
+    saveSessionState,
+    startTotpEnrollment,
+    userPreferencesMaxBytes: USER_PREFERENCES_MAX_BYTES,
+    verifyTotpCode,
+    verifyTotpOrRecoveryCode,
+    writeUserMfaTotpRecord,
+    writeUserPreferences,
+  },
+);
+
+registerSelfServiceRoutes(selfServiceRouteDependencies.selfService);
 
 const canManageSecurityAdmin = (userId) => {
   if (!userId) {
@@ -6747,276 +5589,33 @@ const updateSecurityEventStatus = ({ eventId, status, actorUserId } = {}) => {
   return updated;
 };
 
-const EXPORT_HEADERS_BY_DATASET = Object.freeze({
-  audit_log: [
-    "id",
-    "ts",
-    "actorId",
-    "actorName",
-    "action",
-    "resource",
-    "resourceId",
-    "status",
-    "ip",
-    "requestId",
-    "meta",
-  ],
-  security_events: [
-    "id",
-    "ts",
-    "type",
-    "severity",
-    "riskScore",
-    "status",
-    "actorUserId",
-    "targetUserId",
-    "ip",
-    "userAgent",
-    "requestId",
-    "data",
-  ],
-  users: ["id", "name", "status", "accessRole", "permissions", "roles", "isOwner", "updatedAt"],
-  sessions: [
-    "sid",
-    "userId",
-    "createdAt",
-    "lastSeenAt",
-    "lastIp",
-    "userAgent",
-    "revokedAt",
-    "revokedBy",
-    "revokeReason",
-    "isPendingMfa",
-  ],
+const {
+  enqueueAdminExportJob,
+  toAdminExportJobApiResponse,
+} = createAdminExportRuntime({
+  AccessRole,
+  adminExportMaxRows: ADMIN_EXPORT_MAX_ROWS,
+  adminExportTtlHours: ADMIN_EXPORT_TTL_HOURS,
+  adminExportsDir,
+  appendAuditLog,
+  backgroundJobQueue,
+  createSystemAuditReq,
+  filterByDateRange,
+  filterExportEntries,
+  loadAdminExportJobs,
+  loadAuditLog,
+  loadOwnerIds,
+  loadSecurityEvents,
+  loadUserSessionIndexRecords,
+  loadUsers,
+  metricsRegistry,
+  normalizeExportDataset,
+  normalizeExportFilters,
+  normalizeExportStatus,
+  normalizeUsers: (...args) => normalizeUsers(...args),
+  upsertAdminExportJob,
+  writeExportFile,
 });
-
-const buildExportRowsByDataset = ({ dataset, filters }) => {
-  const normalizedDataset = normalizeExportDataset(dataset);
-  const normalizedFilters = normalizeExportFilters(filters);
-
-  if (normalizedDataset === "audit_log") {
-    let rows = loadAuditLog();
-    rows = filterByDateRange(rows, {
-      dateFrom: normalizedFilters.dateFrom,
-      dateTo: normalizedFilters.dateTo,
-      tsAccessor: (entry) => entry.ts,
-    });
-    rows = filterExportEntries(rows, normalizedFilters, {
-      fieldAccessors: {
-        actorUserId: (entry) => entry.actorId,
-        targetUserId: (entry) => entry.resourceId,
-        action: (entry) => entry.action,
-        resource: (entry) => entry.resource,
-        status: (entry) => entry.status,
-      },
-    });
-    const mapped = rows.slice(0, ADMIN_EXPORT_MAX_ROWS).map((entry) => ({
-      id: entry.id,
-      ts: entry.ts,
-      actorId: entry.actorId,
-      actorName: entry.actorName,
-      action: entry.action,
-      resource: entry.resource,
-      resourceId: entry.resourceId || "",
-      status: entry.status,
-      ip: entry.ip || "",
-      requestId: entry.requestId || "",
-      meta: entry.meta || {},
-    }));
-    return {
-      headers: EXPORT_HEADERS_BY_DATASET.audit_log,
-      rows: mapped,
-      truncated: rows.length > mapped.length,
-    };
-  }
-
-  if (normalizedDataset === "security_events") {
-    let rows = loadSecurityEvents();
-    rows = filterByDateRange(rows, {
-      dateFrom: normalizedFilters.dateFrom,
-      dateTo: normalizedFilters.dateTo,
-      tsAccessor: (entry) => entry.ts,
-    });
-    rows = filterExportEntries(rows, normalizedFilters, {
-      fieldAccessors: {
-        actorUserId: (entry) => entry.actorUserId,
-        targetUserId: (entry) => entry.targetUserId,
-        action: (entry) => entry.type,
-        severity: (entry) => entry.severity,
-        status: (entry) => entry.status,
-      },
-    });
-    const mapped = rows.slice(0, ADMIN_EXPORT_MAX_ROWS).map((entry) => ({
-      id: entry.id,
-      ts: entry.ts,
-      type: entry.type,
-      severity: entry.severity,
-      riskScore: Number(entry.riskScore || 0),
-      status: entry.status,
-      actorUserId: entry.actorUserId || "",
-      targetUserId: entry.targetUserId || "",
-      ip: entry.ip || "",
-      userAgent: entry.userAgent || "",
-      requestId: entry.requestId || "",
-      data: entry.data || {},
-    }));
-    return {
-      headers: EXPORT_HEADERS_BY_DATASET.security_events,
-      rows: mapped,
-      truncated: rows.length > mapped.length,
-    };
-  }
-
-  if (normalizedDataset === "users") {
-    const ownerIds = new Set(loadOwnerIds().map((entry) => String(entry)));
-    let rows = normalizeUsers(loadUsers()).map((entry) => ({
-      id: entry.id,
-      name: entry.name || "",
-      status: entry.status || "active",
-      accessRole: entry.accessRole || AccessRole.NORMAL,
-      permissions: Array.isArray(entry.permissions) ? entry.permissions : [],
-      roles: Array.isArray(entry.roles) ? entry.roles : [],
-      isOwner: ownerIds.has(String(entry.id)),
-      updatedAt: entry.updatedAt || "",
-    }));
-    rows = filterExportEntries(rows, normalizedFilters, {
-      fieldAccessors: {
-        actorUserId: (entry) => entry.id,
-        targetUserId: (entry) => entry.id,
-        status: (entry) => entry.status,
-      },
-    });
-    const mapped = rows.slice(0, ADMIN_EXPORT_MAX_ROWS);
-    return {
-      headers: EXPORT_HEADERS_BY_DATASET.users,
-      rows: mapped,
-      truncated: rows.length > mapped.length,
-    };
-  }
-
-  let sessionRows = loadUserSessionIndexRecords({ includeRevoked: true });
-  sessionRows = filterByDateRange(sessionRows, {
-    dateFrom: normalizedFilters.dateFrom,
-    dateTo: normalizedFilters.dateTo,
-    tsAccessor: (entry) => entry.lastSeenAt || entry.createdAt,
-  });
-  sessionRows = filterExportEntries(sessionRows, normalizedFilters, {
-    fieldAccessors: {
-      actorUserId: (entry) => entry.userId,
-      targetUserId: (entry) => entry.userId,
-      status: (entry) => (entry.revokedAt ? "revoked" : "active"),
-    },
-  });
-  const mapped = sessionRows.slice(0, ADMIN_EXPORT_MAX_ROWS).map((entry) => ({
-    sid: entry.sid,
-    userId: entry.userId,
-    createdAt: entry.createdAt || null,
-    lastSeenAt: entry.lastSeenAt || null,
-    lastIp: entry.lastIp || "",
-    userAgent: entry.userAgent || "",
-    revokedAt: entry.revokedAt || null,
-    revokedBy: entry.revokedBy || null,
-    revokeReason: entry.revokeReason || null,
-    isPendingMfa: Boolean(entry.isPendingMfa),
-  }));
-  return {
-    headers: EXPORT_HEADERS_BY_DATASET.sessions,
-    rows: mapped,
-    truncated: sessionRows.length > mapped.length,
-  };
-};
-
-const toAdminExportJobApiResponse = (job) => ({
-  id: job.id,
-  dataset: job.dataset,
-  format: job.format,
-  status: normalizeExportStatus(job.status),
-  requestedBy: job.requestedBy,
-  filters: job.filters || {},
-  rowCount: Number.isFinite(Number(job.rowCount)) ? Number(job.rowCount) : null,
-  error: job.error || null,
-  createdAt: job.createdAt || null,
-  startedAt: job.startedAt || null,
-  finishedAt: job.finishedAt || null,
-  expiresAt: job.expiresAt || null,
-  hasFile: Boolean(job.filePath),
-});
-
-const runAdminExportJob = async (jobId) => {
-  const current = loadAdminExportJobs().find(
-    (entry) => String(entry?.id || "") === String(jobId || ""),
-  );
-  if (!current) {
-    return null;
-  }
-  const nowIso = new Date().toISOString();
-  let processing = upsertAdminExportJob({
-    ...current,
-    status: "processing",
-    startedAt: nowIso,
-    finishedAt: null,
-    error: null,
-  });
-  try {
-    const payload = buildExportRowsByDataset({
-      dataset: processing.dataset,
-      filters: processing.filters,
-    });
-    const filePath = writeExportFile({
-      exportsDir: adminExportsDir,
-      fileName: `${processing.dataset}-${processing.id}`,
-      format: processing.format,
-      headers: payload.headers,
-      rows: payload.rows,
-    });
-    const finishedAt = new Date();
-    processing = upsertAdminExportJob({
-      ...processing,
-      status: "completed",
-      filePath,
-      rowCount: payload.rows.length,
-      finishedAt: finishedAt.toISOString(),
-      expiresAt: new Date(
-        finishedAt.getTime() + ADMIN_EXPORT_TTL_HOURS * 60 * 60 * 1000,
-      ).toISOString(),
-      error: payload.truncated ? "truncated_max_rows" : null,
-    });
-    appendAuditLog(createSystemAuditReq(), "admin.exports.completed", "exports", {
-      id: processing.id,
-      dataset: processing.dataset,
-      rowCount: payload.rows.length,
-    });
-    metricsRegistry.inc("export_jobs_total", {
-      status: "completed",
-      dataset: String(processing.dataset || "unknown"),
-    });
-    return processing;
-  } catch (error) {
-    const failed = upsertAdminExportJob({
-      ...processing,
-      status: "failed",
-      finishedAt: new Date().toISOString(),
-      error: String(error?.message || error || "export_failed"),
-    });
-    appendAuditLog(createSystemAuditReq(), "admin.exports.failed", "exports", {
-      id: current.id,
-      dataset: current.dataset,
-      error: String(error?.message || error || "export_failed"),
-    });
-    metricsRegistry.inc("export_jobs_total", {
-      status: "failed",
-      dataset: String(current.dataset || "unknown"),
-    });
-    return failed;
-  }
-};
-
-const enqueueAdminExportJob = (jobId) =>
-  backgroundJobQueue.enqueue({
-    type: "admin.export",
-    payload: { jobId },
-    run: async () => runAdminExportJob(jobId),
-  });
 
 const findEpubImportJobForUser = (jobId, actorId) =>
   loadEpubImportJobs().find(
@@ -7480,6 +6079,41 @@ const resolveEditorialAuthorFromPost = createResolveEditorialAuthorFromPost({
   loadUsers,
   normalizeTypeLookupKey,
   normalizeUsers,
+});
+
+const {
+  dispatchEditorialWebhookEvent,
+  findProjectChapterByEpisodeNumber,
+  prepareEditorialWebhookDispatch,
+  resolveProjectWebhookEventKey,
+} = createEditorialWebhooksRuntime({
+  appendAuditLog,
+  buildEditorialEventContext,
+  buildEditorialMentions,
+  buildEditorialWebhookImageContext,
+  buildWebhookAuditMeta,
+  buildWebhookTargetLabel,
+  clampWebhookInteger,
+  createSystemAuditReq,
+  deriveChapterSynopsis,
+  enqueueWebhookDelivery,
+  getActiveProjectTypes,
+  loadIntegrationSettings,
+  loadProjects,
+  loadSiteSettings,
+  loadTagTranslations,
+  normalizeEditorialWebhookSettings,
+  normalizeProjects,
+  primaryAppOrigin: PRIMARY_APP_ORIGIN,
+  renderWebhookTemplate,
+  resolveEditorialAuthorFromPost,
+  resolveEditorialEventChannel,
+  resolveEditorialEventLabel,
+  resolveEpisodeLookup,
+  runWebhookDeliveryWorkerTick,
+  toDiscordWebhookPayload,
+  validateWebhookUrlForProvider,
+  webhookDeliveryScope: WEBHOOK_DELIVERY_SCOPE,
 });
 
 const applyOwnerRole = (user) => {
@@ -8709,43 +7343,47 @@ const injectDashboardBootstrapHtml = ({ html, req, settings }) => {
   return nextHtml;
 };
 
-registerAuthRoutes({
-  app,
-  appendAuditLog,
-  buildAuthRedirectUrl,
-  canAttemptAuth,
-  createDiscordAvatarUrl,
-  discordApi: DISCORD_API,
-  discordClientId: DISCORD_CLIENT_ID,
-  discordClientSecret: DISCORD_CLIENT_SECRET,
-  ensureOwnerUser,
-  establishAuthenticatedSession,
-  getRequestIp,
-  handleAuthFailureSecuritySignals,
-  handleMfaFailureSecuritySignals,
-  isAllowedOrigin,
-  isTotpEnabledForUser,
-  loadAllowedUsers,
-  metricsRegistry,
-  maybeEmitExcessiveSessionsEvent,
-  maybeEmitNewNetworkLoginEvent,
-  primaryAppOrigin: PRIMARY_APP_ORIGIN,
-  resolveAuthAppOrigin,
-  resolveDiscordRedirectUri,
-  revokeUserSessionIndexRecord,
-  saveSessionState,
-  scopes: SCOPES,
-  sessionCookieConfig,
-  sessionIndexTouchTsBySid,
-  syncPersistedDiscordAvatarForLogin,
-  updateSessionIndexFromRequest,
-  verifyTotpOrRecoveryCode,
-});
+const { auth: authRouteDependencies } = buildDirectRouteDependencies(
+  {
+    routes: ["auth"],
+  },
+  {
+    app,
+    appendAuditLog,
+    buildAuthRedirectUrl,
+    canAttemptAuth,
+    createDiscordAvatarUrl,
+    discordApi: DISCORD_API,
+    discordClientId: DISCORD_CLIENT_ID,
+    discordClientSecret: DISCORD_CLIENT_SECRET,
+    ensureOwnerUser,
+    establishAuthenticatedSession,
+    getRequestIp,
+    handleAuthFailureSecuritySignals,
+    handleMfaFailureSecuritySignals,
+    isAllowedOrigin,
+    isTotpEnabledForUser,
+    loadAllowedUsers,
+    metricsRegistry,
+    maybeEmitExcessiveSessionsEvent,
+    maybeEmitNewNetworkLoginEvent,
+    primaryAppOrigin: PRIMARY_APP_ORIGIN,
+    resolveAuthAppOrigin,
+    resolveDiscordRedirectUri,
+    revokeUserSessionIndexRecord,
+    saveSessionState,
+    scopes: SCOPES,
+    sessionCookieConfig,
+    sessionIndexTouchTsBySid,
+    syncPersistedDiscordAvatarForLogin,
+    updateSessionIndexFromRequest,
+    verifyTotpOrRecoveryCode,
+  },
+);
 
-registerServerRoutes(
-  createServerRouteDependencies({
-    ADMIN_EXPORT_DATASETS,
-    AccessRole,
+const serverRouteConstantDependencies = {
+  ADMIN_EXPORT_DATASETS,
+  AccessRole,
   ANILIST_API,
   AUDIT_CSV_MAX_ROWS,
   BASIC_PROFILE_FIELDS,
@@ -8765,22 +7403,13 @@ registerServerRoutes(
   SecurityEventSeverity,
   SecurityEventStatus,
   WEBHOOK_DELIVERY_STATUS,
-  app,
-  appendAnalyticsEvent,
-  appendAuditLog,
-  appendPostVersion,
-  appendSecretRotation,
-  appendWebhookQueuedAuditLog,
-  applyCommentCountToPosts,
-  applyCommentCountToProjects,
-  applyEpisodePublicationMetadata,
-  applyOwnerRole,
-  applyPostSnapshotForRollback,
-  applyProjectChapterUpdate,
-  attachUploadMediaMetadata,
+};
+
+const serverRouteBuildDependencies = {
   buildAnalyticsRange,
   buildDashboardOverviewResponsePayload,
   buildEditorialCalendarItems,
+  buildGravatarUrl,
   buildInstitutionalOgDeliveryHeaders,
   buildInstitutionalPageMeta,
   buildLaunchesRssItems,
@@ -8796,7 +7425,6 @@ registerServerRoutes(
   buildProjectReadingMeta,
   buildProjectReadingOgDeliveryHeaders,
   buildPublicBootstrapResponsePayload,
-  buildPublicMediaVariants,
   buildPublicSearchSuggestions,
   buildPublicSitemapEntries,
   buildPublicTeamMembers,
@@ -8807,7 +7435,9 @@ registerServerRoutes(
   buildSiteMetaWithSettings,
   buildSitemapXml,
   buildUserProfileRevisionToken,
-  bulkModeratePendingComments,
+};
+
+const serverRouteCanDependencies = {
   can,
   canBootstrap,
   canManageComments,
@@ -8826,14 +7456,131 @@ registerServerRoutes(
   canUploadImage,
   canViewAnalytics,
   canViewAuditLog,
+};
+
+const serverRouteLoadDependencies = {
+  loadAdminExportJobs,
+  loadAllowedUsers,
+  loadAnalyticsEvents,
+  loadAuditLog,
+  loadCachedUploadsCleanupPreview,
+  loadComments,
+  loadIntegrationSettings,
+  loadIntegrationSettingsSources,
+  loadLinkTypes,
+  loadOwnerIds,
+  loadPages,
+  loadPostVersions,
+  loadPosts,
+  loadProjects,
+  loadSecretRotations,
+  loadSecurityEvents,
+  loadSiteSettings,
+  loadTagTranslations,
+  loadUpdates,
+  loadUploads,
+  loadUserSessionIndexRecords,
+  loadUsers,
+  loadWebhookDeliveries,
+};
+
+const serverRouteNormalizeDependencies = {
+  normalizeAccessRole,
+  normalizeAnalyticsTypeFilter,
+  normalizeAvatarDisplay,
+  normalizeEditorialWebhookSettings,
+  normalizeEmail,
+  normalizeExportDataset,
+  normalizeExportFilters,
+  normalizeExportFormat,
+  normalizeExportStatus,
+  normalizeLinkTypes,
+  normalizePosts,
+  normalizeProjectEpisodeContentFormat,
+  normalizeProjectEpisodePages,
+  normalizeProjectSnapshotForEpubImport,
+  normalizeProjects,
+  normalizeSearchQuery,
+  normalizeSiteSettings,
+  normalizeTags,
+  normalizeUnifiedWebhookSettingsForRequest,
+  normalizeUploadMime,
+  normalizeUploadScopeUserId,
+  normalizeUsers,
+  normalizeVariants,
+};
+
+const serverRouteParseDependencies = {
+  parseAnalyticsRangeDays,
+  parseAnalyticsTs,
+  parseAuditTs,
+  parseDashboardNotificationsLimit,
+  parseEditRevisionOptions,
+  parseEpubImportRequestBody,
+  parseProjectImageImportRequestBody,
+  parseSearchLimit,
+  parseSearchScope,
+};
+
+const serverRouteResolveDependencies = {
+  resolveDiscordAvatarFallbackUrl,
+  resolveEditorialAuthorFromPost,
+  resolveEditorialEventChannel,
+  resolveEpisodeLookup,
+  resolveEpubImportRequestInput,
+  resolveGravatarAvatarUrl,
+  resolveIncomingUploadFocalState,
+  resolveInstitutionalOgPageKeyFromPath,
+  resolveInstitutionalOgPageTitle,
+  resolvePostCover,
+  resolvePostStatus,
+  resolveProjectImageImportRequestInput,
+  resolveProjectReaderConfig,
+  resolveProjectUpdateUnitLabel,
+  resolveProjectWebhookEventKey,
+  resolvePublicRedirect,
+  resolveRequestUploadAccessScope,
+  resolveThemeColor,
+  resolveUploadAbsolutePath,
+  resolveUploadVariantPresetKeysForArea,
+};
+
+const serverRouteWriteDependencies = {
+  writeComments,
+  writeIntegrationSettings,
+  writeLinkTypes,
+  writeOwnerIds,
+  writePages,
+  writePosts,
+  writeProjects,
+  writePublicCachedJson,
+  writeSiteSettings,
+  writeTagTranslations,
+  writeUpdates,
+  writeUploadBufferToStaging,
+  writeUploads,
+  writeUsers,
+};
+
+const serverRouteMiscDependencies = {
+  appendAnalyticsEvent,
+  appendAuditLog,
+  appendPostVersion,
+  appendSecretRotation,
+  appendWebhookQueuedAuditLog,
+  applyCommentCountToPosts,
+  applyCommentCountToProjects,
+  applyEpisodePublicationMetadata,
+  applyOwnerRole,
+  applyPostSnapshotForRollback,
+  applyProjectChapterUpdate,
+  attachUploadMediaMetadata,
+  bulkModeratePendingComments,
   cleanupProjectEpubImportTempUploads,
   cleanupUploadStagingWorkspace,
-  collectDownloadIconUploads,
   collectEpisodeUpdatesByVisibility,
-  collectLinkTypeIconUploads,
   computeBufferSha256,
   createGravatarHash,
-  buildGravatarUrl,
   createRevisionToken,
   createSlug,
   createUniqueSlug,
@@ -8854,8 +7601,8 @@ registerServerRoutes(
   enqueueEpubImportJob,
   enqueueProjectImageExportJob,
   enqueueProjectImageImportJob,
-  enqueueProjectOgPrewarm,
   ensureEditorialWebhookSettingsNoConflict,
+  ensureWebhookSettingsNoConflict,
   ensureNoEditConflict,
   ensureOwnerUser,
   ensureUploadEntryHasRequiredVariants,
@@ -8897,7 +7644,6 @@ registerServerRoutes(
   getUploadFolderFromUrlValue,
   getUploadMimeFromExtension,
   getUploadVariantUrlPrefix,
-  getUsedUploadUrls,
   getUserAccessContextById,
   hasOwnField,
   hasProjectEpisodePages,
@@ -8927,69 +7673,13 @@ registerServerRoutes(
   isWithinRestoreWindow,
   listActiveSessionsForUser,
   listPostVersions,
-  loadAdminExportJobs,
-  loadAllowedUsers,
-  loadAnalyticsEvents,
-  loadAuditLog,
-  loadCachedUploadsCleanupPreview,
-  loadComments,
-  loadIntegrationSettings,
-  loadIntegrationSettingsSources,
-  loadLinkTypes,
-  loadOwnerIds,
-  loadPages,
-  loadPostVersions,
-  loadPosts,
-  loadProjects,
-  loadSecretRotations,
-  loadSecurityEvents,
-  loadSiteSettings,
-  loadTagTranslations,
-  loadUpdates,
-  loadUploads,
-  loadUserSessionIndexRecords,
-  loadUsers,
-  loadWebhookDeliveries,
   localizeProjectImageFields,
-  logProjectOgDelivery,
   mapEpubImportExecutionError,
   mapProjectImageImportExecutionError,
   materializeUploadEntrySourceToStaging,
   metricsRegistry,
   migrateEditorialMentionPlaceholdersInSettings,
-  normalizeAccessRole,
-  normalizeAnalyticsTypeFilter,
-  normalizeAvatarDisplay,
-  normalizeEditorialWebhookSettings,
-  normalizeEmail,
-  normalizeExportDataset,
-  normalizeExportFilters,
-  normalizeExportFormat,
-  normalizeExportStatus,
-  normalizeLinkTypes,
-  normalizePosts,
-  normalizeProjectEpisodeContentFormat,
-  normalizeProjectEpisodePages,
-  normalizeProjectSnapshotForEpubImport,
-  normalizeProjects,
-  normalizeSearchQuery,
-  normalizeSiteSettings,
-  normalizeTags,
-  normalizeUnifiedWebhookSettingsForRequest,
-  normalizeUploadMime,
-  normalizeUploadScopeUserId,
-  normalizeUsers,
-  normalizeVariants,
   ogRenderCache,
-  parseAnalyticsRangeDays,
-  parseAnalyticsTs,
-  parseAuditTs,
-  parseDashboardNotificationsLimit,
-  parseEditRevisionOptions,
-  parseEpubImportRequestBody,
-  parseProjectImageImportRequestBody,
-  parseSearchLimit,
-  parseSearchScope,
   persistUploadEntryFromStaging,
   pickBasicProfilePatch,
   postVersionReasonLabel,
@@ -9008,27 +7698,6 @@ registerServerRoutes(
   renderMetaHtml,
   requireAuth,
   requirePrimaryOwner,
-  resolveEditorialAuthorFromPost,
-  resolveEditorialEventChannel,
-  resolveEpisodeLookup,
-  resolveEpubImportRequestInput,
-  resolveGravatarAvatarUrl,
-  resolveIncomingUploadFocalState,
-  resolveInstitutionalOgPageKeyFromPath,
-  resolveInstitutionalOgPageTitle,
-  resolveMetaImageVariantUrl,
-  resolvePostCover,
-  resolvePostStatus,
-  resolveProjectImageImportRequestInput,
-  resolveProjectReaderConfig,
-  resolveProjectUpdateUnitLabel,
-  resolveProjectWebhookEventKey,
-  resolveRequestUploadAccessScope,
-  resolvePublicRedirect,
-  resolveThemeColor,
-  resolveUploadAbsolutePath,
-  resolveUploadVariantPresetKeysForArea,
-  resolveDiscordAvatarFallbackUrl,
   revokeSessionBySid,
   runAutoUploadReorganization,
   runUploadsCleanup,
@@ -9073,22 +7742,24 @@ registerServerRoutes(
   validateUploadImageBuffer,
   withEffectiveAvatarUrl,
   withUserProfileRevision,
-  writeComments,
-  writeIntegrationSettings,
-  writeLinkTypes,
-  writeOwnerIds,
-  writePages,
-  writePosts,
-  writeProjects,
-  writePublicCachedJson,
-  writeSiteSettings,
-  writeTagTranslations,
-  writeUpdates,
-  writeUploadBufferToStaging,
-  writeUploads,
-    writeUsers,
-  }),
+};
+
+const serverRouteDependencySource = buildServerRouteDependencySource(
+  { app },
+  serverRouteConstantDependencies,
+  serverRouteBuildDependencies,
+  serverRouteCanDependencies,
+  serverRouteLoadDependencies,
+  serverRouteNormalizeDependencies,
+  serverRouteParseDependencies,
+  serverRouteResolveDependencies,
+  serverRouteWriteDependencies,
+  publicMediaRuntime,
+  serverRouteMiscDependencies,
 );
+
+registerAuthRoutes(authRouteDependencies);
+registerServerRoutes(createServerRouteDependencies(serverRouteDependencySource));
 
 const listenPort = Number(PORT);
 startServerJobs({
