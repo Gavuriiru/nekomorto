@@ -10,6 +10,8 @@ EXPECTED_MAINTENANCE="${EXPECTED_MAINTENANCE:-false}"
 APP_IMAGE_REPO="${APP_IMAGE_REPO:-ghcr.io/gavuriiru/nekomorto}"
 APP_IMAGE_TAG="${APP_IMAGE_TAG:-latest}"
 RUN_CATEGORY6_SMOKE="${RUN_CATEGORY6_SMOKE:-true}"
+PWA_SMOKE_EXPECT_PROD_HTML="${PWA_SMOKE_EXPECT_PROD_HTML:-true}"
+PUBLIC_MEDIA_SMOKE_ENABLED="${PUBLIC_MEDIA_SMOKE_ENABLED:-true}"
 SKIP_GIT_SYNC="${SKIP_GIT_SYNC:-false}"
 
 if [[ ! -d "${DEPLOY_PATH}" ]]; then
@@ -249,23 +251,19 @@ compose_cmd run --rm app npm run uploads:check-integrity -- --mode=fast
 echo "[deploy] Starting app + edge..."
 compose_cmd up -d app edge
 
-echo "[deploy] Validating critical PWA artifacts..."
-compose_cmd run --rm app sh -lc '
-  for file in dist/manifest.webmanifest dist/sw.js; do
-    if [ ! -f "$file" ]; then
-      echo "Missing critical PWA artifact: $file" >&2
-      exit 1
-    fi
-  done
-  echo "PWA artifacts detected: dist/manifest.webmanifest, dist/sw.js"
-'
-
 echo "[deploy] Running internal health checks..."
 compose_cmd run --rm app \
   node scripts/check-health.mjs \
   --base=http://app:8080 \
   --expect-source=db \
   --expect-maintenance="${EXPECTED_MAINTENANCE}"
+
+echo "[deploy] Running internal PWA/public smoke checks..."
+compose_cmd run --rm app \
+  node scripts/smoke-api.mjs \
+  --base=http://app:8080 \
+  --expect-prod-html="${PWA_SMOKE_EXPECT_PROD_HTML}" \
+  --check-public-media="${PUBLIC_MEDIA_SMOKE_ENABLED}"
 
 if [[ "${RUN_CATEGORY6_SMOKE}" == "true" ]]; then
   echo "[deploy] Running category6 internal smoke checks..."
@@ -276,6 +274,13 @@ fi
 
 echo "[deploy] Running external health check..."
 curl -fsS "${HEALTHCHECK_BASE_URL}/api/health" >/dev/null
+
+echo "[deploy] Running external PWA/public smoke checks..."
+compose_cmd run --rm app \
+  node scripts/smoke-api.mjs \
+  --base="${HEALTHCHECK_BASE_URL}" \
+  --expect-prod-html="${PWA_SMOKE_EXPECT_PROD_HTML}" \
+  --check-public-media="${PUBLIC_MEDIA_SMOKE_ENABLED}"
 
 if [[ "${RUN_CATEGORY6_SMOKE}" == "true" ]]; then
   echo "[deploy] Running category6 external smoke checks..."

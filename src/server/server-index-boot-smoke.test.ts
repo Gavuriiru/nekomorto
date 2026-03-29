@@ -1,0 +1,164 @@
+import * as http from "node:http";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const bootSmoke = vi.hoisted(() => {
+  const timerState = {
+    immediates: [] as Array<{ callback: (...args: unknown[]) => unknown; args: unknown[] }>,
+    intervals: [] as Array<{ callback: (...args: unknown[]) => unknown; delay: number }>,
+    cleared: [] as unknown[],
+  };
+  const rateLimiterInstance = {
+    close: vi.fn(async () => undefined),
+  };
+  const createRateLimiterMock = vi.fn(async () => rateLimiterInstance);
+  const createRepositoryStub = () =>
+    new Proxy(
+      {
+        loadSiteSettings: () => null,
+        writeSiteSettings: vi.fn(),
+      },
+      {
+        get(target, property, receiver) {
+          if (Reflect.has(target, property)) {
+            return Reflect.get(target, property, receiver);
+          }
+          if (typeof property === "string" && property.startsWith("load")) {
+            return () => [];
+          }
+          if (
+            typeof property === "string" &&
+            /^(append|delete|find|invalidate|upsert|write)/.test(property)
+          ) {
+            return () => null;
+          }
+          if (typeof property === "string" && property.startsWith("is")) {
+            return () => false;
+          }
+          return undefined;
+        },
+      },
+    );
+  const createDataRepositoryMock = vi.fn(async () => createRepositoryStub());
+
+  return {
+    createDataRepositoryMock,
+    createRateLimiterMock,
+    rateLimiterInstance,
+    timerState,
+  };
+});
+
+vi.mock("connect-pg-simple", () => {
+  class FakePgSessionStore {
+    constructor(_options: unknown) {}
+    get() {}
+    set() {}
+    destroy() {}
+    touch() {}
+    on() {}
+  }
+
+  return {
+    default: () => FakePgSessionStore,
+  };
+});
+
+vi.mock("pg", () => ({
+  Pool: class FakePool {
+    constructor(_options: unknown) {}
+    end() {}
+    on() {}
+  },
+}));
+
+vi.mock("../../server/lib/data-repository.js", () => ({
+  createDataRepository: bootSmoke.createDataRepositoryMock,
+}));
+
+vi.mock("../../server/lib/prisma-client.js", () => ({
+  prisma: {},
+}));
+
+vi.mock("../../server/lib/rate-limiter.js", () => ({
+  createRateLimiter: bootSmoke.createRateLimiterMock,
+}));
+
+vi.mock("../../server/lib/frontend-runtime.js", async () => {
+  const actual =
+    await vi.importActual<typeof import("../../server/lib/frontend-runtime.js")>(
+      "../../server/lib/frontend-runtime.js",
+    );
+  return {
+    ...actual,
+    createViteDevServer: vi.fn(async () => null),
+  };
+});
+
+const originalEnv = { ...process.env };
+
+describe.sequential("server/index boot smoke", () => {
+  afterEach(() => {
+    process.env = { ...originalEnv };
+    bootSmoke.timerState.immediates.length = 0;
+    bootSmoke.timerState.intervals.length = 0;
+    bootSmoke.timerState.cleared.length = 0;
+    vi.clearAllMocks();
+    vi.unstubAllGlobals();
+    vi.resetModules();
+    vi.restoreAllMocks();
+  });
+
+  it("imports the real composition root without binding a live port", async () => {
+    process.env = {
+      ...originalEnv,
+      DATABASE_URL: "postgres://neko:test@localhost:5432/nekomorto",
+      DISCORD_CLIENT_ID: "discord-client",
+      DISCORD_CLIENT_SECRET: "discord-secret",
+      NODE_ENV: "test",
+      PORT: "0",
+      SESSION_SECRET: "session-secret",
+    };
+
+    vi.stubGlobal(
+      "setImmediate",
+      vi.fn((callback: (...args: unknown[]) => unknown, ...args: unknown[]) => {
+        bootSmoke.timerState.immediates.push({ callback, args });
+        return { hasRef: () => false, ref: () => undefined, unref: () => undefined };
+      }),
+    );
+    vi.stubGlobal(
+      "setInterval",
+      vi.fn((callback: (...args: unknown[]) => unknown, delay?: number) => {
+        bootSmoke.timerState.intervals.push({ callback, delay: Number(delay || 0) });
+        return { hasRef: () => false, ref: () => undefined, unref: () => undefined };
+      }),
+    );
+    vi.stubGlobal(
+      "clearInterval",
+      vi.fn((handle: unknown) => {
+        bootSmoke.timerState.cleared.push(handle);
+      }),
+    );
+
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const listenSpy = vi
+      .spyOn(http.Server.prototype, "listen")
+      .mockImplementation(function (this: http.Server, _port, callback?: () => void) {
+        callback?.();
+        return this;
+      });
+    const onSpy = vi.spyOn(http.Server.prototype, "on");
+
+    await expect(import("../../server/index.js")).resolves.toBeTruthy();
+
+    expect(bootSmoke.createDataRepositoryMock).toHaveBeenCalledTimes(1);
+    expect(bootSmoke.createRateLimiterMock).toHaveBeenCalledTimes(1);
+    expect(listenSpy).toHaveBeenCalledWith(0, expect.any(Function));
+    expect(onSpy).toHaveBeenCalledWith("error", expect.any(Function));
+    expect(onSpy).toHaveBeenCalledWith("close", expect.any(Function));
+    expect(bootSmoke.timerState.immediates).toHaveLength(3);
+    expect(bootSmoke.timerState.intervals.length).toBeGreaterThanOrEqual(3);
+  }, 15000);
+});

@@ -1,0 +1,56 @@
+export const buildWebhookRuntimeDependencies = (dependencies = {}) => ({
+  OPERATIONAL_WEBHOOK_INTERVAL_DEFAULT_MS:
+    dependencies.OPERATIONAL_WEBHOOK_INTERVAL_DEFAULT_MS,
+  OPERATIONAL_WEBHOOK_INTERVAL_MAX_MS: dependencies.OPERATIONAL_WEBHOOK_INTERVAL_MAX_MS,
+  OPERATIONAL_WEBHOOK_INTERVAL_MIN_MS: dependencies.OPERATIONAL_WEBHOOK_INTERVAL_MIN_MS,
+  PRIMARY_APP_ORIGIN: dependencies.PRIMARY_APP_ORIGIN,
+  WEBHOOK_DELIVERY_SCOPE: dependencies.WEBHOOK_DELIVERY_SCOPE,
+  WEBHOOK_DELIVERY_STATUS: dependencies.WEBHOOK_DELIVERY_STATUS,
+  appendAuditLog: dependencies.appendAuditLog,
+  buildEditorialEventContext: dependencies.buildEditorialEventContext,
+  buildEditorialMentions: dependencies.buildEditorialMentions,
+  buildEditorialWebhookImageContext: dependencies.buildEditorialWebhookImageContext,
+  buildOperationalAlertsWebhookNotification:
+    dependencies.buildOperationalAlertsWebhookNotification,
+  buildWebhookAuditMeta: dependencies.buildWebhookAuditMeta,
+  buildWebhookTargetLabel: dependencies.buildWebhookTargetLabel,
+  claimWebhookDelivery: dependencies.claimWebhookDelivery,
+  clampWebhookInteger: dependencies.clampWebhookInteger,
+  computeWebhookRetryDelayMs: dependencies.computeWebhookRetryDelayMs,
+  createRequestId:
+    dependencies.createRequestId ??
+    (dependencies.crypto ? () => dependencies.crypto.randomUUID() : undefined),
+  createSystemAuditReq: dependencies.createSystemAuditReq,
+  createWebhookAuditReqFromContext: dependencies.createWebhookAuditReqFromContext,
+  createWebhookWorkerId: dependencies.createWebhookWorkerId,
+  deriveChapterSynopsis: dependencies.deriveChapterSynopsis,
+  diffOperationalAlertSets: dependencies.diffOperationalAlertSets,
+  dispatchWebhookMessage: dependencies.dispatchWebhookMessage,
+  enqueueWebhookDelivery: dependencies.enqueueWebhookDelivery,
+  evaluateOperationalMonitoring: dependencies.evaluateOperationalMonitoring,
+  getActiveProjectTypes: dependencies.getActiveProjectTypes,
+  loadIntegrationSettings: dependencies.loadIntegrationSettings,
+  loadProjects: dependencies.loadProjects,
+  loadSiteSettings: dependencies.loadSiteSettings,
+  loadTagTranslations: dependencies.loadTagTranslations,
+  loadUsers: dependencies.loadUsers,
+  loadWebhookState: dependencies.loadWebhookState,
+  normalizeEditorialWebhookSettings: dependencies.normalizeEditorialWebhookSettings,
+  normalizeProjects: dependencies.normalizeProjects,
+  normalizeTypeLookupKey: dependencies.normalizeTypeLookupKey,
+  normalizeUsers: dependencies.normalizeUsers,
+  renderWebhookTemplate: dependencies.renderWebhookTemplate,
+  resolveEditorialEventChannel: dependencies.resolveEditorialEventChannel,
+  resolveEditorialEventLabel: dependencies.resolveEditorialEventLabel,
+  resolveEpisodeLookup: dependencies.resolveEpisodeLookup,
+  resolveWebhookAuditActions: dependencies.resolveWebhookAuditActions,
+  resolveWebhookDeliveryAuthorFromPost:
+    dependencies.resolveWebhookDeliveryAuthorFromPost ??
+    dependencies.createResolveEditorialAuthorFromPost,
+  toDiscordWebhookPayload: dependencies.toDiscordWebhookPayload,
+  upsertWebhookDelivery: dependencies.upsertWebhookDelivery,
+  validateWebhookUrlForProvider: dependencies.validateWebhookUrlForProvider,
+  writeWebhookState: dependencies.writeWebhookState,
+});
+
+export default buildWebhookRuntimeDependencies;

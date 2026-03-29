@@ -9,6 +9,32 @@ import { registerSiteConfigRoutes } from "../routes/register-site-config-routes.
 import { registerSiteRoutes } from "../routes/register-site-routes.js";
 import { registerUploadRoutes } from "../routes/register-upload-routes.js";
 import { registerUserRoutes } from "../routes/register-user-routes.js";
+import { assertRequiredDependencies } from "./assert-required-dependencies.js";
+import { SERVER_ROUTE_SECTION_KEYS } from "./server-route-section-keys.js";
+
+const SECTION_REGISTRARS = {
+  admin: registerAdminRoutes,
+  user: registerUserRoutes,
+  content: registerContentRoutes,
+  project: registerProjectRoutes,
+  upload: registerUploadRoutes,
+  siteConfig: registerSiteConfigRoutes,
+  integration: registerIntegrationRoutes,
+  publicRoutes: registerPublicRoutes,
+  og: registerOgRoutes,
+  site: registerSiteRoutes,
+  application: registerAppRoutes,
+};
+
+const toScopeName = (sectionName) =>
+  `register${sectionName.charAt(0).toUpperCase()}${sectionName.slice(1)}Routes`;
+
+const buildSectionDependencies = (sectionName, app, section = {}) =>
+  assertRequiredDependencies(
+    toScopeName(sectionName),
+    { app, ...section },
+    ["app", ...(SERVER_ROUTE_SECTION_KEYS[sectionName] || [])],
+  );
 
 export const registerServerRoutes = (context = {}) => {
   const {
@@ -26,17 +52,25 @@ export const registerServerRoutes = (context = {}) => {
     user = {},
   } = context;
 
-  registerAdminRoutes({ app, ...admin });
-  registerUserRoutes({ app, ...user });
-  registerContentRoutes({ app, ...content });
-  registerProjectRoutes({ app, ...project });
-  registerUploadRoutes({ app, ...upload });
-  registerSiteConfigRoutes({ app, ...siteConfig });
-  registerIntegrationRoutes({ app, ...integration });
-  registerPublicRoutes({ app, ...publicRoutes });
-  registerOgRoutes({ app, ...og });
-  registerSiteRoutes({ app, ...site });
-  registerAppRoutes({ app, ...application });
+  const sections = {
+    admin,
+    user,
+    content,
+    project,
+    upload,
+    siteConfig,
+    integration,
+    publicRoutes,
+    og,
+    site,
+    application,
+  };
+
+  Object.entries(sections).forEach(([sectionName, sectionDependencies]) => {
+    SECTION_REGISTRARS[sectionName](
+      buildSectionDependencies(sectionName, app, sectionDependencies),
+    );
+  });
 };
 
 export default registerServerRoutes;

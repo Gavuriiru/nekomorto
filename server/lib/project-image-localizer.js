@@ -1,4 +1,9 @@
 import crypto from "crypto";
+import {
+  buildProjectFolderSet,
+  resolveEpisodeCoverFolder as resolveEpisodeCoverFolderShared,
+} from "../../shared/project-upload-folders.js";
+import { isChapterBasedType } from "./project-type-utils.js";
 
 const DEFAULT_MAX_CONCURRENT = 4;
 
@@ -10,60 +15,31 @@ const sanitizeSlug = (value) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-const toProjectKey = (project) => {
-  const id = String(project?.id || "").trim();
-  const titleSlug = sanitizeSlug(project?.title || "");
-  return id || titleSlug || "draft";
-};
-
 export const resolveProjectImageFolders = (project) => {
-  const projectKey = toProjectKey(project);
-  const projectFolder = `projects/${projectKey}`;
+  const folders = buildProjectFolderSet({
+    createSlug: sanitizeSlug,
+    projectId: project?.id,
+    projectTitle: project?.title,
+  });
   return {
-    projectKey,
-    projectFolder,
-    episodeFolder: `${projectFolder}/episodes`,
-    volumeFolder: `${projectFolder}/volumes`,
-    chaptersFolder: `${projectFolder}/capitulos`,
+    projectKey: folders.projectKey,
+    projectFolder: folders.projectRootFolder,
+    episodeFolder: folders.projectEpisodesFolder,
+    volumeFolder: folders.projectVolumeCoversFolder,
+    chaptersFolder: folders.projectChaptersFolder,
   };
 };
 
-const normalizeTypeLookupKey = (value) =>
-  String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-
-const isChapterBasedType = (type) => {
-  const normalized = normalizeTypeLookupKey(type);
-  return (
-    normalized.includes("mang") ||
-    normalized.includes("webtoon") ||
-    normalized.includes("light") ||
-    normalized.includes("novel")
-  );
-};
-
-const resolveVolumeFolderSegment = (value) => {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) {
-    return "volume-sem-volume";
-  }
-  return `volume-${Math.floor(numeric)}`;
-};
-
 const resolveEpisodeCoverFolder = ({ project, episode, episodeFolder, chaptersFolder }) => {
-  if (!isChapterBasedType(project?.type || "")) {
-    return episodeFolder;
-  }
-  const chapterNumberValue = Number(episode?.number);
-  if (!Number.isFinite(chapterNumberValue)) {
-    return episodeFolder;
-  }
-  const chapterNumber = Math.max(1, Math.floor(chapterNumberValue));
-  const volumeSegment = resolveVolumeFolderSegment(episode?.volume);
-  return `${chaptersFolder}/${volumeSegment}/capitulo-${chapterNumber}`;
+  return resolveEpisodeCoverFolderShared({
+    episode,
+    folders: {
+      projectEpisodesFolder: episodeFolder,
+      projectChaptersFolder: chaptersFolder,
+    },
+    isChapterBasedType,
+    project,
+  });
 };
 
 const toTrimmedString = (value) => String(value || "").trim();

@@ -1,6 +1,12 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import {
+  buildProjectChapterFolder,
+  buildProjectFolderSet,
+  resolveVolumeFolderSegment,
+} from "../../shared/project-upload-folders.js";
+import { isChapterBasedType } from "./project-type-utils.js";
 
 const DATASETS_TO_REWRITE = [
   "posts",
@@ -72,55 +78,28 @@ export const sanitizeSlug = (value) =>
     .replace(/^-+|-+$/g, "");
 
 export const resolveProjectFolders = (project) => {
-  const id = String(project?.id || "").trim();
-  const titleSlug = sanitizeSlug(project?.title || "");
-  const projectKey = id || titleSlug || "draft";
-  const root = `projects/${projectKey}`;
+  const folders = buildProjectFolderSet({
+    createSlug: sanitizeSlug,
+    projectId: project?.id,
+    projectTitle: project?.title,
+  });
   return {
-    projectId: id || projectKey,
-    root,
-    episodes: `${root}/episodes`,
-    chapters: `${root}/capitulos`,
+    projectId: String(project?.id || "").trim() || folders.projectKey,
+    root: folders.projectRootFolder,
+    episodes: folders.projectEpisodesFolder,
+    chapters: folders.projectChaptersFolder,
   };
-};
-
-const normalizeTypeLookupKey = (value) =>
-  String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-
-const isChapterBasedType = (type) => {
-  const normalized = normalizeTypeLookupKey(type);
-  return (
-    normalized.includes("mang") ||
-    normalized.includes("webtoon") ||
-    normalized.includes("light") ||
-    normalized.includes("novel")
-  );
-};
-
-const resolveVolumeFolderSegment = (value) => {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) {
-    return "volume-sem-volume";
-  }
-  return `volume-${Math.floor(numeric)}`;
 };
 
 const resolveChapterFolderForEpisode = ({ project, episode, index, projectFolders }) => {
   if (!isChapterBasedType(project?.type || "")) {
     return "";
   }
-  const chapterNumberValue = Number(episode?.number);
-  const fallbackNumber = Number.isFinite(Number(index)) ? Number(index) + 1 : 1;
-  const chapterNumber =
-    Number.isFinite(chapterNumberValue) && chapterNumberValue > 0
-      ? Math.floor(chapterNumberValue)
-      : fallbackNumber;
-  const volumeSegment = resolveVolumeFolderSegment(episode?.volume);
-  return `${projectFolders.chapters}/${volumeSegment}/capitulo-${chapterNumber}`;
+  return buildProjectChapterFolder({
+    episode,
+    index: Number.isFinite(Number(index)) ? Number(index) : 0,
+    projectChaptersFolder: projectFolders.chapters,
+  });
 };
 
 export const getUploadRootSegment = (relativePath) => {

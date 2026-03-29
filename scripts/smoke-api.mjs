@@ -1,3 +1,5 @@
+import { collectBootstrapPublicMediaUrls } from "./lib/public-bootstrap-media.mjs";
+
 const args = process.argv.slice(2);
 
 const getArgValue = (name) => {
@@ -7,6 +9,9 @@ const getArgValue = (name) => {
 
 const baseUrl = (getArgValue("--base") || "http://localhost:8080").replace(/\/+$/, "");
 const timeoutMs = Number.parseInt(getArgValue("--timeout-ms") || "10000", 10);
+const expectProdHtml = /^(?:1|true|yes)$/i.test(getArgValue("--expect-prod-html") || "false");
+const checkPublicMedia = /^(?:1|true|yes)$/i.test(getArgValue("--check-public-media") || "false");
+const publicMediaSampleSize = Number.parseInt(getArgValue("--public-media-sample-size") || "12", 10);
 
 if (!baseUrl) {
   console.error("--base is required");
@@ -30,7 +35,7 @@ const withTimeout = async (resource, options = {}) => {
   }
 };
 
-const assertJsonEndpoint = async (path, assertPayload) => {
+const loadJsonEndpoint = async (path) => {
   const response = await withTimeout(`${baseUrl}${path}`);
   if (!response.ok) {
     const body = await response.text();
@@ -41,6 +46,15 @@ const assertJsonEndpoint = async (path, assertPayload) => {
     throw new Error(`${path} expected JSON content-type, got "${contentType}"`);
   }
   const payload = await response.json();
+  return {
+    response,
+    payload,
+    contentType,
+  };
+};
+
+const assertJsonEndpoint = async (path, assertPayload) => {
+  const { response, payload, contentType } = await loadJsonEndpoint(path);
   assertPayload(payload);
   return { path, status: response.status, contentType };
 };
@@ -115,8 +129,76 @@ const assertServiceWorkerEndpoint = async (path) => {
     throw new Error(`${path} returned HTML instead of service worker JavaScript`);
   }
   const workboxMatch = body.match(/workbox-[A-Za-z0-9_-]+\.js/);
-  const workboxScriptPath = workboxMatch ? `/${workboxMatch[0]}` : "";
-  return { path, status: response.status, contentType, workboxScriptPath };
+  const workboxScriptPath = workboxMatch ? `/${workboxMatch[0]}` : null;
+  return {
+    path,
+    status: response.status,
+    contentType,
+    hasExternalWorkboxRuntime: Boolean(workboxScriptPath),
+    workboxScriptPath,
+  };
+};
+
+const assertRootHtmlEndpoint = async ({ path, expectProdHtml }) => {
+  const response = await withTimeout(`${baseUrl}${path}`, {
+    headers: {
+      accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+    },
+  });
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`${path} returned ${response.status}: ${body}`);
+  }
+  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+  if (!contentType.includes("text/html")) {
+    throw new Error(`${path} expected HTML content-type, got "${contentType}"`);
+  }
+  const body = await response.text();
+  if (!/<html[\s>]/i.test(body)) {
+    throw new Error(`${path} did not return an HTML document`);
+  }
+  const containsViteClient = body.includes("/@vite/client");
+  const containsSrcMainTsx = body.includes('/src/main.tsx') || body.includes('"/src/main.tsx"');
+  if (expectProdHtml && containsViteClient) {
+    throw new Error(`${path} returned Vite dev HTML with /@vite/client on a prod-like target`);
+  }
+  if (expectProdHtml && containsSrcMainTsx) {
+    throw new Error(`${path} returned Vite dev HTML with /src/main.tsx on a prod-like target`);
+  }
+  return {
+    path,
+    status: response.status,
+    contentType,
+    containsViteClient,
+    containsSrcMainTsx,
+  };
+};
+
+const assertNoPublicModuleEndpoint = async (path) => {
+  const response = await withTimeout(`${baseUrl}${path}`, {
+    headers: {
+      accept: "text/javascript,application/javascript,*/*;q=0.8",
+    },
+  });
+  if (response.status === 404) {
+    const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+    const body = await response.text();
+    if (contentType.includes("text/html")) {
+      throw new Error(`${path} must not return HTML content-type on a prod-like target 404`);
+    }
+    if (/^\s*<!doctype html>/i.test(body)) {
+      throw new Error(`${path} returned HTML instead of a non-HTML 404 on a prod-like target`);
+    }
+    return {
+      path,
+      status: response.status,
+      contentType,
+    };
+  }
+  const body = await response.text();
+  throw new Error(
+    `${path} expected 404 on a prod-like target, got ${response.status}: ${body.slice(0, 200)}`,
+  );
 };
 
 const assertMissingAssetEndpoint = async (path) => {
@@ -134,6 +216,46 @@ const assertMissingAssetEndpoint = async (path) => {
     throw new Error(`${path} returned HTML instead of a non-HTML 404`);
   }
   return { path, status: response.status, contentType };
+};
+
+const assertPublicBootstrapMedia = async () => {
+  const { response, payload, contentType } = await loadJsonEndpoint("/api/public/bootstrap");
+  const mediaUrls = collectBootstrapPublicMediaUrls(payload, {
+    limit: publicMediaSampleSize,
+  });
+  const mediaChecks = [];
+
+  for (const item of mediaUrls) {
+    const mediaResponse = await withTimeout(`${baseUrl}${item.url}`, {
+      method: "HEAD",
+      headers: {
+        accept: "image/avif,image/webp,image/*,*/*;q=0.8",
+      },
+    });
+    if (!mediaResponse.ok) {
+      throw new Error(`${item.url} returned ${mediaResponse.status} during public media smoke`);
+    }
+    const mediaContentType = String(mediaResponse.headers.get("content-type") || "").toLowerCase();
+    if (mediaContentType.includes("text/html")) {
+      throw new Error(`${item.url} returned HTML content-type during public media smoke`);
+    }
+    mediaChecks.push({
+      path: item.url,
+      status: mediaResponse.status,
+      contentType: mediaContentType,
+      source: item.label,
+    });
+  }
+
+  return {
+    bootstrapCheck: {
+      path: "/api/public/bootstrap",
+      status: response.status,
+      contentType,
+      publicMediaChecked: mediaChecks.length,
+    },
+    mediaChecks,
+  };
 };
 
 const main = async () => {
@@ -243,12 +365,19 @@ const main = async () => {
     }),
   );
 
+  const rootHtmlCheck = await assertRootHtmlEndpoint({
+    path: "/",
+    expectProdHtml,
+  });
+  checks.push(rootHtmlCheck);
+
   checks.push(await assertManifestEndpoint("/manifest.webmanifest"));
   const serviceWorkerCheck = await assertServiceWorkerEndpoint("/sw.js");
   checks.push({
     path: serviceWorkerCheck.path,
     status: serviceWorkerCheck.status,
     contentType: serviceWorkerCheck.contentType,
+    hasExternalWorkboxRuntime: serviceWorkerCheck.hasExternalWorkboxRuntime,
   });
 
   if (serviceWorkerCheck.workboxScriptPath) {
@@ -279,6 +408,17 @@ const main = async () => {
   }
 
   checks.push(await assertMissingAssetEndpoint("/assets/__missing__.js"));
+
+  if (checkPublicMedia) {
+    const publicMediaCheck = await assertPublicBootstrapMedia();
+    checks.push(publicMediaCheck.bootstrapCheck);
+    checks.push(...publicMediaCheck.mediaChecks);
+  }
+
+  if (expectProdHtml) {
+    checks.push(await assertNoPublicModuleEndpoint("/@vite/client"));
+    checks.push(await assertNoPublicModuleEndpoint("/src/main.tsx"));
+  }
 
   console.log(
     JSON.stringify(

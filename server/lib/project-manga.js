@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { zipSync, unzipSync } from "fflate";
+import { buildProjectChapterPagesFolder } from "../../shared/project-upload-folders.js";
 import { buildEpisodeKey } from "./project-episodes.js";
 import { resolveProjectImageFolders } from "./project-image-localizer.js";
 import { resolveUploadAbsolutePath } from "./upload-media.js";
@@ -530,13 +531,14 @@ export const importProjectImageChapters = async ({
     if (previewItem.action === "ignore") {
       continue;
     }
-    const volumeSegment =
-      previewItem.volume && Number.isFinite(Number(previewItem.volume))
-        ? `volume-${Math.floor(Number(previewItem.volume))}`
-        : "volume-sem-volume";
-    const chapterPagesFolder = `${chaptersFolder}/${volumeSegment}/capitulo-${Math.floor(
-      Number(previewItem.number),
-    )}/paginas`;
+    const chapterPagesFolder = buildProjectChapterPagesFolder({
+      episode: {
+        number: previewItem.number,
+        volume: previewItem.volume,
+      },
+      index: Math.max(Number(previewItem.number) - 1, 0),
+      projectChaptersFolder: chaptersFolder,
+    });
     const pages = [];
     for (let pageIndex = 0; pageIndex < previewItem.files.length; pageIndex += 1) {
       const file = previewItem.files[pageIndex];

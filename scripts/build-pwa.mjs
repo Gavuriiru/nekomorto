@@ -45,7 +45,7 @@ const { count, size, warnings } = await generateSW({
   cleanupOutdatedCaches: true,
   clientsClaim: true,
   skipWaiting: true,
-  inlineWorkboxRuntime: false,
+  inlineWorkboxRuntime: true,
   navigateFallback: "/index.html",
   navigateFallbackAllowlist: PWA_NAVIGATE_FALLBACK_ALLOWLIST,
   navigateFallbackDenylist: PWA_NAVIGATE_FALLBACK_DENYLIST,
@@ -58,24 +58,6 @@ const { count, size, warnings } = await generateSW({
         !url.pathname.startsWith("/auth") &&
         !url.pathname.startsWith("/api"),
       handler: "NetworkOnly",
-    },
-    {
-      urlPattern: ({ request, url }) =>
-        ["script", "style", "worker", "font"].includes(request.destination) &&
-        (url.pathname.startsWith("/assets/") ||
-          url.pathname.startsWith("/pwa/") ||
-          url.pathname === "/favicon.ico"),
-      handler: "StaleWhileRevalidate",
-      options: {
-        cacheName: "public-assets-v1",
-        expiration: {
-          maxEntries: 200,
-          maxAgeSeconds: 30 * 24 * 60 * 60,
-        },
-        cacheableResponse: {
-          statuses: [0, 200],
-        },
-      },
     },
     {
       urlPattern: ({ request, url }) =>

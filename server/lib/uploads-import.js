@@ -12,61 +12,20 @@ import {
   resolveUploadAbsolutePath,
   resolveUploadVariantPresetKeysForArea,
 } from "./upload-media.js";
-
-const MAX_SVG_SIZE_BYTES = 256 * 1024;
-const MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024;
-const MAX_UPLOAD_IMAGE_DIMENSION = 8192;
-const MAX_UPLOAD_IMAGE_PIXELS = 33_554_432;
-
-const ALLOWED_UPLOAD_IMAGE_MIMES = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/jpg",
-  "image/gif",
-  "image/webp",
-  "image/svg+xml",
-]);
-
-const UPLOAD_MIME_TO_EXTENSION = {
-  "image/png": "png",
-  "image/jpeg": "jpeg",
-  "image/jpg": "jpeg",
-  "image/gif": "gif",
-  "image/webp": "webp",
-  "image/svg+xml": "svg",
-};
+import {
+  ALLOWED_UPLOAD_IMAGE_MIMES,
+  MAX_SVG_SIZE_BYTES,
+  MAX_UPLOAD_SIZE_BYTES,
+  getUploadExtFromMime,
+  normalizeUploadMime,
+  sanitizeSvg,
+  sanitizeUploadBaseName,
+  sanitizeUploadFolder,
+  validateUploadRasterDimensions,
+} from "./upload-runtime-helpers.js";
 
 export const EPUB_IMPORT_TMP_PREFIX = "tmp/epub-imports";
 export const EPUB_IMPORT_TMP_TTL_MS = 72 * 60 * 60 * 1000;
-
-const normalizeUploadMime = (value) => {
-  const normalized = String(value || "")
-    .trim()
-    .toLowerCase();
-  if (normalized === "image/jpg") {
-    return "image/jpeg";
-  }
-  return normalized;
-};
-
-const sanitizeUploadFolder = (value) => {
-  if (typeof value !== "string" || !value.trim()) {
-    return "";
-  }
-  return value
-    .trim()
-    .replace(/[^a-z0-9/_-]+/gi, "-")
-    .replace(/\/{2,}/g, "/")
-    .replace(/^\/+/, "")
-    .replace(/\/+$/, "");
-};
-
-const sanitizeUploadBaseName = (value) =>
-  String(value || "upload")
-    .toLowerCase()
-    .replace(/\.[^/.]+$/, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 
 const sanitizeUploadExactFileName = (value, mime) => {
   const normalizedValue = String(value || "").trim();
@@ -75,59 +34,6 @@ const sanitizeUploadExactFileName = (value, mime) => {
   const parsed = path.parse(normalizedValue);
   const baseName = sanitizeUploadBaseName(parsed.name || normalizedValue);
   return `${baseName || "imagem"}.${expectedExt}`;
-};
-
-const getUploadExtFromMime = (value) =>
-  UPLOAD_MIME_TO_EXTENSION[String(value || "").toLowerCase()] || "png";
-
-const sanitizeSvg = (value) => {
-  if (!value) {
-    return "";
-  }
-  let output = String(value);
-  output = output.replace(/<\s*script[^>]*>[\s\S]*?<\s*\/\s*script\s*>/gi, "");
-  output = output.replace(/<\s*foreignObject[^>]*>[\s\S]*?<\s*\/\s*foreignObject\s*>/gi, "");
-  output = output.replace(/<\s*(iframe|object|embed)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "");
-  output = output.replace(/\son\w+\s*=\s*(["']).*?\1/gi, "");
-  output = output.replace(/javascript:/gi, "");
-  output = output.replace(/data:(?!image\/(png|jpe?g|gif|webp);base64)/gi, "");
-  output = output.replace(
-    /(href|xlink:href|src)\s*=\s*(["'])(.*?)\2/gi,
-    (_match, attr, quote, url) => {
-      const safe = String(url || "");
-      if (safe.startsWith("#") || safe.startsWith("/")) {
-        return `${attr}=${quote}${safe}${quote}`;
-      }
-      return "";
-    },
-  );
-  return output;
-};
-
-const validateRasterDimensions = ({ width, height }) => {
-  const safeWidth = Number(width);
-  const safeHeight = Number(height);
-  if (
-    !Number.isFinite(safeWidth) ||
-    !Number.isFinite(safeHeight) ||
-    safeWidth <= 0 ||
-    safeHeight <= 0
-  ) {
-    return { valid: false, error: "invalid_image_dimensions" };
-  }
-  if (safeWidth > MAX_UPLOAD_IMAGE_DIMENSION || safeHeight > MAX_UPLOAD_IMAGE_DIMENSION) {
-    return { valid: false, error: "image_dimensions_too_large" };
-  }
-  if (safeWidth * safeHeight > MAX_UPLOAD_IMAGE_PIXELS) {
-    return { valid: false, error: "image_pixel_count_too_large" };
-  }
-  return {
-    valid: true,
-    dimensions: {
-      width: safeWidth,
-      height: safeHeight,
-    },
-  };
 };
 
 const validateUploadImageBuffer = async (buffer, requestedMime) => {
@@ -150,7 +56,7 @@ const validateUploadImageBuffer = async (buffer, requestedMime) => {
 
   try {
     const metadata = await sharp(buffer, { animated: false }).metadata();
-    const dimensions = validateRasterDimensions({
+    const dimensions = validateUploadRasterDimensions({
       width: metadata?.width,
       height: metadata?.height,
     });
@@ -218,10 +124,11 @@ const ensureUploadHasRequiredVariants = async ({
 export const buildEpubImportTempFolder = ({ userId, importId }) =>
   sanitizeUploadFolder(
     `${EPUB_IMPORT_TMP_PREFIX}/${String(userId || "anonymous").trim() || "anonymous"}/${String(importId || "").trim() || crypto.randomUUID()}`,
+    { trimTrailingSlash: true },
   );
 
 export const isEpubImportTempFolder = (folder) =>
-  sanitizeUploadFolder(folder).startsWith(`${EPUB_IMPORT_TMP_PREFIX}/`);
+  sanitizeUploadFolder(folder, { trimTrailingSlash: true }).startsWith(`${EPUB_IMPORT_TMP_PREFIX}/`);
 
 export const storeUploadImageBuffer = async ({
   uploadsDir,
@@ -243,7 +150,7 @@ export const storeUploadImageBuffer = async ({
   }
 
   const normalizedMime = validation.mime;
-  const safeFolder = sanitizeUploadFolder(folder);
+  const safeFolder = sanitizeUploadFolder(folder, { trimTrailingSlash: true });
   const sourceBuffer =
     normalizedMime === "image/svg+xml"
       ? Buffer.from(sanitizeSvg(Buffer.from(buffer).toString("utf-8")), "utf-8")

@@ -1,4 +1,16 @@
-const RESERVED_PUBLIC_PREFIXES = ["/api", "/auth", "/uploads", "/assets", "/pwa"];
+const RESERVED_PUBLIC_PREFIXES = [
+  "/api",
+  "/auth",
+  "/uploads",
+  "/assets",
+  "/pwa",
+  "/src",
+  "/@vite",
+  "/@react-refresh",
+  "/@id",
+  "/@fs",
+  "/node_modules/.vite",
+];
 
 const RESERVED_PUBLIC_EXACT_PATHS = new Set([
   "/manifest.webmanifest",

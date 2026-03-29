@@ -1,34 +1,17 @@
 import fs from "fs";
 import path from "path";
 import {
+  attachUploadMediaMetadata,
+  computeBufferSha256,
+  isRasterUploadMime,
+  resolveUploadAbsolutePath,
+} from "./upload-media.js";
+import { buildUploadFilterScope } from "./upload-filter-scope.js";
+import {
   getUploadAssetDescriptors,
   readUploadStorageProvider,
   streamToBuffer,
 } from "./upload-storage.js";
-import { resolveUploadAbsolutePath } from "./upload-media.js";
-
-const normalizeFilterFolder = (value) =>
-  String(value || "")
-    .trim()
-    .replace(/^\/+/, "")
-    .replace(/\/+$/, "");
-
-const matchesFolderFilter = (entry, folder) => {
-  const normalizedFilter = normalizeFilterFolder(folder);
-  if (!normalizedFilter) {
-    return true;
-  }
-  const entryFolder = normalizeFilterFolder(entry?.folder);
-  return entryFolder === normalizedFilter || entryFolder.startsWith(`${normalizedFilter}/`);
-};
-
-const matchesUploadIdFilter = (entry, uploadId) => {
-  const normalizedId = String(uploadId || "").trim();
-  if (!normalizedId) {
-    return true;
-  }
-  return String(entry?.id || "").trim() === normalizedId;
-};
 
 const readLocalAssetBuffer = ({ uploadsDir, uploadUrl }) => {
   const sourcePath = resolveUploadAbsolutePath({ uploadsDir, uploadUrl });
@@ -48,16 +31,134 @@ const writeLocalAssetBuffer = ({ uploadsDir, uploadUrl, buffer }) => {
   return targetPath;
 };
 
+const localAssetExists = ({ uploadsDir, uploadUrl }) => {
+  const targetPath = resolveUploadAbsolutePath({ uploadsDir, uploadUrl });
+  return Boolean(targetPath && fs.existsSync(targetPath));
+};
+
 const pickUploads = (uploads, options = {}) =>
-  (Array.isArray(uploads) ? uploads : []).filter(
-    (entry) =>
-      matchesFolderFilter(entry, options.folder) && matchesUploadIdFilter(entry, options.uploadId),
-  );
+  buildUploadFilterScope({
+    uploads,
+    folder: options.folder,
+    uploadId: options.uploadId,
+    url: options.url,
+  }).selectedUploads;
 
 const collectFailures = (failures) =>
   [...(Array.isArray(failures) ? failures : [])].sort((left, right) =>
     String(left?.url || "").localeCompare(String(right?.url || ""), "en"),
   );
+
+const findUploadIndex = (uploads, entry) =>
+  (Array.isArray(uploads) ? uploads : []).findIndex(
+    (item) => String(item?.id || "") === String(entry?.id || ""),
+  );
+
+const getOriginalUploadAssetDescriptor = (entry) =>
+  getUploadAssetDescriptors(entry).find((asset) => asset?.kind === "original") || null;
+
+const listMissingLocalVariantAssets = (entry, uploadsDir) =>
+  getUploadAssetDescriptors(entry).filter(
+    (asset) => asset?.kind === "variant" && !localAssetExists({ uploadsDir, uploadUrl: asset.url }),
+  );
+
+const resolveEntrySourcePath = (entry, uploadsDir) =>
+  resolveUploadAbsolutePath({ uploadsDir, uploadUrl: entry?.url });
+
+const updateUploadEntryFromLocalSource = async ({ entry, uploadsDir } = {}) => {
+  const sourcePath = resolveEntrySourcePath(entry, uploadsDir);
+  if (!sourcePath || !fs.existsSync(sourcePath)) {
+    throw new Error(`local_asset_missing:${entry?.url}`);
+  }
+  const sourceBuffer = fs.readFileSync(sourcePath);
+  const originalAsset = getOriginalUploadAssetDescriptor(entry);
+  const sourceMime = String(originalAsset?.contentType || entry?.mime || "").trim();
+  const nextEntry = await attachUploadMediaMetadata({
+    uploadsDir,
+    entry: {
+      ...(entry && typeof entry === "object" ? entry : {}),
+      storageProvider: "local",
+    },
+    sourcePath,
+    sourceMime,
+    hashSha256: computeBufferSha256(sourceBuffer),
+    variantsVersion: Math.max(1, Number(entry?.variantsVersion || 1)),
+    regenerateVariants: true,
+  });
+  const stat = fs.statSync(sourcePath);
+  return {
+    ...nextEntry,
+    storageProvider: "local",
+    size: Number(stat.size || 0),
+  };
+};
+
+const repairUploadEntryMissingLocalAssets = async ({
+  entry,
+  uploadsDir,
+  storageService,
+  applyChanges = false,
+} = {}) => {
+  const currentEntry = entry && typeof entry === "object" ? entry : null;
+  if (!currentEntry) {
+    return { status: "skipped", nextEntry: entry };
+  }
+
+  const originalAsset = getOriginalUploadAssetDescriptor(currentEntry);
+  if (!originalAsset?.url) {
+    return { status: "skipped", nextEntry: currentEntry };
+  }
+
+  const originalExistsLocally = localAssetExists({
+    uploadsDir,
+    uploadUrl: originalAsset.url,
+  });
+  const missingVariantAssets = listMissingLocalVariantAssets(currentEntry, uploadsDir);
+
+  if (originalExistsLocally && missingVariantAssets.length === 0) {
+    return { status: "skipped", nextEntry: currentEntry };
+  }
+
+  if (!originalExistsLocally) {
+    const remoteHead = await storageService.headUpload({
+      provider: "s3",
+      uploadUrl: originalAsset.url,
+    });
+    if (!remoteHead?.exists) {
+      throw new Error(`remote_asset_missing:${originalAsset.url}`);
+    }
+    if (applyChanges) {
+      const response = await storageService.getUploadStream({
+        provider: "s3",
+        uploadUrl: originalAsset.url,
+      });
+      const buffer = await streamToBuffer(response.stream);
+      writeLocalAssetBuffer({
+        uploadsDir,
+        uploadUrl: originalAsset.url,
+        buffer,
+      });
+    }
+  }
+
+  const sourceMime = String(originalAsset.contentType || currentEntry?.mime || "").trim();
+  if (missingVariantAssets.length > 0 && !isRasterUploadMime(sourceMime)) {
+    throw new Error(`non_raster_upload_cannot_regenerate_variants:${currentEntry?.url}`);
+  }
+
+  if (!applyChanges) {
+    return { status: "repaired", nextEntry: currentEntry };
+  }
+
+  const nextEntry = await updateUploadEntryFromLocalSource({
+    entry: currentEntry,
+    uploadsDir,
+  });
+  return {
+    status: "repaired",
+    nextEntry,
+  };
+};
 
 export const syncUploadsToObjectStorage = async ({
   uploads,
@@ -66,8 +167,9 @@ export const syncUploadsToObjectStorage = async ({
   applyChanges = false,
   folder = "",
   uploadId = "",
+  url = "",
 } = {}) => {
-  const selectedUploads = pickUploads(uploads, { folder, uploadId });
+  const selectedUploads = pickUploads(uploads, { folder, uploadId, url });
   const failures = [];
   let syncedCount = 0;
   let skippedCount = 0;
@@ -120,9 +222,7 @@ export const syncUploadsToObjectStorage = async ({
       }
 
       if (applyChanges) {
-        const index = nextUploads.findIndex(
-          (item) => String(item?.id || "") === String(entry?.id || ""),
-        );
+        const index = findUploadIndex(nextUploads, entry);
         if (index >= 0) {
           nextUploads[index] = {
             ...nextUploads[index],
@@ -159,8 +259,9 @@ export const restoreUploadsFromObjectStorage = async ({
   applyChanges = false,
   folder = "",
   uploadId = "",
+  url = "",
 } = {}) => {
-  const selectedUploads = pickUploads(uploads, { folder, uploadId }).filter(
+  const selectedUploads = pickUploads(uploads, { folder, uploadId, url }).filter(
     (entry) => readUploadStorageProvider(entry) === "s3",
   );
   const failures = [];
@@ -196,9 +297,7 @@ export const restoreUploadsFromObjectStorage = async ({
       }
 
       if (applyChanges) {
-        const index = nextUploads.findIndex(
-          (item) => String(item?.id || "") === String(entry?.id || ""),
-        );
+        const index = findUploadIndex(nextUploads, entry);
         if (index >= 0) {
           nextUploads[index] = {
             ...nextUploads[index],
@@ -218,9 +317,69 @@ export const restoreUploadsFromObjectStorage = async ({
 
   return {
     mode: applyChanges ? "apply" : "dry-run",
+    operation: "restore-from-object-storage",
     changed: applyChanges && restoredCount > 0,
     selectedCount: selectedUploads.length,
     restoredCount,
+    skippedCount,
+    failedCount: failures.length,
+    failures: collectFailures(failures),
+    uploadsNext: nextUploads,
+  };
+};
+
+export const repairMissingLocalUploadsFromObjectStorage = async ({
+  uploads,
+  uploadsDir = path.join(process.cwd(), "public", "uploads"),
+  storageService,
+  applyChanges = false,
+  folder = "",
+  uploadId = "",
+  url = "",
+} = {}) => {
+  const selectedUploads = pickUploads(uploads, { folder, uploadId, url }).filter(
+    (entry) => readUploadStorageProvider(entry) !== "s3",
+  );
+  const failures = [];
+  let repairedCount = 0;
+  let skippedCount = 0;
+  const nextUploads = [...(Array.isArray(uploads) ? uploads : [])];
+
+  for (const entry of selectedUploads) {
+    try {
+      const result = await repairUploadEntryMissingLocalAssets({
+        entry,
+        uploadsDir,
+        storageService,
+        applyChanges,
+      });
+      if (result.status === "skipped") {
+        skippedCount += 1;
+        continue;
+      }
+      if (applyChanges) {
+        const index = findUploadIndex(nextUploads, entry);
+        if (index >= 0) {
+          nextUploads[index] = result.nextEntry;
+        }
+      }
+      repairedCount += 1;
+    } catch (error) {
+      failures.push({
+        uploadId: String(entry?.id || ""),
+        url: String(entry?.url || ""),
+        reason: String(error?.message || error || "repair_missing_local_failed"),
+      });
+    }
+  }
+
+  return {
+    mode: applyChanges ? "apply" : "dry-run",
+    operation: "repair-missing-local",
+    changed: applyChanges && repairedCount > 0,
+    selectedCount: selectedUploads.length,
+    repairedCount,
+    restoredCount: repairedCount,
     skippedCount,
     failedCount: failures.length,
     failures: collectFailures(failures),

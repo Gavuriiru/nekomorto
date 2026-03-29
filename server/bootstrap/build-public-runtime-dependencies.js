@@ -1,0 +1,43 @@
+export const buildPublicRuntimeDependencies = (dependencies = {}) => ({
+  bootstrapPwaEnabled:
+    dependencies.bootstrapPwaEnabled ?? dependencies.BOOTSTRAP_PWA_ENABLED,
+  buildPublicBootstrapPayload: dependencies.buildPublicBootstrapPayload,
+  buildPublicMediaVariants: dependencies.buildPublicMediaVariants,
+  buildPublicReadableProjects: dependencies.buildPublicReadableProjects,
+  buildPublicTeamMembers: dependencies.buildPublicTeamMembers,
+  buildPublicVisibleProjects: dependencies.buildPublicVisibleProjects,
+  buildUserPayload: dependencies.buildUserPayload,
+  createGuid:
+    dependencies.createGuid ??
+    (dependencies.crypto ? () => dependencies.crypto.randomUUID() : undefined),
+  createSlug: dependencies.createSlug,
+  extractLocalStylesheetHrefs: dependencies.extractLocalStylesheetHrefs,
+  injectBootstrapGlobals: dependencies.injectBootstrapGlobals,
+  injectHomeHeroShell: dependencies.injectHomeHeroShell,
+  injectPreloadLinks: dependencies.injectPreloadLinks,
+  isEpisodePublic: dependencies.isEpisodePublic,
+  loadLinkTypes: dependencies.loadLinkTypes,
+  loadPages: dependencies.loadPages,
+  loadPosts: dependencies.loadPosts,
+  loadProjects: dependencies.loadProjects,
+  loadSiteSettings: dependencies.loadSiteSettings,
+  loadTagTranslations: dependencies.loadTagTranslations,
+  loadUpdates: dependencies.loadUpdates,
+  normalizePosts: dependencies.normalizePosts,
+  normalizeProjects: dependencies.normalizeProjects,
+  primaryAppOrigin: dependencies.primaryAppOrigin ?? dependencies.PRIMARY_APP_ORIGIN,
+  resolveEpisodeLookup: dependencies.resolveEpisodeLookup,
+  resolveBootstrapPwaEnabled: dependencies.resolveBootstrapPwaEnabled,
+  resolveHomeHeroPreloadFromSlide: dependencies.resolveHomeHeroPreloadFromSlide,
+  resolveMetaImageVariantUrl: dependencies.resolveMetaImageVariantUrl,
+  resolvePostCover: dependencies.resolvePostCover,
+  resolvePublicPostCoverPreload: dependencies.resolvePublicPostCoverPreload,
+  resolvePublicProjectsListPreloads: dependencies.resolvePublicProjectsListPreloads,
+  resolvePublicReaderHeroPreload: dependencies.resolvePublicReaderHeroPreload,
+  resolvePublicTeamAvatarPreload: dependencies.resolvePublicTeamAvatarPreload,
+  sitemapStaticPublicPaths:
+    dependencies.sitemapStaticPublicPaths ?? dependencies.SITEMAP_STATIC_PUBLIC_PATHS,
+  stripHtml: dependencies.stripHtml,
+});
+
+export default buildPublicRuntimeDependencies;

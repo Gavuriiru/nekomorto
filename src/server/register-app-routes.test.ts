@@ -82,7 +82,16 @@ describe("registerAppRoutes", () => {
     expect(body).toContain("<!doctype html>");
   });
 
-  it.each(["/assets/missing.js", "/foo.css"])(
+  it.each([
+    "/assets/missing.js",
+    "/foo.css",
+    "/@vite/client",
+    "/src/main.tsx",
+    "/@react-refresh",
+    "/@id/__x00__react",
+    "/@fs/C:/repo/src/main.tsx",
+    "/node_modules/.vite/deps/react.js",
+  ])(
     "returns 404 without HTML for reserved asset route %s",
     async (path) => {
       const started = await createTestServer();

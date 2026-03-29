@@ -200,6 +200,7 @@ export const injectBootstrapGlobals = ({
   publicBootstrap,
   settings,
   publicMe = null,
+  pwaEnabled = false,
   skipPublicFetch = false,
 }) => {
   const bootstrapScript = [
@@ -207,6 +208,7 @@ export const injectBootstrapGlobals = ({
     `window.__BOOTSTRAP_PUBLIC__ = ${serializeInlineJson(publicBootstrap)};`,
     `window.__BOOTSTRAP_SETTINGS__ = ${serializeInlineJson(settings)};`,
     `window.__BOOTSTRAP_PUBLIC_ME__ = ${serializeInlineJson(publicMe)};`,
+    `window.__BOOTSTRAP_PWA_ENABLED__ = ${pwaEnabled ? "true" : "false"};`,
     `window.__BOOTSTRAP_SKIP_PUBLIC_FETCH__ = ${skipPublicFetch ? "true" : "false"};`,
     buildInlineBootstrapInitScript(),
     "</script>",

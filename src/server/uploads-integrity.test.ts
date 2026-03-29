@@ -358,4 +358,174 @@ describe("runUploadsIntegrityCheck", () => {
       uploadUrl: "/uploads/_variants/upload-remote-deep/card-v1.avif",
     });
   });
+
+  it("aplica filtro por pasta e inclui variants do upload selecionado", async () => {
+    const { uploadsDir, datasets } = createTempWorkspace({
+      posts: [
+        {
+          id: "post-folder",
+          slug: "post-folder",
+          coverImageUrl: "/uploads/posts/missing-post.png",
+        },
+      ],
+      projects: [
+        {
+          id: "21878",
+          title: "Projeto alvo",
+          cover: "/uploads/projects/21878/episodes/missing-cover.png",
+          banner: "",
+          heroImageUrl: "",
+          relations: [],
+          episodeDownloads: [],
+        },
+      ],
+      uploads: [
+        {
+          id: "upload-project-folder",
+          url: "/uploads/projects/21878/episodes/missing-cover.png",
+          folder: "projects/21878/episodes",
+          variants: {
+            hero: {
+              formats: {
+                avif: {
+                  url: "/uploads/_variants/upload-project-folder/hero-v1.avif",
+                },
+              },
+            },
+          },
+        },
+        {
+          id: "upload-post-folder",
+          url: "/uploads/posts/missing-post.png",
+          folder: "posts",
+          variants: {
+            card: {
+              formats: {
+                avif: {
+                  url: "/uploads/_variants/upload-post-folder/card-v1.avif",
+                },
+              },
+            },
+          },
+        },
+      ],
+    });
+
+    const result = await runUploadsIntegrityCheck({
+      datasets,
+      uploadsDir,
+      folder: "projects/21878",
+    });
+
+    expect(result.referencedUrlsCount).toBe(1);
+    expect(result.uploadsInventoryCount).toBe(1);
+    expect(result.criticalIssues.map((item) => item.url)).toEqual([
+      "/uploads/projects/21878/episodes/missing-cover.png",
+      "/uploads/_variants/upload-project-folder/hero-v1.avif",
+    ]);
+  });
+
+  it("aplica filtro por upload-id apenas ao upload correspondente", async () => {
+    const { uploadsDir, datasets } = createTempWorkspace({
+      posts: [
+        {
+          id: "post-upload-id",
+          slug: "post-upload-id",
+          coverImageUrl: "/uploads/posts/missing-post.png",
+        },
+      ],
+      projects: [
+        {
+          id: "project-upload-id",
+          title: "Projeto",
+          cover: "/uploads/projects/other/missing-cover.png",
+          banner: "",
+          heroImageUrl: "",
+          relations: [],
+          episodeDownloads: [],
+        },
+      ],
+      uploads: [
+        {
+          id: "upload-post-target",
+          url: "/uploads/posts/missing-post.png",
+          folder: "posts",
+          variants: {
+            card: {
+              formats: {
+                avif: {
+                  url: "/uploads/_variants/upload-post-target/card-v1.avif",
+                },
+              },
+            },
+          },
+        },
+        {
+          id: "upload-project-other",
+          url: "/uploads/projects/other/missing-cover.png",
+          folder: "projects/other",
+          variants: {
+            hero: {
+              formats: {
+                avif: {
+                  url: "/uploads/_variants/upload-project-other/hero-v1.avif",
+                },
+              },
+            },
+          },
+        },
+      ],
+    });
+
+    const result = await runUploadsIntegrityCheck({
+      datasets,
+      uploadsDir,
+      uploadId: "upload-post-target",
+    });
+
+    expect(result.referencedUrlsCount).toBe(1);
+    expect(result.uploadsInventoryCount).toBe(1);
+    expect(result.criticalIssues.map((item) => item.url)).toEqual([
+      "/uploads/posts/missing-post.png",
+      "/uploads/_variants/upload-post-target/card-v1.avif",
+    ]);
+  });
+
+  it("aplica filtro por url mesmo quando nao existe inventario correspondente", async () => {
+    const { uploadsDir, datasets } = createTempWorkspace({
+      projects: [
+        {
+          id: "21878",
+          title: "Projeto alvo",
+          cover: "/uploads/projects/21878/episodes/missing-cover.png",
+          banner: "",
+          heroImageUrl: "",
+          relations: [],
+          episodeDownloads: [],
+        },
+      ],
+      uploads: [],
+    });
+
+    const result = await runUploadsIntegrityCheck({
+      datasets,
+      uploadsDir,
+      url: "https://dev.nekomata.moe/uploads/projects/21878/episodes/missing-cover.png?cache=1",
+    });
+
+    expect(result.referencedUrlsCount).toBe(1);
+    expect(result.uploadsInventoryCount).toBe(0);
+    expect(result.criticalIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "missing_source_file",
+          url: "/uploads/projects/21878/episodes/missing-cover.png",
+        }),
+        expect.objectContaining({
+          type: "missing_upload_file_for_inventory",
+          url: "/uploads/projects/21878/episodes/missing-cover.png",
+        }),
+      ]),
+    );
+  });
 });

@@ -6,30 +6,14 @@ import {
   getEpisodeSourceUrls,
   hasEpisodeContent,
 } from "./project-episodes.js";
+import { isChapterBasedType, normalizeTypeLookupKey } from "./project-type-utils.js";
 import { normalizeProjectEpisodePages } from "../../shared/project-reader.js";
 
 const sortStrings = (values) => [...values].sort((a, b) => a.localeCompare(b, "en"));
 
-const normalizeType = (type) =>
-  String(type || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-
 export const isSpecialProjectType = (type) => {
-  const normalized = normalizeType(type);
+  const normalized = normalizeTypeLookupKey(type);
   return normalized === "especial" || normalized === "special";
-};
-
-const isChapterBasedType = (type) => {
-  const normalized = normalizeType(type);
-  return (
-    normalized.includes("mang") ||
-    normalized.includes("webtoon") ||
-    normalized.includes("light") ||
-    normalized.includes("novel")
-  );
 };
 
 export const resolveProjectUpdateUnitLabel = (projectType, episode) => {

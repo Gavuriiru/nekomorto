@@ -1,13 +1,18 @@
 import path from "path";
 import { createUploadStorageService } from "../server/lib/upload-storage.js";
-import { restoreUploadsFromObjectStorage } from "../server/lib/uploads-object-storage.js";
+import {
+  repairMissingLocalUploadsFromObjectStorage,
+  restoreUploadsFromObjectStorage,
+} from "../server/lib/uploads-object-storage.js";
 import { loadDbDatasets, persistDbDatasets, prisma } from "./lib/db-datasets.mjs";
 
 const HELP_FLAG = "--help";
 const APPLY_FLAG = "--apply";
 const DRY_RUN_FLAG = "--dry-run";
+const REPAIR_MISSING_LOCAL_FLAG = "--repair-missing-local";
 const FOLDER_FLAG = "--folder";
 const UPLOAD_ID_FLAG = "--upload-id";
+const URL_FLAG = "--url";
 
 const printHelp = () => {
   console.log("Uso:");
@@ -16,6 +21,12 @@ const printHelp = () => {
   console.log("  node scripts/restore-uploads-from-object-storage.mjs --apply --folder posts");
   console.log(
     "  node scripts/restore-uploads-from-object-storage.mjs --apply --upload-id upload-1",
+  );
+  console.log(
+    "  node scripts/restore-uploads-from-object-storage.mjs --apply --repair-missing-local --folder projects/21878",
+  );
+  console.log(
+    "  node scripts/restore-uploads-from-object-storage.mjs --apply --repair-missing-local --url /uploads/projects/21878/episodes/capa.jpeg",
   );
 };
 
@@ -39,6 +50,7 @@ if (!String(process.env.DATABASE_URL || "").trim()) {
 }
 
 const applyChanges = args.includes(APPLY_FLAG) && !args.includes(DRY_RUN_FLAG);
+const repairMissingLocal = args.includes(REPAIR_MISSING_LOCAL_FLAG);
 const uploadsDir = path.join(process.cwd(), "public", "uploads");
 const storageService = createUploadStorageService({ uploadsDir });
 
@@ -49,18 +61,39 @@ if (!storageService.isConfigured("s3")) {
 
 try {
   const datasets = await loadDbDatasets(prisma);
-  const result = await restoreUploadsFromObjectStorage({
+  const scope = {
+    folder: readFlagValue(args, FOLDER_FLAG),
+    uploadId: readFlagValue(args, UPLOAD_ID_FLAG),
+    url: readFlagValue(args, URL_FLAG),
+  };
+  const action = repairMissingLocal
+    ? repairMissingLocalUploadsFromObjectStorage
+    : restoreUploadsFromObjectStorage;
+  const result = await action({
     uploads: datasets.uploads,
     uploadsDir,
     storageService,
     applyChanges,
-    folder: readFlagValue(args, FOLDER_FLAG),
-    uploadId: readFlagValue(args, UPLOAD_ID_FLAG),
+    ...scope,
   });
 
   console.log(`Modo: ${result.mode}`);
+  console.log(`Operacao: ${result.operation || "restore-from-object-storage"}`);
+  if (scope.folder) {
+    console.log(`Filtro pasta: ${scope.folder}`);
+  }
+  if (scope.uploadId) {
+    console.log(`Filtro upload-id: ${scope.uploadId}`);
+  }
+  if (scope.url) {
+    console.log(`Filtro url: ${scope.url}`);
+  }
   console.log(`Selecionados: ${result.selectedCount}`);
-  console.log(`Restaurados: ${result.restoredCount}`);
+  if (repairMissingLocal) {
+    console.log(`Reparados: ${result.repairedCount}`);
+  } else {
+    console.log(`Restaurados: ${result.restoredCount}`);
+  }
   console.log(`Ignorados: ${result.skippedCount}`);
   console.log(`Falhas: ${result.failedCount}`);
 

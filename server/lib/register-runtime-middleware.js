@@ -15,8 +15,14 @@ import { createUploadsDeliveryMiddleware } from "./uploads-delivery.js";
 const MUTATING_HTTP_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const IDEMPOTENCY_KEY_PATTERN = /^[a-zA-Z0-9:_-]{8,200}$/;
 const PWA_WORKBOX_FILE_PATTERN = /^workbox-[\w-]+\.js$/;
+const CLIENT_STATIC_ASSET_PREFIXES = ["/assets/", "/fonts/", "/pwa/"];
+const CLIENT_STATIC_ASSET_EXACT_PATHS = new Set([
+  "/favicon.ico",
+  "/placeholder.svg",
+  "/robots.txt",
+]);
 
-const resolvePwaCriticalAssetPath = ({ clientDistDir, requestPath }) => {
+export const resolvePwaCriticalAssetPath = ({ clientDistDir, requestPath }) => {
   const normalizedPath = String(requestPath || "").trim();
   if (!normalizedPath) {
     return null;
@@ -30,6 +36,24 @@ const resolvePwaCriticalAssetPath = ({ clientDistDir, requestPath }) => {
   const fileName = normalizedPath.startsWith("/") ? normalizedPath.slice(1) : normalizedPath;
   if (PWA_WORKBOX_FILE_PATTERN.test(fileName)) {
     return path.join(clientDistDir, fileName);
+  }
+  return null;
+};
+
+export const resolveClientStaticAssetPath = ({ clientDistDir, requestPath }) => {
+  const normalizedPath = String(requestPath || "").trim();
+  if (!normalizedPath || !normalizedPath.startsWith("/")) {
+    return null;
+  }
+  if (CLIENT_STATIC_ASSET_EXACT_PATHS.has(normalizedPath)) {
+    return path.join(clientDistDir, normalizedPath.slice(1));
+  }
+  if (
+    CLIENT_STATIC_ASSET_PREFIXES.some(
+      (prefix) => normalizedPath === prefix.slice(0, -1) || normalizedPath.startsWith(prefix),
+    )
+  ) {
+    return path.join(clientDistDir, normalizedPath.slice(1));
   }
   return null;
 };
@@ -383,6 +407,23 @@ export const registerRuntimeMiddleware = ({
         return next();
       }
       return res.status(404).json({ error: "pwa_asset_not_found" });
+    });
+    app.use((req, res, next) => {
+      const method = String(req.method || "").toUpperCase();
+      if (method !== "GET" && method !== "HEAD") {
+        return next();
+      }
+      const assetPath = resolveClientStaticAssetPath({
+        clientDistDir,
+        requestPath: req.path,
+      });
+      if (!assetPath) {
+        return next();
+      }
+      if (fs.existsSync(assetPath)) {
+        return next();
+      }
+      return res.status(404).end();
     });
   }
   if (!isProduction) {

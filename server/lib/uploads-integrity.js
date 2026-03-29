@@ -5,6 +5,7 @@ import {
   normalizeUploadUrl,
   runUploadsReorganization,
 } from "./uploads-reorganizer.js";
+import { buildUploadFilterScope, getUploadRelativePath } from "./upload-filter-scope.js";
 import { readUploadStorageProvider } from "./upload-storage.js";
 import { normalizePublicUploadUrl } from "./public-media-variants.js";
 
@@ -46,12 +47,6 @@ const fileExists = (value) => {
   }
 };
 
-const getUploadRelativePath = (uploadUrl) =>
-  String(uploadUrl || "")
-    .replace(/^\/uploads\//, "")
-    .replace(/^\/+/, "")
-    .replace(/\\/g, "/");
-
 const collectUploadUrlsDeep = (value, urls) => {
   if (!value) {
     return;
@@ -81,6 +76,16 @@ const buildUploadsByUrl = (datasets) =>
       .map((entry) => [normalizeUploadUrl(entry?.url), entry])
       .filter(([key]) => Boolean(key)),
   );
+
+const collectScopedUploadUrlsFromDatasets = (datasets, scope) => {
+  const uploadUrls = new Set();
+  DATASETS_TO_SCAN.forEach((datasetKey) => {
+    collectUploadUrlsDeep(datasets?.[datasetKey], uploadUrls);
+  });
+  return [...uploadUrls]
+    .filter((uploadUrl) => scope.matchesUploadUrl(uploadUrl))
+    .sort((a, b) => a.localeCompare(b, "en"));
+};
 
 const uploadExists = async ({
   uploadUrl,
@@ -116,14 +121,19 @@ const uploadExists = async ({
 };
 
 const collectMissingUploadRefsFromDatasets = async (datasets, uploadsDir, options = {}) => {
-  const uploadUrls = new Set();
-  DATASETS_TO_SCAN.forEach((datasetKey) => {
-    collectUploadUrlsDeep(datasets?.[datasetKey], uploadUrls);
-  });
+  const scope =
+    options.scope ||
+    buildUploadFilterScope({
+      uploads: datasets?.uploads,
+      folder: options.folder,
+      uploadId: options.uploadId,
+      url: options.url,
+    });
+  const uploadUrls = collectScopedUploadUrlsFromDatasets(datasets, scope);
   const uploadsByUrl = buildUploadsByUrl(datasets);
 
   const missing = [];
-  for (const uploadUrl of [...uploadUrls].sort((a, b) => a.localeCompare(b, "en"))) {
+  for (const uploadUrl of uploadUrls) {
     const relative = getUploadRelativePath(uploadUrl);
     const exists = await uploadExists({
       uploadUrl,
@@ -143,7 +153,15 @@ const collectMissingUploadRefsFromDatasets = async (datasets, uploadsDir, option
 };
 
 const collectMissingVariantRefsFromUploads = async (datasets, uploadsDir, options = {}) => {
-  const uploads = Array.isArray(datasets?.uploads) ? datasets.uploads : [];
+  const scope =
+    options.scope ||
+    buildUploadFilterScope({
+      uploads: datasets?.uploads,
+      folder: options.folder,
+      uploadId: options.uploadId,
+      url: options.url,
+    });
+  const uploads = Array.isArray(scope.selectedUploads) ? scope.selectedUploads : [];
   const issues = [];
 
   for (const upload of uploads) {
@@ -187,6 +205,26 @@ const collectMissingVariantRefsFromUploads = async (datasets, uploadsDir, option
   return issues;
 };
 
+const filterReorganizationReportByScope = (report, scope) => {
+  const mappings = (Array.isArray(report?.mappings) ? report.mappings : []).filter(
+    (item) => scope.matchesUploadUrl(item?.oldUrl) || scope.matchesUploadUrl(item?.newUrl),
+  );
+  const failures = (Array.isArray(report?.failures) ? report.failures : []).filter(
+    (item) => scope.matchesUploadUrl(item?.oldUrl) || scope.matchesUploadUrl(item?.newUrl),
+  );
+  const skipped = (Array.isArray(report?.skipped) ? report.skipped : []).filter((item) =>
+    scope.matchesUploadUrl(item?.url),
+  );
+  return {
+    ...(report && typeof report === "object" ? report : {}),
+    mappings,
+    failures,
+    skipped,
+    plannedMovesCount: mappings.length,
+    moveFailuresCount: failures.length,
+  };
+};
+
 const mergeCriticalIssues = (issues) => {
   const deduped = new Map();
   issues.forEach((issue) => {
@@ -216,6 +254,9 @@ export const runUploadsIntegrityCheck = async ({
   privateRootFolders,
   mode = "fast",
   storageService,
+  folder = "",
+  uploadId = "",
+  url = "",
 } = {}) => {
   const safeMode =
     String(mode || "fast")
@@ -224,20 +265,22 @@ export const runUploadsIntegrityCheck = async ({
       ? "deep"
       : "fast";
   const uploads = Array.isArray(datasets?.uploads) ? datasets.uploads : [];
-  const hasRemoteUploads = uploads.some((entry) => readUploadStorageProvider(entry) === "s3");
+  const scope = buildUploadFilterScope({
+    uploads,
+    folder,
+    uploadId,
+    url,
+  });
+  const hasRemoteUploads = scope.selectedUploads.some(
+    (entry) => readUploadStorageProvider(entry) === "s3",
+  );
   const reorganizationReport = hasRemoteUploads
     ? {
         skipped: [],
         rewritten: datasets || {},
-        referencedUrlsCount: (() => {
-          const urls = new Set();
-          DATASETS_TO_SCAN.forEach((datasetKey) =>
-            collectUploadUrlsDeep(datasets?.[datasetKey], urls),
-          );
-          return urls.size;
-        })(),
+        referencedUrlsCount: collectScopedUploadUrlsFromDatasets(datasets, scope).length,
         plannedMovesCount: 0,
-        uploadsInventoryCount: uploads.length,
+        uploadsInventoryCount: scope.selectedUploads.length,
       }
     : runUploadsReorganization({
         datasets,
@@ -245,26 +288,30 @@ export const runUploadsIntegrityCheck = async ({
         applyChanges: false,
         privateRootFolders,
       });
+  const scopedReorganizationReport = filterReorganizationReportByScope(reorganizationReport, scope);
   const datasetsForScan = {
     ...(datasets && typeof datasets === "object" ? datasets : {}),
     ...(reorganizationReport.rewritten && typeof reorganizationReport.rewritten === "object"
       ? reorganizationReport.rewritten
       : {}),
   };
+  const referencedUrls = collectScopedUploadUrlsFromDatasets(datasetsForScan, scope);
 
-  const criticalFromReorganization = (reorganizationReport.skipped || [])
+  const criticalFromReorganization = (scopedReorganizationReport.skipped || [])
     .filter((issue) => hasCriticalType(issue?.type))
     .map((issue) => normalizeIssue(issue, "reorganization"));
   const criticalFromDatasetScan = (
     await collectMissingUploadRefsFromDatasets(datasetsForScan, uploadsDir, {
       mode: safeMode,
       storageService,
+      scope,
     })
   ).map((issue) => normalizeIssue(issue, "dataset-scan"));
   const criticalFromUploadsMetadata = (
     await collectMissingVariantRefsFromUploads(datasetsForScan, uploadsDir, {
       mode: safeMode,
       storageService,
+      scope,
     })
   ).map((issue) => normalizeIssue(issue, "uploads-metadata"));
 
@@ -286,17 +333,19 @@ export const runUploadsIntegrityCheck = async ({
     criticalCountByType,
     criticalIssues,
     examples: criticalIssues.slice(0, Math.max(1, Number(maxExamples) || 20)),
-    reorganizationReport,
-    referencedUrlsCount: reorganizationReport.referencedUrlsCount,
-    plannedMovesCount: reorganizationReport.plannedMovesCount,
-    uploadsInventoryCount: reorganizationReport.uploadsInventoryCount,
+    reorganizationReport: scopedReorganizationReport,
+    referencedUrlsCount: referencedUrls.length,
+    plannedMovesCount: scopedReorganizationReport.plannedMovesCount,
+    uploadsInventoryCount: scope.selectedUploads.length,
   };
 };
 
 export const __testing = {
+  collectScopedUploadUrlsFromDatasets,
   collectUploadUrlsDeep,
   collectMissingUploadRefsFromDatasets,
   collectMissingVariantRefsFromUploads,
+  filterReorganizationReportByScope,
   getUploadRelativePath,
   hasCriticalType,
   mergeCriticalIssues,

@@ -3,9 +3,8 @@ import App from "./App.tsx";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { primePublicBootstrapCache } from "@/hooks/use-public-bootstrap";
-import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
+import { scheduleBootstrapPwaRegistration } from "@/lib/pwa-bootstrap";
 import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
-import { shouldRegisterPwaImmediately } from "@/lib/pwa-navigation";
 import { installVitePreloadRecovery } from "@/lib/vite-preload-recovery";
 import "./styles/fonts.css";
 import "./index.css";
@@ -88,21 +87,10 @@ const bootstrap = async () => {
     void import("@/lib/pwa-register").then(({ registerPwa }) => registerPwa()).catch(() => null);
   };
 
-  if (
-    shouldRegisterPwaImmediately({
-      pathname: window.location.pathname,
-      hasServiceWorkerController: Boolean(window.navigator.serviceWorker?.controller),
-    })
-  ) {
-    registerPwa();
-  } else {
-    scheduleOnBrowserLoadIdle(
-      () => {
-        registerPwa();
-      },
-      { delayMs: 15000 },
-    );
-  }
+  scheduleBootstrapPwaRegistration({
+    globalWindow: window,
+    registerPwa,
+  });
 
   const apiBase = getApiBase();
   const globalWindow = window as Window & {

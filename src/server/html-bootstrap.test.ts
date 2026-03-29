@@ -46,6 +46,7 @@ describe("html bootstrap injection", () => {
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC__ = ");
     expect(result).toContain("window.__BOOTSTRAP_SETTINGS__ = ");
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC_ME__ = ");
+    expect(result).toContain("window.__BOOTSTRAP_PWA_ENABLED__ = false");
     expect(result).toContain("window.__BOOTSTRAP_SKIP_PUBLIC_FETCH__ = false");
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC_PROMISE__");
     expect(result).toContain("normalizeThemeColor");
@@ -127,12 +128,14 @@ describe("html bootstrap injection", () => {
       publicBootstrap: null,
       settings: { site: { name: "Nekomata" } },
       publicMe: { id: "user-1", name: "Admin" },
+      pwaEnabled: true,
       skipPublicFetch: true,
     });
 
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC__ = null");
     expect(result).toContain("window.__BOOTSTRAP_SETTINGS__ = ");
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC_ME__ = ");
+    expect(result).toContain("window.__BOOTSTRAP_PWA_ENABLED__ = true");
     expect(result).toContain("window.__BOOTSTRAP_SKIP_PUBLIC_FETCH__ = true");
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC_PROMISE__");
     expect(result).toContain("fetch('/api/public/bootstrap'");

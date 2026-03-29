@@ -18,9 +18,7 @@ export const buildServerRouteDependencySource = (...sources) => {
   return assertRequiredDependencies("registerServerRoutes", dependencySource, [
     "app",
     ...SERVER_ROUTE_DEPENDENCY_KEYS,
-  ], {
-    allowUndefined: true,
-  });
+  ]);
 };
 
 export default buildServerRouteDependencySource;
