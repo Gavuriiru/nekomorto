@@ -1,6 +1,10 @@
 import fs from "fs";
 import path from "path";
-import { getUsedUploadUrls, resolveProjectLibraryFolders, resolveProjectRootFolder } from "./upload-route-utils.js";
+import {
+  getUsedUploadUrls,
+  resolveProjectLibraryFolders,
+  resolveProjectRootFolder,
+} from "./upload-route-utils.js";
 import { normalizeUploadUrl } from "../../lib/uploads-reorganizer.js";
 
 export const registerUploadListingRoutes = (deps) => {
@@ -34,6 +38,12 @@ export const registerUploadListingRoutes = (deps) => {
   app.get("/api/uploads/list", deps.requireAuth, (req, res) => {
     const sessionUser = req.session.user;
     const folder = typeof req.query.folder === "string" ? req.query.folder.trim() : "";
+    const requestedIncludeUrls = Array.isArray(req.query.includeUrl)
+      ? req.query.includeUrl
+      : [req.query.includeUrl];
+    const includedUploadUrls = new Set(
+      requestedIncludeUrls.map((value) => normalizeUploadUrl(value)).filter(Boolean),
+    );
     const scopeUserId = normalizeUploadScopeUserId(req.query.scopeUserId);
     const listAll = folder === "__all__";
     const safeFolder = listAll ? "" : sanitizeUploadFolder(folder);
@@ -63,7 +73,9 @@ export const registerUploadListingRoutes = (deps) => {
             }).projectRootFolder;
             return [projectRootFolder, String(project?.title || "").trim()];
           })
-          .filter(([projectRootFolder, projectTitle]) => Boolean(projectRootFolder && projectTitle)),
+          .filter(([projectRootFolder, projectTitle]) =>
+            Boolean(projectRootFolder && projectTitle),
+          ),
       );
       const usedUrls = getUsedUploadUrls({
         loadComments,
@@ -94,6 +106,15 @@ export const registerUploadListingRoutes = (deps) => {
         }
         return normalizedFolder === safeFolder;
       };
+      const shouldIncludeUploadUrl = (normalizedUrl, resolvedFolder) => {
+        if (!isUploadFolderAllowedInScope(resolvedFolder, uploadAccessScope)) {
+          return false;
+        }
+        if (includedUploadUrls.has(normalizedUrl)) {
+          return true;
+        }
+        return matchesFolder(resolvedFolder);
+      };
       const metadataFiles = uploadMeta
         .map((meta) => {
           const normalizedUrl = normalizeUploadUrl(meta?.url);
@@ -103,10 +124,7 @@ export const registerUploadListingRoutes = (deps) => {
           const relative = normalizedUrl.replace(/^\/uploads\//, "");
           const resolvedFolder =
             meta?.folder ?? path.dirname(relative).replace(/\\/g, "/").replace(/^\.$/, "");
-          if (
-            !matchesFolder(resolvedFolder) ||
-            !isUploadFolderAllowedInScope(resolvedFolder, uploadAccessScope)
-          ) {
+          if (!shouldIncludeUploadUrl(normalizedUrl, resolvedFolder)) {
             return null;
           }
           const inUse = usedUrls.has(normalizedUrl);
@@ -136,7 +154,9 @@ export const registerUploadListingRoutes = (deps) => {
               ? Number(meta.variantsVersion)
               : 1,
             variants: normalizeVariants(meta?.variants),
-            variantBytes: Number.isFinite(Number(meta?.variantBytes)) ? Number(meta.variantBytes) : 0,
+            variantBytes: Number.isFinite(Number(meta?.variantBytes))
+              ? Number(meta.variantBytes)
+              : 0,
             area:
               typeof meta?.area === "string" && meta.area
                 ? meta.area
@@ -180,10 +200,7 @@ export const registerUploadListingRoutes = (deps) => {
             return [];
           }
           const resolvedFolder = path.dirname(relative).replace(/\\/g, "/").replace(/^\.$/, "");
-          if (
-            !matchesFolder(resolvedFolder) ||
-            !isUploadFolderAllowedInScope(resolvedFolder, uploadAccessScope)
-          ) {
+          if (!shouldIncludeUploadUrl(normalizedUrl, resolvedFolder)) {
             return [];
           }
           const stat = fs.statSync(fullPath);

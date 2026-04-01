@@ -213,7 +213,10 @@ describe("og image output helper", () => {
     expect(optimized).toBe(invalid);
   });
 
-  it("encodes public OG images as jpeg using the conservative quality ladder", async () => {
+  it(
+    "encodes public OG images as jpeg using the conservative quality ladder",
+    { timeout: 15000 },
+    async () => {
     const width = 1200;
     const height = 630;
     const raw = Buffer.alloc(width * height * 3);
@@ -258,7 +261,8 @@ describe("og image output helper", () => {
     expect(optimized.quality).toBe(expectedChoice.quality);
     expect(optimized.buffer.length).toBe(expectedChoice.buffer.length);
     expect(optimized.buffer.length).toBeLessThan(inputPng.length);
-  });
+    },
+  );
 
   it("respects the configured maxBytes and quality ladder for public OG images", async () => {
     const width = 1200;

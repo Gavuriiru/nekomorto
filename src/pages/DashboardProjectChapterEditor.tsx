@@ -6,43 +6,15 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
-import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import { useChapterEditorLeaveGuard } from "@/components/dashboard/chapter-editor/useChapterEditorLeaveGuard";
-import ChapterEditorEpubToolsSection from "@/components/dashboard/chapter-editor/ChapterEditorEpubToolsSection";
-import ChapterEditorStructureSection from "@/components/dashboard/chapter-editor/ChapterEditorStructureSection";
-import type { ChapterStructureGroup } from "@/components/dashboard/chapter-editor/ChapterEditorStructureSection";
-import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
-import LazyLexicalEditor, {
-  loadLexicalEditor,
-} from "@/components/lazy/LazyLexicalEditor";
-import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
-import LexicalEditorFallback from "@/components/lexical/LexicalEditorFallback";
-import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
-import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
-import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
+import { useDashboardProjectChapterEpub } from "@/components/dashboard/chapter-editor/useDashboardProjectChapterEpub";
+import { loadLexicalEditor } from "@/components/lazy/LazyLexicalEditor";
 import ChapterEditorPane from "@/components/dashboard/chapter-editor/ChapterEditorPane";
-import { useDashboardProjectChapterEditorResource } from "@/components/dashboard/chapter-editor/useDashboardProjectChapterEditorResource";
-import { exportMangaCollectionZip } from "@/components/project-reader/manga-collection-export";
-import MangaWorkflowPanel, {
-  buildStageChapterLabel,
-  type MangaWorkflowPanelHandle,
-  reconcileStageChapters,
-  revokeStagePages,
-  type StageChapter,
-} from "@/components/project-reader/MangaWorkflowPanel";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { reconcileStageChapters, revokeStagePages, type StageChapter } from "@/components/project-reader/MangaWorkflowPanel";
 import AsyncState from "@/components/ui/async-state";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -50,12 +22,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import type {
   Project,
   ProjectEpisode,
-  ProjectVolumeCover,
   ProjectVolumeEntry,
 } from "@/data/projects";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
@@ -67,7 +37,6 @@ import {
   buildProjectChapterAssetLibraryOptions,
   buildProjectVolumeAssetLibraryOptions,
 } from "@/lib/dashboard-image-library";
-import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
 import {
   buildChapterStructureGroupKey,
   buildChapterVolumeLabel,
@@ -76,7 +45,6 @@ import {
   buildProjectSnapshotWithVolumeEntries,
   buildVolumeCoverAltFallback,
   chapterHasContent,
-  chapterStatusLabel,
   compareChapterStructureGroupKeys,
   groupChaptersByStructureKey,
   groupStageChaptersByStructureKey,
@@ -84,16 +52,13 @@ import {
   matchesFilter,
   matchesStageChapterFilter,
   matchesStageChapterSearch,
-  normalizeEpubImportPreviewPayload,
   normalizeProjectSnapshotChapterOrderForPersist,
   normalizeStructureGroupKeys,
   normalizeChapterForEditor,
   normalizeChapterForSave,
-  normalizeOriginLabel,
   normalizePositiveInteger,
   normalizeNonNegativeInteger,
   resolveChapterEntrySubtype,
-  resolveImportedChapterCount,
   buildVolumeEntriesSnapshot,
   normalizeVolumeEntriesForSave,
   reorderChaptersWithinStructureGroup,
@@ -102,36 +67,15 @@ import {
   type ChapterFilterMode,
   type EditableVolumeOption,
 } from "@/lib/dashboard-project-chapter";
-import { formatBuildMetadataLabel, getFrontendBuildMetadata } from "@/lib/frontend-build";
 import {
   DEFAULT_PROJECT_COVER_ALT,
   getEpisodeCoverAltFallback,
   resolveAssetAltText,
 } from "@/lib/image-alt";
-import { createSlug } from "@/lib/post-content";
 import { findIncompleteDownloadSourceIndex } from "@/lib/project-download-sources";
 import { cn } from "@/lib/utils";
 import {
-  EPUB_CAPABILITY_UNKNOWN_MESSAGE,
-  EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
-  EPUB_EXPORT_GENERIC_MESSAGE,
-  EPUB_EXPORT_ROUTE_MISSING_MESSAGE,
   EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
-  EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE,
-  EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE,
-  EPUB_IMPORT_PROCESSING_MESSAGE,
-  EPUB_IMPORT_ROUTE_MISSING_MESSAGE,
-  EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE,
-  EPUB_NETWORK_ERROR_MESSAGE,
-  type EpubImportJob,
-  buildEpubImportProjectSnapshot,
-  buildProjectSnapshotForEpubExport,
-  downloadBinaryResponse,
-  isEpubCssEngineFailureDetail,
-  isLegacyMultipartSnapshotTooLargeError,
-  mergeImportedChaptersIntoProject,
-  mergeImportedVolumeCoversIntoProject,
-  normalizeEpubImportJob,
   overlayDraftOnProject,
 } from "@/lib/project-epub";
 import {
@@ -169,14 +113,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import type {
-  ChangeEvent,
-  Dispatch,
-  KeyboardEvent as ReactKeyboardEvent,
-  ReactNode,
-  RefObject,
-  SetStateAction,
-} from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import {
   forwardRef,
   useCallback,
@@ -248,103 +185,6 @@ type ChapterEditorPaneHandle = {
   requestLeave: (options?: { nextHref?: string; routeExit?: boolean }) => Promise<boolean>;
 };
 
-type EpubCapabilityState = {
-  message: string;
-  variant: "destructive" | "warning";
-} | null;
-
-type ChapterEditorPaneProps = {
-  project: ProjectRecord;
-  activeChapter: ProjectEpisode | null;
-  activeDraft: ProjectEpisode | null;
-  onDraftChange: (nextChapter: ProjectEpisode) => void;
-  filteredChapters: ProjectEpisode[];
-  stagedChapters: StageChapter[];
-  selectedStageChapterId: string | null;
-  setStagedChapters: Dispatch<SetStateAction<StageChapter[]>>;
-  setSelectedStageChapterId: Dispatch<SetStateAction<string | null>>;
-  volumeEntriesDraft: ProjectVolumeEntry[];
-  selectedVolume: number | null;
-  availableVolumes: EditableVolumeOption[];
-  selectedVolumeChapterCount: number;
-  onSelectedVolumeChange: (
-    nextVolume: number,
-    options?: VolumeSelectionOptions,
-  ) => boolean | Promise<boolean>;
-  onAddVolume: () => void;
-  onAddChapter: (targetVolume: number | null) => void | Promise<void>;
-  onRequestDeleteVolume: (volume: number) => void;
-  onRequestDeleteChapter: () => void;
-  onClearSelectedVolume: () => void;
-  onUpdateVolumeEntry: (
-    volume: number,
-    updater: (entry: ProjectVolumeEntry) => ProjectVolumeEntry,
-  ) => void;
-  activeChapterKey: string | null;
-  chapterCount: number;
-  chapterIndex: number;
-  structureGroups: ChapterStructureGroup[];
-  initialOpenStructureGroupKeys?: string[];
-  onStructureGroupKeysChange: (nextKeys: string[]) => void;
-  chapterSearchQuery: string;
-  onChapterSearchQueryChange: (nextValue: string) => void;
-  filterMode: ChapterFilterMode;
-  onFilterModeChange: (nextValue: ChapterFilterMode) => void;
-  previousChapterHref: string | null;
-  nextChapterHref: string | null;
-  neutralHref: string;
-  onNavigateToHref: (href: string) => void;
-  onNavigateToUploads: () => boolean | Promise<boolean>;
-  onPersistProjectSnapshot: (
-    snapshot: ProjectRecord,
-    options: {
-      context:
-        | "epub-import"
-        | "volume-editor"
-        | "chapter-create"
-        | "chapter-reorder"
-        | "chapter-delete"
-        | "volume-delete"
-        | "manga-import"
-        | "manga-publication";
-    },
-  ) => Promise<ProjectRecord | null>;
-  onProjectChange: (nextProject: ProjectRecord) => void;
-  onSelectedStageChapterChange?: (chapter: StageChapter | null) => void;
-  onOpenImportedChapter?: (nextProject: ProjectRecord, importedChapters: ProjectEpisode[]) => void;
-  onChapterSaved: (
-    project: ProjectRecord,
-    chapter: ProjectEpisode,
-    routeHint?: { number: number; volume?: number },
-  ) => void;
-  isVolumeDirty: boolean;
-  isSavingVolumes: boolean;
-  onSaveVolumes: () => void | Promise<boolean>;
-  isDeletingEntity: boolean;
-  backendSupportsEpubImport: boolean;
-  backendSupportsEpubExport: boolean;
-  backendBuildLabel: string | null;
-  frontendBuildLabel: string | null;
-  epubCapabilityState: EpubCapabilityState;
-  epubImportInputRef: RefObject<HTMLInputElement | null>;
-  epubImportFile: File | null;
-  epubImportTargetVolume: string;
-  onEpubImportTargetVolumeChange: (nextValue: string) => void;
-  epubImportAsDraft: boolean;
-  onEpubImportAsDraftChange: (nextValue: boolean) => void;
-  isImportingEpub: boolean;
-  onOpenEpubPicker: (options: { autoImportAfterSelect: boolean }) => void;
-  onEpubImportFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  onEpubImportFileCancel: () => void;
-  onImportEpub: () => void | Promise<void>;
-  epubExportVolume: string;
-  onEpubExportVolumeChange: (nextValue: string) => void;
-  epubExportIncludeDrafts: boolean;
-  onEpubExportIncludeDraftsChange: (nextValue: boolean) => void;
-  isExportingEpub: boolean;
-  onExportEpub: () => void | Promise<void>;
-};
-
 const EMPTY_CHAPTER_DRAFT: ProjectEpisode = {
   number: 1,
   title: "",
@@ -392,7 +232,6 @@ const toastIncompleteDownloadSources = () => {
   });
 };
 
-const WorkspaceSectionCard = ProjectEditorSectionCard;
 
 const buildNewChapterDraft = (
   episodes: ProjectEpisode[],
@@ -465,29 +304,10 @@ const DashboardProjectChapterEditor = () => {
   const projectSnapshotRef = useRef<ProjectRecord | null>(null);
   const stagedMangaChaptersRef = useRef<StageChapter[]>([]);
   const previousProjectIdRef = useRef<string | undefined>(projectId);
-  const [epubImportFile, setEpubImportFile] = useState<File | null>(null);
-  const [epubImportTargetVolume, setEpubImportTargetVolume] = useState("");
-  const [epubImportAsDraft, setEpubImportAsDraft] = useState(true);
-  const [isImportingEpub, setIsImportingEpub] = useState(false);
-  const [epubExportVolume, setEpubExportVolume] = useState("");
-  const [epubExportIncludeDrafts, setEpubExportIncludeDrafts] = useState(false);
-  const [isExportingEpub, setIsExportingEpub] = useState(false);
-  const epubImportInputRef = useRef<HTMLInputElement | null>(null);
-  const pendingEpubAutoImportRef = useRef(false);
   const pendingNeutralSelectedVolumeRef = useRef<number | null>(null);
   const pendingNeutralScrollAnchorRef = useRef<StructureScrollAnchor | null>(null);
   const pendingChapterNavigationHrefRef = useRef<string | null>(null);
   const fallbackNeutralToastKeyRef = useRef<string | null>(null);
-  const {
-    backendBuildMetadata,
-    backendCapabilities,
-    backendCapabilitiesError,
-    clearPendingEpubImportIds,
-    cleanupPendingEpubImports,
-    epubRouteStatus,
-    registerPendingEpubImportIds,
-    setEpubRouteStatus,
-  } = useDashboardProjectChapterEditorResource(apiBase);
 
   useEffect(() => {
     if (import.meta.env.MODE === "test") {
@@ -521,100 +341,15 @@ const DashboardProjectChapterEditor = () => {
     [],
   );
 
-  useEffect(() => {
-    return () => {
-      cleanupPendingEpubImports();
-    };
-  }, [cleanupPendingEpubImports]);
-
   const canManageProjects = useMemo(() => {
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
     return permissions.includes("*") || permissions.includes("projetos");
   }, [currentUser]);
-  const frontendBuildMetadata = useMemo(() => getFrontendBuildMetadata(), []);
-  const locationOrigin = useMemo(
-    () => (typeof window !== "undefined" && window.location ? window.location.origin : ""),
-    [],
-  );
-  const backendSupportsEpubImport = backendCapabilities?.project_epub_import === true;
-  const backendSupportsEpubExport = backendCapabilities?.project_epub_export === true;
-  const backendSupportsEpubImportAsync = backendCapabilities?.project_epub_import_async === true;
-  const epubCapabilityState = useMemo(() => {
-    if (backendCapabilitiesError) {
-      return {
-        message: EPUB_CAPABILITY_UNKNOWN_MESSAGE,
-        variant: "destructive" as const,
-      };
-    }
-    if (
-      backendCapabilities &&
-      (!backendCapabilities.project_epub_import || !backendCapabilities.project_epub_export)
-    ) {
-      return {
-        message: EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
-        variant: "warning" as const,
-      };
-    }
-    return null;
-  }, [backendCapabilities, backendCapabilitiesError]);
-  const backendBuildLabel = useMemo(
-    () => formatBuildMetadataLabel(backendBuildMetadata),
-    [backendBuildMetadata],
-  );
-  const frontendBuildLabel = useMemo(
-    () => formatBuildMetadataLabel(frontendBuildMetadata),
-    [frontendBuildMetadata],
-  );
-
-  const logEpubParityIssue = useCallback(
-    ({
-      path,
-      status,
-      reason,
-    }: {
-      path: string;
-      status: number | "network" | "blocked";
-      reason: string;
-    }) => {
-      console.warn("epub_backend_parity_mismatch", {
-        reason,
-        path,
-        status,
-        locationOrigin,
-        apiBase,
-        contractVersion: "v1",
-        frontend: frontendBuildMetadata,
-        backend: backendBuildMetadata,
-      });
-    },
-    [apiBase, backendBuildMetadata, frontendBuildMetadata, locationOrigin],
-  );
 
   const volumeParam = searchParams.get("volume");
   const parsedVolume = Number(volumeParam);
   const resolvedVolume =
     volumeParam !== null && Number.isFinite(parsedVolume) ? parsedVolume : undefined;
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-    const normalizedLocationOrigin = normalizeOriginLabel(locationOrigin);
-    const normalizedApiBase = normalizeOriginLabel(apiBase);
-    if (
-      normalizedLocationOrigin === "indisponivel" ||
-      normalizedApiBase === "indisponivel" ||
-      normalizedLocationOrigin === normalizedApiBase
-    ) {
-      return;
-    }
-    logOriginApiBaseMismatchOnce({
-      locationOrigin: normalizedLocationOrigin,
-      apiBase: normalizedApiBase,
-      frontend: frontendBuildMetadata,
-      backend: backendBuildMetadata,
-    });
-  }, [apiBase, backendBuildMetadata, frontendBuildMetadata, locationOrigin]);
 
   const loadProject = useCallback(async () => {
     if (!projectId) {
@@ -759,6 +494,13 @@ const DashboardProjectChapterEditor = () => {
   useEffect(() => {
     projectSnapshotRef.current = projectSnapshot;
   }, [projectSnapshot]);
+
+  const handleProjectChange = useCallback((nextProject: ProjectRecord) => {
+    projectRef.current = nextProject;
+    projectSnapshotRef.current = nextProject;
+    setProject(nextProject);
+    setVolumeEntriesDraft(normalizeProjectVolumeEntries(nextProject.volumeEntries));
+  }, []);
 
   const availableVolumes = useMemo<EditableVolumeOption[]>(() => {
     return buildEditableVolumeOptions(projectSnapshot, volumeEntriesDraft);
@@ -1516,6 +1258,40 @@ const DashboardProjectChapterEditor = () => {
     [apiBase],
   );
 
+  const {
+    backendBuildLabel,
+    backendSupportsEpubExport,
+    backendSupportsEpubImport,
+    epubCapabilityState,
+    epubExportIncludeDrafts,
+    epubExportVolume,
+    epubImportAsDraft,
+    epubImportFile,
+    epubImportInputRef,
+    epubImportTargetVolume,
+    frontendBuildLabel,
+    handleEpubImportFileChange,
+    handleExportEpub,
+    handleImportEpub,
+    isExportingEpub,
+    isImportingEpub,
+    openEpubImportPicker,
+    resetPendingEpubAutoImport,
+    setEpubExportIncludeDrafts,
+    setEpubExportVolume,
+    setEpubImportAsDraft,
+    setEpubImportTargetVolume,
+  } = useDashboardProjectChapterEpub({
+    activeChapterKey,
+    apiBase,
+    navigateToChapterEditor,
+    normalizeChapterDraft,
+    onProjectUpdated: handleProjectChange,
+    onDraftUpdated: setActiveDraft,
+    persistProjectSnapshot,
+    projectSnapshot,
+  });
+
   const handleSaveVolumes = useCallback(async () => {
     if (!project || isSavingVolumes || !isVolumeDirty) {
       return true;
@@ -1781,665 +1557,6 @@ const DashboardProjectChapterEditor = () => {
     ],
   );
 
-  const openEpubImportPicker = useCallback(
-    ({ autoImportAfterSelect }: { autoImportAfterSelect: boolean }) => {
-      const input = epubImportInputRef.current;
-      if (!input || isImportingEpub || !backendSupportsEpubImport) {
-        return;
-      }
-      pendingEpubAutoImportRef.current = autoImportAfterSelect;
-      input.value = "";
-      input.click();
-    },
-    [backendSupportsEpubImport, isImportingEpub],
-  );
-
-  const handleEpubImportFailureResponse = useCallback((response: Response, data: unknown) => {
-    const payload = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
-    if (response.status === 404) {
-      if (payload?.error === "project_not_found") {
-        setEpubRouteStatus("legacy_project_not_found");
-        toast({
-          title: "Falha ao importar EPUB",
-          description: EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE,
-          variant: "destructive",
-        });
-        return;
-      }
-      setEpubRouteStatus("route_unreachable_for_current_origin");
-      toast({
-        title: "Falha ao importar EPUB",
-        description: EPUB_IMPORT_ROUTE_MISSING_MESSAGE,
-        variant: "destructive",
-      });
-      return;
-    }
-    if (response.status === 403) {
-      setEpubRouteStatus("forbidden");
-      toast({
-        title: "Falha ao importar EPUB",
-        description: "Você não tem permissão para importar EPUB.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (
-      (typeof payload?.error === "string" && payload.error === "project_snapshot_too_large") ||
-      isLegacyMultipartSnapshotTooLargeError(payload?.error, payload?.detail)
-    ) {
-      setEpubRouteStatus("ok");
-      toast({
-        title: "Falha ao importar EPUB",
-        description: EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE,
-        variant: "destructive",
-      });
-      return;
-    }
-    if (typeof payload?.error === "string" && payload.error === "invalid_project_snapshot") {
-      setEpubRouteStatus("ok");
-      toast({
-        title: "Falha ao importar EPUB",
-        description: EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE,
-        variant: "destructive",
-      });
-      return;
-    }
-    if (typeof payload?.error === "string" && payload.error === "duplicate_episode_key") {
-      setEpubRouteStatus("ok");
-      toast({
-        title: "Falha ao importar EPUB",
-        description: EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
-        variant: "destructive",
-      });
-      return;
-    }
-    if (
-      typeof payload?.error === "string" &&
-      payload.error === "epub_import_failed" &&
-      (isEpubCssEngineFailureDetail(payload?.detail) ||
-        !(typeof payload?.detail === "string" && payload.detail.trim().length > 0))
-    ) {
-      toast({
-        title: "Falha ao importar EPUB",
-        description: EPUB_IMPORT_PROCESSING_MESSAGE,
-        variant: "destructive",
-      });
-      return;
-    }
-    toast({
-      title: "Falha ao importar EPUB",
-      description:
-        typeof payload?.detail === "string"
-          ? payload.detail
-          : "Não foi possível processar o arquivo informado.",
-      variant: "destructive",
-    });
-  }, []);
-
-  const applyImportedEpubPayload = useCallback(
-    async (payload: unknown, baseProjectSnapshot: ProjectRecord) => {
-      setEpubRouteStatus("ok");
-      registerPendingEpubImportIds(payload);
-      const data = normalizeEpubImportPreviewPayload(payload);
-      const chapters = Array.isArray(data?.chapters) ? (data.chapters as ProjectEpisode[]) : [];
-      const volumeCovers = Array.isArray(data?.volumeCovers)
-        ? (data.volumeCovers as Array<
-            ProjectVolumeCover & { mergeMode?: "create" | "update" | "preserve_existing" }
-          >)
-        : [];
-
-      const importedSnapshot = mergeImportedVolumeCoversIntoProject(
-        mergeImportedChaptersIntoProject(baseProjectSnapshot, chapters),
-        volumeCovers,
-      );
-      const persistedProject = await persistProjectSnapshot(importedSnapshot, {
-        context: "epub-import",
-      });
-      if (!persistedProject) {
-        return;
-      }
-      clearPendingEpubImportIds();
-      setProject(persistedProject);
-      setVolumeEntriesDraft(normalizeProjectVolumeEntries(persistedProject.volumeEntries));
-
-      const importedKeys = chapters
-        .map((chapter) => buildEpisodeKey(chapter.number, chapter.volume))
-        .filter(Boolean);
-      const persistedChapters = sortChapters(
-        Array.isArray(persistedProject.episodeDownloads) ? persistedProject.episodeDownloads : [],
-      );
-      const currentPersistedChapter =
-        activeChapterKey && importedKeys.includes(activeChapterKey)
-          ? persistedChapters.find(
-              (chapter) => buildEpisodeKey(chapter.number, chapter.volume) === activeChapterKey,
-            ) || null
-          : null;
-      const firstImportedChapter = persistedChapters.find((chapter) =>
-        importedKeys.includes(buildEpisodeKey(chapter.number, chapter.volume)),
-      );
-      if (currentPersistedChapter) {
-        setActiveDraft(normalizeChapterDraft(currentPersistedChapter));
-      } else if (firstImportedChapter) {
-        navigateToChapterEditor(
-          persistedProject.id,
-          firstImportedChapter.number,
-          firstImportedChapter.volume,
-          { replace: true },
-        );
-      }
-
-      const importedChapterCount = resolveImportedChapterCount(data, chapters);
-      toast({
-        title: "EPUB importado",
-        description: `${importedChapterCount} capítulo(s) incorporados ao projeto.`,
-        intent: "success",
-      });
-    },
-    [
-      activeChapterKey,
-      clearPendingEpubImportIds,
-      navigateToChapterEditor,
-      persistProjectSnapshot,
-      registerPendingEpubImportIds,
-    ],
-  );
-
-  const pollEpubImportJob = useCallback(
-    async (jobId: string) => {
-      while (true) {
-        const response = await apiFetch(apiBase, `/api/projects/epub/import/jobs/${jobId}`, {
-          auth: true,
-          cache: "no-store",
-        });
-        if (!response.ok) {
-          const data = await response.json().catch(() => null);
-          handleEpubImportFailureResponse(response, data);
-          return null;
-        }
-        const data = (await response.json().catch(() => null)) as { job?: EpubImportJob } | null;
-        const job = normalizeEpubImportJob(data?.job);
-        if (!job) {
-          toast({
-            title: "Falha ao importar EPUB",
-            description: EPUB_IMPORT_PROCESSING_MESSAGE,
-            variant: "destructive",
-          });
-          return null;
-        }
-        if (job.status === "queued" || job.status === "processing") {
-          await new Promise((resolve) => window.setTimeout(resolve, 2000));
-          continue;
-        }
-        return job;
-      }
-    },
-    [apiBase, handleEpubImportFailureResponse],
-  );
-
-  const submitEpubImportSyncLegacy = useCallback(
-    async (file: File, options: { skipImportingState?: boolean } = {}) => {
-      if (!projectSnapshot || (isImportingEpub && !options.skipImportingState)) {
-        return;
-      }
-      if (!backendSupportsEpubImport) {
-        logEpubParityIssue({
-          path: "/api/projects/epub/import",
-          status: "blocked",
-          reason: backendCapabilitiesError ? "contract_unreachable" : "capability_missing",
-        });
-        toast({
-          title: "Falha ao importar EPUB",
-          description: backendCapabilitiesError
-            ? EPUB_CAPABILITY_UNKNOWN_MESSAGE
-            : EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!options.skipImportingState) {
-        setIsImportingEpub(true);
-      }
-      try {
-        const formData = new FormData();
-        formData.set("file", file);
-        formData.set("project", JSON.stringify(buildEpubImportProjectSnapshot(projectSnapshot)));
-        if (epubImportTargetVolume.trim()) {
-          formData.set("targetVolume", epubImportTargetVolume.trim());
-        }
-        formData.set("defaultStatus", epubImportAsDraft ? "draft" : "published");
-        const response = await apiFetch(apiBase, "/api/projects/epub/import", {
-          method: "POST",
-          auth: true,
-          body: formData,
-        });
-        if (!response.ok) {
-          const data = await response.json().catch(() => null);
-          if (response.status === 404) {
-            if (data?.error === "project_not_found") {
-              setEpubRouteStatus("legacy_project_not_found");
-              toast({
-                title: "Falha ao importar EPUB",
-                description: EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE,
-                variant: "destructive",
-              });
-              return;
-            }
-            setEpubRouteStatus("route_unreachable_for_current_origin");
-            toast({
-              title: "Falha ao importar EPUB",
-              description: EPUB_IMPORT_ROUTE_MISSING_MESSAGE,
-              variant: "destructive",
-            });
-            return;
-          }
-          if (response.status === 403) {
-            setEpubRouteStatus("forbidden");
-            toast({
-              title: "Falha ao importar EPUB",
-              description: "Você não tem permissão para importar EPUB.",
-              variant: "destructive",
-            });
-            return;
-          }
-          if (
-            (typeof data?.error === "string" && data.error === "project_snapshot_too_large") ||
-            isLegacyMultipartSnapshotTooLargeError(data?.error, data?.detail)
-          ) {
-            setEpubRouteStatus("ok");
-            toast({
-              title: "Falha ao importar EPUB",
-              description: EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE,
-              variant: "destructive",
-            });
-            return;
-          }
-          if (typeof data?.error === "string" && data.error === "invalid_project_snapshot") {
-            setEpubRouteStatus("ok");
-            toast({
-              title: "Falha ao importar EPUB",
-              description: EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE,
-              variant: "destructive",
-            });
-            return;
-          }
-          if (typeof data?.error === "string" && data.error === "duplicate_episode_key") {
-            setEpubRouteStatus("ok");
-            toast({
-              title: "Falha ao importar EPUB",
-              description: EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
-              variant: "destructive",
-            });
-            return;
-          }
-          if (
-            typeof data?.error === "string" &&
-            data.error === "epub_import_failed" &&
-            (isEpubCssEngineFailureDetail(data?.detail) ||
-              !(typeof data?.detail === "string" && data.detail.trim().length > 0))
-          ) {
-            toast({
-              title: "Falha ao importar EPUB",
-              description: EPUB_IMPORT_PROCESSING_MESSAGE,
-              variant: "destructive",
-            });
-            return;
-          }
-          toast({
-            title: "Falha ao importar EPUB",
-            description:
-              typeof data?.detail === "string"
-                ? data.detail
-                : "Não foi possível processar o arquivo informado.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        setEpubRouteStatus("ok");
-        const data = normalizeEpubImportPreviewPayload(await response.json());
-        registerPendingEpubImportIds(data);
-        const chapters = Array.isArray(data?.chapters) ? (data.chapters as ProjectEpisode[]) : [];
-        const volumeCovers = Array.isArray(data?.volumeCovers)
-          ? (data.volumeCovers as Array<
-              ProjectVolumeCover & { mergeMode?: "create" | "update" | "preserve_existing" }
-            >)
-          : [];
-
-        const importedSnapshot = mergeImportedVolumeCoversIntoProject(
-          mergeImportedChaptersIntoProject(projectSnapshot, chapters),
-          volumeCovers,
-        );
-        const persistedProject = await persistProjectSnapshot(importedSnapshot, {
-          context: "epub-import",
-        });
-        if (!persistedProject) {
-          return;
-        }
-        clearPendingEpubImportIds();
-        setProject(persistedProject);
-        setVolumeEntriesDraft(normalizeProjectVolumeEntries(persistedProject.volumeEntries));
-
-        const importedKeys = chapters
-          .map((chapter) => buildEpisodeKey(chapter.number, chapter.volume))
-          .filter(Boolean);
-        const persistedChapters = sortChapters(
-          Array.isArray(persistedProject.episodeDownloads) ? persistedProject.episodeDownloads : [],
-        );
-        const currentPersistedChapter =
-          activeChapterKey && importedKeys.includes(activeChapterKey)
-            ? persistedChapters.find(
-                (chapter) => buildEpisodeKey(chapter.number, chapter.volume) === activeChapterKey,
-              ) || null
-            : null;
-        const firstImportedChapter = persistedChapters.find((chapter) =>
-          importedKeys.includes(buildEpisodeKey(chapter.number, chapter.volume)),
-        );
-        if (currentPersistedChapter) {
-          setActiveDraft(normalizeChapterDraft(currentPersistedChapter));
-        } else if (firstImportedChapter) {
-          navigateToChapterEditor(
-            persistedProject.id,
-            firstImportedChapter.number,
-            firstImportedChapter.volume,
-            { replace: true },
-          );
-        }
-
-        const importedChapterCount = resolveImportedChapterCount(data, chapters);
-        toast({
-          title: "EPUB importado",
-          description: `${importedChapterCount} capítulo(s) incorporados ao projeto.`,
-          intent: "success",
-        });
-      } catch {
-        setEpubRouteStatus("network_unreachable");
-        logEpubParityIssue({
-          path: "/api/projects/epub/import",
-          status: "network",
-          reason: "network_unreachable",
-        });
-        toast({
-          title: "Falha ao importar EPUB",
-          description: EPUB_NETWORK_ERROR_MESSAGE,
-          variant: "destructive",
-        });
-      } finally {
-        pendingEpubAutoImportRef.current = false;
-        if (!options.skipImportingState) {
-          setIsImportingEpub(false);
-        }
-      }
-    },
-    [
-      activeChapterKey,
-      apiBase,
-      backendCapabilitiesError,
-      backendSupportsEpubImport,
-      clearPendingEpubImportIds,
-      epubImportAsDraft,
-      epubImportTargetVolume,
-      isImportingEpub,
-      logEpubParityIssue,
-      navigateToChapterEditor,
-      persistProjectSnapshot,
-      projectSnapshot,
-      registerPendingEpubImportIds,
-    ],
-  );
-
-  const submitEpubImport = useCallback(
-    async (file: File) => {
-      if (!projectSnapshot || isImportingEpub) {
-        return;
-      }
-      if (!backendSupportsEpubImport) {
-        logEpubParityIssue({
-          path: "/api/projects/epub/import",
-          status: "blocked",
-          reason: backendCapabilitiesError ? "contract_unreachable" : "capability_missing",
-        });
-        toast({
-          title: "Falha ao importar EPUB",
-          description: backendCapabilitiesError
-            ? EPUB_CAPABILITY_UNKNOWN_MESSAGE
-            : EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setIsImportingEpub(true);
-      try {
-        const projectSnapshotForImport = projectSnapshot;
-        const formData = new FormData();
-        formData.set("file", file);
-        formData.set(
-          "project",
-          JSON.stringify(buildEpubImportProjectSnapshot(projectSnapshotForImport)),
-        );
-        if (epubImportTargetVolume.trim()) {
-          formData.set("targetVolume", epubImportTargetVolume.trim());
-        }
-        formData.set("defaultStatus", epubImportAsDraft ? "draft" : "published");
-
-        if (backendSupportsEpubImportAsync) {
-          const jobResponse = await apiFetch(apiBase, "/api/projects/epub/import/jobs", {
-            method: "POST",
-            auth: true,
-            body: formData,
-          });
-          if (jobResponse.status === 404) {
-            logEpubParityIssue({
-              path: "/api/projects/epub/import/jobs",
-              status: jobResponse.status,
-              reason: "route_unreachable_for_current_origin",
-            });
-          } else if (!jobResponse.ok) {
-            const data = await jobResponse.json().catch(() => null);
-            handleEpubImportFailureResponse(jobResponse, data);
-            return;
-          } else {
-            const data = (await jobResponse.json().catch(() => null)) as {
-              job?: EpubImportJob;
-            } | null;
-            const initialJob = normalizeEpubImportJob(data?.job);
-            if (!initialJob) {
-              toast({
-                title: "Falha ao importar EPUB",
-                description: EPUB_IMPORT_PROCESSING_MESSAGE,
-                variant: "destructive",
-              });
-              return;
-            }
-            const finalJob =
-              initialJob.status === "queued" || initialJob.status === "processing"
-                ? await pollEpubImportJob(initialJob.id)
-                : initialJob;
-            if (!finalJob) {
-              return;
-            }
-            if (finalJob.status === "completed" && finalJob.result) {
-              await applyImportedEpubPayload(finalJob.result, projectSnapshotForImport);
-              return;
-            }
-            toast({
-              title: "Falha ao importar EPUB",
-              description: finalJob.error || EPUB_IMPORT_PROCESSING_MESSAGE,
-              variant: "destructive",
-            });
-            return;
-          }
-        }
-
-        await submitEpubImportSyncLegacy(file, { skipImportingState: true });
-      } catch {
-        setEpubRouteStatus("network_unreachable");
-        logEpubParityIssue({
-          path: backendSupportsEpubImportAsync
-            ? "/api/projects/epub/import/jobs"
-            : "/api/projects/epub/import",
-          status: "network",
-          reason: "network_unreachable",
-        });
-        toast({
-          title: "Falha ao importar EPUB",
-          description: EPUB_NETWORK_ERROR_MESSAGE,
-          variant: "destructive",
-        });
-      } finally {
-        pendingEpubAutoImportRef.current = false;
-        setIsImportingEpub(false);
-      }
-    },
-    [
-      apiBase,
-      applyImportedEpubPayload,
-      backendCapabilitiesError,
-      backendSupportsEpubImport,
-      backendSupportsEpubImportAsync,
-      epubImportAsDraft,
-      epubImportTargetVolume,
-      handleEpubImportFailureResponse,
-      isImportingEpub,
-      logEpubParityIssue,
-      pollEpubImportJob,
-      projectSnapshot,
-      submitEpubImportSyncLegacy,
-    ],
-  );
-
-  const handleEpubImportFileChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const selectedFile = event.target.files?.[0] || null;
-      setEpubImportFile(selectedFile);
-      if (!selectedFile) {
-        pendingEpubAutoImportRef.current = false;
-        return;
-      }
-      if (!pendingEpubAutoImportRef.current) {
-        return;
-      }
-      pendingEpubAutoImportRef.current = false;
-      void submitEpubImport(selectedFile);
-    },
-    [submitEpubImport],
-  );
-
-  const handleImportEpub = useCallback(async () => {
-    if (!backendSupportsEpubImport) {
-      toast({
-        title: "Falha ao importar EPUB",
-        description: backendCapabilitiesError
-          ? EPUB_CAPABILITY_UNKNOWN_MESSAGE
-          : EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!epubImportFile) {
-      openEpubImportPicker({ autoImportAfterSelect: true });
-      return;
-    }
-    await submitEpubImport(epubImportFile);
-  }, [
-    backendCapabilitiesError,
-    backendSupportsEpubImport,
-    epubImportFile,
-    openEpubImportPicker,
-    submitEpubImport,
-  ]);
-
-  const handleExportEpub = useCallback(async () => {
-    if (!projectSnapshot) {
-      return;
-    }
-    if (!backendSupportsEpubExport) {
-      toast({
-        title: "Falha ao exportar EPUB",
-        description: backendCapabilitiesError
-          ? EPUB_CAPABILITY_UNKNOWN_MESSAGE
-          : EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsExportingEpub(true);
-    try {
-      const response = await apiFetch(apiBase, "/api/projects/epub/export", {
-        method: "POST",
-        auth: true,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          project: buildProjectSnapshotForEpubExport(projectSnapshot),
-          volume: epubExportVolume.trim() ? Number(epubExportVolume) : null,
-          includeDrafts: epubExportIncludeDrafts,
-        }),
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        if (response.status === 404) {
-          setEpubRouteStatus("route_unreachable_for_current_origin");
-          toast({
-            title: "Falha ao exportar EPUB",
-            description: EPUB_EXPORT_ROUTE_MISSING_MESSAGE,
-            variant: "destructive",
-          });
-          return;
-        }
-        if (response.status === 403) {
-          setEpubRouteStatus("forbidden");
-          toast({
-            title: "Falha ao exportar EPUB",
-            description: "Você não tem permissão para exportar EPUB.",
-            variant: "destructive",
-          });
-          return;
-        }
-        toast({
-          title: "Falha ao exportar EPUB",
-          description:
-            typeof data?.error === "string" && data.error === "no_eligible_chapters"
-              ? "Não há capítulos elegíveis para esse volume."
-              : typeof data?.detail === "string"
-                ? data.detail
-                : EPUB_EXPORT_GENERIC_MESSAGE,
-          variant: "destructive",
-        });
-        return;
-      }
-      setEpubRouteStatus("ok");
-      await downloadBinaryResponse(
-        response,
-        `${createSlug(projectSnapshot.title || "projeto") || "projeto"}.epub`,
-      );
-      toast({
-        title: "EPUB exportado",
-        description: "O volume foi gerado com o snapshot atual da página.",
-        intent: "success",
-      });
-    } catch {
-      setEpubRouteStatus("network_unreachable");
-      toast({
-        title: "Falha ao exportar EPUB",
-        description: EPUB_NETWORK_ERROR_MESSAGE,
-        variant: "destructive",
-      });
-    } finally {
-      setIsExportingEpub(false);
-    }
-  }, [
-    apiBase,
-    backendCapabilitiesError,
-    backendSupportsEpubExport,
-    epubExportIncludeDrafts,
-    epubExportVolume,
-    projectSnapshot,
-  ]);
-
   if (!projectId) {
     return <NotFound />;
   }
@@ -2581,12 +1698,7 @@ const DashboardProjectChapterEditor = () => {
           onNavigateToHref={requestNavigateToHref}
           onNavigateToUploads={requestNavigateToUploads}
           onPersistProjectSnapshot={persistProjectSnapshot}
-          onProjectChange={(nextProject) => {
-            projectRef.current = nextProject;
-            projectSnapshotRef.current = nextProject;
-            setProject(nextProject);
-            setVolumeEntriesDraft(normalizeProjectVolumeEntries(nextProject.volumeEntries));
-          }}
+          onProjectChange={handleProjectChange}
           onSelectedStageChapterChange={handleSelectedStageChapterChange}
           onOpenImportedChapter={handleOpenImportedChapter}
           onChapterSaved={handleChapterSaved}
@@ -2608,9 +1720,7 @@ const DashboardProjectChapterEditor = () => {
           isImportingEpub={isImportingEpub}
           onOpenEpubPicker={openEpubImportPicker}
           onEpubImportFileChange={handleEpubImportFileChange}
-          onEpubImportFileCancel={() => {
-            pendingEpubAutoImportRef.current = false;
-          }}
+          onEpubImportFileCancel={resetPendingEpubAutoImport}
           onImportEpub={handleImportEpub}
           epubExportVolume={epubExportVolume}
           onEpubExportVolumeChange={setEpubExportVolume}

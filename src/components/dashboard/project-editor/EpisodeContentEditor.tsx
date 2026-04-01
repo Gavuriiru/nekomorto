@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
-import LazyLexicalEditor from "@/components/lazy/LazyLexicalEditor";
+import LexicalEditorSurface from "@/components/lexical/LexicalEditorSurface";
 
 export type EpisodeContentEditorProps = {
   value: string;
@@ -27,7 +27,7 @@ const EpisodeContentEditor = ({
   }, [onRegister]);
 
   return (
-    <LazyLexicalEditor
+    <LexicalEditorSurface
       ref={editorRef}
       value={value}
       onChange={onChange}

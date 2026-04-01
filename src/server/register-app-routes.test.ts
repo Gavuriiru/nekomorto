@@ -86,6 +86,7 @@ describe("registerAppRoutes", () => {
     "/assets/missing.js",
     "/foo.css",
     "/@vite/client",
+    "/@vite-plugin-pwa/pwa-entry-point-loaded",
     "/src/main.tsx",
     "/@react-refresh",
     "/@id/__x00__react",

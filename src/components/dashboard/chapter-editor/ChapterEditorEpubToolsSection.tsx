@@ -78,19 +78,19 @@ export const ChapterEditorEpubToolsSection = ({
     >
       <AccordionItem
         value="epub-tools"
-        className="rounded-[22px] border border-border/50 bg-card/70 shadow-[0_14px_42px_-34px_rgba(0,0,0,0.74)]"
+        className="overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_54px_-42px_rgba(0,0,0,0.72)]"
       >
-        <AccordionTrigger className="flex items-center justify-between gap-3 px-4 py-4 text-left">
+        <AccordionTrigger className="project-editor-section-trigger flex w-full items-start gap-4 px-5 py-3.5 text-left hover:no-underline md:py-4">
           <ChapterEditorAccordionHeader
             title="Ferramentas EPUB"
-            subtitle="Importacao e exportacao por volume"
+            subtitle="Importação e exportação por volume"
           />
         </AccordionTrigger>
-        <AccordionContent className="px-4 pb-4">
+        <AccordionContent className="project-editor-section-content px-5 pb-5">
           <div className="space-y-5">
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">
-                Importe capitulos para o editor Lexical e exporte o snapshot atual da pagina.
+                Importe capítulos para o editor Lexical e exporte o snapshot atual da página.
               </p>
               {epubCapabilityState ? (
                 <p
@@ -117,7 +117,7 @@ export const ChapterEditorEpubToolsSection = ({
               <div className="space-y-1">
                 <h4 className="text-sm font-medium text-foreground">Importar EPUB</h4>
                 <p className="hidden">
-                  O arquivo e convertido para Lexical, mergeado no projeto e salvo imediatamente.
+                  O arquivo é convertido para Lexical, mergeado no projeto e salvo imediatamente.
                 </p>
               </div>
               <div className="space-y-2">
@@ -179,7 +179,7 @@ export const ChapterEditorEpubToolsSection = ({
                     Importar como rascunho
                   </span>
                   <span className="block text-xs text-muted-foreground">
-                    Capitulos importados ficam ocultos ao publico ate a publicacao.
+                    Capítulos importados ficam ocultos ao público até a publicação.
                   </span>
                 </span>
               </label>
@@ -198,14 +198,12 @@ export const ChapterEditorEpubToolsSection = ({
               <div className="space-y-1">
                 <h4 className="text-sm font-medium text-foreground">Exportar EPUB</h4>
                 <p className="text-xs text-muted-foreground">
-                  Usa o estado atual da pagina, inclusive alteracoes ainda nao salvas no capitulo
+                  Usa o estado atual da página, inclusive alterações ainda não salvas no capítulo
                   aberto.
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="chapter-editor-epub-export-volume">
-                  Volume para exportacao
-                </Label>
+                <Label htmlFor="chapter-editor-epub-export-volume">Volume para exportação</Label>
                 <Input
                   id="chapter-editor-epub-export-volume"
                   type="number"
@@ -222,7 +220,7 @@ export const ChapterEditorEpubToolsSection = ({
                 <span className="space-y-1">
                   <span className="block font-medium text-foreground">Incluir rascunhos</span>
                   <span className="block text-xs text-muted-foreground">
-                    Exporta tambem capitulos em draft que tenham conteudo.
+                    Exporta também capítulos em draft que tenham conteúdo.
                   </span>
                 </span>
               </label>

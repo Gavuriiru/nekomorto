@@ -8,7 +8,7 @@ import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import {
@@ -26,9 +26,8 @@ import {
   dashboardClampedStaggerMs,
 } from "@/components/dashboard/dashboard-motion";
 import UploadPicture from "@/components/UploadPicture";
-import LexicalEditorFallback from "@/components/lexical/LexicalEditorFallback";
+import LexicalEditorSurface from "@/components/lexical/LexicalEditorSurface";
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
-import LazyLexicalEditor from "@/components/lazy/LazyLexicalEditor";
 import {
   dashboardPageLayoutTokens,
   dashboardStrongSurfaceHoverClassName,
@@ -92,20 +91,38 @@ import {
   MuiDateTimeFieldsProvider,
 } from "@/components/ui/mui-date-time-fields";
 import CompactPagination from "@/components/ui/compact-pagination";
-
-const emptyForm = {
-  title: "",
-  slug: "",
-  excerpt: "",
-  contentLexical: "",
-  author: "",
-  coverImageUrl: "",
-  coverAlt: "",
-  status: "draft" as "draft" | "scheduled" | "published",
-  publishAt: "",
-  projectId: "",
-  tags: [] as string[],
-};
+import {
+  emptyPostForm as emptyForm,
+  getPostStatusLabel,
+  hasRestorableVersionForPost,
+  isVersionRestorableAgainstPost,
+  type PostRecord,
+} from "@/components/dashboard/post-editor/dashboard-posts-types";
+import {
+  clearPostsPageCache,
+  DASHBOARD_POST_SORT_MODES,
+  type DashboardPostsSortMode,
+  useDashboardPostsResource,
+} from "@/components/dashboard/post-editor/useDashboardPostsResource";
+import {
+  areDashboardPostCoverUrlsEquivalent as areCoverUrlsEquivalent,
+  buildDashboardPostEditorSnapshot as buildPostEditorSnapshot,
+  extractLexicalImageUploadUrls,
+  normalizeComparableDashboardPostCoverUrl as normalizeComparableCoverUrl,
+} from "@/lib/dashboard-post-editor";
+import {
+  parseLocalDateTimeValue,
+  toLocalDateTimeFromIso,
+  toLocalDateTimeValue,
+  toTimeFieldValue,
+} from "@/lib/dashboard-date-time";
+import {
+  areDashboardSearchParamsEqual,
+  buildDashboardSearchParams,
+  parseDashboardEnumParam,
+  parseDashboardPageParam,
+  removeDashboardSearchParamKeys,
+} from "@/lib/dashboard-query-state";
 
 const POST_EDITOR_TOOLBAR_STICKY_OFFSET_PX = 5;
 
@@ -127,80 +144,6 @@ const PostEditorSectionHeader = ({ title, subtitle }: { title: string; subtitle:
   </div>
 );
 
-const pad = (value: number) => String(value).padStart(2, "0");
-
-const toLocalDateTimeValue = (date: Date) =>
-  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours(),
-  )}:${pad(date.getMinutes())}`;
-
-const parseLocalDateTimeValue = (value: string) => {
-  const [datePart, timePart] = value.split("T");
-  if (!datePart) {
-    return { date: null as Date | null, time: "" };
-  }
-  const [year, month, day] = datePart.split("-").map((chunk) => Number(chunk));
-  if (!year || !month || !day) {
-    return { date: null as Date | null, time: "" };
-  }
-  return {
-    date: new Date(year, month - 1, day),
-    time: timePart || "",
-  };
-};
-
-const toLocalDateTimeFromIso = (value?: string | null) =>
-  value ? toLocalDateTimeValue(new Date(value)) : "";
-
-const toTimeFieldValue = (time: string, fallback = "12:00") => {
-  const [hoursPart, minutesPart] = (time || fallback).split(":");
-  const hours = Number(hoursPart);
-  const minutes = Number(minutesPart);
-  const next = new Date();
-  next.setHours(Number.isFinite(hours) ? hours : 12, Number.isFinite(minutes) ? minutes : 0, 0, 0);
-  return next;
-};
-
-const buildPostEditorSnapshot = (form: typeof emptyForm) =>
-  JSON.stringify({
-    title: form.title,
-    slug: form.slug,
-    excerpt: form.excerpt,
-    contentLexical: form.contentLexical,
-    author: form.author,
-    coverImageUrl: form.coverImageUrl,
-    coverAlt: form.coverAlt,
-    status: form.status,
-    publishAt: form.publishAt,
-    projectId: form.projectId,
-    tags: form.tags,
-  });
-
-const parsePageParam = (value: string | null) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return 1;
-  }
-  return Math.floor(parsed);
-};
-
-const parseSortParam = (
-  value: string | null,
-): "recent" | "alpha" | "tags" | "projects" | "status" | "views" | "comments" => {
-  if (
-    value === "alpha" ||
-    value === "tags" ||
-    value === "projects" ||
-    value === "status" ||
-    value === "views" ||
-    value === "comments" ||
-    value === "recent"
-  ) {
-    return value;
-  }
-  return "recent";
-};
-
 const toMonthStart = (value: Date) => new Date(value.getFullYear(), value.getMonth(), 1);
 
 const toLocalDateKey = (value: Date | string) => {
@@ -208,7 +151,9 @@ const toLocalDateKey = (value: Date | string) => {
   if (Number.isNaN(date.getTime())) {
     return "";
   }
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate(),
+  ).padStart(2, "0")}`;
 };
 
 const formatLocalTimeShort = (value?: string | null) => {
@@ -234,271 +179,6 @@ const buildMonthCalendarGrid = (monthCursor: Date) => {
   });
 };
 
-const normalizeComparableCoverUrl = (value?: string | null) => {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) {
-    return "";
-  }
-  if (trimmed.startsWith("/uploads/")) {
-    return trimmed.split(/[?#]/)[0] || trimmed;
-  }
-  try {
-    const parsed = new URL(trimmed);
-    if (parsed.pathname.startsWith("/uploads/")) {
-      return parsed.pathname;
-    }
-  } catch {
-    // Keep non-URL values as-is.
-  }
-  return trimmed;
-};
-
-const areCoverUrlsEquivalent = (left?: string | null, right?: string | null) =>
-  normalizeComparableCoverUrl(left) === normalizeComparableCoverUrl(right);
-
-const extractLexicalImageUploadUrls = (content?: string | null) => {
-  const raw = String(content || "").trim();
-  if (!raw) {
-    return [];
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return [];
-  }
-  const urls: string[] = [];
-  const seen = new Set<string>();
-  const visit = (node: unknown) => {
-    if (!node) {
-      return;
-    }
-    if (Array.isArray(node)) {
-      node.forEach(visit);
-      return;
-    }
-    if (typeof node !== "object") {
-      return;
-    }
-    const lexicalNode = node as Record<string, unknown>;
-    const type = typeof lexicalNode.type === "string" ? lexicalNode.type.toLowerCase() : "";
-    if (type === "image") {
-      const src = typeof lexicalNode.src === "string" ? lexicalNode.src : "";
-      const normalized = normalizeComparableCoverUrl(src);
-      if (normalized.startsWith("/uploads/") && !seen.has(normalized)) {
-        seen.add(normalized);
-        urls.push(normalized);
-      }
-    }
-    if (Array.isArray(lexicalNode.children)) {
-      lexicalNode.children.forEach(visit);
-    }
-    Object.entries(lexicalNode).forEach(([key, value]) => {
-      if (key === "children" || key === "src" || key === "altText" || key === "type") {
-        return;
-      }
-      visit(value);
-    });
-  };
-  const root = (parsed as { root?: unknown })?.root;
-  visit(root ?? parsed);
-  return urls;
-};
-
-type PostRecord = {
-  id: string;
-  title: string;
-  slug: string;
-  coverImageUrl?: string | null;
-  coverAlt?: string | null;
-  excerpt: string;
-  content: string;
-  contentFormat?: "lexical";
-  author: string;
-  publishedAt: string;
-  scheduledAt?: string | null;
-  status: "draft" | "scheduled" | "published";
-  seoTitle?: string | null;
-  seoDescription?: string | null;
-  projectId?: string | null;
-  tags?: string[];
-  views: number;
-  commentsCount: number;
-  deletedAt?: string | null;
-  deletedBy?: string | null;
-};
-
-type UserRecord = {
-  id: string;
-  permissions: string[];
-};
-
-const POSTS_CACHE_TTL_MS = 60_000;
-
-type PostsCacheEntry = {
-  posts: PostRecord[];
-  mediaVariants: UploadMediaVariantsMap;
-  users: UserRecord[];
-  ownerIds: string[];
-  projects: Project[];
-  tagTranslations: Record<string, string>;
-  expiresAt: number;
-};
-
-let postsPageCache: PostsCacheEntry | null = null;
-
-const clonePostsCacheEntry = (value: Omit<PostsCacheEntry, "expiresAt">) => ({
-  posts: value.posts.map((post) => ({
-    ...post,
-    tags: Array.isArray(post.tags) ? [...post.tags] : [],
-  })),
-  mediaVariants: { ...value.mediaVariants },
-  users: value.users.map((user) => ({
-    ...user,
-    permissions: Array.isArray(user.permissions) ? [...user.permissions] : [],
-  })),
-  ownerIds: [...value.ownerIds],
-  projects: value.projects.map((project) => ({
-    ...project,
-  })),
-  tagTranslations: { ...value.tagTranslations },
-});
-
-const readPostsPageCache = () => {
-  if (!postsPageCache) {
-    return null;
-  }
-  if (postsPageCache.expiresAt <= Date.now()) {
-    postsPageCache = null;
-    return null;
-  }
-  return clonePostsCacheEntry(postsPageCache);
-};
-
-const writePostsPageCache = (value: Omit<PostsCacheEntry, "expiresAt">) => {
-  postsPageCache = {
-    ...clonePostsCacheEntry(value),
-    expiresAt: Date.now() + POSTS_CACHE_TTL_MS,
-  };
-};
-
-const getPostStatusLabel = (status: PostRecord["status"]): string => {
-  if (status === "published") {
-    return "Publicado";
-  }
-  if (status === "scheduled") {
-    return "Agendado";
-  }
-  return "Rascunho";
-};
-
-type ComparablePostSnapshot = {
-  title: string;
-  slug: string;
-  status: PostRecord["status"];
-  publishedAt: string;
-  scheduledAt: string | null;
-  projectId: string;
-  excerpt: string;
-  content: string;
-  contentFormat: string;
-  author: string;
-  coverImageUrl: string;
-  coverAlt: string;
-  seoTitle: string;
-  seoDescription: string;
-  tags: string[];
-};
-
-const normalizeComparableTags = (value?: string[] | null) =>
-  (Array.isArray(value) ? value : []).map((tag) => String(tag || "").trim()).filter(Boolean);
-
-const buildComparableSnapshotFromPost = (
-  post?: PostRecord | null,
-): ComparablePostSnapshot | null => {
-  if (!post) {
-    return null;
-  }
-  return {
-    title: String(post.title || "").trim(),
-    slug: String(post.slug || "").trim(),
-    status: post.status === "scheduled" || post.status === "published" ? post.status : "draft",
-    publishedAt: String(post.publishedAt || "").trim(),
-    scheduledAt: post.scheduledAt ? String(post.scheduledAt).trim() || null : null,
-    projectId: String(post.projectId || "").trim(),
-    excerpt: String(post.excerpt || ""),
-    content: String(post.content || ""),
-    contentFormat: String(post.contentFormat || "lexical"),
-    author: String(post.author || "").trim(),
-    coverImageUrl: normalizeComparableCoverUrl(post.coverImageUrl),
-    coverAlt: String(post.coverAlt || ""),
-    seoTitle: String(post.seoTitle || ""),
-    seoDescription: String(post.seoDescription || ""),
-    tags: normalizeComparableTags(post.tags),
-  };
-};
-
-const normalizeComparableVersionSnapshot = (
-  snapshot?: ContentVersion["snapshot"] | null,
-): ComparablePostSnapshot => ({
-  title: String(snapshot?.title || "").trim(),
-  slug: String(snapshot?.slug || "").trim(),
-  status:
-    snapshot?.status === "scheduled" || snapshot?.status === "published"
-      ? snapshot.status
-      : "draft",
-  publishedAt: String(snapshot?.publishedAt || "").trim(),
-  scheduledAt: snapshot?.scheduledAt ? String(snapshot.scheduledAt).trim() || null : null,
-  projectId: String(snapshot?.projectId || "").trim(),
-  excerpt: String(snapshot?.excerpt || ""),
-  content: String(snapshot?.content || ""),
-  contentFormat: String(snapshot?.contentFormat || "lexical"),
-  author: String(snapshot?.author || "").trim(),
-  coverImageUrl: normalizeComparableCoverUrl(snapshot?.coverImageUrl),
-  coverAlt: String(snapshot?.coverAlt || ""),
-  seoTitle: String(snapshot?.seoTitle || ""),
-  seoDescription: String(snapshot?.seoDescription || ""),
-  tags: normalizeComparableTags(snapshot?.tags),
-});
-
-const isVersionRestorableAgainstPost = (version: ContentVersion, post?: PostRecord | null) => {
-  const current = buildComparableSnapshotFromPost(post);
-  if (!current) {
-    return false;
-  }
-  const candidate = normalizeComparableVersionSnapshot(version?.snapshot);
-  if (JSON.stringify(candidate) !== JSON.stringify(current)) {
-    return true;
-  }
-
-  // Fallback defensivo para casos em que a snapshot venha parcial/inconsistente,
-  // mas a versão ainda indique claramente um estado diferente.
-  const topLevelVersionSlug = String(version?.slug || "").trim();
-  if (topLevelVersionSlug && topLevelVersionSlug !== current.slug) {
-    return true;
-  }
-  const snapshotTitle = String(version?.snapshot?.title || "").trim();
-  if (snapshotTitle && snapshotTitle !== current.title) {
-    return true;
-  }
-  return false;
-};
-
-const hasRestorableVersionForPost = (
-  versions: ContentVersion[],
-  post?: PostRecord | null,
-  nextCursor?: string | null,
-) => {
-  if (
-    (Array.isArray(versions) ? versions : []).some((version) =>
-      isVersionRestorableAgainstPost(version, post),
-    )
-  ) {
-    return true;
-  }
-  return Boolean(nextCursor);
-};
-
 const getCalendarItemDisplayTime = (item: EditorialCalendarItem) =>
   item.status === "scheduled" ? item.scheduledAt || item.publishedAt : item.publishedAt;
 
@@ -507,32 +187,36 @@ const getCalendarItemStatusLabel = (status: EditorialCalendarItem["status"]) =>
 
 const DashboardPosts = () => {
   usePageMeta({ title: "Posts", noIndex: true });
+  const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const apiBase = getApiBase();
   const { announce } = useAccessibilityAnnouncer();
   const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const initialCacheRef = useRef(readPostsPageCache());
-  const [posts, setPosts] = useState<PostRecord[]>(initialCacheRef.current?.posts ?? []);
-  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>(
-    initialCacheRef.current?.mediaVariants ?? {},
-  );
-  const [projects, setProjects] = useState<Project[]>(initialCacheRef.current?.projects ?? []);
-  const [users, setUsers] = useState<UserRecord[]>(initialCacheRef.current?.users ?? []);
-  const [ownerIds, setOwnerIds] = useState<string[]>(initialCacheRef.current?.ownerIds ?? []);
+  const {
+    hasLoadError,
+    hasLoadedOnce,
+    hasResolvedPosts,
+    hasResolvedProjects,
+    hasResolvedTagTranslations,
+    hasResolvedUsers,
+    isInitialLoading,
+    isRefreshing,
+    loadPosts,
+    mediaVariants,
+    ownerIds,
+    posts,
+    projects,
+    refreshPosts,
+    setMediaVariants,
+    setPosts,
+    setProjects,
+    setTagTranslations,
+    tagTranslations,
+    users,
+  } = useDashboardPostsResource(apiBase);
   const { currentUser, isLoadingUser } = useDashboardCurrentUser();
-  const [isInitialLoading, setIsInitialLoading] = useState(!initialCacheRef.current);
-  const [isRefreshing, setIsRefreshing] = useState(Boolean(initialCacheRef.current));
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(Boolean(initialCacheRef.current));
-  const [hasResolvedPosts, setHasResolvedPosts] = useState(Boolean(initialCacheRef.current));
-  const [hasResolvedProjects, setHasResolvedProjects] = useState(Boolean(initialCacheRef.current));
-  const [hasResolvedUsers, setHasResolvedUsers] = useState(Boolean(initialCacheRef.current));
-  const [hasResolvedTagTranslations, setHasResolvedTagTranslations] = useState(
-    Boolean(initialCacheRef.current),
-  );
-  const [hasLoadError, setHasLoadError] = useState(false);
-  const [loadVersion, setLoadVersion] = useState(0);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   useEditorScrollLock(isEditorOpen);
   useEditorScrollStability(isEditorOpen);
@@ -549,10 +233,12 @@ const DashboardPosts = () => {
   const [calendarTz, setCalendarTz] = useState(timeZone);
   const [isCalendarLoading, setIsCalendarLoading] = useState(false);
   const [hasCalendarError, setHasCalendarError] = useState(false);
-  const [sortMode, setSortMode] = useState<
-    "recent" | "alpha" | "tags" | "projects" | "status" | "views" | "comments"
-  >(() => parseSortParam(searchParams.get("sort")));
-  const [currentPage, setCurrentPage] = useState(() => parsePageParam(searchParams.get("page")));
+  const [sortMode, setSortMode] = useState<DashboardPostsSortMode>(() =>
+    parseDashboardEnumParam(searchParams.get("sort"), DASHBOARD_POST_SORT_MODES, "recent"),
+  );
+  const [currentPage, setCurrentPage] = useState(() =>
+    parseDashboardPageParam(searchParams.get("page")),
+  );
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get("q") || "");
   const [projectFilterId, setProjectFilterId] = useState<string>(
     () => searchParams.get("project") || "all",
@@ -560,9 +246,6 @@ const DashboardPosts = () => {
   const [projectFilterQuery, setProjectFilterQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<PostRecord | null>(null);
   const [tagInput, setTagInput] = useState("");
-  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
-    initialCacheRef.current?.tagTranslations ?? {},
-  );
   const tagInputRef = useRef<HTMLInputElement | null>(null);
   const [tagOrder, setTagOrder] = useState<string[]>([]);
   const [draggedTag, setDraggedTag] = useState<string | null>(null);
@@ -578,6 +261,8 @@ const DashboardPosts = () => {
   const [isCreatingManualVersion, setIsCreatingManualVersion] = useState(false);
   const [rollbackTargetVersion, setRollbackTargetVersion] = useState<ContentVersion | null>(null);
   const [isRollingBackVersion, setIsRollingBackVersion] = useState(false);
+  const [pendingEditQueryCleanup, setPendingEditQueryCleanup] = useState<string | null>(null);
+  const [pendingSearchReplacement, setPendingSearchReplacement] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("Sair da edição?");
   const [confirmDescription, setConfirmDescription] = useState(
@@ -589,8 +274,6 @@ const DashboardPosts = () => {
   const editorInitialSnapshotRef = useRef<string>(buildPostEditorSnapshot(emptyForm));
   const autoEditHandledRef = useRef<string | null>(null);
   const isApplyingSearchParamsRef = useRef(false);
-  const requestIdRef = useRef(0);
-  const hasLoadedOnceRef = useRef(hasLoadedOnce);
   const queryStateRef = useRef({
     sortMode,
     searchQuery,
@@ -642,10 +325,6 @@ const DashboardPosts = () => {
   const hasPushedBlockRef = useRef(false);
 
   useEffect(() => {
-    hasLoadedOnceRef.current = hasLoadedOnce;
-  }, [hasLoadedOnce]);
-
-  useEffect(() => {
     if (!isSlugCustom) {
       setFormState((prev) => ({ ...prev, slug: createSlug(prev.title) }));
     }
@@ -693,30 +372,6 @@ const DashboardPosts = () => {
       window.removeEventListener("resize", updateStickyTop);
     };
   }, [editorTopElement, isEditorOpen]);
-
-  const loadPosts = async () => {
-    const response = await apiFetch(apiBase, "/api/posts", { auth: true });
-    if (!response.ok) {
-      throw new Error("posts_load_failed");
-    }
-    const data = await response.json();
-    const nextPosts = Array.isArray(data.posts) ? data.posts : [];
-    const nextMediaVariants =
-      data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {};
-    setMediaVariants(nextMediaVariants);
-    setPosts(nextPosts);
-    setHasResolvedPosts(true);
-    setHasLoadedOnce(true);
-    setHasLoadError(false);
-    writePostsPageCache({
-      posts: nextPosts,
-      mediaVariants: nextMediaVariants,
-      users,
-      ownerIds,
-      projects,
-      tagTranslations,
-    });
-  };
 
   const loadEditorialCalendar = useCallback(
     async (monthCursor: Date) => {
@@ -810,138 +465,6 @@ const DashboardPosts = () => {
     },
     [apiBase, posts],
   );
-
-  useEffect(() => {
-    let isActive = true;
-    const load = async () => {
-      const requestId = requestIdRef.current + 1;
-      requestIdRef.current = requestId;
-      const background = hasLoadedOnceRef.current;
-      const cached = initialCacheRef.current;
-
-      setHasLoadError(false);
-      if (background) {
-        setIsRefreshing(true);
-      } else {
-        setIsInitialLoading(true);
-        setHasResolvedPosts(false);
-      }
-      if (!cached) {
-        setHasResolvedUsers(false);
-        setHasResolvedProjects(false);
-        setHasResolvedTagTranslations(false);
-      }
-
-      const postsPromise = apiFetch(apiBase, "/api/posts", { auth: true });
-      const usersPromise = apiFetch(apiBase, "/api/users", { auth: true });
-      const projectsPromise = apiFetch(apiBase, "/api/projects", { auth: true });
-      const tagsPromise = apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" });
-
-      try {
-        const postsRes = await postsPromise;
-        if (!isActive || requestIdRef.current !== requestId) {
-          return;
-        }
-        if (!postsRes.ok) {
-          throw new Error("posts_load_failed");
-        }
-        const postsData = await postsRes.json();
-        const nextPosts = Array.isArray(postsData.posts) ? postsData.posts : [];
-        const nextMediaVariants =
-          postsData?.mediaVariants && typeof postsData.mediaVariants === "object"
-            ? postsData.mediaVariants
-            : {};
-        setPosts(nextPosts);
-        setMediaVariants(nextMediaVariants);
-        setHasResolvedPosts(true);
-        setHasLoadedOnce(true);
-        setIsInitialLoading(false);
-
-        let nextUsers = users;
-        let nextOwnerIds = ownerIds;
-        let nextProjects = projects;
-        let nextTagTranslations = tagTranslations;
-
-        const [usersResult, projectsResult, tagsResult] = await Promise.allSettled([
-          usersPromise,
-          projectsPromise,
-          tagsPromise,
-        ]);
-        if (!isActive || requestIdRef.current !== requestId) {
-          return;
-        }
-
-        if (usersResult.status === "fulfilled" && usersResult.value.ok) {
-          const usersData = await usersResult.value.json();
-          nextUsers = Array.isArray(usersData.users) ? usersData.users : [];
-          nextOwnerIds = Array.isArray(usersData.ownerIds) ? usersData.ownerIds : [];
-        } else {
-          nextUsers = [];
-          nextOwnerIds = [];
-        }
-        setUsers(nextUsers);
-        setOwnerIds(nextOwnerIds);
-        setHasResolvedUsers(true);
-
-        if (projectsResult.status === "fulfilled" && projectsResult.value.ok) {
-          const projectsData = await projectsResult.value.json();
-          nextProjects = Array.isArray(projectsData.projects) ? projectsData.projects : [];
-        } else {
-          nextProjects = [];
-        }
-        setProjects(nextProjects);
-        setHasResolvedProjects(true);
-
-        if (tagsResult.status === "fulfilled" && tagsResult.value.ok) {
-          const tagsData = await tagsResult.value.json();
-          nextTagTranslations = tagsData.tags || {};
-        } else {
-          nextTagTranslations = {};
-        }
-        setTagTranslations(nextTagTranslations);
-        setHasResolvedTagTranslations(true);
-
-        writePostsPageCache({
-          posts: nextPosts,
-          mediaVariants: nextMediaVariants,
-          users: nextUsers,
-          ownerIds: nextOwnerIds,
-          projects: nextProjects,
-          tagTranslations: nextTagTranslations,
-        });
-      } catch {
-        if (isActive && requestIdRef.current === requestId) {
-          if (!hasLoadedOnceRef.current) {
-            setMediaVariants({});
-            setPosts([]);
-            setUsers([]);
-            setOwnerIds([]);
-            setProjects([]);
-            setTagTranslations({});
-            setHasResolvedUsers(false);
-            setHasResolvedProjects(false);
-            setHasResolvedTagTranslations(false);
-          }
-          setHasLoadError(true);
-        }
-      } finally {
-        if (isActive && requestIdRef.current === requestId) {
-          setIsInitialLoading(false);
-          setIsRefreshing(false);
-          if (cached) {
-            setHasResolvedUsers(true);
-            setHasResolvedProjects(true);
-            setHasResolvedTagTranslations(true);
-          }
-        }
-      }
-    };
-
-    void load();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase, loadVersion]);
 
   useEffect(() => {
     if (!isEditorOpen || !isDirty) {
@@ -1071,6 +594,33 @@ const DashboardPosts = () => {
     setIsEditorOpen(true);
   }, []);
 
+  const scheduleSearchReplace = useCallback(
+    (nextParams: URLSearchParams) => {
+      const nextSearch = nextParams.toString();
+      const currentSearch = location.search.startsWith("?")
+        ? location.search.slice(1)
+        : location.search;
+      if (nextSearch === currentSearch) {
+        setPendingSearchReplacement(null);
+        return;
+      }
+      setPendingSearchReplacement(
+        `${location.pathname}${nextSearch ? `?${nextSearch}` : ""}${location.hash}`,
+      );
+    },
+    [location.hash, location.pathname, location.search],
+  );
+
+  const clearEditQueryParam = useCallback(() => {
+    if (!searchParams.get("edit")) {
+      return;
+    }
+    const nextParams = removeDashboardSearchParamKeys(searchParams, ["edit"]);
+    if (nextParams.toString() !== searchParams.toString()) {
+      scheduleSearchReplace(nextParams);
+    }
+  }, [scheduleSearchReplace, searchParams]);
+
   useEffect(() => {
     if (!editingPost?.id || !canManagePosts) {
       return;
@@ -1161,6 +711,7 @@ const DashboardPosts = () => {
     const editTarget = (searchParams.get("edit") || "").trim();
     if (!editTarget) {
       autoEditHandledRef.current = null;
+      setPendingEditQueryCleanup(null);
       return;
     }
     if (autoEditHandledRef.current === editTarget) {
@@ -1174,8 +725,6 @@ const DashboardPosts = () => {
     }
     autoEditHandledRef.current = editTarget;
 
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete("edit");
     if (canManagePosts && editTarget === "new") {
       openCreate();
     } else {
@@ -1186,9 +735,7 @@ const DashboardPosts = () => {
         openEdit(target);
       }
     }
-    if (nextParams.toString() !== searchParams.toString()) {
-      setSearchParams(nextParams, { replace: true });
-    }
+    setPendingEditQueryCleanup(editTarget);
   }, [
     canManagePosts,
     hasResolvedPosts,
@@ -1198,10 +745,36 @@ const DashboardPosts = () => {
     openEdit,
     posts,
     searchParams,
-    setSearchParams,
   ]);
 
+  useEffect(() => {
+    if (!pendingEditQueryCleanup) {
+      return;
+    }
+    const activeEditQuery = (searchParams.get("edit") || "").trim();
+    if (!activeEditQuery) {
+      setPendingEditQueryCleanup(null);
+      return;
+    }
+    if (activeEditQuery !== pendingEditQueryCleanup) {
+      return;
+    }
+    clearEditQueryParam();
+    setPendingEditQueryCleanup(null);
+  }, [clearEditQueryParam, pendingEditQueryCleanup, searchParams]);
+
+  useEffect(() => {
+    if (!pendingSearchReplacement) {
+      return;
+    }
+    const currentUrl = `${location.pathname}${location.search}${location.hash}`;
+    if (currentUrl === pendingSearchReplacement) {
+      setPendingSearchReplacement(null);
+    }
+  }, [location.hash, location.pathname, location.search, pendingSearchReplacement]);
+
   const closeEditor = () => {
+    clearEditQueryParam();
     setIsEditorOpen(false);
     setEditingPost(null);
   };
@@ -1505,10 +1078,14 @@ const DashboardPosts = () => {
   }, [currentPage, projectFilterId, searchQuery, sortMode]);
 
   useEffect(() => {
-    const nextSortMode = parseSortParam(searchParams.get("sort"));
+    const nextSortMode = parseDashboardEnumParam(
+      searchParams.get("sort"),
+      DASHBOARD_POST_SORT_MODES,
+      "recent",
+    );
     const nextSearchQuery = searchParams.get("q") || "";
     const nextProjectFilterId = searchParams.get("project") || "all";
-    const nextPage = parsePageParam(searchParams.get("page"));
+    const nextPage = parseDashboardPageParam(searchParams.get("page"));
     const {
       sortMode: currentSortMode,
       searchQuery: currentSearchQuery,
@@ -1531,40 +1108,39 @@ const DashboardPosts = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    const nextParams = new URLSearchParams(searchParams);
-    if (sortMode === "recent") {
-      nextParams.delete("sort");
-    } else {
-      nextParams.set("sort", sortMode);
-    }
-    const trimmedQuery = searchQuery.trim();
-    if (trimmedQuery) {
-      nextParams.set("q", trimmedQuery);
-    } else {
-      nextParams.delete("q");
-    }
-    if (projectFilterId && projectFilterId !== "all") {
-      nextParams.set("project", projectFilterId);
-    } else {
-      nextParams.delete("project");
-    }
-    if (currentPage <= 1) {
-      nextParams.delete("page");
-    } else {
-      nextParams.set("page", String(currentPage));
-    }
-    const currentQuery = searchParams.toString();
-    const nextQuery = nextParams.toString();
+    const activeEditQuery = (searchParams.get("edit") || "").trim();
+    const shouldStripEditQuery =
+      Boolean(activeEditQuery) && autoEditHandledRef.current === activeEditQuery;
+    const nextParams = buildDashboardSearchParams(
+      searchParams,
+      [
+        { key: "sort", value: sortMode, fallbackValue: "recent" },
+        { key: "q", value: searchQuery.trim(), fallbackValue: "" },
+        { key: "project", value: projectFilterId, fallbackValue: "all" },
+        { key: "page", value: currentPage, fallbackValue: 1 },
+      ],
+      shouldStripEditQuery ? { deleteKeys: ["edit"] } : undefined,
+    );
     if (isApplyingSearchParamsRef.current) {
-      if (nextQuery === currentQuery) {
+      if (areDashboardSearchParamsEqual(nextParams, searchParams)) {
         isApplyingSearchParamsRef.current = false;
       }
       return;
     }
-    if (nextQuery !== currentQuery) {
-      setSearchParams(nextParams, { replace: true });
+    if (!areDashboardSearchParamsEqual(nextParams, searchParams)) {
+      scheduleSearchReplace(nextParams);
     }
-  }, [sortMode, searchQuery, projectFilterId, currentPage, searchParams, setSearchParams]);
+  }, [
+    currentPage,
+    location.hash,
+    location.pathname,
+    location.search,
+    projectFilterId,
+    scheduleSearchReplace,
+    searchParams,
+    searchQuery,
+    sortMode,
+  ]);
 
   const handlePublishDateChange = (nextDate: Date | null) => {
     if (!nextDate) {
@@ -1581,7 +1157,9 @@ const DashboardPosts = () => {
     if (!nextTime || Number.isNaN(nextTime.getTime())) {
       return;
     }
-    const nextTimePart = `${pad(nextTime.getHours())}:${pad(nextTime.getMinutes())}`;
+    const nextTimePart = `${String(nextTime.getHours()).padStart(2, "0")}:${String(
+      nextTime.getMinutes(),
+    ).padStart(2, "0")}`;
     const { date } = parseLocalDateTimeValue(formState.publishAt || "");
     const baseDate = date || new Date();
     const datePart = toLocalDateTimeValue(baseDate).slice(0, 10);
@@ -2004,7 +1582,6 @@ const DashboardPosts = () => {
   const hasBlockingLoadError = !hasLoadedOnce && hasLoadError;
   const hasRetainedLoadError = hasLoadedOnce && hasLoadError;
   const showPostsSurfaceSkeleton = !hasResolvedPosts && !hasBlockingLoadError;
-
   useDashboardRefreshToast({
     active: isRefreshing && hasLoadedOnce,
     title: "Atualizando postagens",
@@ -2013,6 +1590,7 @@ const DashboardPosts = () => {
 
   return (
     <>
+      {pendingSearchReplacement ? <Navigate to={pendingSearchReplacement} replace /> : null}
       <DashboardShell
         currentUser={currentUser}
         isLoadingUser={isLoadingUser}
@@ -2175,13 +1753,9 @@ const DashboardPosts = () => {
                                 className="post-editor-lexical-wrapper min-w-0"
                                 style={postEditorLexicalWrapperStyle}
                               >
-                                <LazyLexicalEditor
-                                  loadingFallback={
-                                    <LexicalEditorFallback
-                                      variant="post"
-                                      minHeightClassName="min-h-[460px] lg:min-h-[680px]"
-                                    />
-                                  }
+                                <LexicalEditorSurface
+                                    fallbackVariant="post"
+                                    fallbackMinHeightClassName="min-h-[460px] lg:min-h-[680px]"
                                     ref={editorRef}
                                     value={formState.contentLexical}
                                     onChange={(value) =>
@@ -2648,7 +2222,7 @@ const DashboardPosts = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setLoadVersion((previous) => previous + 1)}
+                    onClick={refreshPosts}
                   >
                     Tentar novamente
                   </Button>
@@ -2663,7 +2237,7 @@ const DashboardPosts = () => {
                 action={
                   <Button
                     variant="outline"
-                    onClick={() => setLoadVersion((previous) => previous + 1)}
+                    onClick={refreshPosts}
                   >
                     Recarregar
                   </Button>
@@ -3495,9 +3069,7 @@ const DashboardPosts = () => {
 };
 
 export const __testing = {
-  clearPostsPageCache: () => {
-    postsPageCache = null;
-  },
+  clearPostsPageCache,
 };
 
 export default DashboardPosts;

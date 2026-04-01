@@ -2,6 +2,7 @@ import { render, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PUBLIC_ANALYTICS_INGEST_PATH } from "@/lib/public-analytics";
 import ProjectReading from "@/pages/ProjectReading";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
@@ -41,6 +42,16 @@ vi.mock("@/components/lexical/LexicalViewer", () => ({
 
 vi.mock("@/components/CommentsSection", () => ({
   default: () => null,
+}));
+
+vi.mock("@/components/Header", () => ({
+  default: ({ variant = "fixed" }: { variant?: "fixed" | "static" }) => (
+    <div data-testid="public-header" data-variant={variant} />
+  ),
+}));
+
+vi.mock("@/components/Footer", () => ({
+  default: () => <div data-testid="public-footer" />,
 }));
 
 vi.mock("@/components/UploadPicture", () => ({
@@ -124,7 +135,7 @@ describe("ProjectReading SEO image meta", () => {
         ) {
           return await new Promise<Response>(() => undefined);
         }
-        if (endpoint === "/api/public/analytics/event" && method === "POST") {
+        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && method === "POST") {
           return mockJsonResponse(true, { ok: true });
         }
         return mockJsonResponse(false, { error: "not_found" }, 404);

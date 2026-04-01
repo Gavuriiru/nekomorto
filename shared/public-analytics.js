@@ -1,0 +1,8 @@
+export const PUBLIC_ANALYTICS_INGEST_PATH = "/api/public/engagement";
+
+export const LEGACY_PUBLIC_ANALYTICS_INGEST_PATH = "/api/public/analytics/event";
+
+export const PUBLIC_ANALYTICS_INGEST_PATHS = [
+  PUBLIC_ANALYTICS_INGEST_PATH,
+  LEGACY_PUBLIC_ANALYTICS_INGEST_PATH,
+];

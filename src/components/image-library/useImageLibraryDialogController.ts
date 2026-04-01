@@ -1,9 +1,14 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { ImageLibraryBrowserPaneProps } from "@/components/image-library/ImageLibraryBrowserPane";
 import type { ImageLibraryDialogsProps } from "@/components/image-library/ImageLibraryDialogs";
 import type { ImageLibraryUploadPanelProps } from "@/components/image-library/ImageLibraryUploadPanel";
 import { isAvatarSlotSelection } from "@/components/image-library/avatar-selection";
+import {
+  parseSelectionSignature,
+  toSelectionSignature,
+} from "@/components/image-library/selection";
+import { dedupeUrlsByComparableKey } from "@/components/image-library/utils";
 import useImageLibraryBrowserOrchestration from "@/components/image-library/useImageLibraryBrowserOrchestration";
 import useImageLibraryData from "@/components/image-library/useImageLibraryData";
 import useImageLibraryMutations from "@/components/image-library/useImageLibraryMutations";
@@ -65,6 +70,40 @@ export const useImageLibraryDialogController = ({
     Record<string, string[]>
   >({});
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
+  const [pinnedIncludeUrls, setPinnedIncludeUrls] = useState<string[]>([]);
+  const currentSelectionUrlsSignature = useMemo(
+    () => toSelectionSignature(Array.isArray(currentSelectionUrls) ? currentSelectionUrls : []),
+    [currentSelectionUrls],
+  );
+  const stableCurrentSelectionUrls = useMemo(
+    () => parseSelectionSignature(currentSelectionUrlsSignature),
+    [currentSelectionUrlsSignature],
+  );
+  const currentSelectionUrlSignature = useMemo(
+    () => toSelectionSignature(currentSelectionUrl ? [currentSelectionUrl] : []),
+    [currentSelectionUrl],
+  );
+  const stableCurrentSelectionUrl = useMemo(
+    () => parseSelectionSignature(currentSelectionUrlSignature)[0] || "",
+    [currentSelectionUrlSignature],
+  );
+  const pinnedIncludeUrlsSignature = useMemo(
+    () => toSelectionSignature(pinnedIncludeUrls),
+    [pinnedIncludeUrls],
+  );
+  const stablePinnedIncludeUrls = useMemo(
+    () => parseSelectionSignature(pinnedIncludeUrlsSignature),
+    [pinnedIncludeUrlsSignature],
+  );
+  const persistentIncludeUrls = useMemo(
+    () =>
+      dedupeUrlsByComparableKey([
+        ...stableCurrentSelectionUrls,
+        ...(stableCurrentSelectionUrl ? [stableCurrentSelectionUrl] : []),
+        ...stablePinnedIncludeUrls,
+      ]),
+    [stableCurrentSelectionUrl, stableCurrentSelectionUrls, stablePinnedIncludeUrls],
+  );
   const {
     allowedProjectImageIdSet,
     foldersToRequest,
@@ -94,6 +133,7 @@ export const useImageLibraryDialogController = ({
     foldersToRequest,
     includeProjectImages,
     open,
+    persistentIncludeUrls,
     scopeUserId,
   });
   const {
@@ -111,6 +151,16 @@ export const useImageLibraryDialogController = ({
     selectedUrls,
     uploads,
   });
+  const pinIncludedUploadUrls = useCallback((urls: string[]) => {
+    const normalizedUrls = dedupeUrlsByComparableKey(urls);
+    if (normalizedUrls.length === 0) {
+      return;
+    }
+    setPinnedIncludeUrls((prev) => {
+      const next = dedupeUrlsByComparableKey([...prev, ...normalizedUrls]);
+      return toSelectionSignature(prev) === toSelectionSignature(next) ? prev : next;
+    });
+  }, []);
   const shouldAutoOpenAvatarCrop = useCallback(
     (url: string) => {
       if (!cropAvatar || mode !== "single") {
@@ -182,6 +232,7 @@ export const useImageLibraryDialogController = ({
     onRequestNavigateToUploads,
     onSave,
     open,
+    pinIncludedUploadUrls,
     requestRevealUpload,
     scopeUserId,
     selectedUrls,
@@ -208,8 +259,8 @@ export const useImageLibraryDialogController = ({
     allItemsByComparableKey,
     allowDeselect,
     cropAvatar,
-    currentSelectionUrl,
-    currentSelectionUrls,
+    currentSelectionUrl: stableCurrentSelectionUrl,
+    currentSelectionUrls: stableCurrentSelectionUrls,
     handleUploadFiles,
     includeProjectImages,
     isBroadProjectLibraryContext,
@@ -228,6 +279,7 @@ export const useImageLibraryDialogController = ({
     primarySelectedUrl,
     projectImages,
     projectImagesView,
+    requestRevealUpload,
     resolvedContextProjectId,
     resolvedUploadFolderForFilter,
     searchQuery,
@@ -247,6 +299,13 @@ export const useImageLibraryDialogController = ({
     uploads,
     uploadsFolderFilter,
   });
+
+  useEffect(() => {
+    if (open) {
+      return;
+    }
+    setPinnedIncludeUrls([]);
+  }, [open]);
 
   const uploadPanelProps = useMemo<ImageLibraryUploadPanelProps>(
     () => ({
@@ -441,7 +500,3 @@ export const useImageLibraryDialogController = ({
 };
 
 export default useImageLibraryDialogController;
-
-
-
-

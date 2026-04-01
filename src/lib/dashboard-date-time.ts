@@ -1,5 +1,7 @@
 export const digitsOnly = (value: string) => value.replace(/\D/g, "");
 
+export const padDateTimePart = (value: number) => String(value).padStart(2, "0");
+
 export const formatDateDigitsToDisplay = (value: string) => {
   const safe = digitsOnly(value).slice(0, 8);
   if (!safe) {
@@ -89,9 +91,46 @@ export const isoToDisplayDate = (value?: string | null) => {
 export const getTodayIsoDate = (nowMs = Date.now()) => {
   const current = new Date(nowMs);
   const year = current.getFullYear();
-  const month = String(current.getMonth() + 1).padStart(2, "0");
-  const day = String(current.getDate()).padStart(2, "0");
+  const month = padDateTimePart(current.getMonth() + 1);
+  const day = padDateTimePart(current.getDate());
   return `${year}-${month}-${day}`;
+};
+
+export const toLocalDateValue = (value: Date) =>
+  `${value.getFullYear()}-${padDateTimePart(value.getMonth() + 1)}-${padDateTimePart(
+    value.getDate(),
+  )}`;
+
+export const toLocalDateTimeValue = (date: Date) =>
+  `${toLocalDateValue(date)}T${padDateTimePart(date.getHours())}:${padDateTimePart(
+    date.getMinutes(),
+  )}`;
+
+export const parseLocalDateTimeValue = (value: string) => {
+  const [datePart, timePart] = value.split("T");
+  if (!datePart) {
+    return { date: null as Date | null, time: "" };
+  }
+  const [year, month, day] = datePart.split("-").map((chunk) => Number(chunk));
+  if (!year || !month || !day) {
+    return { date: null as Date | null, time: "" };
+  }
+  return {
+    date: new Date(year, month - 1, day),
+    time: timePart || "",
+  };
+};
+
+export const toLocalDateTimeFromIso = (value?: string | null) =>
+  value ? toLocalDateTimeValue(new Date(value)) : "";
+
+export const toTimeFieldValue = (time: string, fallback = "12:00") => {
+  const [hoursPart, minutesPart] = (time || fallback).split(":");
+  const hours = Number(hoursPart);
+  const minutes = Number(minutesPart);
+  const next = new Date();
+  next.setHours(Number.isFinite(hours) ? hours : 12, Number.isFinite(minutes) ? minutes : 0, 0, 0);
+  return next;
 };
 
 export const displayTimeToCanonical = (value?: string | null) => {

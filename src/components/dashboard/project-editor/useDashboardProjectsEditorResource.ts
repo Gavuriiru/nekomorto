@@ -2,6 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { apiFetch } from "@/lib/api-client";
+import {
+  areDashboardSearchParamsEqual,
+  buildDashboardSearchParams,
+  parseDashboardEnumParam,
+  parseDashboardPageParam,
+} from "@/lib/dashboard-query-state";
 
 import type {
   ProjectRecord,
@@ -65,14 +71,6 @@ export const clearProjectsPageCache = () => {
   projectsPageCache = null;
 };
 
-const parsePageParam = (value: string | null) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return 1;
-  }
-  return Math.floor(parsed);
-};
-
 const parseTypeParam = (value: string | null) => {
   const normalized = String(value || "").trim();
   if (!normalized) {
@@ -82,6 +80,7 @@ const parseTypeParam = (value: string | null) => {
 };
 
 type SortMode = "alpha" | "status" | "views" | "comments" | "recent";
+const SORT_MODES = ["alpha", "status", "views", "comments", "recent"] as const;
 
 export type UseDashboardProjectsEditorResourceResult = {
   currentPage: number;
@@ -152,19 +151,11 @@ export function useDashboardProjectsEditorResource(apiBase: string): UseDashboar
   const [hasLoadError, setHasLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
   const [sortMode, setSortMode] = useState<SortMode>(() => {
-    const sortParam = searchParams.get("sort");
-    if (
-      sortParam === "alpha" ||
-      sortParam === "status" ||
-      sortParam === "views" ||
-      sortParam === "comments" ||
-      sortParam === "recent"
-    ) {
-      return sortParam;
-    }
-    return "alpha";
+    return parseDashboardEnumParam(searchParams.get("sort"), SORT_MODES, "alpha");
   });
-  const [currentPage, setCurrentPage] = useState(() => parsePageParam(searchParams.get("page")));
+  const [currentPage, setCurrentPage] = useState(() =>
+    parseDashboardPageParam(searchParams.get("page")),
+  );
   const [selectedType, setSelectedType] = useState(() => parseTypeParam(searchParams.get("type")));
   const hasLoadedOnceRef = useRef(hasLoadedOnce);
   const isApplyingSearchParamsRef = useRef(false);
@@ -188,16 +179,8 @@ export function useDashboardProjectsEditorResource(apiBase: string): UseDashboar
   }, [currentPage, selectedType, sortMode]);
 
   useEffect(() => {
-    const sortParam = searchParams.get("sort");
-    const nextSort =
-      sortParam === "alpha" ||
-      sortParam === "status" ||
-      sortParam === "views" ||
-      sortParam === "comments" ||
-      sortParam === "recent"
-        ? sortParam
-        : "alpha";
-    const nextPage = parsePageParam(searchParams.get("page"));
+    const nextSort = parseDashboardEnumParam(searchParams.get("sort"), SORT_MODES, "alpha");
+    const nextPage = parseDashboardPageParam(searchParams.get("page"));
     const nextType = parseTypeParam(searchParams.get("type"));
     const {
       sortMode: currentSortMode,
@@ -218,31 +201,18 @@ export function useDashboardProjectsEditorResource(apiBase: string): UseDashboar
   }, [searchParams]);
 
   useEffect(() => {
-    const nextParams = new URLSearchParams(searchParams);
-    if (sortMode === "alpha") {
-      nextParams.delete("sort");
-    } else {
-      nextParams.set("sort", sortMode);
-    }
-    if (currentPage <= 1) {
-      nextParams.delete("page");
-    } else {
-      nextParams.set("page", String(currentPage));
-    }
-    if (selectedType === "Todos") {
-      nextParams.delete("type");
-    } else {
-      nextParams.set("type", selectedType);
-    }
-    const currentQuery = searchParams.toString();
-    const nextQuery = nextParams.toString();
+    const nextParams = buildDashboardSearchParams(searchParams, [
+      { key: "sort", value: sortMode, fallbackValue: "alpha" },
+      { key: "page", value: currentPage, fallbackValue: 1 },
+      { key: "type", value: selectedType, fallbackValue: "Todos" },
+    ]);
     if (isApplyingSearchParamsRef.current) {
-      if (nextQuery === currentQuery) {
+      if (areDashboardSearchParamsEqual(nextParams, searchParams)) {
         isApplyingSearchParamsRef.current = false;
       }
       return;
     }
-    if (nextQuery !== currentQuery) {
+    if (!areDashboardSearchParamsEqual(nextParams, searchParams)) {
       setSearchParams(nextParams, { replace: true });
     }
   }, [currentPage, searchParams, selectedType, setSearchParams, sortMode]);

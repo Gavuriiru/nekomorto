@@ -11,6 +11,7 @@ import {
   type AnimeEpisodeQuickFilter,
 } from "@/lib/project-anime-episodes";
 import { displayTimeToCanonical } from "@/lib/dashboard-date-time";
+import { shiftIndexedRecordAfterRemoval } from "@/lib/dashboard-indexed-drafts";
 import { toast } from "@/components/ui/use-toast";
 
 import type {
@@ -41,32 +42,12 @@ export const shouldSkipEpisodeHeaderToggle = (target: EventTarget | null) => {
   return Boolean(target.closest(episodeHeaderNoToggleSelector));
 };
 
-export const shiftDraftAfterRemoval = (draft: Record<number, string>, removedIndex: number) => {
-  const next: Record<number, string> = {};
-  Object.entries(draft).forEach(([key, value]) => {
-    const index = Number(key);
-    if (!Number.isFinite(index) || index === removedIndex) {
-      return;
-    }
-    next[index > removedIndex ? index - 1 : index] = value;
-  });
-  return next;
-};
+export const shiftDraftAfterRemoval = shiftIndexedRecordAfterRemoval<string>;
 
 export const shiftCollapsedEpisodesAfterRemoval = (
   collapsed: Record<number, boolean>,
   removedIndex: number,
-) => {
-  const next: Record<number, boolean> = {};
-  Object.entries(collapsed).forEach(([key, value]) => {
-    const index = Number(key);
-    if (!Number.isFinite(index) || index === removedIndex) {
-      return;
-    }
-    next[index > removedIndex ? index - 1 : index] = Boolean(value);
-  });
-  return next;
-};
+) => shiftIndexedRecordAfterRemoval<boolean>(collapsed, removedIndex);
 
 export const buildCompletionBadges = (episode: Partial<EditorProjectEpisode> | null | undefined) =>
   getAnimeEpisodeCompletionIssues(episode).map((issue) => ({

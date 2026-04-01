@@ -5,6 +5,11 @@ import {
   optimizeOgPublicImageBuffer,
   resolveOgPublicImageEncodingConfig,
 } from "./og-image-output.js";
+import { PROJECT_STYLE_OG_TIMING_ORDER, renderProjectStyleOgBuffer } from "./og-project-render.js";
+import {
+  loadProjectOgArtworkDataUrl,
+  loadProjectOgProcessedBackdropDataUrl,
+} from "./project-og.js";
 
 export const roundTimingMs = (value) => Number(Math.max(0, Number(value) || 0).toFixed(2));
 
@@ -26,6 +31,55 @@ export const buildOgDeliveryHeaders = ({ cacheHit, timings, timingOrder = [] } =
     cache: cacheHit ? "hit" : "miss",
   };
 };
+
+export const normalizeOgRevision = (value) => String(value || "").trim();
+
+export const appendVersionQueryParam = (basePath, revision) => {
+  const normalizedRevision = normalizeOgRevision(revision);
+  if (!normalizedRevision) {
+    return basePath;
+  }
+
+  const separator = String(basePath || "").includes("?") ? "&" : "?";
+  return `${basePath}${separator}v=${encodeURIComponent(normalizedRevision)}`;
+};
+
+export const buildProjectStyleOgDeliveryHeaders = ({ cacheHit, timings } = {}) =>
+  buildOgDeliveryHeaders({
+    cacheHit,
+    timings,
+    timingOrder: PROJECT_STYLE_OG_TIMING_ORDER,
+  });
+
+export const renderProjectStyleOgAssetBuffer = async ({
+  baseModel,
+  origin,
+  buildImageResponse,
+  loadAdditionalAssets,
+} = {}) =>
+  renderProjectStyleOgBuffer({
+    baseModel,
+    origin,
+    loadArtworkDataUrl: loadProjectOgArtworkDataUrl,
+    loadProcessedBackdropDataUrl: loadProjectOgProcessedBackdropDataUrl,
+    loadAdditionalAssets,
+    buildImageResponse,
+  });
+
+export const resolveProjectStyleTranslationArgs = (translations = {}) => ({
+  tagTranslations: translations?.tags,
+  genreTranslations: translations?.genres,
+});
+
+export const buildProjectStyleBaseModel = ({
+  buildCardModel,
+  translations,
+  ...rest
+} = {}) =>
+  buildCardModel?.({
+    ...rest,
+    ...resolveProjectStyleTranslationArgs(translations),
+  }) || null;
 
 export const renderOptimizedOgBuffer = async ({
   baseModel,
@@ -67,6 +121,31 @@ export const renderOptimizedOgBuffer = async ({
     timings,
   };
 };
+
+export const getProjectStyleOgCachedRender = async ({
+  kind,
+  id,
+  resolveId,
+  buildModel,
+  origin,
+  ogRenderCache,
+  buildImageResponse,
+  loadAdditionalAssets,
+} = {}) =>
+  getCachedOgRender({
+    kind,
+    id,
+    resolveId,
+    ogRenderCache,
+    buildModel,
+    renderModel: ({ model }) =>
+      renderProjectStyleOgAssetBuffer({
+        baseModel: model,
+        origin,
+        buildImageResponse,
+        loadAdditionalAssets,
+      }),
+  });
 
 export const getCachedOgRender = async ({
   kind,

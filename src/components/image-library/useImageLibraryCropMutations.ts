@@ -16,7 +16,7 @@ type UseImageLibraryCropMutationsParams = {
   cropAvatar: boolean;
   cropSlot?: string;
   cropTargetFolder?: string;
-  loadUploads: () => Promise<unknown>;
+  loadUploads: (options?: { includeUrls?: string[] }) => Promise<unknown>;
   onRequestRevealUpload: (url: string, options?: { openCrop?: boolean }) => void;
   scopeUserId?: string;
   setIsCropDialogOpen: (value: boolean) => void;
@@ -34,7 +34,9 @@ type UseImageLibraryCropMutationsResult = {
   isSavingFocal: boolean;
   saveFocalPoint: () => Promise<void>;
   setActiveFocalPreset: (value: UploadFocalPresetKey) => void;
-  setFocalCropDraft: (value: UploadFocalCrops | ((prev: UploadFocalCrops) => UploadFocalCrops)) => void;
+  setFocalCropDraft: (
+    value: UploadFocalCrops | ((prev: UploadFocalCrops) => UploadFocalCrops),
+  ) => void;
   setFocalTarget: (value: LibraryImageItem | null) => void;
 };
 

@@ -7,13 +7,15 @@ import { registerUploadRoutes } from "../../server/routes/register-upload-routes
 
 const createAppRecorder = () => {
   const routes = [];
-  const register = (method) => (path, ...handlers) => {
-    routes.push({
-      method,
-      path,
-      handlers,
-    });
-  };
+  const register =
+    (method) =>
+    (path, ...handlers) => {
+      routes.push({
+        method,
+        path,
+        handlers,
+      });
+    };
 
   return {
     app: {
@@ -369,6 +371,203 @@ describe("registerUploadRoutes", () => {
     );
   });
 
+  it("inclui upload pedido por includeUrl sem expor o restante do outro projeto", async () => {
+    const { app, routes } = createAppRecorder();
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        loadProjects: vi.fn(() => [
+          {
+            id: "proj-a",
+            title: "Projeto A",
+          },
+          {
+            id: "proj-b",
+            title: "Projeto B",
+          },
+        ]),
+        loadUploads: vi.fn(() => [
+          {
+            id: "upload-proj-a-cover",
+            url: "/uploads/projects/proj-a/cover.png",
+            folder: "projects/proj-a",
+            fileName: "cover.png",
+            mime: "image/png",
+            size: 120,
+            createdAt: "2024-01-01T00:00:00.000Z",
+          },
+          {
+            id: "upload-proj-b-banner",
+            url: "/uploads/projects/proj-b/banner.png",
+            folder: "projects/proj-b",
+            fileName: "banner.png",
+            mime: "image/png",
+            size: 180,
+            createdAt: "2024-01-02T00:00:00.000Z",
+            hashSha256: "hash-banner",
+          },
+          {
+            id: "upload-proj-b-hidden",
+            url: "/uploads/projects/proj-b/hidden.png",
+            folder: "projects/proj-b",
+            fileName: "hidden.png",
+            mime: "image/png",
+            size: 200,
+            createdAt: "2024-01-03T00:00:00.000Z",
+          },
+        ]),
+      },
+    });
+
+    registerUploadRoutes(dependencies);
+
+    const route = getRoute(routes, "GET", "/api/uploads/list");
+    expect(route).toBeTruthy();
+
+    const res = await invokeFinalHandler(route, {
+      query: {
+        folder: "projects/proj-a",
+        recursive: "1",
+        includeUrl: "/uploads/projects/proj-b/banner.png",
+      },
+      session: {
+        user: {
+          id: "user-1",
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.files.map((item) => item.url)).toEqual([
+      "/uploads/projects/proj-a/cover.png",
+      "/uploads/projects/proj-b/banner.png",
+    ]);
+    expect(res.body.files.some((item) => item.url === "/uploads/projects/proj-b/hidden.png")).toBe(
+      false,
+    );
+    expect(res.body.files).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          url: "/uploads/projects/proj-b/banner.png",
+          projectId: "proj-b",
+          projectTitle: "Projeto B",
+          hashSha256: "hash-banner",
+        }),
+      ]),
+    );
+  });
+
+  it("ignora includeUrl fora do escopo autorizado", async () => {
+    const { app, routes } = createAppRecorder();
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        isUploadFolderAllowedInScope: vi.fn((folder, accessScope) => {
+          if (accessScope?.hasFullAccess) {
+            return true;
+          }
+          const root = String(folder || "").split("/")[0] || "";
+          return (
+            Array.isArray(accessScope?.allowedRoots) && accessScope.allowedRoots.includes(root)
+          );
+        }),
+        loadUploads: vi.fn(() => [
+          {
+            id: "upload-proj-a-cover",
+            url: "/uploads/projects/proj-a/cover.png",
+            folder: "projects/proj-a",
+            fileName: "cover.png",
+            mime: "image/png",
+            size: 120,
+            createdAt: "2024-01-01T00:00:00.000Z",
+          },
+          {
+            id: "upload-users-avatar",
+            url: "/uploads/users/avatar.png",
+            folder: "users",
+            fileName: "avatar.png",
+            mime: "image/png",
+            size: 180,
+            createdAt: "2024-01-02T00:00:00.000Z",
+          },
+        ]),
+        resolveRequestUploadAccessScope: vi.fn(() => ({
+          allowed: true,
+          hasFullAccess: false,
+          allowedRoots: ["projects"],
+        })),
+      },
+    });
+
+    registerUploadRoutes(dependencies);
+
+    const route = getRoute(routes, "GET", "/api/uploads/list");
+    expect(route).toBeTruthy();
+
+    const res = await invokeFinalHandler(route, {
+      query: {
+        folder: "projects/proj-a",
+        recursive: "1",
+        includeUrl: "/uploads/users/avatar.png",
+      },
+      session: {
+        user: {
+          id: "user-1",
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.files.map((item) => item.url)).toEqual(["/uploads/projects/proj-a/cover.png"]);
+    expect(res.body.files.some((item) => item.url === "/uploads/users/avatar.png")).toBe(false);
+  });
+
+  it("nao duplica um item quando includeUrl aponta para upload ja listado pela pasta", async () => {
+    const { app, routes } = createAppRecorder();
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        loadUploads: vi.fn(() => [
+          {
+            id: "upload-proj-a-cover",
+            url: "/uploads/projects/proj-a/cover.png",
+            folder: "projects/proj-a",
+            fileName: "cover.png",
+            mime: "image/png",
+            size: 120,
+            createdAt: "2024-01-01T00:00:00.000Z",
+          },
+        ]),
+      },
+    });
+
+    registerUploadRoutes(dependencies);
+
+    const route = getRoute(routes, "GET", "/api/uploads/list");
+    expect(route).toBeTruthy();
+
+    const res = await invokeFinalHandler(route, {
+      query: {
+        folder: "projects/proj-a",
+        recursive: "1",
+        includeUrl: "/uploads/projects/proj-a/cover.png",
+      },
+      session: {
+        user: {
+          id: "user-1",
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.files).toHaveLength(1);
+    expect(res.body.files[0]).toEqual(
+      expect.objectContaining({
+        url: "/uploads/projects/proj-a/cover.png",
+      }),
+    );
+  });
+
   it("lista __all__ respeitando apenas os roots autorizados", async () => {
     const { app, routes } = createAppRecorder();
     const uploadsDir = fs.mkdtempSync(path.join(os.tmpdir(), "upload-routes-all-"));
@@ -387,7 +586,9 @@ describe("registerUploadRoutes", () => {
             return true;
           }
           const root = String(folder || "").split("/")[0] || "";
-          return Array.isArray(accessScope?.allowedRoots) && accessScope.allowedRoots.includes(root);
+          return (
+            Array.isArray(accessScope?.allowedRoots) && accessScope.allowedRoots.includes(root)
+          );
         }),
         loadUploads: vi.fn(() => [
           {
@@ -451,12 +652,10 @@ describe("registerUploadRoutes", () => {
         "/uploads/users/avatar.png",
         "/uploads/users/loose.png",
       ]);
-      expect(
-        res.body.files.some((item) => item.url === "/uploads/projects/proj-1/cover.png"),
-      ).toBe(false);
-      expect(
-        res.body.files.some((item) => item.url === "/uploads/projects/loose.png"),
-      ).toBe(false);
+      expect(res.body.files.some((item) => item.url === "/uploads/projects/proj-1/cover.png")).toBe(
+        false,
+      );
+      expect(res.body.files.some((item) => item.url === "/uploads/projects/loose.png")).toBe(false);
     } finally {
       fs.rmSync(uploadsDir, { recursive: true, force: true });
     }

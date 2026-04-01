@@ -16,12 +16,13 @@ type UseImageLibraryMutationsParams = {
   cropSlot?: string;
   cropTargetFolder?: string;
   loadLibrary: () => Promise<void>;
-  loadUploads: () => Promise<LibraryImageItem[]>;
+  loadUploads: (options?: { includeUrls?: string[] }) => Promise<LibraryImageItem[]>;
   mode: "single" | "multiple";
   onOpenChange: (open: boolean) => void;
   onRequestNavigateToUploads?: () => boolean | Promise<boolean>;
   onSave: (payload: ImageLibrarySavePayload) => void;
   open: boolean;
+  pinIncludedUploadUrls: (urls: string[]) => void;
   requestRevealUpload: (url: string, options?: { openCrop?: boolean }) => void;
   scopeUserId?: string;
   selectedUrls: string[];
@@ -87,6 +88,7 @@ export const useImageLibraryMutations = ({
   onRequestNavigateToUploads,
   onSave,
   open,
+  pinIncludedUploadUrls,
   requestRevealUpload,
   scopeUserId,
   selectedUrls,
@@ -103,6 +105,7 @@ export const useImageLibraryMutations = ({
     loadUploads,
     mode,
     onRequestRevealUpload: requestRevealUpload,
+    pinIncludedUploadUrls,
     scopeUserId,
     setSelectedUrls,
     shouldAutoOpenAvatarCrop,

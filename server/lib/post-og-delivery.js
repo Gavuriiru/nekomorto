@@ -1,12 +1,9 @@
 import { buildPostOgCardModel, buildPostOgImageResponse } from "./post-og.js";
+import { loadProjectOgArtworkDataUrl } from "./project-og.js";
 import {
-  loadProjectOgArtworkDataUrl,
-  loadProjectOgProcessedBackdropDataUrl,
-} from "./project-og.js";
-import {
-  getCachedOgRender,
+  buildProjectStyleBaseModel,
+  getProjectStyleOgCachedRender,
 } from "./og-delivery-shared.js";
-import { renderProjectStyleOgBuffer } from "./og-project-render.js";
 
 const buildPostOgBaseModel = ({
   post,
@@ -20,7 +17,8 @@ const buildPostOgBaseModel = ({
   origin,
   resolveVariantUrl,
 } = {}) =>
-  buildPostOgCardModel({
+  buildProjectStyleBaseModel({
+    buildCardModel: buildPostOgCardModel,
     post,
     relatedProject,
     resolvedCover,
@@ -28,32 +26,10 @@ const buildPostOgBaseModel = ({
     resolvedAuthor,
     defaultBackdropUrl,
     settings,
-    tagTranslations: translations?.tags,
-    genreTranslations: translations?.genres,
+    translations,
     origin,
     resolveVariantUrl,
   });
-
-const renderPostOgBuffer = async ({ baseModel, origin } = {}) => {
-  return renderProjectStyleOgBuffer({
-    baseModel,
-    origin,
-    loadArtworkDataUrl: loadProjectOgArtworkDataUrl,
-    loadProcessedBackdropDataUrl: loadProjectOgProcessedBackdropDataUrl,
-    loadAdditionalAssets: async ({ baseModel: model, timings, measureTiming, origin: renderOrigin }) => ({
-      subtitleAvatarDataUrl: await measureTiming(timings, "avatar_load", async () =>
-        loadProjectOgArtworkDataUrl({
-          artworkUrl: model?.subtitleAvatarUrl,
-          origin: renderOrigin,
-        }),
-      ),
-    }),
-    buildImageResponse: (model) =>
-      buildPostOgImageResponse({
-        ...model,
-      }),
-  });
-};
 
 export const getPostOgCachedRender = async ({
   post,
@@ -68,7 +44,7 @@ export const getPostOgCachedRender = async ({
   resolveVariantUrl,
   ogRenderCache,
 } = {}) => {
-  return getCachedOgRender({
+  return getProjectStyleOgCachedRender({
     kind: "post",
     id: String(post?.slug || "").trim(),
     ogRenderCache,
@@ -85,10 +61,15 @@ export const getPostOgCachedRender = async ({
         origin,
         resolveVariantUrl,
       }),
-    renderModel: ({ model }) =>
-      renderPostOgBuffer({
-        baseModel: model,
-        origin,
-      }),
+    origin,
+    buildImageResponse: (model) => buildPostOgImageResponse({ ...model }),
+    loadAdditionalAssets: async ({ baseModel: model, timings, measureTiming, origin: renderOrigin }) => ({
+      subtitleAvatarDataUrl: await measureTiming(timings, "avatar_load", async () =>
+        loadProjectOgArtworkDataUrl({
+          artworkUrl: model?.subtitleAvatarUrl,
+          origin: renderOrigin,
+        }),
+      ),
+    }),
   });
 };

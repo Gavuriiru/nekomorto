@@ -38,6 +38,14 @@ export const areSelectionsSemanticallyEqual = (left: string[], right: string[]) 
 export const toSelectionSignature = (urls: string[]) =>
   urls.map((url) => toComparableSelectionKey(url)).join("\u0001");
 
+export const parseSelectionSignature = (value: string) =>
+  value
+    ? value
+        .split("\u0001")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+
 const normalizeProjectIdList = (value: unknown) => {
   const seen = new Set<string>();
   return (Array.isArray(value) ? value : [])

@@ -54,14 +54,13 @@ describe("applySecurityHeaders", () => {
     const res = { setHeader };
 
     applySecurityHeaders(res, "nonce-dinamico");
+    const permissionsPolicy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()";
 
     expect(setHeader).toHaveBeenCalledWith("X-Content-Type-Options", "nosniff");
     expect(setHeader).toHaveBeenCalledWith("X-Frame-Options", "DENY");
     expect(setHeader).toHaveBeenCalledWith("Referrer-Policy", "strict-origin-when-cross-origin");
-    expect(setHeader).toHaveBeenCalledWith(
-      "Permissions-Policy",
-      "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
-    );
+    expect(setHeader).toHaveBeenCalledWith("Permissions-Policy", permissionsPolicy);
+    expect(permissionsPolicy).not.toContain("compute-pressure");
     expect(setHeader).toHaveBeenCalledWith(
       "Strict-Transport-Security",
       "max-age=31536000; includeSubDomains",

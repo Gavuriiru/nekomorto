@@ -39,6 +39,8 @@ describe("DbDataRepository audit log append", () => {
   });
 
   it("faz append incremental sem reescrever toda a tabela", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-01T12:00:00.000Z"));
     const repo = createRepo();
 
     repo.appendAuditLogEntry({

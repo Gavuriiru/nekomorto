@@ -1,0 +1,5 @@
+export {
+  LEGACY_PUBLIC_ANALYTICS_INGEST_PATH,
+  PUBLIC_ANALYTICS_INGEST_PATH,
+  PUBLIC_ANALYTICS_INGEST_PATHS,
+} from "../../shared/public-analytics.js";

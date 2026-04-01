@@ -10,7 +10,6 @@ import {
   SelectValue,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
-import ProjectMemberCombobox from "@/components/dashboard/ProjectMemberCombobox";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import {
@@ -24,8 +23,18 @@ import {
 } from "@/components/dashboard/dashboard-page-tokens";
 import EpisodeContentEditor from "@/components/dashboard/project-editor/EpisodeContentEditor";
 import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
+import ProjectEditorDialogShell from "@/components/dashboard/project-editor/ProjectEditorDialogShell";
 import ProjectEditorImageLibraryDialog from "@/components/dashboard/project-editor/ProjectEditorImageLibraryDialog";
+import ProjectEditorImportSection from "@/components/dashboard/project-editor/ProjectEditorImportSection";
+import ProjectEditorInformationSection from "@/components/dashboard/project-editor/ProjectEditorInformationSection";
 import ProjectEditorMediaSection from "@/components/dashboard/project-editor/ProjectEditorMediaSection";
+import ProjectEditorRelationsSection from "@/components/dashboard/project-editor/ProjectEditorRelationsSection";
+import ProjectEditorStaffSection from "@/components/dashboard/project-editor/ProjectEditorStaffSection";
+import {
+  ProjectEditorAnimeBatchDialog,
+  ProjectEditorConfirmDialog,
+  ProjectEditorDeleteDialog,
+} from "@/components/dashboard/project-editor/ProjectEditorSupportDialogs";
 import { useProjectEditorDialogState } from "@/components/dashboard/project-editor/useProjectEditorDialogState";
 import { useProjectEditorImageLibrary } from "@/components/dashboard/project-editor/useProjectEditorImageLibrary";
 import { useDashboardProjectsEditorAnimeBatch } from "@/components/dashboard/project-editor/useDashboardProjectsEditorAnimeBatch";
@@ -68,7 +77,6 @@ import {
 import { Label } from "@/components/ui/label";
 import CompactPagination from "@/components/ui/compact-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
 import type { ProjectEpisode, ProjectVolumeEntry } from "@/data/projects";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
@@ -92,6 +100,10 @@ import {
   normalizeCanonicalTimeFromUnknown,
   normalizeIsoDateFromUnknown,
 } from "@/lib/dashboard-date-time";
+import {
+  clearIndexedRecordValue,
+  shiftIndexedRecordAfterRemoval,
+} from "@/lib/dashboard-indexed-drafts";
 import {
   getAnimeEpisodeCompletionIssues,
   getAnimeEpisodeCompletionLabel,
@@ -123,7 +135,6 @@ import {
 } from "@/lib/project-episode-key";
 import {
   sortByTranslatedLabel,
-  translateAnilistRole,
   translateGenre,
   translateRelation,
   translateTag,
@@ -136,11 +147,6 @@ import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project
 import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import { reorderItems } from "@/lib/reorder-items";
-import {
-  normalizeProjectReaderConfig,
-  PROJECT_READER_DIRECTIONS,
-  PROJECT_READER_VIEW_MODES,
-} from "../../shared/project-reader.js";
 import {
   Clapperboard,
   Copy,
@@ -329,41 +335,14 @@ const normalizeUniqueStringList = (values: Array<string | null | undefined>) => 
   }, []);
 };
 
-const shiftDraftAfterRemoval = (draft: Record<number, string>, removedIndex: number) => {
-  const next: Record<number, string> = {};
-  Object.entries(draft).forEach(([key, value]) => {
-    const index = Number(key);
-    if (!Number.isFinite(index) || index === removedIndex) {
-      return;
-    }
-    next[index > removedIndex ? index - 1 : index] = value;
-  });
-  return next;
-};
+const shiftDraftAfterRemoval = shiftIndexedRecordAfterRemoval<string>;
 
-const clearIndexedDraftValue = (draft: Record<number, string>, index: number) => {
-  if (!Object.prototype.hasOwnProperty.call(draft, index)) {
-    return draft;
-  }
-  const next = { ...draft };
-  delete next[index];
-  return next;
-};
+const clearIndexedDraftValue = clearIndexedRecordValue<string>;
 
 const shiftCollapsedEpisodesAfterRemoval = (
   collapsed: Record<number, boolean>,
   removedIndex: number,
-) => {
-  const next: Record<number, boolean> = {};
-  Object.entries(collapsed).forEach(([key, value]) => {
-    const index = Number(key);
-    if (!Number.isFinite(index) || index === removedIndex) {
-      return;
-    }
-    next[index > removedIndex ? index - 1 : index] = Boolean(value);
-  });
-  return next;
-};
+) => shiftIndexedRecordAfterRemoval<boolean>(collapsed, removedIndex);
 
 const getEpisodeAccordionValue = (index: number) => `episode-${index}`;
 const episodeHeaderNoToggleSelector = [
@@ -612,10 +591,8 @@ const DashboardProjectsEditor = () => {
   const isLightNovel = isLightNovelType(formState.type || "");
   const supportsVolumeEntries = isLightNovel || isManga;
   const isChapterBased = isChapterBasedType(formState.type || "");
-  const readerConfigDraft = useMemo(
-    () => normalizeProjectReaderConfig(formState.readerConfig, { projectType: formState.type }),
-    [formState.readerConfig, formState.type],
-  );
+  const hasAniListReference =
+    Boolean(formState.anilistId) || parseAniListMediaId(anilistIdInput) !== null;
   const stageOptions = getProjectProgressStagesForEditor(formState.type || "");
 
   const getEpisodeEntryKind = useCallback(
@@ -2947,101 +2924,80 @@ const DashboardProjectsEditor = () => {
         </DashboardPageContainer>
       </DashboardShell>
 
-      {isEditorOpen ? (
-        <div
-          className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-xs"
-          aria-hidden="true"
-        />
-      ) : null}
-
-      <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
-        <DialogContent
-          className={`project-editor-dialog max-w-[min(1520px,calc(100vw-1rem))] gap-0 p-0 ${
-            isEditorDialogScrolled ? "editor-modal-scrolled" : ""
-          }`}
-          onPointerDownOutside={(event) => {
-            if (isLibraryOpen) {
-              event.preventDefault();
-              return;
-            }
-            const target = event.target as HTMLElement | null;
-            if (target?.closest(".lexical-playground")) {
-              event.preventDefault();
-            }
-          }}
-          onInteractOutside={(event) => {
-            if (isLibraryOpen) {
-              event.preventDefault();
-              return;
-            }
-            const target = event.target as HTMLElement | null;
-            if (target?.closest(".lexical-playground")) {
-              event.preventDefault();
-            }
-          }}
-        >
-          <div className="project-editor-modal-frame flex max-h-[min(90vh,calc(100dvh-1.5rem))] min-h-0 flex-col">
-            <div
-              className="project-editor-scroll-shell flex-1 overflow-y-auto no-scrollbar"
-              onScroll={(event) => {
-                const nextScrolled = event.currentTarget.scrollTop > 0;
-                setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
-              }}
-            >
-              <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
-                <DialogHeader className="space-y-0 px-4 pb-2.5 pt-3.5 text-left md:px-6 lg:px-8">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] uppercase tracking-[0.12em]"
-                        >
-                          {editorProjectLabel}
-                        </Badge>
-                        {formState.anilistId ? (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] uppercase tracking-[0.12em]"
-                          >
-                            AniList {formState.anilistId}
-                          </Badge>
-                        ) : null}
-                      </div>
-                      <DialogTitle className="text-xl md:text-2xl">
-                        {editingProject ? "Editar projeto" : "Novo projeto"}
-                      </DialogTitle>
-                      <DialogDescription className="max-w-2xl text-xs md:text-sm">
-                        Busque no AniList para preencher automaticamente ou ajuste todos os dados
-                        manualmente.
-                      </DialogDescription>
-                    </div>
-                    <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-1.5 text-right">
-                      <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                        Projeto
-                      </p>
-                      <p className="max-w-[210px] truncate text-sm font-medium text-foreground">
-                        {editorProjectTitle}
-                      </p>
-                    </div>
-                  </div>
-                </DialogHeader>
-                <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-1.5 md:px-6 lg:px-8">
-                  <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
-                    ID {editorProjectId}
-                  </Badge>
-                  <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-                    {editorTypeLabel}
-                  </Badge>
-                  <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-                    {editorStatusLabel}
-                  </Badge>
-                  <span className="text-[11px] text-muted-foreground">
-                    {editorEpisodeCount} {isChapterBased ? "capítulos" : "episódios"}
-                  </span>
-                </div>
-              </div>
-
+      <ProjectEditorDialogShell
+        open={isEditorOpen}
+        onOpenChange={handleEditorOpenChange}
+        isScrolled={isEditorDialogScrolled}
+        onScrolledChange={(nextScrolled) => {
+          setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
+        }}
+        isLibraryOpen={isLibraryOpen}
+        editorProjectLabel={editorProjectLabel}
+        anilistId={formState.anilistId}
+        isEditing={Boolean(editingProject)}
+        editorProjectTitle={editorProjectTitle}
+        editorProjectId={editorProjectId}
+        editorTypeLabel={editorTypeLabel}
+        editorStatusLabel={editorStatusLabel}
+        editorEpisodeCount={editorEpisodeCount}
+        isChapterBased={isChapterBased}
+        onCancel={requestCloseEditor}
+        onSave={handleSave}
+        footerLinks={
+          <>
+            {isChapterBased ? (
+              lightNovelContentHref ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
+                  asChild
+                >
+                  <Link to={lightNovelContentHref}>
+                    <DedicatedEditorFooterIcon className="h-4 w-4" aria-hidden="true" />
+                    <span className="sr-only md:not-sr-only">{"Conte\u00FAdo"}</span>
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
+                  disabled
+                >
+                  <DedicatedEditorFooterIcon className="h-4 w-4" aria-hidden="true" />
+                  <span className="sr-only md:not-sr-only">{"Conte\u00FAdo"}</span>
+                </Button>
+              )
+            ) : animeContentHref ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
+                asChild
+              >
+                <Link to={animeContentHref}>
+                  <Clapperboard className="h-4 w-4" aria-hidden="true" />
+                  <span className="sr-only md:not-sr-only">{"Epis\u00F3dios"}</span>
+                </Link>
+              </Button>
+            ) : null}
+            {publicProjectHref ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
+                asChild
+              >
+                <Link target="_blank" rel="noreferrer" to={publicProjectHref}>
+                  <Eye className="h-4 w-4" aria-hidden="true" />
+                  <span className="sr-only md:not-sr-only">{"Visualizar p\u00E1gina"}</span>
+                </Link>
+              </Button>
+            ) : null}
+          </>
+        }
+      >
               <div className="project-editor-layout grid gap-3.5 px-4 pb-3 pt-2.5 md:gap-4 md:px-6 md:pb-4 lg:gap-5 lg:px-8">
                 <Accordion
                   type="multiple"
@@ -3049,1332 +3005,54 @@ const DashboardProjectsEditor = () => {
                   onValueChange={setEditorAccordionValue}
                   className="project-editor-accordion space-y-2.5"
                 >
-                  <AccordionItem value="importacao" className={editorSectionClassName}>
-                    <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <ProjectEditorAccordionHeader
-                        title="Importação"
-                        subtitle="Preenchimento automático"
-                      />
-                    </AccordionTrigger>
-                    <AccordionContent className={editorSectionContentClassName}>
-                      <div className="space-y-5">
-                        <div className="grid gap-4 md:grid-cols-[1fr_auto]">
-                          <DashboardFieldStack>
-                            <Label htmlFor="anilist-id-input">ID ou URL do AniList</Label>
-                            <Input
-                              id="anilist-id-input"
-                              value={anilistIdInput}
-                              onChange={(event) => setAnilistIdInput(event.target.value)}
-                              placeholder="Ex.: 21366 ou https://anilist.co/manga/97894/..."
-                            />
-                          </DashboardFieldStack>
-                          <Button className="self-end" onClick={handleImportAniList}>
-                            Importar do AniList
-                          </Button>
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                  <ProjectEditorImportSection
+                    anilistIdInput={anilistIdInput}
+                    onAnilistIdInputChange={setAnilistIdInput}
+                    onImportAniList={handleImportAniList}
+                    sectionClassName={editorSectionClassName}
+                    triggerClassName={editorSectionTriggerClassName}
+                    contentClassName={editorSectionContentClassName}
+                  />
+                  <ProjectEditorInformationSection
+                    adjacentMetadataInputClassName={adjacentMetadataInputClassName}
+                    animationStudioInput={animationStudioInput}
+                    contentClassName={editorSectionContentClassName}
+                    editorSectionBlockClassName={editorSectionBlockClassName}
+                    editorSectionBlockDividerClassName={editorSectionBlockDividerClassName}
+                    editorSectionBlockTitleClassName={editorSectionBlockTitleClassName}
+                    formState={formState}
+                    formatSelectOptions={formatSelectOptions}
+                    genreInput={genreInput}
+                    genreSuggestions={genreSuggestions}
+                    genreTranslationMap={genreTranslationMap}
+                    hasAniListReference={hasAniListReference}
+                    onAddAnimationStudio={handleAddAnimationStudio}
+                    onAddGenre={handleAddGenre}
+                    onAddProducer={handleAddProducer}
+                    onAddTag={handleAddTag}
+                    onAppendGenreValue={appendGenreValue}
+                    onAppendTagValue={appendTagValue}
+                    onRemoveAnimationStudio={handleRemoveAnimationStudio}
+                    onRemoveGenre={handleRemoveGenre}
+                    onRemoveProducer={handleRemoveProducer}
+                    onRemoveTag={handleRemoveTag}
+                    producerInput={producerInput}
+                    sectionClassName={editorSectionClassName}
+                    setAnimationStudioInput={setAnimationStudioInput}
+                    setFormState={setFormState}
+                    setGenreInput={setGenreInput}
+                    setProducerInput={setProducerInput}
+                    setTagInput={setTagInput}
+                    statusOptions={statusOptions}
+                    tagInput={tagInput}
+                    tagSuggestions={tagSuggestions}
+                    tagTranslationMap={tagTranslationMap}
+                    translatedSortedEditorGenres={translatedSortedEditorGenres}
+                    translatedSortedEditorTags={translatedSortedEditorTags}
+                    triggerClassName={editorSectionTriggerClassName}
+                  />
 
-                  {false ? (
-                    <AccordionItem value="leitor" className={editorSectionClassName}>
-                      <AccordionTrigger className={editorSectionTriggerClassName}>
-                        <ProjectEditorAccordionHeader
-                          title="Leitor"
-                          subtitle="Direção, modo e overrides do manga/webtoon"
-                        />
-                      </AccordionTrigger>
-                      <AccordionContent className={editorSectionContentClassName}>
-                        <section className={editorSectionBlockClassName}>
-                          <div className="space-y-1">
-                            <h3 className={editorSectionBlockTitleClassName}>
-                              Configuração do reader
-                            </h3>
-                            <p className="text-xs leading-5 text-muted-foreground">
-                              Os defaults seguem o tipo do projeto, mas você pode sobrescrever aqui.
-                            </p>
-                          </div>
 
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <DashboardFieldStack>
-                              <Label>Direção</Label>
-                              <Select
-                                value={readerConfigDraft.direction}
-                                onValueChange={(value) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    readerConfig: {
-                                      ...(prev.readerConfig || {}),
-                                      direction:
-                                        value === PROJECT_READER_DIRECTIONS.LTR
-                                          ? PROJECT_READER_DIRECTIONS.LTR
-                                          : PROJECT_READER_DIRECTIONS.RTL,
-                                    },
-                                  }))
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value={PROJECT_READER_DIRECTIONS.RTL}>
-                                    Direita para esquerda
-                                  </SelectItem>
-                                  <SelectItem value={PROJECT_READER_DIRECTIONS.LTR}>
-                                    Esquerda para direita
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </DashboardFieldStack>
-
-                            <DashboardFieldStack>
-                              <Label>Modo de leitura</Label>
-                              <Select
-                                value={readerConfigDraft.viewMode}
-                                onValueChange={(value) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    readerConfig: {
-                                      ...(prev.readerConfig || {}),
-                                      viewMode:
-                                        value === PROJECT_READER_VIEW_MODES.SCROLL
-                                          ? PROJECT_READER_VIEW_MODES.SCROLL
-                                          : PROJECT_READER_VIEW_MODES.PAGE,
-                                    },
-                                  }))
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value={PROJECT_READER_VIEW_MODES.PAGE}>
-                                    Página
-                                  </SelectItem>
-                                  <SelectItem value={PROJECT_READER_VIEW_MODES.SCROLL}>
-                                    Scroll contínuo
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </DashboardFieldStack>
-
-                            <DashboardFieldStack>
-                              <Label htmlFor="reader-preview-limit">Limite de preview</Label>
-                              <Input
-                                id="reader-preview-limit"
-                                type="number"
-                                min="1"
-                                value={readerConfigDraft.previewLimit ?? ""}
-                                onChange={(event) => {
-                                  const nextValue = event.target.value;
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    readerConfig: {
-                                      ...(prev.readerConfig || {}),
-                                      previewLimit: nextValue.trim()
-                                        ? Math.max(1, Number(nextValue))
-                                        : null,
-                                    },
-                                  }));
-                                }}
-                                placeholder="Opcional"
-                              />
-                            </DashboardFieldStack>
-
-                            <DashboardFieldStack>
-                              <Label htmlFor="reader-theme-preset">Preset visual</Label>
-                              <Input
-                                id="reader-theme-preset"
-                                value={readerConfigDraft.themePreset || ""}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    readerConfig: {
-                                      ...(prev.readerConfig || {}),
-                                      themePreset: event.target.value,
-                                    },
-                                  }))
-                                }
-                                placeholder="manga, webtoon, custom..."
-                              />
-                            </DashboardFieldStack>
-                          </div>
-
-                          <div className="mt-4 grid gap-3 md:grid-cols-3">
-                            <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
-                              <span className="space-y-1">
-                                <span className="block font-medium text-foreground">
-                                  Primeira página isolada
-                                </span>
-                                <span className="block text-xs text-muted-foreground">
-                                  Útil para capa ou páginas ímpares.
-                                </span>
-                              </span>
-                              <Switch
-                                checked={readerConfigDraft.firstPageSingle !== false}
-                                onCheckedChange={(checked) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    readerConfig: {
-                                      ...(prev.readerConfig || {}),
-                                      firstPageSingle: checked,
-                                    },
-                                  }))
-                                }
-                              />
-                            </label>
-
-                            <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
-                              <span className="space-y-1">
-                                <span className="block font-medium text-foreground">
-                                  Permitir spread
-                                </span>
-                                <span className="block text-xs text-muted-foreground">
-                                  Junta páginas duplas no modo paginado.
-                                </span>
-                              </span>
-                              <Switch
-                                checked={readerConfigDraft.allowSpread !== false}
-                                onCheckedChange={(checked) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    readerConfig: {
-                                      ...(prev.readerConfig || {}),
-                                      allowSpread: checked,
-                                    },
-                                  }))
-                                }
-                              />
-                            </label>
-
-                            <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-sm">
-                              <span className="space-y-1">
-                                <span className="block font-medium text-foreground">
-                                  Mostrar rodapé
-                                </span>
-                                <span className="block text-xs text-muted-foreground">
-                                  Mantém os controles inferiores do pacote.
-                                </span>
-                              </span>
-                              <Switch
-                                checked={readerConfigDraft.showFooter !== false}
-                                onCheckedChange={(checked) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    readerConfig: {
-                                      ...(prev.readerConfig || {}),
-                                      showFooter: checked,
-                                    },
-                                  }))
-                                }
-                              />
-                            </label>
-                          </div>
-                        </section>
-                      </AccordionContent>
-                    </AccordionItem>
-                  ) : null}
-
-                  <AccordionItem value="informacoes" className={editorSectionClassName}>
-                    <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <ProjectEditorAccordionHeader
-                        title="Informações do projeto"
-                        subtitle={`${
-                          formState.title || "Títulos, classificação e metadados"
-                        } • ${formState.type || "Formato"} • ${formState.status || "Status"} • ${
-                          formState.tags.length
-                        } tags • ${formState.genres.length} gêneros`}
-                      />
-                    </AccordionTrigger>
-                    <AccordionContent className={editorSectionContentClassName}>
-                      <div className="space-y-6">
-                        <section className={editorSectionBlockClassName}>
-                          <div className="space-y-1">
-                            <h3 className={editorSectionBlockTitleClassName}>Dados principais</h3>
-                            <p className="text-xs leading-5 text-muted-foreground">
-                              ID, títulos, sinopse e destaque no carrossel.
-                            </p>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <DashboardFieldStack>
-                              <Label>ID do projeto</Label>
-                              <Input
-                                value={formState.id}
-                                onChange={(event) => {
-                                  const nextValue = event.target.value;
-                                  const hasAniList =
-                                    Boolean(formState.anilistId) ||
-                                    parseAniListMediaId(anilistIdInput) !== null;
-                                  const trimmed = nextValue.trim();
-                                  if (!hasAniList && trimmed && /^\d+$/.test(trimmed)) {
-                                    return;
-                                  }
-                                  setFormState((prev) => ({ ...prev, id: nextValue }));
-                                }}
-                                placeholder="Mesmo ID do AniList ou slug manual"
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Título</Label>
-                              <Input
-                                value={formState.title}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, title: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Título original</Label>
-                              <Input
-                                value={formState.titleOriginal}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    titleOriginal: event.target.value,
-                                  }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Título em inglês</Label>
-                              <Input
-                                value={formState.titleEnglish}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    titleEnglish: event.target.value,
-                                  }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <div className="flex items-center justify-between gap-4">
-                              <Label htmlFor="force-hero-switch">Forçar no carrossel</Label>
-                              <Switch
-                                id="force-hero-switch"
-                                checked={Boolean(formState.forceHero)}
-                                onCheckedChange={(checked) =>
-                                  setFormState((prev) => ({ ...prev, forceHero: checked }))
-                                }
-                              />
-                            </div>
-                            <DashboardFieldStack className="md:col-span-2">
-                              <Label>Sinopse</Label>
-                              <Textarea
-                                value={formState.synopsis}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    synopsis: event.target.value,
-                                  }))
-                                }
-                                rows={6}
-                              />
-                            </DashboardFieldStack>
-                          </div>
-                        </section>
-
-                        <section
-                          className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
-                        >
-                          <div className="space-y-1">
-                            <h3 className={editorSectionBlockTitleClassName}>Classificação</h3>
-                            <p className="text-xs leading-5 text-muted-foreground">
-                              Tags editoriais e gêneros usados no projeto.
-                            </p>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <DashboardFieldStack>
-                              <Label>Tags</Label>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Input
-                                  value={tagInput}
-                                  onChange={(event) => setTagInput(event.target.value)}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                      event.preventDefault();
-                                      handleAddTag();
-                                    }
-                                  }}
-                                  placeholder="Adicionar tag"
-                                />
-                              </div>
-                              {tagSuggestions.length > 0 ? (
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {tagSuggestions.map((option) => (
-                                    <Button
-                                      key={`tag-suggestion-${option.value}`}
-                                      type="button"
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 px-2 text-xs"
-                                      onClick={() => {
-                                        appendTagValue(option.value);
-                                        setTagInput("");
-                                      }}
-                                    >
-                                      {option.label}
-                                    </Button>
-                                  ))}
-                                </div>
-                              ) : null}
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {translatedSortedEditorTags.map((tag, index) => (
-                                  <Badge
-                                    key={`${tag}-${index}`}
-                                    variant="secondary"
-                                    onClick={() => handleRemoveTag(tag)}
-                                    className="cursor-pointer"
-                                  >
-                                    {translateTag(tag, tagTranslationMap)}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Gêneros</Label>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Input
-                                  value={genreInput}
-                                  onChange={(event) => setGenreInput(event.target.value)}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                      event.preventDefault();
-                                      handleAddGenre();
-                                    }
-                                  }}
-                                  placeholder="Adicionar gênero"
-                                />
-                              </div>
-                              {genreSuggestions.length > 0 ? (
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {genreSuggestions.map((option) => (
-                                    <Button
-                                      key={`genre-suggestion-${option.value}`}
-                                      type="button"
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 px-2 text-xs"
-                                      onClick={() => {
-                                        appendGenreValue(option.value);
-                                        setGenreInput("");
-                                      }}
-                                    >
-                                      {option.label}
-                                    </Button>
-                                  ))}
-                                </div>
-                              ) : null}
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {translatedSortedEditorGenres.map((genre, index) => (
-                                  <Badge
-                                    key={`${genre}-${index}`}
-                                    variant="secondary"
-                                    onClick={() => handleRemoveGenre(genre)}
-                                    className="cursor-pointer"
-                                  >
-                                    {translateGenre(genre, genreTranslationMap)}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </DashboardFieldStack>
-                          </div>
-                        </section>
-
-                        <section
-                          className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
-                        >
-                          <div className="space-y-1">
-                            <h3 className={editorSectionBlockTitleClassName}>Metadados</h3>
-                            <p className="text-xs leading-5 text-muted-foreground">
-                              Formato, status e dados editoriais do projeto.
-                            </p>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <DashboardFieldStack>
-                              <Label>Formato</Label>
-                              <Select
-                                value={formState.type}
-                                onValueChange={(value) =>
-                                  setFormState((prev) => ({ ...prev, type: value }))
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Formato" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {formatSelectOptions.map((option) => (
-                                    <SelectItem key={option} value={option}>
-                                      {option}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Status</Label>
-                              <Select
-                                value={formState.status}
-                                onValueChange={(value) =>
-                                  setFormState((prev) => ({ ...prev, status: value }))
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {statusOptions.map((option) => (
-                                    <SelectItem key={option} value={option}>
-                                      {option}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Ano</Label>
-                              <Input
-                                value={formState.year}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, year: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Temporada</Label>
-                              <Input
-                                value={formState.season}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, season: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Estúdio</Label>
-                              <Input
-                                value={formState.studio}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, studio: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Episódios/Capítulos</Label>
-                              <Input
-                                value={formState.episodes}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    episodes: event.target.value,
-                                  }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>País de origem</Label>
-                              <Input
-                                value={formState.country}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, country: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Fonte</Label>
-                              <Input
-                                value={formState.source}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, source: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Cargo Discord (ID)</Label>
-                              <Input
-                                value={formState.discordRoleId || ""}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    discordRoleId: event.target.value.replace(/\D/g, ""),
-                                  }))
-                                }
-                                placeholder="Opcional: ID numerico do cargo"
-                              />
-                            </DashboardFieldStack>
-                          </div>
-                        </section>
-                        <section
-                          className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
-                        >
-                          <div className="space-y-1">
-                            <h3 className={editorSectionBlockTitleClassName}>
-                              Estúdios e produtoras
-                            </h3>
-                            <p className="text-xs leading-5 text-muted-foreground">
-                              Separe o estúdio principal dos estúdios de animação e das produtoras.
-                            </p>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <DashboardFieldStack>
-                              <Label>Estúdio principal</Label>
-                              <Input
-                                className={adjacentMetadataInputClassName}
-                                value={formState.studio}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, studio: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Produtoras</Label>
-                              <Input
-                                className={adjacentMetadataInputClassName}
-                                value={producerInput}
-                                onChange={(event) => setProducerInput(event.target.value)}
-                                onKeyDown={(event) => {
-                                  if (event.key === "Enter") {
-                                    event.preventDefault();
-                                    handleAddProducer();
-                                  }
-                                }}
-                                placeholder="Adicionar produtora e pressionar Enter"
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack className="md:col-span-2">
-                              <Label>Estúdios de animação</Label>
-                              <Input
-                                className={adjacentMetadataInputClassName}
-                                value={animationStudioInput}
-                                onChange={(event) => setAnimationStudioInput(event.target.value)}
-                                onKeyDown={(event) => {
-                                  if (event.key === "Enter") {
-                                    event.preventDefault();
-                                    handleAddAnimationStudio();
-                                  }
-                                }}
-                                placeholder="Adicionar estúdio de animação e pressionar Enter"
-                              />
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {formState.animationStudios.map((studioName, index) => (
-                                  <Badge
-                                    key={`${studioName}-${index}`}
-                                    variant="secondary"
-                                    onClick={() => handleRemoveAnimationStudio(studioName)}
-                                    className="cursor-pointer"
-                                  >
-                                    {studioName}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </DashboardFieldStack>
-                            <div className="space-y-2 md:col-span-2">
-                              <Label>Lista atual de produtoras</Label>
-                              <div className="flex flex-wrap gap-2">
-                                {formState.producers.map((producer, index) => (
-                                  <Badge
-                                    key={`${producer}-${index}`}
-                                    variant="secondary"
-                                    onClick={() => handleRemoveProducer(producer)}
-                                    className="cursor-pointer"
-                                  >
-                                    {producer}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        </section>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  {/*
-                  <AccordionItem value="classificacao" className={editorSectionClassName}>
-                    <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <ProjectEditorAccordionHeader
-                        title="Classificação"
-                        subtitle={`${formState.tags.length} tags • ${formState.genres.length} gêneros`}
-                      />
-                    </AccordionTrigger>
-                    <AccordionContent className={editorSectionContentClassName}>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <DashboardFieldStack>
-                          <Label>Tags</Label>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Input
-                              value={tagInput}
-                              onChange={(event) => setTagInput(event.target.value)}
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter") {
-                                  event.preventDefault();
-                                  handleAddTag();
-                                }
-                              }}
-                              placeholder="Adicionar tag"
-                            />
-                          </div>
-                          {tagSuggestions.length > 0 ? (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {tagSuggestions.map((option) => (
-                                <Button
-                                  key={`tag-suggestion-${option.value}`}
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 px-2 text-xs"
-                                  onClick={() => {
-                                    appendTagValue(option.value);
-                                    setTagInput("");
-                                  }}
-                                >
-                                  {option.label}
-                                </Button>
-                              ))}
-                            </div>
-                          ) : null}
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {translatedSortedEditorTags.map((tag, index) => (
-                              <Badge
-                                key={`${tag}-${index}`}
-                                variant="secondary"
-                                onClick={() => handleRemoveTag(tag)}
-                                className="cursor-pointer"
-                              >
-                                {translateTag(tag, tagTranslationMap)}
-                              </Badge>
-                            ))}
-                          </div>
-                        </DashboardFieldStack>
-                        <DashboardFieldStack>
-                          <Label>Gêneros</Label>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Input
-                              value={genreInput}
-                              onChange={(event) => setGenreInput(event.target.value)}
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter") {
-                                  event.preventDefault();
-                                  handleAddGenre();
-                                }
-                              }}
-                              placeholder="Adicionar gênero"
-                            />
-                          </div>
-                          {genreSuggestions.length > 0 ? (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {genreSuggestions.map((option) => (
-                                <Button
-                                  key={`genre-suggestion-${option.value}`}
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 px-2 text-xs"
-                                  onClick={() => {
-                                    appendGenreValue(option.value);
-                                    setGenreInput("");
-                                  }}
-                                >
-                                  {option.label}
-                                </Button>
-                              ))}
-                            </div>
-                          ) : null}
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {translatedSortedEditorGenres.map((genre, index) => (
-                              <Badge
-                                key={`${genre}-${index}`}
-                                variant="secondary"
-                                onClick={() => handleRemoveGenre(genre)}
-                                className="cursor-pointer"
-                              >
-                                {translateGenre(genre, genreTranslationMap)}
-                              </Badge>
-                            ))}
-                          </div>
-                        </DashboardFieldStack>
-                          </div>
-                        </section>
-
-                        <section
-                          className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
-                        >
-                          <div className="space-y-1">
-                            <h3 className={editorSectionBlockTitleClassName}>Classificação</h3>
-                            <p className="text-xs leading-5 text-muted-foreground">
-                              Tags editoriais e gêneros usados no projeto.
-                            </p>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <DashboardFieldStack>
-                              <Label>Tags</Label>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Input
-                                  value={tagInput}
-                                  onChange={(event) => setTagInput(event.target.value)}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                      event.preventDefault();
-                                      handleAddTag();
-                                    }
-                                  }}
-                                  placeholder="Adicionar tag"
-                                />
-                              </div>
-                              {tagSuggestions.length > 0 ? (
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {tagSuggestions.map((option) => (
-                                    <Button
-                                      key={`tag-suggestion-${option.value}`}
-                                      type="button"
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 px-2 text-xs"
-                                      onClick={() => {
-                                        appendTagValue(option.value);
-                                        setTagInput("");
-                                      }}
-                                    >
-                                      {option.label}
-                                    </Button>
-                                  ))}
-                                </div>
-                              ) : null}
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {translatedSortedEditorTags.map((tag, index) => (
-                                  <Badge
-                                    key={`${tag}-${index}`}
-                                    variant="secondary"
-                                    onClick={() => handleRemoveTag(tag)}
-                                    className="cursor-pointer"
-                                  >
-                                    {translateTag(tag, tagTranslationMap)}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Gêneros</Label>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Input
-                                  value={genreInput}
-                                  onChange={(event) => setGenreInput(event.target.value)}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                      event.preventDefault();
-                                      handleAddGenre();
-                                    }
-                                  }}
-                                  placeholder="Adicionar gênero"
-                                />
-                              </div>
-                              {genreSuggestions.length > 0 ? (
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {genreSuggestions.map((option) => (
-                                    <Button
-                                      key={`genre-suggestion-${option.value}`}
-                                      type="button"
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 px-2 text-xs"
-                                      onClick={() => {
-                                        appendGenreValue(option.value);
-                                        setGenreInput("");
-                                      }}
-                                    >
-                                      {option.label}
-                                    </Button>
-                                  ))}
-                                </div>
-                              ) : null}
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {translatedSortedEditorGenres.map((genre, index) => (
-                                  <Badge
-                                    key={`${genre}-${index}`}
-                                    variant="secondary"
-                                    onClick={() => handleRemoveGenre(genre)}
-                                    className="cursor-pointer"
-                                  >
-                                    {translateGenre(genre, genreTranslationMap)}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </DashboardFieldStack>
-                          </div>
-                        </section>
-
-                        <section
-                          className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
-                        >
-                          <div className="space-y-1">
-                            <h3 className={editorSectionBlockTitleClassName}>Metadados</h3>
-                            <p className="text-xs leading-5 text-muted-foreground">
-                              Formato, status e dados editoriais do projeto.
-                            </p>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <DashboardFieldStack>
-                              <Label>Formato</Label>
-                              <Select
-                                value={formState.type}
-                                onValueChange={(value) =>
-                                  setFormState((prev) => ({ ...prev, type: value }))
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Formato" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {formatSelectOptions.map((option) => (
-                                    <SelectItem key={option} value={option}>
-                                      {option}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Status</Label>
-                              <Select
-                                value={formState.status}
-                                onValueChange={(value) =>
-                                  setFormState((prev) => ({ ...prev, status: value }))
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {statusOptions.map((option) => (
-                                    <SelectItem key={option} value={option}>
-                                      {option}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Ano</Label>
-                              <Input
-                                value={formState.year}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, year: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Temporada</Label>
-                              <Input
-                                value={formState.season}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, season: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Estúdio</Label>
-                              <Input
-                                value={formState.studio}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, studio: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Episódios/Capítulos</Label>
-                              <Input
-                                value={formState.episodes}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, episodes: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>País de origem</Label>
-                              <Input
-                                value={formState.country}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, country: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Fonte</Label>
-                              <Input
-                                value={formState.source}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, source: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Cargo Discord (ID)</Label>
-                              <Input
-                                value={formState.discordRoleId || ""}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    discordRoleId: event.target.value.replace(/\D/g, ""),
-                                  }))
-                                }
-                                placeholder="Opcional: ID numerico do cargo"
-                              />
-                            </DashboardFieldStack>
-                          </div>
-                        </section>
-                          </div>
-                        </section>
-
-                        <section
-                          className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
-                        >
-                          <div className="space-y-1">
-                            <h3 className={editorSectionBlockTitleClassName}>Classificação</h3>
-                            <p className="text-xs leading-5 text-muted-foreground">
-                              Tags editoriais e gêneros usados no projeto.
-                            </p>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <DashboardFieldStack>
-                              <Label>Tags</Label>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Input
-                                  value={tagInput}
-                                  onChange={(event) => setTagInput(event.target.value)}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                      event.preventDefault();
-                                      handleAddTag();
-                                    }
-                                  }}
-                                  placeholder="Adicionar tag"
-                                />
-                              </div>
-                              {tagSuggestions.length > 0 ? (
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {tagSuggestions.map((option) => (
-                                    <Button
-                                      key={`tag-suggestion-${option.value}`}
-                                      type="button"
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 px-2 text-xs"
-                                      onClick={() => {
-                                        appendTagValue(option.value);
-                                        setTagInput("");
-                                      }}
-                                    >
-                                      {option.label}
-                                    </Button>
-                                  ))}
-                                </div>
-                              ) : null}
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {translatedSortedEditorTags.map((tag, index) => (
-                                  <Badge
-                                    key={`${tag}-${index}`}
-                                    variant="secondary"
-                                    onClick={() => handleRemoveTag(tag)}
-                                    className="cursor-pointer"
-                                  >
-                                    {translateTag(tag, tagTranslationMap)}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Gêneros</Label>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Input
-                                  value={genreInput}
-                                  onChange={(event) => setGenreInput(event.target.value)}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                      event.preventDefault();
-                                      handleAddGenre();
-                                    }
-                                  }}
-                                  placeholder="Adicionar gênero"
-                                />
-                              </div>
-                              {genreSuggestions.length > 0 ? (
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {genreSuggestions.map((option) => (
-                                    <Button
-                                      key={`genre-suggestion-${option.value}`}
-                                      type="button"
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 px-2 text-xs"
-                                      onClick={() => {
-                                        appendGenreValue(option.value);
-                                        setGenreInput("");
-                                      }}
-                                    >
-                                      {option.label}
-                                    </Button>
-                                  ))}
-                                </div>
-                              ) : null}
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {translatedSortedEditorGenres.map((genre, index) => (
-                                  <Badge
-                                    key={`${genre}-${index}`}
-                                    variant="secondary"
-                                    onClick={() => handleRemoveGenre(genre)}
-                                    className="cursor-pointer"
-                                  >
-                                    {translateGenre(genre, genreTranslationMap)}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </DashboardFieldStack>
-                          </div>
-                        </section>
-
-                        <section
-                          className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
-                        >
-                          <div className="space-y-1">
-                            <h3 className={editorSectionBlockTitleClassName}>Metadados</h3>
-                            <p className="text-xs leading-5 text-muted-foreground">
-                              Formato, status e dados editoriais do projeto.
-                            </p>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <DashboardFieldStack>
-                              <Label>Formato</Label>
-                              <Select
-                                value={formState.type}
-                                onValueChange={(value) =>
-                                  setFormState((prev) => ({ ...prev, type: value }))
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Formato" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {formatSelectOptions.map((option) => (
-                                    <SelectItem key={option} value={option}>
-                                      {option}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Status</Label>
-                              <Select
-                                value={formState.status}
-                                onValueChange={(value) =>
-                                  setFormState((prev) => ({ ...prev, status: value }))
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {statusOptions.map((option) => (
-                                    <SelectItem key={option} value={option}>
-                                      {option}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Ano</Label>
-                              <Input
-                                value={formState.year}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, year: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Temporada</Label>
-                              <Input
-                                value={formState.season}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, season: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Estúdio</Label>
-                              <Input
-                                value={formState.studio}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, studio: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Episódios/Capítulos</Label>
-                              <Input
-                                value={formState.episodes}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, episodes: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>País de origem</Label>
-                              <Input
-                                value={formState.country}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, country: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Fonte</Label>
-                              <Input
-                                value={formState.source}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, source: event.target.value }))
-                                }
-                              />
-                            </DashboardFieldStack>
-                            <DashboardFieldStack>
-                              <Label>Cargo Discord (ID)</Label>
-                              <Input
-                                value={formState.discordRoleId || ""}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    discordRoleId: event.target.value.replace(/\D/g, ""),
-                                  }))
-                                }
-                                placeholder="Opcional: ID numerico do cargo"
-                              />
-                            </DashboardFieldStack>
-                          </div>
-                        </section>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                  */}
-
-                  {/*
-                  <AccordionItem value="metadados" className={editorSectionClassName}>
-                    <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <ProjectEditorAccordionHeader
-                        title="Metadados"
-                        subtitle={`${formState.type || "Formato"} • ${formState.status || "Status"}`}
-                      />
-                    </AccordionTrigger>
-                    <AccordionContent className={editorSectionContentClassName}>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <DashboardFieldStack>
-                          <Label>Formato</Label>
-                          <Select
-                            value={formState.type}
-                            onValueChange={(value) =>
-                              setFormState((prev) => ({ ...prev, type: value }))
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Formato" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {formatSelectOptions.map((option) => (
-                                <SelectItem key={option} value={option}>
-                                  {option}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </DashboardFieldStack>
-                        <DashboardFieldStack>
-                          <Label>Status</Label>
-                          <Select
-                            value={formState.status}
-                            onValueChange={(value) =>
-                              setFormState((prev) => ({ ...prev, status: value }))
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {statusOptions.map((option) => (
-                                <SelectItem key={option} value={option}>
-                                  {option}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </DashboardFieldStack>
-                        <DashboardFieldStack>
-                          <Label>Ano</Label>
-                          <Input
-                            value={formState.year}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, year: event.target.value }))
-                            }
-                          />
-                        </DashboardFieldStack>
-                        <DashboardFieldStack>
-                          <Label>Temporada</Label>
-                          <Input
-                            value={formState.season}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, season: event.target.value }))
-                            }
-                          />
-                        </DashboardFieldStack>
-                        <DashboardFieldStack>
-                          <Label>Estúdio</Label>
-                          <Input
-                            value={formState.studio}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, studio: event.target.value }))
-                            }
-                          />
-                        </DashboardFieldStack>
-                        <DashboardFieldStack>
-                          <Label>Episódios/Capítulos</Label>
-                          <Input
-                            value={formState.episodes}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, episodes: event.target.value }))
-                            }
-                          />
-                        </DashboardFieldStack>
-                        <DashboardFieldStack>
-                          <Label>País de origem</Label>
-                          <Input
-                            value={formState.country}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, country: event.target.value }))
-                            }
-                          />
-                        </DashboardFieldStack>
-                        <DashboardFieldStack>
-                          <Label>Fonte</Label>
-                          <Input
-                            value={formState.source}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, source: event.target.value }))
-                            }
-                          />
-                        </DashboardFieldStack>
-                        <DashboardFieldStack>
-                          <Label>Cargo Discord (ID)</Label>
-                          <Input
-                            value={formState.discordRoleId || ""}
-                            onChange={(event) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                discordRoleId: event.target.value.replace(/\D/g, ""),
-                              }))
-                            }
-                            placeholder="Opcional: ID numerico do cargo"
-                          />
-                        </DashboardFieldStack>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                  */}
 
                   <ProjectEditorMediaSection
                     banner={formState.banner}
@@ -4386,100 +3064,16 @@ const DashboardProjectsEditor = () => {
                     onOpenLibrary={openLibraryForProjectImage}
                   />
 
-                  <AccordionItem value="relacoes" className={editorSectionClassName}>
-                    <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <ProjectEditorAccordionHeader
-                        title="Relações"
-                        subtitle={`${formState.relations.length} itens`}
-                      />
-                    </AccordionTrigger>
-                    <AccordionContent className={editorSectionContentClassName}>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-end">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                relations: [
-                                  ...prev.relations,
-                                  { relation: "", title: "", format: "", status: "", image: "" },
-                                ],
-                              }))
-                            }
-                          >
-                            Adicionar relação
-                          </Button>
-                        </div>
-                        <div className="grid gap-3">
-                          {formState.relations.map((relation, index) => (
-                            <div
-                              key={`${relation.title}-${index}`}
-                              className="grid gap-2 rounded-2xl border border-border/60 bg-card/60 p-3 md:grid-cols-[1.35fr_1fr_1fr_auto_auto]"
-                              draggable
-                              onDragStart={() => setRelationDragIndex(index)}
-                              onDragOver={(event) => event.preventDefault()}
-                              onDrop={() => handleRelationDrop(index)}
-                            >
-                              <Input
-                                value={relation.title}
-                                onChange={(event) =>
-                                  setFormState((prev) => {
-                                    const next = [...prev.relations];
-                                    next[index] = { ...next[index], title: event.target.value };
-                                    return { ...prev, relations: next };
-                                  })
-                                }
-                                placeholder="Título"
-                              />
-                              <Input
-                                value={relation.relation}
-                                onChange={(event) =>
-                                  setFormState((prev) => {
-                                    const next = [...prev.relations];
-                                    next[index] = { ...next[index], relation: event.target.value };
-                                    return { ...prev, relations: next };
-                                  })
-                                }
-                                placeholder="Relação"
-                              />
-                              <Input
-                                value={relation.projectId || relation.anilistId || ""}
-                                onChange={(event) =>
-                                  setFormState((prev) => {
-                                    const next = [...prev.relations];
-                                    next[index] = { ...next[index], projectId: event.target.value };
-                                    return { ...prev, relations: next };
-                                  })
-                                }
-                                placeholder="ID relacionado"
-                              />
-                              <ReorderControls
-                                label={`relação ${index + 1}`}
-                                index={index}
-                                total={formState.relations.length}
-                                onMove={(targetIndex) => moveRelationItem(index, targetIndex)}
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={() =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    relations: prev.relations.filter((_, idx) => idx !== index),
-                                  }))
-                                }
-                              >
-                                Remover
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                  <ProjectEditorRelationsSection
+                    contentClassName={editorSectionContentClassName}
+                    onDragStart={setRelationDragIndex}
+                    onDrop={handleRelationDrop}
+                    onMove={moveRelationItem}
+                    relations={formState.relations}
+                    sectionClassName={editorSectionClassName}
+                    setFormState={setFormState}
+                    triggerClassName={editorSectionTriggerClassName}
+                  />
 
                   {isChapterBased ? (
                     <AccordionItem value="episodios" className={editorSectionClassName}>
@@ -6005,474 +4599,97 @@ const DashboardProjectsEditor = () => {
                     </AccordionItem>
                   ) : null}
 
-                  <AccordionItem value="equipe" className={editorSectionClassName}>
-                    <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <ProjectEditorAccordionHeader
-                        title="Equipe da fansub"
-                        subtitle={`${formState.staff.length} funções`}
-                      />
-                    </AccordionTrigger>
-                    <AccordionContent className={editorSectionContentClassName}>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-end">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                staff: [...prev.staff, { role: "", members: [] }],
-                              }))
-                            }
-                          >
-                            Adicionar função
-                          </Button>
-                        </div>
-                        <div className="grid gap-3">
-                          {formState.staff.map((role, index) => (
-                            <div
-                              key={`${role.role}-${index}`}
-                              className="rounded-2xl border border-border/60 bg-card/60 p-3"
-                              draggable
-                              onDragStart={() => setStaffDragIndex(index)}
-                              onDragOver={(event) => event.preventDefault()}
-                              onDrop={() => handleStaffDrop(index)}
-                            >
-                              <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
-                                <Select
-                                  value={role.role || ""}
-                                  onValueChange={(value) =>
-                                    setFormState((prev) => {
-                                      const next = [...prev.staff];
-                                      next[index] = { ...next[index], role: value };
-                                      return { ...prev, staff: next };
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Função" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {(role.role && !staffRoleOptions.includes(role.role)
-                                      ? [role.role, ...staffRoleOptions]
-                                      : staffRoleOptions
-                                    ).map((option) => (
-                                      <SelectItem key={option} value={option}>
-                                        {option}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <ReorderControls
-                                  label={`funcao da fansub ${index + 1}`}
-                                  index={index}
-                                  total={formState.staff.length}
-                                  onMove={(targetIndex) => moveStaffItem(index, targetIndex)}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setFormState((prev) => ({
-                                      ...prev,
-                                      staff: prev.staff.filter((_, idx) => idx !== index),
-                                    }));
-                                    setStaffMemberInput((prev) =>
-                                      shiftDraftAfterRemoval(prev, index),
-                                    );
-                                  }}
-                                >
-                                  Remover
-                                </Button>
-                              </div>
-                              <div className="mt-3 flex flex-wrap items-center gap-2">
-                                <ProjectMemberCombobox
-                                  value={staffMemberInput[index] || ""}
-                                  options={memberDirectory}
-                                  onValueChange={(nextValue) =>
-                                    setStaffMemberInput((prev) => ({
-                                      ...prev,
-                                      [index]: nextValue,
-                                    }))
-                                  }
-                                  onCommit={(member) => commitStaffMember(index, member)}
-                                  placeholder="Adicionar membro"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => commitStaffMember(index)}
-                                >
-                                  Adicionar
-                                </Button>
-                              </div>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {(role.members || []).map((member) => (
-                                  <Badge key={member} variant="secondary">
-                                    {member}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                  <ProjectEditorStaffSection
+                    contentClassName={editorSectionContentClassName}
+                    memberDirectory={memberDirectory}
+                    memberInput={staffMemberInput}
+                    onCommitMember={commitStaffMember}
+                    onDragStart={setStaffDragIndex}
+                    onDrop={handleStaffDrop}
+                    onMove={moveStaffItem}
+                    roleOptions={staffRoleOptions}
+                    sectionClassName={editorSectionClassName}
+                    sectionValue="equipe"
+                    setFormState={setFormState}
+                    setMemberInput={setStaffMemberInput}
+                    shiftDraftAfterRemoval={shiftDraftAfterRemoval}
+                    staffEntries={formState.staff}
+                    staffKey="staff"
+                    title="Equipe da fansub"
+                    triggerClassName={editorSectionTriggerClassName}
+                    variant="fansub"
+                  />
 
-                  <AccordionItem value="staff-anime" className={editorSectionClassName}>
-                    <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <ProjectEditorAccordionHeader
-                        title="Staff do anime"
-                        subtitle={`${formState.animeStaff.length} funções`}
-                      />
-                    </AccordionTrigger>
-                    <AccordionContent className={editorSectionContentClassName}>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-end">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                animeStaff: [...prev.animeStaff, { role: "", members: [] }],
-                              }))
-                            }
-                          >
-                            Adicionar função
-                          </Button>
-                        </div>
-                        <div className="grid gap-3">
-                          {formState.animeStaff.map((role, index) => (
-                            <div
-                              key={`${role.role}-${index}`}
-                              className="rounded-2xl border border-border/60 bg-card/60 p-3"
-                              draggable
-                              onDragStart={() => setAnimeStaffDragIndex(index)}
-                              onDragOver={(event) => event.preventDefault()}
-                              onDrop={() => handleAnimeStaffDrop(index)}
-                            >
-                              <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
-                                <div className="space-y-1">
-                                  <Input
-                                    value={role.role || ""}
-                                    onChange={(event) =>
-                                      setFormState((prev) => {
-                                        const next = [...prev.animeStaff];
-                                        next[index] = { ...next[index], role: event.target.value };
-                                        return { ...prev, animeStaff: next };
-                                      })
-                                    }
-                                    placeholder="Função"
-                                  />
-                                  {String(role.role || "").trim() ? (
-                                    <p className="text-[11px] text-muted-foreground">
-                                      {translateAnilistRole(role.role, staffRoleTranslationMap)}
-                                    </p>
-                                  ) : null}
-                                </div>
-                                <ReorderControls
-                                  label={`funcao do anime ${index + 1}`}
-                                  index={index}
-                                  total={formState.animeStaff.length}
-                                  onMove={(targetIndex) => moveAnimeStaffItem(index, targetIndex)}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setFormState((prev) => ({
-                                      ...prev,
-                                      animeStaff: prev.animeStaff.filter((_, idx) => idx !== index),
-                                    }));
-                                    setAnimeStaffMemberInput((prev) =>
-                                      shiftDraftAfterRemoval(prev, index),
-                                    );
-                                  }}
-                                >
-                                  Remover
-                                </Button>
-                              </div>
-                              <div className="mt-3 flex flex-wrap items-center gap-2">
-                                <ProjectMemberCombobox
-                                  value={animeStaffMemberInput[index] || ""}
-                                  options={memberDirectory}
-                                  onValueChange={(nextValue) =>
-                                    setAnimeStaffMemberInput((prev) => ({
-                                      ...prev,
-                                      [index]: nextValue,
-                                    }))
-                                  }
-                                  onCommit={(member) => commitAnimeStaffMember(index, member)}
-                                  placeholder="Adicionar membro"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => commitAnimeStaffMember(index)}
-                                >
-                                  Adicionar
-                                </Button>
-                              </div>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {(role.members || []).map((member) => (
-                                  <Badge
-                                    key={member}
-                                    variant="secondary"
-                                    className="flex items-center gap-1"
-                                  >
-                                    <span>{member}</span>
-                                    <button
-                                      type="button"
-                                      className="rounded-sm p-0.5 text-muted-foreground transition hover:text-foreground"
-                                      onClick={() =>
-                                        setFormState((prev) => {
-                                          const next = [...prev.animeStaff];
-                                          next[index] = {
-                                            ...next[index],
-                                            members: (next[index].members || []).filter(
-                                              (item) => item !== member,
-                                            ),
-                                          };
-                                          return { ...prev, animeStaff: next };
-                                        })
-                                      }
-                                      aria-label={`Remover ${member}`}
-                                    >
-                                      x
-                                    </button>
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                  <ProjectEditorStaffSection
+                    contentClassName={editorSectionContentClassName}
+                    memberDirectory={memberDirectory}
+                    memberInput={animeStaffMemberInput}
+                    onCommitMember={commitAnimeStaffMember}
+                    onDragStart={setAnimeStaffDragIndex}
+                    onDrop={handleAnimeStaffDrop}
+                    onMove={moveAnimeStaffItem}
+                    roleTranslationMap={staffRoleTranslationMap}
+                    sectionClassName={editorSectionClassName}
+                    sectionValue="staff-anime"
+                    setFormState={setFormState}
+                    setMemberInput={setAnimeStaffMemberInput}
+                    shiftDraftAfterRemoval={shiftDraftAfterRemoval}
+                    staffEntries={formState.animeStaff}
+                    staffKey="animeStaff"
+                    title="Staff do anime"
+                    triggerClassName={editorSectionTriggerClassName}
+                    variant="anime"
+                  />
                 </Accordion>
               </div>
-            </div>
-            <div className="project-editor-footer flex items-center justify-between gap-3 border-t border-border/60 bg-background/95 px-4 py-1.5 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2 lg:px-8">
-              <div className="flex items-center gap-2 md:gap-3">
-                {isChapterBased ? (
-                  lightNovelContentHref ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
-                      asChild
-                    >
-                      <Link to={lightNovelContentHref}>
-                        <DedicatedEditorFooterIcon className="h-4 w-4" aria-hidden="true" />
-                        <span className="sr-only md:not-sr-only">Conteúdo</span>
-                      </Link>
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
-                      disabled
-                    >
-                      <DedicatedEditorFooterIcon className="h-4 w-4" aria-hidden="true" />
-                      <span className="sr-only md:not-sr-only">Conteúdo</span>
-                    </Button>
-                  )
-                ) : animeContentHref ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
-                    asChild
-                  >
-                    <Link to={animeContentHref}>
-                      <Clapperboard className="h-4 w-4" aria-hidden="true" />
-                      <span className="sr-only md:not-sr-only">Episódios</span>
-                    </Link>
-                  </Button>
-                ) : null}
-                {publicProjectHref ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
-                    asChild
-                  >
-                    <Link target="_blank" rel="noreferrer" to={publicProjectHref}>
-                      <Eye className="h-4 w-4" aria-hidden="true" />
-                      <span className="sr-only md:not-sr-only">Visualizar página</span>
-                    </Link>
-                  </Button>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-3">
-                <Button variant="ghost" onClick={requestCloseEditor}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleSave}>Salvar projeto</Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      </ProjectEditorDialogShell>
 
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{confirmTitle}</DialogTitle>
-            <DialogDescription>{confirmDescription}</DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                confirmCancelRef.current?.();
-                setConfirmOpen(false);
-              }}
-            >
-              Continuar editando
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                confirmActionRef.current?.();
-                setConfirmOpen(false);
-              }}
-            >
-              Sair
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ProjectEditorConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={confirmTitle}
+        description={confirmDescription}
+        onCancel={() => {
+          confirmCancelRef.current?.();
+          setConfirmOpen(false);
+        }}
+        onConfirm={() => {
+          confirmActionRef.current?.();
+          setConfirmOpen(false);
+        }}
+      />
 
-      <Dialog open={animeBatchCreateOpen} onOpenChange={setAnimeBatchCreateOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Criar lote de episÃ³dios</DialogTitle>
-            <DialogDescription>
-              Adiciona vÃ¡rios episÃ³dios sequenciais ao formulÃ¡rio com defaults de data,
-              duraÃ§Ã£o, origem e status.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 md:grid-cols-2">
-            <DashboardFieldStack>
-              <Label htmlFor="anime-batch-start-number">EpisÃ³dio inicial</Label>
-              <Input
-                id="anime-batch-start-number"
-                type="number"
-                min={1}
-                value={animeBatchStartNumber}
-                onChange={(event) => setAnimeBatchStartNumber(event.target.value)}
-              />
-            </DashboardFieldStack>
-            <DashboardFieldStack>
-              <Label htmlFor="anime-batch-quantity">Quantidade</Label>
-              <Input
-                id="anime-batch-quantity"
-                type="number"
-                min={1}
-                value={animeBatchQuantity}
-                onChange={(event) => setAnimeBatchQuantity(event.target.value)}
-              />
-            </DashboardFieldStack>
-            <DashboardFieldStack>
-              <Label htmlFor="anime-batch-cadence">CadÃªncia de datas</Label>
-              <Input
-                id="anime-batch-cadence"
-                type="number"
-                min={0}
-                value={animeBatchCadenceDays}
-                onChange={(event) => setAnimeBatchCadenceDays(event.target.value)}
-                placeholder="Dias"
-              />
-            </DashboardFieldStack>
-            <DashboardFieldStack>
-              <Label htmlFor="anime-batch-duration">DuraÃ§Ã£o padrÃ£o</Label>
-              <Input
-                id="anime-batch-duration"
-                value={animeBatchDurationInput}
-                onChange={(event) =>
-                  setAnimeBatchDurationInput(formatTimeDigitsToDisplay(event.target.value))
-                }
-                placeholder="MM:SS ou H:MM:SS"
-              />
-            </DashboardFieldStack>
-            <DashboardFieldStack>
-              <Label htmlFor="anime-batch-source-type">Origem padrÃ£o</Label>
-              <Select
-                value={animeBatchSourceType}
-                onValueChange={(value) =>
-                  setAnimeBatchSourceType(value as EditorProjectEpisode["sourceType"])
-                }
-              >
-                <SelectTrigger id="anime-batch-source-type">
-                  <SelectValue placeholder="Origem" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TV">TV</SelectItem>
-                  <SelectItem value="Web">Web</SelectItem>
-                  <SelectItem value="Blu-ray">Blu-ray</SelectItem>
-                </SelectContent>
-              </Select>
-            </DashboardFieldStack>
-            <DashboardFieldStack>
-              <Label htmlFor="anime-batch-status">Status inicial</Label>
-              <Select
-                value={animeBatchPublicationStatus}
-                onValueChange={(value) =>
-                  setAnimeBatchPublicationStatus(value === "draft" ? "draft" : "published")
-                }
-              >
-                <SelectTrigger id="anime-batch-status">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Rascunho</SelectItem>
-                  <SelectItem value="published">Publicado</SelectItem>
-                </SelectContent>
-              </Select>
-            </DashboardFieldStack>
-          </div>
-          <div className="flex justify-end gap-3">
-            <Button variant="ghost" onClick={() => setAnimeBatchCreateOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={createAnimeEpisodeBatch}>Criar lote</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ProjectEditorAnimeBatchDialog
+        open={animeBatchCreateOpen}
+        onOpenChange={setAnimeBatchCreateOpen}
+        startNumber={animeBatchStartNumber}
+        onStartNumberChange={setAnimeBatchStartNumber}
+        quantity={animeBatchQuantity}
+        onQuantityChange={setAnimeBatchQuantity}
+        cadenceDays={animeBatchCadenceDays}
+        onCadenceDaysChange={setAnimeBatchCadenceDays}
+        durationInput={animeBatchDurationInput}
+        onDurationInputChange={(nextValue) =>
+          setAnimeBatchDurationInput(formatTimeDigitsToDisplay(nextValue))
+        }
+        sourceType={animeBatchSourceType}
+        onSourceTypeChange={(nextValue) => setAnimeBatchSourceType(nextValue)}
+        publicationStatus={animeBatchPublicationStatus}
+        onPublicationStatusChange={setAnimeBatchPublicationStatus}
+        onCreate={createAnimeEpisodeBatch}
+      />
 
-      <Dialog
+      <ProjectEditorDeleteDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => {
           if (!open) {
             setDeleteTarget(null);
           }
         }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Excluir projeto?</DialogTitle>
-            <DialogDescription>
-              {deleteTarget
-                ? `Excluir "${deleteTarget.title}"? Você pode restaurar por até 3 dias.`
-                : ""}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-3">
-            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Excluir
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+        targetTitle={deleteTarget?.title}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
 
       <ProjectEditorImageLibraryDialog
         activeLibraryOptions={activeLibraryOptions}

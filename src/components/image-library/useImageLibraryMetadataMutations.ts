@@ -1,7 +1,10 @@
 import { useCallback, useState } from "react";
 
 import type { LibraryImageItem } from "@/components/image-library/types";
-import { dedupeUrlsByComparableKey, toComparableSelectionKey } from "@/components/image-library/selection";
+import {
+  dedupeUrlsByComparableKey,
+  toComparableSelectionKey,
+} from "@/components/image-library/selection";
 import { toEffectiveName } from "@/components/image-library/utils";
 import { toast } from "@/components/ui/use-toast";
 import { apiFetch } from "@/lib/api-client";
@@ -9,7 +12,7 @@ import { apiFetch } from "@/lib/api-client";
 type UseImageLibraryMetadataMutationsParams = {
   apiBase: string;
   loadLibrary: () => Promise<void>;
-  loadUploads: () => Promise<unknown>;
+  loadUploads: (options?: { includeUrls?: string[] }) => Promise<unknown>;
   setSelectedUrls: (value: string[] | ((prev: string[]) => string[])) => void;
 };
 

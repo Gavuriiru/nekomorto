@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  type Dispatch,
-  type DragEvent,
-  type SetStateAction,
-} from "react";
+import { useEffect, useRef, type Dispatch, type DragEvent, type SetStateAction } from "react";
 
 import useImageLibraryBrowserDerivedState from "@/components/image-library/useImageLibraryBrowserDerivedState";
 import useImageLibraryBrowserInteractions from "@/components/image-library/useImageLibraryBrowserInteractions";
@@ -51,6 +45,7 @@ type UseImageLibraryBrowserOrchestrationParams = {
   primarySelectedUrl: string;
   projectImages: LibraryImageItem[];
   projectImagesView: "flat" | "by-project";
+  requestRevealUpload: (url: string, options?: { openCrop?: boolean }) => void;
   resolvedContextProjectId: string;
   resolvedUploadFolderForFilter: string;
   searchQuery: string;
@@ -111,6 +106,7 @@ export const useImageLibraryBrowserOrchestration = ({
   primarySelectedUrl,
   projectImages,
   projectImagesView,
+  requestRevealUpload,
   resolvedContextProjectId,
   resolvedUploadFolderForFilter,
   searchQuery,
@@ -132,6 +128,7 @@ export const useImageLibraryBrowserOrchestration = ({
 }: UseImageLibraryBrowserOrchestrationParams): UseImageLibraryBrowserOrchestrationResult => {
   const hasInitializedUploadAccordionStateForOpenRef = useRef(false);
   const hasInitializedProjectAccordionStateForOpenRef = useRef(false);
+  const hasQueuedPrimarySelectionRevealForOpenRef = useRef(false);
 
   const {
     filteredProjectImages,
@@ -175,6 +172,7 @@ export const useImageLibraryBrowserOrchestration = ({
 
   useEffect(() => {
     if (!open) {
+      hasQueuedPrimarySelectionRevealForOpenRef.current = false;
       return;
     }
     setUploadsFolderFilter(resolvedUploadFolderForFilterOption || "__all__");
@@ -237,6 +235,30 @@ export const useImageLibraryBrowserOrchestration = ({
     setIsDragActive,
     setSelectedUrls,
   });
+
+  useEffect(() => {
+    if (
+      !open ||
+      !isLibraryHydratedForOpen ||
+      !primarySelectedUrl ||
+      selectedResolvedUrlSet.size === 0 ||
+      pendingRevealRequest
+    ) {
+      return;
+    }
+    if (hasQueuedPrimarySelectionRevealForOpenRef.current) {
+      return;
+    }
+    hasQueuedPrimarySelectionRevealForOpenRef.current = true;
+    requestRevealUpload(primarySelectedUrl);
+  }, [
+    isLibraryHydratedForOpen,
+    open,
+    pendingRevealRequest,
+    primarySelectedUrl,
+    requestRevealUpload,
+    selectedResolvedUrlSet,
+  ]);
 
   const { setProjectCardRef, setUploadCardRef } = useImageLibraryRevealOrchestration({
     filteredProjectImages,

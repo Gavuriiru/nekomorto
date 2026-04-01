@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { MemoryRouter, useLocation, useNavigationType } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PUBLIC_ANALYTICS_INGEST_PATH } from "@/lib/public-analytics";
 import ProjectReading from "@/pages/ProjectReading";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
@@ -40,6 +41,10 @@ vi.mock("@/components/Header", () => ({
   default: ({ variant = "fixed" }: { variant?: "fixed" | "static" }) => (
     <div data-testid="public-header" data-variant={variant} />
   ),
+}));
+
+vi.mock("@/components/Footer", () => ({
+  default: () => <div data-testid="public-footer" />,
 }));
 
 vi.mock("@/components/DiscordInviteCard", () => ({
@@ -289,7 +294,7 @@ const setupProjectReadingApiMock = (
           readerConfig: options?.readerConfig || undefined,
         });
       }
-      if (endpoint === "/api/public/analytics/event" && requestOptions?.method === "POST") {
+      if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && requestOptions?.method === "POST") {
         return mockJsonResponse(true, { ok: true });
       }
       return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -353,7 +358,7 @@ describe("ProjectReading analytics", () => {
 
     await waitFor(() => {
       const analyticsCall = apiFetchMock.mock.calls.find(
-        (call) => call[1] === "/api/public/analytics/event",
+        (call) => call[1] === PUBLIC_ANALYTICS_INGEST_PATH,
       );
       expect(analyticsCall).toBeDefined();
       const requestOptions = (analyticsCall?.[2] || {}) as RequestInit;
@@ -373,12 +378,14 @@ describe("ProjectReading analytics", () => {
     if (!baseImplementation) {
       throw new Error("expected apiFetch mock implementation");
     }
-    apiFetchMock.mockImplementation(async (apiBase: string, endpoint: string, options?: RequestInit) => {
-      if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
-        throw new TypeError("Failed to fetch");
-      }
-      return baseImplementation(apiBase, endpoint, options);
-    });
+    apiFetchMock.mockImplementation(
+      async (apiBase: string, endpoint: string, options?: RequestInit) => {
+        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && options?.method === "POST") {
+          throw new TypeError("Failed to fetch");
+        }
+        return baseImplementation(apiBase, endpoint, options);
+      },
+    );
 
     render(
       <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
@@ -392,7 +399,7 @@ describe("ProjectReading analytics", () => {
     await waitFor(() => {
       expect(apiFetchMock).toHaveBeenCalledWith(
         "",
-        "/api/public/analytics/event",
+        PUBLIC_ANALYTICS_INGEST_PATH,
         expect.objectContaining({ method: "POST" }),
       );
     });
@@ -418,8 +425,23 @@ describe("ProjectReading analytics", () => {
     expect(screen.queryByRole("button", { name: /Restaurar padr.o/i })).not.toBeInTheDocument();
   });
 
-  it("remove o hero antigo e mantem a barra informativa na primeira dobra", async () => {
-    setupProjectReadingApiMock();
+  it("restaura o hero dedicado do light novel e a navegacao textual entre capitulos", async () => {
+    setupProjectReadingApiMock([
+      {
+        number: 1,
+        volume: 2,
+        title: "Capitulo 1",
+        synopsis: "Resumo do capitulo",
+        content: "<p>Conteudo</p>",
+      },
+      {
+        number: 2,
+        volume: 2,
+        title: "Capitulo 2",
+        synopsis: "Resumo do capitulo 2",
+        content: "<p>Conteudo 2</p>",
+      },
+    ]);
 
     const { container } = render(
       <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
@@ -432,30 +454,31 @@ describe("ProjectReading analytics", () => {
     expect(screen.queryByRole("navigation", { name: /breadcrumb/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Leitura de Light Novel/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Volume 1/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("public-header")).toHaveAttribute("data-variant", "fixed");
+    expect(screen.getByTestId("public-footer")).toBeInTheDocument();
 
-    const infoBar = screen.getByTestId("project-reading-info-bar");
-    expect(infoBar).toBeInTheDocument();
-    expect(within(infoBar).getByRole("link", { name: "Projeto Teste" })).toHaveAttribute(
+    const hero = screen.getByTestId("project-reading-hero");
+    expect(hero).toBeInTheDocument();
+    expect(within(hero).getByText("Projeto Teste")).toBeInTheDocument();
+    expect(within(hero).getByText("Resumo do capitulo")).toBeInTheDocument();
+    expect(within(hero).getByText("Light Novel")).toBeInTheDocument();
+    expect(within(hero).getByText(/Vol\. 2/i)).toBeInTheDocument();
+    expect(within(hero).getByRole("link", { name: /Voltar ao projeto/i })).toHaveAttribute(
       "href",
       "/projeto/projeto-teste",
     );
-    expect(within(infoBar).getByText("Resumo do capitulo")).toBeInTheDocument();
-    expect(within(infoBar).getByText("Light Novel")).toBeInTheDocument();
-    const chapterContext = within(infoBar).getByTestId("project-reading-chapter-context");
-    expect(chapterContext).toHaveTextContent(/Cap.*tulo 1/i);
-    expect(within(infoBar).getByTestId("project-reading-meta-row")).not.toHaveTextContent(
-      /Cap.*tulo 1/i,
+    expect(within(hero).queryByRole("link", { name: /Editar cap.tulo/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("project-reading-info-bar")).not.toBeInTheDocument();
+    const chapterNav = screen.getByTestId("project-reading-chapter-nav");
+    expect(
+      within(chapterNav).queryByRole("link", { name: /Cap.*tulo anterior/i }),
+    ).not.toBeInTheDocument();
+    expect(within(chapterNav).getByRole("link", { name: /Pr.ximo cap.*tulo/i })).toHaveAttribute(
+      "href",
+      "/projeto/projeto-teste/leitura/2?volume=2",
     );
-    expect(within(infoBar).getByText(/Volume 2/i)).toBeInTheDocument();
-    expect(chapterContext).not.toHaveClass("bg-secondary");
-    expect(within(infoBar).getByTestId("project-reading-project-title")).toHaveClass(
-      "text-primary",
-      "text-sm",
-      "md:text-base",
-    );
-    expect(screen.queryByRole("link", { name: "Voltar ao projeto" })).not.toBeInTheDocument();
-    expect(screen.queryByTestId("project-reading-hero")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("project-reading-chapter-nav")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("project-reading-comments-handoff")).not.toBeInTheDocument();
+    expect(screen.getByTestId("project-reading-comments-sentinel")).toBeInTheDocument();
     expect(document.querySelector(".project-reading-reader-shell")).not.toBeNull();
     expect(container.firstElementChild).not.toHaveClass("pt-20", "md:pt-24");
   });
@@ -603,7 +626,7 @@ describe("ProjectReading analytics", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByTestId("project-reading-info-bar");
+    await screen.findByTestId("project-reading-hero");
     expect(screen.queryByRole("link", { name: /Editar cap.tulo/i })).not.toBeInTheDocument();
   });
 
@@ -672,11 +695,9 @@ describe("ProjectReading analytics", () => {
     const readerShell = screen.getByTestId("project-reading-full-bleed-shell");
     const readerBar = screen.getByTestId("project-reading-reader-bar");
     const infoBar = screen.getByTestId("project-reading-info-bar");
-    const contextRow = within(infoBar).getByTestId("project-reading-context-row");
     const projectTitle = within(infoBar).getByTestId("project-reading-project-title");
     const chapterContext = within(infoBar).getByTestId("project-reading-chapter-context");
     const synopsis = within(infoBar).getByTestId("project-reading-synopsis");
-    const metaRow = within(infoBar).getByTestId("project-reading-meta-row");
     const actions = within(infoBar).getByTestId("project-reading-actions");
     const heading = within(readerBar).getByRole("heading", { name: /Cap.*tulo 1/i });
     const commentsHandoff = screen.getByTestId("project-reading-comments-handoff");
@@ -695,24 +716,32 @@ describe("ProjectReading analytics", () => {
     expect(readerBar.style.maxWidth).toBe("");
     expect(infoBar).toHaveAttribute("data-variant", "reader-full-bleed");
     expect(projectTitle).toHaveAttribute("href", "/projeto/projeto-teste");
-    expect(projectTitle).toHaveClass("text-primary", "text-sm", "md:text-base");
+    expect(projectTitle).toHaveClass("project-reading-masthead__overline");
     expect(chapterContext).toHaveTextContent(/Cap.*tulo 1/i);
-    expect(within(contextRow).queryByText(/^manga$/i)).not.toBeInTheDocument();
+    expect(within(infoBar).queryByTestId("project-reading-context-row")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^manga$/i)).not.toBeInTheDocument();
     expect(within(actions).getByRole("link", { name: /Voltar ao projeto/i })).toHaveAttribute(
       "href",
       "/projeto/projeto-teste",
     );
-    expect(within(actions).queryByRole("link", { name: /Editar cap.tulo/i })).not.toBeInTheDocument();
+    expect(within(actions).getByRole("link", { name: /Voltar ao projeto/i })).toHaveClass(
+      "project-reading-action-btn",
+      "project-reading-action-btn--secondary",
+    );
+    expect(
+      within(actions).queryByRole("link", { name: /Editar cap.tulo/i }),
+    ).not.toBeInTheDocument();
     expect(synopsis).toHaveTextContent("Resumo do capitulo");
     expect(heading).toBeInTheDocument();
-    expect(heading).toHaveClass("text-2xl", "md:text-3xl");
+    expect(heading).toHaveClass("project-reading-masthead__title");
+    expect(synopsis).toHaveClass("project-reading-masthead__synopsis");
     expect(
-      contextRow.compareDocumentPosition(projectTitle) & Node.DOCUMENT_POSITION_FOLLOWING,
+      projectTitle.compareDocumentPosition(chapterContext) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      synopsis.compareDocumentPosition(metaRow) & Node.DOCUMENT_POSITION_FOLLOWING,
+      chapterContext.compareDocumentPosition(synopsis) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(metaRow).not.toHaveTextContent(/Cap.*tulo 1/i);
+    expect(within(infoBar).queryByTestId("project-reading-meta-row")).not.toBeInTheDocument();
     expect(commentsHandoff.style.minHeight).toBe("5rem");
     expect(
       publicHeader.compareDocumentPosition(infoBar) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -736,13 +765,21 @@ describe("ProjectReading analytics", () => {
 
     expect(screen.queryByTestId("project-reading-chapter-nav")).not.toBeInTheDocument();
     expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
-    expect(screen.getByTestId("project-reading-stage").contains(screen.getByTestId("project-reader-menu-button"))).toBe(true);
+    expect(
+      screen
+        .getByTestId("project-reading-stage")
+        .contains(screen.getByTestId("project-reader-menu-button")),
+    ).toBe(true);
     expect(infoBar.contains(screen.getByTestId("project-reader-menu-button"))).toBe(false);
 
     fireEvent.click(screen.getByTestId("project-reader-menu-button"));
     expect(await screen.findByText("Leitor")).toBeInTheDocument();
     expect(screen.getByTestId("project-reader-sidebar")).toBeInTheDocument();
-    expect(screen.getByTestId("project-reading-stage").contains(screen.getByTestId("project-reader-sidebar"))).toBe(true);
+    expect(
+      screen
+        .getByTestId("project-reading-stage")
+        .contains(screen.getByTestId("project-reader-sidebar")),
+    ).toBe(true);
     expect(screen.getByRole("combobox", { name: /Selecionar cap.tulo/i })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /Selecionar p.gina/i })).toBeInTheDocument();
     expect(
@@ -1220,6 +1257,8 @@ describe("ProjectReading analytics", () => {
 
     await screen.findByTestId("lexical-viewer");
 
+    expect(screen.getByTestId("public-header")).toHaveAttribute("data-variant", "fixed");
+    expect(screen.getByTestId("public-footer")).toBeInTheDocument();
     expect(screen.queryByTestId("project-reading-comments-handoff")).not.toBeInTheDocument();
     expect(screen.getByTestId("project-reading-comments-sentinel")).toBeInTheDocument();
   });
@@ -1300,7 +1339,7 @@ describe("ProjectReading analytics", () => {
         if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
           return mockJsonResponse(true, { user: null });
         }
-        if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && options?.method === "POST") {
           return mockJsonResponse(true, { ok: true });
         }
         return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -1364,7 +1403,7 @@ describe("ProjectReading analytics", () => {
         if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
           return mockJsonResponse(true, { user: null });
         }
-        if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && options?.method === "POST") {
           return mockJsonResponse(true, { ok: true });
         }
         return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -1381,7 +1420,7 @@ describe("ProjectReading analytics", () => {
     expect(screen.getByText("Sinopse principal do projeto")).toBeInTheDocument();
   });
 
-  it("remove a capa do leitor mesmo quando o capitulo possui imagem propria", async () => {
+  it("prioriza a capa do capitulo no hero do leitor textual", async () => {
     const project = createProjectFixture();
     project.volumeCovers = [
       {
@@ -1420,7 +1459,7 @@ describe("ProjectReading analytics", () => {
         if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
           return mockJsonResponse(true, { user: null });
         }
-        if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && options?.method === "POST") {
           return mockJsonResponse(true, { ok: true });
         }
         return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -1434,11 +1473,11 @@ describe("ProjectReading analytics", () => {
     );
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
-    expect(screen.queryByRole("img", { name: "Capa do capitulo 1" })).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Capa do capitulo 1" })).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "Capa do volume 2" })).not.toBeInTheDocument();
   });
 
-  it("nao renderiza a capa do volume na barra do leitor", async () => {
+  it("usa a capa do volume no hero quando o capitulo nao possui capa propria", async () => {
     const project = createProjectFixture();
     project.volumeCovers = [
       {
@@ -1475,7 +1514,7 @@ describe("ProjectReading analytics", () => {
         if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
           return mockJsonResponse(true, { user: null });
         }
-        if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && options?.method === "POST") {
           return mockJsonResponse(true, { ok: true });
         }
         return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -1489,6 +1528,6 @@ describe("ProjectReading analytics", () => {
     );
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
-    expect(screen.queryByRole("img", { name: "Capa do volume 2" })).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Capa do volume 2" })).toBeInTheDocument();
   });
 });

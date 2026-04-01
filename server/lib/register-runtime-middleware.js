@@ -71,21 +71,28 @@ const resolvePwaThemeColors = ({ mode, pwaThemeColorDark, pwaThemeColorLight }) 
   };
 };
 
-const buildPwaManifestPayload = ({
+export const buildPwaManifestPayload = ({
   loadSiteSettings,
   pwaManifestBase,
   pwaThemeColorDark,
   pwaThemeColorLight,
 }) => {
   let themeMode = "dark";
+  let siteName = "";
+  let siteDescription = "";
   try {
     const settings = loadSiteSettings();
     themeMode = settings?.theme?.mode;
+    siteName = String(settings?.site?.name || "").trim();
+    siteDescription = String(settings?.site?.description || "").trim();
   } catch {
     themeMode = "dark";
   }
   return {
     ...pwaManifestBase,
+    name: siteName || String(pwaManifestBase?.name || "").trim(),
+    short_name: siteName || String(pwaManifestBase?.short_name || "").trim(),
+    description: siteDescription || String(pwaManifestBase?.description || "").trim(),
     ...resolvePwaThemeColors({
       mode: themeMode,
       pwaThemeColorDark,

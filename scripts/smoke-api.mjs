@@ -158,9 +158,13 @@ const assertRootHtmlEndpoint = async ({ path, expectProdHtml }) => {
     throw new Error(`${path} did not return an HTML document`);
   }
   const containsViteClient = body.includes("/@vite/client");
+  const containsLegacyPwaModule = body.includes("/@vite-plugin-pwa/") || body.includes("vite-plugin-pwa");
   const containsSrcMainTsx = body.includes('/src/main.tsx') || body.includes('"/src/main.tsx"');
   if (expectProdHtml && containsViteClient) {
     throw new Error(`${path} returned Vite dev HTML with /@vite/client on a prod-like target`);
+  }
+  if (expectProdHtml && containsLegacyPwaModule) {
+    throw new Error(`${path} returned legacy vite-plugin-pwa HTML on a prod-like target`);
   }
   if (expectProdHtml && containsSrcMainTsx) {
     throw new Error(`${path} returned Vite dev HTML with /src/main.tsx on a prod-like target`);
@@ -170,6 +174,7 @@ const assertRootHtmlEndpoint = async ({ path, expectProdHtml }) => {
     status: response.status,
     contentType,
     containsViteClient,
+    containsLegacyPwaModule,
     containsSrcMainTsx,
   };
 };
@@ -417,6 +422,7 @@ const main = async () => {
 
   if (expectProdHtml) {
     checks.push(await assertNoPublicModuleEndpoint("/@vite/client"));
+    checks.push(await assertNoPublicModuleEndpoint("/@vite-plugin-pwa/pwa-entry-point-loaded"));
     checks.push(await assertNoPublicModuleEndpoint("/src/main.tsx"));
   }
 

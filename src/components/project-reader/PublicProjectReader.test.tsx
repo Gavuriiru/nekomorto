@@ -789,11 +789,9 @@ describe("PublicProjectReader", () => {
     const shell = screen.getByTestId("project-reading-full-bleed-shell");
     const infoBar = screen.getByTestId("project-reading-info-bar");
     const readerBar = screen.getByTestId("project-reading-reader-bar");
-    const contextRow = screen.getByTestId("project-reading-context-row");
     const projectTitle = screen.getByTestId("project-reading-project-title");
     const chapterContext = screen.getByTestId("project-reading-chapter-context");
     const synopsis = screen.getByTestId("project-reading-synopsis");
-    const metaRow = screen.getByTestId("project-reading-meta-row");
     const heading = within(readerBar).getByRole("heading", { name: /Cap.*tulo 1/i });
 
     expect(shell).toHaveClass("w-full", "flex-1", "min-h-0");
@@ -802,25 +800,22 @@ describe("PublicProjectReader", () => {
     expect(readerBar).toHaveClass("gap-3", "py-2", "md:py-3");
     expect(readerBar.style.maxWidth).toBe("");
     expect(infoBar).toHaveAttribute("data-variant", "reader-full-bleed");
-    expect(within(contextRow).queryByText(/^manga$/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("project-reading-context-row")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^manga$/i)).not.toBeInTheDocument();
     expect(chapterContext).toHaveTextContent(/Cap.*tulo 1/i);
     expect(projectTitle).toHaveTextContent("Projeto Teste");
     expect(projectTitle).toHaveAttribute("href", "/projeto/projeto-teste");
-    expect(projectTitle).toHaveClass("text-primary", "text-sm", "md:text-base");
-    expect(heading).toHaveClass("text-2xl", "md:text-3xl");
+    expect(projectTitle).toHaveClass("project-reading-masthead__overline");
+    expect(heading).toHaveClass("project-reading-masthead__title");
+    expect(synopsis).toHaveClass("project-reading-masthead__synopsis");
     expect(synopsis).toHaveTextContent("Resumo do capitulo");
     expect(
-      contextRow.compareDocumentPosition(projectTitle) & Node.DOCUMENT_POSITION_FOLLOWING,
+      projectTitle.compareDocumentPosition(chapterContext) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      projectTitle.compareDocumentPosition(synopsis) & Node.DOCUMENT_POSITION_FOLLOWING,
+      chapterContext.compareDocumentPosition(synopsis) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(
-      synopsis.compareDocumentPosition(metaRow) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(within(metaRow).queryByText(/Cap.*tulo 1/i)).not.toBeInTheDocument();
-    expect(within(metaRow).getByText("Volume 1")).toBeInTheDocument();
-    expect(within(metaRow).getByText(/1\/2/)).toBeInTheDocument();
+    expect(screen.queryByTestId("project-reading-meta-row")).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(shell.style.minHeight).toMatch(/px$/);
@@ -838,14 +833,18 @@ describe("PublicProjectReader", () => {
 
     const infoBar = screen.getByTestId("project-reading-info-bar");
     const actions = within(infoBar).getByTestId("project-reading-actions");
+    const backLink = within(actions).getByRole("link", { name: /Voltar ao projeto/i });
+    const editLink = within(actions).getByRole("link", { name: /Editar extra/i });
 
-    expect(within(actions).getByRole("link", { name: /Voltar ao projeto/i })).toHaveAttribute(
-      "href",
-      "/projeto/projeto-teste",
+    expect(backLink).toHaveAttribute("href", "/projeto/projeto-teste");
+    expect(backLink).toHaveClass(
+      "project-reading-action-btn",
+      "project-reading-action-btn--secondary",
     );
-    expect(within(actions).getByRole("link", { name: /Editar extra/i })).toHaveAttribute(
-      "href",
-      "/dashboard/projetos/projeto-teste/capitulos/1",
+    expect(editLink).toHaveAttribute("href", "/dashboard/projetos/projeto-teste/capitulos/1");
+    expect(editLink).toHaveClass(
+      "project-reading-action-btn",
+      "project-reading-action-btn--primary",
     );
 
     fireEvent.click(screen.getByTestId("project-reader-menu-button"));
@@ -869,27 +868,27 @@ describe("PublicProjectReader", () => {
     const shell = screen.getByTestId("project-reading-full-bleed-shell");
     const stage = screen.getByTestId("project-reading-stage");
     const infoBar = screen.getByTestId("project-reading-info-bar");
-    const contextRow = screen.getByTestId("project-reading-context-row");
     const projectTitle = screen.getByTestId("project-reading-project-title");
     const chapterContext = screen.getByTestId("project-reading-chapter-context");
     const synopsis = screen.getByTestId("project-reading-synopsis");
-    const metaRow = screen.getByTestId("project-reading-meta-row");
     const heading = within(infoBar).getByRole("heading", { name: /Cap.*tulo 1/i });
 
     expect(infoBar).toHaveAttribute("data-variant", "reader-cinema");
     expect(shell).toHaveClass("relative", "gap-0");
+    expect(screen.queryByTestId("project-reading-context-row")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^manga$/i)).not.toBeInTheDocument();
     expect(chapterContext).toHaveTextContent(/Cap.*tulo 1/i);
     expect(projectTitle).toHaveAttribute("href", "/projeto/projeto-teste");
-    expect(projectTitle).toHaveClass("text-primary", "text-xs", "md:text-sm");
-    expect(heading).toHaveClass("text-lg", "md:text-2xl");
-    expect(synopsis).toHaveClass("line-clamp-1", "md:line-clamp-2");
+    expect(projectTitle).toHaveClass("project-reading-masthead__overline");
+    expect(heading).toHaveClass("project-reading-masthead__title");
+    expect(synopsis).toHaveClass("project-reading-masthead__synopsis");
     expect(
-      contextRow.compareDocumentPosition(projectTitle) & Node.DOCUMENT_POSITION_FOLLOWING,
+      projectTitle.compareDocumentPosition(chapterContext) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      projectTitle.compareDocumentPosition(metaRow) & Node.DOCUMENT_POSITION_FOLLOWING,
+      chapterContext.compareDocumentPosition(synopsis) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(within(metaRow).queryByText(/Cap.*tulo 1/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("project-reading-meta-row")).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(shell.style.minHeight).toBe("640px");
@@ -910,14 +909,18 @@ describe("PublicProjectReader", () => {
 
     const infoBar = screen.getByTestId("project-reading-info-bar");
     const actions = within(infoBar).getByTestId("project-reading-actions");
+    const backLink = within(actions).getByRole("link", { name: /Voltar ao projeto/i });
+    const editLink = within(actions).getByRole("link", { name: /Editar cap.tulo/i });
 
-    expect(within(actions).getByRole("link", { name: /Voltar ao projeto/i })).toHaveAttribute(
-      "href",
-      "/projeto/projeto-teste",
+    expect(backLink).toHaveAttribute("href", "/projeto/projeto-teste");
+    expect(backLink).toHaveClass(
+      "project-reading-action-btn",
+      "project-reading-action-btn--secondary",
     );
-    expect(within(actions).getByRole("link", { name: /Editar cap.tulo/i })).toHaveAttribute(
-      "href",
-      "/dashboard/projetos/projeto-teste/capitulos/1",
+    expect(editLink).toHaveAttribute("href", "/dashboard/projetos/projeto-teste/capitulos/1");
+    expect(editLink).toHaveClass(
+      "project-reading-action-btn",
+      "project-reading-action-btn--primary",
     );
   });
 
@@ -2546,16 +2549,17 @@ describe("PublicProjectReader", () => {
     expect(stage.contains(menuViewport)).toBe(true);
     expect(menuViewport.contains(menuHost)).toBe(true);
     await waitFor(() => {
-      expect(screen.getByTestId("project-reader-menu-button-shell")).toHaveAttribute(
-        "data-state",
-        "hidden",
-      );
+      const menuButtonShell = screen.queryByTestId("project-reader-menu-button-shell");
+      expect(
+        menuButtonShell === null || menuButtonShell.getAttribute("data-state") === "hidden",
+      ).toBe(true);
     });
     expect(sidebar).toHaveClass("top-0");
     expect(sidebar.style.width).toBe("20.5rem");
     expect(sidebar.style.maxWidth).toBe("calc(100% - 0.75rem)");
     expect(sidebar.style.maxHeight).toMatch(/px$/);
     expect(sidebar.style.height).toMatch(/px$/);
+    expect(sidebar).toHaveClass("bg-background/92", "text-foreground");
     expect(within(sidebar).getByTestId("project-reader-menu-scroll-area").style.height).toMatch(
       /px$/,
     );

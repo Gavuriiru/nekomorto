@@ -10,20 +10,18 @@ import session from "express-session";
 import multer from "multer";
 import { Pool } from "pg";
 import { buildAdminExportRuntimeDependencies } from "./bootstrap/build-admin-export-runtime-dependencies.js";
-import { buildDirectRouteRegistrationDependenciesFromRoot } from "./bootstrap/build-direct-route-registration-dependencies-from-root.js";
+import { buildRootRouteRegistrationDependencies } from "./bootstrap/build-root-route-registration-dependencies.js";
 import { buildOperationalMonitoringRuntimeDependencies } from "./bootstrap/build-operational-monitoring-runtime-dependencies.js";
 import { buildProjectRuntimeDependencies } from "./bootstrap/build-project-runtime-dependencies.js";
 import { buildPublicRuntimeDependencies } from "./bootstrap/build-public-runtime-dependencies.js";
-import { buildServerRouteContextSourceFromRoot } from "./bootstrap/build-server-route-context-source-from-root.js";
+import { createRouteRuntimeGroups } from "./bootstrap/create-route-runtime-groups.js";
+import { registerRootServerRoutes } from "./bootstrap/register-root-server-routes.js";
 import { buildUserRuntimeDependencies } from "./bootstrap/build-user-runtime-dependencies.js";
 import { buildWebhookRuntimeDependencies } from "./bootstrap/build-webhook-runtime-dependencies.js";
 import { createProjectRuntimeBundle } from "./bootstrap/create-project-runtime-bundle.js";
 import { createPublicRuntimeBundle } from "./bootstrap/create-public-runtime-bundle.js";
-import { createServerRouteDependencies } from "./bootstrap/create-server-route-dependencies.js";
 import { createUserRuntimeBundle } from "./bootstrap/create-user-runtime-bundle.js";
 import { createWebhookRuntimeBundle } from "./bootstrap/create-webhook-runtime-bundle.js";
-import { registerDirectServerRoutes } from "./bootstrap/register-direct-server-routes.js";
-import { registerServerRoutes } from "./bootstrap/register-server-routes.js";
 import { startServerJobs } from "./bootstrap/start-server-jobs.js";
 import {
   ADMIN_EXPORT_DATASETS,
@@ -88,12 +86,11 @@ import {
   injectPreloadLinks,
 } from "./lib/html-bootstrap.js";
 import {
-  HTML_CACHE_CONTROL_PRIVATE_REVALIDATE,
   applyHtmlCachingHeaders,
 } from "./lib/html-cache-control.js";
 import { createIdempotencyStore } from "./lib/idempotency-store.js";
 import { createJobQueue } from "./lib/job-queue.js";
-import { createJsonFileCache } from "./lib/json-file-cache.js";
+import { createJsonFileCacheRuntime } from "./lib/json-file-cache-runtime.js";
 import { truncateMetaDescription } from "./lib/meta-description.js";
 import {
   createAbsoluteUrlResolver,
@@ -115,12 +112,14 @@ import {
 } from "./lib/operational-alerts.js";
 import { createOperationalMonitoringRuntime } from "./lib/operational-monitoring-runtime.js";
 import { createResolveBootstrapPwaEnabled } from "./lib/pwa-bootstrap-policy.js";
+import { updateLexicalPollVotes } from "./lib/lexical-poll-votes.js";
 import {
   createDiscordAvatarUrl,
   createRouteGuards,
   createRuntimeMetadataBuilder,
   normalizeTags,
 } from "./lib/root-composition-helpers.js";
+import { isPlainObject, parseEditRevisionOptions } from "./lib/request-runtime-helpers.js";
 import {
   createSiteSettingsRuntimeHelpers,
   defaultSiteSettings,
@@ -129,6 +128,7 @@ import {
 } from "./lib/site-settings-runtime-helpers.js";
 import { createGravatarRuntime } from "./lib/gravatar-runtime.js";
 import { createRateLimitRuntime } from "./lib/rate-limit-runtime.js";
+import { createAutoUploadReorganizationRuntime } from "./lib/auto-upload-reorganization-runtime.js";
 import {
   MAX_SVG_SIZE_BYTES,
   MAX_UPLOAD_SIZE_BYTES,
@@ -144,6 +144,15 @@ import {
 } from "./lib/upload-runtime-helpers.js";
 import { createWebhookSettingsRuntimeHelpers } from "./lib/webhook-settings-runtime-helpers.js";
 import { createStartupSecuritySanitizationRuntime } from "./lib/startup-security-sanitization-runtime.js";
+import {
+  PWA_MANIFEST_BASE,
+  PWA_MANIFEST_CACHE_CONTROL,
+  PWA_THEME_COLOR_DARK,
+  PWA_THEME_COLOR_LIGHT,
+  STATIC_DEFAULT_CACHE_CONTROL,
+  setStaticCacheHeaders,
+} from "./lib/static-runtime-policy.js";
+import { createSystemAuditReqFactory } from "./lib/system-audit-req.js";
 import {
   createGetActiveProjectTypes,
   isChapterBasedType,
@@ -424,17 +433,10 @@ const app = express();
 app.disable("x-powered-by");
 const PgSessionStore = connectPgSimple(session);
 let dataRepository = null;
-
-const STATIC_DEFAULT_CACHE_CONTROL = "public, max-age=0, must-revalidate";
-const STATIC_IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
-const PWA_MANIFEST_CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=600";
-const PWA_SW_CACHE_CONTROL = "no-cache";
-const PWA_THEME_COLOR_DARK = "#101114";
-const PWA_THEME_COLOR_LIGHT = "#f8fafc";
 const DEFAULT_PROJECT_TYPE_CATALOG = Object.freeze([
   "Anime",
   "Manga",
-  "MangÃƒÂ¡",
+  "Mangá",
   "Webtoon",
   "Light Novel",
   "Filme",
@@ -443,92 +445,6 @@ const DEFAULT_PROJECT_TYPE_CATALOG = Object.freeze([
   "Especial",
   "Spin-off",
 ]);
-const PWA_MANIFEST_BASE = Object.freeze({
-  id: "/",
-  name: "Nekomata Fansub",
-  short_name: "Nekomata",
-  description:
-    "Fansub dedicada a trazer historias inesqueciveis com o carinho que a comunidade merece.",
-  start_url: "/",
-  display: "standalone",
-  lang: "pt-BR",
-  scope: "/",
-  categories: ["entertainment", "books"],
-  screenshots: [
-    {
-      src: "/pwa/screenshots/home-mobile-1080x1920.png",
-      sizes: "1080x1920",
-      type: "image/png",
-      form_factor: "narrow",
-      label: "Pagina inicial mobile",
-    },
-    {
-      src: "/pwa/screenshots/project-mobile-1080x1920.png",
-      sizes: "1080x1920",
-      type: "image/png",
-      form_factor: "narrow",
-      label: "Pagina de projeto mobile",
-    },
-    {
-      src: "/pwa/screenshots/home-desktop-1920x1080.png",
-      sizes: "1920x1080",
-      type: "image/png",
-      form_factor: "wide",
-      label: "Pagina inicial desktop",
-    },
-  ],
-  icons: [
-    {
-      src: "/pwa/icon-192.png",
-      sizes: "192x192",
-      type: "image/png",
-    },
-    {
-      src: "/pwa/icon-512.png",
-      sizes: "512x512",
-      type: "image/png",
-    },
-    {
-      src: "/pwa/icon-512-maskable.png",
-      sizes: "512x512",
-      type: "image/png",
-      purpose: "maskable",
-    },
-  ],
-});
-
-const hasHashedAssetName = (filePath) => {
-  const fileName = path.basename(String(filePath || ""));
-  return /-[A-Za-z0-9_-]{6,}\./.test(fileName);
-};
-
-const setStaticCacheHeaders = (res, filePath) => {
-  const normalizedPath = String(filePath || "");
-  const fileName = path.basename(normalizedPath);
-
-  if (fileName === "manifest.webmanifest") {
-    res.setHeader("Cache-Control", PWA_MANIFEST_CACHE_CONTROL);
-    return;
-  }
-
-  if (fileName === "sw.js" || /^workbox-[A-Za-z0-9_-]+\.js$/.test(fileName)) {
-    res.setHeader("Cache-Control", PWA_SW_CACHE_CONTROL);
-    return;
-  }
-
-  if (normalizedPath.endsWith(".html")) {
-    res.setHeader("Cache-Control", HTML_CACHE_CONTROL_PRIVATE_REVALIDATE);
-    return;
-  }
-  if (
-    normalizedPath.includes(`${path.sep}assets${path.sep}`) &&
-    hasHashedAssetName(normalizedPath)
-  ) {
-    res.setHeader("Cache-Control", STATIC_IMMUTABLE_CACHE_CONTROL);
-    return;
-  }
-  res.setHeader("Cache-Control", STATIC_DEFAULT_CACHE_CONTROL);
-};
 
 const AUDIT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const AUDIT_MAX_ENTRIES = 20000;
@@ -935,143 +851,9 @@ const ADMIN_EXPORT_MAX_ROWS = 25_000;
 const METRICS_TOKEN_NORMALIZED = String(METRICS_TOKEN || "").trim();
 const SESSION_INDEX_TOUCH_MIN_INTERVAL_MS = 30 * 1000;
 const sessionIndexTouchTsBySid = new Map();
-
-const AUTO_REORGANIZE_TRIGGER_TO_ACTION = {
-  startup: "uploads.auto_reorganize.startup",
-  "post-save": "uploads.auto_reorganize.post_save",
-  "project-save": "uploads.auto_reorganize.project_save",
-};
-
-let autoUploadReorganizationInFlight = null;
-const pendingAutoReorganizationTriggers = new Set();
-
-const createSystemAuditReq = () => ({
-  headers: {},
-  ip: "127.0.0.1",
-  session: {
-    user: {
-      id: "system",
-      name: "System",
-    },
-  },
-  requestId: `auto-reorg-${crypto.randomUUID()}`,
+const createSystemAuditReq = createSystemAuditReqFactory({
+  createRequestId: () => crypto.randomUUID(),
 });
-
-const normalizeAutoReorganizationTrigger = (value) =>
-  value === "startup" || value === "post-save" || value === "project-save" ? value : "post-save";
-
-const buildAutoReorganizationMeta = ({ trigger, report, durationMs, error }) => ({
-  trigger,
-  moves: Number(report?.appliedMovesCount || 0),
-  rewrites: Number(report?.totalRewrites || 0),
-  failures: Number(report?.moveFailuresCount || 0) + (error ? 1 : 0),
-  durationMs: Number(durationMs || 0),
-  ...(error ? { error: String(error?.message || error) } : {}),
-});
-
-const runAutoUploadReorganization = async ({ trigger, req } = {}) => {
-  if (!isAutoUploadReorganizationEnabled) {
-    return { ok: false, skipped: true, reason: "disabled" };
-  }
-
-  const normalizedTrigger = normalizeAutoReorganizationTrigger(trigger);
-  pendingAutoReorganizationTriggers.add(normalizedTrigger);
-
-  if (autoUploadReorganizationInFlight) {
-    return autoUploadReorganizationInFlight;
-  }
-
-  const runner = async () => {
-    let latestResult = { ok: true, skipped: true };
-    while (pendingAutoReorganizationTriggers.size > 0) {
-      const batch = Array.from(pendingAutoReorganizationTriggers);
-      pendingAutoReorganizationTriggers.clear();
-      const triggerForRun = batch.includes("startup")
-        ? "startup"
-        : batch.includes("project-save")
-          ? "project-save"
-          : "post-save";
-      const startedAt = Date.now();
-      try {
-        const datasets = {
-          posts: loadPosts(),
-          projects: loadProjects(),
-          users: loadUsers(),
-          comments: loadComments(),
-          updates: loadUpdates(),
-          pages: loadPages(),
-          siteSettings: loadSiteSettings(),
-          uploads: loadUploads(),
-        };
-        const report = runUploadsReorganization({
-          datasets,
-          uploadsDir: path.join(REPO_ROOT_DIR, "public", "uploads"),
-          applyChanges: true,
-        });
-        const changedDatasets = new Set(
-          Array.isArray(report?.changedDatasets) ? report.changedDatasets : [],
-        );
-        if (changedDatasets.has("posts")) {
-          writePosts(report.rewritten.posts);
-        }
-        if (changedDatasets.has("projects")) {
-          writeProjects(report.rewritten.projects);
-        }
-        if (changedDatasets.has("users")) {
-          writeUsers(report.rewritten.users);
-        }
-        if (changedDatasets.has("comments")) {
-          writeComments(report.rewritten.comments);
-        }
-        if (changedDatasets.has("updates")) {
-          writeUpdates(report.rewritten.updates);
-        }
-        if (changedDatasets.has("pages")) {
-          writePages(report.rewritten.pages);
-        }
-        if (changedDatasets.has("siteSettings")) {
-          writeSiteSettings(report.rewritten.siteSettings);
-        }
-        if (changedDatasets.has("uploads")) {
-          writeUploads(report.rewritten.uploads);
-        }
-        const durationMs = Date.now() - startedAt;
-        const action = AUTO_REORGANIZE_TRIGGER_TO_ACTION[triggerForRun];
-        appendAuditLog(
-          req || createSystemAuditReq(),
-          action,
-          "uploads",
-          buildAutoReorganizationMeta({
-            trigger: triggerForRun,
-            report,
-            durationMs,
-          }),
-        );
-        latestResult = { ok: true, trigger: triggerForRun, report, durationMs };
-      } catch (error) {
-        const durationMs = Date.now() - startedAt;
-        appendAuditLog(
-          req || createSystemAuditReq(),
-          "uploads.auto_reorganize.failed",
-          "uploads",
-          buildAutoReorganizationMeta({
-            trigger: triggerForRun,
-            durationMs,
-            error,
-          }),
-        );
-        latestResult = { ok: false, trigger: triggerForRun, error, durationMs };
-      }
-    }
-    return latestResult;
-  };
-
-  autoUploadReorganizationInFlight = runner().finally(() => {
-    autoUploadReorganizationInFlight = null;
-  });
-
-  return autoUploadReorganizationInFlight;
-};
 
 const parseEnvInteger = (value, fallback, min, max) => {
   const parsed = Number(value);
@@ -1374,19 +1156,6 @@ const USER_PREFERENCES_MAX_BYTES = 20 * 1024;
 const USER_PREFERENCES_THEME_MODE_SET = new Set(["light", "dark", "system"]);
 const USER_PREFERENCES_DENSITY_SET = new Set(["comfortable", "compact"]);
 
-const isPlainObject = (value) =>
-  Boolean(value) && typeof value === "object" && !Array.isArray(value);
-
-const parseEditRevisionOptions = (value) => {
-  if (!isPlainObject(value)) {
-    return { ifRevision: "", forceOverride: false };
-  }
-  return {
-    ifRevision: String(value.ifRevision || "").trim(),
-    forceOverride: value.forceOverride === true,
-  };
-};
-
 const ensureNoEditConflict = () => true;
 
 const PUBLIC_READ_CACHE_TAGS = Object.freeze({
@@ -1396,88 +1165,11 @@ const PUBLIC_READ_CACHE_TAGS = Object.freeze({
   PROJECTS: "public:projects",
 });
 
-const updateLexicalPollVotes = (content, { question, optionUid, voterId, checked }) => {
-  if (!content || typeof content !== "string") {
-    return { updated: false };
-  }
-  let parsed = null;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    return { updated: false };
-  }
-  if (!parsed || typeof parsed !== "object") {
-    return { updated: false };
-  }
-  const safeQuestion = typeof question === "string" ? question : null;
-  const safeOptionUid = String(optionUid || "").trim();
-  const safeVoterId = String(voterId || "").trim();
-  if (!safeOptionUid || !safeVoterId) {
-    return { updated: false };
-  }
-  let updated = false;
-
-  const updateNode = (node) => {
-    if (!node || typeof node !== "object") {
-      return;
-    }
-    if (node.type === "poll" && Array.isArray(node.options)) {
-      if (safeQuestion && node.question !== safeQuestion) {
-        // continue searching
-      } else {
-        const option = node.options.find((entry) => entry && entry.uid === safeOptionUid);
-        if (option) {
-          const votes = Array.isArray(option.votes)
-            ? option.votes.filter((vote) => typeof vote === "string")
-            : [];
-          const hasVote = votes.includes(safeVoterId);
-          const shouldCheck = typeof checked === "boolean" ? checked : !hasVote;
-          if (shouldCheck && !hasVote) {
-            votes.push(safeVoterId);
-            option.votes = votes;
-            updated = true;
-          } else if (!shouldCheck && hasVote) {
-            option.votes = votes.filter((vote) => vote !== safeVoterId);
-            updated = true;
-          }
-          return;
-        }
-      }
-    }
-    if (Array.isArray(node.children)) {
-      node.children.forEach(updateNode);
-    }
-  };
-
-  updateNode(parsed.root || parsed);
-
-  if (!updated) {
-    return { updated: false };
-  }
-
-  return { updated: true, content: JSON.stringify(parsed) };
-};
-
-const jsonFileCache = createJsonFileCache();
-const shouldUseInMemoryCache = true;
-
-const readJsonFileFromCache = (cacheKey) => {
-  if (!shouldUseInMemoryCache) {
-    return null;
-  }
-  return jsonFileCache.read(cacheKey);
-};
-
-const writeJsonFileToCache = (cacheKey, value) => {
-  if (!shouldUseInMemoryCache) {
-    return;
-  }
-  jsonFileCache.write(cacheKey, value);
-};
-
-const invalidateJsonFileCache = (cacheKey) => {
-  jsonFileCache.invalidate(cacheKey);
-};
+const {
+  invalidateJsonFileCache,
+  readJsonFileFromCache,
+  writeJsonFileToCache,
+} = createJsonFileCacheRuntime();
 
 const {
   buildEnvOperationalWebhookSettings,
@@ -1605,6 +1297,30 @@ const {
   publicReadCacheTags: PUBLIC_READ_CACHE_TAGS,
   readJsonFileFromCache,
   writeJsonFileToCache,
+});
+
+const { runAutoUploadReorganization } = createAutoUploadReorganizationRuntime({
+  appendAuditLog,
+  createSystemAuditReq,
+  isAutoUploadReorganizationEnabled,
+  loadComments,
+  loadPages,
+  loadPosts,
+  loadProjects,
+  loadSiteSettings,
+  loadUpdates,
+  loadUploads,
+  loadUsers,
+  runUploadsReorganization,
+  uploadsDir: PUBLIC_UPLOADS_DIR,
+  writeComments,
+  writePages,
+  writePosts,
+  writeProjects,
+  writeSiteSettings,
+  writeUpdates,
+  writeUploads,
+  writeUsers,
 });
 
 const {
@@ -2225,84 +1941,7 @@ const {
   sendXmlResponse,
 } = publicRuntime;
 
-const directRouteDependencies = buildDirectRouteRegistrationDependenciesFromRoot({
-  API_CONTRACT_VERSION,
-  DISCORD_API,
-  DISCORD_CLIENT_ID,
-  DISCORD_CLIENT_SECRET,
-  METRICS_TOKEN_NORMALIZED,
-  MFA_RECOVERY_CODE_PEPPER,
-  PRIMARY_APP_ORIGIN,
-  SCOPES,
-  SecurityEventStatus,
-  USER_PREFERENCES_MAX_BYTES,
-  app,
-  appendAuditLog,
-  buildAuthRedirectUrl,
-  buildMySecuritySummary,
-  buildRuntimeMetadata,
-  buildUserPayload,
-  canAttemptAuth,
-  clearEnrollmentFromSession,
-  createDiscordAvatarUrl,
-  dataEncryptionKeyring,
-  deleteUserMfaTotpRecord,
-  encryptStringWithKeyring,
-  ensureOwnerUser,
-  establishAuthenticatedSession,
-  evaluateOperationalMonitoring,
-  generateRecoveryCodes,
-  getRequestIp,
-  handleAuthFailureSecuritySignals,
-  handleMfaFailureSecuritySignals,
-  isEpubImportJobStorageAvailable,
-  isMetricsEnabled,
-  isPlainObject,
-  isProjectImageImportJobStorageAvailable,
-  isAllowedOrigin,
-  isTotpEnabledForUser,
-  listActiveSessionsForUser,
-  loadAllowedUsers,
-  loadSecurityEvents,
-  loadUserPreferences,
-  loadUserSessionIndexRecords,
-  maybeEmitExcessiveSessionsEvent,
-  maybeEmitNewNetworkLoginEvent,
-  metricsRegistry,
-  normalizeUserPreferences,
-  proxyDiscordAvatarRequest,
-  requireAuth,
-  resolveAuthAppOrigin,
-  resolveDiscordRedirectUri,
-  resolveEnrollmentFromSession,
-  resolveMfaMetadata,
-  revokeSessionBySid,
-  revokeUserSessionIndexRecord,
-  saveSessionState,
-  sessionCookieConfig,
-  sessionIndexTouchTsBySid,
-  startTotpEnrollment,
-  syncPersistedDiscordAvatarForLogin,
-  updateSessionIndexFromRequest,
-  verifyTotpCode,
-  verifyTotpOrRecoveryCode,
-  writeUserMfaTotpRecord,
-  writeUserPreferences,
-  hashRecoveryCode,
-});
-
-registerDirectServerRoutes(directRouteDependencies);
-
-const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
-  ...adminExports,
-  ...authzLib,
-  ...dataRepositoryAdaptersRuntime,
-  ...userRuntime,
-  ...publicMediaRuntime,
-  ...adminExportRuntime,
-  ...projectRuntime,
-  ...publicRuntime,
-  ...webhookRuntime,
+const routeRuntimeGroups = createRouteRuntimeGroups({
   adminExports,
   authzLib,
   dataRepositoryAdaptersRuntime,
@@ -2312,11 +1951,30 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   projectRuntime,
   publicRuntime,
   webhookRuntime,
+});
+
+const rootRouteRegistrationDependencies = buildRootRouteRegistrationDependencies({
+  adminExports,
+  authzLib,
+  dataRepositoryAdaptersRuntime,
+  userRuntime,
+  publicMediaRuntime,
+  adminExportRuntime,
+  projectRuntime,
+  publicRuntime,
+  webhookRuntime,
+  routeRuntimeGroups,
   ANILIST_API,
+  API_CONTRACT_VERSION,
   AUDIT_CSV_MAX_ROWS,
   BOOTSTRAP_TOKEN,
+  DISCORD_API,
+  DISCORD_CLIENT_ID,
+  DISCORD_CLIENT_SECRET,
   MAX_SVG_SIZE_BYTES,
   MAX_UPLOAD_SIZE_BYTES,
+  METRICS_TOKEN_NORMALIZED,
+  MFA_RECOVERY_CODE_PEPPER,
   PRIMARY_APP_ORIGIN,
   PUBLIC_ANALYTICS_EVENT_TYPE_SET,
   PUBLIC_ANALYTICS_RESOURCE_TYPE_SET,
@@ -2325,7 +1983,9 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   PUBLIC_READ_CACHE_TAGS,
   PUBLIC_READ_CACHE_TTL_MS,
   PUBLIC_UPLOADS_DIR,
+  SCOPES,
   STATIC_DEFAULT_CACHE_CONTROL,
+  USER_PREFERENCES_MAX_BYTES,
   WEBHOOK_DELIVERY_STATUS,
   SecurityEventSeverity,
   SecurityEventStatus,
@@ -2340,11 +2000,13 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   applyProjectChapterUpdate,
   attachUploadMediaMetadata,
   buildAnalyticsRange,
+  buildAuthRedirectUrl,
   buildEditorialCalendarItems,
   buildGravatarUrl,
   buildInstitutionalOgDeliveryHeaders,
   buildInstitutionalPageMeta,
   buildManagedStorageAreaSummary,
+  buildMySecuritySummary,
   buildOperationalWebhookTestTransition,
   buildPostMeta,
   buildProjectMeta,
@@ -2354,11 +2016,14 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   buildProjectReadingOgDeliveryHeaders,
   buildPublicSearchSuggestions,
   buildRssXml,
+  buildRuntimeMetadata,
   buildSchemaOrgPayload,
   buildSecurityWebhookTestEvent,
   buildSiteMetaWithSettings,
   buildSitemapXml,
+  buildUserPayload,
   bulkModeratePendingComments,
+  canAttemptAuth,
   canBootstrap,
   canRegisterPollVote,
   canRegisterView,
@@ -2366,8 +2031,10 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   canUploadImage,
   cleanupProjectEpubImportTempUploads,
   cleanupUploadStagingWorkspace,
+  clearEnrollmentFromSession,
   collectEpisodeUpdatesByVisibility,
   computeBufferSha256,
+  createDiscordAvatarUrl,
   createGravatarHash,
   createRevisionToken,
   createSlug,
@@ -2377,13 +2044,17 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   dataEncryptionKeyring,
   deleteManagedUploadEntryAssets,
   deletePrivateUploadByUrl,
+  deleteUserMfaTotpRecord,
   deriveAniListMediaOrganization,
   deriveChapterSynopsis,
   dispatchWebhookMessage,
+  encryptStringWithKeyring,
   ensureEditorialWebhookSettingsNoConflict,
   ensureNoEditConflict,
+  ensureOwnerUser,
   ensureUploadEntryHasRequiredVariants,
   ensureWebhookSettingsNoConflict,
+  establishAuthenticatedSession,
   evaluateOperationalMonitoring,
   exportProjectEpub,
   exportProjectImageChapter,
@@ -2395,6 +2066,7 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   findDuplicateVolumeCover,
   findPublishedImageEpisodeWithoutPages,
   findUploadByHash,
+  generateRecoveryCodes,
   getActiveProjectTypes,
   getDayKeyFromTs,
   getIndexHtml,
@@ -2405,10 +2077,14 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   getProjectEpisodePageCount,
   getProjectOgCachedRender,
   getProjectReadingOgCachedRender,
+  getRequestIp,
   getUploadExtFromMime,
   getUploadFolderFromUrlValue,
   getUploadMimeFromExtension,
   getUploadVariantUrlPrefix,
+  handleAuthFailureSecuritySignals,
+  handleMfaFailureSecuritySignals,
+  hashRecoveryCode,
   hasOwnField,
   hasProjectEpisodePages,
   importProjectEpub,
@@ -2421,13 +2097,19 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   isAuditActionEnabled,
   isChapterBasedType,
   isEpisodePublic,
+  isEpubImportJobStorageAvailable,
   isHomeHeroShellEnabled,
+  isMetricsEnabled,
   isOwner,
+  isPlainObject,
   isPrimaryOwner,
   isPrivateUploadFolder,
+  isProjectImageImportJobStorageAvailable,
   isRbacV2Enabled,
+  isTotpEnabledForUser,
   isUploadFolderAllowedInScope,
   isWithinRestoreWindow,
+  listActiveSessionsForUser,
   listPostVersions,
   loadAllowedUsers,
   loadAnalyticsEvents,
@@ -2442,15 +2124,20 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   loadPostVersions,
   loadPosts,
   loadProjects,
+  loadSecurityEvents,
   loadSiteSettings,
   loadTagTranslations,
   loadUpdates,
   loadUploads,
+  loadUserPreferences,
+  loadUserSessionIndexRecords,
   loadUsers,
   localizeProjectImageFields,
   mapEpubImportExecutionError,
   mapProjectImageImportExecutionError,
   materializeUploadEntrySourceToStaging,
+  maybeEmitExcessiveSessionsEvent,
+  maybeEmitNewNetworkLoginEvent,
   metricsRegistry,
   migrateEditorialMentionPlaceholdersInSettings,
   normalizeAnalyticsTypeFilter,
@@ -2468,6 +2155,7 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   normalizeTypeLookupKey,
   normalizeUnifiedWebhookSettingsForRequest,
   normalizeUploadMime,
+  normalizeUserPreferences,
   normalizeVariants,
   ogRenderCache,
   parseAnalyticsRangeDays,
@@ -2479,6 +2167,7 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   persistUploadEntryFromStaging,
   postVersionReasonLabel,
   previewProjectImageImport,
+  proxyDiscordAvatarRequest,
   publicSearchConfig,
   readEpubImportJobResult,
   readProjectImageImportJobResult,
@@ -2491,12 +2180,16 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   renderMetaHtml,
   requireAuth,
   requirePrimaryOwner,
+  resolveAuthAppOrigin,
+  resolveDiscordRedirectUri,
   resolveEditorialEventChannel,
+  resolveEnrollmentFromSession,
   resolveEpisodeLookup,
   resolveGravatarAvatarUrl,
   resolveIncomingUploadFocalState,
   resolveInstitutionalOgPageKeyFromPath,
   resolveInstitutionalOgPageTitle,
+  resolveMfaMetadata,
   resolvePostCover,
   resolvePostStatus,
   resolveProjectImageImportRequestInput,
@@ -2506,6 +2199,8 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   resolveThemeColor,
   resolveUploadAbsolutePath,
   resolveUploadVariantPresetKeysForArea,
+  revokeSessionBySid,
+  revokeUserSessionIndexRecord,
   runAutoUploadReorganization,
   runUploadsCleanup,
   sanitizeFavoriteWorksByCategory,
@@ -2514,22 +2209,29 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   sanitizeUploadBaseName,
   sanitizeUploadFolder,
   sanitizeUploadSlot,
+  saveSessionState,
   sendHtml,
   sessionCookieConfig,
+  sessionIndexTouchTsBySid,
   shouldIncludeUploadInHashDedupe,
+  startTotpEnrollment,
   summarizeWebhookDeliveries,
+  syncPersistedDiscordAvatarForLogin,
   toAbsoluteUrl,
   toEpubImportJobApiResponse,
   toProjectImageExportJobApiResponse,
   toProjectImageImportJobApiResponse,
   toWebhookDeliveryApiResponse,
   updateLexicalPollVotes,
+  updateSessionIndexFromRequest,
   upsertUploadEntries,
   uploadStorageService,
   validateEditorialWebhookChannelUrls,
   validateEditorialWebhookSettingsPlaceholders,
   validateUnifiedWebhookSettingsUrls,
   validateUploadImageBuffer,
+  verifyTotpCode,
+  verifyTotpOrRecoveryCode,
   writeComments,
   writeIntegrationSettings,
   writeLinkTypes,
@@ -2543,10 +2245,12 @@ const serverRouteDependencySource = buildServerRouteContextSourceFromRoot({
   writeUpdates,
   writeUploadBufferToStaging,
   writeUploads,
+  writeUserMfaTotpRecord,
+  writeUserPreferences,
   writeUsers,
 });
 
-registerServerRoutes(createServerRouteDependencies(serverRouteDependencySource));
+registerRootServerRoutes(rootRouteRegistrationDependencies);
 
 const listenPort = Number(PORT);
 startServerJobs({

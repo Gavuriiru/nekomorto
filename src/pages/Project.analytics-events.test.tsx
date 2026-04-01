@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PUBLIC_ANALYTICS_INGEST_PATH } from "@/lib/public-analytics";
 import ProjectPage from "@/pages/Project";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
@@ -143,7 +144,7 @@ describe("Project analytics events", () => {
         if (endpoint === "/api/public/projects/projeto-teste/view" && options?.method === "POST") {
           return mockJsonResponse(true, { views: 2 });
         }
-        if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && options?.method === "POST") {
           return mockJsonResponse(true, { ok: true });
         }
         return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -161,7 +162,7 @@ describe("Project analytics events", () => {
 
     await waitFor(() => {
       const analyticsCall = apiFetchMock.mock.calls.find(
-        (call) => call[1] === "/api/public/analytics/event",
+        (call) => call[1] === PUBLIC_ANALYTICS_INGEST_PATH,
       );
       expect(analyticsCall).toBeDefined();
       const requestOptions = (analyticsCall?.[2] || {}) as RequestInit;
@@ -251,7 +252,7 @@ describe("Project analytics events", () => {
         if (endpoint === "/api/public/projects/projeto-teste/view" && options?.method === "POST") {
           return mockJsonResponse(true, { views: 2 });
         }
-        if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && options?.method === "POST") {
           return mockJsonResponse(true, { ok: true });
         }
         return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -275,7 +276,7 @@ describe("Project analytics events", () => {
 
     await waitFor(() => {
       const analyticsCall = apiFetchMock.mock.calls.find(
-        (call) => call[1] === "/api/public/analytics/event",
+        (call) => call[1] === PUBLIC_ANALYTICS_INGEST_PATH,
       );
       expect(analyticsCall).toBeDefined();
       const requestOptions = (analyticsCall?.[2] || {}) as RequestInit;
@@ -360,7 +361,7 @@ describe("Project analytics events", () => {
         if (endpoint === "/api/public/projects/projeto-teste/view" && options?.method === "POST") {
           throw new TypeError("Failed to fetch");
         }
-        if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && options?.method === "POST") {
           throw new TypeError("Failed to fetch");
         }
         return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -386,7 +387,7 @@ describe("Project analytics events", () => {
       );
       expect(apiFetchMock).toHaveBeenCalledWith(
         "",
-        "/api/public/analytics/event",
+        PUBLIC_ANALYTICS_INGEST_PATH,
         expect.objectContaining({ method: "POST" }),
       );
     });

@@ -2,6 +2,7 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 
 import {
+  buildPwaManifestPayload,
   resolveClientStaticAssetPath,
   resolvePwaCriticalAssetPath,
 } from "../../server/lib/register-runtime-middleware.js";
@@ -76,5 +77,59 @@ describe("register-runtime-middleware asset resolution", () => {
         requestPath: "/manifest.webmanifest",
       }),
     ).toBeNull();
+  });
+});
+
+describe("buildPwaManifestPayload", () => {
+  const pwaManifestBase = Object.freeze({
+    id: "/",
+    name: "Base Name",
+    short_name: "Base Short",
+    description: "Base description",
+    start_url: "/",
+  });
+
+  it("prefers site settings for manifest name and description", () => {
+    expect(
+      buildPwaManifestPayload({
+        loadSiteSettings: () => ({
+          site: {
+            name: "Neko Custom",
+            description: "Descricao vinda das configuracoes",
+          },
+          theme: {
+            mode: "light",
+          },
+        }),
+        pwaManifestBase,
+        pwaThemeColorDark: "#111111",
+        pwaThemeColorLight: "#fafafa",
+      }),
+    ).toMatchObject({
+      name: "Neko Custom",
+      short_name: "Neko Custom",
+      description: "Descricao vinda das configuracoes",
+      theme_color: "#fafafa",
+      background_color: "#fafafa",
+    });
+  });
+
+  it("falls back to the base manifest fields when site settings are unavailable", () => {
+    expect(
+      buildPwaManifestPayload({
+        loadSiteSettings: () => {
+          throw new Error("settings unavailable");
+        },
+        pwaManifestBase,
+        pwaThemeColorDark: "#111111",
+        pwaThemeColorLight: "#fafafa",
+      }),
+    ).toMatchObject({
+      name: "Base Name",
+      short_name: "Base Short",
+      description: "Base description",
+      theme_color: "#111111",
+      background_color: "#111111",
+    });
   });
 });

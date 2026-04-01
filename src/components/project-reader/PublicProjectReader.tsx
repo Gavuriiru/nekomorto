@@ -729,14 +729,8 @@ const PublicProjectReaderContent = ({
   );
   const stageToneClassName = getStageToneClassName(visualState.background);
   const purchaseToneClassName = getPurchaseToneClassName(visualState.background);
-  const sidebarToneClassName = cn(
-    stageToneClassName,
-    visualState.background === "theme"
-      ? "border-border/50 bg-background/94"
-      : visualState.background === "black"
-        ? "border-white/10 bg-black/78"
-        : "border-slate-200/80 bg-white/95",
-  );
+  const sidebarToneClassName =
+    "border-border/55 bg-background/92 text-foreground supports-[backdrop-filter]:bg-background/84 supports-[backdrop-filter]:backdrop-blur-xl";
   const resolvedInitialPageIndex = useMemo(() => {
     const requestedOrDefault = requestedPageIndex ?? 0;
     const clampedPageIndex = clampIndex(requestedOrDefault, Math.max(originalPages.length, 1));
@@ -2806,8 +2800,9 @@ const PublicProjectReaderContent = ({
       <>
         <Button
           asChild
+          size="sm"
           variant="outline"
-          className="h-10 rounded-full border-border/60 bg-background/75 px-4 shadow-sm backdrop-blur-sm"
+          className="project-reading-action-btn project-reading-action-btn--secondary"
         >
           <Link to={backHref}>
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -2818,8 +2813,8 @@ const PublicProjectReaderContent = ({
         {editHref ? (
           <Button
             asChild
-            variant="outline"
-            className="h-10 rounded-full border-border/60 bg-background/75 px-4 shadow-sm backdrop-blur-sm"
+            size="sm"
+            className="project-reading-action-btn project-reading-action-btn--primary"
           >
             <Link to={editHref}>
               <PencilLine className="h-4 w-4" aria-hidden="true" />

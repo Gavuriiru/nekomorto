@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { apiFetch } from "@/lib/api-client";
 import {
@@ -6,8 +6,13 @@ import {
   normalizeUploadFocalCrops,
 } from "@/lib/upload-focal-points";
 import { getUploadsListErrorMessage } from "@/components/image-library/messages";
+import {
+  parseSelectionSignature,
+  toSelectionSignature,
+} from "@/components/image-library/selection";
 import type { LibraryImageItem } from "@/components/image-library/types";
 import {
+  dedupeUrlsByComparableKey,
   normalizeComparableUploadUrl,
   parseUploadUrlPath,
   sanitizeUploadFolderForComparison,
@@ -19,6 +24,7 @@ type UseImageLibraryDataParams = {
   foldersToRequest: string[];
   includeProjectImages: boolean;
   open: boolean;
+  persistentIncludeUrls?: string[];
   scopeUserId?: string;
 };
 
@@ -27,13 +33,22 @@ type UseImageLibraryDataResult = {
   isLoading: boolean;
   loadLibrary: () => Promise<void>;
   loadProjectImages: () => Promise<void>;
-  loadUploads: () => Promise<LibraryImageItem[]>;
+  loadUploads: (options?: { includeUrls?: string[] }) => Promise<LibraryImageItem[]>;
   projectImages: LibraryImageItem[];
   uploads: LibraryImageItem[];
   uploadsLoadError: string;
 };
 
-const buildUploadsListPath = (folder: string, scopeUserId?: string) => {
+const normalizeIncludedUploadUrls = (urls: string[] = []) =>
+  dedupeUrlsByComparableKey(
+    urls
+      .map((value) => normalizeComparableUploadUrl(value))
+      .filter((value) => value.startsWith("/uploads/")),
+  );
+
+const buildStableIncludedUploadUrls = (urls: string[] = []) => [...normalizeIncludedUploadUrls(urls)].sort();
+
+const buildUploadsListPath = (folder: string, scopeUserId?: string, includeUrls: string[] = []) => {
   const params = new URLSearchParams();
   if (folder) {
     params.set("folder", folder);
@@ -44,6 +59,9 @@ const buildUploadsListPath = (folder: string, scopeUserId?: string) => {
   if (scopeUserId) {
     params.set("scopeUserId", scopeUserId);
   }
+  includeUrls.forEach((value) => {
+    params.append("includeUrl", value);
+  });
   const query = params.toString();
   return `/api/uploads/list${query ? `?${query}` : ""}`;
 };
@@ -54,6 +72,7 @@ export const useImageLibraryData = ({
   foldersToRequest,
   includeProjectImages,
   open,
+  persistentIncludeUrls,
   scopeUserId,
 }: UseImageLibraryDataParams): UseImageLibraryDataResult => {
   const [isLoading, setIsLoading] = useState(false);
@@ -61,98 +80,115 @@ export const useImageLibraryData = ({
   const [uploads, setUploads] = useState<LibraryImageItem[]>([]);
   const [projectImages, setProjectImages] = useState<LibraryImageItem[]>([]);
   const [isLibraryHydratedForOpen, setIsLibraryHydratedForOpen] = useState(false);
+  const persistentIncludeUrlsSignature = useMemo(
+    () => toSelectionSignature(buildStableIncludedUploadUrls(persistentIncludeUrls || [])),
+    [persistentIncludeUrls],
+  );
+  const stablePersistentIncludeUrls = useMemo(
+    () => parseSelectionSignature(persistentIncludeUrlsSignature),
+    [persistentIncludeUrlsSignature],
+  );
 
-  const loadUploads = useCallback(async (): Promise<LibraryImageItem[]> => {
-    setIsLoading(true);
-    setUploadsLoadError("");
-    try {
-      const responses = await Promise.all(
-        foldersToRequest.map((folder) =>
-          apiFetch(apiBase, buildUploadsListPath(folder, scopeUserId), { auth: true }),
-        ),
-      );
-      const files: LibraryImageItem[] = [];
-      let successfulResponses = 0;
-      let firstErrorStatus: number | null = null;
-      for (const response of responses) {
-        if (!response.ok) {
-          if (firstErrorStatus === null) {
-            firstErrorStatus = response.status;
-          }
-          continue;
-        }
-        successfulResponses += 1;
-        const data = await response.json();
-        if (!Array.isArray(data.files)) {
-          continue;
-        }
-        for (const file of data.files) {
-          if (!file?.url) {
+  const loadUploads = useCallback(
+    async ({ includeUrls = [] }: { includeUrls?: string[] } = {}): Promise<LibraryImageItem[]> => {
+      const resolvedIncludeUrls = normalizeIncludedUploadUrls([
+        ...stablePersistentIncludeUrls,
+        ...includeUrls,
+      ]);
+      setIsLoading(true);
+      setUploadsLoadError("");
+      try {
+        const responses = await Promise.all(
+          foldersToRequest.map((folder) =>
+            apiFetch(apiBase, buildUploadsListPath(folder, scopeUserId, resolvedIncludeUrls), {
+              auth: true,
+            }),
+          ),
+        );
+        const files: LibraryImageItem[] = [];
+        let successfulResponses = 0;
+        let firstErrorStatus: number | null = null;
+        for (const response of responses) {
+          if (!response.ok) {
+            if (firstErrorStatus === null) {
+              firstErrorStatus = response.status;
+            }
             continue;
           }
-          const focalCrops = normalizeUploadFocalCrops(file.focalCrops, undefined, {
-            sourceWidth: typeof file.width === "number" ? file.width : null,
-            sourceHeight: typeof file.height === "number" ? file.height : null,
-            fallbackPoints: file.focalPoints,
-            fallbackPoint: file.focalPoint,
-          });
-          const focalPoints = deriveUploadFocalPointsFromCrops(focalCrops);
-          files.push({
-            id: typeof file.id === "string" ? file.id : null,
-            source: "upload",
-            url: String(file.url),
-            name: String(file.name || file.fileName || ""),
-            label: String(file.label || file.name || file.fileName || ""),
-            folder: typeof file.folder === "string" ? file.folder : "",
-            fileName: typeof file.fileName === "string" ? file.fileName : String(file.name || ""),
-            mime: typeof file.mime === "string" ? file.mime : "",
-            size: typeof file.size === "number" ? file.size : undefined,
-            createdAt: typeof file.createdAt === "string" ? file.createdAt : undefined,
-            width: typeof file.width === "number" ? file.width : null,
-            height: typeof file.height === "number" ? file.height : null,
-            inUse: Boolean(file.inUse),
-            canDelete: typeof file.canDelete === "boolean" ? file.canDelete : !file.inUse,
-            hashSha256: typeof file.hashSha256 === "string" ? file.hashSha256 : "",
-            focalCrops,
-            focalPoints,
-            focalPoint: focalPoints.card,
-            variantsVersion: Number.isFinite(Number(file.variantsVersion))
-              ? Number(file.variantsVersion)
-              : 1,
-            variants: file.variants && typeof file.variants === "object" ? file.variants : {},
-            variantBytes: Number.isFinite(Number(file.variantBytes))
-              ? Number(file.variantBytes)
-              : 0,
-            area: typeof file.area === "string" ? file.area : "",
-            altText: typeof file.altText === "string" ? file.altText : "",
-            slot: typeof file.slot === "string" ? file.slot : undefined,
-            slotManaged: typeof file.slotManaged === "boolean" ? file.slotManaged : undefined,
-            projectId: typeof file.projectId === "string" ? file.projectId : "",
-            projectTitle: typeof file.projectTitle === "string" ? file.projectTitle : "",
-          });
+          successfulResponses += 1;
+          const data = await response.json();
+          if (!Array.isArray(data.files)) {
+            continue;
+          }
+          for (const file of data.files) {
+            if (!file?.url) {
+              continue;
+            }
+            const focalCrops = normalizeUploadFocalCrops(file.focalCrops, undefined, {
+              sourceWidth: typeof file.width === "number" ? file.width : null,
+              sourceHeight: typeof file.height === "number" ? file.height : null,
+              fallbackPoints: file.focalPoints,
+              fallbackPoint: file.focalPoint,
+            });
+            const focalPoints = deriveUploadFocalPointsFromCrops(focalCrops);
+            files.push({
+              id: typeof file.id === "string" ? file.id : null,
+              source: "upload",
+              url: String(file.url),
+              name: String(file.name || file.fileName || ""),
+              label: String(file.label || file.name || file.fileName || ""),
+              folder: typeof file.folder === "string" ? file.folder : "",
+              fileName: typeof file.fileName === "string" ? file.fileName : String(file.name || ""),
+              mime: typeof file.mime === "string" ? file.mime : "",
+              size: typeof file.size === "number" ? file.size : undefined,
+              createdAt: typeof file.createdAt === "string" ? file.createdAt : undefined,
+              width: typeof file.width === "number" ? file.width : null,
+              height: typeof file.height === "number" ? file.height : null,
+              inUse: Boolean(file.inUse),
+              canDelete: typeof file.canDelete === "boolean" ? file.canDelete : !file.inUse,
+              hashSha256: typeof file.hashSha256 === "string" ? file.hashSha256 : "",
+              focalCrops,
+              focalPoints,
+              focalPoint: focalPoints.card,
+              variantsVersion: Number.isFinite(Number(file.variantsVersion))
+                ? Number(file.variantsVersion)
+                : 1,
+              variants: file.variants && typeof file.variants === "object" ? file.variants : {},
+              variantBytes: Number.isFinite(Number(file.variantBytes))
+                ? Number(file.variantBytes)
+                : 0,
+              area: typeof file.area === "string" ? file.area : "",
+              altText: typeof file.altText === "string" ? file.altText : "",
+              slot: typeof file.slot === "string" ? file.slot : undefined,
+              slotManaged: typeof file.slotManaged === "boolean" ? file.slotManaged : undefined,
+              projectId: typeof file.projectId === "string" ? file.projectId : "",
+              projectTitle: typeof file.projectTitle === "string" ? file.projectTitle : "",
+            });
+          }
         }
-      }
-      const unique = new Map<string, LibraryImageItem>();
-      files.forEach((item) => {
-        unique.set(item.url, item);
-      });
-      if (successfulResponses === 0 && firstErrorStatus !== null) {
+        const unique = new Map<string, LibraryImageItem>();
+        files.forEach((item) => {
+          unique.set(item.url, item);
+        });
+        if (successfulResponses === 0 && firstErrorStatus !== null) {
+          setUploads([]);
+          setUploadsLoadError(getUploadsListErrorMessage(firstErrorStatus));
+          return [];
+        }
+        const nextUploads = Array.from(unique.values());
+        setUploadsLoadError("");
+        setUploads(nextUploads);
+        return nextUploads;
+      } catch {
         setUploads([]);
-        setUploadsLoadError(getUploadsListErrorMessage(firstErrorStatus));
+        setUploadsLoadError(getUploadsListErrorMessage());
         return [];
+      } finally {
+        setIsLoading(false);
       }
-      const nextUploads = Array.from(unique.values());
-      setUploadsLoadError("");
-      setUploads(nextUploads);
-      return nextUploads;
-    } catch {
-      setUploads([]);
-      setUploadsLoadError(getUploadsListErrorMessage());
-      return [];
-    } finally {
-      setIsLoading(false);
-    }
-  }, [apiBase, foldersToRequest, scopeUserId]);
+    },
+    [apiBase, foldersToRequest, scopeUserId, stablePersistentIncludeUrls],
+  );
 
   const loadProjectImages = useCallback(async () => {
     if (!includeProjectImages) {

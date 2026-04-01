@@ -17,6 +17,7 @@ describe("public path classification", () => {
     expect(isReservedPublicPath("/uploads/shared/hero.avif")).toBe(true);
     expect(isReservedPublicPath("/rss/posts.xml")).toBe(true);
     expect(isReservedPublicPath("/@vite/client")).toBe(true);
+    expect(isReservedPublicPath("/@vite-plugin-pwa/pwa-entry-point-loaded")).toBe(true);
     expect(isReservedPublicPath("/src/main.tsx")).toBe(true);
     expect(isReservedPublicPath("/@react-refresh")).toBe(true);
     expect(isReservedPublicPath("/@id/__x00__react")).toBe(true);

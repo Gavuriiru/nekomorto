@@ -44,6 +44,12 @@ import {
 } from "@/components/ui/mui-date-time-fields";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import {
+  padDateTimePart,
+  parseLocalDateTimeValue,
+  toLocalDateValue,
+  toTimeFieldValue,
+} from "@/lib/dashboard-date-time";
 import { formatDateTime } from "@/lib/date";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
@@ -92,42 +98,15 @@ type AuditChangeRow = {
   after: unknown;
 };
 
-const pad = (value: number) => String(value).padStart(2, "0");
-
-const toLocalDateValue = (value: Date) =>
-  `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
-
 const toDateTimeInputValue = (value: string) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return "";
   }
-  return `${toLocalDateValue(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
-
-const parseLocalDateTimeValue = (value: string) => {
-  const [datePart, timePart] = value.split("T");
-  if (!datePart) {
-    return { date: null as Date | null, time: "" };
-  }
-  const [year, month, day] = datePart.split("-").map((chunk) => Number(chunk));
-  if (!year || !month || !day) {
-    return { date: null as Date | null, time: "" };
-  }
-  return {
-    date: new Date(year, month - 1, day),
-    time: timePart || "",
-  };
-};
-
-const toTimeFieldValue = (time: string, fallback = "00:00") => {
-  const [hoursPart, minutesPart] = (time || fallback).split(":");
-  const hours = Number(hoursPart);
-  const minutes = Number(minutesPart);
-  const next = new Date();
-  next.setHours(Number.isFinite(hours) ? hours : 0, Number.isFinite(minutes) ? minutes : 0, 0, 0);
-  return next;
+  return `${toLocalDateValue(date)}T${padDateTimePart(date.getHours())}:${padDateTimePart(
+    date.getMinutes(),
+  )}`;
 };
 
 const parsePage = (value: string | null) => {
@@ -387,7 +366,9 @@ const DashboardAuditLog = () => {
     if (!nextTime || Number.isNaN(nextTime.getTime())) {
       return;
     }
-    const nextTimePart = `${pad(nextTime.getHours())}:${pad(nextTime.getMinutes())}`;
+    const nextTimePart = `${padDateTimePart(nextTime.getHours())}:${padDateTimePart(
+      nextTime.getMinutes(),
+    )}`;
     setForm((prev) => {
       const { date } = parseLocalDateTimeValue(prev[field]);
       if (!date) {

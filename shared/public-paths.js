@@ -6,6 +6,7 @@ const RESERVED_PUBLIC_PREFIXES = [
   "/pwa",
   "/src",
   "/@vite",
+  "/@vite-plugin-pwa",
   "/@react-refresh",
   "/@id",
   "/@fs",

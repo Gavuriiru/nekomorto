@@ -1,6 +1,13 @@
 import { useCallback, useState } from "react";
 
-import { getImportPermissionToastTitle, getUploadPermissionToastTitle } from "@/components/image-library/messages";
+import {
+  getImportPermissionToastTitle,
+  getUploadPermissionToastTitle,
+} from "@/components/image-library/messages";
+import {
+  dedupeUrlsByComparableKey,
+  normalizeComparableUploadUrl,
+} from "@/components/image-library/utils";
 import { toast } from "@/components/ui/use-toast";
 import { apiFetch } from "@/lib/api-client";
 import { fileToDataUrl } from "@/lib/file-data-url";
@@ -10,9 +17,10 @@ type UseImageLibraryUploadMutationsParams = {
   cropAvatar: boolean;
   cropSlot?: string;
   cropTargetFolder?: string;
-  loadUploads: () => Promise<unknown>;
+  loadUploads: (options?: { includeUrls?: string[] }) => Promise<unknown>;
   mode: "single" | "multiple";
   onRequestRevealUpload: (url: string, options?: { openCrop?: boolean }) => void;
+  pinIncludedUploadUrls: (urls: string[]) => void;
   scopeUserId?: string;
   setSelectedUrls: (value: string[] | ((prev: string[]) => string[])) => void;
   shouldAutoOpenAvatarCrop: (url: string) => boolean;
@@ -35,6 +43,7 @@ export const useImageLibraryUploadMutations = ({
   loadUploads,
   mode,
   onRequestRevealUpload,
+  pinIncludedUploadUrls,
   scopeUserId,
   setSelectedUrls,
   shouldAutoOpenAvatarCrop,
@@ -57,6 +66,7 @@ export const useImageLibraryUploadMutations = ({
       setIsUploading(true);
       try {
         const uploadedUrls: string[] = [];
+        const dedupedHitUrls: string[] = [];
         for (const file of list) {
           const dataUrl = await fileToDataUrl(file);
           const response = await apiFetch(apiBase, "/api/uploads/image", {
@@ -78,13 +88,22 @@ export const useImageLibraryUploadMutations = ({
             throw new Error("upload_failed");
           }
           const data = await response.json();
-          const url = String(data.url || "");
-          if (url) {
+          const url = normalizeComparableUploadUrl(String(data.url || ""));
+          if (url.startsWith("/uploads/")) {
             uploadedUrls.push(url);
+            if (data?.dedupeHit === true) {
+              dedupedHitUrls.push(url);
+            }
           }
         }
 
-        await loadUploads();
+        const resolvedDedupedHitUrls = dedupeUrlsByComparableKey(dedupedHitUrls);
+        if (resolvedDedupedHitUrls.length > 0) {
+          pinIncludedUploadUrls(resolvedDedupedHitUrls);
+        }
+        await loadUploads(
+          resolvedDedupedHitUrls.length > 0 ? { includeUrls: resolvedDedupedHitUrls } : undefined,
+        );
         if (uploadedUrls.length === 0) {
           return;
         }
@@ -110,7 +129,9 @@ export const useImageLibraryUploadMutations = ({
         }
         toast({
           title:
-            uploadedUrls.length === 1 ? "Imagem enviada" : `${uploadedUrls.length} imagens enviadas`,
+            uploadedUrls.length === 1
+              ? "Imagem enviada"
+              : `${uploadedUrls.length} imagens enviadas`,
           description:
             uploadedUrls.length === 1
               ? "Upload concluído com sucesso."
@@ -129,6 +150,7 @@ export const useImageLibraryUploadMutations = ({
       loadUploads,
       mode,
       onRequestRevealUpload,
+      pinIncludedUploadUrls,
       scopeUserId,
       setSelectedUrls,
       shouldAutoOpenAvatarCrop,
@@ -164,10 +186,17 @@ export const useImageLibraryUploadMutations = ({
       }
 
       const data = await response.json();
-      const createdUrl = String(data.url || "");
+      const createdUrl = normalizeComparableUploadUrl(String(data.url || ""));
+      const dedupedIncludeUrls =
+        data?.dedupeHit === true && createdUrl.startsWith("/uploads/") ? [createdUrl] : [];
       setUrlInput("");
-      await loadUploads();
-      if (!createdUrl) {
+      if (dedupedIncludeUrls.length > 0) {
+        pinIncludedUploadUrls(dedupedIncludeUrls);
+      }
+      await loadUploads(
+        dedupedIncludeUrls.length > 0 ? { includeUrls: dedupedIncludeUrls } : undefined,
+      );
+      if (!createdUrl.startsWith("/uploads/")) {
         return;
       }
       if (mode === "multiple") {
@@ -192,6 +221,7 @@ export const useImageLibraryUploadMutations = ({
     loadUploads,
     mode,
     onRequestRevealUpload,
+    pinIncludedUploadUrls,
     scopeUserId,
     setSelectedUrls,
     shouldAutoOpenAvatarCrop,

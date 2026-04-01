@@ -103,7 +103,7 @@ const focusContractFiles = [
     expectedTokens: ["focus-visible:ring-2", "focus-visible:ring-primary/45"],
   },
   {
-    path: "src/components/dashboard/chapter-editor/ChapterEditorPane.tsx",
+    path: "src/components/dashboard/chapter-editor/ChapterEditorStructureSection.tsx",
     expectedTokens: ["focus-visible:ring-2", "focus-visible:ring-primary/45"],
   },
 ];

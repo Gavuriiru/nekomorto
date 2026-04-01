@@ -124,6 +124,75 @@ describe("ImageLibraryDialog selection state", () => {
     });
   });
 
+  it("mantem a pre-selecao visivel quando a API inclui URL fora das pastas listadas", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        const requestUrl = new URL(path, "http://api.local");
+        const includeUrls = requestUrl.searchParams.getAll("includeUrl");
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "cover.png",
+              label: "Capa Projeto Atual",
+              fileName: "cover.png",
+              folder: "projects/project-1",
+              mime: "image/png",
+              size: 321,
+              url: "/uploads/projects/project-1/cover.png",
+            },
+            ...(includeUrls.includes("/uploads/projects/project-2/banner.png")
+              ? [
+                  {
+                    name: "banner.png",
+                    label: "Banner Projeto 2",
+                    fileName: "banner.png",
+                    folder: "projects/project-2",
+                    mime: "image/png",
+                    size: 654,
+                    url: "/uploads/projects/project-2/banner.png",
+                  },
+                ]
+              : []),
+          ],
+        });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="projects/project-1"
+        listFolders={["projects/project-1"]}
+        listAll={false}
+        includeProjectImages
+        projectImageProjectIds={["project-1"]}
+        allowDeselect
+        mode="single"
+        currentSelectionUrls={["/uploads/projects/project-2/banner.png"]}
+        onSave={() => undefined}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
+      expect(screen.getByText("Banner Projeto 2")).toBeInTheDocument();
+    });
+
+    const calledWithIncludedUrl = apiFetchMock.mock.calls.some((call) => {
+      const requestUrl = new URL(String(call[1] || ""), "http://api.local");
+      return requestUrl.searchParams
+        .getAll("includeUrl")
+        .includes("/uploads/projects/project-2/banner.png");
+    });
+    expect(calledWithIncludedUrl).toBe(true);
+  });
+
   it("limpa automaticamente selecao quando URL nao existe na biblioteca", async () => {
     renderDialog(["/uploads/posts/inexistente.png"]);
 

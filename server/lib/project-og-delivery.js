@@ -3,17 +3,15 @@ import {
   buildProjectOgCardModel,
   buildProjectOgImagePath,
   buildProjectOgImageResponse,
-  loadProjectOgArtworkDataUrl,
-  loadProjectOgProcessedBackdropDataUrl,
 } from "./project-og.js";
 import {
-  buildOgDeliveryHeaders,
-  getCachedOgRender,
+  appendVersionQueryParam,
+  buildProjectStyleBaseModel,
+  buildProjectStyleOgDeliveryHeaders,
+  getProjectStyleOgCachedRender,
+  normalizeOgRevision,
 } from "./og-delivery-shared.js";
-import { PROJECT_STYLE_OG_TIMING_ORDER, renderProjectStyleOgBuffer } from "./og-project-render.js";
 import { createRevisionToken } from "./revision-token.js";
-
-const normalizeRevision = (value) => String(value || "").trim();
 
 const buildProjectOgBaseModel = ({
   project,
@@ -22,11 +20,11 @@ const buildProjectOgBaseModel = ({
   origin,
   resolveVariantUrl,
 } = {}) =>
-  buildProjectOgCardModel({
+  buildProjectStyleBaseModel({
+    buildCardModel: buildProjectOgCardModel,
     project,
     settings,
-    tagTranslations: translations?.tags,
-    genreTranslations: translations?.genres,
+    translations,
     origin,
     resolveVariantUrl,
   });
@@ -48,39 +46,17 @@ export const buildProjectOgRevision = ({
   });
   return createRevisionToken({
     model: baseModel,
-    sceneVersion: normalizeRevision(
+    sceneVersion: normalizeOgRevision(
       sceneVersion || baseModel.sceneVersion || PROJECT_OG_SCENE_VERSION,
     ),
   });
 };
 
 export const buildVersionedProjectOgImagePath = ({ projectId, revision } = {}) => {
-  const basePath = buildProjectOgImagePath(projectId);
-  const normalizedRevision = normalizeRevision(revision);
-  if (!normalizedRevision) {
-    return basePath;
-  }
-  const separator = basePath.includes("?") ? "&" : "?";
-  return `${basePath}${separator}v=${encodeURIComponent(normalizedRevision)}`;
+  return appendVersionQueryParam(buildProjectOgImagePath(projectId), revision);
 };
 
-export const buildProjectOgDeliveryHeaders = ({ cacheHit, timings } = {}) => {
-  return buildOgDeliveryHeaders({
-    cacheHit,
-    timings,
-    timingOrder: PROJECT_STYLE_OG_TIMING_ORDER,
-  });
-};
-
-const renderProjectOgBuffer = async ({ baseModel, origin } = {}) => {
-  return renderProjectStyleOgBuffer({
-    baseModel,
-    origin,
-    loadArtworkDataUrl: loadProjectOgArtworkDataUrl,
-    loadProcessedBackdropDataUrl: loadProjectOgProcessedBackdropDataUrl,
-    buildImageResponse: (model) => buildProjectOgImageResponse(model),
-  });
-};
+export const buildProjectOgDeliveryHeaders = buildProjectStyleOgDeliveryHeaders;
 
 export const getProjectOgCachedRender = async ({
   project,
@@ -90,7 +66,7 @@ export const getProjectOgCachedRender = async ({
   resolveVariantUrl,
   ogRenderCache,
 } = {}) => {
-  return getCachedOgRender({
+  return getProjectStyleOgCachedRender({
     kind: "project",
     id: String(project?.id || "").trim(),
     ogRenderCache,
@@ -102,11 +78,8 @@ export const getProjectOgCachedRender = async ({
         origin,
         resolveVariantUrl,
       }),
-    renderModel: ({ model }) =>
-      renderProjectOgBuffer({
-        baseModel: model,
-        origin,
-      }),
+    origin,
+    buildImageResponse: (model) => buildProjectOgImageResponse(model),
   });
 };
 

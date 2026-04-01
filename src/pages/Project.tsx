@@ -50,6 +50,7 @@ import {
 } from "@/lib/project-taxonomy";
 import { formatBytesCompact } from "@/lib/file-size";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
+import { PUBLIC_ANALYTICS_INGEST_PATH } from "@/lib/public-analytics";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
@@ -442,7 +443,7 @@ const ProjectPage = () => {
     if (Number.isFinite(volumeNumber)) {
       payload.meta.volume = volumeNumber;
     }
-    void apiFetchBestEffort(apiBase, "/api/public/analytics/event", {
+    void apiFetchBestEffort(apiBase, PUBLIC_ANALYTICS_INGEST_PATH, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

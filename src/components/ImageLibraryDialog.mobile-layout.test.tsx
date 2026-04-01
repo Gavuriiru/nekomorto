@@ -81,6 +81,7 @@ describe("ImageLibraryDialog mobile layout", () => {
     const sortTrigger = screen.getByRole("combobox", { name: "Ordenar biblioteca" });
     const comboboxes = screen.getAllByRole("combobox");
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
+    const uploadTrigger = screen.getByRole("button", { name: "Escolher arquivo" });
     const searchInput = screen.getByPlaceholderText("Pesquisar por nome, projeto ou URL...");
     const searchInputTokens = classTokens(searchInput as HTMLElement);
     const clearSelectionButton = screen.getByRole("button", { name: /Limpar sele/i });
@@ -90,6 +91,8 @@ describe("ImageLibraryDialog mobile layout", () => {
     const selectionCount = screen.getByTestId("image-library-selection-count");
 
     expect(fileInput).toBeTruthy();
+    expect(classTokens(fileInput as HTMLInputElement)).toContain("sr-only");
+    expect(uploadTrigger).toBeVisible();
     expect(
       (fileInput as HTMLInputElement).compareDocumentPosition(searchInput) &
         Node.DOCUMENT_POSITION_FOLLOWING,

@@ -1,3 +1,5 @@
+import { PUBLIC_ANALYTICS_INGEST_PATHS } from "../../shared/public-analytics.js";
+
 export const registerPublicRoutes = ({
   app,
   PRIMARY_APP_ORIGIN,
@@ -338,7 +340,7 @@ export const registerPublicRoutes = ({
     return res.json({ views: updated?.views ?? project.views ?? 0 });
   });
 
-  app.post("/api/public/analytics/event", async (req, res) => {
+  const handlePublicAnalyticsIngest = async (req, res) => {
     const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
     if (!(await canRegisterView(ip))) {
       return res.status(429).json({ error: "rate_limited" });
@@ -373,6 +375,10 @@ export const registerPublicRoutes = ({
       return res.json({ ok: true, deduped: result.reason === "cooldown" });
     }
     return res.status(500).json({ error: "event_write_failed" });
+  };
+
+  PUBLIC_ANALYTICS_INGEST_PATHS.forEach((path) => {
+    app.post(path, handlePublicAnalyticsIngest);
   });
 
   app.get("/api/public/projects/:id/chapters/:number", (req, res) => {

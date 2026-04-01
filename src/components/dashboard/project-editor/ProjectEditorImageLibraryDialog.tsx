@@ -3,6 +3,7 @@ import type {
   ImageLibrarySavePayload,
 } from "@/components/ImageLibraryDialog";
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
+import { useMemo } from "react";
 
 type ProjectEditorImageLibraryDialogProps = {
   activeLibraryOptions: ImageLibraryOptions;
@@ -23,23 +24,30 @@ const ProjectEditorImageLibraryDialog = ({
   isOpen,
   onOpenChange,
   onSave,
-}: ProjectEditorImageLibraryDialogProps) => (
-  <LazyImageLibraryDialog
-    open={isOpen}
-    onOpenChange={onOpenChange}
-    apiBase={apiBase}
-    description={dialogDescription}
-    uploadFolder={activeLibraryOptions.uploadFolder}
-    listFolders={activeLibraryOptions.listFolders}
-    listAll={activeLibraryOptions.listAll}
-    includeProjectImages={activeLibraryOptions.includeProjectImages}
-    projectImageProjectIds={activeLibraryOptions.projectImageProjectIds}
-    projectImagesView={activeLibraryOptions.projectImagesView}
-    allowDeselect
-    mode="single"
-    currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
-    onSave={onSave}
-  />
-);
+}: ProjectEditorImageLibraryDialogProps) => {
+  const currentSelectionUrls = useMemo(
+    () => (currentLibrarySelection ? [currentLibrarySelection] : []),
+    [currentLibrarySelection],
+  );
+
+  return (
+    <LazyImageLibraryDialog
+      open={isOpen}
+      onOpenChange={onOpenChange}
+      apiBase={apiBase}
+      description={dialogDescription}
+      uploadFolder={activeLibraryOptions.uploadFolder}
+      listFolders={activeLibraryOptions.listFolders}
+      listAll={activeLibraryOptions.listAll}
+      includeProjectImages={activeLibraryOptions.includeProjectImages}
+      projectImageProjectIds={activeLibraryOptions.projectImageProjectIds}
+      projectImagesView={activeLibraryOptions.projectImagesView}
+      allowDeselect
+      mode="single"
+      currentSelectionUrls={currentSelectionUrls}
+      onSave={onSave}
+    />
+  );
+};
 
 export default ProjectEditorImageLibraryDialog;

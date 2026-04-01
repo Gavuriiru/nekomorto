@@ -57,7 +57,7 @@ const ImageLibraryDialog = ({
                 className="w-full sm:w-auto"
                 onClick={footerProps.onClearSelection}
               >
-                Limpar selecao
+                Limpar seleção
               </Button>
             ) : null}
             {footerProps.onNavigateToUploads ? (

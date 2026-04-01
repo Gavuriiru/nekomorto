@@ -1,3 +1,5 @@
+// Some third-party embeds probe blocked experimental features and may log
+// browser warnings even when playback continues to work as expected.
 const PERMISSIONS_POLICY =
   "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()";
 
