@@ -531,10 +531,12 @@
   }
 
   .clamp-safe-1 {
+    line-clamp: 1;
     -webkit-line-clamp: 1;
   }
 
   .clamp-safe-2 {
+    line-clamp: 2;
     -webkit-line-clamp: 2;
   }
 
@@ -546,6 +548,7 @@
       overflow: hidden;
       padding-bottom: var(--clamp-safe-padding-bottom);
       margin-bottom: calc(-1 * var(--clamp-safe-padding-bottom));
+      line-clamp: 1;
       -webkit-line-clamp: 1;
     }
   }

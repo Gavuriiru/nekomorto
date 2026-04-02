@@ -1,4 +1,10 @@
-import { buildCommentTargetInfo } from "../../lib/comment-target-info.js";
+import {
+  buildStoredComment,
+  listAdminComments,
+  listPublicCommentsForTarget,
+  syncCommentTargetCounts,
+  validatePublicCommentTarget,
+} from "./comment-route-shared.js";
 
 export const registerContentCommentRoutes = ({
   PRIMARY_APP_ORIGIN,
@@ -19,7 +25,6 @@ export const registerContentCommentRoutes = ({
   normalizePosts,
   normalizeProjects,
   requireAuth,
-  resolveEpisodeLookup,
   resolveGravatarAvatarUrl,
   writeComments,
   writePosts,
@@ -33,35 +38,14 @@ export const registerContentCommentRoutes = ({
     }
     const chapterNumber = Number(req.query.chapter);
     const volume = Number(req.query.volume);
-    const comments = loadComments()
-      .filter((comment) => comment.status === "approved")
-      .filter((comment) => comment.targetType === type && comment.targetId === id)
-      .filter((comment) => {
-        if (type !== "chapter") {
-          return true;
-        }
-        if (!Number.isFinite(chapterNumber)) {
-          return false;
-        }
-        const targetChapter = Number(comment.targetMeta?.chapterNumber);
-        if (targetChapter !== chapterNumber) {
-          return false;
-        }
-        if (Number.isFinite(volume)) {
-          return Number(comment.targetMeta?.volume || 0) === volume;
-        }
-        return true;
-      })
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-      .map((comment) => ({
-        id: comment.id,
-        parentId: comment.parentId || null,
-        name: comment.name,
-        content: comment.content,
-        createdAt: comment.createdAt,
-        avatarUrl:
-          comment.avatarUrl || (comment.emailHash ? buildGravatarUrl(comment.emailHash) : ""),
-      }));
+    const comments = listPublicCommentsForTarget({
+      comments: loadComments(),
+      type,
+      id,
+      chapterNumber,
+      volume,
+      buildGravatarUrl,
+    });
 
     return res.json({ comments });
   });
@@ -106,39 +90,18 @@ export const registerContentCommentRoutes = ({
 
     const posts = normalizePosts(loadPosts());
     const projects = normalizeProjects(loadProjects());
-    const nowEpoch = Date.now();
-    if (normalizedTargetType === "post") {
-      const post = posts.find((item) => item.slug === normalizedTargetId);
-      if (!post || post.deletedAt) {
-        return res.status(404).json({ error: "target_not_found" });
-      }
-      const publishTime = new Date(post.publishedAt).getTime();
-      if (publishTime > nowEpoch || (post.status !== "published" && post.status !== "scheduled")) {
-        return res.status(404).json({ error: "target_not_found" });
-      }
-    } else if (normalizedTargetType === "project") {
-      const project = projects.find((item) => item.id === normalizedTargetId);
-      if (!project || project.deletedAt) {
-        return res.status(404).json({ error: "target_not_found" });
-      }
-    } else if (normalizedTargetType === "chapter") {
-      const chapter = Number(chapterNumber);
-      if (!Number.isFinite(chapter)) {
-        return res.status(400).json({ error: "chapter_required" });
-      }
-      const project = projects.find((item) => item.id === normalizedTargetId);
-      if (!project || project.deletedAt) {
-        return res.status(404).json({ error: "target_not_found" });
-      }
-      const volumeNumber = Number.isFinite(volume) ? Number(volume) : null;
-      const lookup = resolveEpisodeLookup(project, chapter, volumeNumber, {
-        requirePublished: true,
+    const targetValidation = validatePublicCommentTarget({
+      chapterNumber,
+      posts,
+      projects,
+      targetId: normalizedTargetId,
+      targetType: normalizedTargetType,
+      volume,
+    });
+    if (!targetValidation.ok) {
+      return res.status(targetValidation.statusCode).json({
+        error: targetValidation.error,
       });
-      if (!lookup.ok) {
-        return res.status(lookup.code === "volume_required" ? 400 : 404).json({
-          error: lookup.code === "volume_required" ? "volume_required" : "target_not_found",
-        });
-      }
     }
 
     const comments = loadComments();
@@ -160,26 +123,18 @@ export const registerContentCommentRoutes = ({
         ? await resolveGravatarAvatarUrl(emailHash)
         : "";
     const now = new Date().toISOString();
-    const newComment = {
-      id: crypto.randomUUID(),
-      targetType: normalizedTargetType,
-      targetId: normalizedTargetId,
-      targetMeta:
-        normalizedTargetType === "chapter"
-          ? {
-              chapterNumber: Number(chapterNumber),
-              volume: Number.isFinite(Number(volume)) ? Number(volume) : undefined,
-            }
-          : {},
-      parentId: parentId ? String(parentId) : null,
-      name: normalizedName,
-      emailHash,
-      content: normalizedContent,
-      status: isStaff ? "approved" : "pending",
-      createdAt: now,
-      approvedAt: isStaff ? now : null,
+    const newComment = buildStoredComment({
       avatarUrl,
-    };
+      content: normalizedContent,
+      emailHash,
+      isStaff,
+      name: normalizedName,
+      now,
+      parentId,
+      targetId: normalizedTargetId,
+      targetMeta: targetValidation.targetMeta,
+      targetType: normalizedTargetType,
+    });
 
     comments.push(newComment);
     writeComments(comments);
@@ -215,25 +170,15 @@ export const registerContentCommentRoutes = ({
     }
     const posts = normalizePosts(loadPosts());
     const projects = normalizeProjects(loadProjects());
-    const comments = loadComments()
-      .filter((comment) => comment.status === "pending")
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .map((comment) => {
-        const target = buildCommentTargetInfo(comment, posts, projects, PRIMARY_APP_ORIGIN);
-        return {
-          id: comment.id,
-          targetType: comment.targetType,
-          targetId: comment.targetId,
-          parentId: comment.parentId || null,
-          name: comment.name,
-          content: comment.content,
-          createdAt: comment.createdAt,
-          avatarUrl:
-            comment.avatarUrl || (comment.emailHash ? buildGravatarUrl(comment.emailHash) : ""),
-          targetLabel: target.label,
-          targetUrl: target.url,
-        };
-      });
+    const comments = listAdminComments({
+      comments: loadComments(),
+      status: "pending",
+      posts,
+      projects,
+      primaryAppOrigin: PRIMARY_APP_ORIGIN,
+      buildGravatarUrl,
+      includeStatus: false,
+    });
     return res.json({ comments });
   });
 
@@ -248,26 +193,14 @@ export const registerContentCommentRoutes = ({
     const projects = normalizeProjects(loadProjects());
     const comments = loadComments();
     const pendingCount = comments.filter((comment) => comment.status === "pending").length;
-    const recent = comments
-      .slice()
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, limit)
-      .map((comment) => {
-        const target = buildCommentTargetInfo(comment, posts, projects, PRIMARY_APP_ORIGIN);
-        return {
-          id: comment.id,
-          status: comment.status,
-          targetType: comment.targetType,
-          targetId: comment.targetId,
-          name: comment.name,
-          content: comment.content,
-          createdAt: comment.createdAt,
-          avatarUrl:
-            comment.avatarUrl || (comment.emailHash ? buildGravatarUrl(comment.emailHash) : ""),
-          targetLabel: target.label,
-          targetUrl: target.url,
-        };
-      });
+    const recent = listAdminComments({
+      comments,
+      limit,
+      posts,
+      projects,
+      primaryAppOrigin: PRIMARY_APP_ORIGIN,
+      buildGravatarUrl,
+    });
     return res.json({ comments: recent, pendingCount, totalCount: comments.length });
   });
 
@@ -300,16 +233,7 @@ export const registerContentCommentRoutes = ({
       Array.isArray(result.processedComments) &&
       result.processedComments.length > 0
     ) {
-      const affectedPostIds = new Set();
-      const affectedProjectIds = new Set();
-
       result.processedComments.forEach((comment) => {
-        if (comment?.targetType === "post" && comment.targetId) {
-          affectedPostIds.add(String(comment.targetId));
-        }
-        if (comment?.targetType === "project" && comment.targetId) {
-          affectedProjectIds.add(String(comment.targetId));
-        }
         appendAnalyticsEvent(req, {
           eventType: "comment_approved",
           resourceType: "comment",
@@ -322,21 +246,18 @@ export const registerContentCommentRoutes = ({
         });
       });
 
-      if (affectedPostIds.size > 0) {
-        let updatedPosts = normalizePosts(loadPosts());
-        affectedPostIds.forEach((targetId) => {
-          updatedPosts = applyCommentCountToPosts(updatedPosts, result.comments, targetId);
-        });
-        writePosts(updatedPosts);
-      }
-
-      if (affectedProjectIds.size > 0) {
-        let updatedProjects = normalizeProjects(loadProjects());
-        affectedProjectIds.forEach((targetId) => {
-          updatedProjects = applyCommentCountToProjects(updatedProjects, result.comments, targetId);
-        });
-        writeProjects(updatedProjects);
-      }
+      syncCommentTargetCounts({
+        affectedComments: result.processedComments,
+        applyCommentCountToPosts,
+        applyCommentCountToProjects,
+        comments: result.comments,
+        loadPosts,
+        loadProjects,
+        normalizePosts,
+        normalizeProjects,
+        writePosts,
+        writeProjects,
+      });
 
       appendAuditLog(req, "comments.bulk.approve", "comments", {
         processedCount: result.processedCount,
@@ -382,22 +303,18 @@ export const registerContentCommentRoutes = ({
     };
     writeComments(comments);
 
-    if (existing.targetType === "post") {
-      const updatedPosts = applyCommentCountToPosts(
-        normalizePosts(loadPosts()),
-        comments,
-        existing.targetId,
-      );
-      writePosts(updatedPosts);
-    }
-    if (existing.targetType === "project") {
-      const updatedProjects = applyCommentCountToProjects(
-        normalizeProjects(loadProjects()),
-        comments,
-        existing.targetId,
-      );
-      writeProjects(updatedProjects);
-    }
+    syncCommentTargetCounts({
+      affectedComments: [existing],
+      applyCommentCountToPosts,
+      applyCommentCountToProjects,
+      comments,
+      loadPosts,
+      loadProjects,
+      normalizePosts,
+      normalizeProjects,
+      writePosts,
+      writeProjects,
+    });
     appendAnalyticsEvent(req, {
       eventType: "comment_approved",
       resourceType: "comment",
@@ -427,22 +344,18 @@ export const registerContentCommentRoutes = ({
     writeComments(comments);
 
     if (removed.status === "approved") {
-      if (removed.targetType === "post") {
-        const updatedPosts = applyCommentCountToPosts(
-          normalizePosts(loadPosts()),
-          comments,
-          removed.targetId,
-        );
-        writePosts(updatedPosts);
-      }
-      if (removed.targetType === "project") {
-        const updatedProjects = applyCommentCountToProjects(
-          normalizeProjects(loadProjects()),
-          comments,
-          removed.targetId,
-        );
-        writeProjects(updatedProjects);
-      }
+      syncCommentTargetCounts({
+        affectedComments: [removed],
+        applyCommentCountToPosts,
+        applyCommentCountToProjects,
+        comments,
+        loadPosts,
+        loadProjects,
+        normalizePosts,
+        normalizeProjects,
+        writePosts,
+        writeProjects,
+      });
     }
 
     return res.json({ ok: true });

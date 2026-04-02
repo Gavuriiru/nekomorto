@@ -1,7 +1,6 @@
 ﻿import "dotenv/config";
 import crypto from "crypto";
 import fs from "fs";
-import { createServer as createHttpServer } from "node:http";
 import path from "path";
 import { fileURLToPath } from "url";
 import connectPgSimple from "connect-pg-simple";
@@ -10,12 +9,16 @@ import session from "express-session";
 import multer from "multer";
 import { Pool } from "pg";
 import { buildAdminExportRuntimeDependencies } from "./bootstrap/build-admin-export-runtime-dependencies.js";
-import { buildRootRouteRegistrationDependencies } from "./bootstrap/build-root-route-registration-dependencies.js";
+import { createContentRuntimeBundle } from "./bootstrap/create-content-runtime-bundle.js";
+import { createMediaSupportRuntimeBundle } from "./bootstrap/create-media-support-runtime-bundle.js";
+import { buildRootServerRegistrationSource } from "./bootstrap/build-root-server-registration-source.js";
 import { buildOperationalMonitoringRuntimeDependencies } from "./bootstrap/build-operational-monitoring-runtime-dependencies.js";
 import { buildProjectRuntimeDependencies } from "./bootstrap/build-project-runtime-dependencies.js";
 import { buildPublicRuntimeDependencies } from "./bootstrap/build-public-runtime-dependencies.js";
 import { buildServerBootConfig } from "./bootstrap/build-server-boot-config.js";
-import { createRouteRuntimeGroups } from "./bootstrap/create-route-runtime-groups.js";
+import { createServerPlatformRuntime } from "./bootstrap/create-server-platform-runtime.js";
+import { createSiteConfigRuntimeBundle } from "./bootstrap/create-site-config-runtime-bundle.js";
+import { createSiteRenderingRuntimeBundle } from "./bootstrap/create-site-rendering-runtime-bundle.js";
 import { registerRootServerRoutes } from "./bootstrap/register-root-server-routes.js";
 import { buildUserRuntimeDependencies } from "./bootstrap/build-user-runtime-dependencies.js";
 import { buildWebhookRuntimeDependencies } from "./bootstrap/build-webhook-runtime-dependencies.js";
@@ -66,18 +69,13 @@ import { getBuildMetadata } from "./lib/build-metadata.js";
 import { deriveChapterSynopsis } from "./lib/chapter-synopsis.js";
 import { buildCommentTargetInfo } from "./lib/comment-target-info.js";
 import { bulkModeratePendingComments } from "./lib/comments-bulk-moderation.js";
-import { createContentCollectionsRuntime } from "./lib/content-collections-runtime.js";
-import { createPublicMediaRuntime } from "./lib/public-media-runtime.js";
 import { createPublicReadCacheRuntime } from "./lib/public-read-cache-runtime.js";
 import { selectRecentApprovedComments } from "./lib/dashboard-recent-comments.js";
 import { createDataRepository } from "./lib/data-repository.js";
 import { createDataRepositoryAdaptersRuntime } from "./lib/data-repository-adapters-runtime.js";
 import { createDataRepositoryBasicRuntime } from "./lib/data-repository-basic-runtime.js";
-import { createDataRepositoryContentRuntime } from "./lib/data-repository-content-runtime.js";
-import { createDataRepositorySiteConfigRuntime } from "./lib/data-repository-site-config-runtime.js";
 import { proxyDiscordAvatarRequest } from "./lib/discord-avatar-proxy.js";
 import { buildEditorialCalendarItems } from "./lib/editorial-calendar.js";
-import { createViteDevServer, resolveClientIndexPath } from "./lib/frontend-runtime.js";
 import { buildHealthStatusResponse } from "./lib/health-checks.js";
 import {
   extractLocalStylesheetHrefs,
@@ -90,14 +88,7 @@ import {
 } from "./lib/html-cache-control.js";
 import { createIdempotencyStore } from "./lib/idempotency-store.js";
 import { createJobQueue } from "./lib/job-queue.js";
-import { createJsonFileCacheRuntime } from "./lib/json-file-cache-runtime.js";
 import { truncateMetaDescription } from "./lib/meta-description.js";
-import {
-  createAbsoluteUrlResolver,
-  createHtmlSender,
-  createIndexHtmlLoader,
-  createMetaHtmlRenderer,
-} from "./lib/meta-html.js";
 import { createMetricsRegistry } from "./lib/metrics.js";
 import { createOgRenderCache } from "./lib/og-render-cache.js";
 import {
@@ -125,9 +116,6 @@ import {
   fixMojibakeDeep,
   fixMojibakeText,
 } from "./lib/site-settings-runtime-helpers.js";
-import { createGravatarRuntime } from "./lib/gravatar-runtime.js";
-import { createRateLimitRuntime } from "./lib/rate-limit-runtime.js";
-import { createAutoUploadReorganizationRuntime } from "./lib/auto-upload-reorganization-runtime.js";
 import {
   MAX_SVG_SIZE_BYTES,
   MAX_UPLOAD_SIZE_BYTES,
@@ -141,8 +129,6 @@ import {
   sanitizeUploadSlot,
   validateUploadImageBuffer,
 } from "./lib/upload-runtime-helpers.js";
-import { createWebhookSettingsRuntimeHelpers } from "./lib/webhook-settings-runtime-helpers.js";
-import { createStartupSecuritySanitizationRuntime } from "./lib/startup-security-sanitization-runtime.js";
 import {
   PWA_MANIFEST_BASE,
   PWA_MANIFEST_CACHE_CONTROL,
@@ -158,9 +144,7 @@ import {
   normalizeTypeLookupKey,
 } from "./lib/project-type-utils.js";
 import {
-  isAllowedOrigin as isAllowedOriginByConfig,
   resolveAuthAppOrigin,
-  resolveDiscordRedirectUri as resolveDiscordRedirectUriByConfig,
 } from "./lib/origin-config.js";
 import {
   buildPostOgImageAlt,
@@ -172,7 +156,6 @@ import { extractFirstImageFromPostContent, resolvePostCover } from "./lib/post-c
 import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
 import { resolvePostStatus } from "./lib/post-status.js";
 import { dedupePostVersionRecordsNewestFirst } from "./lib/post-version-dedupe.js";
-import { createPostVersionRuntime } from "./lib/post-version-runtime.js";
 import { prisma } from "./lib/prisma-client.js";
 import { applyProjectChapterUpdate } from "./lib/project-chapter-editor.js";
 import {
@@ -300,7 +283,7 @@ import {
   saveSessionState,
 } from "./lib/session-auth.js";
 import { buildSitemapXml } from "./lib/sitemap-xml.js";
-import { createSiteMetaBuilders, stripHtml } from "./lib/site-meta-builders.js";
+import { stripHtml } from "./lib/site-meta-builders.js";
 import {
   buildOtpAuthUrl,
   generateRecoveryCodes,
@@ -328,7 +311,6 @@ import { buildDiskStorageAreaSummary, runUploadsCleanup } from "./lib/uploads-cl
 import {
   buildWebhookAuditMeta,
   clampWebhookInteger,
-  createBuildEditorialWebhookImageContext,
   createResolveEditorialAuthorFromPost,
   createWebhookAuditReqFromContext as createWebhookAuditReqFromContextBase,
   pickFirstNonEmptyText,
@@ -346,7 +328,6 @@ import {
   normalizeUploadStorageProvider,
   readUploadStorageProvider,
 } from "./lib/upload-storage.js";
-import { createUploadEntriesRuntime } from "./lib/upload-entries-runtime.js";
 import {
   cleanupUploadStagingWorkspace,
   createUploadStagingWorkspace,
@@ -920,7 +901,25 @@ const {
   sanitizeIconSource,
 });
 
-const getRequestIp = (req) => req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "";
+const {
+  clientDistDir,
+  clientRootDir,
+  getIndexHtml,
+  getRequestIp,
+  httpServer,
+  isAllowedOrigin,
+  resolveDiscordRedirectUri,
+  toAbsoluteUrl,
+  viteDevServer,
+} = await createServerPlatformRuntime({
+  app,
+  fs,
+  repoRootDir: REPO_ROOT_DIR,
+  allowedOrigins: ALLOWED_ORIGINS,
+  configuredDiscordRedirectUri: CONFIGURED_DISCORD_REDIRECT_URI,
+  primaryAppOrigin: PRIMARY_APP_ORIGIN,
+  isProduction,
+});
 
 const {
   appendAnalyticsEvent,
@@ -954,39 +953,6 @@ const {
   primaryAppOrigin: PRIMARY_APP_ORIGIN,
   sessionSecret: SESSION_SECRET,
 });
-
-const clientRootDir = path.join(__dirname, "..");
-const clientDistDir = path.join(clientRootDir, "dist");
-const clientIndexPath = resolveClientIndexPath({
-  clientRootDir,
-  clientDistDir,
-  isProduction,
-});
-const httpServer = createHttpServer(app);
-const viteDevServer = await createViteDevServer({ isProduction, httpServer });
-const getIndexHtml = createIndexHtmlLoader({
-  fs,
-  clientIndexPath,
-  isProduction,
-});
-const toAbsoluteUrl = createAbsoluteUrlResolver({
-  origin: PRIMARY_APP_ORIGIN,
-});
-const resolveDiscordRedirectUri = (req) => {
-  return resolveDiscordRedirectUriByConfig({
-    req,
-    configuredDiscordRedirectUri: CONFIGURED_DISCORD_REDIRECT_URI,
-    primaryAppOrigin: PRIMARY_APP_ORIGIN,
-    isAllowedOriginFn: isAllowedOrigin,
-  });
-};
-const isAllowedOrigin = (origin) => {
-  return isAllowedOriginByConfig({
-    origin,
-    allowedOrigins: ALLOWED_ORIGINS,
-    isProduction,
-  });
-};
 
 if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !SESSION_SECRET) {
   if (process.env.NODE_ENV === "production") {
@@ -1040,11 +1006,103 @@ const PUBLIC_READ_CACHE_TAGS = Object.freeze({
   PROJECTS: "public:projects",
 });
 
+const contentRuntime = createContentRuntimeBundle({
+  PUBLIC_READ_CACHE_TAGS,
+  createSlug,
+  createUniqueSlug,
+  crypto,
+  dataRepository,
+  dedupePostVersionRecordsNewestFirst,
+  getProjectEpisodePageCount,
+  invalidatePublicReadCacheTags,
+  normalizeLegacyUpdateRecord,
+  normalizeProjectEpisodeContentFormat,
+  normalizeProjectEpisodePages,
+  normalizeProjectReaderConfig,
+  normalizeUploadsDeep,
+  readUploadStorageProvider,
+  resolveEpisodeLookup,
+  resolvePostStatus,
+});
+
 const {
   invalidateJsonFileCache,
   readJsonFileFromCache,
   writeJsonFileToCache,
-} = createJsonFileCacheRuntime();
+  appendPostVersion,
+  applyCommentCountToPosts,
+  applyCommentCountToProjects,
+  applyPostSnapshotForRollback,
+  incrementPostViews,
+  incrementProjectViews,
+  isWithinRestoreWindow,
+  listPostVersions,
+  loadComments,
+  loadPostVersions,
+  loadPosts,
+  loadProjects,
+  loadUpdates,
+  loadUploads,
+  normalizePosts,
+  normalizeProjects,
+  postVersionReasonLabel,
+  pruneExpiredDeleted,
+  writeComments,
+  writePosts,
+  writeProjects,
+  writeUpdates,
+  writeUploads,
+} = contentRuntime;
+
+const siteConfigRuntime = createSiteConfigRuntimeBundle({
+  DEFAULT_PROJECT_TYPE_CATALOG,
+  OPS_ALERTS_WEBHOOK_INTERVAL_MS,
+  OPS_ALERTS_WEBHOOK_PROVIDER,
+  OPS_ALERTS_WEBHOOK_TIMEOUT_MS,
+  OPS_ALERTS_WEBHOOK_URL,
+  PUBLIC_READ_CACHE_TAGS,
+  PUBLIC_UPLOADS_DIR,
+  SecurityEventSeverity,
+  SecurityEventStatus,
+  appendAuditLog,
+  buildSiteSettingsStoragePayload,
+  createSecurityEventPayload,
+  createSystemAuditReq,
+  crypto,
+  dataRepository,
+  defaultOperationalWebhookSettings,
+  defaultSecurityWebhookSettings,
+  defaultSiteSettings,
+  fixMojibakeDeep,
+  invalidateJsonFileCache,
+  invalidatePublicReadCacheTags,
+  isAutoUploadReorganizationEnabled,
+  isOpsAlertsWebhookEnabled,
+  loadComments,
+  loadPosts,
+  loadProjects,
+  loadUpdates,
+  loadUploads,
+  loadUsers,
+  migrateEditorialMentionPlaceholdersInSettings,
+  normalizeEditorialWebhookSettings,
+  normalizeOperationalWebhookSettings,
+  normalizeSecurityWebhookSettings,
+  normalizeSiteSettings,
+  normalizeUploadsDeep,
+  normalizeWebhookSettingsBundle,
+  readJsonFileFromCache,
+  runUploadsReorganization,
+  sanitizeIconSource,
+  validateWebhookUrlForProvider,
+  writeComments,
+  writeJsonFileToCache,
+  writePosts,
+  writeProjects,
+  writeUpdates,
+  writeUploads,
+  writeUsers,
+});
 
 const {
   buildEnvOperationalWebhookSettings,
@@ -1054,294 +1112,121 @@ const {
   buildWebhookSettingsBundle,
   ensureEditorialWebhookSettingsNoConflict,
   ensureWebhookSettingsNoConflict,
-  normalizeUnifiedWebhookSettingsForRequest,
-  validateEditorialWebhookChannelUrls,
-  validateUnifiedWebhookSettingsUrls,
-} = createWebhookSettingsRuntimeHelpers({
-  createSecurityEventPayload,
-  crypto,
-  defaultOperationalWebhookSettings,
-  defaultProjectTypeCatalog: DEFAULT_PROJECT_TYPE_CATALOG,
-  defaultSecurityWebhookSettings,
-  isOpsAlertsWebhookEnabled,
-  migrateEditorialMentionPlaceholdersInSettings,
-  normalizeEditorialWebhookSettings,
-  normalizeWebhookSettingsBundle,
-  opsAlertsWebhookIntervalMs: OPS_ALERTS_WEBHOOK_INTERVAL_MS,
-  opsAlertsWebhookProvider: OPS_ALERTS_WEBHOOK_PROVIDER,
-  opsAlertsWebhookTimeoutMs: OPS_ALERTS_WEBHOOK_TIMEOUT_MS,
-  opsAlertsWebhookUrl: OPS_ALERTS_WEBHOOK_URL,
-  SecurityEventSeverity,
-  SecurityEventStatus,
-  validateWebhookUrlForProvider,
-});
-
-const {
-  applyCommentCountToPosts,
-  applyCommentCountToProjects,
-  incrementPostViews,
-  incrementProjectViews,
-  normalizePosts,
-  normalizeProjects,
-} = createContentCollectionsRuntime({
-  createSlug,
-  getLoadPosts: () => loadPosts,
-  getLoadProjects: () => loadProjects,
-  getProjectEpisodePageCount,
-  getWritePosts: () => writePosts,
-  getWriteProjects: () => writeProjects,
-  normalizeProjectEpisodeContentFormat,
-  normalizeProjectEpisodePages,
-  normalizeProjectReaderConfig,
-  normalizeUploadsDeep,
-  resolvePostStatus,
-});
-
-const {
-  appendPostVersion,
-  applyPostSnapshotForRollback,
-  isWithinRestoreWindow,
-  listPostVersions,
-  loadPostVersions,
-  postVersionReasonLabel,
-  pruneExpiredDeleted,
-} = createPostVersionRuntime({
-  createSlug,
-  createUniqueSlug,
-  crypto,
-  dataRepository,
-  dedupePostVersionRecordsNewestFirst,
-  getNormalizePosts: () => normalizePosts,
-  invalidateJsonFileCache,
-  readJsonFileFromCache,
-  writeJsonFileToCache,
-});
-
-const {
-  loadComments,
-  loadPosts,
-  loadProjects,
-  loadUpdates,
-  loadUploads,
-  writeComments,
-  writePosts,
-  writeProjects,
-  writeUpdates,
-  writeUploads,
-} = createDataRepositoryContentRuntime({
-  dataRepository,
-  getNormalizePosts: () => normalizePosts,
-  getNormalizeProjects: () => normalizeProjects,
-  getPruneExpiredDeleted: () => pruneExpiredDeleted,
-  invalidateJsonFileCache,
-  invalidatePublicReadCacheTags,
-  normalizeLegacyUpdateRecord,
-  normalizeUploadsDeep,
-  publicReadCacheTags: PUBLIC_READ_CACHE_TAGS,
-  readJsonFileFromCache,
-  readUploadStorageProvider,
-  resolveEpisodeLookup,
-  writeJsonFileToCache,
-});
-
-const {
   loadIntegrationSettings,
   loadIntegrationSettingsBundle,
   loadIntegrationSettingsSources,
   loadPages,
   loadSiteSettings,
   loadTagTranslations,
+  normalizeUnifiedWebhookSettingsForRequest,
+  runAutoUploadReorganization,
+  validateEditorialWebhookChannelUrls,
+  validateUnifiedWebhookSettingsUrls,
   writeIntegrationSettings,
   writePages,
   writeSiteSettings,
   writeTagTranslations,
-} = createDataRepositorySiteConfigRuntime({
-  dataRepository,
-  defaultSiteSettings,
-  fixMojibakeDeep,
-  getBuildEnvOperationalWebhookSettings: () => buildEnvOperationalWebhookSettings,
-  getBuildEnvSecurityWebhookSettings: () => buildEnvSecurityWebhookSettings,
-  getBuildSiteSettingsStoragePayload: () => buildSiteSettingsStoragePayload,
-  getBuildWebhookSettingsBundle: () => buildWebhookSettingsBundle,
-  getNormalizeSiteSettings: () => normalizeSiteSettings,
-  invalidateJsonFileCache,
-  invalidatePublicReadCacheTags,
-  normalizeOperationalWebhookSettings,
-  normalizeSecurityWebhookSettings,
-  normalizeUploadsDeep,
-  publicReadCacheTags: PUBLIC_READ_CACHE_TAGS,
-  readJsonFileFromCache,
-  writeJsonFileToCache,
-});
+} = siteConfigRuntime;
 
-const { runAutoUploadReorganization } = createAutoUploadReorganizationRuntime({
+const mediaSupportRuntime = createMediaSupportRuntimeBundle({
+  PRIMARY_APP_ORIGIN,
+  PUBLIC_UPLOADS_DIR,
+  STATIC_DEFAULT_CACHE_CONTROL,
   appendAuditLog,
+  attachUploadMediaMetadata,
+  backgroundJobQueue,
+  buildDiskStorageAreaSummary,
+  buildStorageAreaSummary,
+  cleanupUploadStagingWorkspace,
   createSystemAuditReq,
-  isAutoUploadReorganizationEnabled,
+  createUploadStagingWorkspace,
+  crypto,
+  dataRepository,
+  deriveFocalPointsFromCrops,
+  extractUploadUrlsFromText,
+  fs,
+  getPrimaryFocalPoint,
+  getPublicVisibleProjects: () => getPublicVisibleProjects(),
+  getUploadVariantUrlPrefix,
+  isProduction,
   loadComments,
+  loadIntegrationSettings,
+  loadLinkTypes,
   loadPages,
   loadPosts,
   loadProjects,
   loadSiteSettings,
+  loadTagTranslations,
   loadUpdates,
   loadUploads,
   loadUsers,
-  runUploadsReorganization,
-  uploadsDir: PUBLIC_UPLOADS_DIR,
-  writeComments,
-  writePages,
-  writePosts,
-  writeProjects,
-  writeSiteSettings,
-  writeUpdates,
-  writeUploads,
-  writeUsers,
-});
-
-const {
-  buildManagedStorageAreaSummary,
-  deleteManagedUploadEntryAssets,
-  deletePrivateUploadByUrl,
-  ensureUploadEntryHasRequiredVariants,
-  extractRequestedUploadFocalPayload,
-  getUploadFolderFromUrlValue,
-  hasOwnField,
-  isPrivateUploadFolder,
-  normalizeUploadUrlValue,
-  readUploadAltText,
-  readUploadFocalState,
-  readUploadSlot,
-  readUploadSlotManaged,
-  resolveIncomingUploadFocalState,
-  upsertUploadEntries,
-} = createUploadEntriesRuntime({
-  STATIC_DEFAULT_CACHE_CONTROL,
-  attachUploadMediaMetadata,
-  buildDiskStorageAreaSummary,
-  buildStorageAreaSummary,
-  cleanupUploadStagingWorkspace,
-  createUploadStagingWorkspace,
-  crypto,
-  deriveFocalPointsFromCrops,
-  fs,
-  getLoadUploads: () => loadUploads,
-  getPrimaryFocalPoint,
-  getUploadVariantUrlPrefix,
-  getWriteUploads: () => writeUploads,
   materializeUploadEntrySourceToStaging,
   mergeUploadVariantPresetKeys,
+  metricsRegistry,
   normalizeFocalCrops,
   normalizeFocalPoints,
   normalizeUploadStorageProvider,
+  normalizeUploadUrl,
   normalizeUploadVariantPresetKeys,
   normalizeVariants,
+  ogRenderCache,
   path,
   persistUploadEntryFromStaging,
-  primaryAppOrigin: PRIMARY_APP_ORIGIN,
-  publicUploadsDir: PUBLIC_UPLOADS_DIR,
-  readUploadStorageProvider,
-  resolveUploadAbsolutePath,
-  sanitizeUploadSlot,
-  uploadStorageService,
-});
-
-const publicMediaRuntime = createPublicMediaRuntime({
-  backgroundJobQueue,
-  extractUploadUrlsFromText,
-  getPublicVisibleProjects: () => getPublicVisibleProjects(),
-  getUploadFolderFromUrlValue,
-  isPrivateUploadFolder,
-  loadComments: () => loadComments(),
-  loadLinkTypes: () => loadLinkTypes(),
-  loadPages: () => loadPages(),
-  loadPosts: () => loadPosts(),
-  loadProjects: () => loadProjects(),
-  loadSiteSettings: () => loadSiteSettings(),
-  loadTagTranslations: () => loadTagTranslations(),
-  loadUpdates: () => loadUpdates(),
-  loadUploads: () => loadUploads(),
-  loadUsers: () => loadUsers(),
-  normalizeUploadUrl,
-  normalizeUploadUrlValue,
-  normalizeVariants,
-  ogRenderCache,
   prewarmProjectOgCache,
-  primaryAppOrigin: PRIMARY_APP_ORIGIN,
-  publicUploadsDir: PUBLIC_UPLOADS_DIR,
-  readUploadFocalState,
+  rateLimiter,
   readUploadStorageProvider,
   resolveExistingPublicVariantUrl,
-  sanitizePublicMediaVariantEntry,
-  shouldExposePublicUploadInMediaVariants,
-});
-
-const {
-  buildPublicMediaVariants,
-  collectDownloadIconUploads,
-  collectLinkTypeIconUploads,
-  enqueueProjectOgPrewarm,
-  getUsedUploadUrls,
-  logProjectOgDelivery,
-  resolveMetaImageVariantUrl,
-} = publicMediaRuntime;
-
-const { runStartupSecuritySanitization } = createStartupSecuritySanitizationRuntime({
-  appendAuditLog,
-  createSystemAuditReq,
-  dataRepository,
-  loadIntegrationSettings,
-  loadLinkTypes,
-  loadSiteSettings,
-  loadUsers,
+  resolveUploadAbsolutePath,
   sanitizeIconSource,
   sanitizePublicHref,
   sanitizeSocials,
+  sanitizePublicMediaVariantEntry,
+  sanitizeUploadSlot,
+  shouldExposePublicUploadInMediaVariants,
+  uploadStorageService,
+  writeUploads,
 });
 
 const {
   buildGravatarUrl,
-  createGravatarHash,
-  normalizeEmail,
-  resolveGravatarAvatarUrl,
-} = createGravatarRuntime({
-  crypto,
-});
-
-const {
+  buildManagedStorageAreaSummary,
+  buildPublicMediaVariants,
   canAttemptAuth,
   canBootstrap,
   canRegisterPollVote,
   canRegisterView,
   canSubmitComment,
   canUploadImage,
-} = createRateLimitRuntime({
-  isProduction,
-  metricsRegistry,
-  rateLimiter,
-});
-
-
-const { renderMetaHtml } = createMetaHtmlRenderer({
-  getIndexHtml,
-  primaryAppOrigin: PRIMARY_APP_ORIGIN,
+  collectDownloadIconUploads,
+  collectLinkTypeIconUploads,
+  createGravatarHash,
+  deleteManagedUploadEntryAssets,
+  deletePrivateUploadByUrl,
+  enqueueProjectOgPrewarm,
+  ensureUploadEntryHasRequiredVariants,
+  extractRequestedUploadFocalPayload,
+  getUsedUploadUrls,
+  getUploadFolderFromUrlValue,
+  hasOwnField,
+  isPrivateUploadFolder,
+  logProjectOgDelivery,
+  normalizeEmail,
+  normalizeUploadUrlValue,
+  readUploadAltText,
+  readUploadFocalState,
+  readUploadSlot,
+  readUploadSlotManaged,
+  resolveGravatarAvatarUrl,
+  resolveIncomingUploadFocalState,
   resolveMetaImageVariantUrl,
-  serializeSchemaOrgEntry,
-  toAbsoluteUrl,
-  truncateMetaDescription,
-});
-const sendHtml = createHtmlSender({
+  runStartupSecuritySanitization,
+  upsertUploadEntries,
+} = mediaSupportRuntime;
+const publicMediaRuntime = mediaSupportRuntime;
+
+const siteRenderingRuntime = createSiteRenderingRuntimeBundle({
+  PRIMARY_APP_ORIGIN,
   applyHtmlCachingHeaders,
-  injectNonceIntoHtmlScripts,
-  viteDevServer,
-});
-const {
-  buildInstitutionalPageMeta,
-  buildPostMeta,
-  buildProjectMeta,
-  buildProjectReadingMeta,
-  buildSiteMetaWithSettings,
-  getPageTitleFromPath,
-} = createSiteMetaBuilders({
   buildInstitutionalOgImageAlt,
   buildInstitutionalOgRevisionValue,
   buildPostOgImageAlt,
@@ -1354,30 +1239,32 @@ const {
   buildVersionedProjectOgImagePath,
   buildVersionedProjectReadingOgImagePath,
   extractFirstImageFromPostContent,
+  getIndexHtml,
+  injectNonceIntoHtmlScripts,
   loadPages,
   loadSiteSettings,
   loadTagTranslations,
-  primaryAppOrigin: PRIMARY_APP_ORIGIN,
   resolveInstitutionalOgPagePath,
   resolveInstitutionalOgPageTitle,
   resolveInstitutionalOgSupportText,
   resolveMetaImageVariantUrl,
   resolvePostCover,
+  serializeSchemaOrgEntry,
+  toAbsoluteUrl,
   truncateMetaDescription,
+  viteDevServer,
 });
-const buildEditorialWebhookImageContext = createBuildEditorialWebhookImageContext({
-  buildPostOgRevision,
-  buildProjectOgRevision,
-  buildProjectReadingOgCardModel,
-  buildProjectReadingOgRevisionValue,
-  buildVersionedPostOgImagePath,
-  buildVersionedProjectOgImagePath,
-  buildVersionedProjectReadingOgImagePath,
-  extractFirstImageFromPostContent,
-  primaryAppOrigin: PRIMARY_APP_ORIGIN,
-  resolveMetaImageVariantUrl,
-  resolvePostCover,
-});
+const {
+  buildEditorialWebhookImageContext,
+  buildInstitutionalPageMeta,
+  buildPostMeta,
+  buildProjectMeta,
+  buildProjectReadingMeta,
+  buildSiteMetaWithSettings,
+  getPageTitleFromPath,
+  renderMetaHtml,
+  sendHtml,
+} = siteRenderingRuntime;
 
 const getActiveProjectTypes = createGetActiveProjectTypes({
   defaultProjectTypeCatalog: DEFAULT_PROJECT_TYPE_CATALOG,
@@ -1816,7 +1703,7 @@ const {
   sendXmlResponse,
 } = publicRuntime;
 
-const routeRuntimeGroups = createRouteRuntimeGroups({
+const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   adminExports,
   authzLib,
   dataRepositoryAdaptersRuntime,
@@ -1826,19 +1713,6 @@ const routeRuntimeGroups = createRouteRuntimeGroups({
   projectRuntime,
   publicRuntime,
   webhookRuntime,
-});
-
-const rootRouteRegistrationDependencies = buildRootRouteRegistrationDependencies({
-  adminExports,
-  authzLib,
-  dataRepositoryAdaptersRuntime,
-  userRuntime,
-  publicMediaRuntime,
-  adminExportRuntime,
-  projectRuntime,
-  publicRuntime,
-  webhookRuntime,
-  routeRuntimeGroups,
   ANILIST_API,
   API_CONTRACT_VERSION,
   AUDIT_CSV_MAX_ROWS,

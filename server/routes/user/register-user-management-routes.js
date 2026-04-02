@@ -1,9 +1,15 @@
 import {
+  buildLegacyManagedUser,
+  buildLegacyManagedUserUpdate,
+  buildRbacManagedUser,
+  buildRbacManagedUserUpdate,
   buildReorderedUsers,
   buildSelfResponseUser,
+  buildUserApiSnapshot,
   diffUserFields,
+  loadNormalizedOwnerIds,
   rebuildUsersAfterDeletion,
-  toUserApiResponse,
+  syncOwnerIdsAfterUserDeletion,
 } from "./shared.js";
 
 export const registerUserManagementRoutes = ({
@@ -79,20 +85,23 @@ export const registerUserManagementRoutes = ({
         return res.status(409).json({ error: "user_exists" });
       }
 
-      const newUser = {
-        id: String(id),
+      const newUser = buildLegacyManagedUser({
+        avatarDisplay,
+        avatarUrl,
+        bio,
+        favoriteWorks,
+        id,
         name,
-        phrase: phrase || "",
-        bio: bio || "",
-        avatarUrl: avatarUrl || null,
-        avatarDisplay: normalizeAvatarDisplay(avatarDisplay),
-        socials: sanitizeSocials(socials),
-        favoriteWorks: sanitizeFavoriteWorksByCategory(favoriteWorks),
-        status: status === "retired" ? "retired" : "active",
-        permissions: Array.isArray(permissions) ? permissions : [],
-        roles: Array.isArray(roles) ? roles.filter(Boolean) : [],
+        normalizeAvatarDisplay,
         order: users.length,
-      };
+        permissions,
+        phrase,
+        roles,
+        sanitizeFavoriteWorksByCategory,
+        sanitizeSocials,
+        socials,
+        status,
+      });
 
       users.push(newUser);
       persistCurrentUsers({ users, isLegacy: true });
@@ -123,37 +132,36 @@ export const registerUserManagementRoutes = ({
       return res.status(403).json({ error: "owner_role_requires_owner_governance" });
     }
 
-    const nextAccessRole =
-      normalizedAccessRole === AccessRole.ADMIN ? AccessRole.ADMIN : AccessRole.NORMAL;
-    const sanitizedPermissions = Array.isArray(permissions)
-      ? sanitizePermissionsForStorage(permissions, {
-          acceptLegacyStar: false,
-          keepUnknown: true,
-        })
-      : [...defaultPermissionsForRole(nextAccessRole)];
-
-    const newUser = {
+    const newUser = buildRbacManagedUser({
+      AccessRole,
+      accessRole,
+      avatarDisplay,
+      avatarUrl,
+      bio,
+      defaultPermissionsForRole,
+      favoriteWorks,
       id: targetId,
-      name: String(name || "Sem nome"),
-      phrase: phrase || "",
-      bio: bio || "",
-      avatarUrl: avatarUrl || null,
-      avatarDisplay: normalizeAvatarDisplay(avatarDisplay),
-      socials: sanitizeSocials(socials),
-      favoriteWorks: sanitizeFavoriteWorksByCategory(favoriteWorks),
-      status: status === "retired" ? "retired" : "active",
-      permissions: sanitizedPermissions,
-      roles: removeOwnerRoleLabel(Array.isArray(roles) ? roles.filter(Boolean) : []),
-      accessRole: nextAccessRole,
+      name,
+      normalizeAccessRole,
+      normalizeAvatarDisplay,
       order: users.length,
-    };
+      permissions,
+      phrase,
+      removeOwnerRoleLabel,
+      roles,
+      sanitizeFavoriteWorksByCategory,
+      sanitizePermissionsForStorage,
+      sanitizeSocials,
+      socials,
+      status,
+    });
 
     users.push(newUser);
     users = persistCurrentUsers({ users });
 
-    const ownerIds = loadOwnerIds().map((entry) => String(entry));
+    const ownerIds = loadNormalizedOwnerIds(loadOwnerIds);
     const createdUser = users.find((user) => user.id === targetId) || newUser;
-    const responseUser = toUserApiResponse({
+    const responseUser = buildUserApiSnapshot({
       applyOwnerRole,
       ownerIds,
       user: createdUser,
@@ -236,8 +244,8 @@ export const registerUserManagementRoutes = ({
     const sessionUser = req.session.user;
     const update = req.body || {};
     const existing = users[index];
-    const ownerIds = loadOwnerIds().map((id) => String(id));
-    const currentUserSnapshot = toUserApiResponse({
+    const ownerIds = loadNormalizedOwnerIds(loadOwnerIds);
+    const currentUserSnapshot = buildUserApiSnapshot({
       applyOwnerRole,
       ownerIds,
       user: existing,
@@ -273,24 +281,13 @@ export const registerUserManagementRoutes = ({
         return noConflict;
       }
 
-      const updated = {
-        ...existing,
-        name: update.name ?? existing.name,
-        phrase: update.phrase ?? existing.phrase,
-        bio: update.bio ?? existing.bio,
-        avatarUrl: update.avatarUrl ?? existing.avatarUrl,
-        avatarDisplay:
-          update.avatarDisplay !== undefined
-            ? normalizeAvatarDisplay(update.avatarDisplay)
-            : normalizeAvatarDisplay(existing.avatarDisplay),
-        socials: Array.isArray(update.socials) ? sanitizeSocials(update.socials) : existing.socials,
-        favoriteWorks: Object.prototype.hasOwnProperty.call(update, "favoriteWorks")
-          ? sanitizeFavoriteWorksByCategory(update.favoriteWorks)
-          : existing.favoriteWorks,
-        status: update.status === "retired" ? "retired" : "active",
-        permissions: Array.isArray(update.permissions) ? update.permissions : existing.permissions,
-        roles: Array.isArray(update.roles) ? update.roles : existing.roles,
-      };
+      const updated = buildLegacyManagedUserUpdate({
+        existing,
+        normalizeAvatarDisplay,
+        sanitizeFavoriteWorksByCategory,
+        sanitizeSocials,
+        update,
+      });
 
       users[index] = updated;
       persistCurrentUsers({ users, isLegacy: true });
@@ -405,68 +402,29 @@ export const registerUserManagementRoutes = ({
     }
 
     const basicPatch = pickBasicProfilePatch(update);
-    const updated = {
-      ...existing,
-      ...basicPatch,
-      avatarDisplay:
-        basicPatch.avatarDisplay !== undefined
-          ? normalizeAvatarDisplay(basicPatch.avatarDisplay)
-          : normalizeAvatarDisplay(existing.avatarDisplay),
-      socials: Array.isArray(basicPatch.socials)
-        ? sanitizeSocials(basicPatch.socials)
-        : existing.socials,
-      favoriteWorks: Object.prototype.hasOwnProperty.call(basicPatch, "favoriteWorks")
-        ? sanitizeFavoriteWorksByCategory(basicPatch.favoriteWorks)
-        : existing.favoriteWorks,
-      roles: Array.isArray(update.roles) ? removeOwnerRoleLabel(update.roles) : existing.roles,
-      status:
-        update.status === "retired"
-          ? "retired"
-          : update.status === "active"
-            ? "active"
-            : existing.status,
-      accessRole: Object.prototype.hasOwnProperty.call(update, "accessRole")
-        ? normalizeAccessRole(update.accessRole, existing.accessRole || AccessRole.NORMAL)
-        : existing.accessRole || AccessRole.NORMAL,
-      permissions: Array.isArray(update.permissions)
-        ? sanitizePermissionsForStorage(update.permissions, {
-            acceptLegacyStar: false,
-            keepUnknown: true,
-          })
-        : existing.permissions,
-    };
-
-    if (
-      Object.prototype.hasOwnProperty.call(update, "accessRole") &&
-      !Array.isArray(update.permissions) &&
-      !targetContext.isOwner
-    ) {
-      updated.permissions = [...defaultPermissionsForRole(updated.accessRole)];
-    }
-    if (actorIsSecondary && targetContext.isOwner) {
-      return res.status(403).json({ error: "owner_update_forbidden" });
-    }
-    if ((actorIsPrimary || actorIsSecondary) && targetContext.isOwner) {
-      updated.accessRole = existing.accessRole;
-    }
-    if (
-      updated.accessRole === AccessRole.OWNER_PRIMARY ||
-      updated.accessRole === AccessRole.OWNER_SECONDARY
-    ) {
-      updated.accessRole = existing.accessRole;
-    }
-    if (!actorIsPrimary && !actorIsSecondary) {
-      updated.permissions = existing.permissions;
-      updated.accessRole = existing.accessRole;
-      updated.status = existing.status;
-      updated.roles = existing.roles;
-    }
+    const updated = buildRbacManagedUserUpdate({
+      AccessRole,
+      actorIsAdmin,
+      actorIsPrimary,
+      actorIsSecondary,
+      basicPatch,
+      defaultPermissionsForRole,
+      existing,
+      normalizeAccessRole,
+      normalizeAvatarDisplay,
+      removeOwnerRoleLabel,
+      sanitizeFavoriteWorksByCategory,
+      sanitizePermissionsForStorage,
+      sanitizeSocials,
+      targetContext,
+      update,
+    });
 
     const beforeSnapshot = currentUserSnapshot;
     users[index] = updated;
     users = persistCurrentUsers({ users });
     const persisted = users.find((user) => user.id === targetId) || updated;
-    const afterSnapshot = toUserApiResponse({
+    const afterSnapshot = buildUserApiSnapshot({
       applyOwnerRole,
       ownerIds,
       user: persisted,
@@ -561,14 +519,12 @@ export const registerUserManagementRoutes = ({
       const removed = users[index];
       users = rebuildUsersAfterDeletion(users.filter((user) => user.id !== targetId));
 
-      let nextOwnerIds = loadOwnerIds();
-      if (nextOwnerIds.includes(targetId)) {
-        nextOwnerIds = nextOwnerIds.filter((id) => id !== targetId);
-        if (nextOwnerIds.length === 0 && primaryOwnerId) {
-          nextOwnerIds = [String(primaryOwnerId)];
-        }
-        writeOwnerIds(nextOwnerIds);
-      }
+      const nextOwnerIds = syncOwnerIdsAfterUserDeletion({
+        loadOwnerIds,
+        primaryOwnerId,
+        targetId,
+        writeOwnerIds,
+      });
 
       persistCurrentUsers({ users, isLegacy: true });
       appendAuditLog(req, "users.delete", "users", {
@@ -608,20 +564,18 @@ export const registerUserManagementRoutes = ({
 
     users = rebuildUsersAfterDeletion(users.filter((user) => user.id !== targetId));
 
-    let nextOwnerIds = loadOwnerIds().map((id) => String(id));
-    if (nextOwnerIds.includes(targetId)) {
-      nextOwnerIds = nextOwnerIds.filter((id) => id !== targetId);
-      if (nextOwnerIds.length === 0 && primaryOwnerId) {
-        nextOwnerIds = [String(primaryOwnerId)];
-      }
-      writeOwnerIds(nextOwnerIds);
-    }
+    const nextOwnerIds = syncOwnerIdsAfterUserDeletion({
+      loadOwnerIds,
+      primaryOwnerId,
+      targetId,
+      writeOwnerIds,
+    });
 
     persistCurrentUsers({ users });
     appendAuditLog(req, "users.delete", "users", {
       id: targetId,
       wasOwner: targetContext.isOwner,
-      before: toUserApiResponse({
+      before: buildUserApiSnapshot({
         applyOwnerRole,
         ownerIds: nextOwnerIds,
         user: removed,

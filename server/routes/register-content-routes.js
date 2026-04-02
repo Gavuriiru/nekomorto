@@ -65,7 +65,6 @@ const COMMENT_DEPENDENCY_KEYS = [
   "normalizePosts",
   "normalizeProjects",
   "requireAuth",
-  "resolveEpisodeLookup",
   "resolveGravatarAvatarUrl",
   "writeComments",
   "writePosts",

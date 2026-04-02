@@ -20,6 +20,27 @@ export const measureTiming = async (timings, key, factory) => {
   return result;
 };
 
+export const buildMeasuredOgAsset = async ({
+  assetKey,
+  factory,
+  measureTiming: measure = measureTiming,
+  timingKey,
+  timings,
+} = {}) => ({
+  [assetKey]: await measure(timings, timingKey, factory),
+});
+
+export const createMeasuredOgAssetLoader =
+  ({ assetKey, loadAsset, timingKey } = {}) =>
+  async (context = {}) =>
+    buildMeasuredOgAsset({
+      assetKey,
+      factory: () => loadAsset?.(context),
+      measureTiming: context.measureTiming,
+      timingKey,
+      timings: context.timings,
+    });
+
 export const buildOgDeliveryHeaders = ({ cacheHit, timings, timingOrder = [] } = {}) => {
   const serverTiming = timingOrder
     .filter((key) => Number.isFinite(Number(timings?.[key])))

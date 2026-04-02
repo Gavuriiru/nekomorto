@@ -71,7 +71,6 @@ const PROJECT_DEPENDENCY_KEYS = [
   "normalizeProjectEpisodePages",
   "normalizeProjects",
   "readPublicCachedJson",
-  "resolveEpisodeLookup",
   "resolveMetaImageVariantUrl",
   "resolveProjectReaderConfig",
   "updateLexicalPollVotes",

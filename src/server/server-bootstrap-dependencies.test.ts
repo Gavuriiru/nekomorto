@@ -7,6 +7,8 @@ import {
 import { buildDirectRouteRegistrationDependencies } from "../../server/bootstrap/build-direct-route-registration-dependencies.js";
 import { buildDirectRouteRegistrationDependenciesFromRoot } from "../../server/bootstrap/build-direct-route-registration-dependencies-from-root.js";
 import { buildAdminExportRuntimeDependencies } from "../../server/bootstrap/build-admin-export-runtime-dependencies.js";
+import { createContentRuntimeBundle } from "../../server/bootstrap/create-content-runtime-bundle.js";
+import { createMediaSupportRuntimeBundle } from "../../server/bootstrap/create-media-support-runtime-bundle.js";
 import { buildOperationalMonitoringRuntimeDependencies } from "../../server/bootstrap/build-operational-monitoring-runtime-dependencies.js";
 import { buildProjectRuntimeDependencies } from "../../server/bootstrap/build-project-runtime-dependencies.js";
 import { buildPublicRuntimeDependencies } from "../../server/bootstrap/build-public-runtime-dependencies.js";
@@ -16,6 +18,8 @@ import {
   buildServerRouteDependencySource,
 } from "../../server/bootstrap/build-server-route-dependency-source.js";
 import { buildServerRouteLocalDependencies } from "../../server/bootstrap/build-server-route-local-dependencies.js";
+import { createSiteConfigRuntimeBundle } from "../../server/bootstrap/create-site-config-runtime-bundle.js";
+import { createSiteRenderingRuntimeBundle } from "../../server/bootstrap/create-site-rendering-runtime-bundle.js";
 import {
   SERVER_ROUTE_SOURCE_FRAGMENT_KEYS,
   buildServerRouteContextSource,
@@ -444,5 +448,21 @@ describe("server bootstrap dependency builders", () => {
     expect(dependencies.fsConstants).toEqual(createNamedValue("constants"));
     await expect(dependencies.fsAccess("/tmp/file", 0)).resolves.toBe("ok");
     expect(fs.promises.access).toHaveBeenCalledWith("/tmp/file", 0);
+  });
+
+  it("fails fast when a required content runtime bundle dependency is missing", () => {
+    expect(() => createContentRuntimeBundle({})).toThrow(/createSlug/);
+  });
+
+  it("fails fast when a required site config runtime bundle dependency is missing", () => {
+    expect(() => createSiteConfigRuntimeBundle({})).toThrow(/DEFAULT_PROJECT_TYPE_CATALOG/);
+  });
+
+  it("fails fast when a required media support runtime bundle dependency is missing", () => {
+    expect(() => createMediaSupportRuntimeBundle({})).toThrow(/PRIMARY_APP_ORIGIN/);
+  });
+
+  it("fails fast when a required site rendering runtime bundle dependency is missing", () => {
+    expect(() => createSiteRenderingRuntimeBundle({})).toThrow(/PRIMARY_APP_ORIGIN/);
   });
 });

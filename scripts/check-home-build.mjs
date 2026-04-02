@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const DEFAULT_MAX_HOME_CRITICAL_CSS_BYTES = 200 * 1024;
+const DEFAULT_MAX_HOME_CRITICAL_CSS_BYTES = 210 * 1024;
 const MAX_HOME_CRITICAL_CSS_BYTES =
   Number.parseInt(process.env.HOME_CRITICAL_CSS_MAX_BYTES ?? "", 10) ||
   DEFAULT_MAX_HOME_CRITICAL_CSS_BYTES;

@@ -10,6 +10,7 @@ import {
 } from "../../shared/institutional-og-seo.js";
 import {
   buildOgDeliveryHeaders,
+  createMeasuredOgAssetLoader,
   getCachedOgRender,
   renderOptimizedOgBuffer,
 } from "./og-delivery-shared.js";
@@ -38,15 +39,19 @@ const buildInstitutionalOgBaseModel = ({
   });
 
 const renderInstitutionalOgBuffer = async ({ baseModel, origin } = {}) => {
+  const loadInstitutionalBackgroundAsset = createMeasuredOgAssetLoader({
+    assetKey: "backgroundDataUrl",
+    timingKey: "background_load",
+    loadAsset: ({ baseModel: model }) =>
+      loadInstitutionalOgBackgroundDataUrl({
+        backgroundUrl: model?.backgroundUrl,
+        origin,
+      }),
+  });
+
   return renderOptimizedOgBuffer({
     baseModel,
-    loadAssets: ({ baseModel: model, timings, measureTiming }) =>
-      measureTiming(timings, "background_load", async () => ({
-        backgroundDataUrl: await loadInstitutionalOgBackgroundDataUrl({
-          backgroundUrl: model?.backgroundUrl,
-          origin,
-        }),
-      })),
+    loadAssets: loadInstitutionalBackgroundAsset,
     buildImageResponse: (model) => buildInstitutionalOgImageResponse(model),
   });
 };

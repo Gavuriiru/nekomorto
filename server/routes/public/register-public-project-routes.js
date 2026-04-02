@@ -1,3 +1,118 @@
+import { resolvePublishedEpisodeLookup } from "../../lib/project-episodes.js";
+
+const serializePublicProjectListItem = (project) => ({
+  id: project.id,
+  title: project.title,
+  titleOriginal: project.titleOriginal,
+  titleEnglish: project.titleEnglish,
+  synopsis: project.synopsis,
+  description: project.description,
+  type: project.type,
+  status: project.status,
+  year: project.year,
+  studio: project.studio,
+  animationStudios: project.animationStudios,
+  episodes: project.episodes,
+  tags: project.tags,
+  genres: project.genres,
+  cover: project.cover,
+  banner: project.banner,
+  season: project.season,
+  schedule: project.schedule,
+  rating: project.rating,
+  country: project.country,
+  source: project.source,
+  producers: project.producers,
+  score: project.score,
+  startDate: project.startDate,
+  endDate: project.endDate,
+  relations: project.relations,
+  staff: project.staff,
+  animeStaff: project.animeStaff,
+  trailerUrl: project.trailerUrl,
+  forceHero: project.forceHero,
+  heroImageUrl: project.heroImageUrl,
+  volumeEntries: project.volumeEntries,
+  volumeCovers: project.volumeCovers,
+  episodeDownloads: project.episodeDownloads,
+  views: project.views,
+  commentsCount: project.commentsCount,
+});
+
+const buildPublicProjectsPayload = ({
+  buildPublicMediaVariants,
+  limit,
+  page,
+  projects,
+  usePagination,
+} = {}) => {
+  const serializedProjects = projects.map(serializePublicProjectListItem);
+  const payload = !usePagination
+    ? { projects: serializedProjects }
+    : {
+        projects: serializedProjects.slice((page - 1) * limit, (page - 1) * limit + limit),
+        page,
+        limit,
+        total: serializedProjects.length,
+      };
+
+  return {
+    ...payload,
+    mediaVariants: buildPublicMediaVariants(payload.projects),
+  };
+};
+
+const serializePublicProjectDetail = (project, { resolveProjectReaderConfig, siteSettings } = {}) => {
+  const { discordRoleId: _discordRoleId, ...projectWithoutDiscordRoleId } = project;
+  return {
+    ...projectWithoutDiscordRoleId,
+    readerConfig: resolveProjectReaderConfig({
+      projectType: project?.type,
+      siteSettings,
+      projectReaderConfig: project?.readerConfig,
+    }),
+  };
+};
+
+const serializePublicProjectChapter = ({
+  chapter,
+  contentFormat,
+  deriveChapterSynopsis,
+  hasProjectEpisodePages,
+  normalizedPages,
+  pageCount,
+} = {}) => ({
+  number: chapter.number,
+  volume: chapter.volume,
+  title: chapter.title,
+  entryKind:
+    String(chapter.entryKind || "")
+      .trim()
+      .toLowerCase() === "extra"
+      ? "extra"
+      : "main",
+  entrySubtype: String(chapter.entrySubtype || "").trim(),
+  readingOrder: Number.isFinite(Number(chapter.readingOrder))
+    ? Number(chapter.readingOrder)
+    : undefined,
+  displayLabel: String(chapter.displayLabel || "").trim(),
+  synopsis: deriveChapterSynopsis(chapter),
+  releaseDate: chapter.releaseDate || "",
+  updatedAt: chapter.chapterUpdatedAt || chapter.updatedAt || "",
+  coverImageUrl: chapter.coverImageUrl || normalizedPages[0]?.imageUrl || "",
+  coverImageAlt: chapter.coverImageAlt || "",
+  content: contentFormat === "lexical" ? chapter.content || "" : "",
+  contentFormat,
+  pages: normalizedPages,
+  pageCount,
+  hasPages: hasProjectEpisodePages({
+    ...chapter,
+    contentFormat,
+    pages: normalizedPages,
+    pageCount,
+  }),
+});
+
 export const registerPublicProjectRoutes = ({
   PRIMARY_APP_ORIGIN,
   PUBLIC_READ_CACHE_TAGS,
@@ -21,7 +136,6 @@ export const registerPublicProjectRoutes = ({
   normalizeProjectEpisodePages,
   normalizeProjects,
   readPublicCachedJson,
-  resolveEpisodeLookup,
   resolveMetaImageVariantUrl,
   resolveProjectReaderConfig,
   updateLexicalPollVotes,
@@ -40,56 +154,13 @@ export const registerPublicProjectRoutes = ({
     const usePagination = Number.isFinite(limitRaw) || Number.isFinite(pageRaw);
     const limit = usePagination ? Math.min(Math.max(limitRaw || 20, 1), 200) : null;
     const page = usePagination ? Math.max(pageRaw || 1, 1) : null;
-    const projects = getPublicVisibleProjects().map((project) => ({
-      id: project.id,
-      title: project.title,
-      titleOriginal: project.titleOriginal,
-      titleEnglish: project.titleEnglish,
-      synopsis: project.synopsis,
-      description: project.description,
-      type: project.type,
-      status: project.status,
-      year: project.year,
-      studio: project.studio,
-      animationStudios: project.animationStudios,
-      episodes: project.episodes,
-      tags: project.tags,
-      genres: project.genres,
-      cover: project.cover,
-      banner: project.banner,
-      season: project.season,
-      schedule: project.schedule,
-      rating: project.rating,
-      country: project.country,
-      source: project.source,
-      producers: project.producers,
-      score: project.score,
-      startDate: project.startDate,
-      endDate: project.endDate,
-      relations: project.relations,
-      staff: project.staff,
-      animeStaff: project.animeStaff,
-      trailerUrl: project.trailerUrl,
-      forceHero: project.forceHero,
-      heroImageUrl: project.heroImageUrl,
-      volumeEntries: project.volumeEntries,
-      volumeCovers: project.volumeCovers,
-      episodeDownloads: project.episodeDownloads,
-      views: project.views,
-      commentsCount: project.commentsCount,
-    }));
-    let payload = null;
-    if (!usePagination) {
-      payload = { projects };
-    } else {
-      const start = (page - 1) * limit;
-      const paged = projects.slice(start, start + limit);
-      payload = { projects: paged, page, limit, total: projects.length };
-    }
-    payload = {
-      ...payload,
-      mediaVariants: buildPublicMediaVariants(payload.projects),
-    };
+    const payload = buildPublicProjectsPayload({
+      buildPublicMediaVariants,
+      limit,
+      page,
+      projects: getPublicVisibleProjects(),
+      usePagination,
+    });
     writePublicCachedJson(req, payload, {
       ttlMs: PUBLIC_READ_CACHE_TTL_MS,
       tags: [PUBLIC_READ_CACHE_TAGS.PROJECTS],
@@ -107,15 +178,10 @@ export const registerPublicProjectRoutes = ({
       return res.status(404).json({ error: "not_found" });
     }
     const settings = loadSiteSettings();
-    const { discordRoleId: _discordRoleId, ...projectWithoutDiscordRoleId } = project;
-    const projectPayload = {
-      ...projectWithoutDiscordRoleId,
-      readerConfig: resolveProjectReaderConfig({
-        projectType: project?.type,
-        siteSettings: settings,
-        projectReaderConfig: project?.readerConfig,
-      }),
-    };
+    const projectPayload = serializePublicProjectDetail(project, {
+      resolveProjectReaderConfig,
+      siteSettings: settings,
+    });
     const translations = loadTagTranslations();
     return res.json({
       project: projectPayload,
@@ -167,12 +233,10 @@ export const registerPublicProjectRoutes = ({
     if (!project) {
       return res.status(404).json({ error: "not_found" });
     }
-    const chapterLookup = resolveEpisodeLookup(project, chapterNumber, volume, {
-      requirePublished: true,
-    });
+    const chapterLookup = resolvePublishedEpisodeLookup(project, chapterNumber, volume);
     if (!chapterLookup.ok) {
-      return res.status(chapterLookup.code === "volume_required" ? 400 : 404).json({
-        error: chapterLookup.code,
+      return res.status(chapterLookup.statusCode).json({
+        error: chapterLookup.error,
       });
     }
     const chapter = chapterLookup.episode;
@@ -188,37 +252,14 @@ export const registerPublicProjectRoutes = ({
     });
     const settings = loadSiteSettings();
     return res.json({
-      chapter: {
-        number: chapter.number,
-        volume: chapter.volume,
-        title: chapter.title,
-        entryKind:
-          String(chapter.entryKind || "")
-            .trim()
-            .toLowerCase() === "extra"
-            ? "extra"
-            : "main",
-        entrySubtype: String(chapter.entrySubtype || "").trim(),
-        readingOrder: Number.isFinite(Number(chapter.readingOrder))
-          ? Number(chapter.readingOrder)
-          : undefined,
-        displayLabel: String(chapter.displayLabel || "").trim(),
-        synopsis: deriveChapterSynopsis(chapter),
-        releaseDate: chapter.releaseDate || "",
-        updatedAt: chapter.chapterUpdatedAt || chapter.updatedAt || "",
-        coverImageUrl: chapter.coverImageUrl || normalizedPages[0]?.imageUrl || "",
-        coverImageAlt: chapter.coverImageAlt || "",
-        content: contentFormat === "lexical" ? chapter.content || "" : "",
+      chapter: serializePublicProjectChapter({
+        chapter,
         contentFormat,
-        pages: normalizedPages,
+        deriveChapterSynopsis,
+        hasProjectEpisodePages,
+        normalizedPages,
         pageCount,
-        hasPages: hasProjectEpisodePages({
-          ...chapter,
-          contentFormat,
-          pages: normalizedPages,
-          pageCount,
-        }),
-      },
+      }),
       readerConfig: resolveProjectReaderConfig({
         projectType: project?.type,
         siteSettings: settings,
@@ -248,12 +289,10 @@ export const registerPublicProjectRoutes = ({
       return res.status(404).json({ error: "not_found" });
     }
     const project = projects[projectIndex];
-    const chapterLookup = resolveEpisodeLookup(project, chapterNumber, volume, {
-      requirePublished: true,
-    });
+    const chapterLookup = resolvePublishedEpisodeLookup(project, chapterNumber, volume);
     if (!chapterLookup.ok) {
-      return res.status(chapterLookup.code === "volume_required" ? 400 : 404).json({
-        error: chapterLookup.code,
+      return res.status(chapterLookup.statusCode).json({
+        error: chapterLookup.error,
       });
     }
     const chapterIndex = chapterLookup.index;

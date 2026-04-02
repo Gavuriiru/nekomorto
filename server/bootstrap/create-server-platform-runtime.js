@@ -1,0 +1,67 @@
+import { createServer as createHttpServer } from "node:http";
+import path from "path";
+
+import { createViteDevServer, resolveClientIndexPath } from "../lib/frontend-runtime.js";
+import { createAbsoluteUrlResolver, createIndexHtmlLoader } from "../lib/meta-html.js";
+import {
+  isAllowedOrigin as isAllowedOriginByConfig,
+  resolveDiscordRedirectUri as resolveDiscordRedirectUriByConfig,
+} from "../lib/origin-config.js";
+
+export const getRequestIp = (req) => req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "";
+
+export const createServerPlatformRuntime = async ({
+  app,
+  fs,
+  repoRootDir = process.cwd(),
+  configuredDiscordRedirectUri = null,
+  allowedOrigins = [],
+  primaryAppOrigin = "",
+  isProduction = false,
+} = {}) => {
+  const clientRootDir = repoRootDir;
+  const clientDistDir = path.join(clientRootDir, "dist");
+  const clientIndexPath = resolveClientIndexPath({
+    clientRootDir,
+    clientDistDir,
+    isProduction,
+  });
+  const httpServer = createHttpServer(app);
+  const viteDevServer = await createViteDevServer({ isProduction, httpServer });
+  const getIndexHtml = createIndexHtmlLoader({
+    fs,
+    clientIndexPath,
+    isProduction,
+  });
+  const toAbsoluteUrl = createAbsoluteUrlResolver({
+    origin: primaryAppOrigin,
+  });
+  const isAllowedOrigin = (origin) =>
+    isAllowedOriginByConfig({
+      origin,
+      allowedOrigins,
+      isProduction,
+    });
+  const resolveDiscordRedirectUri = (req) =>
+    resolveDiscordRedirectUriByConfig({
+      req,
+      configuredDiscordRedirectUri,
+      primaryAppOrigin,
+      isAllowedOriginFn: isAllowedOrigin,
+    });
+
+  return {
+    clientDistDir,
+    clientIndexPath,
+    clientRootDir,
+    getIndexHtml,
+    getRequestIp,
+    httpServer,
+    isAllowedOrigin,
+    resolveDiscordRedirectUri,
+    toAbsoluteUrl,
+    viteDevServer,
+  };
+};
+
+export default createServerPlatformRuntime;

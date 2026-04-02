@@ -162,3 +162,39 @@ export const resolveEpisodeLookup = (
     key: buildEpisodeKey(matches[0].episode?.number, matches[0].episode?.volume),
   };
 };
+
+export const resolvePublishedEpisodeLookup = (
+  project,
+  episodeNumber,
+  volume,
+  {
+    notFoundError = "not_found",
+    volumeRequiredError = "volume_required",
+  } = {},
+) => {
+  const lookup = resolveEpisodeLookup(project, episodeNumber, volume, {
+    requirePublished: true,
+  });
+
+  if (lookup.ok) {
+    return {
+      ...lookup,
+      error: null,
+      statusCode: 200,
+    };
+  }
+
+  if (lookup.code === "volume_required") {
+    return {
+      ...lookup,
+      error: volumeRequiredError,
+      statusCode: 400,
+    };
+  }
+
+  return {
+    ...lookup,
+    error: notFoundError,
+    statusCode: 404,
+  };
+};

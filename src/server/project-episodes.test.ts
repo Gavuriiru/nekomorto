@@ -5,6 +5,7 @@ import {
   findDuplicateEpisodeKey,
   findPublishedImageEpisodeWithoutPages,
   resolveEpisodeLookup,
+  resolvePublishedEpisodeLookup,
 } from "../../server/lib/project-episodes.js";
 
 describe("project episode helpers", () => {
@@ -46,6 +47,46 @@ describe("project episode helpers", () => {
       episode: expect.objectContaining({
         title: "Cap 5 v2",
       }),
+    });
+  });
+
+  it("builds standardized published lookup results for route callers", () => {
+    const project = {
+      episodeDownloads: [
+        { number: 5, volume: 1, title: "Cap 5 v1", publicationStatus: "published" },
+        { number: 5, volume: 2, title: "Cap 5 v2", publicationStatus: "published" },
+        { number: 6, volume: 1, title: "Cap 6 v1", publicationStatus: "draft" },
+      ],
+    };
+
+    expect(
+      resolvePublishedEpisodeLookup(project, 5, null, {
+        notFoundError: "target_not_found",
+      }),
+    ).toMatchObject({
+      ok: false,
+      code: "volume_required",
+      error: "volume_required",
+      statusCode: 400,
+    });
+
+    expect(
+      resolvePublishedEpisodeLookup(project, 6, 1, {
+        notFoundError: "target_not_found",
+      }),
+    ).toMatchObject({
+      ok: false,
+      code: "not_found",
+      error: "target_not_found",
+      statusCode: 404,
+    });
+
+    expect(resolvePublishedEpisodeLookup(project, 5, 2)).toMatchObject({
+      ok: true,
+      code: "ok",
+      error: null,
+      key: "5:2",
+      statusCode: 200,
     });
   });
 
