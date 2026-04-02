@@ -1,7 +1,7 @@
 import type { ProjectEpisode, ProjectVolumeCover, ProjectVolumeEntry } from "@/data/projects";
 import type { ProjectProgressKind } from "@/lib/project-progress";
 import { syncProjectProgress } from "@/lib/project-progress";
-import { buildEpisodeKey } from "@/lib/project-episode-key";
+import { buildEpisodeKey, resolveNextMainEpisodeNumber } from "@/lib/project-episode-key";
 import { buildVolumeCoverKey } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import { isLightNovelType, isMangaType } from "@/lib/project-utils";
@@ -36,6 +36,11 @@ export type ChapterStructureGroup = {
 type ProjectSnapshotWithVolumes = {
   volumeEntries?: ProjectVolumeEntry[] | null;
   volumeCovers?: ProjectVolumeCover[] | null;
+};
+
+type ChapterOrderProjectSnapshot = ProjectSnapshotWithVolumes & {
+  episodeDownloads?: ProjectEpisode[];
+  type?: string;
 };
 
 export const chapterHasContent = (episode: ProjectEpisode | null | undefined) =>
@@ -206,6 +211,68 @@ export const resolveImportedChapterCount = (
 export const supportsStructureChapterReordering = (projectType?: string | null) =>
   isLightNovelType(projectType) || isMangaType(projectType);
 
+export const EMPTY_CHAPTER_DRAFT: ProjectEpisode = {
+  number: 1,
+  title: "",
+  synopsis: "",
+  releaseDate: "",
+  duration: "",
+  sourceType: "TV",
+  sources: [],
+  completedStages: [],
+  content: "",
+  contentFormat: "lexical",
+  pages: [],
+  pageCount: 0,
+  hasPages: false,
+  publicationStatus: "draft",
+  coverImageUrl: "",
+  coverImageAlt: "",
+};
+
+export const IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE =
+  "Capítulos em imagem precisam ter ao menos uma página para serem publicados.";
+export const VOLUME_REQUIRED_IDENTITY_MESSAGE =
+  "Informe o volume para salvar um capítulo com número ambíguo.";
+export const VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION =
+  "Esse salvamento foi bloqueado porque a URL do editor ficaria ambígua. Informe o volume antes de salvar este capítulo.";
+
+export const buildNewChapterDraft = (
+  episodes: ProjectEpisode[],
+  options: { volume?: number; projectType?: string | null } = {},
+) =>
+  normalizeChapterForEditor({
+    ...EMPTY_CHAPTER_DRAFT,
+    number: resolveNextMainEpisodeNumber(
+      options.volume === undefined
+        ? episodes.map((episode) => ({
+            ...episode,
+            volume: undefined,
+          }))
+        : episodes,
+      { volume: options.volume },
+    ),
+    volume: options.volume,
+    title: "",
+    synopsis: "",
+    entryKind: "main",
+    entrySubtype: "chapter",
+    releaseDate: "",
+    duration: "",
+    coverImageUrl: "",
+    coverImageAlt: "",
+    sourceType: "TV",
+    sources: [],
+    progressStage: "aguardando-raw",
+    completedStages: [],
+    content: "",
+    contentFormat: isMangaType(options.projectType || "") ? "images" : "lexical",
+    pages: [],
+    pageCount: 0,
+    hasPages: false,
+    publicationStatus: "draft",
+  });
+
 export const compareChapterStructureGroupKeys = (leftKey: string, rightKey: string) => {
   if (leftKey === rightKey) {
     return 0;
@@ -227,7 +294,7 @@ export const normalizeChapterState = (
   const parsedNumber = Number(chapter.number);
   const parsedReadingOrder = Number(chapter.readingOrder);
   const parsedSizeBytes = Number(chapter.sizeBytes);
-  const entryKind =
+  const entryKind: NonNullable<ProjectEpisode["entryKind"]> =
     String(chapter.entryKind || "")
       .trim()
       .toLowerCase() === "extra"
@@ -238,7 +305,7 @@ export const normalizeChapterState = (
     chapter.contentFormat,
     normalizedPages.length > 0 ? "images" : "lexical",
   );
-  const normalizedChapter = {
+  const normalizedChapter: ProjectEpisode = {
     ...chapter,
     number: normalizePositiveInteger(parsedNumber, 1) ?? 1,
     volume: normalizeNonNegativeInteger(chapter.volume),
@@ -466,10 +533,13 @@ export const reorderChaptersWithinStructureGroup = (
   return renumberChapterReadingOrderSequence(reorderedEpisodes);
 };
 
-export const normalizeProjectSnapshotChapterOrderForPersist = (
-  previousProject: Pick<ProjectSnapshotWithVolumes & { episodeDownloads?: ProjectEpisode[]; type?: string }, "episodeDownloads" | "type"> | null | undefined,
-  nextProject: { episodeDownloads?: ProjectEpisode[]; type?: string } & ProjectSnapshotWithVolumes,
-) => {
+export const normalizeProjectSnapshotChapterOrderForPersist = <
+  TPrevious extends ChapterOrderProjectSnapshot | null | undefined,
+  TNext extends ChapterOrderProjectSnapshot,
+>(
+  previousProject: TPrevious,
+  nextProject: TNext,
+): TNext => {
   if (!supportsStructureChapterReordering(nextProject.type || previousProject?.type || "")) {
     return nextProject;
   }

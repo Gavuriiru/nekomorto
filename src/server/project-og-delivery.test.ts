@@ -81,7 +81,7 @@ describe("project og delivery", () => {
         settings,
       }: {
         project?: Record<string, unknown>;
-        settings?: Record<string, unknown>;
+        settings?: { theme?: { accent?: string } };
       }) => ({
         eyebrow: `${String(project?.type || "")} • ${String(project?.status || "")}`,
         title: String(project?.title || "Projeto"),

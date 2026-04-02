@@ -81,6 +81,21 @@ export const buildProjectStyleBaseModel = ({
     ...resolveProjectStyleTranslationArgs(translations),
   }) || null;
 
+export const createProjectStyleBaseModelBuilder = (buildCardModel) => (options = {}) =>
+  buildProjectStyleBaseModel({
+    buildCardModel,
+    ...options,
+  });
+
+export const buildProjectStyleRevisionFromModel = ({
+  buildBaseModel,
+  buildRevision,
+  ...options
+} = {}) => {
+  const baseModel = buildBaseModel?.(options);
+  return buildRevision?.(baseModel, options) || null;
+};
+
 export const renderOptimizedOgBuffer = async ({
   baseModel,
   loadAssets,
@@ -147,6 +162,33 @@ export const getProjectStyleOgCachedRender = async ({
       }),
   });
 
+export const prewarmProjectStyleOgCache = async ({
+  items,
+  renderItem,
+} = {}) => {
+  const safeItems = Array.isArray(items) ? items.filter(Boolean) : [];
+  let warmed = 0;
+  let cacheHits = 0;
+
+  for (const item of safeItems) {
+    const rendered = await renderItem?.(item);
+    if (!rendered) {
+      continue;
+    }
+    if (rendered.cacheHit) {
+      cacheHits += 1;
+    } else {
+      warmed += 1;
+    }
+  }
+
+  return {
+    total: safeItems.length,
+    warmed,
+    cacheHits,
+  };
+};
+
 export const getCachedOgRender = async ({
   kind,
   id,
@@ -162,8 +204,7 @@ export const getCachedOgRender = async ({
     return null;
   }
 
-  const cacheId =
-    typeof resolveId === "function" ? resolveId(model) : id;
+  const cacheId = typeof resolveId === "function" ? resolveId(model) : id;
   const cacheKey = buildOgRenderCacheKey({
     kind,
     id: String(cacheId || "").trim(),

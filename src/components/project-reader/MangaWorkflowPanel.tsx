@@ -171,6 +171,9 @@ const createStagePage = (file: File, relativePath: string): StagePage => ({
   name: file.name,
 });
 
+const syncStageChapterProgress = (chapter: StageChapter): StageChapter =>
+  syncProjectProgress(chapter, "manga");
+
 const isIgnoredImportPath = (relativePath: string) => {
   const normalized = normalizeRelativeImportPath(relativePath);
   if (!normalized) {
@@ -256,7 +259,7 @@ const readArchiveEntries = async (archiveFile: File): Promise<ImportEntry[]> => 
     .map(([relativePath, content]) => {
       const normalizedPath = normalizeRelativeImportPath(relativePath);
       const name = normalizedPath.split("/").pop() || "pagina";
-      const file = new File([content], name, {
+      const file = new File([Uint8Array.from(content)], name, {
         type:
           getFileExtension(name) === ".png"
             ? "image/png"
@@ -342,7 +345,7 @@ const buildStageChaptersFromEntries = ({
   targetVolume: number | null;
   targetChapter: number | null;
   defaultStatus: "draft" | "published";
-}) => {
+}): StageChapter[] => {
   const layout = detectImportLayout(entries);
   const groups = new Map<
     string,
@@ -411,8 +414,7 @@ const buildStageChaptersFromEntries = ({
         .slice()
         .sort((left, right) => compareNatural(left.relativePath, right.relativePath))
         .map((entry) => createStagePage(entry.file, entry.relativePath));
-      return syncProjectProgress(
-        {
+      return syncStageChapterProgress({
           id: createStageId(),
           number: chapterNumber,
           volume,
@@ -437,13 +439,14 @@ const buildStageChaptersFromEntries = ({
           operation: existing ? "update" : "create",
           warnings: [],
           leaveGuardPristine: false,
-        } satisfies StageChapter,
-        "manga",
-      );
+        } satisfies StageChapter);
     });
 };
 
-export const reconcileStageChapters = (project: ProjectRecord, chapters: StageChapter[]) => {
+export const reconcileStageChapters = (
+  project: ProjectRecord,
+  chapters: StageChapter[],
+): StageChapter[] => {
   const existingByKey = buildExistingChapterLookup(project);
   const seenKeys = new Set<string>();
   return chapters.map((chapter) => {
@@ -458,8 +461,7 @@ export const reconcileStageChapters = (project: ProjectRecord, chapters: StageCh
       warnings.push("Já existe outro capítulo preparado com esse número + volume.");
     }
     seenKeys.add(key);
-    return syncProjectProgress(
-      {
+    return syncStageChapterProgress({
         ...chapter,
         coverPageId: chapter.pages.some((page) => page.id === chapter.coverPageId)
           ? chapter.coverPageId
@@ -467,9 +469,7 @@ export const reconcileStageChapters = (project: ProjectRecord, chapters: StageCh
         operation: existing ? "update" : "create",
         warnings,
         leaveGuardPristine: chapter.leaveGuardPristine === true,
-      },
-      "manga",
-    );
+      });
   });
 };
 
@@ -678,7 +678,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
       warnings: [],
       leaveGuardPristine: true,
     };
-    setStagedChapters((current) => [...current, syncProjectProgress(nextChapter, "manga")]);
+    setStagedChapters((current) => [...current, syncStageChapterProgress(nextChapter)]);
     setSelectedStageChapterId(nextChapter.id);
   }, [
     defaultImportStatus,
@@ -722,13 +722,10 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
         } else {
           completedSet.add(stageId);
         }
-        return syncProjectProgress(
-          {
+        return syncStageChapterProgress({
             ...markStageChapterAsEdited(chapter),
             completedStages: Array.from(completedSet),
-          },
-          "manga",
-        );
+          });
       });
     },
     [selectedStageChapter, updateStageChapter],
@@ -1740,6 +1737,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                             displayName={pageDisplayName}
                             index={index}
                             isCover={isCover}
+                            isSpread={false}
                             isDragged={isDragged}
                             isPreviewTarget={isDropTarget}
                             disabled={isImporting}

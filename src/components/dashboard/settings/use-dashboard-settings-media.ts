@@ -101,23 +101,31 @@ export const useDashboardSettingsMedia = ({
     return readLogoField(settings, libraryTarget);
   }, [libraryTarget, settings]);
 
-  const uploadDownloadIcon = useCallback(
-    async (file: File, index: number) => {
-      setUploadingKey(`download-icon-${index}`);
+  const uploadSvgIconAsset = useCallback(
+    async ({
+      file,
+      folder,
+      index,
+      resolveSlot,
+      updateUrl,
+      uploadingStateKey,
+    }: {
+      file: File;
+      folder: "downloads" | "socials";
+      index: number;
+      resolveSlot: (index: number) => string;
+      updateUrl: (nextUrl: string, index: number) => void;
+      uploadingStateKey: string;
+    }) => {
+      setUploadingKey(uploadingStateKey);
       try {
-        const source = settings.downloads.sources[index];
-        const slot = source?.id ? String(source.id) : `download-${index}`;
         const nextUrl = await uploadDashboardImageAsset({
           apiBase,
           file,
-          folder: "downloads",
-          slot,
+          folder,
+          slot: resolveSlot(index),
         });
-        setSettings((prev) => {
-          const next = [...prev.downloads.sources];
-          next[index] = { ...next[index], icon: nextUrl };
-          return { ...prev, downloads: { ...prev.downloads, sources: next } };
-        });
+        updateUrl(nextUrl, index);
         bumpIconCacheVersion();
         toast({ title: "Ícone enviado", description: "SVG atualizado com sucesso." });
       } catch {
@@ -130,39 +138,53 @@ export const useDashboardSettingsMedia = ({
         setUploadingKey(null);
       }
     },
-    [apiBase, bumpIconCacheVersion, setSettings, settings.downloads.sources],
+    [apiBase, bumpIconCacheVersion],
+  );
+
+  const uploadDownloadIcon = useCallback(
+    async (file: File, index: number) =>
+      uploadSvgIconAsset({
+        file,
+        folder: "downloads",
+        index,
+        resolveSlot: (targetIndex) => {
+          const source = settings.downloads.sources[targetIndex];
+          return source?.id ? String(source.id) : `download-${targetIndex}`;
+        },
+        updateUrl: (nextUrl, targetIndex) => {
+          setSettings((prev) => {
+            const next = [...prev.downloads.sources];
+            next[targetIndex] = { ...next[targetIndex], icon: nextUrl };
+            return { ...prev, downloads: { ...prev.downloads, sources: next } };
+          });
+        },
+        uploadingStateKey: `download-icon-${index}`,
+      }),
+    [setSettings, settings.downloads.sources, uploadSvgIconAsset],
   );
 
   const uploadLinkTypeIcon = useCallback(
-    async (file: File, index: number) => {
-      setUploadingKey(`linktype-icon-${index}`);
-      try {
-        const link = linkTypes[index];
-        const slot = link?.id ? String(link.id) : normalizeLinkTypeId(link?.label || `rede-${index}`);
-        const nextUrl = await uploadDashboardImageAsset({
-          apiBase,
-          file,
-          folder: "socials",
-          slot,
-        });
-        setLinkTypes((prev) => {
-          const next = [...prev];
-          next[index] = { ...next[index], icon: nextUrl };
-          return next;
-        });
-        bumpIconCacheVersion();
-        toast({ title: "Ícone enviado", description: "SVG atualizado com sucesso." });
-      } catch {
-        toast({
-          title: "Falha no upload",
-          description: "Não foi possível enviar o ícone.",
-          variant: "destructive",
-        });
-      } finally {
-        setUploadingKey(null);
-      }
-    },
-    [apiBase, bumpIconCacheVersion, linkTypes, setLinkTypes],
+    async (file: File, index: number) =>
+      uploadSvgIconAsset({
+        file,
+        folder: "socials",
+        index,
+        resolveSlot: (targetIndex) => {
+          const link = linkTypes[targetIndex];
+          return link?.id
+            ? String(link.id)
+            : normalizeLinkTypeId(link?.label || `rede-${targetIndex}`);
+        },
+        updateUrl: (nextUrl, targetIndex) => {
+          setLinkTypes((prev) => {
+            const next = [...prev];
+            next[targetIndex] = { ...next[targetIndex], icon: nextUrl };
+            return next;
+          });
+        },
+        uploadingStateKey: `linktype-icon-${index}`,
+      }),
+    [linkTypes, setLinkTypes, uploadSvgIconAsset],
   );
 
   return {

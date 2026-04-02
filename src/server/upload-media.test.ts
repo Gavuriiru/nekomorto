@@ -25,6 +25,13 @@ const PROJECT_AND_POST_UPLOAD_VARIANT_PRESET_KEYS = UPLOAD_VARIANT_PRESET_KEYS.f
     PROJECT_UPLOAD_VARIANT_PRESET_KEYS.includes(presetKey) ||
     POST_UPLOAD_VARIANT_PRESET_KEYS.includes(presetKey),
 );
+type TestUploadVariant = {
+  formats?: {
+    avif?: { size?: number; url?: string };
+    webp?: { size?: number; url?: string };
+    fallback?: { size?: number; url?: string };
+  };
+};
 
 const createTempUploadsDir = () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nekomorto-upload-media-"));
@@ -174,14 +181,15 @@ describe("upload-media", () => {
     );
     expect(files.every((file) => file.endsWith(".avif"))).toBe(true);
     expect(generated.variantBytes).toBeGreaterThan(0);
+    const generatedVariants = Object.values(generated.variants) as TestUploadVariant[];
     expect(generated.variantBytes).toBe(
-      Object.values(generated.variants).reduce((sum, variant) => {
+      generatedVariants.reduce((sum, variant) => {
         const size = Number(variant?.formats?.avif?.size || 0);
         return sum + size;
       }, 0),
     );
 
-    for (const preset of Object.values(generated.variants)) {
+    for (const preset of generatedVariants) {
       expect(preset?.formats?.avif?.url || "").toContain(".avif");
       expect(preset?.formats?.webp).toBeUndefined();
       expect(preset?.formats?.fallback).toBeUndefined();

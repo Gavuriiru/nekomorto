@@ -213,13 +213,13 @@ export class EpubImageNode extends DecoratorNode<JSX.Element> {
     const style = styleDeclarationToReactStyle(this.__editorialStyle);
     const isBlock = this.isInline() === false;
     if (this.__align === "left") {
-      style.marginLeft = 0;
+      style.marginLeft = "0";
       style.marginRight = "auto";
       style.display = "block";
     }
     if (this.__align === "right") {
       style.marginLeft = "auto";
-      style.marginRight = 0;
+      style.marginRight = "0";
       style.display = "block";
     }
     if (this.__align === "center") {

@@ -74,6 +74,16 @@ type DashboardOverviewMetrics = {
   totalPostViewsLast7: number;
 };
 
+type DashboardOverview = {
+  metrics: DashboardOverviewMetrics;
+  analyticsSeries7d: Array<{ date: string; value: number }>;
+  rankedProjects: DashboardRankedProject[];
+  recentPosts: DashboardPost[];
+  recentComments: DashboardComment[];
+  pendingCommentsCount: number;
+  quickProjects: DashboardQuickProject[];
+};
+
 type DashboardHomeRole = "editor" | "moderador" | "admin";
 type DashboardWidgetId =
   | "metrics_overview"
@@ -156,7 +166,7 @@ const normalizeDashboardWidgets = (value: unknown): DashboardWidgetId[] => {
   return Array.from(dedupe);
 };
 
-const EMPTY_DASHBOARD_OVERVIEW = Object.freeze({
+const EMPTY_DASHBOARD_OVERVIEW: Readonly<DashboardOverview> = Object.freeze({
   metrics: {
     totalProjects: 0,
     totalMedia: 0,
@@ -174,7 +184,7 @@ const EMPTY_DASHBOARD_OVERVIEW = Object.freeze({
   quickProjects: [] as DashboardQuickProject[],
 });
 
-const normalizeDashboardOverview = (value: unknown) => {
+const normalizeDashboardOverview = (value: unknown): DashboardOverview => {
   const input = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
   const metricsInput =
     input.metrics && typeof input.metrics === "object"
@@ -389,7 +399,7 @@ const Dashboard = () => {
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [customDraftWidgets, setCustomDraftWidgets] = useState<DashboardWidgetId[]>([]);
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
-  const [overview, setOverview] = useState(() => EMPTY_DASHBOARD_OVERVIEW);
+  const [overview, setOverview] = useState<DashboardOverview>(EMPTY_DASHBOARD_OVERVIEW);
   const [isLoadingOverview, setIsLoadingOverview] = useState(true);
   const [hasOverviewError, setHasOverviewError] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState(false);

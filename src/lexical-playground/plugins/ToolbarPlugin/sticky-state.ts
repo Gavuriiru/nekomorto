@@ -27,7 +27,7 @@ export const getStickyTopPx = (toolbar: HTMLElement): number => {
 };
 
 export const getScrollRootTop = (scrollRoot: HTMLElement | Window): number =>
-  scrollRoot === window ? 0 : scrollRoot.getBoundingClientRect().top;
+  scrollRoot instanceof HTMLElement ? scrollRoot.getBoundingClientRect().top : 0;
 
 export const isToolbarStickyStuck = ({
   toolbarTop,

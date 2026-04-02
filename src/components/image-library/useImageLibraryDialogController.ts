@@ -5,7 +5,7 @@ import type { ImageLibraryDialogsProps } from "@/components/image-library/ImageL
 import type { ImageLibraryUploadPanelProps } from "@/components/image-library/ImageLibraryUploadPanel";
 import { isAvatarSlotSelection } from "@/components/image-library/avatar-selection";
 import {
-  parseSelectionSignature,
+  buildPersistentUploadIncludeUrlsState,
   toSelectionSignature,
 } from "@/components/image-library/selection";
 import { dedupeUrlsByComparableKey } from "@/components/image-library/utils";
@@ -71,38 +71,21 @@ export const useImageLibraryDialogController = ({
   >({});
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
   const [pinnedIncludeUrls, setPinnedIncludeUrls] = useState<string[]>([]);
-  const currentSelectionUrlsSignature = useMemo(
-    () => toSelectionSignature(Array.isArray(currentSelectionUrls) ? currentSelectionUrls : []),
-    [currentSelectionUrls],
-  );
-  const stableCurrentSelectionUrls = useMemo(
-    () => parseSelectionSignature(currentSelectionUrlsSignature),
-    [currentSelectionUrlsSignature],
-  );
-  const currentSelectionUrlSignature = useMemo(
-    () => toSelectionSignature(currentSelectionUrl ? [currentSelectionUrl] : []),
-    [currentSelectionUrl],
-  );
-  const stableCurrentSelectionUrl = useMemo(
-    () => parseSelectionSignature(currentSelectionUrlSignature)[0] || "",
-    [currentSelectionUrlSignature],
-  );
-  const pinnedIncludeUrlsSignature = useMemo(
-    () => toSelectionSignature(pinnedIncludeUrls),
-    [pinnedIncludeUrls],
-  );
-  const stablePinnedIncludeUrls = useMemo(
-    () => parseSelectionSignature(pinnedIncludeUrlsSignature),
-    [pinnedIncludeUrlsSignature],
-  );
-  const persistentIncludeUrls = useMemo(
+  const {
+    currentSelectionUrl: stableCurrentSelectionUrl,
+    currentSelectionUrlSignature: stableCurrentSelectionUrlSignature,
+    currentSelectionUrls: stableCurrentSelectionUrls,
+    currentSelectionUrlsSignature: stableCurrentSelectionUrlsSignature,
+    persistentIncludeUrls,
+    pinnedIncludeUrlsSignature,
+  } = useMemo(
     () =>
-      dedupeUrlsByComparableKey([
-        ...stableCurrentSelectionUrls,
-        ...(stableCurrentSelectionUrl ? [stableCurrentSelectionUrl] : []),
-        ...stablePinnedIncludeUrls,
-      ]),
-    [stableCurrentSelectionUrl, stableCurrentSelectionUrls, stablePinnedIncludeUrls],
+      buildPersistentUploadIncludeUrlsState({
+        currentSelectionUrl,
+        currentSelectionUrls,
+        pinnedIncludeUrls,
+      }),
+    [currentSelectionUrl, currentSelectionUrls, pinnedIncludeUrls],
   );
   const {
     allowedProjectImageIdSet,

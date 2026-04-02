@@ -48,7 +48,7 @@ const createDeferredResponse = () => {
     },
   };
 };
-const classTokens = (element: HTMLElement) =>
+const classTokens = (element: Element | null) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
 describe("DashboardSecurity semantic badges", () => {
@@ -174,11 +174,11 @@ describe("DashboardSecurity semantic badges", () => {
     expect(classTokens(revokeButton)).toContain("md:order-3");
     expect(classTokens(revokeButton)).toContain("md:w-auto");
     expect(classTokens(revokeButton)).toContain("md:px-3");
-    expect(classTokens(revokeIcon as HTMLElement)).not.toContain("md:hidden");
+    expect(classTokens(revokeIcon)).not.toContain("md:hidden");
 
-    expect(classTokens(badgesRow as HTMLElement)).toContain("order-3");
-    expect(classTokens(badgesRow as HTMLElement)).toContain("basis-full");
-    expect(classTokens(badgesRow as HTMLElement)).toContain("md:order-2");
+    expect(classTokens(badgesRow)).toContain("order-3");
+    expect(classTokens(badgesRow)).toContain("basis-full");
+    expect(classTokens(badgesRow)).toContain("md:order-2");
 
     expect(classTokens(desktopLabel as HTMLElement)).toContain("hidden");
     expect(classTokens(desktopLabel as HTMLElement)).toContain("md:inline");

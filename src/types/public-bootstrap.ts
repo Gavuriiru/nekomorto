@@ -1,3 +1,4 @@
+import type { ProjectEpisode, ProjectEpisodePage } from "@/data/projects";
 import type { SiteSettings } from "@/types/site-settings";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { emptyPublicPagesConfig, type PublicPagesConfig } from "@/types/public-pages";
@@ -7,6 +8,11 @@ export type PublicBootstrapEpisode = {
   number: number;
   volume?: number;
   title: string;
+  entryKind?: ProjectEpisode["entryKind"];
+  entrySubtype?: string;
+  readingOrder?: number;
+  displayLabel?: string;
+  synopsis?: string;
   releaseDate: string;
   duration: string;
   coverImageUrl: string;
@@ -17,6 +23,7 @@ export type PublicBootstrapEpisode = {
   completedStages: string[];
   chapterUpdatedAt: string;
   contentFormat?: "lexical" | "images";
+  pages?: ProjectEpisodePage[];
   pageCount?: number;
   hasContent: boolean;
   hasPages?: boolean;

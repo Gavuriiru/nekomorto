@@ -44,6 +44,7 @@ export const useDashboardSettingsResource = ({
     hasResolvedSettings: loading.hasResolvedSettings,
     hasResolvedTranslations: loading.hasResolvedTranslations,
     activeTab: query.activeTab,
+    genreTranslations: loading.genreTranslations,
     knownGenres: loading.knownGenres,
     knownStaffRoles: loading.knownStaffRoles,
     knownTags: loading.knownTags,

@@ -5,7 +5,7 @@ import type { useDashboardSettingsResource } from "@/components/dashboard/settin
 
 import type {
   FooterBrandMode,
-  type LogoEditorField,
+  LogoEditorField,
   NavbarBrandMode,
 } from "./shared";
 

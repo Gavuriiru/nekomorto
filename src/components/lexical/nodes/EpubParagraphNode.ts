@@ -1,12 +1,13 @@
 import {
   $applyNodeReplacement,
   $createParagraphNode,
+  type ElementFormatType,
   ParagraphNode,
   type EditorConfig,
   type LexicalNode,
   type NodeKey,
   type RangeSelection,
-  type SerializedElementNode,
+  type SerializedParagraphNode,
   type Spread,
 } from "lexical";
 
@@ -22,7 +23,7 @@ export type SerializedEpubParagraphNode = Spread<
     version: 1;
     editorialStyle: string;
   },
-  SerializedElementNode
+  SerializedParagraphNode
 >;
 
 export class EpubParagraphNode extends ParagraphNode {
@@ -54,7 +55,7 @@ export class EpubParagraphNode extends ParagraphNode {
         const { format, editorialStyle } = extractBlockEditorialStyle(node.style);
         const paragraph = $createEpubParagraphNode({ editorialStyle });
         if (format) {
-          paragraph.setFormat(format);
+          paragraph.setFormat(format as ElementFormatType);
         }
         return { node: paragraph };
       },
@@ -95,7 +96,7 @@ export class EpubParagraphNode extends ParagraphNode {
     return dom;
   }
 
-  updateDOM(prevNode: EpubParagraphNode, dom: HTMLElement, config: EditorConfig): false {
+  updateDOM(prevNode: ParagraphNode, dom: HTMLElement, config: EditorConfig): boolean {
     super.updateDOM(prevNode, dom, config);
     applyEditorialStyleToElement(dom, this.getEditorialStyle());
     return false;
@@ -129,7 +130,7 @@ export class EpubParagraphNode extends ParagraphNode {
     newElement.setTextFormat(rangeSelection.format);
     newElement.setTextStyle(rangeSelection.style);
     newElement.setDirection(this.getDirection());
-    newElement.setFormat(this.getFormatType());
+    newElement.setFormat(this.getFormatType() as ElementFormatType);
     this.insertAfter(newElement, restoreSelection);
     return newElement;
   }

@@ -73,11 +73,8 @@ const createChapterFixture = (overrides: Partial<ProjectEpisode> = {}): ProjectE
     coverImageUrl: "https://cdn.test/page-1.jpg",
     coverImageAlt: "Capa do capitulo 3",
     pages,
-    pageCount: pages.length,
-    hasPages: pages.length > 0,
     publicationStatus: "draft",
     ...overrides,
-    pages,
     pageCount: overrides.pageCount ?? pages.length,
     hasPages: overrides.hasPages ?? pages.length > 0,
   };

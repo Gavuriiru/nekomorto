@@ -5,6 +5,7 @@ import {
   $isElementNode,
   $isTextNode,
   DecoratorNode,
+  type LexicalNode,
   TextNode,
 } from "lexical";
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from "@lexical/html";
@@ -62,7 +63,7 @@ const mergeStyleDeclarations = (baseStyle: string, nextStyle: string) =>
   ]);
 
 const applyInlineEditorialStyleToTextNode = (
-  lexicalNode: unknown,
+  lexicalNode: LexicalNode,
   editorialStyle: string,
   impliedFormat?: "bold" | "italic" | "underline" | "strikethrough" | "subscript" | "superscript",
 ) => {
@@ -99,7 +100,7 @@ const createInlineEditorialTextConversion =
     createNode,
     impliedFormat,
   }: {
-    createNode?: ((node: Element) => unknown) | undefined;
+    createNode?: ((node: Element) => LexicalNode | null) | undefined;
     impliedFormat?: "bold" | "italic" | "underline" | "strikethrough" | "subscript" | "superscript";
   } = {}) =>
   () => ({
@@ -113,7 +114,7 @@ const createInlineEditorialTextConversion =
       }
       return {
         node: typeof createNode === "function" ? createNode(node) : null,
-        forChild: (lexicalNode: unknown) =>
+        forChild: (lexicalNode: LexicalNode) =>
           applyInlineEditorialStyleToTextNode(lexicalNode, editorialStyle, impliedFormat),
       };
     },
@@ -177,11 +178,15 @@ const createPlaygroundLexicalEditor = () =>
     onError: () => {},
   });
 
-const isRootAppendableNode = (node: unknown) =>
-  Boolean(node) && ($isElementNode(node) || node instanceof DecoratorNode);
+const isRootAppendableNode = (node: unknown): node is LexicalNode => {
+  if (!node || typeof node !== "object") {
+    return false;
+  }
+  return $isElementNode(node as LexicalNode) || node instanceof DecoratorNode;
+};
 
-const normalizeRootImportNodes = (nodes: unknown[]) => {
-  const normalizedNodes: unknown[] = [];
+const normalizeRootImportNodes = (nodes: LexicalNode[]) => {
+  const normalizedNodes: LexicalNode[] = [];
   let paragraphBuffer: ReturnType<typeof $createParagraphNode> | null = null;
 
   const flushParagraphBuffer = () => {

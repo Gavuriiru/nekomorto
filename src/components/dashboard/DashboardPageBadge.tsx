@@ -3,6 +3,7 @@ import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page
 import { cn } from "@/lib/utils";
 
 type DashboardPageBadgeProps = HTMLAttributes<HTMLDivElement> & {
+  [key: `data-${string}`]: string | number | boolean | undefined;
   children: ReactNode;
   reveal?: boolean;
   wrapperClassName?: string;

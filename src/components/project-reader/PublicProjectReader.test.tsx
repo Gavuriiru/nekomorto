@@ -1929,7 +1929,7 @@ describe("PublicProjectReader", () => {
     "bottom",
     "left",
     "right",
-  ])("keeps the bullet centered in the %s progress track", async (progressPosition) => {
+  ] as const)("keeps the bullet centered in the %s progress track", async (progressPosition) => {
     renderReader(
       { progressStyle: "default", progressPosition },
       {
@@ -1996,7 +1996,7 @@ describe("PublicProjectReader", () => {
     "bottom",
     "left",
     "right",
-  ])("keeps the first and last bullet positions contained for %s", async (progressPosition) => {
+  ] as const)("keeps the first and last bullet positions contained for %s", async (progressPosition) => {
     renderReader({ progressStyle: "default", progressPosition });
 
     const indicator = await screen.findByTestId("project-reader-progress-indicator");
@@ -2045,7 +2045,7 @@ describe("PublicProjectReader", () => {
     "bottom",
     "left",
     "right",
-  ])("navigates to the clicked page through the %s progress track", async (progressPosition) => {
+  ] as const)("navigates to the clicked page through the %s progress track", async (progressPosition) => {
     renderReader(
       { progressStyle: "default", progressPosition },
       {

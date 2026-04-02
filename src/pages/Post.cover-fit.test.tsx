@@ -72,6 +72,7 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
 
 const postFixture = {
   id: "post-1",
+  projectId: "",
   title: "Post de Teste",
   slug: "post-teste",
   coverImageUrl: "/uploads/capa-post.jpg",

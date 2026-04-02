@@ -51,6 +51,15 @@ const basePages = {
   },
 };
 
+type TestElementProps = Record<string, unknown> & {
+  children?: unknown;
+  style?: Record<string, unknown>;
+};
+
+type TestElement = {
+  props?: TestElementProps;
+};
+
 const toArray = (value: unknown) => {
   if (Array.isArray(value)) {
     return value;
@@ -63,12 +72,12 @@ const toArray = (value: unknown) => {
 
 const findElement = (
   node: unknown,
-  predicate: (candidate: { props?: Record<string, unknown> }) => boolean,
-): { props?: Record<string, unknown> } | null => {
+  predicate: (candidate: TestElement) => boolean,
+): TestElement | null => {
   if (!node || typeof node !== "object") {
     return null;
   }
-  const candidate = node as { props?: Record<string, unknown> };
+  const candidate = node as TestElement;
   if (predicate(candidate)) {
     return candidate;
   }

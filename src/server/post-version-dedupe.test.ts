@@ -5,7 +5,10 @@ import {
   dedupePostVersionRecordsNewestFirst,
 } from "../../server/lib/post-version-dedupe.js";
 
-const createVersion = (overrides = {}) => {
+const createVersion = (
+  overrides: { snapshot?: Record<string, unknown> } & Record<string, unknown> = {},
+) => {
+  const { snapshot: snapshotOverrides = {}, ...versionOverrides } = overrides;
   const snapshot = {
     id: "post-1",
     slug: "post-1",
@@ -24,7 +27,7 @@ const createVersion = (overrides = {}) => {
     seoDescription: "",
     tags: ["acao", "aventura"],
     updatedAt: "2026-02-26T10:00:00.000Z",
-    ...(overrides.snapshot || {}),
+    ...snapshotOverrides,
   };
 
   return {
@@ -37,11 +40,10 @@ const createVersion = (overrides = {}) => {
     actorName: "Admin",
     slug: snapshot.slug,
     createdAt: "2026-02-26T10:00:00.000Z",
-    snapshot,
-    ...overrides,
+    ...versionOverrides,
     snapshot: {
       ...snapshot,
-      ...(overrides.snapshot || {}),
+      ...snapshotOverrides,
     },
   };
 };

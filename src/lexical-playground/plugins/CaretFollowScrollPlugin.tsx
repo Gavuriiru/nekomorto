@@ -20,10 +20,13 @@ const hasMeasuredRect = (rect: DOMRect | null): rect is DOMRect =>
 const isElementScrollRoot = (value: ScrollRoot): value is HTMLElement =>
   typeof window !== 'undefined' && value instanceof window.HTMLElement;
 
-export const findCaretScrollRoot = (rootElement: HTMLElement): ScrollRoot =>
-  rootElement.closest('.project-editor-scroll-shell') ??
-  rootElement.ownerDocument.defaultView ??
-  window;
+export const findCaretScrollRoot = (rootElement: HTMLElement): ScrollRoot => {
+  const shell = rootElement.closest('.project-editor-scroll-shell');
+  if (shell instanceof HTMLElement) {
+    return shell;
+  }
+  return rootElement.ownerDocument.defaultView ?? window;
+};
 
 export const getCaretClientRect = (rootElement: HTMLElement): DOMRect | null => {
   const selection = rootElement.ownerDocument.defaultView?.getSelection();

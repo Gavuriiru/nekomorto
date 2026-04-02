@@ -12,6 +12,13 @@ import { useChapterEditorLeaveGuard } from "@/components/dashboard/chapter-edito
 import { useDashboardProjectChapterEpub } from "@/components/dashboard/chapter-editor/useDashboardProjectChapterEpub";
 import { loadLexicalEditor } from "@/components/lazy/LazyLexicalEditor";
 import ChapterEditorPane from "@/components/dashboard/chapter-editor/ChapterEditorPane";
+import type {
+  ChapterEditorPaneHandle,
+  ChapterStructureGroup,
+  ProjectRecord,
+  StructureScrollAnchor,
+  VolumeSelectionOptions,
+} from "@/components/dashboard/chapter-editor/chapter-editor-types";
 import { reconcileStageChapters, revokeStagePages, type StageChapter } from "@/components/project-reader/MangaWorkflowPanel";
 import AsyncState from "@/components/ui/async-state";
 import { Button } from "@/components/ui/button";
@@ -23,29 +30,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
-import type {
-  Project,
-  ProjectEpisode,
-  ProjectVolumeEntry,
-} from "@/data/projects";
+import type { ProjectEpisode, ProjectVolumeEntry } from "@/data/projects";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { refetchPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import {
-  buildProjectChapterAssetLibraryOptions,
-  buildProjectVolumeAssetLibraryOptions,
-} from "@/lib/dashboard-image-library";
-import {
-  buildChapterStructureGroupKey,
+  EMPTY_CHAPTER_DRAFT,
+  IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
+  VOLUME_REQUIRED_IDENTITY_MESSAGE,
+  VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION,
+  buildNewChapterDraft,
   buildChapterVolumeLabel,
   buildEditableVolumeOptions,
   buildChapterSnapshot,
   buildProjectSnapshotWithVolumeEntries,
-  buildVolumeCoverAltFallback,
   chapterHasContent,
-  compareChapterStructureGroupKeys,
   groupChaptersByStructureKey,
   groupStageChaptersByStructureKey,
   matchesChapterSearch,
@@ -67,11 +68,6 @@ import {
   type ChapterFilterMode,
   type EditableVolumeOption,
 } from "@/lib/dashboard-project-chapter";
-import {
-  DEFAULT_PROJECT_COVER_ALT,
-  getEpisodeCoverAltFallback,
-  resolveAssetAltText,
-} from "@/lib/image-alt";
 import { findIncompleteDownloadSourceIndex } from "@/lib/project-download-sources";
 import { cn } from "@/lib/utils";
 import {
@@ -93,9 +89,7 @@ import {
   buildEpisodeKey,
   resolveCanonicalEpisodeRouteTarget,
   resolveEpisodeLookup,
-  resolveNextMainEpisodeNumber,
 } from "@/lib/project-episode-key";
-import { resolveProjectImageFolders } from "@/lib/project-image-folders";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
@@ -131,25 +125,6 @@ import {
 } from "../../shared/project-reader.js";
 import NotFound from "./NotFound";
 
-const chapterEditorLexicalMinHeightClassName = "min-h-[420px] lg:min-h-[620px]";
-
-type ChapterStructureGroup = {
-  key: string;
-  label: string;
-  volume: number | null;
-  hasMetadata: boolean;
-  chapterCount: number;
-  allItems: ProjectEpisode[];
-  visibleItems: ProjectEpisode[];
-  pendingItems: StageChapter[];
-  visiblePendingItems: StageChapter[];
-};
-
-type StructureScrollAnchor = {
-  groupKey: string;
-  top: number;
-};
-
 type DeleteDialogState =
   | {
       kind: "chapter";
@@ -164,14 +139,6 @@ type DeleteDialogState =
       volume: number;
     };
 
-type VolumeSelectionOptions = {
-  preserveScrollAnchor?: StructureScrollAnchor | null;
-};
-
-type ProjectRecord = Project & {
-  revision?: string;
-};
-
 type CurrentUser = {
   id: string;
   name: string;
@@ -179,95 +146,6 @@ type CurrentUser = {
   avatarUrl?: string | null;
   permissions?: string[];
 };
-
-type ChapterEditorPaneHandle = {
-  hasUnsavedChanges: (options?: { nextHref?: string; routeExit?: boolean }) => boolean;
-  requestLeave: (options?: { nextHref?: string; routeExit?: boolean }) => Promise<boolean>;
-};
-
-const EMPTY_CHAPTER_DRAFT: ProjectEpisode = {
-  number: 1,
-  title: "",
-  synopsis: "",
-  releaseDate: "",
-  duration: "",
-  sourceType: "TV",
-  sources: [],
-  completedStages: [],
-  content: "",
-  contentFormat: "lexical",
-  pages: [],
-  pageCount: 0,
-  hasPages: false,
-  publicationStatus: "draft",
-  coverImageUrl: "",
-  coverImageAlt: "",
-};
-
-const primaryEditorSectionClassName =
-  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_54px_-42px_rgba(0,0,0,0.72)]";
-const editorSectionClassName =
-  "project-editor-section overflow-hidden rounded-2xl border border-border/60 bg-card/65 shadow-[0_16px_44px_-38px_rgba(0,0,0,0.68)]";
-const editorAccordionTriggerClassName =
-  "project-editor-section-trigger flex w-full items-start gap-4 px-5 py-3.5 text-left hover:no-underline md:py-4";
-const editorSectionContentClassName = "project-editor-section-content px-5 pb-5";
-const editorialMastheadClassName =
-  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
-const editorialCommandBarClassName =
-  "sticky top-3 z-20 overflow-hidden rounded-2xl border border-border/60 bg-background/92 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.72)] backdrop-blur supports-backdrop-filter:bg-background/78";
-const workspaceSectionMutedClassName =
-  "overflow-hidden rounded-2xl border border-border/60 bg-card/65";
-const IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE =
-  "Capitulos em imagem precisam ter ao menos uma pagina para serem publicados.";
-const VOLUME_REQUIRED_IDENTITY_MESSAGE =
-  "Informe o volume para salvar um capítulo com número ambíguo.";
-const VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION =
-  "Esse salvamento foi bloqueado porque a URL do editor ficaria ambígua. Informe o volume antes de salvar este capítulo.";
-
-const toastIncompleteDownloadSources = () => {
-  toast({
-    title: "Complete as fontes de download",
-    description: "Selecione uma fonte e informe a URL antes de salvar o capitulo.",
-    variant: "destructive",
-  });
-};
-
-
-const buildNewChapterDraft = (
-  episodes: ProjectEpisode[],
-  options: { volume?: number; projectType?: string | null } = {},
-) =>
-  normalizeChapterForEditor({
-    ...EMPTY_CHAPTER_DRAFT,
-    number: resolveNextMainEpisodeNumber(
-      options.volume === undefined
-        ? episodes.map((episode) => ({
-            ...episode,
-            volume: undefined,
-          }))
-        : episodes,
-      { volume: options.volume },
-    ),
-    volume: options.volume,
-    title: "",
-    synopsis: "",
-    entryKind: "main",
-    entrySubtype: "chapter",
-    releaseDate: "",
-    duration: "",
-    coverImageUrl: "",
-    coverImageAlt: "",
-    sourceType: "TV",
-    sources: [],
-    progressStage: "aguardando-raw",
-    completedStages: [],
-    content: "",
-    contentFormat: isMangaType(options.projectType || "") ? "images" : "lexical",
-    pages: [],
-    pageCount: 0,
-    hasPages: false,
-    publicationStatus: "draft",
-  });
 
 const findStructureGroupElement = (groupKey: string) => {
   if (typeof document === "undefined") {
@@ -749,14 +627,14 @@ const DashboardProjectChapterEditor = () => {
     [chapterSearchQuery, chapters, filterMode],
   );
 
-  const reconciledStagedMangaChapters = useMemo(
-    () => (project ? reconcileStageChapters(project, stagedMangaChapters) : []),
+  const reconciledStagedMangaChapters: StageChapter[] = useMemo(
+    (): StageChapter[] => (project ? reconcileStageChapters(project, stagedMangaChapters) : []),
     [project, stagedMangaChapters],
   );
-  const visibleStagedMangaChapters = useMemo(
-    () =>
+  const visibleStagedMangaChapters: StageChapter[] = useMemo(
+    (): StageChapter[] =>
       reconciledStagedMangaChapters.filter(
-        (chapter) =>
+        (chapter: StageChapter) =>
           matchesStageChapterFilter(chapter, filterMode) &&
           matchesStageChapterSearch(chapter, chapterSearchQuery),
       ),
@@ -769,11 +647,11 @@ const DashboardProjectChapterEditor = () => {
     [filteredChapters],
   );
   const stagedChaptersByStructureGroup = useMemo(
-    () => groupStageChaptersByStructureKey(reconciledStagedMangaChapters),
+    () => groupStageChaptersByStructureKey(reconciledStagedMangaChapters as StageChapter[]),
     [reconciledStagedMangaChapters],
   );
   const visibleStagedChaptersByStructureGroup = useMemo(
-    () => groupStageChaptersByStructureKey(visibleStagedMangaChapters),
+    () => groupStageChaptersByStructureKey(visibleStagedMangaChapters as StageChapter[]),
     [visibleStagedMangaChapters],
   );
 
@@ -1161,10 +1039,11 @@ const DashboardProjectChapterEditor = () => {
           | "manga-publication";
       },
     ) => {
-      const normalizedSnapshot = normalizeProjectSnapshotChapterOrderForPersist(
-        projectRef.current,
-        snapshot,
-      );
+      const normalizedSnapshot =
+        normalizeProjectSnapshotChapterOrderForPersist<ProjectRecord | null, ProjectRecord>(
+          projectRef.current,
+          snapshot,
+        ) as ProjectRecord;
       const { revision: _ignoredRevision, ...payload } = normalizedSnapshot;
       const response = await apiFetch(apiBase, `/api/projects/${normalizedSnapshot.id}`, {
         method: "PUT",

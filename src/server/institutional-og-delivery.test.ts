@@ -92,7 +92,13 @@ describe("institutional og delivery", () => {
     resolveOgPublicImageEncodingConfigMock.mockReturnValue(imageEncodingConfigFixture);
 
     buildInstitutionalOgCardModelMock.mockImplementation(
-      ({ pageKey, settings }: { pageKey?: string; settings?: Record<string, unknown> }) => ({
+      ({
+        pageKey,
+        settings,
+      }: {
+        pageKey?: string;
+        settings?: { theme?: { accent?: string } };
+      }) => ({
         pageKey: String(pageKey || ""),
         title: "Sobre",
         subtitle: "Conheca a fansub.",

@@ -99,6 +99,8 @@ const projectFixture = {
   trailerUrl: "",
   forceHero: false,
   heroImageUrl: "",
+  volumeEntries: [],
+  volumeCovers: [],
   episodeDownloads: [],
   views: 0,
   commentsCount: 0,

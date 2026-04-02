@@ -150,11 +150,43 @@ describe("public-site-runtime", () => {
 
     expect(publicHtml).toContain("bootstrap:yes");
     expect(publicHtml).toContain("pwa:yes");
-    expect(publicHtml).toContain("preloads:");
+    expect(publicHtml).toContain("preloads:2");
     expect(publicHtml).toContain("shell:yes");
     expect(dashboardHtml).toContain("bootstrap:no");
     expect(dashboardHtml).toContain("pwa:yes");
     expect(dashboardHtml).toContain("skip:yes");
+  });
+
+  it("skips home hero preload when the static home hero shell is enabled", () => {
+    const runtime = createPublicSiteRuntime(createDeps());
+
+    const withShell = runtime.injectPublicBootstrapHtml({
+      html: "<html></html>",
+      req: {
+        path: "/",
+      },
+      settings: {},
+      pages: {},
+      includeHeroImagePreload: true,
+      includeProjectsImagePreloads: false,
+      includeHomeHeroShell: true,
+      bootstrapMode: PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
+    });
+    const withoutShell = runtime.injectPublicBootstrapHtml({
+      html: "<html></html>",
+      req: {
+        path: "/",
+      },
+      settings: {},
+      pages: {},
+      includeHeroImagePreload: true,
+      includeProjectsImagePreloads: false,
+      includeHomeHeroShell: false,
+      bootstrapMode: PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
+    });
+
+    expect(withShell).toContain("preloads:1");
+    expect(withoutShell).toContain("preloads:2");
   });
 
   it("resolves the bootstrap pwa flag per request when a resolver is provided", () => {

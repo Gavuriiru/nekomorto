@@ -98,6 +98,7 @@ type UseDashboardProjectsEditorAnimeBatchResult = {
   createAnimeEpisodeBatch: () => void;
   duplicateAnimeEpisode: (episode: EditorProjectEpisode) => void;
   filteredAnimeEpisodeItems: SortedEpisodeItem[];
+  removeAnimeEpisodeAtIndex: (index: number) => void;
   removedAnimeEpisode: RemovedAnimeEpisode;
   selectAllFilteredAnimeEpisodes: () => void;
   selectedAnimeEpisodeKeys: string[];
@@ -493,6 +494,7 @@ export function useDashboardProjectsEditorAnimeBatch({
     createAnimeEpisodeBatch,
     duplicateAnimeEpisode,
     filteredAnimeEpisodeItems,
+    removeAnimeEpisodeAtIndex,
     removedAnimeEpisode,
     selectAllFilteredAnimeEpisodes,
     selectedAnimeEpisodeKeys,

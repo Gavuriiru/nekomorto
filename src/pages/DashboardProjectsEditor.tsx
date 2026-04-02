@@ -22,14 +22,26 @@ import {
   dashboardStrongSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
 import EpisodeContentEditor from "@/components/dashboard/project-editor/EpisodeContentEditor";
-import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
 import ProjectEditorDialogShell from "@/components/dashboard/project-editor/ProjectEditorDialogShell";
 import ProjectEditorImageLibraryDialog from "@/components/dashboard/project-editor/ProjectEditorImageLibraryDialog";
 import ProjectEditorImportSection from "@/components/dashboard/project-editor/ProjectEditorImportSection";
 import ProjectEditorInformationSection from "@/components/dashboard/project-editor/ProjectEditorInformationSection";
+import ProjectEditorEpisodesSection from "@/components/dashboard/project-editor/ProjectEditorEpisodesSection";
 import ProjectEditorMediaSection from "@/components/dashboard/project-editor/ProjectEditorMediaSection";
 import ProjectEditorRelationsSection from "@/components/dashboard/project-editor/ProjectEditorRelationsSection";
 import ProjectEditorStaffSection from "@/components/dashboard/project-editor/ProjectEditorStaffSection";
+import { buildProjectFormPatchFromAniList } from "@/components/dashboard/project-editor/project-editor-anilist";
+import { DEFAULT_PROJECT_FORMAT_OPTIONS } from "@/components/dashboard/project-editor/project-editor-constants";
+import {
+  buildEmptyProjectForm,
+  buildProjectFormFromRecord,
+  buildProjectSavePayload,
+  normalizeProjectEpisodesForSave,
+  normalizeProjectVolumeEntriesForSave,
+  normalizeUniqueStringList,
+  supportsProjectVolumeEntries,
+} from "@/components/dashboard/project-editor/project-editor-form";
+import { useDashboardProjectsEditorController } from "@/components/dashboard/project-editor/useDashboardProjectsEditorController";
 import {
   ProjectEditorAnimeBatchDialog,
   ProjectEditorConfirmDialog,
@@ -49,8 +61,6 @@ import type {
   EpisodeVolumeGroup,
   ProjectForm,
   ProjectRecord,
-  ProjectRelation,
-  ProjectStaff,
   SortedEpisodeItem,
 } from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
@@ -86,13 +96,13 @@ import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { parseAniListMediaId } from "@/lib/anilist";
-import { deriveAniListMediaOrganization } from "@/lib/anilist-media";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import {
   canonicalToDisplayTime,
   displayDateToIso,
   displayTimeToCanonical,
+  digitsOnly,
   formatDateDigitsToDisplay,
   formatEpisodeReleaseDate,
   formatTimeDigitsToDisplay,
@@ -105,19 +115,13 @@ import {
   shiftIndexedRecordAfterRemoval,
 } from "@/lib/dashboard-indexed-drafts";
 import {
+  generateEpisodeEditorLocalId,
   getAnimeEpisodeCompletionIssues,
   getAnimeEpisodeCompletionLabel,
   matchesAnimeEpisodeQuickFilter,
   type AnimeEpisodeQuickFilter,
 } from "@/lib/project-anime-episodes";
 import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
-import {
-  DEFAULT_PROJECT_BANNER_ALT,
-  DEFAULT_PROJECT_COVER_ALT,
-  DEFAULT_PROJECT_HERO_ALT,
-  getEpisodeCoverAltFallback,
-  resolveAssetAltText,
-} from "@/lib/image-alt";
 import {
   buildDashboardProjectChapterEditorHref,
   buildDashboardProjectChaptersEditorHref,
@@ -145,7 +149,6 @@ import {
 } from "@/lib/project-progress";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
-import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import { reorderItems } from "@/lib/reorder-items";
 import {
   Clapperboard,
@@ -185,60 +188,7 @@ const getDedicatedEditorCtaIcon = (projectType?: string | null): LucideIcon => {
 const appendUniqueValue = (values: string[], nextValue: string) =>
   values.includes(nextValue) ? values : [...values, nextValue];
 
-const emptyProject: ProjectForm = {
-  id: "",
-  anilistId: null,
-  title: "",
-  titleOriginal: "",
-  titleEnglish: "",
-  synopsis: "",
-  description: "",
-  type: "Anime",
-  status: "Em andamento",
-  year: "",
-  studio: "",
-  animationStudios: [],
-  episodes: "",
-  tags: [],
-  genres: [],
-  cover: "",
-  coverAlt: "",
-  banner: "",
-  bannerAlt: "",
-  season: "",
-  schedule: "",
-  rating: "",
-  country: "",
-  source: "",
-  discordRoleId: "",
-  producers: [],
-  score: null,
-  startDate: "",
-  endDate: "",
-  relations: [],
-  staff: [],
-  animeStaff: [],
-  trailerUrl: "",
-  forceHero: false,
-  heroImageUrl: "",
-  heroImageAlt: "",
-  readerConfig: {},
-  volumeEntries: [],
-  volumeCovers: [],
-  episodeDownloads: [],
-};
-
-const defaultFormatOptions = [
-  "Anime",
-  "Mangá",
-  "Webtoon",
-  "Light Novel",
-  "Filme",
-  "OVA",
-  "ONA",
-  "Especial",
-  "Spin-off",
-];
+const defaultFormatOptions = DEFAULT_PROJECT_FORMAT_OPTIONS;
 const statusOptions = ["Em andamento", "Finalizado", "Pausado", "Cancelado"];
 const fansubRoleOptions = [
   "Tradução",
@@ -321,20 +271,6 @@ const stripHtml = (value?: string | null) => {
     .trim();
 };
 
-const normalizeUniqueStringList = (values: Array<string | null | undefined>) => {
-  const seen = new Set<string>();
-  return values.reduce<string[]>((acc, value) => {
-    const normalized = String(value || "").trim();
-    const key = normalized.toLowerCase();
-    if (!normalized || seen.has(key)) {
-      return acc;
-    }
-    seen.add(key);
-    acc.push(normalized);
-    return acc;
-  }, []);
-};
-
 const shiftDraftAfterRemoval = shiftIndexedRecordAfterRemoval<string>;
 
 const clearIndexedDraftValue = clearIndexedRecordValue<string>;
@@ -364,18 +300,6 @@ const shouldSkipEpisodeHeaderToggle = (target: EventTarget | null) => {
   return Boolean(target.closest(episodeHeaderNoToggleSelector));
 };
 
-const generateLocalId = () => {
-  const alpha = String.fromCharCode(97 + Math.floor(Math.random() * 26));
-  const random = Math.random().toString(36).slice(2, 9);
-  const stamp = Date.now().toString(36).slice(-3);
-  return `${alpha}${random}${stamp}`;
-};
-
-const resolveEpisodeEditorKey = (episode: Partial<EditorProjectEpisode> | null | undefined) => {
-  const currentKey = String(episode._editorKey || "").trim();
-  return currentKey || generateLocalId();
-};
-
 const buildCompletionBadges = (episode: Partial<EditorProjectEpisode> | null | undefined) =>
   getAnimeEpisodeCompletionIssues(episode).map((issue) => ({
     issue,
@@ -391,9 +315,10 @@ const DashboardProjectsEditor = () => {
   const { currentUser, isLoadingUser } = useDashboardCurrentUser();
   const hasLoadedCurrentUser = !isLoadingUser;
   const [searchQuery, setSearchQuery] = useState("");
+  const emptyProject = useMemo(() => buildEmptyProjectForm(), []);
 
   const [editingProject, setEditingProject] = useState<ProjectRecord | null>(null);
-  const [formState, setFormState] = useState<ProjectForm>(emptyProject);
+  const [formState, setFormState] = useState<ProjectForm>(() => buildEmptyProjectForm());
   const [deleteTarget, setDeleteTarget] = useState<ProjectRecord | null>(null);
   const [anilistIdInput, setAnilistIdInput] = useState("");
   const [tagInput, setTagInput] = useState("");
@@ -661,6 +586,7 @@ const DashboardProjectsEditor = () => {
     createAnimeEpisodeBatch,
     duplicateAnimeEpisode,
     filteredAnimeEpisodeItems,
+    removeAnimeEpisodeAtIndex,
     removedAnimeEpisode,
     selectAllFilteredAnimeEpisodes,
     selectedAnimeEpisodeKeys,
@@ -1196,11 +1122,11 @@ const DashboardProjectsEditor = () => {
     if (!hasResolvedProjects) {
       return;
     }
-    setCurrentPage((page) => Math.min(page, totalPages));
-  }, [hasResolvedProjects, totalPages]);
+    setCurrentPage(Math.min(currentPage, totalPages));
+  }, [currentPage, hasResolvedProjects, setCurrentPage, totalPages]);
 
   const openCreate = () => {
-    const nextForm = { ...emptyProject };
+    const nextForm = buildEmptyProjectForm();
     resetPendingContentNavigation();
     setEditingProject(null);
     setFormState(nextForm);
@@ -1235,33 +1161,8 @@ const DashboardProjectsEditor = () => {
       resetPendingContentNavigation();
       const pendingEpisodeFocus = pendingEpisodeFocusRef.current;
       const shouldOpenEpisodesSection = Boolean(pendingEpisodeFocus);
-      const initialEpisodes: EditorProjectEpisode[] = Array.isArray(project.episodeDownloads)
-        ? project.episodeDownloads.map(
-            (episode): EditorProjectEpisode => ({
-              ...episode,
-              synopsis: String(episode.synopsis || "").trim(),
-              _editorKey: resolveEpisodeEditorKey(episode),
-              entryKind: episode.entryKind === "extra" ? "extra" : "main",
-              entrySubtype: String(episode.entrySubtype || "").trim() || undefined,
-              readingOrder: Number.isFinite(Number(episode.readingOrder))
-                ? Number(episode.readingOrder)
-                : undefined,
-              displayLabel:
-                episode.entryKind === "extra"
-                  ? String(episode.displayLabel || "").trim() || undefined
-                  : undefined,
-              content: episode.content || "",
-              contentFormat: "lexical",
-              publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
-              coverImageAlt: episode.coverImageUrl
-                ? resolveAssetAltText(
-                    episode.coverImageAlt,
-                    getEpisodeCoverAltFallback(isChapterBasedType(project.type || "")),
-                  )
-                : "",
-            }),
-          )
-        : [];
+      const nextForm = buildProjectFormFromRecord(project);
+      const initialEpisodes: EditorProjectEpisode[] = nextForm.episodeDownloads;
       const focusedEpisodeIndex = (() => {
         if (!pendingEpisodeFocus) {
           return -1;
@@ -1293,71 +1194,6 @@ const DashboardProjectsEditor = () => {
       const focusedVolumeGroupKey = focusedEpisode
         ? buildVolumeCoverKey(focusedEpisode.volume)
         : null;
-      const mergedSynopsis = project.synopsis || project.description || "";
-      const normalizedVolumeEntries = normalizeProjectVolumeEntries(
-        Array.isArray(project.volumeEntries)
-          ? project.volumeEntries
-          : Array.isArray(project.volumeCovers)
-            ? project.volumeCovers
-            : [],
-      );
-      const nextForm: ProjectForm = {
-        id: project.id,
-        anilistId: project.anilistId ?? null,
-        title: project.title || "",
-        titleOriginal: project.titleOriginal || "",
-        titleEnglish: project.titleEnglish || "",
-        synopsis: mergedSynopsis,
-        description: mergedSynopsis,
-        type: project.type || "",
-        status: project.status || "",
-        year: project.year || "",
-        studio: project.studio || "",
-        animationStudios: Array.isArray(project.animationStudios) ? project.animationStudios : [],
-        episodes: project.episodes || "",
-        tags: Array.isArray(project.tags) ? project.tags : [],
-        genres: Array.isArray(project.genres) ? project.genres : [],
-        cover: project.cover || "",
-        coverAlt: project.cover
-          ? resolveAssetAltText(project.coverAlt, DEFAULT_PROJECT_COVER_ALT)
-          : "",
-        banner: project.banner || "",
-        bannerAlt: project.banner
-          ? resolveAssetAltText(project.bannerAlt, DEFAULT_PROJECT_BANNER_ALT)
-          : "",
-        season: project.season || "",
-        schedule: project.schedule || "",
-        rating: project.rating || "",
-        country: project.country || "",
-        source: project.source || "",
-        discordRoleId: project.discordRoleId || "",
-        producers: Array.isArray(project.producers) ? project.producers : [],
-        score: project.score ?? null,
-        startDate: project.startDate || "",
-        endDate: project.endDate || "",
-        relations: Array.isArray(project.relations) ? project.relations : [],
-        staff: Array.isArray(project.staff) ? project.staff : [],
-        animeStaff: Array.isArray(project.animeStaff) ? project.animeStaff : [],
-        trailerUrl: project.trailerUrl || "",
-        forceHero: Boolean(project.forceHero),
-        heroImageUrl: project.heroImageUrl || "",
-        heroImageAlt: project.heroImageUrl
-          ? resolveAssetAltText(project.heroImageAlt, DEFAULT_PROJECT_HERO_ALT)
-          : "",
-        readerConfig:
-          project.readerConfig && typeof project.readerConfig === "object"
-            ? project.readerConfig
-            : {},
-        volumeEntries: normalizedVolumeEntries,
-        volumeCovers: normalizedVolumeEntries
-          .filter((entry) => String(entry.coverImageUrl || "").trim())
-          .map((entry) => ({
-            volume: entry.volume,
-            coverImageUrl: entry.coverImageUrl,
-            coverImageAlt: entry.coverImageAlt || `Capa do volume ${entry.volume}`,
-          })),
-        episodeDownloads: initialEpisodes,
-      };
       const nextAniListInput = project.anilistId ? String(project.anilistId) : "";
       setEditingProject(project);
       setFormState(nextForm);
@@ -1542,7 +1378,6 @@ const DashboardProjectsEditor = () => {
 
   const handleSave = async () => {
     const trimmedTitle = formState.title.trim();
-    const baseId = formState.id.trim();
     const normalizedDiscordRoleId = String(formState.discordRoleId || "").trim();
     if (!trimmedTitle) {
       toast({
@@ -1562,35 +1397,7 @@ const DashboardProjectsEditor = () => {
       return;
     }
 
-    const normalizedEpisodesForSave: EditorProjectEpisode[] = formState.episodeDownloads.map(
-      (episode) => {
-        const parsedNumber = Number(episode.number);
-        const parsedVolume = Number(episode.volume);
-        const parsedReadingOrder = Number(episode.readingOrder);
-        const entryKind: "main" | "extra" = episode.entryKind === "extra" ? "extra" : "main";
-        return {
-          ...episode,
-          number: Number.isFinite(parsedNumber) ? parsedNumber : 0,
-          volume: Number.isFinite(parsedVolume) ? parsedVolume : undefined,
-          entryKind,
-          entrySubtype:
-            String(episode.entrySubtype || "").trim() ||
-            (entryKind === "extra" ? "extra" : "chapter"),
-          readingOrder: Number.isFinite(parsedReadingOrder)
-            ? Math.round(parsedReadingOrder)
-            : undefined,
-          displayLabel:
-            entryKind === "extra"
-              ? String(episode.displayLabel || "").trim() || undefined
-              : undefined,
-          contentFormat: "lexical" as const,
-          publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
-          sources: Array.isArray(episode.sources)
-            ? episode.sources.map((source) => ({ ...source }))
-            : [],
-        };
-      },
-    );
+    const normalizedEpisodesForSave = normalizeProjectEpisodesForSave(formState);
     const duplicateEpisode = findDuplicateEpisodeKey(normalizedEpisodesForSave);
     if (duplicateEpisode) {
       const duplicateIndex = normalizedEpisodesForSave.findIndex(
@@ -1609,28 +1416,8 @@ const DashboardProjectsEditor = () => {
       });
       return;
     }
-    const supportsVolumeEntriesForSave =
-      isLightNovelType(formState.type || "") || isMangaType(formState.type || "");
-    const normalizedVolumeEntriesForSave = supportsVolumeEntriesForSave
-      ? formState.volumeEntries
-          .map((entry) => {
-            const parsedVolume = Number(entry.volume);
-            if (!Number.isFinite(parsedVolume)) {
-              return null;
-            }
-            const coverImageUrl = String(entry.coverImageUrl || "").trim();
-            return {
-              volume: parsedVolume,
-              synopsis: String(entry.synopsis || "").trim(),
-              coverImageUrl,
-              coverImageAlt: coverImageUrl
-                ? resolveAssetAltText(entry.coverImageAlt, `Capa do volume ${parsedVolume}`)
-                : "",
-            };
-          })
-          .filter((entry): entry is ProjectVolumeEntry => Boolean(entry))
-          .sort((left, right) => left.volume - right.volume)
-      : [];
+    const supportsVolumeEntriesForSave = supportsProjectVolumeEntries(formState.type);
+    const normalizedVolumeEntriesForSave = normalizeProjectVolumeEntriesForSave(formState);
     const duplicateVolumeEntry = findDuplicateVolumeCover(normalizedVolumeEntriesForSave);
     if (supportsVolumeEntriesForSave && duplicateVolumeEntry) {
       setEditorAccordionValue((prev) =>
@@ -1643,13 +1430,6 @@ const DashboardProjectsEditor = () => {
       });
       return;
     }
-    const normalizedVolumeCoversForSave = normalizedVolumeEntriesForSave
-      .filter((entry) => String(entry.coverImageUrl || "").trim())
-      .map((entry) => ({
-        volume: entry.volume,
-        coverImageUrl: entry.coverImageUrl,
-        coverImageAlt: entry.coverImageAlt || `Capa do volume ${entry.volume}`,
-      }));
     const nextEpisodeSizeDrafts = { ...episodeSizeDrafts };
     const nextEpisodeSizeErrors = { ...episodeSizeErrors };
     let firstInvalidEpisodeSizeIndex: number | null = null;
@@ -1709,133 +1489,18 @@ const DashboardProjectsEditor = () => {
     setEpisodeSizeDrafts(nextEpisodeSizeDrafts);
     setEpisodeSizeErrors({});
 
-    const prevEpisodesMap = new Map<string, ProjectEpisode>();
-    if (editingProject?.episodeDownloads?.length) {
-      editingProject.episodeDownloads.forEach((episode) => {
-        prevEpisodesMap.set(buildEpisodeKey(episode.number, episode.volume), episode);
-      });
-    }
-
-    const staffWithPending = formState.staff.map((item, index) => {
-      const pendingName = (staffMemberInput[index] || "").trim();
-      if (!pendingName) {
-        return item;
-      }
-      const members = item.members || [];
-      return {
-        ...item,
-        members: members.includes(pendingName) ? members : [...members, pendingName],
-      };
+    const payload = buildProjectSavePayload({
+      anilistIdInput,
+      editingProject,
+      formState: {
+        ...formState,
+        title: trimmedTitle,
+        discordRoleId: normalizedDiscordRoleId || "",
+      },
+      normalizedEpisodesForSave,
+      normalizedVolumeEntriesForSave,
+      staffMemberInput,
     });
-
-    const parsedAniListId = parseAniListMediaId(anilistIdInput);
-    const resolvedAniListId =
-      typeof formState.anilistId === "number" &&
-      Number.isInteger(formState.anilistId) &&
-      formState.anilistId > 0
-        ? formState.anilistId
-        : parsedAniListId;
-    const normalizedId = editingProject?.id
-      ? editingProject.id
-      : resolvedAniListId
-        ? String(resolvedAniListId)
-        : baseId || generateLocalId();
-    const payload = {
-      ...formState,
-      anilistId: resolvedAniListId,
-      id: normalizedId,
-      title: trimmedTitle,
-      titleOriginal: formState.titleOriginal?.trim() || "",
-      titleEnglish: formState.titleEnglish?.trim() || "",
-      synopsis: formState.synopsis?.trim() || "",
-      description: formState.synopsis?.trim() || "",
-      type: formState.type?.trim() || "",
-      status: formState.status?.trim() || "",
-      year: formState.year?.trim() || "",
-      studio: formState.studio?.trim() || "",
-      animationStudios: normalizeUniqueStringList(formState.animationStudios),
-      episodes: formState.episodes?.trim() || "",
-      tags: formState.tags.filter(Boolean),
-      genres: formState.genres.filter(Boolean),
-      cover: formState.cover?.trim() || "",
-      coverAlt: formState.cover?.trim()
-        ? resolveAssetAltText(formState.coverAlt, DEFAULT_PROJECT_COVER_ALT)
-        : "",
-      banner: formState.banner?.trim() || "",
-      bannerAlt: formState.banner?.trim()
-        ? resolveAssetAltText(formState.bannerAlt, DEFAULT_PROJECT_BANNER_ALT)
-        : "",
-      season: formState.season?.trim() || "",
-      schedule: formState.schedule?.trim() || "",
-      rating: formState.rating?.trim() || "",
-      country: formState.country?.trim() || "",
-      source: formState.source?.trim() || "",
-      discordRoleId: normalizedDiscordRoleId || "",
-      producers: normalizeUniqueStringList(formState.producers),
-      startDate: formState.startDate || "",
-      endDate: formState.endDate || "",
-      trailerUrl: formState.trailerUrl?.trim() || "",
-      forceHero: Boolean(formState.forceHero),
-      heroImageUrl: formState.heroImageUrl?.trim() || "",
-      heroImageAlt: formState.heroImageUrl?.trim()
-        ? resolveAssetAltText(formState.heroImageAlt, DEFAULT_PROJECT_HERO_ALT)
-        : "",
-      volumeEntries: normalizedVolumeEntriesForSave,
-      volumeCovers: normalizedVolumeCoversForSave,
-      relations: formState.relations
-        .filter((item) => item.title || item.relation || item.projectId)
-        .filter((item, index, arr) => {
-          const key = item.projectId || item.anilistId || item.title;
-          if (!key) {
-            return true;
-          }
-          return (
-            arr.findIndex((rel) => (rel.projectId || rel.anilistId || rel.title) === key) === index
-          );
-        }),
-      staff: staffWithPending.filter((item) => item.role || item.members.length > 0),
-      animeStaff: formState.animeStaff.filter((item) => item.role || item.members.length > 0),
-      episodeDownloads: normalizedEpisodesForSave.map((episode) => {
-        const { _editorKey: _ignoredEditorKey, ...episodePayload } = episode;
-        const prev = prevEpisodesMap.get(buildEpisodeKey(episode.number, episode.volume));
-        const hash = String(episode.hash || "").trim();
-        const coverImageUrl = String(episode.coverImageUrl || "").trim();
-        const parsedSize = Number(episode.sizeBytes);
-        const sizeBytes =
-          Number.isFinite(parsedSize) && parsedSize > 0 ? Math.round(parsedSize) : undefined;
-        const progressState = getProjectProgressStateForEditor(
-          formState.type || "",
-          episode.completedStages,
-        );
-        return {
-          ...episodePayload,
-          coverImageUrl,
-          coverImageAlt: coverImageUrl
-            ? resolveAssetAltText(
-                episode.coverImageAlt,
-                getEpisodeCoverAltFallback(isChapterBasedType(formState.type || "")),
-              )
-            : "",
-          hash: hash || undefined,
-          sizeBytes,
-          sources: (episode.sources || [])
-            .map((source) => {
-              const label = String(source.label || "").trim();
-              const url = String(source.url || "").trim();
-              return {
-                label,
-                url,
-              };
-            })
-            .filter((source) => source.url || source.label),
-          completedStages: progressState.completedStages,
-          progressStage: progressState.currentStageId,
-          contentFormat: "lexical",
-          publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
-          chapterUpdatedAt: prev?.chapterUpdatedAt || episode.chapterUpdatedAt || "",
-        };
-      }),
-    };
 
     const response = await apiFetch(
       apiBase,
@@ -1947,7 +1612,7 @@ const DashboardProjectsEditor = () => {
       });
       return;
     }
-    await loadProjects();
+    await refreshProjects();
     setDeleteTarget(null);
     if (editingProject && deleteTarget.id === editingProject.id) {
       closeEditor();
@@ -1966,7 +1631,7 @@ const DashboardProjectsEditor = () => {
     if (!response.ok) {
       if (response.status === 410) {
         toast({ title: "Janela de restauração expirou" });
-        await loadProjects();
+        await refreshProjects();
         return;
       }
       toast({ title: "Não foi possível restaurar o projeto", variant: "destructive" });
@@ -1978,131 +1643,24 @@ const DashboardProjectsEditor = () => {
   };
 
   const mapAniListToForm = (media: AniListMedia) => {
-    const organization = media.organization || deriveAniListMediaOrganization(media);
-    const studio = String(organization?.studio || "").trim();
-    const animationStudios = normalizeUniqueStringList(organization?.animationStudios || []);
-    const producers = normalizeUniqueStringList(organization?.producers || []);
-    const tags = (media.tags || [])
-      .filter((tag) => !tag.isMediaSpoiler)
-      .sort((a, b) => (b.rank || 0) - (a.rank || 0))
-      .slice(0, 8)
-      .map((tag) => tag.name)
-      .filter(Boolean);
-    const relationEdges = media.relations?.edges || [];
-    const relationNodes = media.relations?.nodes || [];
-    const relationIdMap = new Map<number, string>();
-    projects.forEach((item) => {
-      if (item.anilistId) {
-        relationIdMap.set(item.anilistId, item.id);
-      }
-      relationIdMap.set(Number(item.id), item.id);
-    });
-    const seenRelationIds = new Set<string>();
-    const relations: ProjectRelation[] = relationNodes.reduce<ProjectRelation[]>(
-      (acc, node, index) => {
-        const projectId = relationIdMap.get(node.id) || "";
-        const relationKey = projectId || String(node.id) || node.title?.romaji || "";
-        if (relationKey && seenRelationIds.has(relationKey)) {
-          return acc;
-        }
-        if (relationKey) {
-          seenRelationIds.add(relationKey);
-        }
-        acc.push({
-          relation: translateRelation(relationEdges[index]?.relationType || ""),
-          title: node.title?.romaji || "",
-          format: formatType(node.format || ""),
-          status: formatStatus(node.status || ""),
-          image: node.coverImage?.large || "",
-          anilistId: node.id,
-          projectId,
+    let syncGenres: string[] = [];
+    let syncTags: string[] = [];
+
+    setFormState((prev) => {
+      const { patch, syncGenres: nextSyncGenres, syncTags: nextSyncTags } =
+        buildProjectFormPatchFromAniList({
+          media,
+          previousForm: prev,
+          projects,
         });
-        return acc;
-      },
-      [],
-    );
-    const staffEdges = media.staff?.edges || [];
-    const staffNodes = media.staff?.nodes || [];
-    const staffMap = new Map<string, string[]>();
-    staffEdges.forEach((edge, index) => {
-      const role = edge.role || "Equipe";
-      const name = staffNodes[index]?.name?.full || "";
-      if (!name) {
-        return;
-      }
-      const list = staffMap.get(role) || [];
-      list.push(name);
-      staffMap.set(role, list);
+      syncGenres = nextSyncGenres;
+      syncTags = nextSyncTags;
+      return {
+        ...prev,
+        ...patch,
+      };
     });
-    const staff: ProjectStaff[] = Array.from(staffMap.entries()).map(([role, members]) => ({
-      role,
-      members,
-    }));
 
-    const startDate = media.startDate?.year
-      ? `${media.startDate.year}-${String(media.startDate.month || 1).padStart(2, "0")}-${String(
-          media.startDate.day || 1,
-        ).padStart(2, "0")}`
-      : "";
-    const endDate = media.endDate?.year
-      ? `${media.endDate.year}-${String(media.endDate.month || 1).padStart(2, "0")}-${String(
-          media.endDate.day || 1,
-        ).padStart(2, "0")}`
-      : "";
-
-    const trailerUrl =
-      media.trailer?.id && media.trailer?.site
-        ? media.trailer.site.toLowerCase() === "youtube"
-          ? `https://www.youtube.com/watch?v=${media.trailer.id}`
-          : media.trailer.site.toLowerCase() === "dailymotion"
-            ? `https://www.dailymotion.com/video/${media.trailer.id}`
-            : ""
-        : "";
-
-    const tagsFromMedia = (media.tags || [])
-      .filter((tag) => !tag.isMediaSpoiler)
-      .map((tag) => tag.name)
-      .filter(Boolean);
-
-    const genresFromMedia = (media.genres || []).filter(Boolean);
-
-    const mergedSynopsis = stripHtml(media.description || "");
-    setFormState((prev) => ({
-      ...prev,
-      id: prev.id || String(media.id),
-      anilistId: media.id,
-      title: media.title?.romaji || media.title?.english || media.title?.native || prev.title,
-      titleOriginal: media.title?.native || "",
-      titleEnglish: media.title?.english || "",
-      synopsis: mergedSynopsis,
-      description: mergedSynopsis,
-      type: formatType(media.format || "") || prev.type,
-      status: formatStatus(media.status || "") || prev.status,
-      year: media.seasonYear ? String(media.seasonYear) : prev.year,
-      studio: studio || prev.studio,
-      animationStudios,
-      episodes: media.episodes ? String(media.episodes) : prev.episodes,
-      genres: genresFromMedia.length ? genresFromMedia : prev.genres,
-      tags: tags.length ? tags : prev.tags,
-      cover: media.coverImage?.extraLarge || media.coverImage?.large || prev.cover,
-      banner: media.bannerImage || prev.banner,
-      season: formatSeason(media.season, media.seasonYear) || prev.season,
-      country: media.countryOfOrigin || prev.country,
-      source: media.source || prev.source,
-      producers,
-      score:
-        typeof media.averageScore === "number" && Number.isFinite(media.averageScore)
-          ? media.averageScore
-          : (prev.score ?? null),
-      startDate,
-      endDate,
-      relations: relations.length ? relations : prev.relations,
-      animeStaff: staff.length ? staff : prev.animeStaff,
-      trailerUrl: trailerUrl || prev.trailerUrl,
-    }));
-
-    const syncTags = tagsFromMedia.length ? tagsFromMedia : tags;
-    const syncGenres = genresFromMedia;
     if (syncTags.length || syncGenres.length) {
       apiFetch(apiBase, "/api/tag-translations/sync", {
         method: "POST",
@@ -2394,7 +1952,7 @@ const DashboardProjectsEditor = () => {
         isExtra: (episode) => getEpisodeEntryKind(episode) === "extra",
       });
       const newEpisode: EditorProjectEpisode = {
-        _editorKey: generateLocalId(),
+        _editorKey: generateEpisodeEditorLocalId(),
         number: nextMainNumber,
         volume: undefined,
         title: "",
@@ -2537,6 +2095,16 @@ const DashboardProjectsEditor = () => {
     ? buildDashboardProjectEpisodesEditorHref(editingProject.id)
     : "";
   const publicProjectHref = editingProject?.id ? buildProjectPublicHref(editingProject.id) : "";
+  const episodesSectionProps = useDashboardProjectsEditorController({
+    sectionClassName: editorSectionClassName,
+    triggerClassName: editorSectionTriggerClassName,
+    contentClassName: editorSectionContentClassName,
+    contentPanelClassName: isChapterBased ? chapterOpenContentClassName : undefined,
+    title: isChapterBased ? "Conteúdo" : "Episódios",
+    subtitle: `${formState.episodeDownloads.length} ${
+      isChapterBased ? "capítulos" : "episódios"
+    }`,
+  });
   const hasBlockingLoadError = !hasLoadedOnce && hasLoadError;
   const hasRetainedLoadError = hasLoadedOnce && hasLoadError;
   const showProjectsSurfaceSkeleton = !hasResolvedProjects && !hasBlockingLoadError;
@@ -3076,19 +2644,7 @@ const DashboardProjectsEditor = () => {
                   />
 
                   {isChapterBased ? (
-                    <AccordionItem value="episodios" className={editorSectionClassName}>
-                      <AccordionTrigger className={editorSectionTriggerClassName}>
-                        <ProjectEditorAccordionHeader
-                          title={isChapterBased ? "Conteúdo" : "Episódios"}
-                          subtitle={`${formState.episodeDownloads.length} ${
-                            isChapterBased ? "capítulos" : "episódios"
-                          }`}
-                        />
-                      </AccordionTrigger>
-                      <AccordionContent
-                        className={editorSectionContentClassName}
-                        contentClassName={isChapterBased ? chapterOpenContentClassName : undefined}
-                      >
+                    <ProjectEditorEpisodesSection {...episodesSectionProps}>
                         <div ref={contentSectionRef} className="space-y-3">
                           <div className="flex flex-wrap items-center justify-end gap-2">
                             {isChapterBased && supportsVolumeEntries ? (
@@ -4595,8 +4151,7 @@ const DashboardProjectsEditor = () => {
                             </Accordion>
                           </div>
                         </div>
-                      </AccordionContent>
-                    </AccordionItem>
+                    </ProjectEditorEpisodesSection>
                   ) : null}
 
                   <ProjectEditorStaffSection

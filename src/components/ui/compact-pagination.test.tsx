@@ -75,7 +75,9 @@ describe("CompactPagination", () => {
 
     render(<CompactPagination currentPage={3} totalPages={5} onPageChange={onPageChange} />);
 
-    const nextLink = screen.getByRole("link", { name: "Ir para a pr\u00F3xima p\u00E1gina" });
+    const nextLink = screen.getByRole("link", {
+      name: "Ir para a pr\u00F3xima p\u00E1gina",
+    }) as HTMLAnchorElement;
     const blurSpy = stubBlur(nextLink);
 
     fireEvent.pointerDown(nextLink);
@@ -91,7 +93,7 @@ describe("CompactPagination", () => {
 
     render(<CompactPagination currentPage={3} totalPages={5} onPageChange={vi.fn()} />);
 
-    const pageFourLink = screen.getByRole("link", { name: "4" });
+    const pageFourLink = screen.getByRole("link", { name: "4" }) as HTMLAnchorElement;
     const blurSpy = stubBlur(pageFourLink);
 
     fireEvent.focusIn(pageFourLink);
@@ -104,7 +106,9 @@ describe("CompactPagination", () => {
 
     render(<CompactPagination currentPage={3} totalPages={5} onPageChange={vi.fn()} />);
 
-    const nextLink = screen.getByRole("link", { name: "Ir para a pr\u00F3xima p\u00E1gina" });
+    const nextLink = screen.getByRole("link", {
+      name: "Ir para a pr\u00F3xima p\u00E1gina",
+    }) as HTMLAnchorElement;
     const blurSpy = stubBlur(nextLink);
 
     fireEvent.pointerDown(nextLink);

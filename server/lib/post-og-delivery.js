@@ -1,35 +1,11 @@
 import { buildPostOgCardModel, buildPostOgImageResponse } from "./post-og.js";
 import { loadProjectOgArtworkDataUrl } from "./project-og.js";
 import {
-  buildProjectStyleBaseModel,
+  createProjectStyleBaseModelBuilder,
   getProjectStyleOgCachedRender,
 } from "./og-delivery-shared.js";
 
-const buildPostOgBaseModel = ({
-  post,
-  relatedProject,
-  resolvedCover,
-  firstPostImage,
-  resolvedAuthor,
-  defaultBackdropUrl,
-  settings,
-  translations,
-  origin,
-  resolveVariantUrl,
-} = {}) =>
-  buildProjectStyleBaseModel({
-    buildCardModel: buildPostOgCardModel,
-    post,
-    relatedProject,
-    resolvedCover,
-    firstPostImage,
-    resolvedAuthor,
-    defaultBackdropUrl,
-    settings,
-    translations,
-    origin,
-    resolveVariantUrl,
-  });
+const buildPostOgBaseModel = createProjectStyleBaseModelBuilder(buildPostOgCardModel);
 
 export const getPostOgCachedRender = async ({
   post,

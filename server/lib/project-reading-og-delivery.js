@@ -8,32 +8,16 @@ import {
   PROJECT_READING_OG_SCENE_VERSION,
 } from "../../shared/project-reading-og-seo.js";
 import {
-  buildProjectStyleBaseModel,
+  createProjectStyleBaseModelBuilder,
   buildProjectStyleOgDeliveryHeaders,
   getProjectStyleOgCachedRender,
   resolveProjectStyleTranslationArgs,
   normalizeOgRevision,
 } from "./og-delivery-shared.js";
 
-const buildProjectReadingOgBaseModel = ({
-  project,
-  chapterNumber,
-  volume,
-  settings,
-  translations,
-  origin,
-  resolveVariantUrl,
-} = {}) =>
-  buildProjectStyleBaseModel({
-    buildCardModel: buildProjectReadingOgCardModel,
-    project,
-    chapterNumber,
-    volume,
-    settings,
-    translations,
-    origin,
-    resolveVariantUrl,
-  });
+const buildProjectReadingOgBaseModel = createProjectStyleBaseModelBuilder(
+  buildProjectReadingOgCardModel,
+);
 
 export const buildVersionedProjectReadingOgImagePath = ({
   projectId,

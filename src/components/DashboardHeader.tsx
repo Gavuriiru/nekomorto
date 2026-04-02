@@ -255,7 +255,7 @@ const DashboardHeader = ({
                   meta: String(candidate.meta || "").trim(),
                 } satisfies SearchSuggestion;
               })
-              .filter((item): item is SearchSuggestion => Boolean(item))
+              .filter((item) => item !== null)
           : [];
         setRemoteSuggestions(suggestions);
         setRemoteMediaVariants(

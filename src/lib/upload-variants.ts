@@ -63,7 +63,7 @@ const UPLOAD_VARIANT_PRESET_FALLBACK_ORDER: Record<
   posterThumbSm: Object.freeze(["posterThumbSm", "posterThumb", "poster"]),
   posterThumb: Object.freeze(["posterThumb", "poster"]),
   square: Object.freeze(["square"]),
-});
+} satisfies Record<UploadVariantPresetKey, readonly UploadVariantPresetKey[]>);
 
 const UPLOAD_VARIANT_PRESET_WIDTHS: Record<UploadVariantPresetKey, number> = Object.freeze({
   card: 1280,
@@ -88,7 +88,7 @@ const UPLOAD_VARIANT_RESPONSIVE_PRESET_ORDER: Partial<
   cardHome: Object.freeze(["cardHomeXs", "cardHomeSm", "cardHome", "card"]),
   hero: Object.freeze(["heroXs", "heroSm", "heroMd", "hero"]),
   posterThumb: Object.freeze(["posterThumbSm", "posterThumb", "poster"]),
-});
+} satisfies Partial<Record<UploadVariantPresetKey, readonly UploadVariantPresetKey[]>>);
 
 export const normalizeUploadVariantUrlKey = (value: string | null | undefined) => {
   const trimmed = String(value || "").trim();

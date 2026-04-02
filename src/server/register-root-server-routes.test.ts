@@ -17,16 +17,19 @@ const PUBLIC_MEDIA_RUNTIME_KEYS = [
   "resolveMetaImageVariantUrl",
 ];
 
-const createNamedValue = (key) => ({ key });
+const createNamedValue = (key: string) => ({ key });
 
 const buildDirectRouteSource = (scopeName) =>
-  DIRECT_ROUTE_DEPENDENCY_KEYS[scopeName].reduce((source, key) => {
+  (DIRECT_ROUTE_DEPENDENCY_KEYS[scopeName] as string[]).reduce<Record<string, unknown>>(
+    (source, key) => {
     source[key] = key === "app" ? { use: () => {} } : createNamedValue(key);
     return source;
-  }, {});
+    },
+    {},
+  );
 
 const buildServerRouteSource = () =>
-  [...new Set(Object.values(SERVER_ROUTE_SOURCE_FRAGMENT_KEYS).flat())].reduce(
+  [...new Set((Object.values(SERVER_ROUTE_SOURCE_FRAGMENT_KEYS) as string[][]).flat())].reduce<Record<string, unknown>>(
     (source, key) => {
       source[key] = createNamedValue(key);
       return source;
@@ -34,7 +37,7 @@ const buildServerRouteSource = () =>
     { app: { use: () => {} } },
   );
 
-const buildRootRouteSource = () => {
+const buildRootRouteSource = (): Record<string, any> => {
   const serverSource = buildServerRouteSource();
   const publicMediaRuntime = Object.fromEntries(
     PUBLIC_MEDIA_RUNTIME_KEYS.map((key) => [key, createNamedValue(key)]),

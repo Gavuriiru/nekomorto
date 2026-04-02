@@ -12,19 +12,10 @@ import {
 import type {
   ProjectRecord,
 } from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
+import { DEFAULT_PROJECT_FORMAT_OPTIONS } from "@/components/dashboard/project-editor/project-editor-constants";
 import type { Dispatch, SetStateAction } from "react";
 
-export const defaultFormatOptions = [
-  "Anime",
-  "Mangá",
-  "Webtoon",
-  "Light Novel",
-  "Filme",
-  "OVA",
-  "ONA",
-  "Especial",
-  "Spin-off",
-];
+export const defaultFormatOptions = DEFAULT_PROJECT_FORMAT_OPTIONS;
 
 type DashboardProjectsPageCacheEntry = {
   projects: ProjectRecord[];

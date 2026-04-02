@@ -1,6 +1,13 @@
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import type { ProjectEpisode } from "@/data/projects";
 import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
+import {
+  DEFAULT_PROJECT_BANNER_ALT,
+  DEFAULT_PROJECT_COVER_ALT,
+  DEFAULT_PROJECT_HERO_ALT,
+  getEpisodeCoverAltFallback,
+  resolveAssetAltText,
+} from "@/lib/image-alt";
 import { buildChapterFolder, resolveProjectImageFolders } from "@/lib/project-image-folders";
 
 type ProjectImageFolders = ReturnType<typeof resolveProjectImageFolders>;
@@ -46,6 +53,43 @@ export const buildProjectScopedLibraryOptions = ({
   ...(onRequestNavigateToUploads ? { onRequestNavigateToUploads } : {}),
   ...(currentSelectionUrls ? { currentSelectionUrls } : {}),
 });
+
+export const resolveProjectAssetAltText = (
+  target: "cover" | "banner" | "hero",
+  altText?: string | null,
+) => {
+  if (target === "banner") {
+    return resolveAssetAltText(altText, DEFAULT_PROJECT_BANNER_ALT);
+  }
+  if (target === "hero") {
+    return resolveAssetAltText(altText, DEFAULT_PROJECT_HERO_ALT);
+  }
+  return resolveAssetAltText(altText, DEFAULT_PROJECT_COVER_ALT);
+};
+
+export const resolveProjectEpisodeAssetAltText = ({
+  altText,
+  isChapterBased = false,
+}: {
+  altText?: string | null;
+  isChapterBased?: boolean;
+}) => resolveAssetAltText(altText, getEpisodeCoverAltFallback(isChapterBased));
+
+export const resolveProjectVolumeAssetAltText = (
+  volume: number,
+  altText?: string | null,
+) => resolveAssetAltText(altText, `Capa do volume ${volume}`);
+
+export const buildProjectVolumeCoversFromEntries = (
+  entries: Array<{ volume: number; coverImageUrl?: string | null; coverImageAlt?: string | null }>,
+) =>
+  entries
+    .filter((entry) => String(entry.coverImageUrl || "").trim())
+    .map((entry) => ({
+      volume: entry.volume,
+      coverImageUrl: String(entry.coverImageUrl || "").trim(),
+      coverImageAlt: resolveProjectVolumeAssetAltText(entry.volume, entry.coverImageAlt),
+    }));
 
 export const buildProjectAssetLibraryOptions = ({
   projectFolders,

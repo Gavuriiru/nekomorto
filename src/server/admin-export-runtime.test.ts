@@ -40,13 +40,18 @@ const createDeps = (overrides = {}) => {
       requestId: "system-req",
     }),
     filterByDateRange: (rows) => rows,
-    filterExportEntries: (rows, filters = {}) =>
-      rows.filter((entry) => {
-        if (filters.status && String(entry.status || "").toLowerCase() !== filters.status) {
+    filterExportEntries: (rows, filters: Record<string, unknown> = {}) => {
+      const normalizedStatus = String(filters.status || "").trim().toLowerCase();
+      return rows.filter((entry) => {
+        if (
+          normalizedStatus &&
+          String(entry.status || "").toLowerCase() !== normalizedStatus
+        ) {
           return false;
         }
         return true;
-      }),
+      });
+    },
     loadAdminExportJobs: () => jobs,
     loadAuditLog: () => [],
     loadOwnerIds: () => ["owner-1"],
@@ -86,7 +91,8 @@ const createDeps = (overrides = {}) => {
     },
     normalizeExportDataset: (value) => String(value || "").trim().toLowerCase() || "audit_log",
     normalizeExportFilters: (value) => {
-      const source = value && typeof value === "object" ? value : {};
+      const source =
+        value && typeof value === "object" ? (value as Record<string, unknown>) : {};
       return {
         status: String(source.status || "").trim().toLowerCase(),
       };

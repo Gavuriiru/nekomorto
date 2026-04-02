@@ -15,7 +15,7 @@ type DashboardPageHeaderProps = {
   className?: string;
   descriptionDelayMs?: number;
   actionsDelayMs?: number;
-  badgeProps?: ComponentPropsWithoutRef<typeof DashboardPageBadge>;
+  badgeProps?: Omit<ComponentPropsWithoutRef<typeof DashboardPageBadge>, "children">;
 };
 
 const DashboardPageHeader = ({

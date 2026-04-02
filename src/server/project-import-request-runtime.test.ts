@@ -6,11 +6,15 @@ const createDeps = (overrides = {}) => {
   const singleMiddleware = vi.fn((req, res, next) => next());
   const fieldsMiddleware = vi.fn((req, res, next) => next());
   const rawMiddleware = vi.fn((req, res, next) => next());
-  const multerMock = vi.fn(() => ({
-    single: vi.fn(() => singleMiddleware),
-    fields: vi.fn(() => fieldsMiddleware),
-  }));
-  multerMock.memoryStorage = vi.fn(() => "memory-storage");
+  const multerMock = Object.assign(
+    vi.fn(() => ({
+      single: vi.fn(() => singleMiddleware),
+      fields: vi.fn(() => fieldsMiddleware),
+    })),
+    {
+      memoryStorage: vi.fn(() => "memory-storage"),
+    },
+  );
 
   return {
     EPUB_IMPORT_MULTIPART_LIMITS: {
@@ -111,12 +115,14 @@ describe("project-import-request-runtime", () => {
     };
 
     deps.multer.mockImplementationOnce(() => ({
-      single: vi.fn(() => (request, response, next) =>
-        next({
-          code: "LIMIT_FILE_SIZE",
-        }),
+      single: vi.fn(() =>
+        vi.fn((request, response, next) =>
+          next({
+            code: "LIMIT_FILE_SIZE",
+          }),
+        ),
       ),
-      fields: vi.fn(() => (request, response, next) => next()),
+      fields: vi.fn(() => vi.fn((request, response, next) => next())),
     }));
 
     const runtimeWithEpubError = createProjectImportRequestRuntime(deps);
@@ -128,11 +134,13 @@ describe("project-import-request-runtime", () => {
     const projectImageDeps = createDeps({
       multer: Object.assign(
         vi.fn(() => ({
-          single: vi.fn(() => (request, response, next) => next()),
-          fields: vi.fn(() => (request, response, next) =>
-            next({
-              code: "LIMIT_UNEXPECTED_FILE",
-            }),
+          single: vi.fn(() => vi.fn((request, response, next) => next())),
+          fields: vi.fn(() =>
+            vi.fn((request, response, next) =>
+              next({
+                code: "LIMIT_UNEXPECTED_FILE",
+              }),
+            ),
           ),
         })),
         { memoryStorage: vi.fn(() => "memory-storage") },

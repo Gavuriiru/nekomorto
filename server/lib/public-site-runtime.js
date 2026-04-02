@@ -579,7 +579,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
       as: "style",
       crossorigin: "anonymous",
     }));
-    if (includeHeroImagePreload) {
+    if (includeHeroImagePreload && !includeHomeHeroShell) {
       const heroPreload = resolveHomeHeroPreload(publicBootstrap);
       if (heroPreload) {
         preloads.push(heroPreload);

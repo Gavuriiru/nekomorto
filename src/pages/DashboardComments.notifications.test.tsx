@@ -45,6 +45,7 @@ const pendingCommentFixture = {
   targetType: "post",
   targetId: "post-1",
   name: "Visitante",
+  avatarUrl: "",
   content: "Comentário pendente",
   createdAt: "2026-02-17T10:00:00.000Z",
   targetLabel: "Post de teste",

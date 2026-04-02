@@ -2,19 +2,15 @@ import type {
   ImageLibraryOptions,
   ImageLibrarySavePayload,
 } from "@/components/ImageLibraryDialog";
-import type { ProjectVolumeEntry } from "@/data/projects";
+import type { ProjectEpisode, ProjectVolumeEntry } from "@/data/projects";
 import {
   buildProjectAssetLibraryOptions,
   buildProjectEpisodeAssetLibraryOptions,
   buildProjectVolumeAssetLibraryOptions,
+  resolveProjectAssetAltText,
+  resolveProjectEpisodeAssetAltText,
+  resolveProjectVolumeAssetAltText,
 } from "@/lib/dashboard-image-library";
-import {
-  DEFAULT_PROJECT_BANNER_ALT,
-  DEFAULT_PROJECT_COVER_ALT,
-  DEFAULT_PROJECT_HERO_ALT,
-  getEpisodeCoverAltFallback,
-  resolveAssetAltText,
-} from "@/lib/image-alt";
 import { resolveProjectImageFolders } from "@/lib/project-image-folders";
 import { isChapterBasedType } from "@/lib/project-utils";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -27,10 +23,11 @@ type ProjectImageLibraryTarget =
   | "episode-cover"
   | "volume-cover";
 
-type ProjectEditorLibraryEpisode = {
-  coverImageUrl?: string;
-  coverImageAlt?: string;
-};
+type ProjectEditorLibraryEpisode = Pick<
+  ProjectEpisode,
+  "number" | "volume" | "coverImageUrl" | "coverImageAlt"
+> &
+  Partial<ProjectEpisode>;
 
 type ProjectEditorLibraryForm<
   TEpisode extends ProjectEditorLibraryEpisode = ProjectEditorLibraryEpisode,
@@ -172,15 +169,13 @@ export function useProjectEditorImageLibrary<
         const next = { ...prev };
         if (libraryTarget === "cover") {
           next.cover = nextUrl;
-          next.coverAlt = nextUrl ? resolveAssetAltText(altText, DEFAULT_PROJECT_COVER_ALT) : "";
+          next.coverAlt = nextUrl ? resolveProjectAssetAltText("cover", altText) : "";
         } else if (libraryTarget === "banner") {
           next.banner = nextUrl;
-          next.bannerAlt = nextUrl
-            ? resolveAssetAltText(altText, DEFAULT_PROJECT_BANNER_ALT)
-            : "";
+          next.bannerAlt = nextUrl ? resolveProjectAssetAltText("banner", altText) : "";
         } else if (libraryTarget === "hero") {
           next.heroImageUrl = nextUrl;
-          next.heroImageAlt = nextUrl ? resolveAssetAltText(altText, DEFAULT_PROJECT_HERO_ALT) : "";
+          next.heroImageAlt = nextUrl ? resolveProjectAssetAltText("hero", altText) : "";
         } else if (libraryTarget === "episode-cover") {
           if (episodeCoverIndex === null) {
             return prev;
@@ -193,10 +188,10 @@ export function useProjectEditorImageLibrary<
             ...nextEpisodes[episodeCoverIndex],
             coverImageUrl: nextUrl,
             coverImageAlt: nextUrl
-              ? resolveAssetAltText(
+              ? resolveProjectEpisodeAssetAltText({
                   altText,
-                  getEpisodeCoverAltFallback(isChapterBasedType(prev.type || "")),
-                )
+                  isChapterBased: isChapterBasedType(prev.type || ""),
+                })
               : "",
           };
           return { ...prev, episodeDownloads: nextEpisodes };
@@ -229,7 +224,7 @@ export function useProjectEditorImageLibrary<
             ...targetEntry,
             coverImageUrl: nextUrl,
             coverImageAlt: nextUrl
-              ? resolveAssetAltText(altText, `Capa do volume ${targetEntry.volume}`)
+              ? resolveProjectVolumeAssetAltText(targetEntry.volume, altText)
               : "",
           };
           nextVolumeEntries.sort((left, right) => left.volume - right.volume);

@@ -1,5 +1,12 @@
 ﻿import DashboardShell from "@/components/DashboardShell";
 import ChapterEditorIdentitySection from "@/components/dashboard/chapter-editor/ChapterEditorIdentitySection";
+import type {
+  ChapterEditorPaneHandle,
+  ChapterStructureGroup,
+  ProjectRecord,
+  VolumeSelectionOptions,
+} from "@/components/dashboard/chapter-editor/chapter-editor-types";
+import { useChapterEditorImageLibrary } from "@/components/dashboard/chapter-editor/useChapterEditorImageLibrary";
 import {
   Input,
   Select,
@@ -35,24 +42,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
-import type {
-  Project,
-  ProjectEpisode,
-  ProjectVolumeCover,
-  ProjectVolumeEntry,
-} from "@/data/projects";
-import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
+import type { ProjectEpisode, ProjectVolumeEntry } from "@/data/projects";
 import { refetchPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import {
-  buildProjectChapterAssetLibraryOptions,
-  buildProjectVolumeAssetLibraryOptions,
-} from "@/lib/dashboard-image-library";
 import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
 import {
-  buildChapterStructureGroupKey,
+  EMPTY_CHAPTER_DRAFT,
+  IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
+  VOLUME_REQUIRED_IDENTITY_MESSAGE,
+  VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION,
+  buildNewChapterDraft,
   buildChapterVolumeLabel,
   buildEditableVolumeOptions,
   buildChapterSnapshot,
@@ -60,7 +61,6 @@ import {
   buildVolumeCoverAltFallback,
   chapterHasContent,
   chapterStatusLabel,
-  compareChapterStructureGroupKeys,
   groupChaptersByStructureKey,
   groupStageChaptersByStructureKey,
   matchesChapterSearch,
@@ -140,9 +140,7 @@ import {
   buildEpisodeKey,
   resolveCanonicalEpisodeRouteTarget,
   resolveEpisodeLookup,
-  resolveNextMainEpisodeNumber,
 } from "@/lib/project-episode-key";
-import { resolveProjectImageFolders } from "@/lib/project-image-folders";
 import {
   isChapterBasedType,
   isLightNovelType,
@@ -190,58 +188,12 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  Link,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,
 } from "../../../../shared/project-reader.js";
 const chapterEditorLexicalMinHeightClassName = "min-h-[420px] lg:min-h-[620px]";
-type ChapterStructureGroup = {
-  key: string;
-  label: string;
-  volume: number | null;
-  hasMetadata: boolean;
-  chapterCount: number;
-  allItems: ProjectEpisode[];
-  visibleItems: ProjectEpisode[];
-  pendingItems: StageChapter[];
-  visiblePendingItems: StageChapter[];
-};
-type StructureScrollAnchor = { groupKey: string; top: number };
-type DeleteDialogState =
-  | {
-      kind: "chapter";
-      title: string;
-      description: string;
-      volume: number | null;
-    }
-  | { kind: "volume"; title: string; description: string; volume: number };
-type VolumeSelectionOptions = {
-  preserveScrollAnchor?: StructureScrollAnchor | null;
-};
-type ProjectRecord = Project & { revision?: string };
-type CurrentUser = {
-  id: string;
-  name: string;
-  username: string;
-  avatarUrl?: string | null;
-  permissions?: string[];
-};
-type ChapterEditorPaneHandle = {
-  hasUnsavedChanges: (options?: {
-    nextHref?: string;
-    routeExit?: boolean;
-  }) => boolean;
-  requestLeave: (options?: {
-    nextHref?: string;
-    routeExit?: boolean;
-  }) => Promise<boolean>;
-};
 type EpubCapabilityState = {
   message: string;
   variant: "destructive" | "warning";
@@ -286,7 +238,7 @@ type ChapterEditorPaneProps = {
   previousChapterHref: string | null;
   nextChapterHref: string | null;
   neutralHref: string;
-  onNavigateToHref: (href: string) => void;
+  onNavigateToHref: (href: string) => void | Promise<boolean>;
   onNavigateToUploads: () => boolean | Promise<boolean>;
   onPersistProjectSnapshot: (
     snapshot: ProjectRecord,
@@ -340,26 +292,6 @@ type ChapterEditorPaneProps = {
   isExportingEpub: boolean;
   onExportEpub: () => void | Promise<void>;
 };
-const EMPTY_CHAPTER_DRAFT: ProjectEpisode = {
-  number: 1,
-  title: "",
-  synopsis: "",
-  releaseDate: "",
-  duration: "",
-  sourceType: "TV",
-  sources: [],
-  completedStages: [],
-  content: "",
-  contentFormat: "lexical",
-  pages: [],
-  pageCount: 0,
-  hasPages: false,
-  publicationStatus: "draft",
-  coverImageUrl: "",
-  coverImageAlt: "",
-};
-const primaryEditorSectionClassName =
-  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_54px_-42px_rgba(0,0,0,0.72)]";
 const editorAccordionHeaderTextClassName = "min-w-0 flex-1 space-y-1 text-left";
 const editorAccordionTitleClassName =
   "block text-[15px] font-semibold leading-tight md:text-base";
@@ -369,14 +301,6 @@ const editorialMastheadClassName =
   "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
 const editorialCommandBarClassName =
   "sticky top-3 z-20 overflow-hidden rounded-2xl border border-border/60 bg-background/92 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.72)] backdrop-blur supports-backdrop-filter:bg-background/78";
-const workspaceSectionMutedClassName =
-  "overflow-hidden rounded-2xl border border-border/60 bg-card/65";
-const IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE =
-  "Capitulos em imagem precisam ter ao menos uma pagina para serem publicados.";
-const VOLUME_REQUIRED_IDENTITY_MESSAGE =
-  "Informe o volume para salvar um capítulo com número ambíguo.";
-const VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION =
-  "Esse salvamento foi bloqueado porque a URL do editor ficaria ambígua. Informe o volume antes de salvar este capítulo.";
 const toastIncompleteDownloadSources = () => {
   toast({
     title: "Complete as fontes de download",
@@ -386,40 +310,6 @@ const toastIncompleteDownloadSources = () => {
   });
 };
 const WorkspaceSectionCard = ProjectEditorSectionCard;
-const buildNewChapterDraft = (
-  episodes: ProjectEpisode[],
-  options: { volume?: number; projectType?: string | null } = {},
-) =>
-  normalizeChapterForEditor({
-    ...EMPTY_CHAPTER_DRAFT,
-    number: resolveNextMainEpisodeNumber(
-      options.volume === undefined
-        ? episodes.map((episode) => ({ ...episode, volume: undefined }))
-        : episodes,
-      { volume: options.volume },
-    ),
-    volume: options.volume,
-    title: "",
-    synopsis: "",
-    entryKind: "main",
-    entrySubtype: "chapter",
-    releaseDate: "",
-    duration: "",
-    coverImageUrl: "",
-    coverImageAlt: "",
-    sourceType: "TV",
-    sources: [],
-    progressStage: "aguardando-raw",
-    completedStages: [],
-    content: "",
-    contentFormat: isMangaType(options.projectType || "")
-      ? "images"
-      : "lexical",
-    pages: [],
-    pageCount: 0,
-    hasPages: false,
-    publicationStatus: "draft",
-  });
 const findStructureGroupElement = (groupKey: string) => {
   if (typeof document === "undefined") {
     return null;
@@ -511,10 +401,6 @@ const ChapterEditorPane = forwardRef<
     const [identityError, setIdentityError] = useState<string | null>(null);
     const [isVolumeRequiredSaveDialogOpen, setIsVolumeRequiredSaveDialogOpen] =
       useState(false);
-    const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-    const [libraryTarget, setLibraryTarget] = useState<
-      "chapter-cover" | "volume-cover" | null
-    >(null);
     const [isSavingChapter, setIsSavingChapter] = useState(false);
     const [structureVolumeExportKey, setStructureVolumeExportKey] = useState<
       string | null
@@ -582,36 +468,6 @@ const ChapterEditorPane = forwardRef<
       [buildEditorChapterSnapshot, draft, hasActiveChapter],
     );
     const isDirty = hasActiveChapter && draftSnapshot !== activeChapterSnapshot;
-    const projectImageFolders = useMemo(
-      () => resolveProjectImageFolders(project.id, project.title),
-      [project.id, project.title],
-    );
-    const chapterImageLibraryOptions = useMemo(
-      () =>
-        buildProjectChapterAssetLibraryOptions({
-          projectFolders: projectImageFolders,
-          projectId: project.id,
-          episode: draft,
-          index: Math.max(chapterIndex, 0),
-          onRequestNavigateToUploads: onNavigateToUploads,
-        }),
-      [
-        chapterIndex,
-        draft,
-        onNavigateToUploads,
-        project.id,
-        projectImageFolders,
-      ],
-    );
-    const chapterFolder = chapterImageLibraryOptions.uploadFolder;
-    const volumeImageLibraryOptions = useMemo(
-      () =>
-        buildProjectVolumeAssetLibraryOptions({
-          projectFolders: projectImageFolders,
-          projectId: project.id,
-        }),
-      [project.id, projectImageFolders],
-    );
     const selectedVolumeEntry = useMemo(() => {
       if (selectedVolume === null || !Number.isFinite(Number(selectedVolume))) {
         return null;
@@ -645,17 +501,6 @@ const ChapterEditorPane = forwardRef<
     const volumeSaveStatusLabel = isSavingVolumes
       ? "Salvando volumes..."
       : "Volumes pendentes";
-    const openChapterCoverLibrary = useCallback(() => {
-      setLibraryTarget("chapter-cover");
-      setIsLibraryOpen(true);
-    }, []);
-    const openVolumeCoverLibrary = useCallback(() => {
-      if (selectedVolumeNumber === null) {
-        return;
-      }
-      setLibraryTarget("volume-cover");
-      setIsLibraryOpen(true);
-    }, [selectedVolumeNumber]);
     const blockAmbiguousChapterSave = useCallback(
       (snapshot: ProjectEpisode) => {
         const normalizedSnapshot = normalizeChapterForSave(snapshot, "manga");
@@ -1276,6 +1121,24 @@ const ChapterEditorPane = forwardRef<
       },
       [onUpdateVolumeEntry, selectedVolumeNumber],
     );
+    const {
+      chapterFolder,
+      chapterImageLibraryOptions,
+      libraryDialogProps,
+      openChapterCoverLibrary,
+      openVolumeCoverLibrary,
+    } = useChapterEditorImageLibrary({
+      apiBase,
+      chapterIndex,
+      draft,
+      onNavigateToUploads,
+      projectId: project.id,
+      projectTitle: project.title,
+      selectedVolumeEntry,
+      selectedVolumeNumber,
+      updateDraft,
+      updateSelectedVolumeEntry,
+    });
     const openStructureGroupKeysRef = useRef<string[]>([]);
     const [openStructureGroupKeys, setOpenStructureGroupKeys] = useState<
       string[]
@@ -2326,94 +2189,6 @@ const ChapterEditorPane = forwardRef<
         </div>
       ) : null
     ) : null;
-    const libraryDialogProps = libraryTarget
-      ? {
-          open: isLibraryOpen,
-          onOpenChange: (nextOpen: boolean) => {
-            setIsLibraryOpen(nextOpen);
-            if (!nextOpen) {
-              setLibraryTarget(null);
-            }
-          },
-          apiBase,
-          uploadFolder:
-            libraryTarget === "volume-cover"
-              ? volumeImageLibraryOptions.uploadFolder
-              : chapterImageLibraryOptions.uploadFolder,
-          listFolders:
-            libraryTarget === "volume-cover"
-              ? volumeImageLibraryOptions.listFolders
-              : chapterImageLibraryOptions.listFolders,
-          listAll:
-            libraryTarget === "volume-cover"
-              ? volumeImageLibraryOptions.listAll
-              : chapterImageLibraryOptions.listAll,
-          includeProjectImages:
-            libraryTarget === "volume-cover"
-              ? volumeImageLibraryOptions.includeProjectImages
-              : chapterImageLibraryOptions.includeProjectImages,
-          projectImageProjectIds:
-            libraryTarget === "volume-cover"
-              ? volumeImageLibraryOptions.projectImageProjectIds
-              : chapterImageLibraryOptions.projectImageProjectIds,
-          projectImagesView:
-            libraryTarget === "volume-cover"
-              ? volumeImageLibraryOptions.projectImagesView
-              : chapterImageLibraryOptions.projectImagesView,
-          description:
-            libraryTarget === "volume-cover"
-              ? "Selecione uma capa para o volume."
-              : "Selecione uma capa para o capítulo.",
-          allowDeselect: true,
-          mode: "single" as const,
-          onRequestNavigateToUploads: onNavigateToUploads,
-          currentSelectionUrls:
-            libraryTarget === "volume-cover"
-              ? selectedVolumeEntry?.coverImageUrl
-                ? [selectedVolumeEntry.coverImageUrl]
-                : []
-              : draft.coverImageUrl
-                ? [draft.coverImageUrl]
-                : [],
-          onSave: ({
-            urls,
-            items,
-          }: {
-            items: Array<{ altText?: string }>;
-            urls: string[];
-          }) => {
-            const nextUrl = String(urls[0] || "").trim();
-            if (
-              libraryTarget === "volume-cover" &&
-              selectedVolumeNumber !== null
-            ) {
-              updateSelectedVolumeEntry((entry) => ({
-                ...entry,
-                coverImageUrl: nextUrl,
-                coverImageAlt: nextUrl
-                  ? resolveAssetAltText(
-                      items[0]?.altText,
-                      buildVolumeCoverAltFallback(selectedVolumeNumber),
-                    )
-                  : "",
-              }));
-            } else {
-              updateDraft((current) => ({
-                ...current,
-                coverImageUrl: nextUrl,
-                coverImageAlt: nextUrl
-                  ? resolveAssetAltText(
-                      items[0]?.altText,
-                      getEpisodeCoverAltFallback(true),
-                    )
-                  : "",
-              }));
-            }
-            setIsLibraryOpen(false);
-            setLibraryTarget(null);
-          },
-        }
-      : null;
     return (
       <>
         {" "}

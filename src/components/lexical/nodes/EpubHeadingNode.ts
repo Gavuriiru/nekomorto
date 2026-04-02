@@ -1,6 +1,7 @@
 import {
   $applyNodeReplacement,
   $createParagraphNode,
+  type ElementFormatType,
   type LexicalNode,
   type NodeKey,
   type SerializedElementNode,
@@ -70,7 +71,7 @@ export class EpubHeadingNode extends HeadingNode {
         const { format, editorialStyle } = extractBlockEditorialStyle(node.style);
         const heading = $createEpubHeadingNode({ tag, editorialStyle });
         if (format) {
-          heading.setFormat(format);
+          heading.setFormat(format as ElementFormatType);
         }
         return { node: heading };
       },
@@ -118,11 +119,11 @@ export class EpubHeadingNode extends HeadingNode {
   }
 
   updateDOM(
-    prevNode: EpubHeadingNode,
+    prevNode: HeadingNode,
     dom: HTMLElement,
     config: Parameters<HeadingNode["createDOM"]>[0],
   ) {
-    const needsRemount = super.updateDOM(prevNode, dom, config);
+    const needsRemount = prevNode.getTag() !== this.getTag();
     if (!needsRemount) {
       applyEditorialStyleToElement(dom, this.getEditorialStyle());
     }

@@ -175,9 +175,11 @@ describe("og image output helper", () => {
       mode: "lossless",
     });
     const metadata = await sharp(optimized).metadata();
+    const paletteBitDepth = (metadata as sharp.Metadata & { paletteBitDepth?: number })
+      .paletteBitDepth;
 
     expect(optimized.length).toBeLessThan(uncompressed.length);
-    expect(metadata.paletteBitDepth).toBeUndefined();
+    expect(paletteBitDepth).toBeUndefined();
   });
 
   it("returns the original buffer when alwaysAttempt lossless does not improve it", async () => {

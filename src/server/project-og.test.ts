@@ -39,6 +39,15 @@ const baseProject = {
 
 const transparentDataUrl = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
+type TestElementProps = Record<string, unknown> & {
+  children?: unknown;
+  style?: Record<string, unknown>;
+};
+
+type TestElement = {
+  props?: TestElementProps;
+};
+
 const toArray = (value: unknown) => {
   if (Array.isArray(value)) {
     return value;
@@ -51,12 +60,12 @@ const toArray = (value: unknown) => {
 
 const findElement = (
   node: unknown,
-  predicate: (candidate: { props?: Record<string, unknown> }) => boolean,
-): { props?: Record<string, unknown> } | null => {
+  predicate: (candidate: TestElement) => boolean,
+): TestElement | null => {
   if (!node || typeof node !== "object") {
     return null;
   }
-  const candidate = node as { props?: Record<string, unknown> };
+  const candidate = node as TestElement;
   if (predicate(candidate)) {
     return candidate;
   }
@@ -72,15 +81,15 @@ const findElement = (
 
 const findAllElements = (
   node: unknown,
-  predicate: (candidate: { props?: Record<string, unknown> }) => boolean,
-): Array<{ props?: Record<string, unknown> }> => {
+  predicate: (candidate: TestElement) => boolean,
+): TestElement[] => {
   if (!node || typeof node !== "object") {
     return [];
   }
-  const candidate = node as { props?: Record<string, unknown> };
+  const candidate = node as TestElement;
   const matches = predicate(candidate) ? [candidate] : [];
   const children = toArray(candidate.props?.children);
-  return children.reduce<Array<{ props?: Record<string, unknown> }>>(
+  return children.reduce<TestElement[]>(
     (all, child) => all.concat(findAllElements(child, predicate)),
     matches,
   );
@@ -869,7 +878,7 @@ describe("project og helper", () => {
       artworkDataUrl: transparentDataUrl,
       backdropDataUrl: transparentDataUrl,
     });
-    const children = toArray(scene.props?.children) as Array<{ props?: Record<string, unknown> }>;
+    const children = toArray(scene.props?.children) as TestElement[];
     const artworkIndex = children.findIndex(
       (child) => child?.props?.["data-og-part"] === "artwork",
     );
@@ -986,12 +995,14 @@ describe("project og helper", () => {
         background: `linear-gradient(180deg, ${model.palette.accentDarkStart} 0%, ${model.palette.accentDarkEnd} 100%)`,
       }),
     );
-    expect(String(artworkFallbackNode?.props?.style?.background || "").toLowerCase()).not.toContain(
+    expect(
+      String(artworkFallbackNode?.props?.style?.["background"] || "").toLowerCase(),
+    ).not.toContain(
       "#fff",
     );
-    expect(String(artworkFallbackNode?.props?.style?.backgroundColor || "").toLowerCase()).not.toBe(
-      "#ffffff",
-    );
+    expect(
+      String(artworkFallbackNode?.props?.style?.["backgroundColor"] || "").toLowerCase(),
+    ).not.toBe("#ffffff");
   });
 
   it("builds the current and legacy scenes with the project card layer", () => {

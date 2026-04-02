@@ -654,7 +654,7 @@ describe("MangaWorkflowPanel", () => {
       expect(onPersistProjectSnapshot).toHaveBeenCalledTimes(1);
     });
 
-    const [persistedSnapshot, persistedOptions] = onPersistProjectSnapshot.mock.calls[0] as [
+    const [persistedSnapshot, persistedOptions] = onPersistProjectSnapshot.mock.calls[0] as unknown as [
       Project & { revision?: string },
       { context: string },
     ];

@@ -77,7 +77,7 @@ describe("post og delivery", () => {
         settings,
       }: {
         post?: Record<string, unknown>;
-        settings?: Record<string, unknown>;
+        settings?: { theme?: { accent?: string } };
       }) => ({
         eyebrow: "Postagem",
         title: String(post?.title || "Postagem"),

@@ -53,6 +53,7 @@ const NATURAL_COLLATOR = new Intl.Collator("pt-BR", {
 });
 
 const compareNatural = (left: string, right: string) => NATURAL_COLLATOR.compare(left, right);
+const toBlobPart = (bytes: Uint8Array<ArrayBufferLike>) => Uint8Array.from(bytes);
 
 const buildSpreadPairId = () =>
   globalThis.crypto?.randomUUID?.() ||
@@ -109,7 +110,7 @@ const archiveEntriesToFiles = async (file: File) => {
   return Object.entries(extracted)
     .map(([relativePath, content]) => ({
       relativePath,
-      blob: new Blob([content]),
+      blob: new Blob([toBlobPart(content)]),
     }))
     .filter((entry) => /\.(png|jpe?g|gif|webp)$/i.test(entry.relativePath))
     .filter(

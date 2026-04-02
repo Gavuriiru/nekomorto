@@ -716,6 +716,9 @@ const ProjectReading = () => {
       : "Editar capítulo";
 
   const shouldRenderMangaSiteHeader = isImageReader && isMangaReader;
+  const imageReaderChromeMode: "default" | "cinema" = shouldRenderMangaSiteHeader
+    ? "default"
+    : "cinema";
   const imageReaderProps = {
     projectTitle: project.title,
     projectType: project.type || (isLightNovel ? "Light Novel" : "MangÃ¡"),
@@ -732,7 +735,7 @@ const ProjectReading = () => {
     currentChapterValue,
     onNavigateChapter: (href: string) => navigate(href),
     backHref: `/projeto/${encodeURIComponent(project.id)}`,
-    chromeMode: (shouldRenderMangaSiteHeader ? "default" : "cinema") as const,
+    chromeMode: imageReaderChromeMode,
     preferences: imageReaderPreferences,
   };
 

@@ -6,28 +6,16 @@ import {
 } from "./project-og.js";
 import {
   appendVersionQueryParam,
-  buildProjectStyleBaseModel,
+  buildProjectStyleRevisionFromModel,
   buildProjectStyleOgDeliveryHeaders,
+  createProjectStyleBaseModelBuilder,
   getProjectStyleOgCachedRender,
+  prewarmProjectStyleOgCache,
   normalizeOgRevision,
 } from "./og-delivery-shared.js";
 import { createRevisionToken } from "./revision-token.js";
 
-const buildProjectOgBaseModel = ({
-  project,
-  settings,
-  translations,
-  origin,
-  resolveVariantUrl,
-} = {}) =>
-  buildProjectStyleBaseModel({
-    buildCardModel: buildProjectOgCardModel,
-    project,
-    settings,
-    translations,
-    origin,
-    resolveVariantUrl,
-  });
+const buildProjectOgBaseModel = createProjectStyleBaseModelBuilder(buildProjectOgCardModel);
 
 export const buildProjectOgRevision = ({
   project,
@@ -37,18 +25,20 @@ export const buildProjectOgRevision = ({
   resolveVariantUrl,
   sceneVersion = PROJECT_OG_SCENE_VERSION,
 } = {}) => {
-  const baseModel = buildProjectOgBaseModel({
+  return buildProjectStyleRevisionFromModel({
+    buildBaseModel: buildProjectOgBaseModel,
     project,
     settings,
     translations,
     origin,
     resolveVariantUrl,
-  });
-  return createRevisionToken({
-    model: baseModel,
-    sceneVersion: normalizeOgRevision(
-      sceneVersion || baseModel.sceneVersion || PROJECT_OG_SCENE_VERSION,
-    ),
+    buildRevision: (baseModel) =>
+      createRevisionToken({
+        model: baseModel,
+        sceneVersion: normalizeOgRevision(
+          sceneVersion || baseModel?.sceneVersion || PROJECT_OG_SCENE_VERSION,
+        ),
+      }),
   });
 };
 
@@ -91,29 +81,16 @@ export const prewarmProjectOgCache = async ({
   resolveVariantUrl,
   ogRenderCache,
 } = {}) => {
-  const safeProjects = Array.isArray(projects) ? projects.filter(Boolean) : [];
-  let warmed = 0;
-  let cacheHits = 0;
-
-  for (const project of safeProjects) {
-    const rendered = await getProjectOgCachedRender({
-      project,
-      settings,
-      translations,
-      origin,
-      resolveVariantUrl,
-      ogRenderCache,
-    });
-    if (rendered.cacheHit) {
-      cacheHits += 1;
-    } else {
-      warmed += 1;
-    }
-  }
-
-  return {
-    total: safeProjects.length,
-    warmed,
-    cacheHits,
-  };
+  return prewarmProjectStyleOgCache({
+    items: projects,
+    renderItem: (project) =>
+      getProjectOgCachedRender({
+        project,
+        settings,
+        translations,
+        origin,
+        resolveVariantUrl,
+        ogRenderCache,
+      }),
+  });
 };

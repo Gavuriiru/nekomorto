@@ -24,7 +24,7 @@ import {
 import { buildUserRuntimeDependencies } from "../../server/bootstrap/build-user-runtime-dependencies.js";
 import { buildWebhookRuntimeDependencies } from "../../server/bootstrap/build-webhook-runtime-dependencies.js";
 
-const createNamedValue = (key) => ({ key });
+const createNamedValue = (key: string) => ({ key });
 const PUBLIC_MEDIA_RUNTIME_KEYS = [
   "buildPublicMediaVariants",
   "collectDownloadIconUploads",
@@ -36,8 +36,8 @@ const PUBLIC_MEDIA_RUNTIME_KEYS = [
 ];
 
 const buildDirectRouteSource = (scopeName) => {
-  const keys = DIRECT_ROUTE_DEPENDENCY_KEYS[scopeName];
-  return keys.reduce((source, key) => {
+  const keys = DIRECT_ROUTE_DEPENDENCY_KEYS[scopeName] as string[];
+  return keys.reduce<Record<string, unknown>>((source, key) => {
     source[key] = key === "app" ? { use: () => {} } : createNamedValue(key);
     return source;
   }, {});
@@ -51,7 +51,7 @@ const buildDirectRouteRegistrationSource = () => ({
 });
 
 const buildServerRouteSource = () =>
-  SERVER_ROUTE_DEPENDENCY_KEYS.reduce(
+  SERVER_ROUTE_DEPENDENCY_KEYS.reduce<Record<string, unknown>>(
     (source, key) => {
       source[key] = createNamedValue(key);
       return source;
@@ -60,7 +60,7 @@ const buildServerRouteSource = () =>
   );
 
 const buildServerRouteFragmentSource = () =>
-  [...new Set(Object.values(SERVER_ROUTE_SOURCE_FRAGMENT_KEYS).flat())].reduce(
+  [...new Set((Object.values(SERVER_ROUTE_SOURCE_FRAGMENT_KEYS) as string[][]).flat())].reduce<Record<string, unknown>>(
     (source, key) => {
       source[key] = createNamedValue(key);
       return source;

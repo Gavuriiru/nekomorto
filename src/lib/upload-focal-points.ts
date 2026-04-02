@@ -60,7 +60,7 @@ const UPLOAD_FOCAL_PRESET_FALLBACK_ORDER: Record<
 > = Object.freeze({
   card: Object.freeze(["card", "og", "thumb"]),
   hero: Object.freeze(["hero"]),
-});
+} satisfies Record<UploadFocalPresetKey, readonly UploadLegacyFocalPresetKey[]>);
 
 const FULL_UPLOAD_FOCAL_CROP_RECT: UploadFocalCropRect = Object.freeze({
   left: 0,

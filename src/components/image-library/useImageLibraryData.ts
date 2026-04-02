@@ -1,22 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { apiFetch } from "@/lib/api-client";
-import {
-  deriveUploadFocalPointsFromCrops,
-  normalizeUploadFocalCrops,
-} from "@/lib/upload-focal-points";
 import { getUploadsListErrorMessage } from "@/components/image-library/messages";
 import {
+  buildStableUploadSelectionState,
   parseSelectionSignature,
-  toSelectionSignature,
 } from "@/components/image-library/selection";
 import type { LibraryImageItem } from "@/components/image-library/types";
+import { dedupeUrlsByComparableKey } from "@/components/image-library/utils";
 import {
-  dedupeUrlsByComparableKey,
-  normalizeComparableUploadUrl,
-  parseUploadUrlPath,
-  sanitizeUploadFolderForComparison,
-} from "@/components/image-library/utils";
+  buildUploadsListPath,
+  dedupeLibraryItemsByUrl,
+  mapProjectImageItemsToLibraryItems,
+  mapUploadsListFilesToLibraryItems,
+} from "@/components/image-library/data";
 
 type UseImageLibraryDataParams = {
   allowedProjectImageIdSet: Set<string>;
@@ -39,33 +36,6 @@ type UseImageLibraryDataResult = {
   uploadsLoadError: string;
 };
 
-const normalizeIncludedUploadUrls = (urls: string[] = []) =>
-  dedupeUrlsByComparableKey(
-    urls
-      .map((value) => normalizeComparableUploadUrl(value))
-      .filter((value) => value.startsWith("/uploads/")),
-  );
-
-const buildStableIncludedUploadUrls = (urls: string[] = []) => [...normalizeIncludedUploadUrls(urls)].sort();
-
-const buildUploadsListPath = (folder: string, scopeUserId?: string, includeUrls: string[] = []) => {
-  const params = new URLSearchParams();
-  if (folder) {
-    params.set("folder", folder);
-    if (folder !== "__all__") {
-      params.set("recursive", "1");
-    }
-  }
-  if (scopeUserId) {
-    params.set("scopeUserId", scopeUserId);
-  }
-  includeUrls.forEach((value) => {
-    params.append("includeUrl", value);
-  });
-  const query = params.toString();
-  return `/api/uploads/list${query ? `?${query}` : ""}`;
-};
-
 export const useImageLibraryData = ({
   allowedProjectImageIdSet,
   apiBase,
@@ -80,18 +50,18 @@ export const useImageLibraryData = ({
   const [uploads, setUploads] = useState<LibraryImageItem[]>([]);
   const [projectImages, setProjectImages] = useState<LibraryImageItem[]>([]);
   const [isLibraryHydratedForOpen, setIsLibraryHydratedForOpen] = useState(false);
-  const persistentIncludeUrlsSignature = useMemo(
-    () => toSelectionSignature(buildStableIncludedUploadUrls(persistentIncludeUrls || [])),
+  const stablePersistentIncludeUrlsSignature = useMemo(
+    () => buildStableUploadSelectionState(persistentIncludeUrls || []).signature,
     [persistentIncludeUrls],
   );
   const stablePersistentIncludeUrls = useMemo(
-    () => parseSelectionSignature(persistentIncludeUrlsSignature),
-    [persistentIncludeUrlsSignature],
+    () => parseSelectionSignature(stablePersistentIncludeUrlsSignature),
+    [stablePersistentIncludeUrlsSignature],
   );
 
   const loadUploads = useCallback(
     async ({ includeUrls = [] }: { includeUrls?: string[] } = {}): Promise<LibraryImageItem[]> => {
-      const resolvedIncludeUrls = normalizeIncludedUploadUrls([
+      const resolvedIncludeUrls = dedupeUrlsByComparableKey([
         ...stablePersistentIncludeUrls,
         ...includeUrls,
       ]);
@@ -117,65 +87,14 @@ export const useImageLibraryData = ({
           }
           successfulResponses += 1;
           const data = await response.json();
-          if (!Array.isArray(data.files)) {
-            continue;
-          }
-          for (const file of data.files) {
-            if (!file?.url) {
-              continue;
-            }
-            const focalCrops = normalizeUploadFocalCrops(file.focalCrops, undefined, {
-              sourceWidth: typeof file.width === "number" ? file.width : null,
-              sourceHeight: typeof file.height === "number" ? file.height : null,
-              fallbackPoints: file.focalPoints,
-              fallbackPoint: file.focalPoint,
-            });
-            const focalPoints = deriveUploadFocalPointsFromCrops(focalCrops);
-            files.push({
-              id: typeof file.id === "string" ? file.id : null,
-              source: "upload",
-              url: String(file.url),
-              name: String(file.name || file.fileName || ""),
-              label: String(file.label || file.name || file.fileName || ""),
-              folder: typeof file.folder === "string" ? file.folder : "",
-              fileName: typeof file.fileName === "string" ? file.fileName : String(file.name || ""),
-              mime: typeof file.mime === "string" ? file.mime : "",
-              size: typeof file.size === "number" ? file.size : undefined,
-              createdAt: typeof file.createdAt === "string" ? file.createdAt : undefined,
-              width: typeof file.width === "number" ? file.width : null,
-              height: typeof file.height === "number" ? file.height : null,
-              inUse: Boolean(file.inUse),
-              canDelete: typeof file.canDelete === "boolean" ? file.canDelete : !file.inUse,
-              hashSha256: typeof file.hashSha256 === "string" ? file.hashSha256 : "",
-              focalCrops,
-              focalPoints,
-              focalPoint: focalPoints.card,
-              variantsVersion: Number.isFinite(Number(file.variantsVersion))
-                ? Number(file.variantsVersion)
-                : 1,
-              variants: file.variants && typeof file.variants === "object" ? file.variants : {},
-              variantBytes: Number.isFinite(Number(file.variantBytes))
-                ? Number(file.variantBytes)
-                : 0,
-              area: typeof file.area === "string" ? file.area : "",
-              altText: typeof file.altText === "string" ? file.altText : "",
-              slot: typeof file.slot === "string" ? file.slot : undefined,
-              slotManaged: typeof file.slotManaged === "boolean" ? file.slotManaged : undefined,
-              projectId: typeof file.projectId === "string" ? file.projectId : "",
-              projectTitle: typeof file.projectTitle === "string" ? file.projectTitle : "",
-            });
-          }
+          files.push(...mapUploadsListFilesToLibraryItems(data.files));
         }
-        const unique = new Map<string, LibraryImageItem>();
-        files.forEach((item) => {
-          unique.set(item.url, item);
-        });
         if (successfulResponses === 0 && firstErrorStatus !== null) {
           setUploads([]);
           setUploadsLoadError(getUploadsListErrorMessage(firstErrorStatus));
           return [];
         }
-        const nextUploads = Array.from(unique.values());
+        const nextUploads = dedupeLibraryItemsByUrl(files);
         setUploadsLoadError("");
         setUploads(nextUploads);
         return nextUploads;
@@ -187,7 +106,7 @@ export const useImageLibraryData = ({
         setIsLoading(false);
       }
     },
-    [apiBase, foldersToRequest, scopeUserId, stablePersistentIncludeUrls],
+    [apiBase, foldersToRequest, scopeUserId, stablePersistentIncludeUrlsSignature],
   );
 
   const loadProjectImages = useCallback(async () => {
@@ -206,50 +125,7 @@ export const useImageLibraryData = ({
         setProjectImages([]);
         return;
       }
-      const mapped = data.items.map(
-        (item: {
-          folder?: string;
-          kind?: string;
-          label?: string;
-          projectId?: string;
-          projectTitle?: string;
-          source?: string;
-          url: string;
-        }) => {
-          const normalizedProjectUrl = normalizeComparableUploadUrl(item?.url);
-          if (!normalizedProjectUrl.startsWith("/uploads/projects/")) {
-            return null;
-          }
-          const parsedProjectPath = parseUploadUrlPath(normalizedProjectUrl);
-          const normalizedFolder =
-            sanitizeUploadFolderForComparison(item?.folder) ||
-            sanitizeUploadFolderForComparison(parsedProjectPath.folder);
-          return {
-            source: "project",
-            url: normalizedProjectUrl,
-            name: String(item.label || normalizedProjectUrl),
-            label: String(item.label || normalizedProjectUrl),
-            folder: normalizedFolder,
-            projectId: item.projectId ? String(item.projectId) : "",
-            projectTitle: item.projectTitle ? String(item.projectTitle) : "",
-            kind: item.kind ? String(item.kind) : "",
-            inUse: true,
-            canDelete: false,
-          } as LibraryImageItem;
-        },
-      );
-      const filtered =
-        allowedProjectImageIdSet.size > 0
-          ? mapped.filter(
-              (item): item is LibraryImageItem =>
-                Boolean(item?.projectId) && allowedProjectImageIdSet.has(String(item.projectId)),
-            )
-          : mapped.filter((item): item is LibraryImageItem => Boolean(item));
-      const unique = new Map<string, LibraryImageItem>();
-      filtered.forEach((item) => {
-        unique.set(item.url, item);
-      });
-      setProjectImages(Array.from(unique.values()));
+      setProjectImages(mapProjectImageItemsToLibraryItems(data.items, allowedProjectImageIdSet));
     } catch {
       setProjectImages([]);
     }

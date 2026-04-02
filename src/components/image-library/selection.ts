@@ -46,6 +46,60 @@ export const parseSelectionSignature = (value: string) =>
         .filter(Boolean)
     : [];
 
+export const buildStableSelectionState = (urls: string[] = []) => {
+  const signature = toSelectionSignature(urls);
+  return {
+    signature,
+    urls: parseSelectionSignature(signature),
+  };
+};
+
+export const normalizeIncludedUploadSelectionUrls = (urls: string[] = []) =>
+  dedupeUrlsByComparableKey(
+    urls
+      .map((value) => normalizeComparableUploadUrl(value))
+      .filter((value) => value.startsWith("/uploads/")),
+  );
+
+export const buildStableUploadSelectionState = (urls: string[] = []) =>
+  buildStableSelectionState([...normalizeIncludedUploadSelectionUrls(urls)].sort());
+
+export const buildPersistentUploadIncludeUrlsState = ({
+  currentSelectionUrl,
+  currentSelectionUrls,
+  pinnedIncludeUrls,
+}: {
+  currentSelectionUrl?: string;
+  currentSelectionUrls?: string[];
+  pinnedIncludeUrls?: string[];
+}) => {
+  const stableCurrentSelectionUrls = buildStableSelectionState(
+    Array.isArray(currentSelectionUrls) ? currentSelectionUrls : [],
+  );
+  const stableCurrentSelectionUrl = buildStableSelectionState(
+    currentSelectionUrl ? [currentSelectionUrl] : [],
+  );
+  const stablePinnedIncludeUrls = buildStableSelectionState(pinnedIncludeUrls || []);
+  const persistentIncludeUrls = buildStableUploadSelectionState(
+    dedupeUrlsByComparableKey([
+      ...stableCurrentSelectionUrls.urls,
+      ...stableCurrentSelectionUrl.urls,
+      ...stablePinnedIncludeUrls.urls,
+    ]),
+  );
+
+  return {
+    currentSelectionUrl: stableCurrentSelectionUrl.urls[0] || "",
+    currentSelectionUrlSignature: stableCurrentSelectionUrl.signature,
+    currentSelectionUrls: stableCurrentSelectionUrls.urls,
+    currentSelectionUrlsSignature: stableCurrentSelectionUrls.signature,
+    persistentIncludeUrls: persistentIncludeUrls.urls,
+    persistentIncludeUrlsSignature: persistentIncludeUrls.signature,
+    pinnedIncludeUrls: stablePinnedIncludeUrls.urls,
+    pinnedIncludeUrlsSignature: stablePinnedIncludeUrls.signature,
+  };
+};
+
 const normalizeProjectIdList = (value: unknown) => {
   const seen = new Set<string>();
   return (Array.isArray(value) ? value : [])

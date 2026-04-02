@@ -36,6 +36,7 @@ import {
   canonicalToDisplayTime,
   displayDateToIso,
   displayTimeToCanonical,
+  digitsOnly,
   formatDateDigitsToDisplay,
   formatTimeDigitsToDisplay,
   getTodayIsoDate,

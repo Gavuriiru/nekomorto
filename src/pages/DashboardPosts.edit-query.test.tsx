@@ -513,7 +513,7 @@ describe("DashboardPosts edit query", () => {
 
     await act(async () => {
       resizeObserverInstance?.callback(
-        [{ target: editorTop }] as ResizeObserverEntry[],
+        [{ target: editorTop }] as unknown as ResizeObserverEntry[],
         {} as ResizeObserver,
       );
     });
@@ -528,7 +528,7 @@ describe("DashboardPosts edit query", () => {
 
     await act(async () => {
       resizeObserverInstance?.callback(
-        [{ target: editorTop }] as ResizeObserverEntry[],
+        [{ target: editorTop }] as unknown as ResizeObserverEntry[],
         {} as ResizeObserver,
       );
     });

@@ -133,25 +133,26 @@ export const useChapterEditorLeaveGuard = ({
           shouldPersistMangaWorkflow ? "draft" : publicationStatus,
         );
         if (!didSaveChapter) {
-          return;
+          return false;
         }
       }
 
       if (shouldPersistVolumes) {
         const didSaveVolumes = await onSaveVolumes();
         if (!didSaveVolumes) {
-          return;
+          return false;
         }
       }
 
       if (shouldPersistMangaWorkflow) {
         const didSavePreparedChapters = await onSavePreparedChaptersAsDraft();
         if (!didSavePreparedChapters) {
-          return;
+          return false;
         }
       }
 
       resolveLeaveDialog(true);
+      return true;
     },
     [
       hasActiveChapter,

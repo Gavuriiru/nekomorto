@@ -233,7 +233,7 @@ const MangaViewerAdapter = ({
       return;
     }
 
-    const viewer = new NekoMangaViewer({
+    const viewer = new (NekoMangaViewer as any)({
       container: host,
       pages: viewerPages,
       title,

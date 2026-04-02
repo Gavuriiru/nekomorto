@@ -121,7 +121,7 @@ describe("project reading og delivery", () => {
         project?: Record<string, unknown>;
         chapterNumber?: number;
         volume?: number;
-        settings?: Record<string, unknown>;
+        settings?: { theme?: { accent?: string } };
       }) => ({
         eyebrow: "Volume 2 • Capitulo 1",
         eyebrowParts: ["Volume 2", "Capitulo 1"],

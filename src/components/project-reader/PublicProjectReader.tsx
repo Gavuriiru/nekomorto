@@ -2575,6 +2575,7 @@ const PublicProjectReaderContent = ({
   const activeSlot = slots[activeSlotIndex] || slots[0];
   const shouldCenterIsolatedDoubleSlot =
     layout === "double" &&
+    activeSlot?.spread === true &&
     activeSlot?.hasBlank === true &&
     (activeSlot.pages || []).length === 1;
 
@@ -2617,7 +2618,10 @@ const PublicProjectReaderContent = ({
             layout === "double" && direction === "rtl" ? "md:flex-row-reverse" : "md:flex-row",
           )}
         >
-          {layout === "double" && activeSlot?.hasBlank && !shouldCenterIsolatedDoubleSlot ? (
+          {layout === "double" &&
+          activeSlot?.spread === true &&
+          activeSlot?.hasBlank &&
+          !shouldCenterIsolatedDoubleSlot ? (
             <div
               aria-hidden="true"
               data-testid="reader-spread-blank"

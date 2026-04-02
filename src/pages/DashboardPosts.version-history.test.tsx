@@ -70,7 +70,26 @@ const pickVisibleDialog = (dialogs: HTMLElement[]) =>
       !dialog.closest('[aria-hidden="true"], [data-aria-hidden="true"]'),
   ) || dialogs[0];
 
-const postFixture = {
+type PostFixture = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  contentFormat: "lexical";
+  author: string;
+  publishedAt: string;
+  scheduledAt: null;
+  status: "draft" | "published";
+  projectId: string;
+  tags: never[];
+  views: number;
+  commentsCount: number;
+  deletedAt: null;
+  deletedBy: null;
+};
+
+const postFixture: PostFixture = {
   id: "post-1",
   title: "Post de teste",
   slug: "post-1",
@@ -151,7 +170,7 @@ const versionsPayload = [
 ];
 
 const setupApiMock = () => {
-  let posts = [postFixture];
+  let posts: PostFixture[] = [postFixture];
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
@@ -200,7 +219,7 @@ const setupApiMock = () => {
         slug: "titulo-antigo",
         excerpt: "Resumo antigo",
         content: "conteudo antigo",
-        status: "published",
+        status: "published" as const,
       };
       posts = [rolledBackPost];
       return mockJsonResponse(true, {
