@@ -9,12 +9,15 @@ import {
 
 import { assignLibraryCardRef } from "@/components/image-library/avatar-selection";
 import { toComparableSelectionKey } from "@/components/image-library/selection";
+import {
+  resolvePendingProjectRevealStep,
+  resolvePendingUploadRevealStep,
+} from "@/components/image-library/groups";
 import type {
   LibraryImageItem,
   ProjectImageGroup,
   UploadFolderGroup,
 } from "@/components/image-library/types";
-import { isFolderWithinSelection, resolveItemFolder } from "@/components/image-library/utils";
 
 type PendingRevealRequest = {
   url: string;
@@ -205,48 +208,34 @@ export const useImageLibraryRevealOrchestration = ({
       (item) => toComparableSelectionKey(item.url) === targetKey,
     );
     if (matchedUpload && isUploadRenderable) {
-      const targetFolder = resolveItemFolder(matchedUpload);
-      const targetFilterFolder = resolveUploadsFolderFilterValue(targetFolder);
-      const shouldFocusExactFolder =
-        Boolean(targetFilterFolder) &&
-        (uploadsFolderFilter === "__all__" ||
-          !isFolderWithinSelection({
-            itemFolder: targetFolder,
-            selectedFolder: uploadsFolderFilter,
-          }) ||
-          uploadsFolderFilter !== targetFilterFolder);
-      if (shouldFocusExactFolder) {
-        setUploadsFolderFilter(targetFilterFolder || "__all__");
+      const uploadRevealStep = resolvePendingUploadRevealStep({
+        filteredUploads,
+        matchedUpload,
+        openUploadFolderKeysByGroup,
+        openUploadGroupKeys,
+        resolveUploadsFolderFilterValue,
+        uploadFolderGroups,
+        uploadsFolderFilter,
+      });
+      if (uploadRevealStep.type === "wait") {
         return;
       }
-      const isVisibleInFilteredUploads = filteredUploads.some(
-        (item) => toComparableSelectionKey(item.url) === targetKey,
-      );
-      if (!isVisibleInFilteredUploads) {
+      if (uploadRevealStep.type === "set_filter") {
+        setUploadsFolderFilter(uploadRevealStep.value);
         return;
       }
-      const targetUploadGroup = uploadFolderGroups.find((group) =>
-        group.items.some((item) => toComparableSelectionKey(item.url) === targetKey),
-      );
-      if (targetUploadGroup && !openUploadGroupKeys.includes(targetUploadGroup.key)) {
-        setOpenUploadGroupKeys([targetUploadGroup.key]);
+      if (uploadRevealStep.type === "open_group") {
+        setOpenUploadGroupKeys([uploadRevealStep.groupKey]);
         return;
       }
-      if (targetUploadGroup?.folders.length) {
-        const targetUploadFolder = targetUploadGroup.folders.find((folderGroup) =>
-          folderGroup.items.some((item) => toComparableSelectionKey(item.url) === targetKey),
-        );
-        if (targetUploadFolder) {
-          const openUploadFolderKeys = openUploadFolderKeysByGroup[targetUploadGroup.key] || [];
-          if (!openUploadFolderKeys.includes(targetUploadFolder.key)) {
-            setOpenUploadFolderKeysByGroup((prev) => ({
-              ...prev,
-              [targetUploadGroup.key]: [targetUploadFolder.key],
-            }));
-            return;
-          }
-        }
+      if (uploadRevealStep.type === "open_folder") {
+        setOpenUploadFolderKeysByGroup((prev) => ({
+          ...prev,
+          [uploadRevealStep.groupKey]: [uploadRevealStep.folderKey],
+        }));
+        return;
       }
+
       const targetUploadCard = uploadCardRefs.current[targetKey];
       if (!targetUploadCard) {
         return;
@@ -267,37 +256,29 @@ export const useImageLibraryRevealOrchestration = ({
     if (!matchedProjectItem) {
       return;
     }
-    const isVisibleInFilteredProjectImages = filteredProjectImages.some(
-      (item) => toComparableSelectionKey(item.url) === targetKey,
-    );
-    if (!isVisibleInFilteredProjectImages) {
+    const projectRevealStep = resolvePendingProjectRevealStep({
+      filteredProjectImages,
+      matchedProjectItem,
+      openProjectFolderKeysByGroup,
+      openProjectGroupKeys,
+      projectImageGroups,
+      projectImagesView,
+    });
+    if (projectRevealStep.type === "wait") {
       return;
     }
-    if (projectImagesView === "by-project") {
-      const targetProjectGroup = projectImageGroups.find((group) =>
-        group.items.some((item) => toComparableSelectionKey(item.url) === targetKey),
-      );
-      if (!targetProjectGroup) {
-        return;
-      }
-      if (!openProjectGroupKeys.includes(targetProjectGroup.key)) {
-        setOpenProjectGroupKeys([targetProjectGroup.key]);
-        return;
-      }
-      const targetProjectFolder = targetProjectGroup.folders.find((folderGroup) =>
-        folderGroup.items.some((item) => toComparableSelectionKey(item.url) === targetKey),
-      );
-      if (targetProjectFolder) {
-        const openProjectFolderKeys = openProjectFolderKeysByGroup[targetProjectGroup.key] || [];
-        if (!openProjectFolderKeys.includes(targetProjectFolder.key)) {
-          setOpenProjectFolderKeysByGroup((prev) => ({
-            ...prev,
-            [targetProjectGroup.key]: [targetProjectFolder.key],
-          }));
-          return;
-        }
-      }
+    if (projectRevealStep.type === "open_group") {
+      setOpenProjectGroupKeys([projectRevealStep.groupKey]);
+      return;
     }
+    if (projectRevealStep.type === "open_folder") {
+      setOpenProjectFolderKeysByGroup((prev) => ({
+        ...prev,
+        [projectRevealStep.groupKey]: [projectRevealStep.folderKey],
+      }));
+      return;
+    }
+
     const targetProjectCard = projectCardRefs.current[targetKey];
     if (!targetProjectCard) {
       return;

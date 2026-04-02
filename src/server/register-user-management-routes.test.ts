@@ -1,0 +1,262 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { AccessRole, PermissionId } from "../../server/lib/authz.js";
+import { registerUserManagementRoutes } from "../../server/routes/user/register-user-management-routes.js";
+
+const cloneJson = (value) => JSON.parse(JSON.stringify(value));
+
+const createAppRecorder = () => {
+  const routes = [];
+  const register = (method) => (path, ...handlers) => {
+    routes.push({
+      handlers,
+      method,
+      path,
+    });
+  };
+
+  return {
+    app: {
+      delete: register("DELETE"),
+      post: register("POST"),
+      put: register("PUT"),
+    },
+    routes,
+  };
+};
+
+const getRoute = (routes, method, path) =>
+  routes.find((route) => route.method === method && route.path === path);
+
+const createMockRes = () => ({
+  body: null,
+  statusCode: 200,
+  status(code) {
+    this.statusCode = code;
+    return this;
+  },
+  json(payload) {
+    this.body = payload;
+    return this;
+  },
+});
+
+const invokeFinalHandler = async (route, req) => {
+  const res = createMockRes();
+  await route.handlers[route.handlers.length - 1](req, res);
+  return res;
+};
+
+const createDependencies = ({ app, overrides = {} }) => ({
+  AccessRole,
+  BASIC_PROFILE_FIELDS: [
+    "name",
+    "phrase",
+    "bio",
+    "avatarUrl",
+    "avatarDisplay",
+    "socials",
+    "favoriteWorks",
+  ],
+  PermissionId,
+  app,
+  appendAuditLog: vi.fn(),
+  applyOwnerRole: vi.fn((user) => user),
+  buildUserProfileRevisionToken: vi.fn(() => "revision-token"),
+  can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS_BASICO),
+  defaultPermissionsForRole: vi.fn(() => ["default"]),
+  emitSecurityEvent: vi.fn(),
+  ensureNoEditConflict: vi.fn(() => true),
+  getPrimaryOwnerId: vi.fn(() => "owner-1"),
+  getUserAccessContextById: vi.fn(() => ({
+    accessRole: AccessRole.NORMAL,
+    grants: {},
+    isOwner: false,
+    isPrimaryOwner: false,
+  })),
+  isAdminUser: vi.fn(() => false),
+  isBasicProfileField: vi.fn((field) =>
+    ["name", "phrase", "bio", "avatarUrl", "avatarDisplay", "socials", "favoriteWorks"].includes(
+      field,
+    ),
+  ),
+  isOwner: vi.fn((id) => String(id) === "owner-1"),
+  isPrimaryOwner: vi.fn((id) => String(id) === "owner-1"),
+  isRbacV2Enabled: true,
+  loadOwnerIds: vi.fn(() => ["owner-1", "owner-2"]),
+  loadUploads: vi.fn(() => []),
+  loadUsers: vi.fn(() => []),
+  normalizeAccessRole: vi.fn((value, fallback) => value || fallback),
+  normalizeAvatarDisplay: vi.fn((value) => value || { x: 0, y: 0, zoom: 1, rotation: 0 }),
+  normalizeUsers: vi.fn((users) => users),
+  parseEditRevisionOptions: vi.fn(() => ({})),
+  persistCurrentUsers: vi.fn(({ users }) => users),
+  pickBasicProfilePatch: vi.fn((update) => update),
+  removeOwnerRoleLabel: vi.fn((roles) => roles),
+  requireAuth: vi.fn((_req, _res, next) => next?.()),
+  resolveDiscordAvatarFallbackUrl: vi.fn(() => null),
+  sanitizeFavoriteWorksByCategory: vi.fn((value) => value || []),
+  sanitizePermissionsForStorage: vi.fn((value) => value || []),
+  sanitizeSocials: vi.fn((value) => value || []),
+  shouldEmitSecurityRuleEvent: vi.fn(() => true),
+  syncSessionUserDisplayProfile: vi.fn(),
+  userWithAccessForResponse: vi.fn((user) => user),
+  withEffectiveAvatarUrl: vi.fn((user) => user),
+  withUserProfileRevision: vi.fn((user) => user),
+  writeOwnerIds: vi.fn(),
+  ...overrides,
+});
+
+describe("registerUserManagementRoutes", () => {
+  it("blocks secondary owners from reordering owner accounts", async () => {
+    const { app, routes } = createAppRecorder();
+    const users = [
+      { id: "owner-1", order: 0, status: "active" },
+      { id: "owner-2", order: 1, status: "active" },
+      { id: "user-1", order: 2, status: "active" },
+    ];
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        loadUsers: vi.fn(() => cloneJson(users)),
+        getUserAccessContextById: vi.fn(() => ({
+          accessRole: AccessRole.OWNER_SECONDARY,
+          grants: { manage: true },
+          isOwner: true,
+          isPrimaryOwner: false,
+        })),
+        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS_ACESSO),
+      },
+    });
+
+    registerUserManagementRoutes(dependencies);
+
+    const route = getRoute(routes, "PUT", "/api/users/reorder");
+    const res = await invokeFinalHandler(route, {
+      body: {
+        orderedIds: ["owner-2", "owner-1", "user-1"],
+      },
+      session: { user: { id: "owner-2" } },
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toEqual({ error: "owner_reorder_forbidden" });
+    expect(dependencies.persistCurrentUsers).not.toHaveBeenCalled();
+  });
+
+  it("keeps RBAC admin updates limited to basic fields", async () => {
+    const { app, routes } = createAppRecorder();
+    const users = [
+      {
+        id: "admin-1",
+        accessRole: AccessRole.ADMIN,
+        avatarDisplay: { x: 0, y: 0, zoom: 1, rotation: 0 },
+        favoriteWorks: [],
+        permissions: [],
+        roles: [],
+        status: "active",
+        socials: [],
+      },
+      {
+        id: "user-2",
+        accessRole: AccessRole.NORMAL,
+        avatarDisplay: { x: 0, y: 0, zoom: 1, rotation: 0 },
+        favoriteWorks: [],
+        permissions: ["posts"],
+        roles: ["reviewer"],
+        status: "active",
+        socials: [],
+      },
+    ];
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        loadUsers: vi.fn(() => cloneJson(users)),
+        getUserAccessContextById: vi.fn((userId) => {
+          if (String(userId) === "admin-1") {
+            return {
+              accessRole: AccessRole.ADMIN,
+              grants: { admin: true },
+              isOwner: false,
+              isPrimaryOwner: false,
+            };
+          }
+          return {
+            accessRole: AccessRole.NORMAL,
+            grants: {},
+            isOwner: false,
+            isPrimaryOwner: false,
+          };
+        }),
+        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS_BASICO),
+      },
+    });
+
+    registerUserManagementRoutes(dependencies);
+
+    const route = getRoute(routes, "PUT", "/api/users/:id");
+    const res = await invokeFinalHandler(route, {
+      body: {
+        permissions: ["uploads"],
+      },
+      params: { id: "user-2" },
+      session: { user: { id: "admin-1" } },
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toEqual({ error: "basic_fields_only" });
+    expect(dependencies.persistCurrentUsers).not.toHaveBeenCalled();
+  });
+
+  it("blocks secondary owners from deleting other owners", async () => {
+    const { app, routes } = createAppRecorder();
+    const users = [
+      { id: "owner-1", accessRole: AccessRole.OWNER_PRIMARY, status: "active" },
+      { id: "owner-2", accessRole: AccessRole.OWNER_SECONDARY, status: "active" },
+      { id: "user-1", accessRole: AccessRole.NORMAL, status: "active" },
+    ];
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        loadUsers: vi.fn(() => cloneJson(users)),
+        getUserAccessContextById: vi.fn((userId) => {
+          if (String(userId) === "owner-2") {
+            return {
+              accessRole: AccessRole.OWNER_SECONDARY,
+              grants: { manage: true },
+              isOwner: true,
+              isPrimaryOwner: false,
+            };
+          }
+          if (String(userId) === "owner-1") {
+            return {
+              accessRole: AccessRole.OWNER_PRIMARY,
+              grants: { manage: true },
+              isOwner: true,
+              isPrimaryOwner: true,
+            };
+          }
+          return {
+            accessRole: AccessRole.NORMAL,
+            grants: {},
+            isOwner: false,
+            isPrimaryOwner: false,
+          };
+        }),
+        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS_ACESSO),
+      },
+    });
+
+    registerUserManagementRoutes(dependencies);
+
+    const route = getRoute(routes, "DELETE", "/api/users/:id");
+    const res = await invokeFinalHandler(route, {
+      params: { id: "owner-1" },
+      session: { user: { id: "owner-2" } },
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toEqual({ error: "cannot_delete_primary_owner" });
+    expect(dependencies.persistCurrentUsers).not.toHaveBeenCalled();
+  });
+});

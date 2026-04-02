@@ -13,6 +13,7 @@ import {
 } from "@/lib/dashboard-image-library";
 import { resolveProjectImageFolders } from "@/lib/project-image-folders";
 import { isChapterBasedType } from "@/lib/project-utils";
+import { resolveProjectVolumeEntryIndexByVolume } from "./project-editor-form";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
@@ -51,10 +52,6 @@ type UseProjectEditorImageLibraryParams<
 > = {
   canManageProjects: boolean;
   formState: TForm;
-  resolveVolumeEntryIndexByVolume: (
-    entries: TForm["volumeEntries"],
-    volume?: number,
-  ) => number;
   setFormState: Dispatch<SetStateAction<TForm>>;
 };
 
@@ -80,7 +77,6 @@ export function useProjectEditorImageLibrary<
 >({
   canManageProjects,
   formState,
-  resolveVolumeEntryIndexByVolume,
   setFormState,
 }: UseProjectEditorImageLibraryParams<TForm>): UseProjectEditorImageLibraryResult<TForm> {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -200,7 +196,7 @@ export function useProjectEditorImageLibrary<
             return prev;
           }
           const nextVolumeEntries = [...prev.volumeEntries];
-          const targetIndex = resolveVolumeEntryIndexByVolume(
+          const targetIndex = resolveProjectVolumeEntryIndexByVolume(
             nextVolumeEntries as TForm["volumeEntries"],
             volumeCoverTargetVolume,
           );
@@ -212,7 +208,7 @@ export function useProjectEditorImageLibrary<
               coverImageAlt: "",
             } as TForm["volumeEntries"][number]);
           }
-          const resolvedIndex = resolveVolumeEntryIndexByVolume(
+          const resolvedIndex = resolveProjectVolumeEntryIndexByVolume(
             nextVolumeEntries as TForm["volumeEntries"],
             volumeCoverTargetVolume,
           );
@@ -239,7 +235,6 @@ export function useProjectEditorImageLibrary<
     [
       episodeCoverIndex,
       libraryTarget,
-      resolveVolumeEntryIndexByVolume,
       setFormState,
       volumeCoverTargetVolume,
     ],
@@ -287,7 +282,7 @@ export function useProjectEditorImageLibrary<
       return formState.episodeDownloads[episodeCoverIndex]?.coverImageUrl || "";
     }
     if (libraryTarget === "volume-cover" && volumeCoverTargetVolume !== null) {
-      const resolvedIndex = resolveVolumeEntryIndexByVolume(
+      const resolvedIndex = resolveProjectVolumeEntryIndexByVolume(
         formState.volumeEntries,
         volumeCoverTargetVolume,
       );
@@ -302,7 +297,6 @@ export function useProjectEditorImageLibrary<
     formState.heroImageUrl,
     formState.volumeEntries,
     libraryTarget,
-    resolveVolumeEntryIndexByVolume,
     volumeCoverTargetVolume,
   ]);
 

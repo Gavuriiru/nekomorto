@@ -30,17 +30,16 @@ import ProjectEditorEpisodesSection from "@/components/dashboard/project-editor/
 import ProjectEditorMediaSection from "@/components/dashboard/project-editor/ProjectEditorMediaSection";
 import ProjectEditorRelationsSection from "@/components/dashboard/project-editor/ProjectEditorRelationsSection";
 import ProjectEditorStaffSection from "@/components/dashboard/project-editor/ProjectEditorStaffSection";
-import { buildProjectFormPatchFromAniList } from "@/components/dashboard/project-editor/project-editor-anilist";
 import { DEFAULT_PROJECT_FORMAT_OPTIONS } from "@/components/dashboard/project-editor/project-editor-constants";
 import {
   buildEmptyProjectForm,
   buildProjectFormFromRecord,
-  buildProjectSavePayload,
-  normalizeProjectEpisodesForSave,
-  normalizeProjectVolumeEntriesForSave,
   normalizeUniqueStringList,
-  supportsProjectVolumeEntries,
+  resolveProjectEpisodeFocusIndex,
+  resolveSortedProjectEpisodeFocusIndex,
 } from "@/components/dashboard/project-editor/project-editor-form";
+import { useProjectEditorEpisodeSectionState } from "@/components/dashboard/project-editor/useProjectEditorEpisodeSectionState";
+import { useDashboardProjectsEditorPersistence } from "@/components/dashboard/project-editor/useDashboardProjectsEditorPersistence";
 import { useDashboardProjectsEditorController } from "@/components/dashboard/project-editor/useDashboardProjectsEditorController";
 import {
   ProjectEditorAnimeBatchDialog,
@@ -49,19 +48,23 @@ import {
 } from "@/components/dashboard/project-editor/ProjectEditorSupportDialogs";
 import { useProjectEditorDialogState } from "@/components/dashboard/project-editor/useProjectEditorDialogState";
 import { useProjectEditorImageLibrary } from "@/components/dashboard/project-editor/useProjectEditorImageLibrary";
-import { useDashboardProjectsEditorAnimeBatch } from "@/components/dashboard/project-editor/useDashboardProjectsEditorAnimeBatch";
+import {
+  buildCompletionBadges,
+  getEpisodeAccordionValue,
+  shouldSkipEpisodeHeaderToggle,
+  shiftCollapsedEpisodesAfterRemoval,
+  shiftDraftAfterRemoval,
+  useDashboardProjectsEditorAnimeBatch,
+} from "@/components/dashboard/project-editor/useDashboardProjectsEditorAnimeBatch";
 import {
   clearProjectsPageCache,
   useDashboardProjectsEditorResource,
 } from "@/components/dashboard/project-editor/useDashboardProjectsEditorResource";
 import { useProjectEditorTaxonomy } from "@/components/dashboard/project-editor/useProjectEditorTaxonomy";
 import type {
-  AniListMedia,
   EditorProjectEpisode,
-  EpisodeVolumeGroup,
   ProjectForm,
   ProjectRecord,
-  SortedEpisodeItem,
 } from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
@@ -88,7 +91,7 @@ import { Label } from "@/components/ui/label";
 import CompactPagination from "@/components/ui/compact-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
-import type { ProjectEpisode, ProjectVolumeEntry } from "@/data/projects";
+import type { ProjectEpisode } from "@/data/projects";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
@@ -112,12 +115,8 @@ import {
 } from "@/lib/dashboard-date-time";
 import {
   clearIndexedRecordValue,
-  shiftIndexedRecordAfterRemoval,
 } from "@/lib/dashboard-indexed-drafts";
 import {
-  generateEpisodeEditorLocalId,
-  getAnimeEpisodeCompletionIssues,
-  getAnimeEpisodeCompletionLabel,
   matchesAnimeEpisodeQuickFilter,
   type AnimeEpisodeQuickFilter,
 } from "@/lib/project-anime-episodes";
@@ -132,7 +131,6 @@ import {
 import {
   EXTRA_TECHNICAL_NUMBER_BASE,
   buildEpisodeKey,
-  findDuplicateEpisodeKey,
   resolveEpisodeLookup,
   resolveNextExtraTechnicalNumber,
   resolveNextMainEpisodeNumber,
@@ -148,7 +146,7 @@ import {
   getProjectProgressStateForEditor,
 } from "@/lib/project-progress";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
-import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
+import { buildVolumeCoverKey } from "@/lib/project-volume-cover-key";
 import { reorderItems } from "@/lib/reorder-items";
 import {
   Clapperboard,
@@ -168,7 +166,6 @@ import {
   UserRound,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent as ReactMouseEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 const getDedicatedEditorCtaIcon = (projectType?: string | null): LucideIcon => {
@@ -203,108 +200,7 @@ const fansubRoleOptions = [
   "Editor",
 ];
 
-const formatSeason = (season?: string | null, seasonYear?: number | null) => {
-  if (!season && !seasonYear) {
-    return "";
-  }
-  const translated = season
-    ? season
-        .toLowerCase()
-        .replace("winter", "Inverno")
-        .replace("spring", "Primavera")
-        .replace("summer", "Verão")
-        .replace("fall", "Outono")
-    : "";
-  return `${translated ? `${translated} ` : ""}${seasonYear || ""}`.trim();
-};
-
-const formatStatus = (status?: string | null) => {
-  switch (status) {
-    case "FINISHED":
-      return "Finalizado";
-    case "RELEASING":
-      return "Em andamento";
-    case "NOT_YET_RELEASED":
-      return "Em andamento";
-    case "CANCELLED":
-      return "Cancelado";
-    case "HIATUS":
-      return "Pausado";
-    default:
-      return "";
-  }
-};
-
-const formatType = (format?: string | null) => {
-  switch (format) {
-    case "TV":
-      return "Anime";
-    case "MOVIE":
-      return "Filme";
-    case "OVA":
-      return "OVA";
-    case "ONA":
-      return "ONA";
-    case "SPECIAL":
-      return "Especial";
-    case "MANGA":
-      return "Mangá";
-    case "NOVEL":
-      return "Light Novel";
-    case "ONE_SHOT":
-      return "One-shot";
-    case "MUSIC":
-      return "Música";
-    default:
-      return "";
-  }
-};
-
-const stripHtml = (value?: string | null) => {
-  if (!value) {
-    return "";
-  }
-  return value
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]*>/g, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-};
-
-const shiftDraftAfterRemoval = shiftIndexedRecordAfterRemoval<string>;
-
 const clearIndexedDraftValue = clearIndexedRecordValue<string>;
-
-const shiftCollapsedEpisodesAfterRemoval = (
-  collapsed: Record<number, boolean>,
-  removedIndex: number,
-) => shiftIndexedRecordAfterRemoval<boolean>(collapsed, removedIndex);
-
-const getEpisodeAccordionValue = (index: number) => `episode-${index}`;
-const episodeHeaderNoToggleSelector = [
-  "[data-no-toggle]",
-  "button",
-  "a",
-  "input",
-  "select",
-  "textarea",
-  "label",
-  '[role="link"]',
-  '[contenteditable="true"]',
-].join(", ");
-
-const shouldSkipEpisodeHeaderToggle = (target: EventTarget | null) => {
-  if (!(target instanceof Element)) {
-    return false;
-  }
-  return Boolean(target.closest(episodeHeaderNoToggleSelector));
-};
-
-const buildCompletionBadges = (episode: Partial<EditorProjectEpisode> | null | undefined) =>
-  getAnimeEpisodeCompletionIssues(episode).map((issue) => ({
-    issue,
-    label: getAnimeEpisodeCompletionLabel(issue),
-  }));
 
 const DashboardProjectsEditor = () => {
   usePageMeta({ title: "Projetos", noIndex: true });
@@ -361,46 +257,14 @@ const DashboardProjectsEditor = () => {
   const [episodeTimeDraft, setEpisodeTimeDraft] = useState<Record<number, string>>({});
   const [episodeSizeDrafts, setEpisodeSizeDrafts] = useState<Record<number, string>>({});
   const [episodeSizeErrors, setEpisodeSizeErrors] = useState<Record<number, string>>({});
-  const [collapsedEpisodes, setCollapsedEpisodes] = useState<Record<number, boolean>>({});
-  const [collapsedVolumeGroups, setCollapsedVolumeGroups] = useState<Record<string, boolean>>({});
   const [editorAccordionValue, setEditorAccordionValue] = useState<string[]>(["informacoes"]);
   const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
   const episodeSizeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
-  const pendingAddAutoScrollRef = useRef(false);
-  const pendingVolumeGroupToExpandRef = useRef<string | null>(null);
-  const pendingVolumeGroupToScrollRef = useRef<string | null>(null);
-  const pendingContentSectionScrollRef = useRef(false);
-  const pendingEpisodeToScrollRef = useRef<EditorProjectEpisode | null>(null);
-  const previousEpisodeCountRef = useRef(0);
-  const episodeCardNodeMapRef = useRef<WeakMap<EditorProjectEpisode, HTMLDivElement>>(
-    new WeakMap(),
-  );
-  const volumeGroupNodeMapRef = useRef<Map<string, HTMLDivElement>>(new Map());
-  const contentSectionRef = useRef<HTMLDivElement | null>(null);
-
-  const resetPendingContentNavigation = useCallback(() => {
-    pendingVolumeGroupToExpandRef.current = null;
-    pendingVolumeGroupToScrollRef.current = null;
-    pendingContentSectionScrollRef.current = false;
-    volumeGroupNodeMapRef.current.clear();
-  }, []);
   const hasInitializedListFiltersRef = useRef(false);
   const canManageProjects = useMemo(() => {
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
     return permissions.includes("*") || permissions.includes("projetos");
   }, [currentUser]);
-  const resolveVolumeEntryIndexByVolume = useCallback(
-    (entries: ProjectVolumeEntry[], volume?: number) => {
-      if (!Number.isFinite(Number(volume))) {
-        return -1;
-      }
-      const normalizedVolume = Number(volume);
-      return entries.findIndex(
-        (entry) => buildVolumeCoverKey(entry?.volume) === buildVolumeCoverKey(normalizedVolume),
-      );
-    },
-    [],
-  );
   const {
     activeLibraryOptions,
     buildEpisodeLibraryOptions,
@@ -414,8 +278,47 @@ const DashboardProjectsEditor = () => {
   } = useProjectEditorImageLibrary({
     canManageProjects,
     formState,
-    resolveVolumeEntryIndexByVolume,
     setFormState,
+  });
+  const isManga = isMangaType(formState.type || "");
+  const isLightNovel = isLightNovelType(formState.type || "");
+  const supportsVolumeEntries = isLightNovel || isManga;
+  const isChapterBased = isChapterBasedType(formState.type || "");
+  const getEpisodeEntryKind = useCallback(
+    (episode: Partial<EditorProjectEpisode> | null | undefined): "main" | "extra" =>
+      episode?.entryKind === "extra" ? "extra" : "main",
+    [],
+  );
+  const {
+    addVolumeEntry,
+    collapsedEpisodes,
+    collapsedVolumeGroups,
+    contentSectionRef,
+    episodeGroupsForRender,
+    episodeOpenValues,
+    handleAddEpisodeDownload,
+    handleEpisodeAccordionChange,
+    handleEpisodeHeaderClick,
+    handleVolumeGroupAccordionChange,
+    pendingEpisodeToScrollRef,
+    registerEpisodeCardNode,
+    registerVolumeGroupNode,
+    removeVolumeEntryByVolume,
+    resetPendingContentNavigation,
+    revealEpisodeAtIndex,
+    setCollapsedEpisodes,
+    setCollapsedVolumeGroups,
+    sortedEpisodeDownloads,
+    updateVolumeEntryByVolume,
+    volumeGroupOpenValues,
+  } = useProjectEditorEpisodeSectionState({
+    editorAccordionValue,
+    formState,
+    getEpisodeEntryKind,
+    isChapterBased,
+    setFormState,
+    shouldSkipEpisodeHeaderToggle,
+    supportsVolumeEntries,
   });
   const {
     autoEditHandledRef,
@@ -512,54 +415,9 @@ const DashboardProjectsEditor = () => {
     setCurrentPage(1);
   }, [searchQuery, selectedType, sortMode]);
 
-  const isManga = isMangaType(formState.type || "");
-  const isLightNovel = isLightNovelType(formState.type || "");
-  const supportsVolumeEntries = isLightNovel || isManga;
-  const isChapterBased = isChapterBasedType(formState.type || "");
   const hasAniListReference =
     Boolean(formState.anilistId) || parseAniListMediaId(anilistIdInput) !== null;
   const stageOptions = getProjectProgressStagesForEditor(formState.type || "");
-
-  const getEpisodeEntryKind = useCallback(
-    (episode: Partial<EditorProjectEpisode> | null | undefined): "main" | "extra" =>
-      episode?.entryKind === "extra" ? "extra" : "main",
-    [],
-  );
-
-  const compareEpisodeOrdering = useCallback(
-    (left: EditorProjectEpisode, right: EditorProjectEpisode) => {
-      const leftReadingOrder = Number(left?.readingOrder);
-      const rightReadingOrder = Number(right?.readingOrder);
-      const hasLeftReadingOrder = Number.isFinite(leftReadingOrder);
-      const hasRightReadingOrder = Number.isFinite(rightReadingOrder);
-      if (hasLeftReadingOrder || hasRightReadingOrder) {
-        if (!hasLeftReadingOrder) {
-          return 1;
-        }
-        if (!hasRightReadingOrder) {
-          return -1;
-        }
-        if (leftReadingOrder !== rightReadingOrder) {
-          return leftReadingOrder - rightReadingOrder;
-        }
-      }
-      const numberDelta = (left.number || 0) - (right.number || 0);
-      if (numberDelta !== 0) {
-        return numberDelta;
-      }
-      return (left.volume || 0) - (right.volume || 0);
-    },
-    [],
-  );
-
-  const sortedEpisodeDownloads = useMemo<SortedEpisodeItem[]>(() => {
-    if (!isChapterBased) {
-      return formState.episodeDownloads.map((episode, index) => ({ episode, index }));
-    }
-    return formState.episodeDownloads
-      .map((episode, index) => ({ episode, index }))
-      .sort((a, b) => compareEpisodeOrdering(a.episode, b.episode));
-  }, [compareEpisodeOrdering, formState.episodeDownloads, isChapterBased]);
 
   const {
     animeBatchCadenceDays,
@@ -619,402 +477,36 @@ const DashboardProjectsEditor = () => {
     sortedEpisodeDownloads,
   });
 
-  const addVolumeEntry = useCallback(() => {
-    setFormState((prev) => {
-      const nextVolume =
-        prev.volumeEntries.reduce((max, entry) => Math.max(max, Number(entry.volume) || 0), 0) + 1;
-      const nextGroupKey = buildVolumeCoverKey(nextVolume);
-      pendingVolumeGroupToExpandRef.current = nextGroupKey;
-      setCollapsedVolumeGroups((flags) => ({
-        ...flags,
-        [nextGroupKey]: false,
-      }));
-      return {
-        ...prev,
-        volumeEntries: [
-          ...prev.volumeEntries,
-          {
-            volume: nextVolume,
-            synopsis: "",
-            coverImageUrl: "",
-            coverImageAlt: "",
-          },
-        ],
-      };
-    });
-  }, []);
-
-  const updateVolumeEntryByVolume = useCallback(
-    (volume: number | undefined, updater: (entry: ProjectVolumeEntry) => ProjectVolumeEntry) => {
-      if (!Number.isFinite(Number(volume))) {
-        return;
-      }
-      const normalizedVolume = Number(volume);
-      setFormState((prev) => {
-        const nextVolumeEntries = [...prev.volumeEntries];
-        const entryIndex = resolveVolumeEntryIndexByVolume(nextVolumeEntries, normalizedVolume);
-        if (entryIndex >= 0) {
-          nextVolumeEntries[entryIndex] = updater({
-            ...nextVolumeEntries[entryIndex],
-            volume: normalizedVolume,
-          });
-        } else {
-          nextVolumeEntries.push(
-            updater({
-              volume: normalizedVolume,
-              synopsis: "",
-              coverImageUrl: "",
-              coverImageAlt: "",
-            }),
-          );
-        }
-        nextVolumeEntries.sort((left, right) => left.volume - right.volume);
-        return {
-          ...prev,
-          volumeEntries: nextVolumeEntries,
-        };
-      });
-    },
-    [resolveVolumeEntryIndexByVolume],
-  );
-
-  const removeVolumeEntryByVolume = useCallback((volume: number | undefined) => {
-    if (!Number.isFinite(Number(volume))) {
-      return;
-    }
-    const normalizedVolume = Number(volume);
-    const removedKey = buildVolumeCoverKey(normalizedVolume);
-    setCollapsedVolumeGroups((prev) => {
-      if (!Object.prototype.hasOwnProperty.call(prev, removedKey)) {
-        return prev;
-      }
-      const next = { ...prev };
-      delete next[removedKey];
-      return next;
-    });
-    setFormState((prev) => ({
-      ...prev,
-      volumeEntries: prev.volumeEntries.filter(
-        (entry) => buildVolumeCoverKey(entry?.volume) !== buildVolumeCoverKey(normalizedVolume),
-      ),
-    }));
-  }, []);
-
-  const volumeGroups = useMemo<EpisodeVolumeGroup[]>(() => {
-    if (!isChapterBased || !supportsVolumeEntries) {
-      return [];
-    }
-    const groups = new Map<string, EpisodeVolumeGroup>();
-    const ensureGroup = (volume?: number) => {
-      const key = buildVolumeCoverKey(volume);
-      const existing = groups.get(key);
-      if (existing) {
-        return existing;
-      }
-      const hasNumericVolume = Number.isFinite(Number(volume));
-      const nextGroup: EpisodeVolumeGroup = {
-        key,
-        volume: hasNumericVolume ? Number(volume) : undefined,
-        hasNumericVolume,
-        volumeEntryIndex: null,
-        episodeItems: [],
-      };
-      groups.set(key, nextGroup);
-      return nextGroup;
-    };
-
-    sortedEpisodeDownloads.forEach((item) => {
-      ensureGroup(item.episode.volume).episodeItems.push(item);
-    });
-
-    formState.volumeEntries.forEach((entry, index) => {
-      const parsedVolume = Number(entry?.volume);
-      if (!Number.isFinite(parsedVolume)) {
-        return;
-      }
-      const group = ensureGroup(parsedVolume);
-      group.volumeEntryIndex = index;
-    });
-
-    const list = [...groups.values()];
-    list.sort((left, right) => {
-      if (left.hasNumericVolume && right.hasNumericVolume) {
-        return Number(left.volume || 0) - Number(right.volume || 0);
-      }
-      if (left.hasNumericVolume) {
-        return -1;
-      }
-      if (right.hasNumericVolume) {
-        return 1;
-      }
-      return 0;
-    });
-    return list;
-  }, [formState.volumeEntries, isChapterBased, sortedEpisodeDownloads, supportsVolumeEntries]);
-
-  const episodeGroupsForRender = useMemo<EpisodeVolumeGroup[]>(() => {
-    if (isChapterBased && supportsVolumeEntries) {
-      return volumeGroups;
-    }
-    return [
-      {
-        key: "all",
-        volume: undefined,
-        hasNumericVolume: false,
-        volumeEntryIndex: null,
-        episodeItems: sortedEpisodeDownloads,
-      },
-    ];
-  }, [isChapterBased, sortedEpisodeDownloads, supportsVolumeEntries, volumeGroups]);
-
-  const volumeGroupOpenValues = useMemo(() => {
-    if (!(isChapterBased && supportsVolumeEntries)) {
-      return episodeGroupsForRender.map((group) => group.key);
-    }
-    return episodeGroupsForRender
-      .filter((group) => collapsedVolumeGroups[group.key] === false)
-      .map((group) => group.key);
-  }, [collapsedVolumeGroups, episodeGroupsForRender, isChapterBased, supportsVolumeEntries]);
-
-  const handleVolumeGroupAccordionChange = useCallback(
-    (values: string[]) => {
-      const openValues = new Set(values);
-      setCollapsedVolumeGroups((prev) => {
-        const next: Record<string, boolean> = {};
-        let changed = false;
-        episodeGroupsForRender.forEach((group) => {
-          const nextValue = !openValues.has(group.key);
-          next[group.key] = nextValue;
-          if ((prev[group.key] ?? true) !== nextValue) {
-            changed = true;
-          }
-        });
-        if (Object.keys(prev).length !== Object.keys(next).length) {
-          changed = true;
-        }
-        return changed ? next : prev;
-      });
-    },
-    [episodeGroupsForRender],
-  );
-
-  const episodeOpenValues = useMemo(
-    () =>
-      sortedEpisodeDownloads
-        .filter(({ index }) => !collapsedEpisodes[index])
-        .map(({ index }) => getEpisodeAccordionValue(index)),
-    [collapsedEpisodes, sortedEpisodeDownloads],
-  );
-
-  const handleEpisodeAccordionChange = useCallback(
-    (values: string[]) => {
-      const openValues = new Set(values);
-      const next: Record<number, boolean> = {};
-      sortedEpisodeDownloads.forEach(({ index }) => {
-        next[index] = !openValues.has(getEpisodeAccordionValue(index));
-      });
-      setCollapsedEpisodes(next);
-    },
-    [sortedEpisodeDownloads],
-  );
-
-  const toggleEpisodeCollapsed = useCallback((index: number) => {
-    setCollapsedEpisodes((prev) => ({
-      ...prev,
-      [index]: !(prev[index] ?? false),
-    }));
-  }, []);
-
-  const handleEpisodeHeaderClick = useCallback(
-    (index: number, event: ReactMouseEvent<HTMLDivElement>) => {
-      const target = event.target as Element | null;
-      if (target?.closest("[data-episode-accordion-trigger]")) {
-        return;
-      }
-      if (shouldSkipEpisodeHeaderToggle(target)) {
-        return;
-      }
-      toggleEpisodeCollapsed(index);
-    },
-    [toggleEpisodeCollapsed],
-  );
-
-  useEffect(() => {
-    if (!isChapterBased) {
-      return;
-    }
-    const sorted = [...sortedEpisodeDownloads].map((item) => item.episode);
-    const current = formState.episodeDownloads;
-    const changed = sorted.some((episode, idx) => current[idx] !== episode);
-    if (!changed) {
-      return;
-    }
-    setFormState((prev) => ({ ...prev, episodeDownloads: sorted }));
-    setCollapsedEpisodes((prev) => {
-      const next: Record<number, boolean> = {};
-      sortedEpisodeDownloads.forEach((item, idx) => {
-        next[idx] = prev[item.index] ?? false;
-      });
-      return next;
-    });
-  }, [formState.episodeDownloads, isChapterBased, sortedEpisodeDownloads]);
-
-  useEffect(() => {
-    if (!(isChapterBased && supportsVolumeEntries)) {
-      return;
-    }
-    setCollapsedVolumeGroups((prev) => {
-      const next: Record<string, boolean> = {};
-      const nextKeys = new Set<string>();
-      let changed = Object.keys(prev).length !== episodeGroupsForRender.length;
-
-      episodeGroupsForRender.forEach((group) => {
-        const key = group.key;
-        nextKeys.add(key);
-        if (Object.prototype.hasOwnProperty.call(prev, key)) {
-          next[key] = prev[key];
-        } else {
-          next[key] = true;
-          changed = true;
-        }
-      });
-
-      Object.keys(prev).forEach((key) => {
-        if (!nextKeys.has(key)) {
-          changed = true;
-        }
-      });
-
-      const pendingKey = pendingVolumeGroupToExpandRef.current;
-      if (pendingKey && nextKeys.has(pendingKey)) {
-        if (next[pendingKey] !== false) {
-          changed = true;
-          next[pendingKey] = false;
-        }
-        pendingVolumeGroupToExpandRef.current = null;
-      }
-
-      return changed ? next : prev;
-    });
-  }, [episodeGroupsForRender, isChapterBased, supportsVolumeEntries]);
-
-  useEffect(() => {
-    const currentCount = formState.episodeDownloads.length;
-    const previousCount = previousEpisodeCountRef.current;
-    if (pendingAddAutoScrollRef.current && currentCount > previousCount) {
-      const latestEpisode = formState.episodeDownloads.at(-1) || null;
-      pendingEpisodeToScrollRef.current = latestEpisode;
-      pendingAddAutoScrollRef.current = false;
-
-      if (latestEpisode) {
-        const latestEpisodeIndex = currentCount - 1;
-        setCollapsedEpisodes((prev) => ({
-          ...prev,
-          [latestEpisodeIndex]: false,
-        }));
-      }
-    }
-    previousEpisodeCountRef.current = currentCount;
-  }, [formState.episodeDownloads]);
-
-  useEffect(() => {
-    const pendingEpisode = pendingEpisodeToScrollRef.current;
-    if (!pendingEpisode) {
-      return;
-    }
-    const episodeCardNode = episodeCardNodeMapRef.current.get(pendingEpisode);
-    if (!episodeCardNode) {
-      return;
-    }
-
-    const frameId = requestAnimationFrame(() => {
-      const latestNode = episodeCardNodeMapRef.current.get(pendingEpisode);
-      if (!latestNode) {
-        return;
-      }
-      latestNode.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-        inline: "nearest",
-      });
-      pendingEpisodeToScrollRef.current = null;
-    });
-
-    return () => {
-      cancelAnimationFrame(frameId);
-    };
-  }, [sortedEpisodeDownloads]);
-
-  useEffect(() => {
-    if (!pendingContentSectionScrollRef.current) {
-      return;
-    }
-    if (!editorAccordionValue.includes("episodios")) {
-      return;
-    }
-
-    const pendingVolumeKey = pendingVolumeGroupToScrollRef.current;
-    if (pendingVolumeKey && collapsedVolumeGroups[pendingVolumeKey] !== false) {
-      return;
-    }
-
-    const scrollTarget = pendingVolumeKey
-      ? volumeGroupNodeMapRef.current.get(pendingVolumeKey) || contentSectionRef.current
-      : contentSectionRef.current;
-    if (!scrollTarget) {
-      return;
-    }
-
-    const frameId = requestAnimationFrame(() => {
-      const latestTarget = pendingVolumeKey
-        ? volumeGroupNodeMapRef.current.get(pendingVolumeKey) || contentSectionRef.current
-        : contentSectionRef.current;
-      if (!latestTarget) {
-        return;
-      }
-      latestTarget.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-        inline: "nearest",
-      });
-      pendingVolumeGroupToScrollRef.current = null;
-      pendingContentSectionScrollRef.current = false;
-    });
-
-    return () => {
-      cancelAnimationFrame(frameId);
-    };
-  }, [collapsedVolumeGroups, editorAccordionValue, episodeGroupsForRender]);
-
-  const isRestorable = useCallback(
-    (project: ProjectRecord) => {
-      if (!project.deletedAt) {
-        return false;
-      }
-      const ts = new Date(project.deletedAt).getTime();
-      if (!Number.isFinite(ts)) {
-        return false;
-      }
-      return Date.now() - ts <= restoreWindowMs;
-    },
-    [restoreWindowMs],
-  );
-
-  const getRestoreRemainingLabel = (project: ProjectRecord) => {
-    if (!project.deletedAt) {
-      return "";
-    }
-    const ts = new Date(project.deletedAt).getTime();
-    if (!Number.isFinite(ts)) {
-      return "";
-    }
-    const remainingMs = restoreWindowMs - (Date.now() - ts);
-    const remainingDays = Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
-    if (remainingDays <= 1) {
-      return "1 dia";
-    }
-    return `${remainingDays} dias`;
-  };
+  const {
+    getRestoreRemainingLabel,
+    handleDelete,
+    handleImportAniList,
+    handleRestoreProject,
+    handleSave,
+    isRestorable,
+  } = useDashboardProjectsEditorPersistence({
+    anilistIdInput,
+    apiBase,
+    closeEditor,
+    deleteTarget,
+    editingProject,
+    episodeSizeDrafts,
+    episodeSizeErrors,
+    episodeSizeInputRefs,
+    formState,
+    markEditorSnapshot,
+    projects,
+    refreshProjects,
+    restoreWindowMs,
+    revealEpisodeAtIndex,
+    setDeleteTarget,
+    setEditorAccordionValue,
+    setEpisodeSizeDrafts,
+    setEpisodeSizeErrors,
+    setFormState,
+    setProjects,
+    staffMemberInput,
+  });
 
   const activeProjects = useMemo(
     () => projects.filter((project) => !project.deletedAt),
@@ -1163,32 +655,10 @@ const DashboardProjectsEditor = () => {
       const shouldOpenEpisodesSection = Boolean(pendingEpisodeFocus);
       const nextForm = buildProjectFormFromRecord(project);
       const initialEpisodes: EditorProjectEpisode[] = nextForm.episodeDownloads;
-      const focusedEpisodeIndex = (() => {
-        if (!pendingEpisodeFocus) {
-          return -1;
-        }
-        const matches = initialEpisodes
-          .map((episode, index) => ({ episode, index }))
-          .filter(({ episode }) => {
-            if (Number(episode.number) !== pendingEpisodeFocus.number) {
-              return false;
-            }
-            if (!Number.isFinite(pendingEpisodeFocus.volume)) {
-              return true;
-            }
-            return (
-              buildEpisodeKey(episode.number, episode.volume) ===
-              buildEpisodeKey(pendingEpisodeFocus.number, pendingEpisodeFocus.volume)
-            );
-          });
-        if (!matches.length) {
-          return -1;
-        }
-        if (!Number.isFinite(pendingEpisodeFocus.volume) && matches.length !== 1) {
-          return -1;
-        }
-        return matches[0]?.index ?? -1;
-      })();
+      const focusedEpisodeIndex = resolveProjectEpisodeFocusIndex(
+        initialEpisodes,
+        pendingEpisodeFocus,
+      );
       const focusedEpisode =
         focusedEpisodeIndex >= 0 ? initialEpisodes[focusedEpisodeIndex] || null : null;
       const focusedVolumeGroupKey = focusedEpisode
@@ -1320,20 +790,6 @@ const DashboardProjectsEditor = () => {
     setSearchParams,
   ]);
 
-  const revealEpisodeAtIndex = useCallback(
-    (index: number) => {
-      const episode = formState.episodeDownloads[index];
-      if (episode) {
-        pendingEpisodeToScrollRef.current = episode;
-      }
-      setCollapsedEpisodes((prev) => ({
-        ...prev,
-        [index]: false,
-      }));
-    },
-    [formState.episodeDownloads],
-  );
-
   useEffect(() => {
     const pendingEpisodeFocus = pendingEpisodeFocusRef.current;
     if (!isEditorOpen || !pendingEpisodeFocus) {
@@ -1343,29 +799,10 @@ const DashboardProjectsEditor = () => {
       return;
     }
 
-    const matches = sortedEpisodeDownloads.filter(({ episode }) => {
-      if (Number(episode.number) !== pendingEpisodeFocus.number) {
-        return false;
-      }
-      if (!Number.isFinite(pendingEpisodeFocus.volume)) {
-        return true;
-      }
-      return (
-        buildEpisodeKey(episode.number, episode.volume) ===
-        buildEpisodeKey(pendingEpisodeFocus.number, pendingEpisodeFocus.volume)
-      );
-    });
-
-    if (!matches.length) {
-      pendingEpisodeFocusRef.current = null;
-      return;
-    }
-    if (!Number.isFinite(pendingEpisodeFocus.volume) && matches.length !== 1) {
-      pendingEpisodeFocusRef.current = null;
-      return;
-    }
-
-    const targetIndex = matches[0]?.index;
+    const targetIndex = resolveSortedProjectEpisodeFocusIndex(
+      sortedEpisodeDownloads,
+      pendingEpisodeFocus,
+    );
     if (!Number.isInteger(targetIndex) || targetIndex < 0) {
       pendingEpisodeFocusRef.current = null;
       return;
@@ -1376,363 +813,6 @@ const DashboardProjectsEditor = () => {
     pendingEpisodeFocusRef.current = null;
   }, [isEditorOpen, revealEpisodeAtIndex, sortedEpisodeDownloads]);
 
-  const handleSave = async () => {
-    const trimmedTitle = formState.title.trim();
-    const normalizedDiscordRoleId = String(formState.discordRoleId || "").trim();
-    if (!trimmedTitle) {
-      toast({
-        title: "Preencha o título do projeto",
-        description: "O título é obrigatório para salvar.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (normalizedDiscordRoleId && !/^\d+$/.test(normalizedDiscordRoleId)) {
-      toast({
-        title: "Cargo Discord inválido",
-        description: "Use apenas números no campo de cargo Discord.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const normalizedEpisodesForSave = normalizeProjectEpisodesForSave(formState);
-    const duplicateEpisode = findDuplicateEpisodeKey(normalizedEpisodesForSave);
-    if (duplicateEpisode) {
-      const duplicateIndex = normalizedEpisodesForSave.findIndex(
-        (episode) => buildEpisodeKey(episode.number, episode.volume) === duplicateEpisode.key,
-      );
-      setEditorAccordionValue((prev) =>
-        prev.includes("episodios") ? prev : [...prev, "episodios"],
-      );
-      if (duplicateIndex >= 0) {
-        revealEpisodeAtIndex(duplicateIndex);
-      }
-      toast({
-        title: "Capítulos duplicados",
-        description: "Cada capítulo precisa ter uma combinação única de número e volume.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const supportsVolumeEntriesForSave = supportsProjectVolumeEntries(formState.type);
-    const normalizedVolumeEntriesForSave = normalizeProjectVolumeEntriesForSave(formState);
-    const duplicateVolumeEntry = findDuplicateVolumeCover(normalizedVolumeEntriesForSave);
-    if (supportsVolumeEntriesForSave && duplicateVolumeEntry) {
-      setEditorAccordionValue((prev) =>
-        prev.includes("episodios") ? prev : [...prev, "episodios"],
-      );
-      toast({
-        title: "Volumes duplicados",
-        description: "Cada volume pode aparecer apenas uma vez.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const nextEpisodeSizeDrafts = { ...episodeSizeDrafts };
-    const nextEpisodeSizeErrors = { ...episodeSizeErrors };
-    let firstInvalidEpisodeSizeIndex: number | null = null;
-
-    Object.entries(episodeSizeDrafts).forEach(([key, draftValue]) => {
-      const episodeIndex = Number(key);
-      if (!Number.isFinite(episodeIndex)) {
-        delete nextEpisodeSizeDrafts[episodeIndex];
-        delete nextEpisodeSizeErrors[episodeIndex];
-        return;
-      }
-      const episode = normalizedEpisodesForSave[episodeIndex];
-      if (!episode) {
-        delete nextEpisodeSizeDrafts[episodeIndex];
-        delete nextEpisodeSizeErrors[episodeIndex];
-        return;
-      }
-      const trimmedSize = String(draftValue || "").trim();
-      if (!trimmedSize) {
-        episode.sizeBytes = undefined;
-        delete nextEpisodeSizeDrafts[episodeIndex];
-        delete nextEpisodeSizeErrors[episodeIndex];
-        return;
-      }
-      const parsedSize = parseHumanSizeToBytes(trimmedSize);
-      if (!parsedSize) {
-        nextEpisodeSizeErrors[episodeIndex] = "Use formatos como 700 MB ou 1.4 GB.";
-        if (firstInvalidEpisodeSizeIndex === null) {
-          firstInvalidEpisodeSizeIndex = episodeIndex;
-        }
-        return;
-      }
-      episode.sizeBytes = parsedSize;
-      delete nextEpisodeSizeDrafts[episodeIndex];
-      delete nextEpisodeSizeErrors[episodeIndex];
-    });
-
-    const sizeErrorIndexes = Object.keys(nextEpisodeSizeErrors)
-      .map((key) => Number(key))
-      .filter(
-        (index) =>
-          Number.isFinite(index) && String(nextEpisodeSizeErrors[index] || "").trim().length > 0,
-      );
-    if (sizeErrorIndexes.length > 0) {
-      const focusIndex =
-        firstInvalidEpisodeSizeIndex !== null ? firstInvalidEpisodeSizeIndex : sizeErrorIndexes[0];
-      setEpisodeSizeDrafts(nextEpisodeSizeDrafts);
-      setEpisodeSizeErrors(nextEpisodeSizeErrors);
-      toast({
-        title: "Corrija os tamanhos inválidos",
-        description: "Use valores como 700 MB ou 1.4 GB antes de salvar.",
-      });
-      episodeSizeInputRefs.current[focusIndex]?.focus();
-      return;
-    }
-
-    setEpisodeSizeDrafts(nextEpisodeSizeDrafts);
-    setEpisodeSizeErrors({});
-
-    const payload = buildProjectSavePayload({
-      anilistIdInput,
-      editingProject,
-      formState: {
-        ...formState,
-        title: trimmedTitle,
-        discordRoleId: normalizedDiscordRoleId || "",
-      },
-      normalizedEpisodesForSave,
-      normalizedVolumeEntriesForSave,
-      staffMemberInput,
-    });
-
-    const response = await apiFetch(
-      apiBase,
-      editingProject ? `/api/projects/${editingProject.id}` : "/api/projects",
-      {
-        method: editingProject ? "PUT" : "POST",
-        auth: true,
-        json: payload,
-      },
-    );
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      const code = typeof data?.error === "string" ? data.error : "";
-      if (code === "title_and_id_required") {
-        toast({
-          title: "Campos obrigatórios ausentes",
-          description: "Informe título e identificador do projeto.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (code === "id_exists") {
-        toast({
-          title: "Identificador já existe",
-          description: "Use outro ID para criar o projeto.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (code === "forbidden") {
-        toast({
-          title: "Acesso negado",
-          description: "Você não tem permissão para salvar projetos.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (code === "duplicate_episode_key") {
-        const duplicateKey = String(data?.key || "");
-        const duplicateIndex = normalizedEpisodesForSave.findIndex(
-          (episode) => buildEpisodeKey(episode.number, episode.volume) === duplicateKey,
-        );
-        setEditorAccordionValue((prev) =>
-          prev.includes("episodios") ? prev : [...prev, "episodios"],
-        );
-        if (duplicateIndex >= 0) {
-          revealEpisodeAtIndex(duplicateIndex);
-        }
-        toast({
-          title: "Capítulos duplicados",
-          description:
-            "O servidor bloqueou o save porque existe mais de um capítulo com o mesmo número e volume.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (code === "duplicate_volume_cover_key") {
-        setEditorAccordionValue((prev) =>
-          prev.includes("episodios") ? prev : [...prev, "episodios"],
-        );
-        toast({
-          title: "Volumes duplicados",
-          description:
-            "O servidor bloqueou o save porque existe mais de uma entrada para o mesmo volume.",
-          variant: "destructive",
-        });
-        return;
-      }
-      toast({
-        title: "Não foi possível salvar o projeto",
-        description: "Tente novamente em alguns instantes.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const data = await response.json();
-    if (data?.project) {
-      setFormState(data.project);
-    }
-    if (editingProject) {
-      setProjects((prev) =>
-        prev.map((project) => (project.id === editingProject.id ? data.project : project)),
-      );
-    } else {
-      setProjects((prev) => [...prev, data.project]);
-    }
-    markEditorSnapshot((data?.project || payload) as ProjectForm, anilistIdInput);
-    toast({
-      title: editingProject ? "Projeto atualizado" : "Projeto criado",
-      description: "As alterações foram salvas com sucesso.",
-      intent: "success",
-    });
-    closeEditor();
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTarget) {
-      return;
-    }
-    const response = await apiFetch(apiBase, `/api/projects/${deleteTarget.id}`, {
-      method: "DELETE",
-      auth: true,
-    });
-    if (!response.ok) {
-      toast({
-        title: "Não foi possível excluir o projeto",
-        variant: "destructive",
-      });
-      return;
-    }
-    await refreshProjects();
-    setDeleteTarget(null);
-    if (editingProject && deleteTarget.id === editingProject.id) {
-      closeEditor();
-    }
-    toast({
-      title: "Projeto movido para a lixeira",
-      description: "Você pode restaurar por 3 dias.",
-    });
-  };
-
-  const handleRestoreProject = async (project: ProjectRecord) => {
-    const response = await apiFetch(apiBase, `/api/projects/${project.id}/restore`, {
-      method: "POST",
-      auth: true,
-    });
-    if (!response.ok) {
-      if (response.status === 410) {
-        toast({ title: "Janela de restauração expirou" });
-        await refreshProjects();
-        return;
-      }
-      toast({ title: "Não foi possível restaurar o projeto", variant: "destructive" });
-      return;
-    }
-    const data = await response.json();
-    setProjects((prev) => prev.map((item) => (item.id === project.id ? data.project : item)));
-    toast({ title: "Projeto restaurado" });
-  };
-
-  const mapAniListToForm = (media: AniListMedia) => {
-    let syncGenres: string[] = [];
-    let syncTags: string[] = [];
-
-    setFormState((prev) => {
-      const { patch, syncGenres: nextSyncGenres, syncTags: nextSyncTags } =
-        buildProjectFormPatchFromAniList({
-          media,
-          previousForm: prev,
-          projects,
-        });
-      syncGenres = nextSyncGenres;
-      syncTags = nextSyncTags;
-      return {
-        ...prev,
-        ...patch,
-      };
-    });
-
-    if (syncTags.length || syncGenres.length) {
-      apiFetch(apiBase, "/api/tag-translations/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        auth: true,
-        body: JSON.stringify({ tags: syncTags, genres: syncGenres }),
-      }).catch(() => undefined);
-    }
-  };
-
-  const handleImportAniList = async () => {
-    const id = parseAniListMediaId(anilistIdInput);
-    if (id === null) {
-      toast({
-        title: "ID do AniList inválido",
-        description: "Informe um ID ou URL válida do AniList antes de importar.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const response = await apiFetch(apiBase, `/api/anilist/${id}`, { auth: true });
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      const code = typeof data?.error === "string" ? data.error : "";
-      if (code === "invalid_id") {
-        toast({
-          title: "ID do AniList inválido",
-          description: "Não foi possível buscar esse identificador.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (code === "forbidden") {
-        toast({
-          title: "Acesso negado",
-          description: "Você não tem permissão para usar a integração do AniList.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (code === "anilist_failed") {
-        toast({
-          title: "Falha ao importar do AniList",
-          description: "A API externa não respondeu como esperado.",
-          variant: "destructive",
-        });
-        return;
-      }
-      toast({
-        title: "Não foi possível importar do AniList",
-        description: "Tente novamente em alguns instantes.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const data = await response.json();
-    const media = data?.data?.Media as AniListMedia | undefined;
-    if (!media) {
-      toast({
-        title: "AniList sem resultados",
-        description: "Nenhuma mídia foi encontrada para esse ID.",
-        variant: "destructive",
-      });
-      return;
-    }
-    mapAniListToForm(media);
-    toast({
-      title: "Dados importados do AniList",
-      description: "Campos do projeto foram preenchidos automaticamente.",
-      intent: "success",
-    });
-  };
 
   const appendTagValue = (value: string) => {
     const nextValue = String(value || "").trim();
@@ -1936,47 +1016,6 @@ const DashboardProjectsEditor = () => {
     },
     [getEpisodeEntryKind],
   );
-
-  const handleAddEpisodeDownload = () => {
-    pendingAddAutoScrollRef.current = true;
-    if (isChapterBased && supportsVolumeEntries) {
-      const semVolumeKey = buildVolumeCoverKey(undefined);
-      pendingVolumeGroupToExpandRef.current = semVolumeKey;
-      setCollapsedVolumeGroups((prev) => ({
-        ...prev,
-        [semVolumeKey]: false,
-      }));
-    }
-    setFormState((prev) => {
-      const nextMainNumber = resolveNextMainEpisodeNumber(prev.episodeDownloads, {
-        isExtra: (episode) => getEpisodeEntryKind(episode) === "extra",
-      });
-      const newEpisode: EditorProjectEpisode = {
-        _editorKey: generateEpisodeEditorLocalId(),
-        number: nextMainNumber,
-        volume: undefined,
-        title: "",
-        synopsis: "",
-        entryKind: "main",
-        entrySubtype: "chapter",
-        readingOrder: undefined,
-        displayLabel: undefined,
-        releaseDate: "",
-        duration: "",
-        coverImageUrl: "",
-        coverImageAlt: "",
-        sourceType: "TV",
-        sources: [],
-        progressStage: "aguardando-raw",
-        completedStages: [],
-        content: "",
-        contentFormat: "lexical",
-        publicationStatus: "published",
-      };
-      const next = [...prev.episodeDownloads, newEpisode];
-      return { ...prev, episodeDownloads: next };
-    });
-  };
 
   const moveRelationItem = useCallback((from: number, to: number) => {
     if (from === to) {
@@ -2947,13 +1986,7 @@ const DashboardProjectsEditor = () => {
                                   : "Capítulos sem volume usam capa e sinopse do próprio projeto.";
                                 return (
                                   <AccordionItem
-                                    ref={(node) => {
-                                      if (node) {
-                                        volumeGroupNodeMapRef.current.set(group.key, node);
-                                      } else {
-                                        volumeGroupNodeMapRef.current.delete(group.key);
-                                      }
-                                    }}
+                                      ref={(node) => registerVolumeGroupNode(group.key, node)}
                                     key={`episode-group-${groupIndex}`}
                                     value={group.key}
                                     className="rounded-2xl border border-border/60 bg-card/40"
@@ -3159,37 +2192,7 @@ const DashboardProjectsEditor = () => {
                                               className="border-none"
                                             >
                                               <Card
-                                                ref={(node) => {
-                                                  if (node) {
-                                                    episodeCardNodeMapRef.current.set(
-                                                      episode,
-                                                      node,
-                                                    );
-                                                    if (
-                                                      pendingEpisodeToScrollRef.current === episode
-                                                    ) {
-                                                      requestAnimationFrame(() => {
-                                                        const latestNode =
-                                                          episodeCardNodeMapRef.current.get(
-                                                            episode,
-                                                          );
-                                                        if (
-                                                          !latestNode ||
-                                                          pendingEpisodeToScrollRef.current !==
-                                                            episode
-                                                        ) {
-                                                          return;
-                                                        }
-                                                        latestNode.scrollIntoView({
-                                                          behavior: "smooth",
-                                                          block: "center",
-                                                          inline: "nearest",
-                                                        });
-                                                        pendingEpisodeToScrollRef.current = null;
-                                                      });
-                                                    }
-                                                  }
-                                                }}
+                                                ref={(node) => registerEpisodeCardNode(episode, node)}
                                                 className="project-editor-episode-card border-border/60 bg-card/70 !shadow-none hover:!shadow-none"
                                                 data-episode-key={episodeKey}
                                                 data-testid={`episode-card-${index}`}

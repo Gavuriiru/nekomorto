@@ -2,8 +2,8 @@ import { buildPostOgCardModel, buildPostOgImageResponse } from "./post-og.js";
 import { loadProjectOgArtworkDataUrl } from "./project-og.js";
 import {
   createMeasuredOgAssetLoader,
+  createProjectStyleOgCachedRenderResolver,
   createProjectStyleBaseModelBuilder,
-  getProjectStyleOgCachedRender,
 } from "./og-delivery-shared.js";
 
 const buildPostOgBaseModel = createProjectStyleBaseModelBuilder(buildPostOgCardModel);
@@ -15,6 +15,12 @@ const loadPostSubtitleAvatarAsset = createMeasuredOgAssetLoader({
       artworkUrl: model?.subtitleAvatarUrl,
       origin,
     }),
+});
+const resolvePostOgCachedRender = createProjectStyleOgCachedRenderResolver({
+  buildBaseModel: (options) => buildPostOgBaseModel(options),
+  buildImageResponse: (model) => buildPostOgImageResponse({ ...model }),
+  kind: "post",
+  loadAdditionalAssets: loadPostSubtitleAvatarAsset,
 });
 
 export const getPostOgCachedRender = async ({
@@ -30,25 +36,18 @@ export const getPostOgCachedRender = async ({
   resolveVariantUrl,
   ogRenderCache,
 } = {}) => {
-  return getProjectStyleOgCachedRender({
-    kind: "post",
+  return resolvePostOgCachedRender({
+    defaultBackdropUrl,
+    firstPostImage,
     id: String(post?.slug || "").trim(),
     ogRenderCache,
-    buildModel: () =>
-      buildPostOgBaseModel({
-        post,
-        relatedProject,
-        resolvedCover,
-        firstPostImage,
-        resolvedAuthor,
-        defaultBackdropUrl,
-        settings,
-        translations,
-        origin,
-        resolveVariantUrl,
-      }),
     origin,
-    buildImageResponse: (model) => buildPostOgImageResponse({ ...model }),
-    loadAdditionalAssets: loadPostSubtitleAvatarAsset,
+    post,
+    relatedProject,
+    resolveVariantUrl,
+    resolvedAuthor,
+    resolvedCover,
+    settings,
+    translations,
   });
 };

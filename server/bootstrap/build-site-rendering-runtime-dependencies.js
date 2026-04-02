@@ -1,0 +1,33 @@
+export const buildSiteRenderingRuntimeDependencies = (dependencies = {}) => ({
+  PRIMARY_APP_ORIGIN: dependencies.PRIMARY_APP_ORIGIN,
+  applyHtmlCachingHeaders: dependencies.applyHtmlCachingHeaders,
+  buildInstitutionalOgImageAlt: dependencies.buildInstitutionalOgImageAlt,
+  buildInstitutionalOgRevisionValue: dependencies.buildInstitutionalOgRevisionValue,
+  buildPostOgImageAlt: dependencies.buildPostOgImageAlt,
+  buildPostOgRevision: dependencies.buildPostOgRevision,
+  buildProjectOgRevision: dependencies.buildProjectOgRevision,
+  buildProjectReadingOgCardModel: dependencies.buildProjectReadingOgCardModel,
+  buildProjectReadingOgRevisionValue: dependencies.buildProjectReadingOgRevisionValue,
+  buildVersionedInstitutionalOgImagePath: dependencies.buildVersionedInstitutionalOgImagePath,
+  buildVersionedPostOgImagePath: dependencies.buildVersionedPostOgImagePath,
+  buildVersionedProjectOgImagePath: dependencies.buildVersionedProjectOgImagePath,
+  buildVersionedProjectReadingOgImagePath:
+    dependencies.buildVersionedProjectReadingOgImagePath,
+  extractFirstImageFromPostContent: dependencies.extractFirstImageFromPostContent,
+  getIndexHtml: dependencies.getIndexHtml,
+  injectNonceIntoHtmlScripts: dependencies.injectNonceIntoHtmlScripts,
+  loadPages: dependencies.loadPages,
+  loadSiteSettings: dependencies.loadSiteSettings,
+  loadTagTranslations: dependencies.loadTagTranslations,
+  resolveInstitutionalOgPagePath: dependencies.resolveInstitutionalOgPagePath,
+  resolveInstitutionalOgPageTitle: dependencies.resolveInstitutionalOgPageTitle,
+  resolveInstitutionalOgSupportText: dependencies.resolveInstitutionalOgSupportText,
+  resolveMetaImageVariantUrl: dependencies.resolveMetaImageVariantUrl,
+  resolvePostCover: dependencies.resolvePostCover,
+  serializeSchemaOrgEntry: dependencies.serializeSchemaOrgEntry,
+  toAbsoluteUrl: dependencies.toAbsoluteUrl,
+  truncateMetaDescription: dependencies.truncateMetaDescription,
+  viteDevServer: dependencies.viteDevServer,
+});
+
+export default buildSiteRenderingRuntimeDependencies;

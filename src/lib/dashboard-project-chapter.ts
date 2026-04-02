@@ -108,6 +108,20 @@ export const buildChapterVolumeLabel = (value: unknown) => {
   return `Volume ${Math.floor(parsed)}`;
 };
 
+const buildEmptyVolumeEntry = (volume: number): ProjectVolumeEntry => ({
+  volume,
+  synopsis: "",
+  coverImageUrl: "",
+  coverImageAlt: "",
+});
+
+export const findChapterStructureGroupElement = (groupKey: string) => {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  return document.querySelector<HTMLElement>(`[data-testid="chapter-structure-group-${groupKey}"]`);
+};
+
 export const buildChapterStructureGroupKey = (value: unknown) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? String(Math.floor(parsed)) : "none";
@@ -403,6 +417,86 @@ export const buildProjectSnapshotWithVolumeEntries = <T extends ProjectSnapshotW
   };
 };
 
+export const findProjectVolumeEntryByVolume = (
+  entries: ProjectVolumeEntry[] | null | undefined,
+  volume: number | null | undefined,
+) => {
+  const normalizedVolume = normalizePositiveInteger(Number(volume));
+  if (normalizedVolume === undefined) {
+    return null;
+  }
+  return (
+    normalizeProjectVolumeEntries(entries).find(
+      (entry) => buildVolumeCoverKey(entry.volume) === buildVolumeCoverKey(normalizedVolume),
+    ) || null
+  );
+};
+
+export const updateProjectVolumeEntriesDraft = (
+  entries: ProjectVolumeEntry[] | null | undefined,
+  volume: number,
+  updater: (entry: ProjectVolumeEntry) => ProjectVolumeEntry,
+) => {
+  const normalizedVolume = normalizePositiveInteger(Number(volume));
+  const nextEntries = normalizeProjectVolumeEntries(entries);
+  if (normalizedVolume === undefined) {
+    return nextEntries;
+  }
+
+  const existingEntry = findProjectVolumeEntryByVolume(nextEntries, normalizedVolume);
+  const updatedEntry = updater(existingEntry || buildEmptyVolumeEntry(normalizedVolume));
+  return normalizeProjectVolumeEntries([
+    ...nextEntries.filter(
+      (entry) => buildVolumeCoverKey(entry.volume) !== buildVolumeCoverKey(normalizedVolume),
+    ),
+    {
+      ...updatedEntry,
+      volume: normalizedVolume,
+    },
+  ]);
+};
+
+export const ensureProjectVolumeEntryDraft = (
+  entries: ProjectVolumeEntry[] | null | undefined,
+  volume: number | null,
+) => {
+  const normalizedVolume = normalizePositiveInteger(Number(volume));
+  if (normalizedVolume === undefined) {
+    return {
+      entries: normalizeProjectVolumeEntries(entries),
+      selectedVolume: null,
+    };
+  }
+
+  if (findProjectVolumeEntryByVolume(entries, normalizedVolume)) {
+    return {
+      entries: normalizeProjectVolumeEntries(entries),
+      selectedVolume: normalizedVolume,
+    };
+  }
+
+  return {
+    entries: normalizeProjectVolumeEntries([
+      ...normalizeProjectVolumeEntries(entries),
+      buildEmptyVolumeEntry(normalizedVolume),
+    ]),
+    selectedVolume: normalizedVolume,
+  };
+};
+
+export const appendNextProjectVolumeEntryDraft = (
+  entries: ProjectVolumeEntry[] | null | undefined,
+) => {
+  const normalizedEntries = normalizeProjectVolumeEntries(entries);
+  const nextVolume =
+    normalizedEntries.reduce((maxValue, entry) => Math.max(maxValue, Number(entry.volume) || 0), 0) +
+    1;
+  return {
+    entries: normalizeProjectVolumeEntries([...normalizedEntries, buildEmptyVolumeEntry(nextVolume)]),
+    selectedVolume: nextVolume,
+  };
+};
+
 export const hasExplicitReadingOrder = (episodes: ProjectEpisode[]) =>
   (Array.isArray(episodes) ? episodes : []).some((episode) =>
     Number.isFinite(Number(episode?.readingOrder)),
@@ -605,4 +699,183 @@ export const buildEditableVolumeOptions = (
       chapterCount,
       hasMetadata: metadataVolumeKeys.has(buildVolumeCoverKey(volume)),
     }));
+};
+
+export const buildChapterStructureGroups = ({
+  availableVolumes,
+  chaptersByStructureGroup,
+  filteredChaptersByStructureGroup,
+  stagedChaptersByStructureGroup,
+  visibleStagedChaptersByStructureGroup,
+}: {
+  availableVolumes: EditableVolumeOption[];
+  chaptersByStructureGroup: Map<string, ProjectEpisode[]>;
+  filteredChaptersByStructureGroup: Map<string, ProjectEpisode[]>;
+  stagedChaptersByStructureGroup: Map<string, StageChapter[]>;
+  visibleStagedChaptersByStructureGroup: Map<string, StageChapter[]>;
+}): ChapterStructureGroup[] => {
+  const numericVolumeMap = new Map<number, EditableVolumeOption>();
+  availableVolumes.forEach((volumeOption) => {
+    numericVolumeMap.set(volumeOption.volume, volumeOption);
+  });
+
+  Array.from(chaptersByStructureGroup.keys()).forEach((key) => {
+    const parsedVolume = Number(key);
+    if (key !== "none" && Number.isFinite(parsedVolume) && parsedVolume > 0) {
+      numericVolumeMap.set(
+        parsedVolume,
+        numericVolumeMap.get(parsedVolume) || {
+          volume: parsedVolume,
+          chapterCount: (chaptersByStructureGroup.get(key) || []).length,
+          hasMetadata: false,
+        },
+      );
+    }
+  });
+
+  Array.from(stagedChaptersByStructureGroup.keys()).forEach((key) => {
+    const parsedVolume = Number(key);
+    if (key !== "none" && Number.isFinite(parsedVolume) && parsedVolume > 0) {
+      numericVolumeMap.set(
+        parsedVolume,
+        numericVolumeMap.get(parsedVolume) || {
+          volume: parsedVolume,
+          chapterCount: (chaptersByStructureGroup.get(key) || []).length,
+          hasMetadata: false,
+        },
+      );
+    }
+  });
+
+  const numericGroups = Array.from(numericVolumeMap.values())
+    .sort((left, right) => left.volume - right.volume)
+    .map((volumeOption) => {
+      const key = String(volumeOption.volume);
+      return {
+        key,
+        label: buildChapterVolumeLabel(volumeOption.volume),
+        volume: volumeOption.volume,
+        hasMetadata: volumeOption.hasMetadata,
+        chapterCount: volumeOption.chapterCount,
+        allItems: chaptersByStructureGroup.get(key) || [],
+        visibleItems: filteredChaptersByStructureGroup.get(key) || [],
+        pendingItems: stagedChaptersByStructureGroup.get(key) || [],
+        visiblePendingItems: visibleStagedChaptersByStructureGroup.get(key) || [],
+      };
+    });
+
+  const semVolumeItems = chaptersByStructureGroup.get("none") || [];
+  numericGroups.push({
+    key: "none",
+    label: "Sem volume",
+    volume: null,
+    hasMetadata: false,
+    chapterCount: semVolumeItems.length,
+    allItems: semVolumeItems,
+    visibleItems: filteredChaptersByStructureGroup.get("none") || [],
+    pendingItems: stagedChaptersByStructureGroup.get("none") || [],
+    visiblePendingItems: visibleStagedChaptersByStructureGroup.get("none") || [],
+  });
+
+  return numericGroups;
+};
+
+export const resolveFallbackSelectedChapterVolume = ({
+  availableVolumes,
+  enabled,
+  volume,
+}: {
+  availableVolumes: EditableVolumeOption[];
+  enabled: boolean;
+  volume: number | null | undefined;
+}) => {
+  const normalizedVolume = normalizePositiveInteger(Number(volume));
+  if (!enabled || normalizedVolume === undefined) {
+    return null;
+  }
+  return availableVolumes.some((volumeOption) => volumeOption.volume === normalizedVolume)
+    ? normalizedVolume
+    : null;
+};
+
+export const resolveSelectedChapterVolume = ({
+  activeChapterVolume,
+  availableVolumes,
+  fallbackVolume,
+}: {
+  activeChapterVolume: number | null | undefined;
+  availableVolumes: EditableVolumeOption[];
+  fallbackVolume?: number | null;
+}) => {
+  const normalizedActiveVolume = normalizePositiveInteger(Number(activeChapterVolume));
+  if (
+    normalizedActiveVolume !== undefined &&
+    availableVolumes.some((volumeOption) => volumeOption.volume === normalizedActiveVolume)
+  ) {
+    return normalizedActiveVolume;
+  }
+  return fallbackVolume ?? null;
+};
+
+export const resolveSelectedVolumeChapterCount = ({
+  availableVolumes,
+  volume,
+}: {
+  availableVolumes: EditableVolumeOption[];
+  volume: number | null | undefined;
+}) => {
+  const normalizedVolume = normalizePositiveInteger(Number(volume));
+  if (normalizedVolume === undefined) {
+    return 0;
+  }
+  return (
+    availableVolumes.find((volumeOption) => volumeOption.volume === normalizedVolume)?.chapterCount ||
+    0
+  );
+};
+
+export const resolveChapterStructureGroupKey = ({
+  activeChapterKey,
+  fallbackToFirstGroup,
+  hasActiveChapter,
+  selectedStageChapterId,
+  selectedVolume,
+  structureGroups,
+}: {
+  activeChapterKey?: string | null;
+  fallbackToFirstGroup?: boolean;
+  hasActiveChapter: boolean;
+  selectedStageChapterId?: string | null;
+  selectedVolume: number | null;
+  structureGroups: ChapterStructureGroup[];
+}) => {
+  const activeGroup = activeChapterKey
+    ? structureGroups.find((group) =>
+        group.allItems.some(
+          (episode) => buildEpisodeKey(episode.number, episode.volume) === activeChapterKey,
+        ),
+      )
+    : null;
+  if (activeGroup?.key) {
+    return activeGroup.key;
+  }
+
+  if (!hasActiveChapter && selectedStageChapterId) {
+    const pendingGroup = structureGroups.find((group) =>
+      group.pendingItems.some((chapter) => chapter.id === selectedStageChapterId),
+    );
+    if (pendingGroup?.key) {
+      return pendingGroup.key;
+    }
+  }
+
+  if (selectedVolume !== null) {
+    const selectedGroupKey =
+      structureGroups.find((group) => group.volume === selectedVolume)?.key || "";
+    if (selectedGroupKey) {
+      return selectedGroupKey;
+    }
+  }
+
+  return fallbackToFirstGroup ? structureGroups[0]?.key || "" : "";
 };

@@ -10,11 +10,11 @@ import {
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import { useChapterEditorLeaveGuard } from "@/components/dashboard/chapter-editor/useChapterEditorLeaveGuard";
 import { useDashboardProjectChapterEpub } from "@/components/dashboard/chapter-editor/useDashboardProjectChapterEpub";
+import { useDashboardProjectChapterEditorResource } from "@/components/dashboard/chapter-editor/useDashboardProjectChapterEditorResource";
 import { loadLexicalEditor } from "@/components/lazy/LazyLexicalEditor";
 import ChapterEditorPane from "@/components/dashboard/chapter-editor/ChapterEditorPane";
 import type {
   ChapterEditorPaneHandle,
-  ChapterStructureGroup,
   ProjectRecord,
   StructureScrollAnchor,
   VolumeSelectionOptions,
@@ -32,28 +32,32 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import type { ProjectEpisode, ProjectVolumeEntry } from "@/data/projects";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
-import { refetchPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
 import {
   EMPTY_CHAPTER_DRAFT,
-  IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
   VOLUME_REQUIRED_IDENTITY_MESSAGE,
   VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION,
   buildNewChapterDraft,
+  buildChapterStructureGroups,
   buildChapterVolumeLabel,
   buildEditableVolumeOptions,
+  resolveFallbackSelectedChapterVolume,
+  resolveSelectedChapterVolume,
+  resolveSelectedVolumeChapterCount,
   buildChapterSnapshot,
   buildProjectSnapshotWithVolumeEntries,
   chapterHasContent,
+  findChapterStructureGroupElement,
+  ensureProjectVolumeEntryDraft,
+  appendNextProjectVolumeEntryDraft,
+  updateProjectVolumeEntriesDraft,
   groupChaptersByStructureKey,
   groupStageChaptersByStructureKey,
   matchesChapterSearch,
   matchesFilter,
   matchesStageChapterFilter,
   matchesStageChapterSearch,
-  normalizeProjectSnapshotChapterOrderForPersist,
   normalizeStructureGroupKeys,
   normalizeChapterForEditor,
   normalizeChapterForSave,
@@ -70,10 +74,7 @@ import {
 } from "@/lib/dashboard-project-chapter";
 import { findIncompleteDownloadSourceIndex } from "@/lib/project-download-sources";
 import { cn } from "@/lib/utils";
-import {
-  EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
-  overlayDraftOnProject,
-} from "@/lib/project-epub";
+import { overlayDraftOnProject } from "@/lib/project-epub";
 import {
   buildDashboardProjectChapterEditorHref,
   buildDashboardProjectChaptersEditorHref,
@@ -147,14 +148,6 @@ type CurrentUser = {
   permissions?: string[];
 };
 
-const findStructureGroupElement = (groupKey: string) => {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  return document.querySelector<HTMLElement>(`[data-testid="chapter-structure-group-${groupKey}"]`);
-};
-
-
 const DashboardProjectChapterEditor = () => {
   usePageMeta({ title: "Gerenciamento de Conteúdo", noIndex: true });
   const apiBase = getApiBase();
@@ -163,29 +156,47 @@ const DashboardProjectChapterEditor = () => {
   const [searchParams] = useSearchParams();
   const { currentUser, isLoadingUser } = useDashboardCurrentUser<CurrentUser>();
   const hasLoadedCurrentUser = !isLoadingUser;
-  const [project, setProject] = useState<ProjectRecord | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasLoadError, setHasLoadError] = useState(false);
   const [chapterSearchQuery, setChapterSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState<ChapterFilterMode>("all");
   const [activeDraft, setActiveDraft] = useState<ProjectEpisode | null>(null);
-  const [volumeEntriesDraft, setVolumeEntriesDraft] = useState<ProjectVolumeEntry[]>([]);
-  const [selectedVolume, setSelectedVolume] = useState<number | null>(null);
   const [stagedMangaChapters, setStagedMangaChapters] = useState<StageChapter[]>([]);
   const [selectedStageChapterId, setSelectedStageChapterId] = useState<string | null>(null);
-  const [persistedStructureGroupKeys, setPersistedStructureGroupKeys] = useState<string[]>([]);
   const [isSavingVolumes, setIsSavingVolumes] = useState(false);
   const [deleteDialogState, setDeleteDialogState] = useState<DeleteDialogState | null>(null);
   const [isDeletingEntity, setIsDeletingEntity] = useState(false);
   const editorPaneRef = useRef<ChapterEditorPaneHandle | null>(null);
-  const projectRef = useRef<ProjectRecord | null>(null);
-  const projectSnapshotRef = useRef<ProjectRecord | null>(null);
   const stagedMangaChaptersRef = useRef<StageChapter[]>([]);
   const previousProjectIdRef = useRef<string | undefined>(projectId);
   const pendingNeutralSelectedVolumeRef = useRef<number | null>(null);
   const pendingNeutralScrollAnchorRef = useRef<StructureScrollAnchor | null>(null);
   const pendingChapterNavigationHrefRef = useRef<string | null>(null);
   const fallbackNeutralToastKeyRef = useRef<string | null>(null);
+  const clearPendingNeutralRouteState = useCallback(() => {
+    pendingNeutralSelectedVolumeRef.current = null;
+    pendingNeutralScrollAnchorRef.current = null;
+  }, []);
+  const chapterEditorResource = useDashboardProjectChapterEditorResource({
+    apiBase,
+    projectId,
+    onProjectResourceReset: clearPendingNeutralRouteState,
+  });
+  const {
+    handleProjectChange,
+    hasLoadError,
+    isLoading,
+    persistProjectSnapshot,
+    persistedStructureGroupKeys,
+    project,
+    projectRef,
+    projectSnapshotRef,
+    reloadProject,
+    selectedVolume,
+    setPersistedStructureGroupKeys,
+    setSelectedVolume,
+    setVolumeEntriesDraft,
+    syncProjectSnapshot,
+    volumeEntriesDraft,
+  } = chapterEditorResource;
 
   useEffect(() => {
     if (import.meta.env.MODE === "test") {
@@ -197,10 +208,6 @@ const DashboardProjectChapterEditor = () => {
   useEffect(() => {
     stagedMangaChaptersRef.current = stagedMangaChapters;
   }, [stagedMangaChapters]);
-
-  useEffect(() => {
-    projectRef.current = project;
-  }, [project]);
 
   useEffect(() => {
     if (previousProjectIdRef.current && previousProjectIdRef.current !== projectId) {
@@ -228,51 +235,6 @@ const DashboardProjectChapterEditor = () => {
   const parsedVolume = Number(volumeParam);
   const resolvedVolume =
     volumeParam !== null && Number.isFinite(parsedVolume) ? parsedVolume : undefined;
-
-  const loadProject = useCallback(async () => {
-    if (!projectId) {
-      setProject(null);
-      setHasLoadError(false);
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    setHasLoadError(false);
-    try {
-      const response = await apiFetch(apiBase, `/api/projects/${projectId}`, { auth: true });
-      if (!response.ok) {
-        setProject(null);
-        setVolumeEntriesDraft([]);
-        setSelectedVolume(null);
-        setPersistedStructureGroupKeys([]);
-        pendingNeutralSelectedVolumeRef.current = null;
-        pendingNeutralScrollAnchorRef.current = null;
-        setHasLoadError(response.status !== 404);
-        return;
-      }
-      const data = (await response.json()) as { project?: ProjectRecord };
-      setProject(data?.project || null);
-      setVolumeEntriesDraft(normalizeProjectVolumeEntries(data?.project?.volumeEntries));
-      setSelectedVolume(null);
-      setPersistedStructureGroupKeys([]);
-      pendingNeutralSelectedVolumeRef.current = null;
-      pendingNeutralScrollAnchorRef.current = null;
-    } catch {
-      setProject(null);
-      setVolumeEntriesDraft([]);
-      setSelectedVolume(null);
-      setPersistedStructureGroupKeys([]);
-      pendingNeutralSelectedVolumeRef.current = null;
-      pendingNeutralScrollAnchorRef.current = null;
-      setHasLoadError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [apiBase, projectId]);
-
-  useEffect(() => {
-    void loadProject();
-  }, [loadProject]);
 
   const isChapterBased = isChapterBasedType(project?.type || "");
   const chapters = useMemo(
@@ -370,15 +332,8 @@ const DashboardProjectChapterEditor = () => {
   }, [activeChapterKey, activeDraft, projectWithVolumeDraft]);
 
   useEffect(() => {
-    projectSnapshotRef.current = projectSnapshot;
-  }, [projectSnapshot]);
-
-  const handleProjectChange = useCallback((nextProject: ProjectRecord) => {
-    projectRef.current = nextProject;
-    projectSnapshotRef.current = nextProject;
-    setProject(nextProject);
-    setVolumeEntriesDraft(normalizeProjectVolumeEntries(nextProject.volumeEntries));
-  }, []);
+    syncProjectSnapshot(projectSnapshot);
+  }, [projectSnapshot, syncProjectSnapshot]);
 
   const availableVolumes = useMemo<EditableVolumeOption[]>(() => {
     return buildEditableVolumeOptions(projectSnapshot, volumeEntriesDraft);
@@ -393,13 +348,11 @@ const DashboardProjectChapterEditor = () => {
       activeChapterLookup.code !== "volume_required",
   );
   const fallbackNeutralSelectedVolume = useMemo(() => {
-    if (!shouldFallbackToNeutralRoute || !Number.isFinite(resolvedVolume)) {
-      return null;
-    }
-    const normalizedVolume = Number(resolvedVolume);
-    return availableVolumes.some((volumeOption) => volumeOption.volume === normalizedVolume)
-      ? normalizedVolume
-      : null;
+    return resolveFallbackSelectedChapterVolume({
+      availableVolumes,
+      enabled: shouldFallbackToNeutralRoute,
+      volume: resolvedVolume,
+    });
   }, [availableVolumes, resolvedVolume, shouldFallbackToNeutralRoute]);
   const fallbackNeutralToastKey = `${project?.id || projectId || ""}:${String(chapterNumber || "")}:${String(volumeParam || "")}`;
   const neutralHref = buildDashboardProjectChaptersEditorHref(project?.id || projectId || "");
@@ -432,21 +385,13 @@ const DashboardProjectChapterEditor = () => {
     if (!chapterNumber) {
       return;
     }
-    const activeVolume = Number.isFinite(Number(activeChapter?.volume))
-      ? Number(activeChapter?.volume)
-      : null;
-    if (
-      activeVolume !== null &&
-      availableVolumes.some((volumeOption) => volumeOption.volume === activeVolume)
-    ) {
-      setSelectedVolume(activeVolume);
-      return;
-    }
-    if (shouldFallbackToNeutralRoute && fallbackNeutralSelectedVolume !== null) {
-      setSelectedVolume(fallbackNeutralSelectedVolume);
-      return;
-    }
-    setSelectedVolume(null);
+    setSelectedVolume(
+      resolveSelectedChapterVolume({
+        activeChapterVolume: activeChapter?.volume,
+        availableVolumes,
+        fallbackVolume: shouldFallbackToNeutralRoute ? fallbackNeutralSelectedVolume : null,
+      }),
+    );
   }, [
     activeChapter?.volume,
     availableVolumes,
@@ -500,7 +445,7 @@ const DashboardProjectChapterEditor = () => {
     let innerFrame = 0;
     outerFrame = scheduleFrame(() => {
       innerFrame = scheduleFrame(() => {
-        const targetElement = findStructureGroupElement(pendingAnchor.groupKey);
+        const targetElement = findChapterStructureGroupElement(pendingAnchor.groupKey);
         if (!targetElement) {
           return;
         }
@@ -526,72 +471,27 @@ const DashboardProjectChapterEditor = () => {
 
   const selectedVolumeChapterCount = useMemo(
     () =>
-      selectedVolume !== null
-        ? availableVolumes.find((volumeOption) => volumeOption.volume === selectedVolume)
-            ?.chapterCount || 0
-        : 0,
+      resolveSelectedVolumeChapterCount({
+        availableVolumes,
+        volume: selectedVolume,
+      }),
     [availableVolumes, selectedVolume],
   );
 
   const updateVolumeEntryByVolume = useCallback(
     (volume: number, updater: (entry: ProjectVolumeEntry) => ProjectVolumeEntry) => {
-      const normalizedVolume = Number(volume);
-      if (!Number.isFinite(normalizedVolume) || normalizedVolume <= 0) {
-        return;
-      }
-      setVolumeEntriesDraft((currentEntries) => {
-        const nextEntries = normalizeProjectVolumeEntries(currentEntries);
-        const entryIndex = nextEntries.findIndex(
-          (entry) => buildVolumeCoverKey(entry.volume) === buildVolumeCoverKey(normalizedVolume),
-        );
-        const baseEntry =
-          entryIndex >= 0
-            ? { ...nextEntries[entryIndex], volume: normalizedVolume }
-            : {
-                volume: normalizedVolume,
-                synopsis: "",
-                coverImageUrl: "",
-                coverImageAlt: "",
-              };
-        if (entryIndex >= 0) {
-          nextEntries[entryIndex] = updater(baseEntry);
-        } else {
-          nextEntries.push(updater(baseEntry));
-        }
-        return normalizeProjectVolumeEntries(nextEntries);
-      });
+      setVolumeEntriesDraft((currentEntries) =>
+        updateProjectVolumeEntriesDraft(currentEntries, volume, updater),
+      );
     },
     [],
   );
 
   const ensureVolumeDraftSelection = useCallback((volume: number | null) => {
-    const normalizedVolume =
-      Number.isFinite(Number(volume)) && Number(volume) > 0 ? Math.floor(Number(volume)) : null;
-    if (normalizedVolume === null) {
-      setSelectedVolume(null);
-      return;
-    }
-    setVolumeEntriesDraft((currentEntries) => {
-      const nextEntries = normalizeProjectVolumeEntries(currentEntries);
-      if (
-        nextEntries.some(
-          (entry) => buildVolumeCoverKey(entry.volume) === buildVolumeCoverKey(normalizedVolume),
-        )
-      ) {
-        return nextEntries;
-      }
-      return normalizeProjectVolumeEntries([
-        ...nextEntries,
-        {
-          volume: normalizedVolume,
-          synopsis: "",
-          coverImageUrl: "",
-          coverImageAlt: "",
-        },
-      ]);
-    });
-    setSelectedVolume(normalizedVolume);
-  }, []);
+    const nextSelection = ensureProjectVolumeEntryDraft(volumeEntriesDraft, volume);
+    setVolumeEntriesDraft(nextSelection.entries);
+    setSelectedVolume(nextSelection.selectedVolume);
+  }, [volumeEntriesDraft]);
   const selectVolumeFromStage = useCallback((volume: number | null) => {
     const normalizedVolume =
       Number.isFinite(Number(volume)) && Number(volume) > 0 ? Math.floor(Number(volume)) : null;
@@ -599,23 +499,9 @@ const DashboardProjectChapterEditor = () => {
   }, []);
 
   const addVolumeEntry = useCallback(() => {
-    const nextVolume =
-      normalizeProjectVolumeEntries(volumeEntriesDraft).reduce(
-        (maxValue, entry) => Math.max(maxValue, Number(entry.volume) || 0),
-        0,
-      ) + 1;
-    setVolumeEntriesDraft((currentEntries) =>
-      normalizeProjectVolumeEntries([
-        ...normalizeProjectVolumeEntries(currentEntries),
-        {
-          volume: nextVolume,
-          synopsis: "",
-          coverImageUrl: "",
-          coverImageAlt: "",
-        },
-      ]),
-    );
-    setSelectedVolume(nextVolume);
+    const nextSelection = appendNextProjectVolumeEntryDraft(volumeEntriesDraft);
+    setVolumeEntriesDraft(nextSelection.entries);
+    setSelectedVolume(nextSelection.selectedVolume);
   }, [volumeEntriesDraft]);
 
   const filteredChapters = useMemo(
@@ -655,73 +541,23 @@ const DashboardProjectChapterEditor = () => {
     [visibleStagedMangaChapters],
   );
 
-  const structureGroups = useMemo<ChapterStructureGroup[]>(() => {
-    const numericVolumeMap = new Map<number, EditableVolumeOption>();
-    availableVolumes.forEach((volumeOption) => {
-      numericVolumeMap.set(volumeOption.volume, volumeOption);
-    });
-    Array.from(chaptersByStructureGroup.keys()).forEach((key) => {
-      const parsedVolume = Number(key);
-      if (key !== "none" && Number.isFinite(parsedVolume) && parsedVolume > 0) {
-        numericVolumeMap.set(
-          parsedVolume,
-          numericVolumeMap.get(parsedVolume) || {
-            volume: parsedVolume,
-            chapterCount: (chaptersByStructureGroup.get(key) || []).length,
-            hasMetadata: false,
-          },
-        );
-      }
-    });
-    Array.from(stagedChaptersByStructureGroup.keys()).forEach((key) => {
-      const parsedVolume = Number(key);
-      if (key !== "none" && Number.isFinite(parsedVolume) && parsedVolume > 0) {
-        numericVolumeMap.set(
-          parsedVolume,
-          numericVolumeMap.get(parsedVolume) || {
-            volume: parsedVolume,
-            chapterCount: (chaptersByStructureGroup.get(key) || []).length,
-            hasMetadata: false,
-          },
-        );
-      }
-    });
-    const numericGroups = Array.from(numericVolumeMap.values())
-      .sort((left, right) => left.volume - right.volume)
-      .map((volumeOption) => {
-        const key = String(volumeOption.volume);
-        return {
-          key,
-          label: buildChapterVolumeLabel(volumeOption.volume),
-          volume: volumeOption.volume,
-          hasMetadata: volumeOption.hasMetadata,
-          chapterCount: volumeOption.chapterCount,
-          allItems: chaptersByStructureGroup.get(key) || [],
-          visibleItems: filteredChaptersByStructureGroup.get(key) || [],
-          pendingItems: stagedChaptersByStructureGroup.get(key) || [],
-          visiblePendingItems: visibleStagedChaptersByStructureGroup.get(key) || [],
-        };
-      });
-    const semVolumeItems = chaptersByStructureGroup.get("none") || [];
-    numericGroups.push({
-      key: "none",
-      label: "Sem volume",
-      volume: null,
-      hasMetadata: false,
-      chapterCount: semVolumeItems.length,
-      allItems: semVolumeItems,
-      visibleItems: filteredChaptersByStructureGroup.get("none") || [],
-      pendingItems: stagedChaptersByStructureGroup.get("none") || [],
-      visiblePendingItems: visibleStagedChaptersByStructureGroup.get("none") || [],
-    });
-    return numericGroups;
-  }, [
-    availableVolumes,
-    chaptersByStructureGroup,
-    filteredChaptersByStructureGroup,
-    stagedChaptersByStructureGroup,
-    visibleStagedChaptersByStructureGroup,
-  ]);
+  const structureGroups = useMemo(
+    () =>
+      buildChapterStructureGroups({
+        availableVolumes,
+        chaptersByStructureGroup,
+        filteredChaptersByStructureGroup,
+        stagedChaptersByStructureGroup,
+        visibleStagedChaptersByStructureGroup,
+      }),
+    [
+      availableVolumes,
+      chaptersByStructureGroup,
+      filteredChaptersByStructureGroup,
+      stagedChaptersByStructureGroup,
+      visibleStagedChaptersByStructureGroup,
+    ],
+  );
 
   const navigableChapters = useMemo(() => {
     if (
@@ -955,14 +791,14 @@ const DashboardProjectChapterEditor = () => {
                 activeChapter?.volume,
             },
       );
-      projectRef.current = nextProject;
-      projectSnapshotRef.current = overlayDraftOnProject(
-        nextProject,
-        buildEpisodeKey(resolvedChapter.number, resolvedChapter.volume),
-        resolvedChapter,
+      handleProjectChange(nextProject);
+      syncProjectSnapshot(
+        overlayDraftOnProject(
+          nextProject,
+          buildEpisodeKey(resolvedChapter.number, resolvedChapter.volume),
+          resolvedChapter,
+        ),
       );
-      setProject(nextProject);
-      setVolumeEntriesDraft(normalizeProjectVolumeEntries(nextProject.volumeEntries));
       setSelectedStageChapterId(null);
       setSelectedVolume(
         Number.isFinite(Number(resolvedChapter.volume)) && Number(resolvedChapter.volume) > 0
@@ -977,9 +813,11 @@ const DashboardProjectChapterEditor = () => {
     [
       activeChapter?.volume,
       activeDraft?.volume,
+      handleProjectChange,
       navigateToChapterEditor,
       normalizeChapterDraft,
       resolvedVolume,
+      syncProjectSnapshot,
     ],
   );
 
@@ -1013,128 +851,12 @@ const DashboardProjectChapterEditor = () => {
         return;
       }
 
-      projectRef.current = nextProject;
-      projectSnapshotRef.current = nextProject;
-      setProject(nextProject);
-      setVolumeEntriesDraft(normalizeProjectVolumeEntries(nextProject.volumeEntries));
+      handleProjectChange(nextProject);
       setSelectedStageChapterId(null);
       setSelectedVolume(null);
       setActiveDraft(null);
     },
-    [handleChapterSaved],
-  );
-
-  const persistProjectSnapshot = useCallback(
-    async (
-      snapshot: ProjectRecord,
-      options: {
-        context:
-          | "epub-import"
-          | "volume-editor"
-          | "chapter-create"
-          | "chapter-reorder"
-          | "chapter-delete"
-          | "volume-delete"
-          | "manga-import"
-          | "manga-publication";
-      },
-    ) => {
-      const normalizedSnapshot =
-        normalizeProjectSnapshotChapterOrderForPersist<ProjectRecord | null, ProjectRecord>(
-          projectRef.current,
-          snapshot,
-        ) as ProjectRecord;
-      const { revision: _ignoredRevision, ...payload } = normalizedSnapshot;
-      const response = await apiFetch(apiBase, `/api/projects/${normalizedSnapshot.id}`, {
-        method: "PUT",
-        auth: true,
-        json: {
-          ...payload,
-          ifRevision: projectRef.current?.revision || "",
-        },
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        const errorCode = String(data?.error || "").trim();
-        if (errorCode === "duplicate_episode_key") {
-          toast({
-            title:
-              options.context === "volume-editor"
-                ? "Não foi possível salvar os volumes"
-                : options.context === "chapter-delete"
-                  ? "Não foi possível excluir o capítulo"
-                  : options.context === "volume-delete"
-                    ? "Não foi possível excluir o volume"
-                    : options.context === "chapter-create"
-                      ? "Não foi possível criar o capítulo"
-                      : "Falha ao importar EPUB",
-            description:
-              options.context === "volume-editor"
-                ? "O projeto possui capítulos duplicados por número e volume."
-                : options.context === "chapter-delete"
-                  ? "A remoção deixou o projeto com capítulos duplicados."
-                  : options.context === "volume-delete"
-                    ? "A remoção deixou o projeto com capítulos duplicados."
-                    : options.context === "chapter-create"
-                      ? "Já existe um capítulo com essa combinação de número e volume."
-                      : EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
-            variant: "destructive",
-          });
-          return null;
-        }
-        if (errorCode === "duplicate_volume_cover_key") {
-          toast({
-            title:
-              options.context === "volume-editor"
-                ? "Volumes duplicados"
-                : options.context === "volume-delete"
-                  ? "Volumes duplicados"
-                  : options.context === "chapter-create"
-                    ? "Não foi possível criar o capítulo"
-                    : "Falha ao importar EPUB",
-            description:
-              options.context === "volume-editor"
-                ? "Cada volume pode aparecer apenas uma vez."
-                : options.context === "volume-delete"
-                  ? "Cada volume pode aparecer apenas uma vez."
-                  : options.context === "chapter-create"
-                    ? "Os metadados de volume ficaram duplicados neste snapshot."
-                    : "O projeto resultante ficou com mais de uma entrada para o mesmo volume.",
-            variant: "destructive",
-          });
-          return null;
-        }
-        if (errorCode === "image_pages_required_for_publication") {
-          toast({
-            title: "Não foi possível publicar o capítulo",
-            description: IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
-            variant: "destructive",
-          });
-          return null;
-        }
-        toast({
-          title:
-            options.context === "volume-editor"
-              ? "Não foi possível salvar os volumes"
-              : options.context === "chapter-delete"
-                ? "Não foi possível excluir o capítulo"
-                : options.context === "volume-delete"
-                  ? "Não foi possível excluir o volume"
-                  : options.context === "chapter-create"
-                    ? "Não foi possível criar o capítulo"
-                    : "Não foi possível salvar o projeto",
-          description: "Tente novamente em alguns instantes.",
-          variant: "destructive",
-        });
-        return null;
-      }
-      const data = (await response.json()) as { project?: ProjectRecord };
-      if (data?.project) {
-        void refetchPublicBootstrapCache(apiBase).catch(() => undefined);
-      }
-      return data?.project || null;
-    },
-    [apiBase],
+    [handleChapterSaved, handleProjectChange],
   );
 
   const {
@@ -1163,6 +885,7 @@ const DashboardProjectChapterEditor = () => {
   } = useDashboardProjectChapterEpub({
     activeChapterKey,
     apiBase,
+    chapterEditorResource,
     navigateToChapterEditor,
     normalizeChapterDraft,
     onProjectUpdated: handleProjectChange,
@@ -1194,10 +917,7 @@ const DashboardProjectChapterEditor = () => {
       if (!persistedProject) {
         return false;
       }
-      projectRef.current = persistedProject;
-      projectSnapshotRef.current = persistedProject;
-      setProject(persistedProject);
-      setVolumeEntriesDraft(normalizeProjectVolumeEntries(persistedProject.volumeEntries));
+      handleProjectChange(persistedProject);
       toast({
         title: "Volumes salvos",
         description: "Os metadados de volume foram atualizados no projeto.",
@@ -1207,7 +927,14 @@ const DashboardProjectChapterEditor = () => {
     } finally {
       setIsSavingVolumes(false);
     }
-  }, [isSavingVolumes, isVolumeDirty, persistProjectSnapshot, project, volumeEntriesDraft]);
+  }, [
+    handleProjectChange,
+    isSavingVolumes,
+    isVolumeDirty,
+    persistProjectSnapshot,
+    project,
+    volumeEntriesDraft,
+  ]);
 
   const handleRequestDeleteChapter = useCallback(() => {
     if (!activeChapter) {
@@ -1288,8 +1015,7 @@ const DashboardProjectChapterEditor = () => {
           )
             ? deleteDialogState.volume
             : null;
-        setProject(persistedProject);
-        setVolumeEntriesDraft(normalizeProjectVolumeEntries(persistedProject.volumeEntries));
+        handleProjectChange(persistedProject);
         setDeleteDialogState(null);
         pendingNeutralSelectedVolumeRef.current = preservedVolume;
         pendingNeutralScrollAnchorRef.current = null;
@@ -1323,8 +1049,7 @@ const DashboardProjectChapterEditor = () => {
       if (!persistedProject) {
         return;
       }
-      setProject(persistedProject);
-      setVolumeEntriesDraft(normalizeProjectVolumeEntries(persistedProject.volumeEntries));
+      handleProjectChange(persistedProject);
       setDeleteDialogState(null);
       pendingNeutralSelectedVolumeRef.current = null;
       pendingNeutralScrollAnchorRef.current = null;
@@ -1341,6 +1066,7 @@ const DashboardProjectChapterEditor = () => {
   }, [
     activeChapterKey,
     deleteDialogState,
+    handleProjectChange,
     isDeletingEntity,
     navigate,
     persistProjectSnapshot,
@@ -1387,10 +1113,7 @@ const DashboardProjectChapterEditor = () => {
       if (!persistedProject) {
         return;
       }
-      projectRef.current = persistedProject;
-      projectSnapshotRef.current = persistedProject;
-      setProject(persistedProject);
-      setVolumeEntriesDraft(normalizeProjectVolumeEntries(persistedProject.volumeEntries));
+      handleProjectChange(persistedProject);
       setSelectedVolume(normalizedVolume ?? null);
       if (shouldResetFilters) {
         setChapterSearchQuery("");
@@ -1409,10 +1132,12 @@ const DashboardProjectChapterEditor = () => {
         normalizedPersistedChapter.number,
         normalizedPersistedChapter.volume,
       );
-      projectSnapshotRef.current = overlayDraftOnProject(
-        persistedProject,
-        persistedChapterKey,
-        normalizedPersistedChapter,
+      syncProjectSnapshot(
+        overlayDraftOnProject(
+          persistedProject,
+          persistedChapterKey,
+          normalizedPersistedChapter,
+        ),
       );
       setSelectedStageChapterId(null);
       setActiveDraft(normalizedPersistedChapter);
@@ -1430,9 +1155,11 @@ const DashboardProjectChapterEditor = () => {
     [
       chapterSearchQuery,
       filterMode,
+      handleProjectChange,
       navigateToChapterEditor,
       normalizeChapterDraft,
       persistProjectSnapshot,
+      syncProjectSnapshot,
     ],
   );
 
@@ -1467,7 +1194,7 @@ const DashboardProjectChapterEditor = () => {
             title="Não foi possível carregar o capítulo"
             description="Tente novamente em alguns instantes."
             action={
-              <Button variant="outline" onClick={() => void loadProject()}>
+              <Button variant="outline" onClick={reloadProject}>
                 Tentar novamente
               </Button>
             }
@@ -1652,4 +1379,5 @@ const DashboardProjectChapterEditor = () => {
 };
 
 export default DashboardProjectChapterEditor;
+
 

@@ -5,20 +5,24 @@ import {
   resolveProjectEpisodeAssetAltText,
   resolveProjectVolumeAssetAltText,
 } from "@/lib/dashboard-image-library";
+import { parseHumanSizeToBytes } from "@/lib/file-size";
 import {
   generateEpisodeEditorLocalId,
   resolveEpisodeEditorLocalKey,
 } from "@/lib/project-anime-episodes";
-import { buildEpisodeKey } from "@/lib/project-episode-key";
+import { buildEpisodeKey, findDuplicateEpisodeKey } from "@/lib/project-episode-key";
 import { getProjectProgressStateForEditor } from "@/lib/project-progress";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
+import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 
 import type {
   EditorProjectEpisode,
+  EpisodeVolumeGroup,
   ProjectForm,
   ProjectRecord,
   ProjectStaff,
+  SortedEpisodeItem,
 } from "./dashboard-projects-editor-types";
 
 export const buildEmptyProjectForm = (): ProjectForm => ({
@@ -228,6 +232,322 @@ export const normalizeProjectVolumeEntriesForSave = (
     })
     .filter((entry): entry is ProjectVolumeEntry => Boolean(entry))
     .sort((left, right) => left.volume - right.volume);
+};
+
+export const resolveProjectVolumeEntryIndexByVolume = <
+  TEntry extends { volume?: number | null | undefined },
+>(
+  entries: TEntry[],
+  volume?: number,
+) => {
+  if (!Number.isFinite(Number(volume))) {
+    return -1;
+  }
+  const normalizedVolume = Number(volume);
+  return entries.findIndex(
+    (entry) => buildVolumeCoverKey(entry?.volume) === buildVolumeCoverKey(normalizedVolume),
+  );
+};
+
+export const buildProjectEpisodeVolumeGroups = ({
+  isChapterBased,
+  sortedEpisodeDownloads,
+  supportsVolumeEntries,
+  volumeEntries,
+}: {
+  isChapterBased: boolean;
+  sortedEpisodeDownloads: SortedEpisodeItem[];
+  supportsVolumeEntries: boolean;
+  volumeEntries: ProjectVolumeEntry[];
+}): EpisodeVolumeGroup[] => {
+  if (!isChapterBased || !supportsVolumeEntries) {
+    return [];
+  }
+
+  const groups = new Map<string, EpisodeVolumeGroup>();
+  const ensureGroup = (volume?: number) => {
+    const key = buildVolumeCoverKey(volume);
+    const existing = groups.get(key);
+    if (existing) {
+      return existing;
+    }
+    const hasNumericVolume = Number.isFinite(Number(volume));
+    const nextGroup: EpisodeVolumeGroup = {
+      key,
+      volume: hasNumericVolume ? Number(volume) : undefined,
+      hasNumericVolume,
+      volumeEntryIndex: null,
+      episodeItems: [],
+    };
+    groups.set(key, nextGroup);
+    return nextGroup;
+  };
+
+  sortedEpisodeDownloads.forEach((item) => {
+    ensureGroup(item.episode.volume).episodeItems.push(item);
+  });
+
+  volumeEntries.forEach((entry, index) => {
+    const parsedVolume = Number(entry?.volume);
+    if (!Number.isFinite(parsedVolume)) {
+      return;
+    }
+    const group = ensureGroup(parsedVolume);
+    group.volumeEntryIndex = index;
+  });
+
+  return [...groups.values()].sort((left, right) => {
+    if (left.hasNumericVolume && right.hasNumericVolume) {
+      return Number(left.volume || 0) - Number(right.volume || 0);
+    }
+    if (left.hasNumericVolume) {
+      return -1;
+    }
+    if (right.hasNumericVolume) {
+      return 1;
+    }
+    return 0;
+  });
+};
+
+export const buildProjectEpisodeGroupsForRender = ({
+  isChapterBased,
+  sortedEpisodeDownloads,
+  supportsVolumeEntries,
+  volumeGroups,
+}: {
+  isChapterBased: boolean;
+  sortedEpisodeDownloads: SortedEpisodeItem[];
+  supportsVolumeEntries: boolean;
+  volumeGroups: EpisodeVolumeGroup[];
+}): EpisodeVolumeGroup[] => {
+  if (isChapterBased && supportsVolumeEntries) {
+    return volumeGroups;
+  }
+  return [
+    {
+      key: "all",
+      volume: undefined,
+      hasNumericVolume: false,
+      volumeEntryIndex: null,
+      episodeItems: sortedEpisodeDownloads,
+    },
+  ];
+};
+
+type ProjectEpisodeFocusTarget = Pick<EditorProjectEpisode, "number" | "volume">;
+
+const matchesProjectEpisodeFocus = (
+  episode: EditorProjectEpisode,
+  pendingEpisodeFocus: ProjectEpisodeFocusTarget,
+) => {
+  if (Number(episode.number) !== pendingEpisodeFocus.number) {
+    return false;
+  }
+  if (!Number.isFinite(pendingEpisodeFocus.volume)) {
+    return true;
+  }
+  return (
+    buildEpisodeKey(episode.number, episode.volume) ===
+    buildEpisodeKey(pendingEpisodeFocus.number, pendingEpisodeFocus.volume)
+  );
+};
+
+export const resolveProjectEpisodeFocusIndex = (
+  episodes: EditorProjectEpisode[],
+  pendingEpisodeFocus: ProjectEpisodeFocusTarget | null | undefined,
+) => {
+  if (!pendingEpisodeFocus) {
+    return -1;
+  }
+
+  const matches = episodes
+    .map((episode, index) => ({ episode, index }))
+    .filter(({ episode }) => matchesProjectEpisodeFocus(episode, pendingEpisodeFocus));
+
+  if (!matches.length) {
+    return -1;
+  }
+  if (!Number.isFinite(pendingEpisodeFocus.volume) && matches.length !== 1) {
+    return -1;
+  }
+  return matches[0]?.index ?? -1;
+};
+
+export const resolveSortedProjectEpisodeFocusIndex = (
+  episodes: SortedEpisodeItem[],
+  pendingEpisodeFocus: ProjectEpisodeFocusTarget | null | undefined,
+) => {
+  if (!pendingEpisodeFocus) {
+    return -1;
+  }
+
+  const matches = episodes.filter(({ episode }) =>
+    matchesProjectEpisodeFocus(episode, pendingEpisodeFocus),
+  );
+
+  if (!matches.length) {
+    return -1;
+  }
+  if (!Number.isFinite(pendingEpisodeFocus.volume) && matches.length !== 1) {
+    return -1;
+  }
+  return matches[0]?.index ?? -1;
+};
+
+export type PrepareProjectSaveStateResult =
+  | {
+      ok: true;
+      nextEpisodeSizeDrafts: Record<number, string>;
+      nextEpisodeSizeErrors: Record<number, string>;
+      normalizedDiscordRoleId: string;
+      normalizedEpisodesForSave: EditorProjectEpisode[];
+      normalizedTitle: string;
+      normalizedVolumeEntriesForSave: ProjectVolumeEntry[];
+    }
+  | {
+      ok: false;
+      code:
+        | "title_required"
+        | "discord_role_invalid"
+        | "duplicate_episode"
+        | "duplicate_volume"
+        | "invalid_episode_size";
+      duplicateEpisodeIndex?: number;
+      firstInvalidEpisodeSizeIndex?: number | null;
+      nextEpisodeSizeDrafts: Record<number, string>;
+      nextEpisodeSizeErrors: Record<number, string>;
+      normalizedDiscordRoleId: string;
+      normalizedTitle: string;
+    };
+
+export const prepareProjectSaveState = ({
+  episodeSizeDrafts,
+  episodeSizeErrors,
+  formState,
+}: {
+  episodeSizeDrafts: Record<number, string>;
+  episodeSizeErrors: Record<number, string>;
+  formState: ProjectForm;
+}): PrepareProjectSaveStateResult => {
+  const normalizedTitle = formState.title.trim();
+  const normalizedDiscordRoleId = String(formState.discordRoleId || "").trim();
+
+  if (!normalizedTitle) {
+    return {
+      ok: false,
+      code: "title_required",
+      nextEpisodeSizeDrafts: episodeSizeDrafts,
+      nextEpisodeSizeErrors: episodeSizeErrors,
+      normalizedDiscordRoleId,
+      normalizedTitle,
+    };
+  }
+
+  if (normalizedDiscordRoleId && !/^\d+$/.test(normalizedDiscordRoleId)) {
+    return {
+      ok: false,
+      code: "discord_role_invalid",
+      nextEpisodeSizeDrafts: episodeSizeDrafts,
+      nextEpisodeSizeErrors: episodeSizeErrors,
+      normalizedDiscordRoleId,
+      normalizedTitle,
+    };
+  }
+
+  const normalizedEpisodesForSave = normalizeProjectEpisodesForSave(formState);
+  const duplicateEpisode = findDuplicateEpisodeKey(normalizedEpisodesForSave);
+  if (duplicateEpisode) {
+    return {
+      ok: false,
+      code: "duplicate_episode",
+      duplicateEpisodeIndex: normalizedEpisodesForSave.findIndex(
+        (episode) => buildEpisodeKey(episode.number, episode.volume) === duplicateEpisode.key,
+      ),
+      nextEpisodeSizeDrafts: episodeSizeDrafts,
+      nextEpisodeSizeErrors: episodeSizeErrors,
+      normalizedDiscordRoleId,
+      normalizedTitle,
+    };
+  }
+
+  const supportsVolumeEntriesForSave = supportsProjectVolumeEntries(formState.type);
+  const normalizedVolumeEntriesForSave = normalizeProjectVolumeEntriesForSave(formState);
+  const duplicateVolumeEntry = findDuplicateVolumeCover(normalizedVolumeEntriesForSave);
+  if (supportsVolumeEntriesForSave && duplicateVolumeEntry) {
+    return {
+      ok: false,
+      code: "duplicate_volume",
+      nextEpisodeSizeDrafts: episodeSizeDrafts,
+      nextEpisodeSizeErrors: episodeSizeErrors,
+      normalizedDiscordRoleId,
+      normalizedTitle,
+    };
+  }
+
+  const nextEpisodeSizeDrafts = { ...episodeSizeDrafts };
+  const nextEpisodeSizeErrors = { ...episodeSizeErrors };
+  let firstInvalidEpisodeSizeIndex: number | null = null;
+
+  Object.entries(episodeSizeDrafts).forEach(([key, draftValue]) => {
+    const episodeIndex = Number(key);
+    if (!Number.isFinite(episodeIndex)) {
+      delete nextEpisodeSizeDrafts[episodeIndex];
+      delete nextEpisodeSizeErrors[episodeIndex];
+      return;
+    }
+    const episode = normalizedEpisodesForSave[episodeIndex];
+    if (!episode) {
+      delete nextEpisodeSizeDrafts[episodeIndex];
+      delete nextEpisodeSizeErrors[episodeIndex];
+      return;
+    }
+    const trimmedSize = String(draftValue || "").trim();
+    if (!trimmedSize) {
+      episode.sizeBytes = undefined;
+      delete nextEpisodeSizeDrafts[episodeIndex];
+      delete nextEpisodeSizeErrors[episodeIndex];
+      return;
+    }
+    const parsedSize = parseHumanSizeToBytes(trimmedSize);
+    if (!parsedSize) {
+      nextEpisodeSizeErrors[episodeIndex] = "Use formatos como 700 MB ou 1.4 GB.";
+      if (firstInvalidEpisodeSizeIndex === null) {
+        firstInvalidEpisodeSizeIndex = episodeIndex;
+      }
+      return;
+    }
+    episode.sizeBytes = parsedSize;
+    delete nextEpisodeSizeDrafts[episodeIndex];
+    delete nextEpisodeSizeErrors[episodeIndex];
+  });
+
+  const hasInvalidEpisodeSize = Object.keys(nextEpisodeSizeErrors).some((key) => {
+    const index = Number(key);
+    return Number.isFinite(index) && String(nextEpisodeSizeErrors[index] || "").trim().length > 0;
+  });
+
+  if (hasInvalidEpisodeSize) {
+    return {
+      ok: false,
+      code: "invalid_episode_size",
+      firstInvalidEpisodeSizeIndex,
+      nextEpisodeSizeDrafts,
+      nextEpisodeSizeErrors,
+      normalizedDiscordRoleId,
+      normalizedTitle,
+    };
+  }
+
+  return {
+    ok: true,
+    nextEpisodeSizeDrafts,
+    nextEpisodeSizeErrors: {},
+    normalizedDiscordRoleId,
+    normalizedEpisodesForSave,
+    normalizedTitle,
+    normalizedVolumeEntriesForSave,
+  };
 };
 
 const appendPendingStaffMembers = (

@@ -8,9 +8,9 @@ import {
   PROJECT_READING_OG_SCENE_VERSION,
 } from "../../shared/project-reading-og-seo.js";
 import {
+  createProjectStyleOgCachedRenderResolver,
   createProjectStyleBaseModelBuilder,
   buildProjectStyleOgDeliveryHeaders,
-  getProjectStyleOgCachedRender,
   resolveProjectStyleTranslationArgs,
   normalizeOgRevision,
 } from "./og-delivery-shared.js";
@@ -18,6 +18,13 @@ import {
 const buildProjectReadingOgBaseModel = createProjectStyleBaseModelBuilder(
   buildProjectReadingOgCardModel,
 );
+const resolveProjectReadingOgCachedRender = createProjectStyleOgCachedRenderResolver({
+  buildBaseModel: (options) => buildProjectReadingOgBaseModel(options),
+  buildImageResponse: (model) => buildProjectReadingOgImageResponse(model),
+  kind: "project-reading",
+  resolveId: ({ model, options }) =>
+    `${String(options?.project?.id || "").trim()}:${String(model?.chapterNumberResolved || "").trim()}:${String(model?.volumeResolved ?? "").trim()}`,
+});
 
 export const buildVersionedProjectReadingOgImagePath = ({
   projectId,
@@ -60,22 +67,14 @@ export const getProjectReadingOgCachedRender = async ({
   resolveVariantUrl,
   ogRenderCache,
 } = {}) => {
-  return getProjectStyleOgCachedRender({
-    kind: "project-reading",
+  return resolveProjectReadingOgCachedRender({
+    chapterNumber,
     ogRenderCache,
-    buildModel: () =>
-      buildProjectReadingOgBaseModel({
-        project,
-        chapterNumber,
-        volume,
-        settings,
-        translations,
-        origin,
-        resolveVariantUrl,
-      }),
     origin,
-    resolveId: (model) =>
-      `${String(project?.id || "").trim()}:${String(model?.chapterNumberResolved || "").trim()}:${String(model?.volumeResolved ?? "").trim()}`,
-    buildImageResponse: (model) => buildProjectReadingOgImageResponse(model),
+    project,
+    resolveVariantUrl,
+    settings,
+    translations,
+    volume,
   });
 };

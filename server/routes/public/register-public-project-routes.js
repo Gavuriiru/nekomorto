@@ -113,6 +113,50 @@ const serializePublicProjectChapter = ({
   }),
 });
 
+const resolvePublishedPublicProjectChapter = ({
+  chapterNumber,
+  deriveChapterSynopsis,
+  getProjectEpisodePageCount,
+  hasProjectEpisodePages,
+  normalizeProjectEpisodeContentFormat,
+  normalizeProjectEpisodePages,
+  project,
+  volume,
+} = {}) => {
+  const chapterLookup = resolvePublishedEpisodeLookup(project, chapterNumber, volume);
+  if (!chapterLookup.ok) {
+    return chapterLookup;
+  }
+
+  const chapter = chapterLookup.episode;
+  const normalizedPages = normalizeProjectEpisodePages(chapter?.pages);
+  const contentFormat = normalizeProjectEpisodeContentFormat(
+    chapter?.contentFormat,
+    normalizedPages.length > 0 ? "images" : "lexical",
+  );
+  const pageCount = getProjectEpisodePageCount({
+    ...chapter,
+    contentFormat,
+    pages: normalizedPages,
+  });
+
+  return {
+    ...chapterLookup,
+    chapter,
+    chapterPayload: serializePublicProjectChapter({
+      chapter,
+      contentFormat,
+      deriveChapterSynopsis,
+      hasProjectEpisodePages,
+      normalizedPages,
+      pageCount,
+    }),
+    contentFormat,
+    normalizedPages,
+    pageCount,
+  };
+};
+
 export const registerPublicProjectRoutes = ({
   PRIMARY_APP_ORIGIN,
   PUBLIC_READ_CACHE_TAGS,
@@ -233,33 +277,24 @@ export const registerPublicProjectRoutes = ({
     if (!project) {
       return res.status(404).json({ error: "not_found" });
     }
-    const chapterLookup = resolvePublishedEpisodeLookup(project, chapterNumber, volume);
-    if (!chapterLookup.ok) {
-      return res.status(chapterLookup.statusCode).json({
-        error: chapterLookup.error,
+    const chapterResult = resolvePublishedPublicProjectChapter({
+      chapterNumber,
+      deriveChapterSynopsis,
+      getProjectEpisodePageCount,
+      hasProjectEpisodePages,
+      normalizeProjectEpisodeContentFormat,
+      normalizeProjectEpisodePages,
+      project,
+      volume,
+    });
+    if (!chapterResult.ok) {
+      return res.status(chapterResult.statusCode).json({
+        error: chapterResult.error,
       });
     }
-    const chapter = chapterLookup.episode;
-    const normalizedPages = normalizeProjectEpisodePages(chapter?.pages);
-    const contentFormat = normalizeProjectEpisodeContentFormat(
-      chapter?.contentFormat,
-      normalizedPages.length > 0 ? "images" : "lexical",
-    );
-    const pageCount = getProjectEpisodePageCount({
-      ...chapter,
-      contentFormat,
-      pages: normalizedPages,
-    });
     const settings = loadSiteSettings();
     return res.json({
-      chapter: serializePublicProjectChapter({
-        chapter,
-        contentFormat,
-        deriveChapterSynopsis,
-        hasProjectEpisodePages,
-        normalizedPages,
-        pageCount,
-      }),
+      chapter: chapterResult.chapterPayload,
       readerConfig: resolveProjectReaderConfig({
         projectType: project?.type,
         siteSettings: settings,
@@ -289,14 +324,23 @@ export const registerPublicProjectRoutes = ({
       return res.status(404).json({ error: "not_found" });
     }
     const project = projects[projectIndex];
-    const chapterLookup = resolvePublishedEpisodeLookup(project, chapterNumber, volume);
-    if (!chapterLookup.ok) {
-      return res.status(chapterLookup.statusCode).json({
-        error: chapterLookup.error,
+    const chapterResult = resolvePublishedPublicProjectChapter({
+      chapterNumber,
+      deriveChapterSynopsis,
+      getProjectEpisodePageCount,
+      hasProjectEpisodePages,
+      normalizeProjectEpisodeContentFormat,
+      normalizeProjectEpisodePages,
+      project,
+      volume,
+    });
+    if (!chapterResult.ok) {
+      return res.status(chapterResult.statusCode).json({
+        error: chapterResult.error,
       });
     }
-    const chapterIndex = chapterLookup.index;
-    const chapter = chapterLookup.episode;
+    const chapterIndex = chapterResult.index;
+    const chapter = chapterResult.chapter;
     const result = updateLexicalPollVotes(chapter.content, {
       question,
       optionUid,

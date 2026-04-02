@@ -44,8 +44,7 @@ import {
   normalizeOriginLabel,
   resolveImportedChapterCount,
 } from "@/lib/dashboard-project-chapter";
-
-import { useDashboardProjectChapterEditorResource } from "./useDashboardProjectChapterEditorResource";
+import type { DashboardProjectChapterEditorResourceState } from "./useDashboardProjectChapterEditorResource";
 
 type ProjectRecord = Project & {
   revision?: string;
@@ -69,6 +68,16 @@ type EpubCapabilityState = {
 type UseDashboardProjectChapterEpubOptions = {
   activeChapterKey: string | null;
   apiBase: string;
+  chapterEditorResource: Pick<
+    DashboardProjectChapterEditorResourceState,
+    | "backendBuildMetadata"
+    | "backendCapabilities"
+    | "backendCapabilitiesError"
+    | "clearPendingEpubImportIds"
+    | "cleanupPendingEpubImports"
+    | "registerPendingEpubImportIds"
+    | "setEpubRouteStatus"
+  >;
   navigateToChapterEditor: (
     targetProjectId: string,
     targetChapterNumber: unknown,
@@ -113,6 +122,7 @@ export type DashboardProjectChapterEpubState = {
 export const useDashboardProjectChapterEpub = ({
   activeChapterKey,
   apiBase,
+  chapterEditorResource,
   navigateToChapterEditor,
   normalizeChapterDraft,
   onProjectUpdated,
@@ -137,7 +147,7 @@ export const useDashboardProjectChapterEpub = ({
     cleanupPendingEpubImports,
     registerPendingEpubImportIds,
     setEpubRouteStatus,
-  } = useDashboardProjectChapterEditorResource(apiBase);
+  } = chapterEditorResource;
 
   useEffect(() => {
     return () => {

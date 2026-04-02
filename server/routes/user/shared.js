@@ -87,6 +87,88 @@ export const buildUserApiSnapshot = ({
     userWithAccessForResponse,
   });
 
+export const resolveManagedUserActorCapabilities = ({
+  AccessRole,
+  PermissionId,
+  actorContext,
+  can,
+}) => {
+  const accessRole = actorContext?.accessRole;
+
+  return {
+    actorIsAdmin: accessRole === AccessRole.ADMIN,
+    actorIsPrimary: accessRole === AccessRole.OWNER_PRIMARY,
+    actorIsSecondary: accessRole === AccessRole.OWNER_SECONDARY,
+    actorCanUsersAccess: can({
+      grants: actorContext?.grants,
+      permissionId: PermissionId.USUARIOS_ACESSO,
+    }),
+    actorCanUsersBasic: can({
+      grants: actorContext?.grants,
+      permissionId: PermissionId.USUARIOS_BASICO,
+    }),
+  };
+};
+
+export const canManageUsersAccessWithOwnerGovernance = ({
+  AccessRole,
+  PermissionId,
+  actorContext,
+  can,
+}) => {
+  const accessRole = actorContext?.accessRole;
+  if (accessRole !== AccessRole.OWNER_PRIMARY && accessRole !== AccessRole.OWNER_SECONDARY) {
+    return false;
+  }
+  return can({
+    grants: actorContext?.grants,
+    permissionId: PermissionId.USUARIOS_ACESSO,
+  });
+};
+
+export const hasChangedOwnerManagedUserOrder = ({
+  loadOwnerIds,
+  previousUsers,
+  users,
+}) => {
+  const ownerIds = new Set(loadNormalizedOwnerIds(loadOwnerIds));
+  const previousOrderById = new Map(
+    (Array.isArray(previousUsers) ? previousUsers : []).map((user) => [user.id, user.order]),
+  );
+
+  return (Array.isArray(users) ? users : []).some((user) => {
+    if (!ownerIds.has(user.id)) {
+      return false;
+    }
+    return user.order !== previousOrderById.get(user.id);
+  });
+};
+
+export const buildManagedUserResponseContext = ({
+  applyOwnerRole,
+  buildUserProfileRevisionToken,
+  loadOwnerIds,
+  loadUploads,
+  user,
+  userWithAccessForResponse,
+}) => {
+  const ownerIds = loadNormalizedOwnerIds(loadOwnerIds);
+  const responseUploads = loadUploads();
+  const currentUserSnapshot = buildUserApiSnapshot({
+    applyOwnerRole,
+    ownerIds,
+    user,
+    userWithAccessForResponse,
+  });
+
+  return {
+    currentRevision: buildUserProfileRevisionToken(currentUserSnapshot, responseUploads),
+    currentUserSnapshot,
+    ownerIds,
+    responseUploads,
+  };
+};
+
 export const diffUserFields = (beforeUser, afterUser, fields) => {
   const before = beforeUser || {};
   const after = afterUser || {};
@@ -105,6 +187,125 @@ export const diffUserFields = (beforeUser, afterUser, fields) => {
   });
 
   return changes;
+};
+
+export const buildManagedUserAuditChanges = ({
+  BASIC_PROFILE_FIELDS,
+  afterSnapshot,
+  beforeSnapshot,
+}) =>
+  diffUserFields(beforeSnapshot, afterSnapshot, [
+    ...(Array.isArray(BASIC_PROFILE_FIELDS) ? BASIC_PROFILE_FIELDS : []),
+    "status",
+    "permissions",
+    "roles",
+    "accessRole",
+  ]);
+
+export const hasManagedUserPrivilegeEscalation = ({
+  afterSnapshot,
+  beforeSnapshot,
+}) =>
+  JSON.stringify(beforeSnapshot?.permissions || []) !==
+    JSON.stringify(afterSnapshot?.permissions || []) ||
+  String(beforeSnapshot?.accessRole || "") !== String(afterSnapshot?.accessRole || "") ||
+  String(beforeSnapshot?.status || "") !== String(afterSnapshot?.status || "");
+
+export const getManagedUserUpdateAuthorizationError = ({
+  AccessRole,
+  actorCapabilities,
+  isBasicProfileField,
+  targetContext,
+  update,
+}) => {
+  const updateKeys = Object.keys(update || {});
+  const touchesBasicFields = updateKeys.some((field) => isBasicProfileField(field));
+  const touchesAccessFields = updateKeys.some((field) => !isBasicProfileField(field));
+  const {
+    actorCanUsersAccess,
+    actorCanUsersBasic,
+    actorIsAdmin,
+    actorIsPrimary,
+    actorIsSecondary,
+  } = actorCapabilities;
+
+  if (!actorIsPrimary && !actorIsSecondary && !actorIsAdmin) {
+    return "forbidden";
+  }
+  if (targetContext?.isOwner && !actorIsPrimary) {
+    return "owner_update_forbidden";
+  }
+  if (actorIsAdmin) {
+    if (!actorCanUsersBasic) {
+      return "users_basic_permission_required";
+    }
+    if (updateKeys.some((field) => !isBasicProfileField(field))) {
+      return "basic_fields_only";
+    }
+  }
+  if ((actorIsPrimary || actorIsSecondary) && touchesBasicFields && !actorCanUsersBasic) {
+    return "users_basic_permission_required";
+  }
+  if ((actorIsPrimary || actorIsSecondary) && touchesAccessFields && !actorCanUsersAccess) {
+    return "users_access_permission_required";
+  }
+
+  if (targetContext?.isPrimaryOwner) {
+    const immutableFields = ["permissions", "status", "accessRole"].filter((field) =>
+      Object.prototype.hasOwnProperty.call(update || {}, field),
+    );
+    if (immutableFields.length > 0) {
+      return "primary_owner_immutable";
+    }
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(update || {}, "accessRole") &&
+    String(update?.accessRole || "").includes("owner")
+  ) {
+    return "owner_role_requires_owner_governance";
+  }
+
+  return null;
+};
+
+export const getLegacyManagedUserDeleteError = ({
+  isOwner,
+  isPrimaryOwner,
+  primaryOwnerId,
+  sessionUserId,
+  targetId,
+}) => {
+  if (!isOwner(sessionUserId)) {
+    return "forbidden";
+  }
+  if (primaryOwnerId && String(primaryOwnerId) === targetId) {
+    return "cannot_delete_primary_owner";
+  }
+  if (isOwner(targetId) && !isPrimaryOwner(sessionUserId)) {
+    return "owner_delete_forbidden";
+  }
+  return null;
+};
+
+export const getManagedUserDeleteAuthorizationError = ({
+  actorCapabilities,
+  primaryOwnerId,
+  targetContext,
+  targetId,
+}) => {
+  const { actorCanUsersAccess, actorIsPrimary, actorIsSecondary } = actorCapabilities;
+
+  if ((!actorIsPrimary && !actorIsSecondary) || !actorCanUsersAccess) {
+    return "forbidden";
+  }
+  if (targetContext?.isPrimaryOwner || (primaryOwnerId && String(primaryOwnerId) === targetId)) {
+    return "cannot_delete_primary_owner";
+  }
+  if (targetContext?.isOwner && !actorIsPrimary) {
+    return "owner_delete_forbidden";
+  }
+  return null;
 };
 
 export const buildLegacyManagedUser = ({

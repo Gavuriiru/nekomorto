@@ -17,10 +17,12 @@ import {
   type UploadFocalCrops,
   type UploadFocalPresetKey,
 } from "@/lib/upload-focal-points";
-
-import type { FocalCropHandle } from "./focal-point-workspace";
-
-const MIN_FOCAL_CROP_DISPLAY_PX = 32;
+import {
+  areFocalCropRectsEqual,
+  buildMovedFocalCrop,
+  buildResizedFocalCrop,
+  type FocalCropHandle,
+} from "./focal-point-workspace";
 
 type FocalCropInteraction =
   | {
@@ -36,12 +38,6 @@ type FocalCropInteraction =
       handle: FocalCropHandle;
       startCrop: UploadFocalCropRect;
     };
-
-const areFocalCropRectsEqual = (left: UploadFocalCropRect, right: UploadFocalCropRect) =>
-  Math.abs(left.left - right.left) < 0.0001 &&
-  Math.abs(left.top - right.top) < 0.0001 &&
-  Math.abs(left.width - right.width) < 0.0001 &&
-  Math.abs(left.height - right.height) < 0.0001;
 
 type UseFocalPointWorkspaceParams = {
   activePreset: UploadFocalPresetKey;
@@ -198,20 +194,17 @@ export const useFocalPointWorkspace = ({
       }
 
       if (interaction.mode === "move") {
-        const deltaXNorm = (clientX - interaction.startClientX) / fitRect.width;
-        const deltaYNorm = (clientY - interaction.startClientY) / fitRect.height;
-        updateActivePresetCrop({
-          left: Math.min(
-            1 - interaction.startCrop.width,
-            Math.max(0, interaction.startCrop.left + deltaXNorm),
-          ),
-          top: Math.min(
-            1 - interaction.startCrop.height,
-            Math.max(0, interaction.startCrop.top + deltaYNorm),
-          ),
-          width: interaction.startCrop.width,
-          height: interaction.startCrop.height,
-        });
+        updateActivePresetCrop(
+          buildMovedFocalCrop({
+            clientX,
+            clientY,
+            fitRectHeight: fitRect.height,
+            fitRectWidth: fitRect.width,
+            startClientX: interaction.startClientX,
+            startClientY: interaction.startClientY,
+            startCrop: interaction.startCrop,
+          }),
+        );
         return;
       }
 
@@ -221,61 +214,21 @@ export const useFocalPointWorkspace = ({
       }
 
       const frameRect = frame.getBoundingClientRect();
-      const localX = Math.min(fitRect.width, Math.max(0, clientX - frameRect.left - fitRect.left));
-      const localY = Math.min(fitRect.height, Math.max(0, clientY - frameRect.top - fitRect.top));
-      const startLeftPx = interaction.startCrop.left * fitRect.width;
-      const startTopPx = interaction.startCrop.top * fitRect.height;
-      const startWidthPx = interaction.startCrop.width * fitRect.width;
-      const startHeightPx = interaction.startCrop.height * fitRect.height;
-      const startRightPx = startLeftPx + startWidthPx;
-      const startBottomPx = startTopPx + startHeightPx;
-      const anchorX =
-        interaction.handle === "nw" || interaction.handle === "sw" ? startRightPx : startLeftPx;
-      const anchorY =
-        interaction.handle === "nw" || interaction.handle === "ne" ? startBottomPx : startTopPx;
-      const maxWidthPx =
-        interaction.handle === "nw" || interaction.handle === "sw"
-          ? anchorX
-          : fitRect.width - anchorX;
-      const maxHeightPx =
-        interaction.handle === "nw" || interaction.handle === "ne"
-          ? anchorY
-          : fitRect.height - anchorY;
-      const minWidthPx = Math.min(fitRect.width, MIN_FOCAL_CROP_DISPLAY_PX);
-      const minHeightPx = Math.min(fitRect.height, MIN_FOCAL_CROP_DISPLAY_PX);
-      const activeAspectRatio = activePresetDimensions.width / activePresetDimensions.height;
-      const maxAllowedWidthPx = Math.max(0, Math.min(maxWidthPx, maxHeightPx * activeAspectRatio));
-      const minAllowedWidthPx = Math.min(
-        maxAllowedWidthPx,
-        Math.max(minWidthPx, minHeightPx * activeAspectRatio),
+      updateActivePresetCrop(
+        buildResizedFocalCrop({
+          activeAspectRatio: activePresetDimensions.width / activePresetDimensions.height,
+          clientX,
+          clientY,
+          fitRectHeight: fitRect.height,
+          fitRectLeft: fitRect.left,
+          fitRectTop: fitRect.top,
+          fitRectWidth: fitRect.width,
+          frameLeft: frameRect.left,
+          frameTop: frameRect.top,
+          handle: interaction.handle,
+          startCrop: interaction.startCrop,
+        }),
       );
-      const rawWidthPx = Math.abs(localX - anchorX);
-      const rawHeightPx = Math.abs(localY - anchorY);
-      const requestedWidthPx = Math.min(
-        rawWidthPx,
-        rawHeightPx * activeAspectRatio,
-        maxAllowedWidthPx,
-      );
-      const nextWidthPx = Math.max(minAllowedWidthPx, requestedWidthPx);
-      const nextHeightPx = nextWidthPx / activeAspectRatio;
-      let nextLeftPx = anchorX;
-      let nextTopPx = anchorY;
-
-      if (interaction.handle === "nw") {
-        nextLeftPx = anchorX - nextWidthPx;
-        nextTopPx = anchorY - nextHeightPx;
-      } else if (interaction.handle === "ne") {
-        nextTopPx = anchorY - nextHeightPx;
-      } else if (interaction.handle === "sw") {
-        nextLeftPx = anchorX - nextWidthPx;
-      }
-
-      updateActivePresetCrop({
-        left: nextLeftPx / fitRect.width,
-        top: nextTopPx / fitRect.height,
-        width: nextWidthPx / fitRect.width,
-        height: nextHeightPx / fitRect.height,
-      });
     },
     [activePresetDimensions.height, activePresetDimensions.width, fitRect.height, fitRect.left, fitRect.top, fitRect.width, interaction, updateActivePresetCrop],
   );

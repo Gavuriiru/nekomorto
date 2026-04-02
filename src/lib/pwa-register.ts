@@ -8,7 +8,113 @@ export type PwaRegisterHandle = {
   updateServiceWorker: (reloadPage?: boolean) => Promise<void>;
 };
 
+const LEGACY_PWA_RELOAD_SENTINEL_KEY = "nekomata:pwa-legacy-cleanup-reloaded";
+
 let registrationPromise: Promise<PwaRegisterHandle | null> | null = null;
+let reloadPwaPage = () => {
+  window.location.reload();
+};
+
+const readLegacyPwaReloadSentinel = () => {
+  try {
+    return window.sessionStorage.getItem(LEGACY_PWA_RELOAD_SENTINEL_KEY) === "true";
+  } catch {
+    return false;
+  }
+};
+
+const writeLegacyPwaReloadSentinel = () => {
+  try {
+    window.sessionStorage.setItem(LEGACY_PWA_RELOAD_SENTINEL_KEY, "true");
+  } catch {
+    // Ignore storage failures and continue with the cleanup flow.
+  }
+};
+
+const clearLegacyPwaReloadSentinel = () => {
+  try {
+    window.sessionStorage.removeItem(LEGACY_PWA_RELOAD_SENTINEL_KEY);
+  } catch {
+    // Ignore storage failures and continue with the cleanup flow.
+  }
+};
+
+const hasLegacyPwaScriptUrl = (scriptUrl: string | null | undefined) => {
+  const normalizedScriptUrl = String(scriptUrl || "").trim();
+  if (!normalizedScriptUrl) {
+    return false;
+  }
+  const lowercaseScriptUrl = normalizedScriptUrl.toLowerCase();
+  if (lowercaseScriptUrl.includes("vite-plugin-pwa")) {
+    return true;
+  }
+  try {
+    const parsedUrl = new URL(normalizedScriptUrl, window.location.origin);
+    return (
+      parsedUrl.pathname.toLowerCase().includes("dev-sw") ||
+      parsedUrl.search.toLowerCase().includes("dev-sw")
+    );
+  } catch {
+    return lowercaseScriptUrl.includes("dev-sw");
+  }
+};
+
+const getRegistrationScriptUrls = (registration: ServiceWorkerRegistration) =>
+  [registration.active, registration.installing, registration.waiting]
+    .map((worker) => String(worker?.scriptURL || "").trim())
+    .filter(Boolean);
+
+const isLegacyPwaRegistration = (registration: ServiceWorkerRegistration) =>
+  getRegistrationScriptUrls(registration).some((scriptUrl) => hasLegacyPwaScriptUrl(scriptUrl));
+
+const cleanupLegacyPwaRegistrations = async ({
+  serviceWorker,
+}: {
+  serviceWorker: ServiceWorkerContainer;
+}) => {
+  if (typeof serviceWorker.getRegistrations !== "function") {
+    clearLegacyPwaReloadSentinel();
+    return { removedLegacyRegistration: false, shouldReload: false };
+  }
+
+  let registrations: ServiceWorkerRegistration[] = [];
+  try {
+    registrations = await serviceWorker.getRegistrations();
+  } catch {
+    return { removedLegacyRegistration: false, shouldReload: false };
+  }
+
+  const legacyRegistrations = registrations.filter((registration) =>
+    isLegacyPwaRegistration(registration),
+  );
+
+  if (legacyRegistrations.length === 0) {
+    clearLegacyPwaReloadSentinel();
+    return { removedLegacyRegistration: false, shouldReload: false };
+  }
+
+  const unregisterResults = await Promise.all(
+    legacyRegistrations.map(async (registration) => {
+      try {
+        return await registration.unregister();
+      } catch {
+        return false;
+      }
+    }),
+  );
+
+  const removedLegacyRegistration = unregisterResults.some(Boolean);
+  if (!removedLegacyRegistration) {
+    return { removedLegacyRegistration: false, shouldReload: false };
+  }
+
+  if (!readLegacyPwaReloadSentinel()) {
+    writeLegacyPwaReloadSentinel();
+    return { removedLegacyRegistration: true, shouldReload: true };
+  }
+
+  return { removedLegacyRegistration: true, shouldReload: false };
+};
 
 export const registerPwa = (callbacks: PwaRegisterCallbacks = {}) => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
@@ -20,6 +126,15 @@ export const registerPwa = (callbacks: PwaRegisterCallbacks = {}) => {
 
   registrationPromise = (async () => {
     try {
+      const serviceWorker = navigator.serviceWorker;
+      const legacyCleanup = await cleanupLegacyPwaRegistrations({
+        serviceWorker,
+      });
+      if (legacyCleanup.shouldReload) {
+        reloadPwaPage();
+        return null;
+      }
+
       let hasOfflineReadyNotified = false;
       let hasNeedRefreshNotified = false;
       let shouldReloadOnControllerChange = false;
@@ -28,11 +143,11 @@ export const registerPwa = (callbacks: PwaRegisterCallbacks = {}) => {
           return;
         }
         shouldReloadOnControllerChange = false;
-        window.location.reload();
+        reloadPwaPage();
       };
-      navigator.serviceWorker.addEventListener("controllerchange", reloadOnControllerChange);
+      serviceWorker.addEventListener("controllerchange", reloadOnControllerChange);
 
-      const registration = await navigator.serviceWorker.register("/sw.js");
+      const registration = await serviceWorker.register("/sw.js");
       const maybeNotifyOfflineReady = () => {
         if (hasOfflineReadyNotified) {
           return;
@@ -65,11 +180,11 @@ export const registerPwa = (callbacks: PwaRegisterCallbacks = {}) => {
         }
         await registration.update();
         if (reloadPage && !registration.waiting) {
-          window.location.reload();
+          reloadPwaPage();
         }
       };
 
-      if (registration.waiting && navigator.serviceWorker.controller) {
+      if (registration.waiting && serviceWorker.controller) {
         maybeNotifyNeedRefresh();
       }
 
@@ -80,7 +195,7 @@ export const registerPwa = (callbacks: PwaRegisterCallbacks = {}) => {
         }
         installingWorker.addEventListener("statechange", () => {
           if (installingWorker.state === "installed") {
-            if (navigator.serviceWorker.controller) {
+            if (serviceWorker.controller) {
               maybeNotifyNeedRefresh();
               return;
             }
@@ -96,7 +211,7 @@ export const registerPwa = (callbacks: PwaRegisterCallbacks = {}) => {
         void registration.update();
       }
 
-      void navigator.serviceWorker.ready.then(() => {
+      void serviceWorker.ready.then(() => {
         maybeNotifyOfflineReady();
       });
 
@@ -115,4 +230,19 @@ export const registerPwa = (callbacks: PwaRegisterCallbacks = {}) => {
 
 export const __resetPwaRegisterForTests = () => {
   registrationPromise = null;
+  reloadPwaPage = () => {
+    window.location.reload();
+  };
+  if (typeof window !== "undefined") {
+    clearLegacyPwaReloadSentinel();
+  }
+};
+
+export const __setPwaReloadForTests = (reload: (() => void) | null | undefined) => {
+  reloadPwaPage =
+    typeof reload === "function"
+      ? reload
+      : () => {
+          window.location.reload();
+        };
 };

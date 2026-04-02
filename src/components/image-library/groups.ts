@@ -4,9 +4,11 @@ import type {
   ProjectImageGroup,
   UploadFolderGroup,
 } from "@/components/image-library/types";
+import { toComparableSelectionKey } from "@/components/image-library/selection";
 import {
   compareProjectFolderGroupsRootFirst,
   compareNaturalTextPtBr,
+  isFolderWithinSelection,
   isProjectsNamespaceFolder,
   listFolderAncestors,
   resolveClosestFolderGroupKey,
@@ -226,6 +228,28 @@ export const resolveUploadFolderForFilterOption = ({
   }
   return resolvedUploadFolderForFilter;
 };
+
+export const shouldFallbackUploadFolderFilterToAll = ({
+  hasInitializedUploadAccordionStateForOpen,
+  hasUploadsInResolvedFolderContext,
+  resolvedUploadFolderForFilterOption,
+  shouldShowAllFoldersFilterOption,
+  uploadsCount,
+  uploadsFolderFilter,
+}: {
+  hasInitializedUploadAccordionStateForOpen: boolean;
+  hasUploadsInResolvedFolderContext: boolean;
+  resolvedUploadFolderForFilterOption: string;
+  shouldShowAllFoldersFilterOption: boolean;
+  uploadsCount: number;
+  uploadsFolderFilter: string;
+}) =>
+  !hasInitializedUploadAccordionStateForOpen &&
+  Boolean(resolvedUploadFolderForFilterOption) &&
+  uploadsCount > 0 &&
+  shouldShowAllFoldersFilterOption &&
+  !hasUploadsInResolvedFolderContext &&
+  uploadsFolderFilter === resolvedUploadFolderForFilterOption;
 
 export const hasHiddenProjectUploadsInTopSection = ({
   renderableUploads,
@@ -547,4 +571,141 @@ export const buildInitialProjectAccordionState = ({
         }
       : {},
   };
+};
+
+const hasComparableItemKey = (items: LibraryImageItem[], targetKey: string) =>
+  items.some((item) => toComparableSelectionKey(item.url) === targetKey);
+
+const findUploadGroupByComparableKey = (
+  uploadFolderGroups: UploadFolderGroup[],
+  targetKey: string,
+) => uploadFolderGroups.find((group) => hasComparableItemKey(group.items, targetKey));
+
+const findProjectGroupByComparableKey = (
+  projectImageGroups: ProjectImageGroup[],
+  targetKey: string,
+) => projectImageGroups.find((group) => hasComparableItemKey(group.items, targetKey));
+
+const findFolderGroupByComparableKey = (
+  folders: ProjectImageFolderGroup[],
+  targetKey: string,
+) => folders.find((folderGroup) => hasComparableItemKey(folderGroup.items, targetKey));
+
+export type PendingUploadRevealStep =
+  | { type: "wait" }
+  | { type: "set_filter"; value: string }
+  | { type: "open_group"; groupKey: string }
+  | { type: "open_folder"; groupKey: string; folderKey: string }
+  | { type: "scroll" };
+
+export const resolvePendingUploadRevealStep = ({
+  filteredUploads,
+  matchedUpload,
+  openUploadFolderKeysByGroup,
+  openUploadGroupKeys,
+  resolveUploadsFolderFilterValue,
+  uploadFolderGroups,
+  uploadsFolderFilter,
+}: {
+  filteredUploads: LibraryImageItem[];
+  matchedUpload: LibraryImageItem;
+  openUploadFolderKeysByGroup: Record<string, string[]>;
+  openUploadGroupKeys: string[];
+  resolveUploadsFolderFilterValue: (folder: string | null | undefined) => string;
+  uploadFolderGroups: UploadFolderGroup[];
+  uploadsFolderFilter: string;
+}): PendingUploadRevealStep => {
+  const targetKey = toComparableSelectionKey(matchedUpload.url);
+  const targetFolder = resolveItemFolder(matchedUpload);
+  const targetFilterFolder = resolveUploadsFolderFilterValue(targetFolder);
+  const shouldFocusExactFolder =
+    Boolean(targetFilterFolder) &&
+    (uploadsFolderFilter === "__all__" ||
+      !isFolderWithinSelection({
+        itemFolder: targetFolder,
+        selectedFolder: uploadsFolderFilter,
+      }) ||
+      uploadsFolderFilter !== targetFilterFolder);
+  if (shouldFocusExactFolder) {
+    return { type: "set_filter", value: targetFilterFolder || "__all__" };
+  }
+
+  if (!hasComparableItemKey(filteredUploads, targetKey)) {
+    return { type: "wait" };
+  }
+
+  const targetUploadGroup = findUploadGroupByComparableKey(uploadFolderGroups, targetKey);
+  if (targetUploadGroup && !openUploadGroupKeys.includes(targetUploadGroup.key)) {
+    return { type: "open_group", groupKey: targetUploadGroup.key };
+  }
+
+  if (targetUploadGroup?.folders.length) {
+    const targetUploadFolder = findFolderGroupByComparableKey(targetUploadGroup.folders, targetKey);
+    if (targetUploadFolder) {
+      const openUploadFolderKeys = openUploadFolderKeysByGroup[targetUploadGroup.key] || [];
+      if (!openUploadFolderKeys.includes(targetUploadFolder.key)) {
+        return {
+          type: "open_folder",
+          groupKey: targetUploadGroup.key,
+          folderKey: targetUploadFolder.key,
+        };
+      }
+    }
+  }
+
+  return { type: "scroll" };
+};
+
+export type PendingProjectRevealStep =
+  | { type: "wait" }
+  | { type: "open_group"; groupKey: string }
+  | { type: "open_folder"; groupKey: string; folderKey: string }
+  | { type: "scroll" };
+
+export const resolvePendingProjectRevealStep = ({
+  filteredProjectImages,
+  matchedProjectItem,
+  openProjectFolderKeysByGroup,
+  openProjectGroupKeys,
+  projectImageGroups,
+  projectImagesView,
+}: {
+  filteredProjectImages: LibraryImageItem[];
+  matchedProjectItem: LibraryImageItem;
+  openProjectFolderKeysByGroup: Record<string, string[]>;
+  openProjectGroupKeys: string[];
+  projectImageGroups: ProjectImageGroup[];
+  projectImagesView: "flat" | "by-project";
+}): PendingProjectRevealStep => {
+  const targetKey = toComparableSelectionKey(matchedProjectItem.url);
+  if (!hasComparableItemKey(filteredProjectImages, targetKey)) {
+    return { type: "wait" };
+  }
+
+  if (projectImagesView === "by-project") {
+    const targetProjectGroup = findProjectGroupByComparableKey(projectImageGroups, targetKey);
+    if (!targetProjectGroup) {
+      return { type: "wait" };
+    }
+    if (!openProjectGroupKeys.includes(targetProjectGroup.key)) {
+      return { type: "open_group", groupKey: targetProjectGroup.key };
+    }
+
+    const targetProjectFolder = findFolderGroupByComparableKey(
+      targetProjectGroup.folders,
+      targetKey,
+    );
+    if (targetProjectFolder) {
+      const openProjectFolderKeys = openProjectFolderKeysByGroup[targetProjectGroup.key] || [];
+      if (!openProjectFolderKeys.includes(targetProjectFolder.key)) {
+        return {
+          type: "open_folder",
+          groupKey: targetProjectGroup.key,
+          folderKey: targetProjectFolder.key,
+        };
+      }
+    }
+  }
+
+  return { type: "scroll" };
 };

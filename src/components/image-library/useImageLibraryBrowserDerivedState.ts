@@ -45,6 +45,7 @@ type UseImageLibraryBrowserDerivedStateParams = {
 };
 
 type UseImageLibraryBrowserDerivedStateResult = {
+  collapseProjectFoldersInUploadFilter: boolean;
   filteredProjectImages: LibraryImageItem[];
   filteredUploads: LibraryImageItem[];
   hasUploadsInResolvedFolderContext: boolean;
@@ -365,6 +366,7 @@ export const useImageLibraryBrowserDerivedState = ({
   );
 
   return {
+    collapseProjectFoldersInUploadFilter,
     filteredProjectImages,
     filteredUploads,
     hasUploadsInResolvedFolderContext,

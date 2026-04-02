@@ -4,7 +4,7 @@ import useImageLibraryBrowserDerivedState from "@/components/image-library/useIm
 import useImageLibraryBrowserInteractions from "@/components/image-library/useImageLibraryBrowserInteractions";
 import {
   resolveUploadFolderFilterValue,
-  shouldCollapseProjectFoldersInUploadFilter,
+  shouldFallbackUploadFolderFilterToAll,
 } from "@/components/image-library/groups";
 import useImageLibraryRevealOrchestration from "@/components/image-library/useImageLibraryRevealOrchestration";
 import useImageLibrarySelectionLifecycle from "@/components/image-library/useImageLibrarySelectionLifecycle";
@@ -131,6 +131,7 @@ export const useImageLibraryBrowserOrchestration = ({
   const hasQueuedPrimarySelectionRevealForOpenRef = useRef(false);
 
   const {
+    collapseProjectFoldersInUploadFilter,
     filteredProjectImages,
     filteredUploads,
     hasUploadsInResolvedFolderContext,
@@ -164,12 +165,6 @@ export const useImageLibraryBrowserOrchestration = ({
     uploadsFolderFilter,
   });
 
-  const collapseProjectFoldersToRoots = shouldCollapseProjectFoldersInUploadFilter({
-    normalizedListFolders,
-    resolvedUploadFolderForFilter,
-    shouldExcludeProjectFoldersFromUploadFilter: includeProjectImages,
-  });
-
   useEffect(() => {
     if (!open) {
       hasQueuedPrimarySelectionRevealForOpenRef.current = false;
@@ -181,15 +176,16 @@ export const useImageLibraryBrowserOrchestration = ({
   useEffect(() => {
     const fallbackFilter =
       resolvedUploadFolderForFilterOption || uploadFolderFilterOptions[0] || "__all__";
-    const shouldFallbackMissingContextToAll =
-      !hasInitializedUploadAccordionStateForOpenRef.current &&
-      resolvedUploadFolderForFilterOption &&
-      uploads.length > 0 &&
-      shouldShowAllFoldersFilterOption &&
-      !hasUploadsInResolvedFolderContext;
     if (
-      shouldFallbackMissingContextToAll &&
-      uploadsFolderFilter === resolvedUploadFolderForFilterOption
+      shouldFallbackUploadFolderFilterToAll({
+        hasInitializedUploadAccordionStateForOpen:
+          hasInitializedUploadAccordionStateForOpenRef.current,
+        hasUploadsInResolvedFolderContext,
+        resolvedUploadFolderForFilterOption,
+        shouldShowAllFoldersFilterOption,
+        uploadsCount: uploads.length,
+        uploadsFolderFilter,
+      })
     ) {
       setUploadsFolderFilter("__all__");
       return;
@@ -291,7 +287,7 @@ export const useImageLibraryBrowserOrchestration = ({
     setUploadsFolderFilter,
     resolveUploadsFolderFilterValue: (folder) =>
       resolveUploadFolderFilterValue({
-        collapseProjectFoldersToRoots,
+        collapseProjectFoldersToRoots: collapseProjectFoldersInUploadFilter,
         folder,
       }),
     shouldAutoOpenAvatarCrop,

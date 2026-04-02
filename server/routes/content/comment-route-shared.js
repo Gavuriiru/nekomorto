@@ -168,6 +168,99 @@ export const validatePublicCommentTarget = ({
   };
 };
 
+export const normalizePublicCommentRequest = ({
+  body,
+  isStaff = false,
+  normalizeEmail,
+  sessionUser,
+} = {}) => {
+  const requestBody = body || {};
+
+  return {
+    chapterNumber: requestBody.chapterNumber,
+    normalizedContent: String(requestBody.content || "")
+      .trim()
+      .slice(0, 2000),
+    normalizedEmail: isStaff
+      ? normalizeEmail?.(sessionUser?.email)
+      : normalizeEmail?.(requestBody.email),
+    normalizedName: isStaff
+      ? String(sessionUser?.name || "Equipe").trim()
+      : String(requestBody.name || "").trim(),
+    normalizedTargetId: String(requestBody.targetId || "").trim(),
+    normalizedTargetType: String(requestBody.targetType || "").toLowerCase(),
+    parentId: requestBody.parentId,
+    volume: requestBody.volume,
+    website: requestBody.website,
+  };
+};
+
+export const getPublicCommentRequestError = ({
+  isStaff = false,
+  normalizedContent,
+  normalizedEmail,
+  normalizedName,
+  normalizedTargetId,
+  normalizedTargetType,
+  website,
+} = {}) => {
+  if (website) {
+    return "invalid_payload";
+  }
+  if (!normalizedTargetType || !normalizedTargetId) {
+    return "target_required";
+  }
+  if (!["post", "project", "chapter"].includes(normalizedTargetType)) {
+    return "invalid_target";
+  }
+  if (!normalizedName || !normalizedContent) {
+    return "fields_required";
+  }
+  if (!isStaff && normalizedEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail)) {
+    return "invalid_email";
+  }
+  if (String(normalizedContent || "").length > 2000) {
+    return "content_too_long";
+  }
+  return null;
+};
+
+export const hasValidCommentParent = ({
+  comments,
+  parentId,
+  targetId,
+  targetType,
+} = {}) => {
+  if (!parentId) {
+    return true;
+  }
+
+  const parent = (Array.isArray(comments) ? comments : []).find(
+    (comment) => comment.id === String(parentId),
+  );
+  return Boolean(parent && parent.targetType === targetType && parent.targetId === targetId);
+};
+
+export const resolveStoredCommentIdentity = async ({
+  createGravatarHash,
+  isStaff = false,
+  normalizedEmail,
+  resolveGravatarAvatarUrl,
+  sessionUser,
+} = {}) => {
+  const emailHash = normalizedEmail ? createGravatarHash(normalizedEmail) : "";
+  const avatarUrl = isStaff
+    ? String(sessionUser?.avatarUrl || "")
+    : emailHash
+      ? await resolveGravatarAvatarUrl(emailHash)
+      : "";
+
+  return {
+    avatarUrl,
+    emailHash,
+  };
+};
+
 export const buildStoredComment = ({
   avatarUrl,
   content,
@@ -193,6 +286,54 @@ export const buildStoredComment = ({
   approvedAt: isStaff ? now : null,
   avatarUrl,
 });
+
+export const buildApprovedComment = (comment, { now = new Date().toISOString() } = {}) => ({
+  ...comment,
+  status: "approved",
+  approvedAt: now,
+});
+
+export const appendApprovedCommentAnalytics = ({
+  appendAnalyticsEvent,
+  comment,
+  req,
+} = {}) => {
+  appendAnalyticsEvent?.(req, {
+    eventType: "comment_approved",
+    resourceType: "comment",
+    resourceId: String(comment?.id || ""),
+    meta: {
+      targetType: comment?.targetType,
+      targetId: comment?.targetId,
+      status: "approved",
+    },
+  });
+};
+
+export const appendCommentCreatedAnalytics = ({
+  appendAnalyticsEvent,
+  comment,
+  req,
+} = {}) => {
+  appendAnalyticsEvent?.(req, {
+    eventType: "comment_created",
+    resourceType: "comment",
+    resourceId: comment?.id,
+    meta: {
+      targetType: comment?.targetType,
+      targetId: comment?.targetId,
+      status: comment?.status,
+    },
+  });
+
+  if (comment?.status === "approved") {
+    appendApprovedCommentAnalytics({
+      appendAnalyticsEvent,
+      comment,
+      req,
+    });
+  }
+};
 
 export const syncCommentTargetCounts = ({
   affectedComments,
@@ -241,9 +382,16 @@ export const syncCommentTargetCounts = ({
 };
 
 export default {
+  appendApprovedCommentAnalytics,
+  appendCommentCreatedAnalytics,
+  buildApprovedComment,
   buildStoredComment,
+  getPublicCommentRequestError,
+  hasValidCommentParent,
   listAdminComments,
   listPublicCommentsForTarget,
+  normalizePublicCommentRequest,
+  resolveStoredCommentIdentity,
   serializeAdminComment,
   serializePublicComment,
   syncCommentTargetCounts,

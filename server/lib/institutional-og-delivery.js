@@ -9,7 +9,7 @@ import {
   buildVersionedInstitutionalOgImagePath,
 } from "../../shared/institutional-og-seo.js";
 import {
-  buildOgDeliveryHeaders,
+  createOgDeliveryHeadersBuilder,
   createMeasuredOgAssetLoader,
   getCachedOgRender,
   renderOptimizedOgBuffer,
@@ -22,6 +22,7 @@ const INSTITUTIONAL_OG_TIMING_ORDER = [
   "image_optimize",
   "total",
 ];
+const buildInstitutionalHeaders = createOgDeliveryHeadersBuilder(INSTITUTIONAL_OG_TIMING_ORDER);
 
 const buildInstitutionalOgBaseModel = ({
   pageKey,
@@ -57,10 +58,9 @@ const renderInstitutionalOgBuffer = async ({ baseModel, origin } = {}) => {
 };
 
 export const buildInstitutionalOgDeliveryHeaders = ({ cacheHit, timings } = {}) => {
-  return buildOgDeliveryHeaders({
+  return buildInstitutionalHeaders({
     cacheHit,
     timings,
-    timingOrder: INSTITUTIONAL_OG_TIMING_ORDER,
   });
 };
 

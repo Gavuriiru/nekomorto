@@ -6,6 +6,8 @@ import type {
   ProjectRecord,
   VolumeSelectionOptions,
 } from "@/components/dashboard/chapter-editor/chapter-editor-types";
+import { useChapterEditorPersistence } from "@/components/dashboard/chapter-editor/useChapterEditorPersistence";
+import { useChapterEditorStructureOrchestration } from "@/components/dashboard/chapter-editor/useChapterEditorStructureOrchestration";
 import { useChapterEditorImageLibrary } from "@/components/dashboard/chapter-editor/useChapterEditorImageLibrary";
 import {
   Input,
@@ -29,7 +31,6 @@ import LexicalEditorSurface from "@/components/lexical/LexicalEditorSurface";
 import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
 import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
 import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
-import { exportMangaCollectionZip } from "@/components/project-reader/manga-collection-export";
 import MangaWorkflowPanel, {
   buildStageChapterLabel,
   type MangaWorkflowPanelHandle,
@@ -43,15 +44,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import type { ProjectEpisode, ProjectVolumeEntry } from "@/data/projects";
-import { refetchPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
 import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
 import {
   EMPTY_CHAPTER_DRAFT,
   IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
-  VOLUME_REQUIRED_IDENTITY_MESSAGE,
   VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION,
   buildNewChapterDraft,
   buildChapterVolumeLabel,
@@ -61,6 +59,7 @@ import {
   buildVolumeCoverAltFallback,
   chapterHasContent,
   chapterStatusLabel,
+  findProjectVolumeEntryByVolume,
   groupChaptersByStructureKey,
   groupStageChaptersByStructureKey,
   matchesChapterSearch,
@@ -69,9 +68,7 @@ import {
   matchesStageChapterSearch,
   normalizeEpubImportPreviewPayload,
   normalizeProjectSnapshotChapterOrderForPersist,
-  normalizeStructureGroupKeys,
   normalizeChapterForEditor,
-  normalizeChapterForSave,
   normalizeOriginLabel,
   normalizePositiveInteger,
   normalizeNonNegativeInteger,
@@ -79,7 +76,6 @@ import {
   resolveImportedChapterCount,
   buildVolumeEntriesSnapshot,
   normalizeVolumeEntriesForSave,
-  reorderChaptersWithinStructureGroup,
   sortChapters,
   supportsStructureChapterReordering,
   type ChapterFilterMode,
@@ -91,11 +87,8 @@ import {
 } from "@/lib/frontend-build";
 import {
   DEFAULT_PROJECT_COVER_ALT,
-  getEpisodeCoverAltFallback,
-  resolveAssetAltText,
 } from "@/lib/image-alt";
 import { createSlug } from "@/lib/post-content";
-import { findIncompleteDownloadSourceIndex } from "@/lib/project-download-sources";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_API_CAPABILITIES,
@@ -139,7 +132,6 @@ import {
 import {
   buildEpisodeKey,
   resolveCanonicalEpisodeRouteTarget,
-  resolveEpisodeLookup,
 } from "@/lib/project-episode-key";
 import {
   isChapterBasedType,
@@ -147,10 +139,8 @@ import {
   isMangaType,
 } from "@/lib/project-utils";
 import {
-  buildVolumeCoverKey,
   findDuplicateVolumeCover,
 } from "@/lib/project-volume-cover-key";
-import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import type {
   ApiContractBuildMetadata,
   ApiContractCapabilities,
@@ -301,23 +291,7 @@ const editorialMastheadClassName =
   "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
 const editorialCommandBarClassName =
   "sticky top-3 z-20 overflow-hidden rounded-2xl border border-border/60 bg-background/92 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.72)] backdrop-blur supports-backdrop-filter:bg-background/78";
-const toastIncompleteDownloadSources = () => {
-  toast({
-    title: "Complete as fontes de download",
-    description:
-      "Selecione uma fonte e informe a URL antes de salvar o capitulo.",
-    variant: "destructive",
-  });
-};
 const WorkspaceSectionCard = ProjectEditorSectionCard;
-const findStructureGroupElement = (groupKey: string) => {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  return document.querySelector<HTMLElement>(
-    `[data-testid="chapter-structure-group-${groupKey}"]`,
-  );
-};
 const ChapterEditorPane = forwardRef<
   ChapterEditorPaneHandle,
   ChapterEditorPaneProps
@@ -398,13 +372,6 @@ const ChapterEditorPane = forwardRef<
     const mangaWorkflowRef = useRef<MangaWorkflowPanelHandle | null>(null);
     const cancelLeaveDialogRef = useRef<(() => void) | null>(null);
     const hasPendingLeaveDialogRef = useRef(false);
-    const [identityError, setIdentityError] = useState<string | null>(null);
-    const [isVolumeRequiredSaveDialogOpen, setIsVolumeRequiredSaveDialogOpen] =
-      useState(false);
-    const [isSavingChapter, setIsSavingChapter] = useState(false);
-    const [structureVolumeExportKey, setStructureVolumeExportKey] = useState<
-      string | null
-    >(null);
     const hasActiveChapter = Boolean(activeChapter && activeChapterKey);
     const normalizeEditorChapter = useCallback(
       (chapter: ProjectEpisode) => normalizeChapterForEditor(chapter, "manga"),
@@ -425,8 +392,6 @@ const ChapterEditorPane = forwardRef<
     const supportsStructureReordering = supportsStructureChapterReordering(
       project.type || "",
     );
-    const [structureChapterReorderState, setStructureChapterReorderState] =
-      useState<{ key: string; direction: "up" | "down" } | null>(null);
     const structureProjectSnapshot = useMemo(() => {
       const nextProjectSnapshot = buildProjectSnapshotWithVolumeEntries(
         project,
@@ -438,12 +403,6 @@ const ChapterEditorPane = forwardRef<
         activeDraft,
       );
     }, [activeChapterKey, activeDraft, project, volumeEntriesDraft]);
-    const structureProjectSnapshotRef = useRef<ProjectRecord>(
-      structureProjectSnapshot,
-    );
-    useEffect(() => {
-      structureProjectSnapshotRef.current = structureProjectSnapshot;
-    }, [structureProjectSnapshot]);
     const normalizedDraftPages = useMemo(
       () => normalizeProjectEpisodePages(draft.pages),
       [draft.pages],
@@ -469,213 +428,38 @@ const ChapterEditorPane = forwardRef<
     );
     const isDirty = hasActiveChapter && draftSnapshot !== activeChapterSnapshot;
     const selectedVolumeEntry = useMemo(() => {
-      if (selectedVolume === null || !Number.isFinite(Number(selectedVolume))) {
-        return null;
-      }
-      const normalizedVolume = Number(selectedVolume);
-      return (
-        normalizeProjectVolumeEntries(volumeEntriesDraft).find(
-          (entry) =>
-            buildVolumeCoverKey(entry.volume) ===
-            buildVolumeCoverKey(normalizedVolume),
-        ) || null
-      );
+      return findProjectVolumeEntryByVolume(volumeEntriesDraft, selectedVolume);
     }, [selectedVolume, volumeEntriesDraft]);
     const selectedVolumeNumber =
       selectedVolume !== null && Number.isFinite(Number(selectedVolume))
         ? Number(selectedVolume)
         : null;
-    const showVolumeEditor = selectedVolumeNumber !== null && !hasActiveChapter;
-    const selectedVolumeLabel =
-      selectedVolumeNumber !== null
-        ? buildChapterVolumeLabel(selectedVolumeNumber)
-        : "Volumes";
-    const showVolumeSaveControls = isVolumeDirty || isSavingVolumes;
-    const isChapterDraft =
-      hasActiveChapter && draft.publicationStatus === "draft";
-    const chapterSaveStatusLabel = isSavingChapter
-      ? "Salvando..."
-      : isDirty
-        ? "Alterações pendentes"
-        : "Sem alterações pendentes";
-    const volumeSaveStatusLabel = isSavingVolumes
-      ? "Salvando volumes..."
-      : "Volumes pendentes";
-    const blockAmbiguousChapterSave = useCallback(
-      (snapshot: ProjectEpisode) => {
-        const normalizedSnapshot = normalizeChapterForSave(snapshot, "manga");
-        if (normalizedSnapshot.volume !== undefined) {
-          return false;
-        }
-        const nextProjectSnapshot = overlayDraftOnProject(
-          project,
-          activeChapterKey,
-          normalizedSnapshot,
-        );
-        const saveLookup = resolveEpisodeLookup(
-          Array.isArray(nextProjectSnapshot.episodeDownloads)
-            ? nextProjectSnapshot.episodeDownloads
-            : [],
-          normalizedSnapshot.number,
-          normalizedSnapshot.volume,
-        );
-        if (saveLookup.ok || saveLookup.code !== "volume_required") {
-          return false;
-        }
-        setIdentityError(VOLUME_REQUIRED_IDENTITY_MESSAGE);
+    const {
+      clearIdentityError,
+      closeVolumeRequiredSaveDialog,
+      handleChapterSave,
+      handleManualSave,
+      identityError,
+      isSavingChapter,
+      isVolumeRequiredSaveDialogOpen,
+    } = useChapterEditorPersistence({
+      activeChapter,
+      activeChapterKey,
+      apiBase,
+      draft,
+      hasActiveChapter,
+      isDirty,
+      isImageChapter,
+      isPublishedImageChapterMissingPages,
+      normalizeEditorChapter,
+      onChapterSaved,
+      onVolumeRequiredConflict: () => {
         if (hasPendingLeaveDialogRef.current) {
           cancelLeaveDialogRef.current?.();
         }
-        setIsVolumeRequiredSaveDialogOpen(true);
-        return true;
       },
-      [activeChapterKey, project],
-    );
-    const persistChapter = useCallback(
-      async (snapshot: ProjectEpisode) => {
-        if (!activeChapter) {
-          return snapshot;
-        }
-        setIdentityError(null);
-        const normalizedSnapshot = normalizeChapterForSave(snapshot, "manga");
-        const response = await apiFetch(
-          apiBase,
-          `/api/projects/${project.id}/chapters/${activeChapter.number}${Number.isFinite(Number(activeChapter.volume)) ? `?volume=${Number(activeChapter.volume)}` : ""}`,
-          {
-            method: "PUT",
-            auth: true,
-            json: {
-              ifRevision: project.revision || "",
-              chapter: {
-                ...normalizedSnapshot,
-                coverImageAlt: snapshot.coverImageUrl
-                  ? resolveAssetAltText(
-                      snapshot.coverImageAlt,
-                      getEpisodeCoverAltFallback(true),
-                    )
-                  : "",
-              },
-            },
-          },
-        );
-        if (!response.ok) {
-          const data = await response.json().catch(() => null);
-          const errorCode = String(data?.error || "").trim();
-          if (errorCode === "duplicate_episode_key") {
-            setIdentityError(
-              "Já existe um capítulo com essa combinação de número e volume.",
-            );
-          } else if (errorCode === "volume_required") {
-            setIdentityError(
-              "Informe o volume para salvar um capítulo com número ambíguo.",
-            );
-          } else if (errorCode === "image_pages_required_for_publication") {
-            toast({
-              title: "Não foi possível publicar o capítulo",
-              description: IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
-              variant: "destructive",
-            });
-          } else if (errorCode === "not_found") {
-            toast({
-              title: "Capítulo não encontrado",
-              description: "Recarregue o projeto antes de continuar editando.",
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: "Não foi possível salvar o capítulo",
-              description: "Tente novamente em alguns instantes.",
-              variant: "destructive",
-            });
-          }
-          throw new Error(errorCode || "chapter_save_failed");
-        }
-        const data = (await response.json()) as {
-          project?: ProjectRecord;
-          chapter?: ProjectEpisode;
-        };
-        if (!data?.project || !data?.chapter) {
-          throw new Error("chapter_save_missing_payload");
-        }
-        const normalizedSavedChapter = normalizeEditorChapter(data.chapter);
-        onChapterSaved(data.project, normalizedSavedChapter, {
-          number: normalizedSnapshot.number,
-          volume: normalizedSnapshot.volume,
-        });
-        void refetchPublicBootstrapCache(apiBase).catch(() => undefined);
-        return normalizedSavedChapter;
-      },
-      [
-        activeChapter,
-        apiBase,
-        normalizeEditorChapter,
-        onChapterSaved,
-        project.id,
-        project.revision,
-        refetchPublicBootstrapCache,
-      ],
-    );
-    const handleChapterSave = useCallback(
-      async (nextPublicationStatus?: "draft" | "published") => {
-        if (!hasActiveChapter || isSavingChapter) {
-          return true;
-        }
-        if (findIncompleteDownloadSourceIndex(draft.sources) >= 0) {
-          toastIncompleteDownloadSources();
-          return false;
-        }
-        const resolvedPublicationStatus =
-          nextPublicationStatus ?? draft.publicationStatus;
-        if (
-          resolvedPublicationStatus === "published" &&
-          isPublishedImageChapterMissingPages
-        ) {
-          toast({
-            title: "Não foi possível publicar o capítulo",
-            description: IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
-            variant: "destructive",
-          });
-          return false;
-        }
-        const shouldPersist =
-          isDirty || resolvedPublicationStatus !== draft.publicationStatus;
-        if (!shouldPersist) {
-          return true;
-        }
-        const nextSnapshot = {
-          ...draft,
-          publicationStatus: resolvedPublicationStatus,
-        };
-        if (blockAmbiguousChapterSave(nextSnapshot)) {
-          return false;
-        }
-        setIsSavingChapter(true);
-        try {
-          await persistChapter(nextSnapshot);
-          return true;
-        } catch {
-          return false;
-        } finally {
-          setIsSavingChapter(false);
-        }
-      },
-      [
-        draft,
-        findIncompleteDownloadSourceIndex,
-        hasActiveChapter,
-        isDirty,
-        isPublishedImageChapterMissingPages,
-        isSavingChapter,
-        blockAmbiguousChapterSave,
-        persistChapter,
-      ],
-    );
-    const handleManualSave = useCallback(async () => {
-      if (!hasActiveChapter) {
-        return true;
-      }
-      return handleChapterSave(draft.publicationStatus);
-    }, [draft.publicationStatus, handleChapterSave, hasActiveChapter]);
+      project,
+    });
     const {
       handleCloseSelectedVolume,
       handleLeaveDialogCancel,
@@ -704,35 +488,58 @@ const ChapterEditorPane = forwardRef<
     });
     cancelLeaveDialogRef.current = handleLeaveDialogCancel;
     hasPendingLeaveDialogRef.current = Boolean(leaveDialogState);
-    const focusChapterVolumeInput = useCallback(() => {
-      if (typeof document === "undefined") {
-        return;
-      }
-      const volumeInput = document.getElementById(
-        isImageChapter ? "chapter-volume-image" : "chapter-volume-standard",
-      );
-      if (!(volumeInput instanceof HTMLInputElement)) {
-        return;
-      }
-      volumeInput.focus();
-      if (typeof volumeInput.select === "function") {
-        volumeInput.select();
-      }
-    }, [isImageChapter]);
-    const closeVolumeRequiredSaveDialog = useCallback(() => {
-      setIsVolumeRequiredSaveDialogOpen(false);
-      if (typeof window === "undefined") {
-        return;
-      }
-      const scheduleFocus =
-        typeof window.requestAnimationFrame === "function"
-          ? window.requestAnimationFrame.bind(window)
-          : (callback: FrameRequestCallback) =>
-              window.setTimeout(() => callback(performance.now()), 0);
-      scheduleFocus(() => {
-        focusChapterVolumeInput();
-      });
-    }, [focusChapterVolumeInput]);
+    const {
+      activeStructureGroupKey,
+      handleAddChapterRequest,
+      handleReorderStructureChapter,
+      handleSelectPendingStageChapter,
+      handleStructureVolumeExport,
+      handleStructureVolumeInteraction,
+      openStructureGroupKeys,
+      selectedStructureGroupKey,
+      structureChapterReorderState,
+      structureVolumeExportKey,
+      toggleStructureGroup,
+    } = useChapterEditorStructureOrchestration({
+      activeChapterKey,
+      apiBase,
+      hasActiveChapter,
+      initialOpenStructureGroupKeys,
+      isVolumeDirty,
+      neutralHref,
+      onAddChapter,
+      onChapterSaved,
+      onNavigateToHref,
+      onPersistProjectSnapshot,
+      onProjectChange,
+      onSelectedVolumeChange,
+      onStructureGroupKeysChange,
+      project,
+      projectSnapshotForImageExport,
+      requestLeave,
+      selectedStageChapterId,
+      selectedVolumeNumber,
+      setSelectedStageChapterId,
+      structureGroups,
+      structureProjectSnapshot,
+      supportsStructureReordering,
+    });
+    const showVolumeEditor = selectedVolumeNumber !== null && !hasActiveChapter;
+    const selectedVolumeLabel =
+      selectedVolumeNumber !== null
+        ? buildChapterVolumeLabel(selectedVolumeNumber)
+        : "Volumes";
+    const showVolumeSaveControls = isVolumeDirty || isSavingVolumes;
+    const isChapterDraft =
+      hasActiveChapter && draft.publicationStatus === "draft";
+    const chapterSaveStatusLabel = isSavingChapter
+      ? "Salvando..."
+      : isDirty
+        ? "Alterações pendentes"
+        : "Sem alterações pendentes";
+    const volumeSaveStatusLabel = isSavingVolumes
+      ? "Salvando volumes..."
+      : "Volumes pendentes";
     useImperativeHandle(ref, () => ({ hasUnsavedChanges, requestLeave }), [
       hasUnsavedChanges,
       requestLeave,
@@ -841,268 +648,6 @@ const ChapterEditorPane = forwardRef<
       : leaveDialogState?.chapterDirty
         ? "Escolha se deseja salvar como rascunho, publicar ou descartar antes de trocar de contexto."
         : "Você pode salvar o volume agora, descartar as mudanças ou cancelar e continuar editando.";
-    const activeStructureGroupKey = useMemo(() => {
-      const activeGroup = activeChapterKey
-        ? structureGroups.find((group) =>
-            group.allItems.some(
-              (episode) =>
-                buildEpisodeKey(episode.number, episode.volume) ===
-                activeChapterKey,
-            ),
-          )
-        : null;
-      if (activeGroup?.key) {
-        return activeGroup.key;
-      }
-      if (!hasActiveChapter && selectedStageChapterId) {
-        const pendingGroup = structureGroups.find((group) =>
-          group.pendingItems.some(
-            (chapter) => chapter.id === selectedStageChapterId,
-          ),
-        );
-        if (pendingGroup?.key) {
-          return pendingGroup.key;
-        }
-      }
-      if (selectedVolumeNumber !== null) {
-        return (
-          structureGroups.find((group) => group.volume === selectedVolumeNumber)
-            ?.key ||
-          structureGroups[0]?.key ||
-          ""
-        );
-      }
-      return structureGroups[0]?.key || "";
-    }, [
-      activeChapterKey,
-      hasActiveChapter,
-      selectedStageChapterId,
-      selectedVolumeNumber,
-      structureGroups,
-    ]);
-    const selectedStructureGroupKey = useMemo(() => {
-      const activeGroup = activeChapterKey
-        ? structureGroups.find((group) =>
-            group.allItems.some(
-              (episode) =>
-                buildEpisodeKey(episode.number, episode.volume) ===
-                activeChapterKey,
-            ),
-          )
-        : null;
-      if (activeGroup?.key) {
-        return activeGroup.key;
-      }
-      if (!hasActiveChapter && selectedStageChapterId) {
-        const pendingGroup = structureGroups.find((group) =>
-          group.pendingItems.some(
-            (chapter) => chapter.id === selectedStageChapterId,
-          ),
-        );
-        if (pendingGroup?.key) {
-          return pendingGroup.key;
-        }
-      }
-      if (selectedVolumeNumber !== null) {
-        return (
-          structureGroups.find((group) => group.volume === selectedVolumeNumber)
-            ?.key || ""
-        );
-      }
-      return "";
-    }, [
-      activeChapterKey,
-      hasActiveChapter,
-      selectedStageChapterId,
-      selectedVolumeNumber,
-      structureGroups,
-    ]);
-    const handleStructureVolumeInteraction = useCallback(
-      async (groupKey: string, nextVolume: number) => {
-        const normalizedVolume = Number(nextVolume);
-        if (!Number.isFinite(normalizedVolume) || normalizedVolume <= 0) {
-          return;
-        }
-        const scrollAnchorElement = findStructureGroupElement(groupKey);
-        const scrollAnchorTop =
-          scrollAnchorElement?.getBoundingClientRect().top;
-        const previousOpenGroupKeys = openStructureGroupKeysRef.current;
-        const nextOpenGroupKeys = previousOpenGroupKeys.includes(groupKey)
-          ? previousOpenGroupKeys.filter((key) => key !== groupKey)
-          : [...previousOpenGroupKeys, groupKey];
-        setOpenStructureGroupKeys(nextOpenGroupKeys);
-        if (
-          !hasActiveChapter &&
-          isVolumeDirty &&
-          selectedVolumeNumber !== normalizedVolume
-        ) {
-          const canLeave = await requestLeave();
-          if (!canLeave) {
-            setOpenStructureGroupKeys(previousOpenGroupKeys);
-            return;
-          }
-        }
-        const didSelectVolume = await onSelectedVolumeChange(normalizedVolume, {
-          preserveScrollAnchor:
-            Number.isFinite(scrollAnchorTop) &&
-            typeof scrollAnchorTop === "number"
-              ? { groupKey, top: scrollAnchorTop }
-              : null,
-        });
-        if (didSelectVolume === false) {
-          setOpenStructureGroupKeys(previousOpenGroupKeys);
-          return;
-        }
-      },
-      [
-        hasActiveChapter,
-        isVolumeDirty,
-        onSelectedVolumeChange,
-        requestLeave,
-        selectedVolumeNumber,
-      ],
-    );
-    const handleSelectPendingStageChapter = useCallback(
-      async (chapterId: string) => {
-        if (!chapterId || selectedStageChapterId === chapterId) {
-          return;
-        }
-        if (hasActiveChapter) {
-          const didNavigate = await onNavigateToHref(neutralHref);
-          if (!didNavigate) {
-            return;
-          }
-          setSelectedStageChapterId(chapterId);
-          return;
-        }
-        if (isVolumeDirty) {
-          const canLeave = await requestLeave();
-          if (!canLeave) {
-            return;
-          }
-        }
-        setSelectedStageChapterId(chapterId);
-      },
-      [
-        hasActiveChapter,
-        isVolumeDirty,
-        neutralHref,
-        onNavigateToHref,
-        requestLeave,
-        selectedStageChapterId,
-        setSelectedStageChapterId,
-      ],
-    );
-    const handleAddChapterRequest = useCallback(
-      async (targetVolume: number | null) => {
-        const canLeave = await requestLeave();
-        if (!canLeave) {
-          return;
-        }
-        await onAddChapter(targetVolume);
-      },
-      [onAddChapter, requestLeave],
-    );
-    const handleReorderStructureChapter = useCallback(
-      async (chapterKey: string, direction: "up" | "down") => {
-        if (
-          !supportsStructureReordering ||
-          structureChapterReorderState ||
-          !chapterKey
-        ) {
-          return;
-        }
-        const canLeave = await requestLeave();
-        if (!canLeave) {
-          return;
-        }
-        const latestProjectSnapshot = structureProjectSnapshotRef.current;
-        const reorderedEpisodes = reorderChaptersWithinStructureGroup(
-          Array.isArray(latestProjectSnapshot?.episodeDownloads)
-            ? latestProjectSnapshot.episodeDownloads
-            : [],
-          chapterKey,
-          direction,
-        );
-        if (!reorderedEpisodes) {
-          return;
-        }
-        const optimisticProject = {
-          ...latestProjectSnapshot,
-          episodeDownloads: reorderedEpisodes,
-        };
-        setStructureChapterReorderState({ key: chapterKey, direction });
-        onProjectChange(optimisticProject);
-        try {
-          const persistedProject = await onPersistProjectSnapshot(
-            optimisticProject,
-            { context: "chapter-reorder" },
-          );
-          if (!persistedProject) {
-            onProjectChange(latestProjectSnapshot);
-            return;
-          }
-          const persistedActiveChapter = activeChapterKey
-            ? (Array.isArray(persistedProject.episodeDownloads)
-                ? persistedProject.episodeDownloads
-                : []
-              ).find(
-                (episode) =>
-                  buildEpisodeKey(episode.number, episode.volume) ===
-                  activeChapterKey,
-              ) || null
-            : null;
-          if (persistedActiveChapter) {
-            onChapterSaved(persistedProject, persistedActiveChapter, {
-              number: persistedActiveChapter.number,
-              volume: persistedActiveChapter.volume,
-            });
-            return;
-          }
-          onProjectChange(persistedProject);
-        } catch {
-          onProjectChange(latestProjectSnapshot);
-        } finally {
-          setStructureChapterReorderState(null);
-        }
-      },
-      [
-        activeChapterKey,
-        onChapterSaved,
-        onPersistProjectSnapshot,
-        onProjectChange,
-        requestLeave,
-        structureChapterReorderState,
-        supportsStructureReordering,
-      ],
-    );
-    const handleStructureVolumeExport = useCallback(
-      async (volume: number, groupKey: string) => {
-        setStructureVolumeExportKey(groupKey);
-        try {
-          await exportMangaCollectionZip({
-            apiBase,
-            projectId: String(project.id || ""),
-            projectSnapshot: projectSnapshotForImageExport,
-            volume,
-            includeDrafts: false,
-            fallbackName: `${String(project.id || "projeto")}-volume-${volume}.zip`,
-          });
-          toast({
-            title: `ZIP do volume ${volume} exportado`,
-            intent: "success",
-          });
-        } catch {
-          toast({
-            title: "Não foi possível exportar o volume",
-            variant: "destructive",
-          });
-        } finally {
-          setStructureVolumeExportKey(null);
-        }
-      },
-      [apiBase, project.id, projectSnapshotForImageExport],
-    );
     const updateDraft = useCallback(
       (recipe: (current: ProjectEpisode) => ProjectEpisode) => {
         if (!hasActiveChapter) {
@@ -1139,69 +684,6 @@ const ChapterEditorPane = forwardRef<
       updateDraft,
       updateSelectedVolumeEntry,
     });
-    const openStructureGroupKeysRef = useRef<string[]>([]);
-    const [openStructureGroupKeys, setOpenStructureGroupKeys] = useState<
-      string[]
-    >(() => {
-      const initialKeys = normalizeStructureGroupKeys(
-        initialOpenStructureGroupKeys,
-        structureGroups,
-      );
-      if (initialKeys.length > 0) {
-        return initialKeys;
-      }
-      return activeStructureGroupKey ? [activeStructureGroupKey] : [];
-    });
-    const lastAutoSyncedStructureGroupKeyRef = useRef(activeStructureGroupKey);
-    useEffect(() => {
-      setOpenStructureGroupKeys((currentKeys) => {
-        const fallbackGroupKey = structureGroups[0]?.key || "";
-        const normalizedActiveStructureGroupKey =
-          activeStructureGroupKey &&
-          structureGroups.some((group) => group.key === activeStructureGroupKey)
-            ? activeStructureGroupKey
-            : fallbackGroupKey;
-        const normalizedCurrentKeys = normalizeStructureGroupKeys(
-          currentKeys,
-          structureGroups,
-        );
-        if (
-          normalizedActiveStructureGroupKey !==
-          lastAutoSyncedStructureGroupKeyRef.current
-        ) {
-          lastAutoSyncedStructureGroupKeyRef.current =
-            normalizedActiveStructureGroupKey;
-          if (
-            !normalizedActiveStructureGroupKey ||
-            normalizedCurrentKeys.includes(normalizedActiveStructureGroupKey)
-          ) {
-            return normalizedCurrentKeys;
-          }
-          return [...normalizedCurrentKeys, normalizedActiveStructureGroupKey];
-        }
-        return normalizedCurrentKeys;
-      });
-    }, [activeStructureGroupKey, structureGroups]);
-    useEffect(() => {
-      onStructureGroupKeysChange(openStructureGroupKeys);
-    }, [onStructureGroupKeysChange, openStructureGroupKeys]);
-    useEffect(() => {
-      openStructureGroupKeysRef.current = openStructureGroupKeys;
-    }, [openStructureGroupKeys]);
-    const toggleStructureGroup = useCallback(
-      (groupKey: string) => {
-        setOpenStructureGroupKeys((currentKeys) => {
-          const normalizedCurrentKeys = normalizeStructureGroupKeys(
-            currentKeys,
-            structureGroups,
-          );
-          return normalizedCurrentKeys.includes(groupKey)
-            ? normalizedCurrentKeys.filter((key) => key !== groupKey)
-            : [...normalizedCurrentKeys, groupKey];
-        });
-      },
-      [structureGroups],
-    );
     const epubToolsAccordion = (
       <ChapterEditorEpubToolsSection
         supportsEpubTools={supportsEpubTools}
@@ -2113,7 +1595,7 @@ const ChapterEditorPane = forwardRef<
           isImageChapter
           supportsEpubTools={supportsEpubTools}
           updateDraft={updateDraft}
-          onClearIdentityError={() => setIdentityError(null)}
+          onClearIdentityError={clearIdentityError}
         />
       ) : null;
     const standardIdentitySection =
@@ -2124,7 +1606,7 @@ const ChapterEditorPane = forwardRef<
           isImageChapter={false}
           supportsEpubTools={supportsEpubTools}
           updateDraft={updateDraft}
-          onClearIdentityError={() => setIdentityError(null)}
+          onClearIdentityError={clearIdentityError}
         />
       ) : null;
     const imageContentSection =

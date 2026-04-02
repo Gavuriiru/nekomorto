@@ -53,6 +53,16 @@ export const buildOgDeliveryHeaders = ({ cacheHit, timings, timingOrder = [] } =
   };
 };
 
+export const createOgDeliveryHeadersBuilder =
+  (timingOrder = []) =>
+  ({ cacheHit, timings } = {}) =>
+    buildOgDeliveryHeaders({
+      cacheHit,
+      timings,
+      timingOrder,
+    });
+const buildProjectStyleHeaders = createOgDeliveryHeadersBuilder(PROJECT_STYLE_OG_TIMING_ORDER);
+
 export const normalizeOgRevision = (value) => String(value || "").trim();
 
 export const appendVersionQueryParam = (basePath, revision) => {
@@ -66,10 +76,9 @@ export const appendVersionQueryParam = (basePath, revision) => {
 };
 
 export const buildProjectStyleOgDeliveryHeaders = ({ cacheHit, timings } = {}) =>
-  buildOgDeliveryHeaders({
+  buildProjectStyleHeaders({
     cacheHit,
     timings,
-    timingOrder: PROJECT_STYLE_OG_TIMING_ORDER,
   });
 
 export const renderProjectStyleOgAssetBuffer = async ({
@@ -272,3 +281,29 @@ export const getCachedOgRender = async ({
     timings,
   };
 };
+
+export const createProjectStyleOgCachedRenderResolver =
+  ({
+    buildBaseModel,
+    buildImageResponse,
+    kind,
+    loadAdditionalAssets,
+    resolveId,
+  } = {}) =>
+  async (options = {}) =>
+    getProjectStyleOgCachedRender({
+      kind,
+      ogRenderCache: options.ogRenderCache,
+      buildModel: () => buildBaseModel?.(options),
+      origin: options.origin,
+      loadAdditionalAssets,
+      buildImageResponse,
+      resolveId: resolveId
+        ? (model) =>
+            resolveId({
+              model,
+              options,
+            })
+        : undefined,
+      id: options.id,
+    });

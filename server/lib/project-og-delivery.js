@@ -8,14 +8,19 @@ import {
   appendVersionQueryParam,
   buildProjectStyleRevisionFromModel,
   buildProjectStyleOgDeliveryHeaders,
+  createProjectStyleOgCachedRenderResolver,
   createProjectStyleBaseModelBuilder,
-  getProjectStyleOgCachedRender,
   prewarmProjectStyleOgCache,
   normalizeOgRevision,
 } from "./og-delivery-shared.js";
 import { createRevisionToken } from "./revision-token.js";
 
 const buildProjectOgBaseModel = createProjectStyleBaseModelBuilder(buildProjectOgCardModel);
+const resolveProjectOgCachedRender = createProjectStyleOgCachedRenderResolver({
+  buildBaseModel: (options) => buildProjectOgBaseModel(options),
+  buildImageResponse: (model) => buildProjectOgImageResponse(model),
+  kind: "project",
+});
 
 export const buildProjectOgRevision = ({
   project,
@@ -56,20 +61,14 @@ export const getProjectOgCachedRender = async ({
   resolveVariantUrl,
   ogRenderCache,
 } = {}) => {
-  return getProjectStyleOgCachedRender({
-    kind: "project",
+  return resolveProjectOgCachedRender({
     id: String(project?.id || "").trim(),
     ogRenderCache,
-    buildModel: () =>
-      buildProjectOgBaseModel({
-        project,
-        settings,
-        translations,
-        origin,
-        resolveVariantUrl,
-      }),
     origin,
-    buildImageResponse: (model) => buildProjectOgImageResponse(model),
+    project,
+    resolveVariantUrl,
+    settings,
+    translations,
   });
 };
 

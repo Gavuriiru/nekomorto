@@ -3,12 +3,20 @@ import {
   buildLegacyManagedUserUpdate,
   buildRbacManagedUser,
   buildRbacManagedUserUpdate,
+  buildManagedUserAuditChanges,
+  buildManagedUserResponseContext,
   buildReorderedUsers,
   buildSelfResponseUser,
   buildUserApiSnapshot,
-  diffUserFields,
+  canManageUsersAccessWithOwnerGovernance,
+  getLegacyManagedUserDeleteError,
+  getManagedUserDeleteAuthorizationError,
+  getManagedUserUpdateAuthorizationError,
+  hasChangedOwnerManagedUserOrder,
+  hasManagedUserPrivilegeEscalation,
   loadNormalizedOwnerIds,
   rebuildUsersAfterDeletion,
+  resolveManagedUserActorCapabilities,
   syncOwnerIdsAfterUserDeletion,
 } from "./shared.js";
 
@@ -110,10 +118,12 @@ export const registerUserManagementRoutes = ({
     }
 
     const actorContext = getUserAccessContextById(sessionUser?.id);
-    const canCreateUsers =
-      (actorContext.accessRole === AccessRole.OWNER_PRIMARY ||
-        actorContext.accessRole === AccessRole.OWNER_SECONDARY) &&
-      can({ grants: actorContext.grants, permissionId: PermissionId.USUARIOS_ACESSO });
+    const canCreateUsers = canManageUsersAccessWithOwnerGovernance({
+      AccessRole,
+      PermissionId,
+      actorContext,
+      can,
+    });
     if (!canCreateUsers) {
       return res.status(403).json({ error: "forbidden" });
     }
@@ -196,31 +206,29 @@ export const registerUserManagementRoutes = ({
     }
 
     const actorContext = getUserAccessContextById(sessionUser?.id);
-    const canReorderUsers =
-      (actorContext.accessRole === AccessRole.OWNER_PRIMARY ||
-        actorContext.accessRole === AccessRole.OWNER_SECONDARY) &&
-      can({ grants: actorContext.grants, permissionId: PermissionId.USUARIOS_ACESSO });
+    const canReorderUsers = canManageUsersAccessWithOwnerGovernance({
+      AccessRole,
+      PermissionId,
+      actorContext,
+      can,
+    });
     if (!canReorderUsers) {
       return res.status(403).json({ error: "forbidden" });
     }
 
     let users = normalizeUsers(loadUsers());
+    const previousUsers = users;
     users = buildReorderedUsers({ users, orderedIds, retiredIds });
 
-    if (actorContext.accessRole === AccessRole.OWNER_SECONDARY) {
-      const ownerIds = new Set(loadOwnerIds().map((id) => String(id)));
-      const previousOrderById = new Map(
-        normalizeUsers(loadUsers()).map((user) => [user.id, user.order]),
-      );
-      const changedOwnerOrder = users.some((user) => {
-        if (!ownerIds.has(user.id)) {
-          return false;
-        }
-        return user.order !== previousOrderById.get(user.id);
-      });
-      if (changedOwnerOrder) {
-        return res.status(403).json({ error: "owner_reorder_forbidden" });
-      }
+    if (
+      actorContext.accessRole === AccessRole.OWNER_SECONDARY &&
+      hasChangedOwnerManagedUserOrder({
+        loadOwnerIds,
+        previousUsers,
+        users,
+      })
+    ) {
+      return res.status(403).json({ error: "owner_reorder_forbidden" });
     }
 
     persistCurrentUsers({ users });
@@ -244,15 +252,19 @@ export const registerUserManagementRoutes = ({
     const sessionUser = req.session.user;
     const update = req.body || {};
     const existing = users[index];
-    const ownerIds = loadNormalizedOwnerIds(loadOwnerIds);
-    const currentUserSnapshot = buildUserApiSnapshot({
-      applyOwnerRole,
+    const {
+      currentRevision,
+      currentUserSnapshot,
       ownerIds,
+      responseUploads,
+    } = buildManagedUserResponseContext({
+      applyOwnerRole,
+      buildUserProfileRevisionToken,
+      loadOwnerIds,
+      loadUploads,
       user: existing,
       userWithAccessForResponse,
     });
-    const responseUploads = loadUploads();
-    const currentRevision = buildUserProfileRevisionToken(currentUserSnapshot, responseUploads);
 
     if (!isRbacV2Enabled) {
       const isOwnerRequest = isOwner(sessionUser.id);
@@ -336,56 +348,24 @@ export const registerUserManagementRoutes = ({
 
     const actorContext = getUserAccessContextById(sessionUser.id, users);
     const targetContext = getUserAccessContextById(targetId, users);
-    const updateKeys = Object.keys(update);
-    const actorIsPrimary = actorContext.accessRole === AccessRole.OWNER_PRIMARY;
-    const actorIsSecondary = actorContext.accessRole === AccessRole.OWNER_SECONDARY;
-    const actorIsAdmin = actorContext.accessRole === AccessRole.ADMIN;
-    const actorCanUsersBasic = can({
-      grants: actorContext.grants,
-      permissionId: PermissionId.USUARIOS_BASICO,
+    const actorCapabilities = resolveManagedUserActorCapabilities({
+      AccessRole,
+      PermissionId,
+      actorContext,
+      can,
     });
-    const actorCanUsersAccess = can({
-      grants: actorContext.grants,
-      permissionId: PermissionId.USUARIOS_ACESSO,
+    const actorIsPrimary = actorCapabilities.actorIsPrimary;
+    const actorIsSecondary = actorCapabilities.actorIsSecondary;
+    const actorIsAdmin = actorCapabilities.actorIsAdmin;
+    const authorizationError = getManagedUserUpdateAuthorizationError({
+      AccessRole,
+      actorCapabilities,
+      isBasicProfileField,
+      targetContext,
+      update,
     });
-    const touchesBasicFields = updateKeys.some((field) => isBasicProfileField(field));
-    const touchesAccessFields = updateKeys.some((field) => !isBasicProfileField(field));
-
-    if (!actorIsPrimary && !actorIsSecondary && !actorIsAdmin) {
-      return res.status(403).json({ error: "forbidden" });
-    }
-    if (targetContext.isOwner && !actorIsPrimary) {
-      return res.status(403).json({ error: "owner_update_forbidden" });
-    }
-    if (actorIsAdmin) {
-      if (!actorCanUsersBasic) {
-        return res.status(403).json({ error: "users_basic_permission_required" });
-      }
-      const invalidAdminFields = updateKeys.filter((field) => !isBasicProfileField(field));
-      if (invalidAdminFields.length > 0) {
-        return res.status(403).json({ error: "basic_fields_only" });
-      }
-    }
-    if ((actorIsPrimary || actorIsSecondary) && touchesBasicFields && !actorCanUsersBasic) {
-      return res.status(403).json({ error: "users_basic_permission_required" });
-    }
-    if ((actorIsPrimary || actorIsSecondary) && touchesAccessFields && !actorCanUsersAccess) {
-      return res.status(403).json({ error: "users_access_permission_required" });
-    }
-
-    if (targetContext.isPrimaryOwner) {
-      const immutableFields = ["permissions", "status", "accessRole"].filter((field) =>
-        Object.prototype.hasOwnProperty.call(update, field),
-      );
-      if (immutableFields.length > 0) {
-        return res.status(403).json({ error: "primary_owner_immutable" });
-      }
-    }
-    if (
-      Object.prototype.hasOwnProperty.call(update, "accessRole") &&
-      String(update.accessRole || "").includes("owner")
-    ) {
-      return res.status(403).json({ error: "owner_role_requires_owner_governance" });
+    if (authorizationError) {
+      return res.status(403).json({ error: authorizationError });
     }
 
     const noConflict = ensureNoEditConflict({
@@ -435,20 +415,17 @@ export const registerUserManagementRoutes = ({
       id: targetId,
       before: beforeSnapshot,
       after: afterSnapshot,
-      changes: diffUserFields(beforeSnapshot, afterSnapshot, [
-        ...BASIC_PROFILE_FIELDS,
-        "status",
-        "permissions",
-        "roles",
-        "accessRole",
-      ]),
+      changes: buildManagedUserAuditChanges({
+        BASIC_PROFILE_FIELDS,
+        afterSnapshot,
+        beforeSnapshot,
+      }),
     });
 
-    const hasPrivilegeEscalation =
-      JSON.stringify(beforeSnapshot.permissions || []) !==
-        JSON.stringify(afterSnapshot.permissions || []) ||
-      String(beforeSnapshot.accessRole || "") !== String(afterSnapshot.accessRole || "") ||
-      String(beforeSnapshot.status || "") !== String(afterSnapshot.status || "");
+    const hasPrivilegeEscalation = hasManagedUserPrivilegeEscalation({
+      afterSnapshot,
+      beforeSnapshot,
+    });
     if (
       hasPrivilegeEscalation &&
       shouldEmitSecurityRuleEvent("privilege_escalation_warning", `${sessionUser.id}:${targetId}`)
@@ -500,14 +477,15 @@ export const registerUserManagementRoutes = ({
     }
 
     if (!isRbacV2Enabled) {
-      if (!isOwner(sessionUser?.id)) {
-        return res.status(403).json({ error: "forbidden" });
-      }
-      if (primaryOwnerId && String(primaryOwnerId) === targetId) {
-        return res.status(403).json({ error: "cannot_delete_primary_owner" });
-      }
-      if (isOwner(targetId) && !isPrimaryOwner(sessionUser?.id)) {
-        return res.status(403).json({ error: "owner_delete_forbidden" });
+      const legacyDeleteError = getLegacyManagedUserDeleteError({
+        isOwner,
+        isPrimaryOwner,
+        primaryOwnerId,
+        sessionUserId: sessionUser?.id,
+        targetId,
+      });
+      if (legacyDeleteError) {
+        return res.status(403).json({ error: legacyDeleteError });
       }
 
       let users = normalizeUsers(loadUsers());
@@ -546,20 +524,20 @@ export const registerUserManagementRoutes = ({
     const removed = users[index];
     const actorContext = getUserAccessContextById(sessionUser?.id, users);
     const targetContext = getUserAccessContextById(targetId, users);
-    const actorIsPrimary = actorContext.accessRole === AccessRole.OWNER_PRIMARY;
-    const actorIsSecondary = actorContext.accessRole === AccessRole.OWNER_SECONDARY;
-    const actorCanUsersAccess = can({
-      grants: actorContext.grants,
-      permissionId: PermissionId.USUARIOS_ACESSO,
+    const actorCapabilities = resolveManagedUserActorCapabilities({
+      AccessRole,
+      PermissionId,
+      actorContext,
+      can,
     });
-    if ((!actorIsPrimary && !actorIsSecondary) || !actorCanUsersAccess) {
-      return res.status(403).json({ error: "forbidden" });
-    }
-    if (targetContext.isPrimaryOwner || (primaryOwnerId && String(primaryOwnerId) === targetId)) {
-      return res.status(403).json({ error: "cannot_delete_primary_owner" });
-    }
-    if (targetContext.isOwner && !actorIsPrimary) {
-      return res.status(403).json({ error: "owner_delete_forbidden" });
+    const deleteError = getManagedUserDeleteAuthorizationError({
+      actorCapabilities,
+      primaryOwnerId,
+      targetContext,
+      targetId,
+    });
+    if (deleteError) {
+      return res.status(403).json({ error: deleteError });
     }
 
     users = rebuildUsersAfterDeletion(users.filter((user) => user.id !== targetId));

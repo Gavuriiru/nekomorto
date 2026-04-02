@@ -1,7 +1,14 @@
 import {
+  appendApprovedCommentAnalytics,
+  appendCommentCreatedAnalytics,
+  buildApprovedComment,
   buildStoredComment,
+  getPublicCommentRequestError,
+  hasValidCommentParent,
   listAdminComments,
   listPublicCommentsForTarget,
+  normalizePublicCommentRequest,
+  resolveStoredCommentIdentity,
   syncCommentTargetCounts,
   validatePublicCommentTarget,
 } from "./comment-route-shared.js";
@@ -53,39 +60,46 @@ export const registerContentCommentRoutes = ({
   app.post("/api/public/comments", async (req, res) => {
     const sessionUser = req.session?.user || null;
     const isStaff = sessionUser?.id ? canManageComments(sessionUser.id) : false;
-    const { targetType, targetId, parentId, name, email, content, chapterNumber, volume, website } =
-      req.body || {};
-    if (website) {
-      return res.status(400).json({ error: "invalid_payload" });
+    const {
+      chapterNumber,
+      normalizedContent,
+      normalizedEmail,
+      normalizedName,
+      normalizedTargetId,
+      normalizedTargetType,
+      parentId,
+      volume,
+      website,
+    } = normalizePublicCommentRequest({
+      body: req.body,
+      isStaff,
+      normalizeEmail,
+      sessionUser,
+    });
+    const requestError = getPublicCommentRequestError({
+      isStaff,
+      normalizedContent,
+      normalizedEmail,
+      normalizedName,
+      normalizedTargetId,
+      normalizedTargetType,
+      website,
+    });
+    if (requestError) {
+      return res.status(
+        requestError === "content_too_long" ||
+          requestError === "fields_required" ||
+          requestError === "invalid_email" ||
+          requestError === "invalid_payload" ||
+          requestError === "invalid_target" ||
+          requestError === "target_required"
+          ? 400
+          : 500,
+      ).json({ error: requestError });
     }
     const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
     if (!(await canSubmitComment(ip))) {
       return res.status(429).json({ error: "rate_limited" });
-    }
-    const normalizedTargetType = String(targetType || "").toLowerCase();
-    const normalizedTargetId = String(targetId || "").trim();
-    const normalizedName = isStaff
-      ? String(sessionUser?.name || "Equipe").trim()
-      : String(name || "").trim();
-    const normalizedEmail = isStaff ? normalizeEmail(sessionUser?.email) : normalizeEmail(email);
-    const normalizedContent = String(content || "")
-      .trim()
-      .slice(0, 2000);
-
-    if (!normalizedTargetType || !normalizedTargetId) {
-      return res.status(400).json({ error: "target_required" });
-    }
-    if (!["post", "project", "chapter"].includes(normalizedTargetType)) {
-      return res.status(400).json({ error: "invalid_target" });
-    }
-    if (!normalizedName || !normalizedContent) {
-      return res.status(400).json({ error: "fields_required" });
-    }
-    if (!isStaff && normalizedEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail)) {
-      return res.status(400).json({ error: "invalid_email" });
-    }
-    if (normalizedContent.length > 2000) {
-      return res.status(400).json({ error: "content_too_long" });
     }
 
     const posts = normalizePosts(loadPosts());
@@ -105,23 +119,24 @@ export const registerContentCommentRoutes = ({
     }
 
     const comments = loadComments();
-    if (parentId) {
-      const parent = comments.find((comment) => comment.id === String(parentId));
-      if (
-        !parent ||
-        parent.targetType !== normalizedTargetType ||
-        parent.targetId !== normalizedTargetId
-      ) {
-        return res.status(400).json({ error: "invalid_parent" });
-      }
+    if (
+      !hasValidCommentParent({
+        comments,
+        parentId,
+        targetId: normalizedTargetId,
+        targetType: normalizedTargetType,
+      })
+    ) {
+      return res.status(400).json({ error: "invalid_parent" });
     }
 
-    const emailHash = normalizedEmail ? createGravatarHash(normalizedEmail) : "";
-    const avatarUrl = isStaff
-      ? String(sessionUser?.avatarUrl || "")
-      : emailHash
-        ? await resolveGravatarAvatarUrl(emailHash)
-        : "";
+    const { avatarUrl, emailHash } = await resolveStoredCommentIdentity({
+      createGravatarHash,
+      isStaff,
+      normalizedEmail,
+      resolveGravatarAvatarUrl,
+      sessionUser,
+    });
     const now = new Date().toISOString();
     const newComment = buildStoredComment({
       avatarUrl,
@@ -138,28 +153,11 @@ export const registerContentCommentRoutes = ({
 
     comments.push(newComment);
     writeComments(comments);
-    appendAnalyticsEvent(req, {
-      eventType: "comment_created",
-      resourceType: "comment",
-      resourceId: newComment.id,
-      meta: {
-        targetType: normalizedTargetType,
-        targetId: normalizedTargetId,
-        status: newComment.status,
-      },
+    appendCommentCreatedAnalytics({
+      appendAnalyticsEvent,
+      comment: newComment,
+      req,
     });
-    if (newComment.status === "approved") {
-      appendAnalyticsEvent(req, {
-        eventType: "comment_approved",
-        resourceType: "comment",
-        resourceId: newComment.id,
-        meta: {
-          targetType: normalizedTargetType,
-          targetId: normalizedTargetId,
-          status: newComment.status,
-        },
-      });
-    }
     return res.json({ comment: { id: newComment.id, status: newComment.status } });
   });
 
@@ -234,15 +232,10 @@ export const registerContentCommentRoutes = ({
       result.processedComments.length > 0
     ) {
       result.processedComments.forEach((comment) => {
-        appendAnalyticsEvent(req, {
-          eventType: "comment_approved",
-          resourceType: "comment",
-          resourceId: String(comment.id || ""),
-          meta: {
-            targetType: comment.targetType,
-            targetId: comment.targetId,
-            status: "approved",
-          },
+        appendApprovedCommentAnalytics({
+          appendAnalyticsEvent,
+          comment,
+          req,
         });
       });
 
@@ -296,11 +289,7 @@ export const registerContentCommentRoutes = ({
     if (existing.status === "approved") {
       return res.json({ ok: true });
     }
-    comments[index] = {
-      ...existing,
-      status: "approved",
-      approvedAt: new Date().toISOString(),
-    };
+    comments[index] = buildApprovedComment(existing);
     writeComments(comments);
 
     syncCommentTargetCounts({
@@ -315,15 +304,10 @@ export const registerContentCommentRoutes = ({
       writePosts,
       writeProjects,
     });
-    appendAnalyticsEvent(req, {
-      eventType: "comment_approved",
-      resourceType: "comment",
-      resourceId: existing.id,
-      meta: {
-        targetType: existing.targetType,
-        targetId: existing.targetId,
-        status: "approved",
-      },
+    appendApprovedCommentAnalytics({
+      appendAnalyticsEvent,
+      comment: existing,
+      req,
     });
 
     return res.json({ ok: true });
