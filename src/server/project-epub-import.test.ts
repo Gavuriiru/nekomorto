@@ -443,7 +443,7 @@ describe("project EPUB import", () => {
     const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
     const windowGetterSpy = vi
       .spyOn(JSDOM.prototype, "window", "get")
-      .mockImplementation(function () {
+      .mockImplementation(function (this: JSDOM) {
         const nextWindow = originalWindowDescriptor?.get?.call(this);
         if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
           nextWindow.getComputedStyle = () => {
@@ -499,7 +499,7 @@ describe("project EPUB import", () => {
     const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
     const windowGetterSpy = vi
       .spyOn(JSDOM.prototype, "window", "get")
-      .mockImplementation(function () {
+      .mockImplementation(function (this: JSDOM) {
         const nextWindow = originalWindowDescriptor?.get?.call(this);
         if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
           nextWindow.getComputedStyle = () => {
@@ -554,7 +554,7 @@ describe("project EPUB import", () => {
     const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
     const windowGetterSpy = vi
       .spyOn(JSDOM.prototype, "window", "get")
-      .mockImplementation(function () {
+      .mockImplementation(function (this: JSDOM) {
         const nextWindow = originalWindowDescriptor?.get?.call(this);
         if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
           nextWindow.getComputedStyle = () => {
@@ -965,7 +965,7 @@ describe("project EPUB import", () => {
     const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
     const windowGetterSpy = vi
       .spyOn(JSDOM.prototype, "window", "get")
-      .mockImplementation(function () {
+      .mockImplementation(function (this: JSDOM) {
         const nextWindow = originalWindowDescriptor?.get?.call(this);
         if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
           nextWindow.getComputedStyle = () => {

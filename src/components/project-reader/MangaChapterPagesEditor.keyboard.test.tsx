@@ -35,7 +35,7 @@ const createProjectFixture = (): Project => ({
 const createPageFixtures = (
   count: number,
   spreadPairId?: string,
-): ProjectEpisode["pages"] =>
+): NonNullable<ProjectEpisode["pages"]> =>
   Array.from({ length: count }, (_, index) => ({
     position: index + 1,
     imageUrl: `https://cdn.test/page-${index + 1}.jpg`,
@@ -43,7 +43,9 @@ const createPageFixtures = (
   }));
 
 const createChapterFixture = (overrides: Partial<ProjectEpisode> = {}): ProjectEpisode => {
-  const pages = Array.isArray(overrides.pages) ? overrides.pages : createPageFixtures(2);
+  const pages: NonNullable<ProjectEpisode["pages"]> = Array.isArray(overrides.pages)
+    ? overrides.pages
+    : createPageFixtures(2);
 
   return {
     number: 3,
@@ -67,7 +69,7 @@ const createChapterFixture = (overrides: Partial<ProjectEpisode> = {}): ProjectE
 };
 
 const getPageOrder = () =>
-  screen.getAllByTestId("upload-picture").map((node) => node.getAttribute("src"));
+  screen.getAllByTestId("upload-picture").map((node) => node.getAttribute("src") || "");
 
 const renderKeyboardEditor = (initialChapter = createChapterFixture()) => {
   const Harness = () => {

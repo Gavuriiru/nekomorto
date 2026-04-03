@@ -2090,9 +2090,7 @@ const DashboardUsers = () => {
                                     <SelectContent align="start">
                                       {availableLinkTypes.map((option) => {
                                         const isCustomIcon = isIconUrl(option.icon);
-                                        const Icon = !isCustomIcon
-                                          ? socialIconMap[option.icon] || Globe
-                                          : null;
+                                        const Icon = socialIconMap[option.icon] || Globe;
                                         return (
                                           <SelectItem
                                             key={option.id}

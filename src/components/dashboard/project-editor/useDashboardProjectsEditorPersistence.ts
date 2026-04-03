@@ -134,8 +134,9 @@ export const useDashboardProjectsEditorPersistence = ({
         setEditorAccordionValue((prev) =>
           prev.includes("episodios") ? prev : [...prev, "episodios"],
         );
-        if (Number.isInteger(savePreparation.duplicateEpisodeIndex)) {
-          revealEpisodeAtIndex(savePreparation.duplicateEpisodeIndex);
+        const duplicateEpisodeIndex = savePreparation.duplicateEpisodeIndex;
+        if (typeof duplicateEpisodeIndex === "number" && Number.isInteger(duplicateEpisodeIndex)) {
+          revealEpisodeAtIndex(duplicateEpisodeIndex);
         }
         toast({
           title: "Capítulos duplicados",
@@ -163,8 +164,12 @@ export const useDashboardProjectsEditorPersistence = ({
         title: "Corrija os tamanhos inválidos",
         description: "Use valores como 700 MB ou 1.4 GB antes de salvar.",
       });
-      if (Number.isInteger(savePreparation.firstInvalidEpisodeSizeIndex)) {
-        episodeSizeInputRefs.current[savePreparation.firstInvalidEpisodeSizeIndex]?.focus();
+      const firstInvalidEpisodeSizeIndex = savePreparation.firstInvalidEpisodeSizeIndex;
+      if (
+        typeof firstInvalidEpisodeSizeIndex === "number" &&
+        Number.isInteger(firstInvalidEpisodeSizeIndex)
+      ) {
+        episodeSizeInputRefs.current[firstInvalidEpisodeSizeIndex]?.focus();
       }
       return;
     }

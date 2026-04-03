@@ -1390,9 +1390,11 @@ describe("DashboardProjectChapterEditor", () => {
 
   it("reordena capitulos de light novel na sidebar de forma otimista e renormaliza readingOrder", async () => {
     let capturedProjectPayload: Record<string, unknown> | null = null;
-    let resolveProjectSave: ((value: Response) => void) | null = null;
+    const projectSaveState = {
+      resolve: null as ((value: Response) => void) | null,
+    };
     const pendingProjectSave = new Promise<Response>((resolve) => {
-      resolveProjectSave = resolve;
+      projectSaveState.resolve = resolve;
     });
     setupApiMock({
       projectSaveResponse: ({ payload }) => {
@@ -1435,7 +1437,11 @@ describe("DashboardProjectChapterEditor", () => {
       ]);
     });
 
-    resolveProjectSave?.(
+    const completeProjectSave = projectSaveState.resolve;
+    if (!completeProjectSave) {
+      throw new Error("Expected pending project save");
+    }
+    completeProjectSave(
       mockJsonResponse(true, {
         project: {
           ...buildProject(),
@@ -1451,9 +1457,11 @@ describe("DashboardProjectChapterEditor", () => {
   });
 
   it("restaura a ordem anterior na sidebar quando a reordenacao falha", async () => {
-    let resolveProjectSave: ((value: Response) => void) | null = null;
+    const projectSaveState = {
+      resolve: null as ((value: Response) => void) | null,
+    };
     const pendingProjectSave = new Promise<Response>((resolve) => {
-      resolveProjectSave = resolve;
+      projectSaveState.resolve = resolve;
     });
     setupApiMock({
       projectSaveResponse: pendingProjectSave,
@@ -1469,7 +1477,11 @@ describe("DashboardProjectChapterEditor", () => {
       expect(getStructureGroupChapterOrder("2")).toEqual(["2:2", "1:2"]);
     });
 
-    resolveProjectSave?.(mockJsonResponse(false, { error: "save_failed" }, 500));
+    const failProjectSave = projectSaveState.resolve;
+    if (!failProjectSave) {
+      throw new Error("Expected pending project save");
+    }
+    failProjectSave(mockJsonResponse(false, { error: "save_failed" }, 500));
 
     await waitFor(() => {
       expect(getStructureGroupChapterOrder("2")).toEqual(["1:2", "2:2"]);
@@ -4189,7 +4201,7 @@ describe("DashboardProjectChapterEditor", () => {
     const scrollByMock = vi.mocked(window.scrollBy);
     const rectSpy = vi
       .spyOn(HTMLElement.prototype, "getBoundingClientRect")
-      .mockImplementation(function () {
+      .mockImplementation(function (this: HTMLElement) {
         const testId = this.getAttribute("data-testid");
         if (testId === "chapter-structure-group-4") {
           const pathname =

@@ -357,7 +357,7 @@ function ShowClearDialog({
   );
 }
 
-function Divider(): JSX.Element {
+function Divider(): JSX.Element | null {
   return null;
 }
 

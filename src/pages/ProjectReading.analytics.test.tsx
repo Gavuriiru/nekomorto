@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { MemoryRouter, useLocation, useNavigationType } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Project, ProjectEpisode } from "@/data/projects";
 import { PUBLIC_ANALYTICS_INGEST_PATH } from "@/lib/public-analytics";
 import ProjectReading from "@/pages/ProjectReading";
 
@@ -129,30 +130,57 @@ const ProjectReadingLocationProbe = () => {
   );
 };
 
-const createProjectFixture = (episodeDownloads?: Array<Record<string, unknown>>) => ({
+const createReadingEpisodeFixture = (
+  overrides: Partial<ProjectEpisode> = {},
+): ProjectEpisode => ({
+  number: 1,
+  title: "Capitulo 1",
+  synopsis: "",
+  releaseDate: "",
+  duration: "",
+  sourceType: "TV",
+  sources: [],
+  ...overrides,
+});
+
+type ProjectEpisodeFixture = Partial<ProjectEpisode> &
+  Pick<ProjectEpisode, "number" | "title">;
+
+const createProjectFixture = (episodeDownloads?: ProjectEpisodeFixture[]): Project => ({
   id: "projeto-teste",
   title: "Projeto Teste",
   synopsis: "Sinopse",
+  description: "",
   type: "Light Novel",
+  status: "",
+  year: "",
+  studio: "",
+  episodes: "",
+  tags: [],
   cover: "/uploads/project-cover.jpg",
+  banner: "",
+  season: "",
+  schedule: "",
+  rating: "",
+  staff: [],
   volumeEntries: [],
   volumeCovers: [],
-  episodeDownloads: episodeDownloads || [
-    {
+  episodeDownloads: episodeDownloads?.map((episode) => createReadingEpisodeFixture(episode)) || [
+    createReadingEpisodeFixture({
       number: 1,
       volume: 2,
       title: "Capitulo 1",
       synopsis: "Resumo do capitulo",
       content: "<p>Conteudo</p>",
-    },
+    }),
   ],
 });
 
 const setupProjectReadingApiMock = (
-  episodeDownloads?: Array<Record<string, unknown>>,
+  episodeDownloads?: ProjectEpisodeFixture[],
   permissions: string[] | null = null,
   options?: {
-    project?: ReturnType<typeof createProjectFixture>;
+    project?: Project;
     chapterEndpoint?: string;
     chapterResponse?: Record<string, unknown> | null;
     readerConfig?: Record<string, unknown> | null;

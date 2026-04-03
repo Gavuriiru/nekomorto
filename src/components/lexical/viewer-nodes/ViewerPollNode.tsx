@@ -53,7 +53,7 @@ const cloneOption = (option: ViewerPollOption, text: string, votes?: string[]) =
 });
 
 const parseOptions = (json: unknown): ViewerPollOptions => {
-  const options = [];
+  const options: ViewerPollOption[] = [];
   if (Array.isArray(json)) {
     for (const row of json) {
       if (

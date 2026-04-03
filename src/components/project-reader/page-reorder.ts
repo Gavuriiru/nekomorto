@@ -32,15 +32,10 @@ export const buildPreviewReorderList = <T>(
   fromIndex: number | null | undefined,
   toIndex: number | null | undefined,
 ) => {
-  if (
-    !Number.isFinite(fromIndex) ||
-    !Number.isFinite(toIndex) ||
-    fromIndex === null ||
-    toIndex === null
-  ) {
+  if (!Number.isFinite(fromIndex) || !Number.isFinite(toIndex)) {
     return items;
   }
-  return reorderList(items, fromIndex, toIndex);
+  return reorderList(items, Number(fromIndex), Number(toIndex));
 };
 
 export const getReorderLayoutTransition = (reduceMotion = false): Transition =>

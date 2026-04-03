@@ -400,6 +400,8 @@ const ProjectPage = () => {
   }, [project?.relations, projectDirectory]);
 
   const projectType = project?.type || "";
+  const projectId = project?.id || "";
+  const projectFallbackCardImage = project?.banner || project?.cover || "/placeholder.svg";
   const isManga = isMangaType(projectType);
   const isLightNovel = isLightNovelType(projectType);
   const isChapterBased = isChapterBasedType(projectType);
@@ -508,7 +510,7 @@ const ProjectPage = () => {
         <CardContent className="relative grid h-full gap-4 p-4 md:grid-cols-[316px_minmax(0,1fr)] md:items-start md:gap-4 md:p-4">
           <div className="w-full overflow-hidden rounded-xl border border-border/40 bg-background/50 shadow-inner md:h-[178px] md:w-[316px]">
             <UploadPicture
-              src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
+              src={episode.coverImageUrl || projectFallbackCardImage}
               alt={`Prévia de ${episode.title}`}
               preset="cardWide"
               mediaVariants={mediaVariants}
@@ -671,7 +673,7 @@ const ProjectPage = () => {
     const readAction: EpisodeReadAction | null =
       allowReadAction && hasContent
         ? {
-            href: buildProjectPublicReadingHref(project.id, chapter.number, chapter.volume),
+            href: buildProjectPublicReadingHref(projectId, chapter.number, chapter.volume),
             label: isExtraEntry
               ? "Ler extra"
               : hasPages && !hasSources

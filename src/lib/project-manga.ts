@@ -179,7 +179,7 @@ export const normalizeProjectImageImportJob = (value: unknown): ProjectImageImpo
     finishedAt: toNullableIso(source.finishedAt),
     expiresAt: toNullableIso(source.expiresAt),
     hasResult: Boolean(source.hasResult),
-    result: normalizeProjectImageImportPreviewPayload(source.result),
+    result: normalizeProjectImageImportPreviewPayload(source.result) || undefined,
   };
 };
 

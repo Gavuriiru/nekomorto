@@ -84,7 +84,7 @@ describe("Post SEO image meta", () => {
   });
 
   it("falls back to default share image before load and switches to post OG route after load", async () => {
-    let resolvePostRequest = (_value: Response) => undefined;
+    let resolvePostRequest: (value: Response | PromiseLike<Response>) => void = () => undefined;
     const postRequest = new Promise<Response>((resolve) => {
       resolvePostRequest = resolve;
     });

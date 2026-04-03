@@ -24,13 +24,22 @@ describe("clamp safe contract", () => {
     expect(baseBlock).toContain("padding-bottom: var(--clamp-safe-padding-bottom);");
     expect(baseBlock).toContain("margin-bottom: calc(-1 * var(--clamp-safe-padding-bottom));");
 
-    expect(cssSource).toMatch(/\.clamp-safe-1\s*\{\s*-webkit-line-clamp: 1;\s*\}/);
-    expect(cssSource).toMatch(/\.clamp-safe-2\s*\{\s*-webkit-line-clamp: 2;\s*\}/);
+    expect(cssSource).toMatch(
+      /\.clamp-safe-1\s*\{[\s\S]*?line-clamp: 1;[\s\S]*?-webkit-line-clamp: 1;[\s\S]*?\n  \}/,
+    );
+    expect(cssSource).toMatch(
+      /\.clamp-safe-2\s*\{[\s\S]*?line-clamp: 2;[\s\S]*?-webkit-line-clamp: 2;[\s\S]*?\n  \}/,
+    );
   });
 
   it("defines the large-screen single-line clamp override for dashboard cards", () => {
-    expect(cssSource).toMatch(
-      /@media \(min-width: 1024px\)\s*\{[\s\S]*?\.lg\\:clamp-safe-1\s*\{[\s\S]*?display: -webkit-box;[\s\S]*?overflow: hidden;[\s\S]*?-webkit-line-clamp: 1;[\s\S]*?\n  \}/,
+    const largeScreenClampBlock = extractBlock(
+      /@media \(min-width: 1024px\)\s*\{[\s\S]*?\.lg\\:clamp-safe-1\s*\{([\s\S]*?)\n    \}/,
     );
+
+    expect(largeScreenClampBlock).toContain("display: -webkit-box;");
+    expect(largeScreenClampBlock).toContain("overflow: hidden;");
+    expect(largeScreenClampBlock).toContain("line-clamp: 1;");
+    expect(largeScreenClampBlock).toContain("-webkit-line-clamp: 1;");
   });
 });

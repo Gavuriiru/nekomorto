@@ -41,6 +41,13 @@ type RecruitmentRole = {
   icon?: keyof typeof iconMap;
 };
 
+type RecruitmentPageRole = Omit<RecruitmentRole, "icon"> & {
+  icon?: string;
+};
+
+const isRecruitmentIconKey = (value: string | undefined): value is keyof typeof iconMap =>
+  typeof value === "string" && value in iconMap;
+
 const defaultRecruitment = {
   shareImage: "",
   shareImageAlt: "",
@@ -109,9 +116,10 @@ const Recruitment = () => {
     if (!incoming) {
       return defaultRecruitment;
     }
-    const roles = (incoming.roles || defaultRecruitment.roles).map((role: RecruitmentRole) => ({
-      icon: role.icon || "Sparkles",
-      ...role,
+    const roles = (incoming.roles || defaultRecruitment.roles).map((role: RecruitmentPageRole) => ({
+      title: role.title,
+      description: role.description,
+      icon: isRecruitmentIconKey(role.icon) ? role.icon : "Sparkles",
     }));
     return {
       ...defaultRecruitment,
@@ -149,7 +157,7 @@ const Recruitment = () => {
         >
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {recruitment.roles.map((role, index) => {
-              const Icon = iconMap[role.icon || "Sparkles"] || Sparkles;
+              const Icon = isRecruitmentIconKey(role.icon) ? iconMap[role.icon] : Sparkles;
               return (
                 <Card
                   key={role.title}

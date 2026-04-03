@@ -7,7 +7,7 @@ import {
 
 describe("project normalized-domain-store round-trip", () => {
   it("preserva animationStudios ao serializar e reidratar projetos", async () => {
-    const storedRows = [];
+    const storedRows: Array<Record<string, any>> = [];
     const db = {
       $transaction: vi.fn(async (operations) => Promise.all(operations)),
       projectV2Record: {

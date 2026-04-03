@@ -161,7 +161,7 @@ export function useChapterEditorImageLibrary({
   ]);
 
   return {
-    chapterFolder: chapterImageLibraryOptions.uploadFolder,
+    chapterFolder: chapterImageLibraryOptions.uploadFolder || "",
     chapterImageLibraryOptions,
     libraryDialogProps,
     openChapterCoverLibrary,

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 
 import { isAvatarSlotSelection } from "@/components/image-library/avatar-selection";
 import { getUploadPermissionToastTitle } from "@/components/image-library/messages";
@@ -19,8 +19,8 @@ type UseImageLibraryCropMutationsParams = {
   loadUploads: (options?: { includeUrls?: string[] }) => Promise<unknown>;
   onRequestRevealUpload: (url: string, options?: { openCrop?: boolean }) => void;
   scopeUserId?: string;
-  setIsCropDialogOpen: (value: boolean) => void;
-  setSelectedUrls: (value: string[] | ((prev: string[]) => string[])) => void;
+  setIsCropDialogOpen: Dispatch<SetStateAction<boolean>>;
+  setSelectedUrls: Dispatch<SetStateAction<string[]>>;
   uploadFolder?: string;
 };
 
@@ -33,11 +33,9 @@ type UseImageLibraryCropMutationsResult = {
   isApplyingCrop: boolean;
   isSavingFocal: boolean;
   saveFocalPoint: () => Promise<void>;
-  setActiveFocalPreset: (value: UploadFocalPresetKey) => void;
-  setFocalCropDraft: (
-    value: UploadFocalCrops | ((prev: UploadFocalCrops) => UploadFocalCrops),
-  ) => void;
-  setFocalTarget: (value: LibraryImageItem | null) => void;
+  setActiveFocalPreset: Dispatch<SetStateAction<UploadFocalPresetKey>>;
+  setFocalCropDraft: Dispatch<SetStateAction<UploadFocalCrops>>;
+  setFocalTarget: Dispatch<SetStateAction<LibraryImageItem | null>>;
 };
 
 export const useImageLibraryCropMutations = ({

@@ -21,15 +21,20 @@ const createResponse = () => {
 
 describe("registerProjectWriteRoutes", () => {
   it("salva projetos existentes usando collectEpisodeUpdatesByVisibility sem estourar erro", async () => {
-    let updateHandler:
-      | ((req: Record<string, unknown>, res: ReturnType<typeof createResponse>) => Promise<unknown>)
-      | null = null;
+    const routeState = {
+      updateHandler: null as
+        | ((
+            req: Record<string, unknown>,
+            res: ReturnType<typeof createResponse>,
+          ) => Promise<unknown>)
+        | null,
+    };
 
     const app = {
       post: vi.fn(),
-      put: vi.fn((path: string, _middleware: unknown, handler: typeof updateHandler) => {
+      put: vi.fn((path: string, _middleware: unknown, handler: typeof routeState.updateHandler) => {
         if (path === "/api/projects/:id") {
-          updateHandler = handler;
+          routeState.updateHandler = handler;
         }
       }),
       delete: vi.fn(),
@@ -97,10 +102,14 @@ describe("registerProjectWriteRoutes", () => {
       upsertUploadEntries: vi.fn(),
     });
 
+    const updateHandler = routeState.updateHandler;
     expect(updateHandler).toBeTypeOf("function");
+    if (!updateHandler) {
+      throw new Error("Expected project update handler");
+    }
 
     const response = createResponse();
-    await updateHandler?.(
+    await updateHandler(
       {
         session: { user: { id: "owner-1" } },
         params: { id: "105333" },

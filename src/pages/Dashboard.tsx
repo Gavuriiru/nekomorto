@@ -597,10 +597,9 @@ const Dashboard = () => {
   const operationalCheckFindings = operationalAlerts?.checkFindings ?? [];
   const hasOperationalReasons =
     operationalActiveAlerts.length > 0 || operationalCheckFindings.length > 0;
+  const operationalStatus = operationalAlerts?.status;
   const hasStatusWithoutReason =
-    Boolean(operationalAlerts) &&
-    (operationalAlerts.status === "degraded" || operationalAlerts.status === "fail") &&
-    !hasOperationalReasons;
+    (operationalStatus === "degraded" || operationalStatus === "fail") && !hasOperationalReasons;
   const rolePresetWidgets = DASHBOARD_ROLE_PRESETS[homeRole];
   const selectedWidgetsByRole = useMemo(
     () =>

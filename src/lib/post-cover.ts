@@ -147,9 +147,12 @@ export const extractFirstImageFromPostContent = (
   if (!htmlCandidate && markdownCandidate) {
     return markdownCandidate;
   }
-  return htmlCandidate.index <= (markdownCandidate?.index ?? Number.MAX_SAFE_INTEGER)
-    ? htmlCandidate
-    : markdownCandidate;
+  if (!htmlCandidate || !markdownCandidate) {
+    return null;
+  }
+  const htmlIndex = htmlCandidate.index ?? Number.MAX_SAFE_INTEGER;
+  const markdownIndex = markdownCandidate.index ?? Number.MAX_SAFE_INTEGER;
+  return htmlIndex <= markdownIndex ? htmlCandidate : markdownCandidate;
 };
 
 export const resolvePostCoverPreview = (post: PostCoverPreviewInput): PostCoverResolution => {

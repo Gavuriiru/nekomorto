@@ -174,7 +174,9 @@ export const mapProjectImageItemsToLibraryItems = (
     allowedProjectImageIdSet.size > 0
       ? mapped.filter(
           (item): item is LibraryImageItem =>
-            Boolean(item?.projectId) && allowedProjectImageIdSet.has(String(item.projectId)),
+            item !== null &&
+            Boolean(item.projectId) &&
+            allowedProjectImageIdSet.has(String(item.projectId)),
         )
       : mapped.filter((item): item is LibraryImageItem => Boolean(item));
 

@@ -24,8 +24,10 @@ describe("data-repository-basic-runtime", () => {
 
   it("delegates owner, user and link-type repository helpers with lazy normalizers", () => {
     const dataRepository = createRepository();
-    let normalizeUsersImpl = null;
-    let normalizeUploadsDeepImpl = null;
+    let normalizeUsersImpl:
+      | ((users: Array<Record<string, unknown>>) => Array<Record<string, unknown>>)
+      | null = null;
+    let normalizeUploadsDeepImpl: ((value: unknown) => { wrapped: unknown }) | null = null;
 
     const runtime = createDataRepositoryBasicRuntime({
       dataRepository,

@@ -814,17 +814,21 @@ describe("project og helper", () => {
     const titleNode = findElement(
       scene,
       (candidate) =>
-        candidate.props?.style &&
-        (candidate.props.style as Record<string, unknown>).fontWeight === 700 &&
-        (candidate.props.style as Record<string, unknown>).left === model.layout.titleLeft &&
-        (candidate.props.style as Record<string, unknown>).top === model.layout.titleTop,
+        Boolean(
+          candidate.props?.style &&
+            (candidate.props.style as Record<string, unknown>).fontWeight === 700 &&
+            (candidate.props.style as Record<string, unknown>).left === model.layout.titleLeft &&
+            (candidate.props.style as Record<string, unknown>).top === model.layout.titleTop,
+        ),
     );
     const tagsNode = findElement(
       scene,
       (candidate) =>
-        candidate.props?.style &&
-        (candidate.props.style as Record<string, unknown>).left === model.layout.tagsLeft &&
-        (candidate.props.style as Record<string, unknown>).top === model.layout.tagsTop,
+        Boolean(
+          candidate.props?.style &&
+            (candidate.props.style as Record<string, unknown>).left === model.layout.tagsLeft &&
+            (candidate.props.style as Record<string, unknown>).top === model.layout.tagsTop,
+        ),
     );
 
     expect(titleNode).not.toBeNull();

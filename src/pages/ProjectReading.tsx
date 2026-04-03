@@ -600,11 +600,12 @@ const ProjectReading = () => {
   }, [apiBase, chapterNumber, project?.id, volumeParam]);
 
   useEffect(() => {
-    if (!project?.id || !Number.isFinite(chapterContent?.number)) {
+    const currentChapterContent = chapterContent;
+    if (!project?.id || !currentChapterContent || !Number.isFinite(currentChapterContent.number)) {
       return;
     }
-    const chapterValue = Number(chapterContent.number);
-    const volumeValue = Number(chapterContent.volume);
+    const chapterValue = Number(currentChapterContent.number);
+    const volumeValue = Number(currentChapterContent.volume);
     const resourceId = `${project.id}:${chapterValue}:${Number.isFinite(volumeValue) ? volumeValue : 0}`;
     if (trackedChapterViewsRef.current.has(resourceId)) {
       return;

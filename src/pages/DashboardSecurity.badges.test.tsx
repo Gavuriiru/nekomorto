@@ -44,12 +44,15 @@ const createDeferredResponse = () => {
   return {
     promise,
     resolve: (value: Response) => {
-      resolve?.(value);
+      if (!resolve) {
+        throw new Error("Expected deferred response resolver");
+      }
+      resolve(value);
     },
   };
 };
 const classTokens = (element: Element | null) =>
-  String(element.className).split(/\s+/).filter(Boolean);
+  String(element?.className || "").split(/\s+/).filter(Boolean);
 
 describe("DashboardSecurity semantic badges", () => {
   beforeEach(() => {

@@ -35,7 +35,7 @@ export const episodeHeaderNoToggleSelector = [
   '[contenteditable="true"]',
 ].join(", ");
 
-export const shouldSkipEpisodeHeaderToggle = (target: EventTarget | null) => {
+export const shouldSkipEpisodeHeaderToggle = (target: EventTarget | null | undefined) => {
   if (!(target instanceof Element)) {
     return false;
   }

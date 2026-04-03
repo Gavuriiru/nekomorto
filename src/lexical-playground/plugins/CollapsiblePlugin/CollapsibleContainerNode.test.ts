@@ -49,6 +49,10 @@ describe("CollapsibleContainerNode", () => {
       __open: false,
     } as never).element;
 
+    expect(element).not.toBeNull();
+    if (!(element instanceof HTMLElement)) {
+      throw new Error("Expected exported collapsible element");
+    }
     expect(element.hasAttribute("open")).toBe(false);
   });
 
@@ -57,6 +61,10 @@ describe("CollapsibleContainerNode", () => {
       __open: true,
     } as never).element;
 
+    expect(element).not.toBeNull();
+    if (!(element instanceof HTMLElement)) {
+      throw new Error("Expected exported collapsible element");
+    }
     expect(element.hasAttribute("open")).toBe(true);
   });
 });

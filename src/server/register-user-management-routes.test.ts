@@ -6,14 +6,20 @@ import { registerUserManagementRoutes } from "../../server/routes/user/register-
 const cloneJson = (value) => JSON.parse(JSON.stringify(value));
 
 const createAppRecorder = () => {
-  const routes = [];
-  const register = (method) => (path, ...handlers) => {
-    routes.push({
-      handlers,
-      method,
-      path,
-    });
-  };
+  const routes: Array<{
+    method: string;
+    path: string;
+    handlers: Array<(...args: any[]) => unknown>;
+  }> = [];
+  const register =
+    (method: string) =>
+    (path: string, ...handlers: Array<(...args: any[]) => unknown>) => {
+      routes.push({
+        handlers,
+        method,
+        path,
+      });
+    };
 
   return {
     app: {
@@ -29,7 +35,7 @@ const getRoute = (routes, method, path) =>
   routes.find((route) => route.method === method && route.path === path);
 
 const createMockRes = () => ({
-  body: null,
+  body: null as any,
   statusCode: 200,
   status(code) {
     this.statusCode = code;

@@ -38,7 +38,7 @@ export const scheduleOnBrowserLoadIdle = (
     return () => undefined;
   }
 
-  let cancelIdle = () => undefined;
+  let cancelIdle: () => void = () => undefined;
   let delayHandle: number | null = null;
   let isCancelled = false;
   const delayMs = Math.max(0, Number(options.delayMs || 0));

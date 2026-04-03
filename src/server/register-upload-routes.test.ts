@@ -6,10 +6,14 @@ import { describe, expect, it, vi } from "vitest";
 import { registerUploadRoutes } from "../../server/routes/register-upload-routes.js";
 
 const createAppRecorder = () => {
-  const routes = [];
+  const routes: Array<{
+    method: string;
+    path: string;
+    handlers: Array<(...args: any[]) => unknown>;
+  }> = [];
   const register =
-    (method) =>
-    (path, ...handlers) => {
+    (method: string) =>
+    (path: string, ...handlers: Array<(...args: any[]) => unknown>) => {
       routes.push({
         method,
         path,
@@ -34,7 +38,7 @@ const getRoute = (routes, method, path) =>
 
 const createMockRes = () => ({
   statusCode: 200,
-  body: null,
+  body: null as any,
   status(code) {
     this.statusCode = code;
     return this;

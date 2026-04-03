@@ -67,7 +67,7 @@ describe("Project SEO image meta", () => {
   });
 
   it("falls back to the default share image before project data loads and switches to the OG route after load", async () => {
-    let resolveProjectRequest = (_value: Response) => undefined;
+    let resolveProjectRequest: (value: Response | PromiseLike<Response>) => void = () => undefined;
     const projectRequest = new Promise<Response>((resolve) => {
       resolveProjectRequest = resolve;
     });

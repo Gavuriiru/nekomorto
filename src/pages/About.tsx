@@ -43,6 +43,9 @@ const iconMap: Record<string, typeof Heart> = {
   Shield,
 };
 
+const resolveAboutIcon = (iconName: string | undefined, fallback: typeof Heart) =>
+  (iconName ? iconMap[iconName] : undefined) || fallback;
+
 const defaultAbout = {
   shareImage: "",
   shareImageAlt: "",
@@ -177,7 +180,7 @@ const About = () => {
           <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="space-y-4">
               {about.highlights.map((item) => {
-                const HighlightIcon = iconMap[item.icon] || Sparkles;
+                const HighlightIcon = resolveAboutIcon(item.icon, Sparkles);
                 return (
                   <div
                     key={item.label}
@@ -202,7 +205,7 @@ const About = () => {
                   className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelSm}`}
                 >
                   {(() => {
-                    const ManifestoIcon = iconMap[about.manifestoIcon] || Flame;
+                    const ManifestoIcon = resolveAboutIcon(about.manifestoIcon, Flame);
                     return <ManifestoIcon className={publicPageLayoutTokens.sectionLabelIcon} />;
                   })()}
                   {about.manifestoTitle}
@@ -226,7 +229,7 @@ const About = () => {
         >
           <div className="grid gap-6 md:grid-cols-3">
             {about.pillars.map((pillar) => {
-              const Icon = iconMap[pillar.icon] || Sparkles;
+              const Icon = resolveAboutIcon(pillar.icon, Sparkles);
               return (
                 <Card
                   key={pillar.title}
@@ -255,7 +258,7 @@ const About = () => {
         >
           <div className="grid gap-6 md:grid-cols-2">
             {about.values.map((value) => {
-              const Icon = iconMap[value.icon] || Sparkles;
+              const Icon = resolveAboutIcon(value.icon, Sparkles);
               return (
                 <Card
                   key={value.title}

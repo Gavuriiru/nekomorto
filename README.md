@@ -142,6 +142,8 @@ Checks de qualidade:
 
 ```bash
 npm run lint
+npm run typecheck
+npm run typecheck:ts7-preview
 npm run test
 npm run test:a11y
 ```
@@ -263,7 +265,7 @@ Fluxo recomendado para quem esta trabalhando no produto no dia a dia:
 1. No primeiro clone, rode `npm install` e `npm run setup:dev`.
 2. Para o fluxo padrao, trabalhe em `npm run dev` e acesse `http://localhost:8080`.
 3. Use `npm run dev:client:local-api` apenas quando precisar isolar o frontend em `5173` consumindo a API local.
-4. Antes de abrir PR, rode pelo menos `npm run lint`, `npm run test` e `npm run test:a11y`.
+4. Antes de abrir PR, rode pelo menos `npm run lint`, `npm run typecheck`, `npm run test` e `npm run test:a11y`.
 5. Antes de validar publicacao local em modo producao, rode `npm run build` e `npm run api:smoke -- --base=http://localhost:8080`.
 
 ### 6.5 Qualidade, acessibilidade e auditoria
@@ -271,6 +273,8 @@ Fluxo recomendado para quem esta trabalhando no produto no dia a dia:
 Checks base:
 
 - `npm run lint`: validacao estaticas com Biome.
+- `npm run typecheck`: validacao de tipos com TypeScript 6 (`tsc -b`).
+- `npm run typecheck:ts7-preview`: smoke check nao bloqueante contra o preview nativo do TypeScript 7.
 - `npm run test`: suite principal de testes com Vitest.
 - `npm run test:a11y`: gate de acessibilidade usado tambem no deploy de producao.
 
@@ -629,12 +633,13 @@ Secrets necessarios no ambiente `production` do GitHub (`Settings > Environments
 
 Fluxo CI/CD:
 
-1. Sem `image_tag`, o job `quality` roda `npm run test:a11y`.
-2. Sem `image_tag`, o job `build_and_push` publica `ghcr.io/gavuriiru/nekomorto` com tags `latest` e `sha-<commit>`.
-3. O job `deploy` resolve a tag:
+1. Sem `image_tag`, o job `quality` roda `npm run typecheck` e `npm run test:a11y`.
+2. Em paralelo, o job `ts7_preview` roda `npm run typecheck:ts7-preview` com `continue-on-error` para observabilidade do preview nativo.
+3. Sem `image_tag`, o job `build_and_push` publica `ghcr.io/gavuriiru/nekomorto` com tags `latest` e `sha-<commit>`.
+4. O job `deploy` resolve a tag:
    - sem `image_tag`: usa `sha-<commit_atual>`;
    - com `image_tag`: valida `latest` ou `sha-[0-9a-f]{40}` e usa a tag informada, sem rebuild.
-4. Via SSH, sincroniza o repositorio no host e chama `ops/prod/deploy-prod.sh` com `SKIP_GIT_SYNC=true`, `APP_IMAGE_REPO` e `APP_IMAGE_TAG`. O script resolve `PROXY_PROVIDER`, `APP_DOMAIN` e o overlay `docker-compose.prod.<provider>.yml` a partir do `.env.prod`.
+5. Via SSH, sincroniza o repositorio no host e chama `ops/prod/deploy-prod.sh` com `SKIP_GIT_SYNC=true`, `APP_IMAGE_REPO` e `APP_IMAGE_TAG`. O script resolve `PROXY_PROVIDER`, `APP_DOMAIN` e o overlay `docker-compose.prod.<provider>.yml` a partir do `.env.prod`.
 
 Comportamento do deploy remoto (`ops/prod/deploy-prod.sh`):
 
@@ -671,7 +676,7 @@ Fluxo:
 2. Com `image_tag`, ele reutiliza uma imagem `sha-<commit>` ja publicada.
 3. O deploy remoto chama `ops/dev/deploy-dev.sh`, que reaproveita o fluxo de producao com `ENV_FILE=.env.dev` e `HEALTHCHECK_BASE_URL=https://dev.nekomata.moe`.
 
-Como esse deploy e manual, rode os checks base (`npm run lint`, `npm run test` e `npm run test:a11y`) antes do dispatch quando a imagem ainda nao tiver sido validada em outro fluxo.
+Como esse deploy e manual, rode os checks base (`npm run lint`, `npm run typecheck`, `npm run test` e `npm run test:a11y`) antes do dispatch quando a imagem ainda nao tiver sido validada em outro fluxo.
 
 Diferenca pratica entre os dois workflows:
 
@@ -1117,6 +1122,8 @@ Qualidade:
 
 ```bash
 npm run lint
+npm run typecheck
+npm run typecheck:ts7-preview
 npm run test
 npm run test:a11y
 npm run build:audit

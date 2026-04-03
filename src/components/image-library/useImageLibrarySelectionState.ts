@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { toComparableSelectionKey } from "@/components/image-library/selection";
 import type { LibraryImageItem } from "@/components/image-library/types";
@@ -25,7 +25,7 @@ type UseImageLibrarySelectionStateResult = {
   primarySelectedUrl: string;
   requestRevealUpload: (url: string, options?: { openCrop?: boolean }) => void;
   selectedResolvedUrlSet: Set<string>;
-  setPendingRevealRequest: (value: PendingRevealRequest | null) => void;
+  setPendingRevealRequest: Dispatch<SetStateAction<PendingRevealRequest | null>>;
 };
 
 export const useImageLibrarySelectionState = ({

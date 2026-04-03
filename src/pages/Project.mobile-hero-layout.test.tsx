@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Project, ProjectEpisode } from "@/data/projects";
 import ProjectPage from "@/pages/Project";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
@@ -68,7 +69,18 @@ const findAncestor = (
   return null;
 };
 
-const projectFixture = {
+const createProjectEpisodeFixture = (overrides: Partial<ProjectEpisode> = {}): ProjectEpisode => ({
+  number: 1,
+  title: "Capitulo 1",
+  synopsis: "",
+  releaseDate: "",
+  duration: "",
+  sourceType: "TV",
+  sources: [],
+  ...overrides,
+});
+
+const projectFixture: Project = {
   id: "project-1",
   title: "Projeto Teste",
   titleOriginal: "",
@@ -106,35 +118,35 @@ const projectFixture = {
   commentsCount: 0,
 };
 
-const lightNovelProjectFixture = {
+const lightNovelProjectFixture: Project = {
   ...projectFixture,
   type: "Light Novel",
   episodeDownloads: [
-    {
+    createProjectEpisodeFixture({
       number: 1,
       volume: 2,
       title: "Capitulo 1",
       synopsis: "Resumo do capitulo",
       content: "<p>Conteudo</p>",
-    },
+    }),
   ],
 };
 
-const mangaProjectFixture = {
+const mangaProjectFixture: Project = {
   ...projectFixture,
   type: "Mangá",
   episodeDownloads: [
-    {
+    createProjectEpisodeFixture({
       number: 1,
       volume: 3,
       title: "Capitulo 1",
       synopsis: "Resumo do capitulo",
       sources: [{ label: "Drive", url: "https://example.com/file" }],
-    },
+    }),
   ],
 };
 
-const setupApiMock = (project = projectFixture) => {
+const setupApiMock = (project: Project = projectFixture) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(
     async (_apiBase: string, endpoint: string, options?: RequestInit) => {
@@ -947,7 +959,7 @@ describe("Project mobile hero layout", () => {
     setupApiMock({
       ...projectFixture,
       episodeDownloads: [
-        {
+        createProjectEpisodeFixture({
           number: 1,
           title: "Episodio 1",
           releaseDate: "2025-01-01",
@@ -956,13 +968,13 @@ describe("Project mobile hero layout", () => {
           sizeBytes: 734003200,
           hash: "ABC123",
           sources: [{ label: "Drive", url: "https://example.com/1" }],
-        },
-        {
+        }),
+        createProjectEpisodeFixture({
           number: 2,
           title: "Episodio 2",
           sourceType: "TV",
           sources: [{ label: "Drive", url: "https://example.com/2" }],
-        },
+        }),
       ],
     });
 

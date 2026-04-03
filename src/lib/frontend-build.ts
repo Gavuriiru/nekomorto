@@ -14,7 +14,7 @@ export const formatBuildMetadataLabel = (build: ApiContractBuildMetadata | null)
   if (!build?.commitSha && !build?.builtAt) {
     return "";
   }
-  const parts = [];
+  const parts: string[] = [];
   if (build?.commitSha) {
     parts.push(`commit ${build.commitSha.slice(0, 12)}`);
   }

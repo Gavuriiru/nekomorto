@@ -747,7 +747,7 @@ export const buildChapterStructureGroups = ({
     }
   });
 
-  const numericGroups = Array.from(numericVolumeMap.values())
+  const numericGroups: ChapterStructureGroup[] = Array.from(numericVolumeMap.values())
     .sort((left, right) => left.volume - right.volume)
     .map((volumeOption) => {
       const key = String(volumeOption.volume);

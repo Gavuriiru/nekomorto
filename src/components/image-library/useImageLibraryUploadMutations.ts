@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 
 import {
   getImportPermissionToastTitle,
@@ -31,7 +31,7 @@ type UseImageLibraryUploadMutationsResult = {
   handleImportFromUrl: () => Promise<void>;
   handleUploadFiles: (files: File[] | FileList | null | undefined) => Promise<void>;
   isUploading: boolean;
-  setUrlInput: (value: string) => void;
+  setUrlInput: Dispatch<SetStateAction<string>>;
   urlInput: string;
 };
 

@@ -63,7 +63,25 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const createPost = (index: number) => ({
+type PostFixture = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  contentFormat: "lexical";
+  author: string;
+  publishedAt: string;
+  status: "draft";
+  projectId: string;
+  tags: string[];
+  views: number;
+  commentsCount: number;
+  deletedAt: string | null;
+  deletedBy: string | null;
+};
+
+const createPost = (index: number): PostFixture => ({
   id: `post-${index}`,
   title: `Post ${index}`,
   slug: `post-${index}`,
@@ -86,7 +104,7 @@ const setupApiMock = ({
   includeTrashedPost = false,
   calendarItems = [],
 }: {
-  posts?: ReturnType<typeof createPost>[];
+  posts?: PostFixture[];
   includeTrashedPost?: boolean;
   calendarItems?: Array<Record<string, unknown>>;
 } = {}) => {

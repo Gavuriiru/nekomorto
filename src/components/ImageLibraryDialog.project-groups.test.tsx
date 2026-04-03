@@ -93,14 +93,14 @@ describe("ImageLibraryDialog project groups", () => {
     expect(screen.queryByText("Projeto 1 (Capa)")).not.toBeInTheDocument();
     expect(screen.queryByText("Projeto 1 (Banner)")).not.toBeInTheDocument();
 
-    fireEvent.click(rootTrigger as HTMLElement);
+    fireEvent.click(rootTrigger!);
 
     await waitFor(() => {
       expect(screen.getByText("Projeto 1 (Capa)")).toBeInTheDocument();
     });
     expect(screen.queryByText("Projeto 1 (Banner)")).not.toBeInTheDocument();
 
-    fireEvent.click(chapterTrigger as HTMLElement);
+    fireEvent.click(chapterTrigger!);
 
     await waitFor(() => {
       expect(screen.getByText("Projeto 1 (Banner)")).toBeInTheDocument();

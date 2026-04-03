@@ -3,14 +3,20 @@ import { describe, expect, it, vi } from "vitest";
 import { registerContentCommentRoutes } from "../../server/routes/content/register-content-comment-routes.js";
 
 const createAppRecorder = () => {
-  const routes = [];
-  const register = (method) => (path, ...handlers) => {
-    routes.push({
-      handlers,
-      method,
-      path,
-    });
-  };
+  const routes: Array<{
+    method: string;
+    path: string;
+    handlers: Array<(...args: any[]) => unknown>;
+  }> = [];
+  const register =
+    (method: string) =>
+    (path: string, ...handlers: Array<(...args: any[]) => unknown>) => {
+      routes.push({
+        handlers,
+        method,
+        path,
+      });
+    };
 
   return {
     app: {
@@ -26,7 +32,7 @@ const getRoute = (routes, method, path) =>
   routes.find((route) => route.method === method && route.path === path);
 
 const createMockRes = () => ({
-  body: null,
+  body: null as any,
   headers: {},
   statusCode: 200,
   setHeader(name, value) {
@@ -86,7 +92,7 @@ const createDependencies = ({ app, overrides = {} }) => ({
 describe("registerContentCommentRoutes", () => {
   it("creates approved staff comments and emits both creation and approval analytics", async () => {
     const { app, routes } = createAppRecorder();
-    const comments = [];
+    const comments: Array<Record<string, any>> = [];
     const dependencies = createDependencies({
       app,
       overrides: {

@@ -77,7 +77,7 @@ const cleanupLegacyPwaRegistrations = async ({
     return { removedLegacyRegistration: false, shouldReload: false };
   }
 
-  let registrations: ServiceWorkerRegistration[] = [];
+  let registrations: readonly ServiceWorkerRegistration[] = [];
   try {
     registrations = await serviceWorker.getRegistrations();
   } catch {

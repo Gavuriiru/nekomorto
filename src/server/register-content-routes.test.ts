@@ -3,14 +3,20 @@ import { describe, expect, it, vi } from "vitest";
 import { registerContentRoutes } from "../../server/routes/register-content-routes.js";
 
 const createAppRecorder = () => {
-  const routes = [];
-  const register = (method) => (path, ...handlers) => {
-    routes.push({
-      method,
-      path,
-      handlers,
-    });
-  };
+  const routes: Array<{
+    method: string;
+    path: string;
+    handlers: Array<(...args: any[]) => unknown>;
+  }> = [];
+  const register =
+    (method: string) =>
+    (path: string, ...handlers: Array<(...args: any[]) => unknown>) => {
+      routes.push({
+        method,
+        path,
+        handlers,
+      });
+    };
 
   return {
     app: {
@@ -27,7 +33,7 @@ const getRoute = (routes, method, path) =>
   routes.find((route) => route.method === method && route.path === path);
 
 const createMockRes = () => ({
-  body: null,
+  body: null as any,
   headers: {},
   statusCode: 200,
   setHeader(name, value) {

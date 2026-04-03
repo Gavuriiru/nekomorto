@@ -21,6 +21,9 @@ const iconMap: Record<string, typeof HelpCircle> = {
   Sparkles,
 };
 
+const resolveFaqIcon = (iconName: string | undefined, fallback: typeof HelpCircle) =>
+  (iconName ? iconMap[iconName] : undefined) || fallback;
+
 const defaultFaq = {
   shareImage: "",
   shareImageAlt: "",
@@ -134,7 +137,7 @@ const FAQ = () => {
         >
           <div className="grid gap-6 md:grid-cols-2">
             {faq.introCards.map((card) => {
-              const Icon = iconMap[card.icon] || HelpCircle;
+              const Icon = resolveFaqIcon(card.icon, HelpCircle);
               return (
                 <Card
                   key={card.title}
@@ -165,7 +168,7 @@ const FAQ = () => {
         >
           <div className="grid gap-6">
             {faq.groups.map((group) => {
-              const Icon = iconMap[group.icon] || HelpCircle;
+              const Icon = resolveFaqIcon(group.icon, HelpCircle);
               return (
                 <Card key={group.title} className="border-border/60 bg-card/80 shadow-lg">
                   <CardContent className="space-y-5 p-6">

@@ -3,6 +3,10 @@ import type { ReactNode } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type {
+  EditorProjectEpisode,
+  ProjectRecord,
+} from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import DashboardProjectsEditor from "@/pages/DashboardProjectsEditor";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
@@ -72,7 +76,24 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const projectFixture = {
+const createEditorEpisodeFixture = (
+  overrides: Partial<EditorProjectEpisode> = {},
+): EditorProjectEpisode => ({
+  number: 1,
+  volume: 1,
+  title: "CapÃ­tulo 1",
+  synopsis: "",
+  releaseDate: "",
+  duration: "",
+  sourceType: "TV",
+  sources: [],
+  content: "",
+  contentFormat: "lexical",
+  publicationStatus: "published",
+  ...overrides,
+});
+
+const projectFixture: ProjectRecord = {
   id: "project-1",
   anilistId: 1001,
   title: "Projeto Teste",
@@ -84,11 +105,14 @@ const projectFixture = {
   status: "Em andamento",
   year: "2025",
   studio: "Studio Teste",
+  animationStudios: [],
   episodes: "2 episodios",
   tags: [],
   genres: [],
   cover: "",
+  coverAlt: "",
   banner: "",
+  bannerAlt: "",
   season: "",
   schedule: "",
   rating: "",
@@ -113,7 +137,7 @@ const projectFixture = {
   order: 0,
 };
 
-const chapterProjectFixture = {
+const chapterProjectFixture: ProjectRecord = {
   ...projectFixture,
   id: "project-ln-1",
   title: "Projeto Light Novel",
@@ -123,6 +147,7 @@ const chapterProjectFixture = {
     {
       number: 1,
       volume: 1,
+      synopsis: "",
       title: "Capítulo 1 - Volume 1",
       releaseDate: "",
       duration: "",
@@ -137,6 +162,7 @@ const chapterProjectFixture = {
     {
       number: 1,
       volume: 2,
+      synopsis: "",
       title: "Capítulo 1 - Volume 2",
       releaseDate: "",
       duration: "",
@@ -158,7 +184,7 @@ const setupApiMock = ({
   users = [],
 }: {
   canManageProjects: boolean;
-  projects: (typeof projectFixture)[];
+  projects: ProjectRecord[];
   users?: Array<{ name?: string; status?: string }>;
 }) => {
   apiFetchMock.mockReset();
@@ -202,7 +228,7 @@ const setupApiMock = ({
   });
 };
 
-const projectWithStaffFixture = {
+const projectWithStaffFixture: ProjectRecord = {
   ...projectFixture,
   staff: [{ role: "Revisao", members: [] }],
   animeStaff: [{ role: "Director", members: [] }],

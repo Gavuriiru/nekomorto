@@ -155,7 +155,7 @@ export const mergeSettings = <T>(base: T, override: Partial<T> | undefined): T =
       Object.keys(override as Record<string, unknown>).forEach((key) => {
         next[key] = mergeSettings(
           (base as Record<string, unknown>)[key],
-          (override as Record<string, unknown>)[key],
+          (override as Record<string, unknown>)[key] as Partial<unknown> | undefined,
         );
       });
     }

@@ -49,6 +49,9 @@ const iconMap: Record<string, typeof Server> = {
   Shield,
 };
 
+const resolveDonationsIcon = (iconName: string | undefined, fallback: typeof Server) =>
+  (iconName ? iconMap[iconName] : undefined) || fallback;
+
 const emptyDonations = {
   shareImage: "",
   shareImageAlt: "",
@@ -156,7 +159,7 @@ const Donations = () => {
         >
           <div className="grid gap-6 md:grid-cols-3">
             {donations.costs.map((item) => {
-              const Icon = iconMap[item.icon] || Sparkles;
+              const Icon = resolveDonationsIcon(item.icon, Sparkles);
               return (
                 <Card
                   key={item.title}
@@ -186,7 +189,10 @@ const Donations = () => {
               <div className="group/reason space-y-4 rounded-2xl p-2 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60">
                 <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover/reason:text-primary">
                   {(() => {
-                    const ReasonIcon = iconMap[donations.reasonIcon] || HeartHandshake;
+                    const ReasonIcon = resolveDonationsIcon(
+                      donations.reasonIcon,
+                      HeartHandshake,
+                    );
                     return (
                       <ReasonIcon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover/reason:text-primary" />
                     );
@@ -204,7 +210,7 @@ const Donations = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover/pix:text-primary">
                     {(() => {
-                      const PixIcon = iconMap[donations.pixIcon] || QrCode;
+                      const PixIcon = resolveDonationsIcon(donations.pixIcon, QrCode);
                       return (
                         <PixIcon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover/pix:text-primary" />
                       );

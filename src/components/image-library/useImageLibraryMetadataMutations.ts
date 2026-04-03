@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 
 import type { LibraryImageItem } from "@/components/image-library/types";
 import {
@@ -30,11 +30,11 @@ type UseImageLibraryMetadataMutationsResult = {
   renameTarget: LibraryImageItem | null;
   renameValue: string;
   requestRename: (item: LibraryImageItem) => void;
-  setAltTextTarget: (value: LibraryImageItem | null) => void;
-  setAltTextValue: (value: string) => void;
-  setDeleteTarget: (value: LibraryImageItem | null) => void;
-  setRenameTarget: (value: LibraryImageItem | null) => void;
-  setRenameValue: (value: string) => void;
+  setAltTextTarget: Dispatch<SetStateAction<LibraryImageItem | null>>;
+  setAltTextValue: Dispatch<SetStateAction<string>>;
+  setDeleteTarget: Dispatch<SetStateAction<LibraryImageItem | null>>;
+  setRenameTarget: Dispatch<SetStateAction<LibraryImageItem | null>>;
+  setRenameValue: Dispatch<SetStateAction<string>>;
 };
 
 export const useImageLibraryMetadataMutations = ({

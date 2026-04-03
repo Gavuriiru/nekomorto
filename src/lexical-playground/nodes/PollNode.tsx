@@ -82,7 +82,7 @@ function $convertPollElement(
 }
 
 function parseOptions(json: unknown): Options {
-  const options = [];
+  const options: Option[] = [];
   if (Array.isArray(json)) {
     for (const row of json) {
       if (

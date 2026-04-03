@@ -85,8 +85,8 @@ type ProjectCardProps = {
 };
 
 const EMPTY_BADGE_LAYOUT = Object.freeze({
-  allItems: Object.freeze([]) as ProjectBadgeItem[],
-  visibleItems: Object.freeze([]) as ProjectBadgeItem[],
+  allItems: [] as ProjectBadgeItem[],
+  visibleItems: [] as ProjectBadgeItem[],
   extraCount: 0,
   showOverflowBadge: false,
 });

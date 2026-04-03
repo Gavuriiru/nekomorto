@@ -35,11 +35,13 @@ describe("usePublicBootstrap store", () => {
   });
 
   it("deduplica fetch concorrente entre consumidores", async () => {
-    let resolveRequest: ((response: Response) => void) | null = null;
+    const requestState = {
+      resolve: null as ((response: Response) => void) | null,
+    };
     apiFetchMock.mockImplementation(
       async () =>
         await new Promise<Response>((resolve) => {
-          resolveRequest = resolve;
+          requestState.resolve = resolve;
         }),
     );
 
@@ -61,7 +63,11 @@ describe("usePublicBootstrap store", () => {
       expect(apiFetchMock).toHaveBeenCalledTimes(1);
     });
 
-    resolveRequest?.(
+    const completeRequest = requestState.resolve;
+    if (!completeRequest) {
+      throw new Error("Expected pending bootstrap request");
+    }
+    completeRequest(
       createJsonResponse(true, {
         settings: {},
         pages: {},

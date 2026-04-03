@@ -423,6 +423,9 @@ describe("DashboardSettings mobile layout", () => {
       .getAllByDisplayValue("Projetos")
       .find((candidate) => candidate.tagName === "INPUT");
     expect(navbarLabelInput).toBeDefined();
+    if (!(navbarLabelInput instanceof HTMLElement)) {
+      throw new Error("Expected navbar label input");
+    }
     const navbarCard = findAncestor(navbarLabelInput, (candidate) =>
       classTokens(candidate).includes("md:grid-cols-[0.85fr_1fr_1.6fr_auto]"),
     );
