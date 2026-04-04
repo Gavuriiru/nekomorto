@@ -430,7 +430,10 @@ const ProjectReading = () => {
     if (!project) {
       return "Leitura";
     }
-    const entryKind = chapterContent?.entryKind === "extra" ? "extra" : "main";
+    const entryKind =
+      chapterContent?.entryKind === "extra" || chapterData?.entryKind === "extra"
+        ? "extra"
+        : "main";
     const chapterLabel =
       entryKind === "extra"
         ? String(chapterContent?.displayLabel || chapterData?.displayLabel || "Extra").trim() ||
@@ -438,10 +441,13 @@ const ProjectReading = () => {
         : chapterContent?.number || chapterData?.number || chapterNumber
           ? `Capítulo ${chapterContent?.number || chapterData?.number || chapterNumber}`
           : "Capítulo";
+    const chapterTitle = String(chapterContent?.title || chapterData?.title || "").trim();
     const titlePart =
-      chapterContent?.title || chapterData?.title
-        ? `${chapterLabel} - ${chapterContent?.title || chapterData?.title}`
-        : chapterLabel;
+      entryKind === "extra"
+        ? chapterTitle || chapterLabel
+        : chapterTitle
+          ? `${chapterLabel} - ${chapterTitle}`
+          : chapterLabel;
     return `${titlePart} - ${project.title}`;
   }, [
     chapterContent?.displayLabel,

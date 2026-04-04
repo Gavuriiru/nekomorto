@@ -121,6 +121,13 @@ const dispatchPointerEvent = (
   });
 };
 
+const expectActiveElementNotHiddenFromAssistiveTech = () => {
+  const activeElement = document.activeElement as HTMLElement | null;
+
+  expect(activeElement).toBeTruthy();
+  expect(activeElement?.closest('[aria-hidden="true"], [data-aria-hidden="true"]')).toBeNull();
+};
+
 describe("ImageLibraryDialog focal point editor", () => {
   let originalGetBoundingClientRect: typeof HTMLElement.prototype.getBoundingClientRect;
 
@@ -207,6 +214,12 @@ describe("ImageLibraryDialog focal point editor", () => {
     const heroPreview = within(focalDialog).getByTestId("focal-preview-hero");
     const stage = within(focalDialog).getByTestId("focal-stage");
     const imageShell = within(focalDialog).getByTestId("focal-image-shell");
+    const cardPresetButton = within(focalDialog).getByRole("button", { name: /card/i });
+
+    await waitFor(() => {
+      expect(cardPresetButton).toHaveFocus();
+    });
+    expectActiveElementNotHiddenFromAssistiveTech();
 
     expect(layout).toBeInTheDocument();
     expect(sidebar).toBeInTheDocument();

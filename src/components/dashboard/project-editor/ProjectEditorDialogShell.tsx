@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { dashboardSubtleSurfaceHoverClassName } from "@/components/dashboard/dashboard-page-tokens";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
+const projectEditorSummarySurfaceClassName = `rounded-xl border border-border/60 bg-card/65 ${dashboardSubtleSurfaceHoverClassName}`;
 
 type ProjectEditorDialogShellProps = {
   anilistId?: number | string | null;
@@ -111,7 +114,9 @@ export const ProjectEditorDialogShell = ({
                       manualmente.
                     </DialogDescription>
                   </div>
-                  <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-1.5 text-right">
+                  <div
+                    className={`${projectEditorSummarySurfaceClassName} px-3 py-1.5 text-right`}
+                  >
                     <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                       Projeto
                     </p>

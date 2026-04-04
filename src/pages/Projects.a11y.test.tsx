@@ -139,7 +139,7 @@ describe("Projects accessibility", () => {
 
     expect(await screen.findByRole("combobox", { name: "Filtrar por letra" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Filtrar por tag" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Filtrar por genero" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Filtrar por gênero" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Filtrar por formato" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     expect(apiFetchMock).not.toHaveBeenCalled();
@@ -164,7 +164,7 @@ describe("Projects accessibility", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(await screen.findByRole("combobox", { name: "Filtrar por letra" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Filtrar por tag" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Filtrar por genero" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Filtrar por gênero" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Filtrar por formato" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });

@@ -37,15 +37,17 @@ const muiTextFieldSx = {
     "&:hover .MuiOutlinedInput-notchedOutline": {
       borderColor: "hsl(var(--input))",
     },
-    "&.Mui-focused": {
-      boxShadow: "inset 0 0 0 1px hsl(var(--primary))",
-    },
     "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
       borderColor: "hsl(var(--primary))",
       borderWidth: "1px",
     },
     "&.Mui-disabled": {
-      opacity: 0.5,
+      backgroundColor: "hsl(var(--background))",
+      color: "hsl(var(--muted-foreground))",
+      cursor: "not-allowed",
+    },
+    "&.Mui-disabled .MuiOutlinedInput-notchedOutline": {
+      borderColor: "hsl(var(--input))",
     },
   },
   "& .MuiInputBase-input": {
@@ -57,11 +59,22 @@ const muiTextFieldSx = {
       color: "hsl(var(--muted-foreground))",
       opacity: 1,
     },
+    "&.Mui-disabled": {
+      color: "hsl(var(--muted-foreground) / 0.72)",
+      opacity: 1,
+      WebkitTextFillColor: "hsl(var(--muted-foreground) / 0.72)",
+    },
   },
   "& .MuiSvgIcon-root": {
     color: "hsl(var(--muted-foreground))",
   },
   "& .MuiInputAdornment-root .MuiIconButton-root": {
+    color: "hsl(var(--muted-foreground))",
+  },
+  "& .MuiOutlinedInput-root.Mui-disabled .MuiSvgIcon-root": {
+    color: "hsl(var(--muted-foreground))",
+  },
+  "& .MuiOutlinedInput-root.Mui-disabled .MuiInputAdornment-root .MuiIconButton-root": {
     color: "hsl(var(--muted-foreground))",
   },
 } as const;

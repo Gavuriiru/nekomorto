@@ -7,6 +7,7 @@ type ProjectEditorMediaTarget = "cover" | "banner" | "hero";
 
 type ProjectEditorMediaSectionProps = {
   banner: string;
+  cardClassName: string;
   cover: string;
   editorSectionClassName: string;
   editorSectionContentClassName: string;
@@ -17,6 +18,7 @@ type ProjectEditorMediaSectionProps = {
 
 type ProjectEditorMediaCardProps = {
   alt: string;
+  cardClassName: string;
   label: string;
   onOpenLibrary: () => void;
   url: string;
@@ -27,13 +29,14 @@ const emptyPreviewClassName =
 
 const ProjectEditorMediaCard = ({
   alt,
+  cardClassName,
   label,
   onOpenLibrary,
   url,
 }: ProjectEditorMediaCardProps) => (
   <div className="space-y-2">
     <Label>{label}</Label>
-    <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+    <div className={`space-y-2 rounded-2xl px-3 py-2 ${cardClassName}`}>
       <div className="flex items-center gap-3">
         {url ? (
           <img src={url} alt={alt} className="h-12 w-12 rounded-lg object-cover" />
@@ -56,6 +59,7 @@ const ProjectEditorMediaCard = ({
 
 const ProjectEditorMediaSection = ({
   banner,
+  cardClassName,
   cover,
   editorSectionClassName,
   editorSectionContentClassName,
@@ -79,18 +83,21 @@ const ProjectEditorMediaSection = ({
             <ProjectEditorMediaCard
               label="Imagem do carrossel"
               alt="Imagem do carrossel"
+              cardClassName={cardClassName}
               url={heroImageUrl}
               onOpenLibrary={() => onOpenLibrary("hero")}
             />
             <ProjectEditorMediaCard
               label="Capa"
               alt="Capa"
+              cardClassName={cardClassName}
               url={cover}
               onOpenLibrary={() => onOpenLibrary("cover")}
             />
             <ProjectEditorMediaCard
               label="Banner"
               alt="Banner"
+              cardClassName={cardClassName}
               url={banner}
               onOpenLibrary={() => onOpenLibrary("banner")}
             />

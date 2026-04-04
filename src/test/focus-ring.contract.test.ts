@@ -159,16 +159,17 @@ describe("focus ring contract", () => {
     expect(dashboardCssSource).toContain("select,");
     expect(dashboardCssSource).toContain('[role="combobox"]');
     expect(dashboardCssSource).toContain("border-color: hsl(var(--primary)) !important;");
-    expect(dashboardCssSource).toContain(
-      "box-shadow: inset 0 0 0 1px hsl(var(--primary)) !important;",
-    );
+    expect(dashboardCssSource).toContain("box-shadow: none !important;");
     expect(dashboardCssSource).not.toContain("box-shadow: inset 0 0 0 2px hsl(var(--primary)) !important;");
+    expect(dashboardCssSource).not.toContain(
+      "box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.45) !important;",
+    );
 
     expect(dashboardTokensSource).toContain(
       'dashboardStrongFocusFieldClassName =',
     );
     expect(dashboardTokensSource).toContain(
-      '"focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-inset"',
+      '"focus-visible:border-primary"',
     );
     expect(dashboardTokensSource).toContain(
       'dashboardStrongSurfaceHoverClassName = "hover:border-primary/60"',
@@ -210,8 +211,14 @@ describe("focus ring contract", () => {
     expect(dashboardWebhooksSource).toContain("dashboardStrongSurfaceHoverClassName");
     expect(dashboardWebhooksSource).toContain("panelClassName={dashboardStrongFocusScopeClassName}");
 
-    expect(muiFieldsSource).toContain('boxShadow: "inset 0 0 0 1px hsl(var(--primary))"');
     expect(muiFieldsSource).toContain('borderColor: "hsl(var(--primary))"');
+    expect(muiFieldsSource).toContain('"& .MuiInputBase-input"');
+    expect(muiFieldsSource).toContain('"&.Mui-disabled": {');
+    expect(muiFieldsSource).toContain('WebkitTextFillColor: "hsl(var(--muted-foreground) / 0.72)"');
+    expect(muiFieldsSource).toContain('backgroundColor: "hsl(var(--background))"');
+    expect(muiFieldsSource).toContain('borderColor: "hsl(var(--input))"');
+    expect(muiFieldsSource).not.toContain("opacity: 0.5,");
+    expect(muiFieldsSource).not.toContain("boxShadow:");
     expect(muiFieldsSource).not.toContain('boxShadow: "0 0 0 2px hsl(var(--ring))"');
     expect(muiFieldsSource).not.toContain('boxShadow: "inset 0 0 0 2px hsl(var(--primary))"');
     expect(muiFieldsSource).not.toContain('borderColor: "hsl(var(--ring))"');

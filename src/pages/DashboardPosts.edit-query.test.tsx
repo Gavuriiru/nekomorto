@@ -389,6 +389,50 @@ describe("DashboardPosts edit query", () => {
     });
   });
 
+  it("aplica borda accent suave nos cards de historico e rollback", async () => {
+    setupApiMock({
+      canManagePosts: true,
+      versionsResponse: {
+        versions: [buildVersion("v2", { title: "Titulo antigo" })],
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts?edit=post-1"]}>
+        <DashboardPosts />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    await screen.findByRole("heading", { name: "Editar postagem" });
+
+    const historyButton = await screen.findByRole("button", { name: /Hist/i });
+    fireEvent.click(historyButton);
+
+    const historyDialog = (await screen.findAllByRole("dialog")).at(-1) as HTMLElement;
+    const historyCard = Array.from(historyDialog.querySelectorAll<HTMLElement>("div")).find((node) =>
+      classTokens(node).includes("rounded-lg") &&
+      classTokens(node).includes("hover:border-primary/40"),
+    );
+    expect(historyCard).toBeDefined();
+    expect(classTokens(historyCard as HTMLElement)).toContain("border-border/60");
+    expect(classTokens(historyCard as HTMLElement)).toContain("bg-card/60");
+
+    fireEvent.click(
+      within(historyDialog).getByRole("button", { name: /Restaurar esta vers/i }),
+    );
+
+    const rollbackDialog = (await screen.findAllByRole("dialog")).at(-1) as HTMLElement;
+    const rollbackCard = Array.from(rollbackDialog.querySelectorAll<HTMLElement>("div")).find(
+      (node) =>
+        classTokens(node).includes("bg-card/60") &&
+        classTokens(node).includes("hover:border-primary/40"),
+    );
+    expect(rollbackCard).toBeDefined();
+    expect(classTokens(rollbackCard as HTMLElement)).toContain("border-border/60");
+  });
+
   it("usa shell no padrao do editor de projetos e controla classe editor-modal-scrolled", async () => {
     setupApiMock({ canManagePosts: true });
 
@@ -452,6 +496,11 @@ describe("DashboardPosts edit query", () => {
     if (!editorDialog || !editorScrollShell) {
       throw new Error("Editor dialog not found");
     }
+    const editorPostSummaryCard = within(editorDialog)
+      .getByText(/^Postagem$/i)
+      .closest("div.rounded-xl");
+    expect(editorPostSummaryCard).not.toBeNull();
+    expect(classTokens(editorPostSummaryCard as HTMLElement)).toContain("hover:border-primary/40");
     expect(editorDialog.contains(editorScrollShell)).toBe(true);
     expect(within(editorDialog).getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
     expect(within(editorDialog).getByRole("button", { name: "Excluir" })).toBeInTheDocument();

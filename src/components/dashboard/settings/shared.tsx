@@ -1,13 +1,12 @@
 import {
   BadgeCheck,
+  Camera,
   Check,
   Clock,
   Cloud,
   Code,
   Download,
-  Facebook,
   HardDrive,
-  Instagram,
   Languages,
   Layers,
   Link2,
@@ -17,9 +16,10 @@ import {
   PenTool,
   Send,
   Sparkles,
-  Twitter,
+  Users,
   User,
   Video,
+  X,
 } from "lucide-react";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import {
@@ -69,9 +69,9 @@ export const socialIconMap: Record<string, typeof Link2> = {
   mediafire: HardDrive,
   telegram: Send,
   link: Link2,
-  instagram: Instagram,
-  facebook: Facebook,
-  twitter: Twitter,
+  instagram: Camera,
+  facebook: Users,
+  twitter: X,
   discord: MessageCircle,
 };
 

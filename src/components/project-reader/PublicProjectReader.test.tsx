@@ -1467,7 +1467,7 @@ describe("PublicProjectReader", () => {
       },
     );
 
-    const image = screen.getByRole("img", { name: /Pagina 1/i });
+    const image = screen.getByRole("img", { name: /Página 1/i });
     const verticalPageContainer = screen.getByTestId("reader-page-0").parentElement as HTMLElement;
 
     expect(image).toHaveAttribute("width", "1200");
@@ -4646,7 +4646,7 @@ describe("PublicProjectReader", () => {
     trigger.focus();
     fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
 
-    expect(await screen.findByRole("option", { name: "Estatica" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Estática" })).toBeInTheDocument();
     expect(await screen.findByRole("option", { name: "Fixa" })).toBeInTheDocument();
   });
 
@@ -4679,7 +4679,7 @@ describe("PublicProjectReader", () => {
     fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
 
     expect(await screen.findByRole("option", { name: "Fixa" })).toBeInTheDocument();
-    expect(await screen.findByRole("option", { name: "Estatica" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Estática" })).toBeInTheDocument();
   });
 
   it("updates the saved site header variant from the reader menu", async () => {

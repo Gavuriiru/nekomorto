@@ -127,7 +127,7 @@ describe("project EPUB import with real lexical bridge", () => {
     expect(result.summary.chapters).toBe(0);
     expect(result.warnings).toEqual(
       expect.arrayContaining([
-        'Imagem interna ignorada no capitulo "Chapter 1": cover.jpg.',
+        'Imagem interna ignorada no capítulo "Chapter 1": cover.jpg.',
         "Itens de boilerplate promovidos para extras: 1.",
       ]),
     );

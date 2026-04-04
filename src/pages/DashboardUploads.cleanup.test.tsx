@@ -335,7 +335,7 @@ describe("DashboardUploads cleanup", () => {
     );
     expect(screen.getByRole("button", { name: CLEANUP_ACTION_LABEL })).toBeDisabled();
     expect(screen.getByText(/Atualizado:/i)).toBeInTheDocument();
-    expect(screen.getByText(/Analise:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Análise:/i)).toBeInTheDocument();
     expect(toastMock).not.toHaveBeenCalled();
   });
 
@@ -686,7 +686,7 @@ describe("DashboardUploads cleanup", () => {
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: "Limpeza parcial concluida",
+          title: "Limpeza parcial concluída",
           variant: "destructive",
           description: expect.stringContaining("1 falharam."),
         }),

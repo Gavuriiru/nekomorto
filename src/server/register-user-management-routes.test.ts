@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { AccessRole, PermissionId } from "../../server/lib/authz.js";
+import { SecurityEventSeverity } from "../../server/lib/security-events.js";
 import { registerUserManagementRoutes } from "../../server/routes/user/register-user-management-routes.js";
 
 const cloneJson = (value) => JSON.parse(JSON.stringify(value));
@@ -65,6 +66,7 @@ const createDependencies = ({ app, overrides = {} }) => ({
     "favoriteWorks",
   ],
   PermissionId,
+  SecurityEventSeverity: { WARNING: "warning" },
   app,
   appendAuditLog: vi.fn(),
   applyOwnerRole: vi.fn((user) => user),
@@ -212,6 +214,166 @@ describe("registerUserManagementRoutes", () => {
     expect(res.statusCode).toBe(403);
     expect(res.body).toEqual({ error: "basic_fields_only" });
     expect(dependencies.persistCurrentUsers).not.toHaveBeenCalled();
+  });
+
+  it("emits RBAC privilege escalation warnings with the configured severity", async () => {
+    const { app, routes } = createAppRecorder();
+    const users = [
+      {
+        id: "owner-1",
+        accessRole: AccessRole.OWNER_PRIMARY,
+        avatarDisplay: { x: 0, y: 0, zoom: 1, rotation: 0 },
+        favoriteWorks: [],
+        name: "Owner",
+        permissions: ["*"],
+        phrase: "",
+        roles: [],
+        status: "active",
+        socials: [],
+      },
+      {
+        id: "user-2",
+        accessRole: AccessRole.NORMAL,
+        avatarDisplay: { x: 0, y: 0, zoom: 1, rotation: 0 },
+        favoriteWorks: [],
+        name: "User",
+        permissions: ["posts"],
+        phrase: "",
+        roles: ["reviewer"],
+        status: "active",
+        socials: [],
+      },
+    ];
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        SecurityEventSeverity: { WARNING: "rbac-warning-sentinel" },
+        loadUsers: vi.fn(() => cloneJson(users)),
+        getUserAccessContextById: vi.fn((userId) => {
+          if (String(userId) === "owner-1") {
+            return {
+              accessRole: AccessRole.OWNER_PRIMARY,
+              grants: { manage: true },
+              isOwner: true,
+              isPrimaryOwner: true,
+            };
+          }
+          return {
+            accessRole: AccessRole.NORMAL,
+            grants: {},
+            isOwner: false,
+            isPrimaryOwner: false,
+          };
+        }),
+        can: vi.fn(
+          ({ permissionId }) =>
+            permissionId === PermissionId.USUARIOS_BASICO ||
+            permissionId === PermissionId.USUARIOS_ACESSO,
+        ),
+      },
+    });
+
+    registerUserManagementRoutes(dependencies);
+
+    const route = getRoute(routes, "PUT", "/api/users/:id");
+    const res = await invokeFinalHandler(route, {
+      body: {
+        permissions: ["analytics"],
+      },
+      params: { id: "user-2" },
+      session: { user: { id: "owner-1" } },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(dependencies.emitSecurityEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "privilege_escalation_warning",
+        severity: "rbac-warning-sentinel",
+        actorUserId: "owner-1",
+        targetUserId: "user-2",
+        data: expect.objectContaining({
+          permissionsBefore: ["posts"],
+          permissionsAfter: ["analytics"],
+        }),
+      }),
+    );
+  });
+
+  it("falls back to the canonical warning severity when the injected map is unavailable", async () => {
+    const { app, routes } = createAppRecorder();
+    const users = [
+      {
+        id: "owner-1",
+        accessRole: AccessRole.OWNER_PRIMARY,
+        avatarDisplay: { x: 0, y: 0, zoom: 1, rotation: 0 },
+        favoriteWorks: [],
+        name: "Owner",
+        permissions: ["*"],
+        phrase: "",
+        roles: [],
+        status: "active",
+        socials: [],
+      },
+      {
+        id: "user-2",
+        accessRole: AccessRole.NORMAL,
+        avatarDisplay: { x: 0, y: 0, zoom: 1, rotation: 0 },
+        favoriteWorks: [],
+        name: "User",
+        permissions: ["posts"],
+        phrase: "",
+        roles: ["reviewer"],
+        status: "active",
+        socials: [],
+      },
+    ];
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        SecurityEventSeverity: undefined,
+        loadUsers: vi.fn(() => cloneJson(users)),
+        getUserAccessContextById: vi.fn((userId) => {
+          if (String(userId) === "owner-1") {
+            return {
+              accessRole: AccessRole.OWNER_PRIMARY,
+              grants: { manage: true },
+              isOwner: true,
+              isPrimaryOwner: true,
+            };
+          }
+          return {
+            accessRole: AccessRole.NORMAL,
+            grants: {},
+            isOwner: false,
+            isPrimaryOwner: false,
+          };
+        }),
+        can: vi.fn(
+          ({ permissionId }) =>
+            permissionId === PermissionId.USUARIOS_BASICO ||
+            permissionId === PermissionId.USUARIOS_ACESSO,
+        ),
+      },
+    });
+
+    registerUserManagementRoutes(dependencies);
+
+    const route = getRoute(routes, "PUT", "/api/users/:id");
+    const res = await invokeFinalHandler(route, {
+      body: {
+        permissions: ["analytics"],
+      },
+      params: { id: "user-2" },
+      session: { user: { id: "owner-1" } },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(dependencies.emitSecurityEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "privilege_escalation_warning",
+        severity: SecurityEventSeverity.WARNING,
+      }),
+    );
   });
 
   it("blocks secondary owners from deleting other owners", async () => {

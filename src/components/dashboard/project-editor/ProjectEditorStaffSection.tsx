@@ -24,10 +24,14 @@ import ProjectEditorAccordionHeader from "./ProjectEditorAccordionHeader";
 type StaffFieldKey = "staff" | "animeStaff";
 
 type ProjectEditorStaffSectionProps = {
+  cardClassName: string;
   contentClassName: string;
+  dragOverIndex: number | null;
   memberDirectory: string[];
   memberInput: Record<number, string>;
   onCommitMember: (index: number, member?: string) => void;
+  onDragEnd: () => void;
+  onDragOver: (index: number) => void;
   onDragStart: (index: number) => void;
   onDrop: (index: number) => void;
   onMove: (from: number, to: number) => void;
@@ -46,10 +50,14 @@ type ProjectEditorStaffSectionProps = {
 };
 
 const ProjectEditorStaffSection = ({
+  cardClassName,
   contentClassName,
+  dragOverIndex,
   memberDirectory,
   memberInput,
   onCommitMember,
+  onDragEnd,
+  onDragOver,
   onDragStart,
   onDrop,
   onMove,
@@ -99,10 +107,16 @@ const ProjectEditorStaffSection = ({
             {staffEntries.map((role, index) => (
               <div
                 key={`${role.role}-${index}`}
-                className="rounded-2xl border border-border/60 bg-card/60 p-3"
+                className={`rounded-2xl p-3 ${cardClassName} ${
+                  dragOverIndex === index ? "border-primary/40 bg-primary/5" : ""
+                }`}
                 draggable
                 onDragStart={() => onDragStart(index)}
-                onDragOver={(event) => event.preventDefault()}
+                onDragEnd={onDragEnd}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  onDragOver(index);
+                }}
                 onDrop={() => onDrop(index)}
               >
                 <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">

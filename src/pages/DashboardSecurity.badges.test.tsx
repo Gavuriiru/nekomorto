@@ -124,6 +124,7 @@ describe("DashboardSecurity semantic badges", () => {
     expect(classTokens(firstSessionCard as HTMLElement)).toContain("animate-slide-up");
     expect(classTokens(firstSessionCard as HTMLElement)).toContain("opacity-0");
     expect(classTokens(firstSessionCard as HTMLElement)).toContain("bg-background");
+    expect(classTokens(firstSessionCard as HTMLElement)).toContain("hover:border-primary/40");
     expect(await screen.findByText("Sua sess\u00E3o atual")).toHaveClass(
       "bg-emerald-500/20",
       "text-emerald-800",
@@ -140,7 +141,7 @@ describe("DashboardSecurity semantic badges", () => {
     render(<DashboardSecurity />);
 
     const revokeButton = await screen.findByRole("button", {
-      name: "Encerrar sessao de Moderator",
+      name: "Encerrar sessão de Moderator",
     });
     const sessionCard = screen.getByText("Moderator").closest("article");
     const headerRow = revokeButton.parentElement as HTMLElement | null;
@@ -228,10 +229,10 @@ describe("DashboardSecurity semantic badges", () => {
 
     expect(screen.getByText("Admin")).toBeInTheDocument();
     expect(screen.queryByTestId("dashboard-security-loading")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Atualizando sessoes/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Atualizando sessões/i)).not.toBeInTheDocument();
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "Atualizando sessoes",
+        title: "Atualizando sessões",
         intent: "info",
       }),
     );

@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import os from "os";
 import path from "path";
-import Epub from "epub-gen";
+import { EPub } from "@lesjoursfr/html-to-epub";
 import sanitizeHtml from "sanitize-html";
 import { createSlug } from "./post-slug.js";
 import { renderLexicalJsonToHtml } from "./lexical-html.js";
@@ -247,11 +247,12 @@ export const exportProjectEpub = async ({
     appendChapterTitles: true,
     content: epubContent,
     description: stripHtml(project?.synopsis || project?.description || ""),
+    tempDir: outputDirectory,
     verbose: false,
   };
 
   try {
-    await new Epub(options, outputPath).promise;
+    await new EPub(options, outputPath).render();
     const buffer = await fs.readFile(outputPath);
     return {
       buffer,

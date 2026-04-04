@@ -76,6 +76,7 @@ const MANAGEMENT_DEPENDENCY_KEYS = [
   "AccessRole",
   "BASIC_PROFILE_FIELDS",
   "PermissionId",
+  "SecurityEventSeverity",
   "app",
   "appendAuditLog",
   "applyOwnerRole",

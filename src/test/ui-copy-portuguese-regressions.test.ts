@@ -11,6 +11,7 @@ const mojibakeGuardFiles = [
   "server/lib/site-settings-runtime-helpers.js",
   "server/lib/public-site-runtime.js",
   "server/lib/post-version-runtime.js",
+  "server/lib/project-epub-import-request.js",
 ];
 
 const knownBadFragmentsByFile: Array<{

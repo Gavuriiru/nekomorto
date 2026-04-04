@@ -428,6 +428,84 @@ describe("project reading og", () => {
     expect(artworkFallback).not.toBeNull();
   });
 
+  it("prefers the volume cover over auto-derived page art for image chapters", () => {
+    const model = buildProjectReadingOgCardModel({
+      project: {
+        ...baseProject,
+        type: "Manga",
+        episodeDownloads: [
+          {
+            number: 1,
+            volume: 2,
+            title: "Capitulo em paginas",
+            synopsis: "Sinopse do capitulo",
+            content: "",
+            contentFormat: "images",
+            hasPages: true,
+            coverImageUrl: "/uploads/projects/projeto-teste/chapter-1-page-1.jpg",
+            pages: [
+              {
+                position: 0,
+                imageUrl: "/uploads/projects/projeto-teste/chapter-1-page-1.jpg",
+              },
+            ],
+          },
+        ],
+      },
+      chapterNumber: 1,
+      volume: 2,
+      settings: baseSettings,
+      tagTranslations: {},
+      genreTranslations: {},
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string, preset: string) => `${value}?preset=${preset}`,
+    });
+
+    expect(model?.artworkSource).toBe("volume-entry-cover");
+    expect(model?.artworkUrl).toBe("/uploads/projects/projeto-teste/volume-2.jpg?preset=poster");
+  });
+
+  it("keeps the first chapter page as artwork fallback when no volume cover exists", () => {
+    const model = buildProjectReadingOgCardModel({
+      project: {
+        ...baseProject,
+        type: "Manga",
+        volumeEntries: [],
+        volumeCovers: [],
+        episodeDownloads: [
+          {
+            number: 1,
+            volume: 2,
+            title: "Capitulo em paginas",
+            synopsis: "Sinopse do capitulo",
+            content: "",
+            contentFormat: "images",
+            hasPages: true,
+            coverImageUrl: "/uploads/projects/projeto-teste/chapter-1-page-1.jpg",
+            pages: [
+              {
+                position: 0,
+                imageUrl: "/uploads/projects/projeto-teste/chapter-1-page-1.jpg",
+              },
+            ],
+          },
+        ],
+      },
+      chapterNumber: 1,
+      volume: 2,
+      settings: baseSettings,
+      tagTranslations: {},
+      genreTranslations: {},
+      origin: "https://nekomata.moe",
+      resolveVariantUrl: (value: string, preset: string) => `${value}?preset=${preset}`,
+    });
+
+    expect(model?.artworkSource).toBe("chapter-page");
+    expect(model?.artworkUrl).toBe(
+      "/uploads/projects/projeto-teste/chapter-1-page-1.jpg?preset=hero",
+    );
+  });
+
   it("ignores project hero images in the reading OG fallbacks", () => {
     const model = buildProjectReadingOgCardModel({
       project: {

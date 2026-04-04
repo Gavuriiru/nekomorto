@@ -339,8 +339,8 @@ describe("DashboardSettings autosave", () => {
         name: "Selecionar comportamento do header do site",
       }),
     );
-    fireEvent.click(screen.getByRole("option", { name: "Estatica" }));
-    fireEvent.click(within(mangaCard).getByRole("switch", { name: /Rodape do site/i }));
+    fireEvent.click(screen.getByRole("option", { name: "Estática" }));
+    fireEvent.click(within(mangaCard).getByRole("switch", { name: /Rodap.* do site/i }));
 
     await act(async () => {
       await waitMs(1300);

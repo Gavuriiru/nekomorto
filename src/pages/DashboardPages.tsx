@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type DragEvent,
   type FocusEvent,
 } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -17,7 +18,10 @@ import {
   Input,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
-import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
+import {
+  dashboardPageLayoutTokens,
+  dashboardSubtleSurfaceHoverClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
 import DashboardShell from "@/components/DashboardShell";
 import ReorderControls from "@/components/ReorderControls";
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
@@ -437,6 +441,8 @@ const dashboardPagesInsetSurfaceClassName =
   dashboardPageLayoutTokens.groupedFieldSurface;
 const dashboardPagesControlSurfaceClassName =
   dashboardPageLayoutTokens.controlSurface;
+const dashboardPagesReorderableSurfaceClassName =
+  `${dashboardPagesControlSurfaceClassName} ${dashboardSubtleSurfaceHoverClassName}`;
 const dashboardPagesMetaTextClassName = dashboardPageLayoutTokens.cardMetaText;
 
 type DashboardPagesContentProps = {
@@ -503,6 +509,10 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
     parseDashboardPagesTabParam(searchParams.get("tab")),
   );
   const [dragState, setDragState] = useState<{
+    list: string;
+    index: number;
+  } | null>(null);
+  const [dragOverState, setDragOverState] = useState<{
     list: string;
     index: number;
   } | null>(null);
@@ -776,6 +786,23 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
 
   const handleDragStart = (list: string, index: number) => {
     setDragState({ list, index });
+    setDragOverState(null);
+  };
+
+  const clearDragState = useCallback(() => {
+    setDragState(null);
+    setDragOverState(null);
+  }, []);
+
+  const handleDragOver = (event: DragEvent<HTMLElement>, list: string, index: number) => {
+    event.preventDefault();
+    if (!dragState || dragState.list !== list || dragState.index === index) {
+      setDragOverState(null);
+      return;
+    }
+    setDragOverState((prev) =>
+      prev?.list === list && prev.index === index ? prev : { list, index },
+    );
   };
 
   const moveListItem = (list: string, from: number, to: number) => {
@@ -813,11 +840,27 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
 
   const handleDrop = (list: string, index: number) => {
     if (!dragState || dragState.list !== list) {
+      setDragOverState(null);
       return;
     }
     moveListItem(list, dragState.index, index);
-    setDragState(null);
+    clearDragState();
   };
+
+  const isDragOverTarget = (list: string, index: number) =>
+    dragState?.list === list &&
+    dragState.index !== index &&
+    dragOverState?.list === list &&
+    dragOverState.index === index;
+
+  const getReorderableSurfaceClassName = (
+    list: string,
+    index: number,
+    paddingClassName: string,
+  ) =>
+    `${dashboardPagesReorderableSurfaceClassName} ${paddingClassName} ${
+      isDragOverTarget(list, index) ? "border-primary/40 bg-primary/5" : ""
+    }`;
 
   const handleMainBlurCapture = useCallback(
     (event: FocusEvent<HTMLElement>) => {
@@ -1231,11 +1274,18 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   onDragStart={() =>
                                     handleDragStart("about.highlights", index)
                                   }
-                                  onDragOver={(event) => event.preventDefault()}
+                                  onDragOver={(event) =>
+                                    handleDragOver(event, "about.highlights", index)
+                                  }
                                   onDrop={() =>
                                     handleDrop("about.highlights", index)
                                   }
-                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                  onDragEnd={clearDragState}
+                                  className={getReorderableSurfaceClassName(
+                                    "about.highlights",
+                                    index,
+                                    "p-4",
+                                  )}
                                 >
                                   <div className="flex items-center justify-between gap-2">
                                     <div
@@ -1443,11 +1493,18 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   onDragStart={() =>
                                     handleDragStart("about.pillars", index)
                                   }
-                                  onDragOver={(event) => event.preventDefault()}
+                                  onDragOver={(event) =>
+                                    handleDragOver(event, "about.pillars", index)
+                                  }
                                   onDrop={() =>
                                     handleDrop("about.pillars", index)
                                   }
-                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                  onDragEnd={clearDragState}
+                                  className={getReorderableSurfaceClassName(
+                                    "about.pillars",
+                                    index,
+                                    "p-4",
+                                  )}
                                 >
                                   <div className="flex items-center justify-between gap-2">
                                     <div
@@ -1567,11 +1624,18 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   onDragStart={() =>
                                     handleDragStart("about.values", index)
                                   }
-                                  onDragOver={(event) => event.preventDefault()}
+                                  onDragOver={(event) =>
+                                    handleDragOver(event, "about.values", index)
+                                  }
                                   onDrop={() =>
                                     handleDrop("about.values", index)
                                   }
-                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                  onDragEnd={clearDragState}
+                                  className={getReorderableSurfaceClassName(
+                                    "about.values",
+                                    index,
+                                    "p-4",
+                                  )}
                                 >
                                   <div className="flex items-center justify-between gap-2">
                                     <div
@@ -1727,11 +1791,18 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   onDragStart={() =>
                                     handleDragStart("donations.costs", index)
                                   }
-                                  onDragOver={(event) => event.preventDefault()}
+                                  onDragOver={(event) =>
+                                    handleDragOver(event, "donations.costs", index)
+                                  }
                                   onDrop={() =>
                                     handleDrop("donations.costs", index)
                                   }
-                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                  onDragEnd={clearDragState}
+                                  className={getReorderableSurfaceClassName(
+                                    "donations.costs",
+                                    index,
+                                    "p-4",
+                                  )}
                                 >
                                   <div className="flex items-center justify-between gap-2">
                                     <div
@@ -1993,11 +2064,18 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   onDragStart={() =>
                                     handleDragStart("donations.donors", index)
                                   }
-                                  onDragOver={(event) => event.preventDefault()}
+                                  onDragOver={(event) =>
+                                    handleDragOver(event, "donations.donors", index)
+                                  }
                                   onDrop={() =>
                                     handleDrop("donations.donors", index)
                                   }
-                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                  onDragEnd={clearDragState}
+                                  className={getReorderableSurfaceClassName(
+                                    "donations.donors",
+                                    index,
+                                    "p-4",
+                                  )}
                                 >
                                   <div className="flex items-center justify-between gap-2">
                                     <div
@@ -2173,9 +2251,16 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   onDragStart={() =>
                                     handleDragStart("faq.intro", index)
                                   }
-                                  onDragOver={(event) => event.preventDefault()}
+                                  onDragOver={(event) =>
+                                    handleDragOver(event, "faq.intro", index)
+                                  }
                                   onDrop={() => handleDrop("faq.intro", index)}
-                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                  onDragEnd={clearDragState}
+                                  className={getReorderableSurfaceClassName(
+                                    "faq.intro",
+                                    index,
+                                    "p-4",
+                                  )}
                                 >
                                   <div className="flex items-center justify-between gap-2">
                                     <div
@@ -2304,11 +2389,18 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   onDragStart={() =>
                                     handleDragStart("faq.groups", groupIndex)
                                   }
-                                  onDragOver={(event) => event.preventDefault()}
+                                  onDragOver={(event) =>
+                                    handleDragOver(event, "faq.groups", groupIndex)
+                                  }
                                   onDrop={() =>
                                     handleDrop("faq.groups", groupIndex)
                                   }
-                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                  onDragEnd={clearDragState}
+                                  className={getReorderableSurfaceClassName(
+                                    "faq.groups",
+                                    groupIndex,
+                                    "p-4",
+                                  )}
                                 >
                                   <div className="flex items-center justify-between gap-2">
                                     <div
@@ -2412,15 +2504,28 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                             );
                                           }}
                                           onDragOver={(event) =>
-                                            event.preventDefault()
+                                            {
+                                              event.stopPropagation();
+                                              handleDragOver(
+                                                event,
+                                                `faq.items.${groupIndex}`,
+                                                itemIndex,
+                                              );
+                                            }
                                           }
-                                          onDrop={() =>
+                                          onDrop={(event) => {
+                                            event.stopPropagation();
                                             handleDrop(
                                               `faq.items.${groupIndex}`,
                                               itemIndex,
-                                            )
-                                          }
-                                          className={`${dashboardPagesControlSurfaceClassName} p-3`}
+                                            );
+                                          }}
+                                          onDragEnd={clearDragState}
+                                          className={getReorderableSurfaceClassName(
+                                            `faq.items.${groupIndex}`,
+                                            itemIndex,
+                                            "p-3",
+                                          )}
                                         >
                                           <div className="flex items-center justify-between gap-2">
                                             <div
@@ -2663,11 +2768,18 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   onDragStart={() =>
                                     handleDragStart("recruitment.roles", index)
                                   }
-                                  onDragOver={(event) => event.preventDefault()}
+                                  onDragOver={(event) =>
+                                    handleDragOver(event, "recruitment.roles", index)
+                                  }
                                   onDrop={() =>
                                     handleDrop("recruitment.roles", index)
                                   }
-                                  className={`${dashboardPagesControlSurfaceClassName} p-4`}
+                                  onDragEnd={clearDragState}
+                                  className={getReorderableSurfaceClassName(
+                                    "recruitment.roles",
+                                    index,
+                                    "p-4",
+                                  )}
                                 >
                                   <div className="flex items-center justify-between gap-2">
                                     <div

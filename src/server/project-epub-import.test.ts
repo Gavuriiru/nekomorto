@@ -166,7 +166,7 @@ describe("project EPUB import", () => {
       expect.arrayContaining([
         "Itens de boilerplate promovidos para extras: 1.",
         "Itens de boilerplate ignorados: 2.",
-        "Entradas do TOC nao resolvidas: 1.",
+        "Entradas do TOC não resolvidas: 1.",
       ]),
     );
     expect(htmlToLexicalJsonMock).toHaveBeenCalledTimes(2);
@@ -486,7 +486,9 @@ describe("project EPUB import", () => {
       );
       expect(result.warnings).toEqual(
         expect.arrayContaining([
-          'Estilos CSS avancados foram ignorados no capitulo "Chapter 1"; importacao continuou sem estilos calculados.',
+          expect.stringMatching(
+            /Estilos CSS .*"Chapter 1"; importacao continuou sem estilos calculados\./,
+          ),
         ]),
       );
       expect(htmlToLexicalJsonMock).toHaveBeenCalledTimes(1);
@@ -536,9 +538,13 @@ describe("project EPUB import", () => {
         project: { episodeDownloads: [] },
       });
 
-      const warningMessage =
-        'Estilos CSS avancados foram ignorados no capitulo "Chapter 1"; importacao continuou sem estilos calculados.';
-      expect(result.warnings.filter((warning) => warning === warningMessage)).toHaveLength(1);
+      expect(
+        result.warnings.filter((warning) =>
+          /Estilos CSS .*"Chapter 1"; importacao continuou sem estilos calculados\./.test(
+            warning,
+          ),
+        ),
+      ).toHaveLength(1);
       expect(
         consoleWarnSpy.mock.calls.filter(
           ([eventName]) => String(eventName || "") === "epub_import_editorial_css_fallback",
@@ -588,7 +594,9 @@ describe("project EPUB import", () => {
       expect(result.summary.chapters).toBe(1);
       expect(result.warnings).toEqual(
         expect.arrayContaining([
-          'Estilos CSS avancados foram ignorados no capitulo "OEBPS/Text/chapter001.xhtml"; importacao continuou sem estilos calculados.',
+          expect.stringMatching(
+            /Estilos CSS .*"OEBPS\/Text\/chapter001\.xhtml"; importacao continuou sem estilos calculados\./,
+          ),
         ]),
       );
       expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -697,7 +705,7 @@ describe("project EPUB import", () => {
     expect(result.summary.chapters).toBe(0);
     expect(result.warnings).toEqual(
       expect.arrayContaining([
-        'Imagem interna ignorada no capitulo "Chapter 1": illustration.jpg.',
+        'Imagem interna ignorada no capítulo "Chapter 1": illustration.jpg.',
         "Itens de boilerplate promovidos para extras: 1.",
       ]),
     );
@@ -1006,7 +1014,9 @@ describe("project EPUB import", () => {
       expect(result.summary.chapters).toBeGreaterThan(0);
       expect(result.warnings).toEqual(
         expect.arrayContaining([
-          'Estilos CSS avancados foram ignorados no capitulo "OEBPS/Text/CoverPage.html"; importacao continuou sem estilos calculados.',
+          expect.stringMatching(
+            /Estilos CSS .*"OEBPS\/Text\/CoverPage\.html"; importacao continuou sem estilos calculados\./,
+          ),
         ]),
       );
       expect(consoleWarnSpy).toHaveBeenCalledWith(

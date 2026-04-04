@@ -71,6 +71,7 @@ const createDependencies = ({ app, overrides = {} }) => {
     ],
     BOOTSTRAP_TOKEN: "bootstrap-token",
     PermissionId,
+    SecurityEventSeverity: { WARNING: "warning" },
     app,
     appendAuditLog: vi.fn(),
     applyOwnerRole: vi.fn((user) => user),
@@ -197,6 +198,77 @@ describe("registerUserRoutes", () => {
       "users.create",
       "users",
       { id: "user-2" },
+    );
+  });
+
+  it("passes SecurityEventSeverity into legacy managed user warning events", async () => {
+    const { app, routes } = createAppRecorder();
+    let storedUsers = [
+      {
+        id: "owner-1",
+        name: "Owner",
+        phrase: "",
+        bio: "",
+        avatarUrl: null,
+        avatarDisplay: { x: 0, y: 0, zoom: 1, rotation: 0 },
+        socials: [],
+        favoriteWorks: [],
+        status: "active",
+        permissions: ["*"],
+        roles: [],
+        accessRole: AccessRole.OWNER_PRIMARY,
+        order: 0,
+        username: "owner-1",
+      },
+    ];
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        SecurityEventSeverity: { WARNING: "warning-sentinel" },
+        isRbacV2Enabled: false,
+        loadUsers: vi.fn(() => cloneJson(storedUsers)),
+        normalizeUsers: vi.fn((users) => users),
+        writeUsers: vi.fn((users) => {
+          storedUsers = cloneJson(users);
+        }),
+        withUserProfileRevision: vi.fn((user) => ({
+          ...user,
+          revision: "legacy-revision",
+        })),
+      },
+    });
+
+    registerUserRoutes(dependencies);
+
+    const route = getRoute(routes, "PUT", "/api/users/:id");
+
+    const res = await invokeFinalHandler(route, {
+      body: {
+        permissions: [],
+      },
+      params: { id: "owner-1" },
+      session: {
+        user: {
+          id: "owner-1",
+          avatarUrl: "https://cdn.discordapp.com/avatars/1/avatar.png",
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({
+      user: expect.objectContaining({
+        id: "owner-1",
+        revision: "legacy-revision",
+      }),
+    });
+    expect(dependencies.emitSecurityEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "privilege_escalation_warning",
+        severity: "warning-sentinel",
+        actorUserId: "owner-1",
+        targetUserId: "owner-1",
+      }),
     );
   });
 

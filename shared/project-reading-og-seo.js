@@ -1,6 +1,7 @@
 import { createStableRevisionToken } from "./stable-revision-token.js";
 import {
   hasProjectEpisodeReadableContent,
+  normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,
 } from "./project-reader.js";
 
@@ -169,18 +170,27 @@ const resolveVolumeCoverImage = ({ volumeEntry, volumeCover }) =>
 const resolveArtworkReadingImage = ({ chapter, volumeEntry, volumeCover, project }) => {
   const volumeCandidate = resolveVolumeCoverImage({ volumeEntry, volumeCover });
   const chapterPages = normalizeProjectEpisodePages(chapter?.pages);
+  const chapterContentFormat = normalizeProjectEpisodeContentFormat(
+    chapter?.contentFormat,
+    chapterPages.length > 0 || chapter?.hasPages ? "images" : "lexical",
+  );
+  const explicitChapterCoverCandidate =
+    chapterContentFormat === "images"
+      ? null
+      : {
+          source: "chapter-cover",
+          url: normalizeText(chapter?.coverImageUrl),
+          coverLike: true,
+        };
+  const chapterPageCandidate = {
+    source: "chapter-page",
+    url: normalizeText(chapterPages[0]?.imageUrl) || normalizeText(chapter?.coverImageUrl),
+    coverLike: false,
+  };
   const candidates = [
-    {
-      source: "chapter-cover",
-      url: normalizeText(chapter?.coverImageUrl),
-      coverLike: true,
-    },
-    {
-      source: "chapter-page",
-      url: normalizeText(chapterPages[0]?.imageUrl),
-      coverLike: false,
-    },
+    explicitChapterCoverCandidate,
     volumeCandidate,
+    chapterPageCandidate,
     {
       source: "project-cover",
       url: normalizeText(project?.cover),

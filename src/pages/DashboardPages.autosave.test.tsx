@@ -319,6 +319,7 @@ describe("DashboardPages autosave", () => {
     const secondQuestionCard = secondQuestionInput.closest('[draggable="true"]');
     expect(firstQuestionCard).toBeTruthy();
     expect(secondQuestionCard).toBeTruthy();
+    expect(classTokens(firstQuestionCard as HTMLElement)).toContain("hover:border-primary/40");
 
     const dataTransfer = {
       effectAllowed: "move",
@@ -330,11 +331,18 @@ describe("DashboardPages autosave", () => {
 
     fireEvent.dragStart(secondQuestionCard as HTMLElement, { dataTransfer });
     fireEvent.dragOver(firstQuestionCard as HTMLElement, { dataTransfer });
+    await waitFor(() => {
+      expect(classTokens(firstQuestionCard as HTMLElement)).toContain("border-primary/40");
+      expect(classTokens(firstQuestionCard as HTMLElement)).toContain("bg-primary/5");
+    });
     fireEvent.drop(firstQuestionCard as HTMLElement, { dataTransfer });
     fireEvent.dragEnd(secondQuestionCard as HTMLElement, { dataTransfer });
 
     const movedQuestionInput = await screen.findByDisplayValue("Pergunta B");
     const originalQuestionInput = await screen.findByDisplayValue("Pergunta A");
+    const movedQuestionCard = movedQuestionInput.closest('[draggable="true"]');
+    expect(movedQuestionCard).toBeTruthy();
+    expect(classTokens(movedQuestionCard as HTMLElement)).not.toContain("bg-primary/5");
     expect(
       movedQuestionInput.compareDocumentPosition(originalQuestionInput) &
         Node.DOCUMENT_POSITION_FOLLOWING,

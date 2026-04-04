@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useRef, type Dispatch, type SetStateAction } from "react";
 
 import AvatarCropWorkspace from "@/components/image-library/AvatarCropWorkspace";
 import FocalPointWorkspace from "@/components/image-library/FocalPointWorkspace";
@@ -15,6 +15,19 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { UploadFocalCrops, UploadFocalPresetKey } from "@/lib/upload-focal-points";
+
+const focusFirstAvailable = (...targets: Array<HTMLElement | null>) => {
+  for (const target of targets) {
+    if (!target) {
+      continue;
+    }
+    if ("disabled" in target && Boolean(target.disabled)) {
+      continue;
+    }
+    target.focus();
+    return;
+  }
+};
 
 export type ImageLibraryAvatarCropDialogProps = {
   applyCrop: (dataUrl: string) => Promise<void>;
@@ -34,45 +47,56 @@ export const ImageLibraryAvatarCropDialog = ({
   primarySelectedRenderUrl,
   primarySelectedUrl,
   setIsCropDialogOpen,
-}: ImageLibraryAvatarCropDialogProps) => (
-  <Dialog
-    open={isCropDialogOpen}
-    onOpenChange={(next) => {
-      if (next) {
-        setIsCropDialogOpen(true);
-        return;
-      }
-      setIsCropDialogOpen(false);
-    }}
-  >
-    <DialogContent
-      className="max-h-[92vh] max-w-xl overflow-auto data-[state=open]:animate-none data-[state=closed]:animate-none"
-      containerClassName="z-240"
-      overlayClassName="z-230 data-[state=open]:animate-none data-[state=closed]:animate-none"
+}: ImageLibraryAvatarCropDialogProps) => {
+  const applyButtonRef = useRef<HTMLButtonElement | null>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  return (
+    <Dialog
+      open={isCropDialogOpen}
+      onOpenChange={(next) => {
+        if (next) {
+          setIsCropDialogOpen(true);
+          return;
+        }
+        setIsCropDialogOpen(false);
+      }}
     >
-      <DialogHeader>
-        <DialogTitle>Editor de avatar</DialogTitle>
-        <DialogDescription>
-          Defina o enquadramento final do avatar e clique em Aplicar avatar para liberar o
-          salvamento.
-        </DialogDescription>
-      </DialogHeader>
-      {primarySelectedUrl ? (
-        <AvatarCropWorkspace
-          key={primarySelectedRenderKey}
-          src={primarySelectedRenderUrl}
-          isApplyingCrop={isApplyingCrop}
-          onCancel={() => setIsCropDialogOpen(false)}
-          onApplyCrop={applyCrop}
-        />
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          Selecione um avatar na biblioteca antes de abrir o editor.
-        </p>
-      )}
-    </DialogContent>
-  </Dialog>
-);
+      <DialogContent
+        className="max-h-[92vh] max-w-xl overflow-auto data-[state=open]:animate-none data-[state=closed]:animate-none"
+        containerClassName="z-240"
+        overlayClassName="z-230 data-[state=open]:animate-none data-[state=closed]:animate-none"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          focusFirstAvailable(applyButtonRef.current, cancelButtonRef.current);
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>Editor de avatar</DialogTitle>
+          <DialogDescription>
+            Defina o enquadramento final do avatar e clique em Aplicar avatar para liberar o
+            salvamento.
+          </DialogDescription>
+        </DialogHeader>
+        {primarySelectedUrl ? (
+          <AvatarCropWorkspace
+            key={primarySelectedRenderKey}
+            applyButtonRef={applyButtonRef}
+            cancelButtonRef={cancelButtonRef}
+            src={primarySelectedRenderUrl}
+            isApplyingCrop={isApplyingCrop}
+            onCancel={() => setIsCropDialogOpen(false)}
+            onApplyCrop={applyCrop}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Selecione um avatar na biblioteca antes de abrir o editor.
+          </p>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 export type ImageLibraryFocalPointDialogProps = {
   activeFocalPreset: UploadFocalPresetKey;
@@ -94,57 +118,72 @@ export const ImageLibraryFocalPointDialog = ({
   setActiveFocalPreset,
   setFocalCropDraft,
   setFocalTarget,
-}: ImageLibraryFocalPointDialogProps) => (
-  <Dialog
-    open={Boolean(focalTarget)}
-    onOpenChange={(next) => {
-      if (!next && !isSavingFocal) {
-        setFocalTarget(null);
-      }
-    }}
-  >
-    <DialogContent
-      className="flex h-[92vh] w-[96vw] max-w-[96vw] flex-col overflow-hidden data-[state=open]:animate-none data-[state=closed]:animate-none"
-      containerClassName="z-240"
-      overlayClassName="z-230 data-[state=open]:animate-none data-[state=closed]:animate-none"
+}: ImageLibraryFocalPointDialogProps) => {
+  const activePresetButtonRef = useRef<HTMLButtonElement | null>(null);
+  const saveButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  return (
+    <Dialog
+      open={Boolean(focalTarget)}
+      onOpenChange={(next) => {
+        if (!next && !isSavingFocal) {
+          setFocalTarget(null);
+        }
+      }}
     >
-      <DialogHeader>
-        <DialogTitle>Definir ponto focal</DialogTitle>
-        <DialogDescription>
-          Ajuste o enquadramento por preset e regenere as variantes automáticas com uma prévia
-          fiel ao recorte final.
-        </DialogDescription>
-      </DialogHeader>
-      {focalTarget ? (
-        <>
-          <div className="min-h-0 flex-1 overflow-auto pr-1">
-            <FocalPointWorkspace
-              item={focalTarget}
-              renderUrl={toLibraryItemRenderUrl(focalTarget)}
-              draft={focalCropDraft}
-              activePreset={activeFocalPreset}
-              onDraftChange={setFocalCropDraft}
-              onActivePresetChange={setActiveFocalPreset}
-            />
-          </div>
-          <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isSavingFocal}
-              onClick={() => setFocalTarget(null)}
-            >
-              Cancelar
-            </Button>
-            <Button type="button" disabled={isSavingFocal} onClick={() => void saveFocalPoint()}>
-              {isSavingFocal ? "Salvando..." : "Salvar ponto focal"}
-            </Button>
-          </div>
-        </>
-      ) : null}
-    </DialogContent>
-  </Dialog>
-);
+      <DialogContent
+        className="flex h-[92vh] w-[96vw] max-w-[96vw] flex-col overflow-hidden data-[state=open]:animate-none data-[state=closed]:animate-none"
+        containerClassName="z-240"
+        overlayClassName="z-230 data-[state=open]:animate-none data-[state=closed]:animate-none"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          focusFirstAvailable(activePresetButtonRef.current, saveButtonRef.current);
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>Definir ponto focal</DialogTitle>
+          <DialogDescription>
+            Ajuste o enquadramento por preset e regenere as variantes automáticas com uma prévia
+            fiel ao recorte final.
+          </DialogDescription>
+        </DialogHeader>
+        {focalTarget ? (
+          <>
+            <div className="min-h-0 flex-1 overflow-auto pr-1">
+              <FocalPointWorkspace
+                activePresetButtonRef={activePresetButtonRef}
+                item={focalTarget}
+                renderUrl={toLibraryItemRenderUrl(focalTarget)}
+                draft={focalCropDraft}
+                activePreset={activeFocalPreset}
+                onDraftChange={setFocalCropDraft}
+                onActivePresetChange={setActiveFocalPreset}
+              />
+            </div>
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSavingFocal}
+                onClick={() => setFocalTarget(null)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                ref={saveButtonRef}
+                type="button"
+                disabled={isSavingFocal}
+                onClick={() => void saveFocalPoint()}
+              >
+                {isSavingFocal ? "Salvando..." : "Salvar ponto focal"}
+              </Button>
+            </div>
+          </>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 export type ImageLibraryDeleteDialogProps = {
   deleteTarget: LibraryImageItem | null;
@@ -158,46 +197,59 @@ export const ImageLibraryDeleteDialog = ({
   handleDelete,
   isDeleting,
   setDeleteTarget,
-}: ImageLibraryDeleteDialogProps) => (
-  <Dialog open={Boolean(deleteTarget)} onOpenChange={(next) => !next && setDeleteTarget(null)}>
-    <DialogContent className="max-w-md" containerClassName="z-240" overlayClassName="z-230">
-      <DialogHeader>
-        <DialogTitle>Excluir imagem?</DialogTitle>
-        <DialogDescription>
-          {deleteTarget
-            ? `A imagem "${toEffectiveName(deleteTarget)}" será removida permanentemente.`
-            : "Confirme a exclusão da imagem."}
-        </DialogDescription>
-      </DialogHeader>
-      <div className="flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setDeleteTarget(null)}
-          disabled={isDeleting}
-        >
-          Cancelar
-        </Button>
-        <Button
-          type="button"
-          variant="destructive"
-          disabled={isDeleting}
-          onClick={() => {
-            if (!deleteTarget) {
-              return;
-            }
-            void (async () => {
-              await handleDelete(deleteTarget);
-              setDeleteTarget(null);
-            })();
-          }}
-        >
-          {isDeleting ? "Excluindo..." : "Excluir"}
-        </Button>
-      </div>
-    </DialogContent>
-  </Dialog>
-);
+}: ImageLibraryDeleteDialogProps) => {
+  const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  return (
+    <Dialog open={Boolean(deleteTarget)} onOpenChange={(next) => !next && setDeleteTarget(null)}>
+      <DialogContent
+        className="max-w-md"
+        containerClassName="z-240"
+        overlayClassName="z-230"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          focusFirstAvailable(cancelButtonRef.current);
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>Excluir imagem?</DialogTitle>
+          <DialogDescription>
+            {deleteTarget
+              ? `A imagem "${toEffectiveName(deleteTarget)}" será removida permanentemente.`
+              : "Confirme a exclusão da imagem."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex justify-end gap-2">
+          <Button
+            ref={cancelButtonRef}
+            type="button"
+            variant="outline"
+            onClick={() => setDeleteTarget(null)}
+            disabled={isDeleting}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={isDeleting}
+            onClick={() => {
+              if (!deleteTarget) {
+                return;
+              }
+              void (async () => {
+                await handleDelete(deleteTarget);
+                setDeleteTarget(null);
+              })();
+            }}
+          >
+            {isDeleting ? "Excluindo..." : "Excluir"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 export type ImageLibraryAltTextDialogProps = {
   altTextTarget: LibraryImageItem | null;
@@ -215,51 +267,68 @@ export const ImageLibraryAltTextDialog = ({
   isSavingAltText,
   setAltTextTarget,
   setAltTextValue,
-}: ImageLibraryAltTextDialogProps) => (
-  <Dialog
-    open={Boolean(altTextTarget)}
-    onOpenChange={(next) => {
-      if (!next) {
-        setAltTextTarget(null);
-        setAltTextValue("");
-      }
-    }}
-  >
-    <DialogContent className="max-w-md" containerClassName="z-240" overlayClassName="z-230">
-      <DialogHeader>
-        <DialogTitle>Editar texto alternativo</DialogTitle>
-        <DialogDescription>
-          Esse texto fica salvo no upload e pode ser reutilizado ao selecionar a imagem.
-        </DialogDescription>
-      </DialogHeader>
-      <div className="space-y-3">
-        <Label htmlFor="edit-image-alt-text">Texto alternativo</Label>
-        <Input
-          id="edit-image-alt-text"
-          value={altTextValue}
-          onChange={(event) => setAltTextValue(event.target.value)}
-          placeholder="Descreva a imagem, se quiser"
-        />
-        <div className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setAltTextTarget(null);
-              setAltTextValue("");
-            }}
-            disabled={isSavingAltText}
-          >
-            Cancelar
-          </Button>
-          <Button type="button" disabled={isSavingAltText} onClick={() => void handleAltTextConfirm()}>
-            {isSavingAltText ? "Salvando..." : "Salvar"}
-          </Button>
+}: ImageLibraryAltTextDialogProps) => {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  return (
+    <Dialog
+      open={Boolean(altTextTarget)}
+      onOpenChange={(next) => {
+        if (!next) {
+          setAltTextTarget(null);
+          setAltTextValue("");
+        }
+      }}
+    >
+      <DialogContent
+        className="max-w-md"
+        containerClassName="z-240"
+        overlayClassName="z-230"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          focusFirstAvailable(inputRef.current);
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>Editar texto alternativo</DialogTitle>
+          <DialogDescription>
+            Esse texto fica salvo no upload e pode ser reutilizado ao selecionar a imagem.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Label htmlFor="edit-image-alt-text">Texto alternativo</Label>
+          <Input
+            ref={inputRef}
+            id="edit-image-alt-text"
+            value={altTextValue}
+            onChange={(event) => setAltTextValue(event.target.value)}
+            placeholder="Descreva a imagem, se quiser"
+          />
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setAltTextTarget(null);
+                setAltTextValue("");
+              }}
+              disabled={isSavingAltText}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={isSavingAltText}
+              onClick={() => void handleAltTextConfirm()}
+            >
+              {isSavingAltText ? "Salvando..." : "Salvar"}
+            </Button>
+          </div>
         </div>
-      </div>
-    </DialogContent>
-  </Dialog>
-);
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 export type ImageLibraryRenameDialogProps = {
   handleRenameConfirm: () => Promise<void>;
@@ -277,35 +346,48 @@ export const ImageLibraryRenameDialog = ({
   renameValue,
   setRenameTarget,
   setRenameValue,
-}: ImageLibraryRenameDialogProps) => (
-  <Dialog open={Boolean(renameTarget)} onOpenChange={(next) => !next && setRenameTarget(null)}>
-    <DialogContent className="max-w-md" containerClassName="z-240" overlayClassName="z-230">
-      <DialogHeader>
-        <DialogTitle>Renomear imagem</DialogTitle>
-        <DialogDescription>
-          O nome novo atualiza o caminho da imagem onde ela estiver sendo usada.
-        </DialogDescription>
-      </DialogHeader>
-      <div className="space-y-3">
-        <Label htmlFor="rename-image-file-name">Novo nome do arquivo</Label>
-        <Input
-          id="rename-image-file-name"
-          value={renameValue}
-          onChange={(event) => setRenameValue(event.target.value)}
-        />
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => setRenameTarget(null)}>
-            Cancelar
-          </Button>
-          <Button
-            type="button"
-            disabled={isRenaming || !renameValue.trim()}
-            onClick={() => void handleRenameConfirm()}
-          >
-            {isRenaming ? "Renomeando..." : "Renomear"}
-          </Button>
+}: ImageLibraryRenameDialogProps) => {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  return (
+    <Dialog open={Boolean(renameTarget)} onOpenChange={(next) => !next && setRenameTarget(null)}>
+      <DialogContent
+        className="max-w-md"
+        containerClassName="z-240"
+        overlayClassName="z-230"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          focusFirstAvailable(inputRef.current);
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>Renomear imagem</DialogTitle>
+          <DialogDescription>
+            O nome novo atualiza o caminho da imagem onde ela estiver sendo usada.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Label htmlFor="rename-image-file-name">Novo nome do arquivo</Label>
+          <Input
+            ref={inputRef}
+            id="rename-image-file-name"
+            value={renameValue}
+            onChange={(event) => setRenameValue(event.target.value)}
+          />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setRenameTarget(null)}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={isRenaming || !renameValue.trim()}
+              onClick={() => void handleRenameConfirm()}
+            >
+              {isRenaming ? "Renomeando..." : "Renomear"}
+            </Button>
+          </div>
         </div>
-      </div>
-    </DialogContent>
-  </Dialog>
-);
+      </DialogContent>
+    </Dialog>
+  );
+};

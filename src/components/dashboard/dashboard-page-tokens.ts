@@ -1,6 +1,8 @@
 export const dashboardStrongFocusFieldClassName =
-  "focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-inset";
+  "focus-visible:border-primary";
 export const dashboardStrongSurfaceHoverClassName = "hover:border-primary/60";
+export const dashboardSubtleSurfaceHoverClassName =
+  "transition-[border-color,background-color] duration-200 hover:border-primary/40";
 export const dashboardStrongFocusScopeClassName = "dashboard-strong-focus-scope";
 export const dashboardStrongFocusTriggerClassName = "dashboard-strong-focus-trigger";
 

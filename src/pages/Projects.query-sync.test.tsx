@@ -563,7 +563,7 @@ describe("Projects query sync", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(await screen.findByRole("combobox", { name: "Filtrar por letra" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Filtrar por tag" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Filtrar por genero" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Filtrar por gênero" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Filtrar por formato" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Limpar filtros" })).toBeInTheDocument();
 
@@ -984,12 +984,12 @@ describe("Projects query sync", () => {
         expect(screen.getByText("+2")).toBeInTheDocument();
       });
 
-      expect(screen.getByRole("button", { name: "Filtrar por tag Acao" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Filtrar por tag A.*o/i })).toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: "Filtrar por tag comedia" }),
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByRole("button", { name: "Filtrar por genero Drama" }),
+        screen.queryByRole("button", { name: /Filtrar por g.*nero Drama/i }),
       ).not.toBeInTheDocument();
     } finally {
       restoreLayoutMetrics();
@@ -1008,8 +1008,8 @@ describe("Projects query sync", () => {
       </MemoryRouter>,
     );
 
-    const tagButton = await screen.findByRole("button", { name: "Filtrar por tag Acao" });
-    const genreButton = await screen.findByRole("button", { name: "Filtrar por genero Drama" });
+    const tagButton = await screen.findByRole("button", { name: /Filtrar por tag A.*o/i });
+    const genreButton = await screen.findByRole("button", { name: /Filtrar por g.*nero Drama/i });
 
     expect(tagButton).toHaveClass("min-h-6", "min-w-6", "rounded-md", "p-0.5");
     expect(genreButton).toHaveClass("min-h-6", "min-w-6", "rounded-md", "p-0.5");

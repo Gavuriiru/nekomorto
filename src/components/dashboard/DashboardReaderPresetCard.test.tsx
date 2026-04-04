@@ -155,7 +155,7 @@ describe("DashboardReaderPresetCard", () => {
         name: "Selecionar comportamento do header do site",
       }),
     );
-    fireEvent.click(screen.getByRole("option", { name: "Estatica" }));
+    fireEvent.click(screen.getByRole("option", { name: "Estática" }));
     expect(onUpdate).toHaveBeenCalledWith("webtoon", expect.any(Function));
     const headerUpdater = onUpdate.mock.calls.at(-1)?.[1] as
       | ((value: typeof preset) => unknown)
@@ -164,7 +164,7 @@ describe("DashboardReaderPresetCard", () => {
       siteHeaderVariant: "static",
     });
 
-    fireEvent.click(within(card).getByRole("switch", { name: /Rodape do site/i }));
+    fireEvent.click(within(card).getByRole("switch", { name: /Rodap.* do site/i }));
     const footerUpdater = onUpdate.mock.calls.at(-1)?.[1] as
       | ((value: typeof preset) => unknown)
       | undefined;

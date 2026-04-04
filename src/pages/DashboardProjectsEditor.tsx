@@ -18,6 +18,7 @@ import {
 } from "@/components/dashboard/dashboard-motion";
 import {
   dashboardPageLayoutTokens,
+  dashboardSubtleSurfaceHoverClassName,
   dashboardStrongFocusFieldClassName,
   dashboardStrongSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
@@ -249,8 +250,11 @@ const DashboardProjectsEditor = () => {
   } = useDashboardProjectsEditorResource(apiBase);
   const [episodeDragId, setEpisodeDragId] = useState<number | null>(null);
   const [relationDragIndex, setRelationDragIndex] = useState<number | null>(null);
+  const [relationDragOverIndex, setRelationDragOverIndex] = useState<number | null>(null);
   const [staffDragIndex, setStaffDragIndex] = useState<number | null>(null);
+  const [staffDragOverIndex, setStaffDragOverIndex] = useState<number | null>(null);
   const [animeStaffDragIndex, setAnimeStaffDragIndex] = useState<number | null>(null);
+  const [animeStaffDragOverIndex, setAnimeStaffDragOverIndex] = useState<number | null>(null);
   const [staffMemberInput, setStaffMemberInput] = useState<Record<number, string>>({});
   const [animeStaffMemberInput, setAnimeStaffMemberInput] = useState<Record<number, string>>({});
   const [episodeDateDraft, setEpisodeDateDraft] = useState<Record<number, string>>({});
@@ -1077,29 +1081,98 @@ const DashboardProjectsEditor = () => {
   const handleRelationDrop = (targetIndex: number) => {
     if (relationDragIndex === null || relationDragIndex === targetIndex) {
       setRelationDragIndex(null);
+      setRelationDragOverIndex(null);
       return;
     }
     moveRelationItem(relationDragIndex, targetIndex);
     setRelationDragIndex(null);
+    setRelationDragOverIndex(null);
   };
 
   const handleStaffDrop = (targetIndex: number) => {
     if (staffDragIndex === null || staffDragIndex === targetIndex) {
       setStaffDragIndex(null);
+      setStaffDragOverIndex(null);
       return;
     }
     moveStaffItem(staffDragIndex, targetIndex);
     setStaffDragIndex(null);
+    setStaffDragOverIndex(null);
   };
 
   const handleAnimeStaffDrop = (targetIndex: number) => {
     if (animeStaffDragIndex === null || animeStaffDragIndex === targetIndex) {
       setAnimeStaffDragIndex(null);
+      setAnimeStaffDragOverIndex(null);
       return;
     }
     moveAnimeStaffItem(animeStaffDragIndex, targetIndex);
     setAnimeStaffDragIndex(null);
+    setAnimeStaffDragOverIndex(null);
   };
+
+  const clearRelationDragState = useCallback(() => {
+    setRelationDragIndex(null);
+    setRelationDragOverIndex(null);
+  }, []);
+
+  const clearStaffDragState = useCallback(() => {
+    setStaffDragIndex(null);
+    setStaffDragOverIndex(null);
+  }, []);
+
+  const clearAnimeStaffDragState = useCallback(() => {
+    setAnimeStaffDragIndex(null);
+    setAnimeStaffDragOverIndex(null);
+  }, []);
+
+  const handleRelationDragStart = useCallback((index: number) => {
+    setRelationDragIndex(index);
+    setRelationDragOverIndex(null);
+  }, []);
+
+  const handleStaffDragStart = useCallback((index: number) => {
+    setStaffDragIndex(index);
+    setStaffDragOverIndex(null);
+  }, []);
+
+  const handleAnimeStaffDragStart = useCallback((index: number) => {
+    setAnimeStaffDragIndex(index);
+    setAnimeStaffDragOverIndex(null);
+  }, []);
+
+  const handleRelationDragOver = useCallback(
+    (index: number) => {
+      if (relationDragIndex === null || relationDragIndex === index) {
+        setRelationDragOverIndex(null);
+        return;
+      }
+      setRelationDragOverIndex((current) => (current === index ? current : index));
+    },
+    [relationDragIndex],
+  );
+
+  const handleStaffDragOver = useCallback(
+    (index: number) => {
+      if (staffDragIndex === null || staffDragIndex === index) {
+        setStaffDragOverIndex(null);
+        return;
+      }
+      setStaffDragOverIndex((current) => (current === index ? current : index));
+    },
+    [staffDragIndex],
+  );
+
+  const handleAnimeStaffDragOver = useCallback(
+    (index: number) => {
+      if (animeStaffDragIndex === null || animeStaffDragIndex === index) {
+        setAnimeStaffDragOverIndex(null);
+        return;
+      }
+      setAnimeStaffDragOverIndex((current) => (current === index ? current : index));
+    },
+    [animeStaffDragIndex],
+  );
 
   const handleEpisodeDrop = (targetIndex: number) => {
     if (episodeDragId === null || episodeDragId === targetIndex) {
@@ -1112,6 +1185,12 @@ const DashboardProjectsEditor = () => {
 
   const editorSectionClassName =
     "project-editor-section rounded-2xl border border-border/60 bg-card/70 px-4";
+  const editorSubtleSurfaceClassName = `rounded-2xl border border-border/60 bg-card/60 ${dashboardSubtleSurfaceHoverClassName}`;
+  const editorSubtlePanelSurfaceClassName = `rounded-2xl border border-border/60 bg-background/35 ${dashboardSubtleSurfaceHoverClassName}`;
+  const editorSubtleElevatedSurfaceClassName = `rounded-xl border border-border/60 bg-card/70 ${dashboardSubtleSurfaceHoverClassName}`;
+  const editorSubtleInsetSurfaceClassName = `rounded-xl border border-border/60 bg-background/40 ${dashboardSubtleSurfaceHoverClassName}`;
+  const editorSubtleMutedInsetSurfaceClassName = `rounded-md border border-border/60 bg-background/70 ${dashboardSubtleSurfaceHoverClassName}`;
+  const editorSubtleCalloutSurfaceClassName = `rounded-xl border border-border/60 bg-background/50 ${dashboardSubtleSurfaceHoverClassName}`;
   const editorSectionTriggerClassName =
     "project-editor-section-trigger flex w-full items-start gap-4 py-3.5 text-left hover:no-underline md:py-4";
   const editorSectionContentClassName = "project-editor-section-content pb-2.5 px-1";
@@ -1663,6 +1742,7 @@ const DashboardProjectsEditor = () => {
 
                   <ProjectEditorMediaSection
                     banner={formState.banner}
+                    cardClassName={editorSubtleSurfaceClassName}
                     cover={formState.cover}
                     editorSectionClassName={editorSectionClassName}
                     editorSectionContentClassName={editorSectionContentClassName}
@@ -1672,8 +1752,12 @@ const DashboardProjectsEditor = () => {
                   />
 
                   <ProjectEditorRelationsSection
+                    cardClassName={editorSubtleSurfaceClassName}
                     contentClassName={editorSectionContentClassName}
-                    onDragStart={setRelationDragIndex}
+                    dragOverIndex={relationDragOverIndex}
+                    onDragEnd={clearRelationDragState}
+                    onDragOver={handleRelationDragOver}
+                    onDragStart={handleRelationDragStart}
                     onDrop={handleRelationDrop}
                     onMove={moveRelationItem}
                     relations={formState.relations}
@@ -1731,7 +1815,9 @@ const DashboardProjectsEditor = () => {
                             ) : null}
                           </div>
                           {!isChapterBased ? (
-                            <div className="space-y-3 rounded-2xl border border-border/60 bg-background/35 p-3">
+                            <div
+                              className={`space-y-3 p-3 ${editorSubtlePanelSurfaceClassName}`}
+                            >
                               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <Badge
@@ -1787,7 +1873,9 @@ const DashboardProjectsEditor = () => {
                                 </div>
                               </div>
                               {selectedAnimeEpisodeKeys.length > 0 ? (
-                                <div className="grid gap-3 rounded-xl border border-border/60 bg-card/70 p-3">
+                                <div
+                                  className={`grid gap-3 p-3 ${editorSubtleElevatedSurfaceClassName}`}
+                                >
                                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                     <span>
                                       {selectedAnimeEpisodeKeys.length} episódio(s) selecionado(s)
@@ -1941,7 +2029,9 @@ const DashboardProjectsEditor = () => {
                                 </div>
                               ) : null}
                               {removedAnimeEpisode ? (
-                                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-card/70 px-3 py-2">
+                                <div
+                                  className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 ${editorSubtleElevatedSurfaceClassName}`}
+                                >
                                   <div className="text-sm text-muted-foreground">
                                     Episódio removido do formulário. Você pode desfazer antes de
                                     salvar.
@@ -1989,7 +2079,7 @@ const DashboardProjectsEditor = () => {
                                       ref={(node) => registerVolumeGroupNode(group.key, node)}
                                     key={`episode-group-${groupIndex}`}
                                     value={group.key}
-                                    className="rounded-2xl border border-border/60 bg-card/40"
+                                    className="project-editor-nested-section rounded-2xl border border-border/60 bg-card/40"
                                     data-testid={`volume-group-${group.key}`}
                                   >
                                     {isChapterBased && supportsVolumeEntries ? (
@@ -2039,7 +2129,9 @@ const DashboardProjectsEditor = () => {
                                       }
                                     >
                                       {group.hasNumericVolume ? (
-                                        <div className="space-y-3 rounded-xl border border-border/60 bg-background/40 p-3">
+                                        <div
+                                          className={`space-y-3 p-3 ${editorSubtleInsetSurfaceClassName}`}
+                                        >
                                           <div className="flex items-center gap-3">
                                             {groupVolumeEntry?.coverImageUrl ? (
                                               <img
@@ -2698,7 +2790,9 @@ const DashboardProjectsEditor = () => {
                                                         <Label className="text-xs">
                                                           Etapa atual
                                                         </Label>
-                                                        <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+                                                        <div
+                                                          className={`${editorSubtleMutedInsetSurfaceClassName} px-3 py-2 text-xs text-muted-foreground`}
+                                                        >
                                                           {currentProgressStageLabel}
                                                         </div>
                                                       </div>
@@ -2711,7 +2805,9 @@ const DashboardProjectsEditor = () => {
                                                       </Label>
                                                       <div className="flex flex-wrap items-center gap-3">
                                                         {episode.coverImageUrl ? (
-                                                          <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                                                          <div
+                                                            className={`flex items-center gap-3 px-3 py-2 ${editorSubtleSurfaceClassName}`}
+                                                          >
                                                             <img
                                                               src={episode.coverImageUrl}
                                                               alt={episode.title || "Capa"}
@@ -2740,7 +2836,9 @@ const DashboardProjectsEditor = () => {
                                                         <Label className="text-xs">
                                                           Conteúdo do capítulo
                                                         </Label>
-                                                        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-background/50 px-4 py-3">
+                                                        <div
+                                                          className={`mt-3 flex flex-wrap items-center gap-2 px-4 py-3 ${editorSubtleCalloutSurfaceClassName}`}
+                                                        >
                                                           {chapterEditorHref ? (
                                                             <Button type="button" size="sm" asChild>
                                                               <Link to={chapterEditorHref}>
@@ -3017,7 +3115,7 @@ const DashboardProjectsEditor = () => {
                                                             (source, sourceIndex) => (
                                                               <div
                                                                 key={`${source.label}-${sourceIndex}`}
-                                                                className="rounded-xl border border-border/60 bg-background/40 p-3"
+                                                                className={`${editorSubtleInsetSurfaceClassName} p-3`}
                                                               >
                                                                 <div className="grid items-start gap-2 md:grid-cols-[minmax(180px,1fr)_minmax(240px,2fr)_auto]">
                                                                   <DownloadSourceSelect
@@ -3158,11 +3256,15 @@ const DashboardProjectsEditor = () => {
                   ) : null}
 
                   <ProjectEditorStaffSection
+                    cardClassName={editorSubtleSurfaceClassName}
                     contentClassName={editorSectionContentClassName}
+                    dragOverIndex={staffDragOverIndex}
                     memberDirectory={memberDirectory}
                     memberInput={staffMemberInput}
                     onCommitMember={commitStaffMember}
-                    onDragStart={setStaffDragIndex}
+                    onDragEnd={clearStaffDragState}
+                    onDragOver={handleStaffDragOver}
+                    onDragStart={handleStaffDragStart}
                     onDrop={handleStaffDrop}
                     onMove={moveStaffItem}
                     roleOptions={staffRoleOptions}
@@ -3179,11 +3281,15 @@ const DashboardProjectsEditor = () => {
                   />
 
                   <ProjectEditorStaffSection
+                    cardClassName={editorSubtleSurfaceClassName}
                     contentClassName={editorSectionContentClassName}
+                    dragOverIndex={animeStaffDragOverIndex}
                     memberDirectory={memberDirectory}
                     memberInput={animeStaffMemberInput}
                     onCommitMember={commitAnimeStaffMember}
-                    onDragStart={setAnimeStaffDragIndex}
+                    onDragEnd={clearAnimeStaffDragState}
+                    onDragOver={handleAnimeStaffDragOver}
+                    onDragStart={handleAnimeStaffDragStart}
                     onDrop={handleAnimeStaffDrop}
                     onMove={moveAnimeStaffItem}
                     roleTranslationMap={staffRoleTranslationMap}

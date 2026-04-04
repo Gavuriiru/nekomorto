@@ -1,3 +1,5 @@
+import { SecurityEventSeverity as DefaultSecurityEventSeverity } from "../../lib/security-events.js";
+
 export const registerUserOwnerRoutes = ({
   AccessRole,
   SecurityEventSeverity,
@@ -17,6 +19,13 @@ export const registerUserOwnerRoutes = ({
   writeOwnerIds,
   writeUsers,
 } = {}) => {
+  const securityEventSeverity = {
+    ...DefaultSecurityEventSeverity,
+    ...(SecurityEventSeverity && typeof SecurityEventSeverity === "object"
+      ? SecurityEventSeverity
+      : {}),
+  };
+
   app.get("/api/owners", requirePrimaryOwner, (req, res) => {
     appendAuditLog(req, "owners.read", "owners", {});
     const ownerIds = loadOwnerIds().map((id) => String(id));
@@ -126,7 +135,7 @@ export const registerUserOwnerRoutes = ({
     emitSecurityEvent({
       req,
       type: "owner_transfer_critical",
-      severity: SecurityEventSeverity.CRITICAL,
+      severity: securityEventSeverity.CRITICAL,
       riskScore: 95,
       actorUserId: req.session?.user?.id || null,
       targetUserId: targetId,

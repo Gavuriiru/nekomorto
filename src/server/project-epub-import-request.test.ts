@@ -27,7 +27,7 @@ describe("project EPUB import multipart request", () => {
       body: {
         error: "project_snapshot_too_large",
         detail:
-          "O snapshot do projeto excedeu o limite desta requisicao. Salve o projeto e tente novamente.",
+          "O snapshot do projeto excedeu o limite desta requisição. Salve o projeto e tente novamente.",
       },
     });
   });
@@ -58,7 +58,7 @@ describe("project EPUB import multipart request", () => {
       body: {
         error: "epub_import_upload_persist_failed",
         detail:
-          "Nao foi possivel persistir as imagens importadas do EPUB neste momento. Tente novamente em alguns instantes.",
+          "Não foi possível persistir as imagens importadas do EPUB neste momento. Tente novamente em alguns instantes.",
       },
     });
   });

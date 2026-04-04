@@ -15,7 +15,7 @@
     ):focus-visible,
   .dashboard-strong-focus-trigger:focus-visible {
     border-color: hsl(var(--primary)) !important;
-    box-shadow: inset 0 0 0 1px hsl(var(--primary)) !important;
+    box-shadow: none !important;
   }
 
   .project-editor-dialog {
@@ -108,9 +108,34 @@
       background 180ms ease;
   }
 
-  .project-editor-section[data-state="open"] {
+  .project-editor-section:hover {
+    border-color: hsl(var(--primary) / 0.4);
+    background: linear-gradient(170deg, hsl(var(--card) / 0.86), hsl(var(--background) / 0.6));
+  }
+
+  .project-editor-section[data-state="open"],
+  .project-editor-section[data-state="open"]:hover {
     border-color: hsl(var(--primary) / 0.35);
     background: linear-gradient(170deg, hsl(var(--card) / 0.88), hsl(var(--background) / 0.62));
+  }
+
+  .project-editor-nested-section {
+    border-color: hsl(var(--border) / 0.6);
+    background: linear-gradient(170deg, hsl(var(--card) / 0.46), hsl(var(--background) / 0.34));
+    transition:
+      border-color 180ms ease,
+      background 180ms ease;
+  }
+
+  .project-editor-nested-section:hover {
+    border-color: hsl(var(--primary) / 0.4);
+    background: linear-gradient(170deg, hsl(var(--card) / 0.54), hsl(var(--background) / 0.4));
+  }
+
+  .project-editor-nested-section[data-state="open"],
+  .project-editor-nested-section[data-state="open"]:hover {
+    border-color: hsl(var(--primary) / 0.35);
+    background: linear-gradient(170deg, hsl(var(--card) / 0.58), hsl(var(--background) / 0.43));
   }
 
   .project-editor-section-trigger {
@@ -138,6 +163,11 @@
     transition:
       border-color 180ms ease,
       background 180ms ease;
+  }
+
+  .project-editor-episode-card:hover {
+    border-color: hsl(var(--primary) / 0.4);
+    background: linear-gradient(170deg, hsl(var(--card) / 0.9), hsl(var(--background) / 0.66));
   }
 
   .project-editor-episode-card.lift-hover:hover {
@@ -182,6 +212,7 @@
 
   @media (max-width: 768px) {
     .project-editor-section,
+    .project-editor-nested-section,
     .project-editor-episode-card {
       border-radius: 0.95rem;
     }

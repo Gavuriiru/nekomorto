@@ -30,6 +30,7 @@ import LexicalEditorSurface from "@/components/lexical/LexicalEditorSurface";
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
 import {
   dashboardPageLayoutTokens,
+  dashboardSubtleSurfaceHoverClassName,
   dashboardStrongSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -1561,6 +1562,8 @@ const DashboardPosts = () => {
   const editorSectionHeaderClassName =
     "project-editor-section-trigger flex w-full items-start gap-4 pb-1 pt-3 text-left md:pb-1.5 md:pt-3";
   const editorSectionContentClassName = "project-editor-section-content px-1 pb-3.5 !pt-0";
+  const subtleSummarySurfaceClassName = `border border-border/60 bg-card/65 ${dashboardSubtleSurfaceHoverClassName}`;
+  const subtleSurfaceClassName = `border border-border/60 bg-card/60 ${dashboardSubtleSurfaceHoverClassName}`;
   const editorPostLabel = editingPost ? "Postagem em edição" : "Nova postagem";
   const editorPostTitle = formState.title.trim() || "Sem título";
   const editorPostId = editingPost?.id || "Será definido ao salvar";
@@ -1687,7 +1690,9 @@ const DashboardPosts = () => {
                               Crie, edite e publique conteúdos sem sair da listagem.
                             </DialogDescription>
                           </div>
-                          <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-1.5 text-right">
+                          <div
+                            className={`rounded-xl px-3 py-1.5 text-right ${subtleSummarySurfaceClassName}`}
+                          >
                             <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                               Postagem
                             </p>
@@ -1899,7 +1904,9 @@ const DashboardPosts = () => {
                                   <Label>Capa</Label>
                                   {editorResolvedCover.coverImageUrl ? (
                                     <div className="space-y-2">
-                                      <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
+                                      <div
+                                        className={`overflow-hidden rounded-lg border border-border/60 bg-muted/20 ${dashboardSubtleSurfaceHoverClassName}`}
+                                      >
                                         <UploadPicture
                                           src={editorResolvedCover.coverImageUrl}
                                           alt={editorResolvedCover.coverAlt}
@@ -2819,7 +2826,7 @@ const DashboardPosts = () => {
                   return (
                     <div
                       key={version.id}
-                      className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border/60 bg-card/60 p-3"
+                      className={`flex flex-wrap items-start justify-between gap-3 rounded-lg p-3 ${subtleSurfaceClassName}`}
                     >
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -2900,7 +2907,7 @@ const DashboardPosts = () => {
             </DialogDescription>
           </DialogHeader>
           {rollbackTargetVersion ? (
-            <Card className="border-border/60 bg-card/60">
+            <Card className={subtleSurfaceClassName}>
               <CardContent className="space-y-3 p-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline" className="text-[10px] uppercase">

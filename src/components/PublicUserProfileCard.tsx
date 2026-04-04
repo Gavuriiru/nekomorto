@@ -1,23 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BadgeCheck,
+  Camera,
   Check,
   Clock,
   Code,
   Globe,
-  Instagram,
   Languages,
   Layers,
   MessageCircle,
   Paintbrush,
   Palette,
   PenTool,
+  Play,
   Shield,
   Sparkles,
   User,
   Video,
   X,
-  Youtube,
 } from "lucide-react";
 
 import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
@@ -64,10 +64,10 @@ const MAX_FAVORITE_WORKS = 3;
 const MAX_FAVORITE_WORK_LENGTH = 80;
 
 const SOCIAL_ICONS = {
-  instagram: Instagram,
+  instagram: Camera,
   twitter: X,
   x: X,
-  youtube: Youtube,
+  youtube: Play,
   discord: MessageCircle,
   "message-circle": MessageCircle,
   site: Globe,

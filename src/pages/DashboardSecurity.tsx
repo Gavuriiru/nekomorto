@@ -3,7 +3,10 @@ import { LogOut } from "lucide-react";
 
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
-import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
+import {
+  dashboardPageLayoutTokens,
+  dashboardSubtleSurfaceHoverClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
 import {
   dashboardAnimationDelay,
   dashboardClampedStaggerMs,
@@ -134,6 +137,7 @@ const DashboardSecurity = () => {
   usePageMeta({ title: "Segurança", noIndex: true });
 
   const apiBase = getApiBase();
+  const sessionCardClassName = `${dashboardPageLayoutTokens.surfaceInset} ${dashboardSubtleSurfaceHoverClassName}`;
   const initialCacheKeyRef = useRef(buildSecurityCacheKey(1, 100));
   const initialCacheRef = useRef(readSecurityCache(initialCacheKeyRef.current));
   const { currentUser: me, isLoadingUser } = useDashboardCurrentUser<MeUser>();
@@ -451,7 +455,7 @@ const DashboardSecurity = () => {
                   return (
                     <article
                       key={session.sid}
-                      className={`space-y-3 ${dashboardPageLayoutTokens.surfaceInset} p-4 animate-slide-up opacity-0`}
+                      className={`space-y-3 ${sessionCardClassName} p-4 animate-slide-up opacity-0`}
                       style={dashboardAnimationDelay(
                         dashboardClampedStaggerMs(index, dashboardMotionDelays.sectionLeadMs + 120),
                       )}

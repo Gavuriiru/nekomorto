@@ -234,11 +234,11 @@ describe("Dashboard overview async states", () => {
     expect(screen.getByTestId("dashboard-loading-skeleton")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-header-user-action-skeleton")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Fazer login" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Exportar relatorio" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Exportar relatório" })).not.toBeInTheDocument();
 
     userDeferred.resolve(mockJsonResponse(true, dashboardUser));
 
-    expect(await screen.findByRole("button", { name: "Exportar relatorio" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Exportar relatório" })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByTestId("dashboard-loading-skeleton")).not.toBeInTheDocument();
     });
@@ -264,7 +264,7 @@ describe("Dashboard overview async states", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("button", { name: "Exportar relatorio" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Exportar relatório" })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByTestId("dashboard-loading-skeleton")).not.toBeInTheDocument();
     });

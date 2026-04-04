@@ -48,6 +48,8 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     status,
     json: async () => payload,
   }) as Response;
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const userFixture = {
   id: "user-1",
@@ -131,6 +133,10 @@ describe("DashboardUsers socials reorder", () => {
     expect(socialSelectTrigger.className).toContain("w-14");
     expect(socialMoveDownButton.className).toContain("border-transparent");
     expect(socialMoveDownButton.className).toContain("bg-transparent");
+    expect(socialMoveDownButton.className).toContain("hover:border-primary/40");
+    expect(classTokens(dropTarget)).toContain("border-border/60");
+    expect(classTokens(dropTarget)).toContain("bg-card/60");
+    expect(classTokens(dropTarget)).toContain("hover:border-primary/40");
     const dataTransfer = {
       effectAllowed: "move",
       dropEffect: "move",
@@ -141,6 +147,8 @@ describe("DashboardUsers socials reorder", () => {
 
     fireEvent.dragStart(dragHandle, { dataTransfer });
     fireEvent.dragOver(dropTarget, { dataTransfer });
+    expect(classTokens(dropTarget)).toContain("border-primary/40");
+    expect(classTokens(dropTarget)).toContain("bg-primary/5");
     fireEvent.drop(dropTarget, { dataTransfer });
     fireEvent.dragEnd(dragHandle, { dataTransfer });
 

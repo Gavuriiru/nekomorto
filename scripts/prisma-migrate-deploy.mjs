@@ -3,6 +3,7 @@ import {
   getDatabaseStartupRetryConfig,
   isRetryableDatabaseStartupError,
 } from "../server/lib/database-startup-retry.js";
+import { resolveNpmInvocation } from "./lib/npm-invocation.mjs";
 
 const sleep = (delayMs) =>
   new Promise((resolve) => {
@@ -10,8 +11,8 @@ const sleep = (delayMs) =>
   });
 
 const runPrismaMigrateDeploy = () => {
-  const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
-  const result = spawnSync(npmCommand, ["exec", "--", "prisma", "migrate", "deploy"], {
+  const { command, args } = resolveNpmInvocation(["exec", "--", "prisma", "migrate", "deploy"]);
+  const result = spawnSync(command, args, {
     cwd: process.cwd(),
     env: process.env,
     encoding: "utf8",

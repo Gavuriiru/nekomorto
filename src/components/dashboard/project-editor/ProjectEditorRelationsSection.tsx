@@ -12,7 +12,11 @@ import type {
 import ProjectEditorAccordionHeader from "./ProjectEditorAccordionHeader";
 
 type ProjectEditorRelationsSectionProps = {
+  cardClassName: string;
   contentClassName: string;
+  dragOverIndex: number | null;
+  onDragEnd: () => void;
+  onDragOver: (index: number) => void;
   onDragStart: (index: number) => void;
   onDrop: (index: number) => void;
   onMove: (from: number, to: number) => void;
@@ -23,7 +27,11 @@ type ProjectEditorRelationsSectionProps = {
 };
 
 const ProjectEditorRelationsSection = ({
+  cardClassName,
   contentClassName,
+  dragOverIndex,
+  onDragEnd,
+  onDragOver,
   onDragStart,
   onDrop,
   onMove,
@@ -63,10 +71,16 @@ const ProjectEditorRelationsSection = ({
           {relations.map((relation, index) => (
             <div
               key={`${relation.title}-${index}`}
-              className="grid gap-2 rounded-2xl border border-border/60 bg-card/60 p-3 md:grid-cols-[1.35fr_1fr_1fr_auto_auto]"
+              className={`grid gap-2 rounded-2xl p-3 md:grid-cols-[1.35fr_1fr_1fr_auto_auto] ${cardClassName} ${
+                dragOverIndex === index ? "border-primary/40 bg-primary/5" : ""
+              }`}
               draggable
               onDragStart={() => onDragStart(index)}
-              onDragOver={(event) => event.preventDefault()}
+              onDragEnd={onDragEnd}
+              onDragOver={(event) => {
+                event.preventDefault();
+                onDragOver(index);
+              }}
               onDrop={() => onDrop(index)}
             >
               <Input

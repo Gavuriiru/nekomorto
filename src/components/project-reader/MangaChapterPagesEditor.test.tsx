@@ -458,7 +458,7 @@ describe("MangaChapterPagesEditor", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(
-        /Spread desfeito apos remover a pagina/i,
+        /Spread desfeito ap[oó]s remover a p[aá]gina/i,
       );
     });
   });

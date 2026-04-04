@@ -1,4 +1,4 @@
-import type { PointerEvent as ReactPointerEvent, SyntheticEvent } from "react";
+import type { PointerEvent as ReactPointerEvent, Ref, SyntheticEvent } from "react";
 
 import type { LibraryImageItem } from "@/components/image-library/types";
 import {
@@ -17,6 +17,7 @@ import { toEffectiveName } from "./utils";
 import useFocalPointWorkspace from "./useFocalPointWorkspace";
 
 export type FocalPointWorkspaceProps = {
+  activePresetButtonRef?: Ref<HTMLButtonElement>;
   item: LibraryImageItem;
   renderUrl: string;
   draft: UploadFocalCrops;
@@ -26,6 +27,7 @@ export type FocalPointWorkspaceProps = {
 };
 
 const FocalPointWorkspace = ({
+  activePresetButtonRef,
   item,
   renderUrl,
   draft,
@@ -73,6 +75,7 @@ const FocalPointWorkspace = ({
             return (
               <button
                 key={preset}
+                ref={isActive ? activePresetButtonRef : undefined}
                 type="button"
                 className={`w-full rounded-xl border p-2 text-left transition ${
                   isActive

@@ -233,6 +233,19 @@ const projectWithStaffFixture: ProjectRecord = {
   staff: [{ role: "Revisao", members: [] }],
   animeStaff: [{ role: "Director", members: [] }],
 };
+const projectWithInteractiveCardsFixture: ProjectRecord = {
+  ...projectFixture,
+  episodeDownloads: [createEditorEpisodeFixture()],
+  relations: [
+    { relation: "Prequela", title: "Projeto Anterior", format: "", status: "", image: "" },
+    { relation: "Sequencia", title: "Projeto Seguinte", format: "", status: "", image: "" },
+  ],
+  staff: [
+    { role: "Revisao", members: [] },
+    { role: "Traducao", members: [] },
+  ],
+  animeStaff: [{ role: "Director", members: [] }],
+};
 
 const resizeObserverObserveMock = vi.fn();
 const resizeObserverUnobserveMock = vi.fn();
@@ -257,6 +270,8 @@ const LocationProbe = () => {
     </>
   );
 };
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 describe("DashboardProjectsEditor edit query", () => {
   beforeEach(() => {
@@ -359,12 +374,136 @@ describe("DashboardProjectsEditor edit query", () => {
     const studioPrincipalInput = within(studioProducerSection).getByDisplayValue(
       "Studio Teste",
     ) as HTMLInputElement;
-    expect(studioPrincipalInput.className).toContain("focus-visible:ring-inset");
-    expect(studioPrincipalInput.className).toContain("focus-visible:ring-primary");
-    expect(producerInput.className).toContain("focus-visible:ring-inset");
-    expect(producerInput.className).toContain("focus-visible:ring-primary");
-    expect(animationStudioInput.className).toContain("focus-visible:ring-inset");
-    expect(animationStudioInput.className).toContain("focus-visible:ring-primary");
+    expect(studioPrincipalInput.className).toContain("focus-visible:border-primary");
+    expect(studioPrincipalInput.className).not.toContain("focus-visible:border-primary/60");
+    expect(studioPrincipalInput.className).not.toContain("focus-visible:ring-primary/45");
+    expect(studioPrincipalInput.className).not.toContain("focus-visible:ring-inset");
+    expect(producerInput.className).toContain("focus-visible:border-primary");
+    expect(producerInput.className).not.toContain("focus-visible:border-primary/60");
+    expect(producerInput.className).not.toContain("focus-visible:ring-primary/45");
+    expect(producerInput.className).not.toContain("focus-visible:ring-inset");
+    expect(animationStudioInput.className).toContain("focus-visible:border-primary");
+    expect(animationStudioInput.className).not.toContain("focus-visible:border-primary/60");
+    expect(animationStudioInput.className).not.toContain("focus-visible:ring-primary/45");
+    expect(animationStudioInput.className).not.toContain("focus-visible:ring-inset");
+  });
+
+  it("aplica hover accent suave e destaque de drag-over nos cards internos", async () => {
+    setupApiMock({ canManageProjects: true, projects: [projectWithInteractiveCardsFixture] });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos?edit=project-1"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    await screen.findByText("Editar projeto");
+
+    const editorDialog = await waitFor(() => {
+      const node = document.querySelector(".project-editor-dialog");
+      expect(node).not.toBeNull();
+      return node as HTMLElement;
+    });
+
+    const editorProjectSummaryCard = within(editorDialog)
+      .getByText(/^Projeto$/i)
+      .closest("div.rounded-xl");
+    expect(editorProjectSummaryCard).not.toBeNull();
+    expect(classTokens(editorProjectSummaryCard as HTMLElement)).toContain("hover:border-primary/40");
+
+    fireEvent.click(within(editorDialog).getByRole("button", { name: /M.dias/i }));
+    const mediaCardLabel = within(editorDialog).getByText(/Imagem do carrossel/i);
+    const mediaCard = mediaCardLabel.parentElement?.querySelector("div.rounded-2xl");
+    expect(mediaCard).not.toBeNull();
+    expect(classTokens(mediaCard as HTMLElement)).toContain("hover:border-primary/40");
+
+    fireEvent.click(within(editorDialog).getByRole("button", { name: /Rela/i }));
+    const relationTargetCard = within(editorDialog)
+      .getByRole("button", { name: /Mover rela.*1 para baixo/i })
+      .closest('[draggable="true"]') as HTMLElement | null;
+    const relationDraggedCard = within(editorDialog)
+      .getByRole("button", { name: /Mover rela.*2 para cima/i })
+      .closest('[draggable="true"]') as HTMLElement | null;
+    expect(relationTargetCard).not.toBeNull();
+    expect(relationDraggedCard).not.toBeNull();
+    expect(classTokens(relationTargetCard as HTMLElement)).toContain("hover:border-primary/40");
+
+    const dataTransfer = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: vi.fn(),
+      getData: vi.fn(),
+      clearData: vi.fn(),
+    };
+
+    fireEvent.dragStart(relationDraggedCard as HTMLElement, { dataTransfer });
+    fireEvent.dragOver(relationTargetCard as HTMLElement, { dataTransfer });
+    expect(classTokens(relationTargetCard as HTMLElement)).toContain("border-primary/40");
+    expect(classTokens(relationTargetCard as HTMLElement)).toContain("bg-primary/5");
+    fireEvent.drop(relationTargetCard as HTMLElement, { dataTransfer });
+    fireEvent.dragEnd(relationDraggedCard as HTMLElement, { dataTransfer });
+
+    fireEvent.click(within(editorDialog).getByRole("button", { name: /Equipe da fansub/i }));
+    const staffTargetCard = within(editorDialog)
+      .getByRole("button", { name: /Mover func.*fansub 1 para baixo/i })
+      .closest('[draggable="true"]') as HTMLElement | null;
+    const staffDraggedCard = within(editorDialog)
+      .getByRole("button", { name: /Mover func.*fansub 2 para cima/i })
+      .closest('[draggable="true"]') as HTMLElement | null;
+    expect(staffTargetCard).not.toBeNull();
+    expect(staffDraggedCard).not.toBeNull();
+    expect(classTokens(staffTargetCard as HTMLElement)).toContain("hover:border-primary/40");
+
+    fireEvent.dragStart(staffDraggedCard as HTMLElement, { dataTransfer });
+    fireEvent.dragOver(staffTargetCard as HTMLElement, { dataTransfer });
+    expect(classTokens(staffTargetCard as HTMLElement)).toContain("border-primary/40");
+    expect(classTokens(staffTargetCard as HTMLElement)).toContain("bg-primary/5");
+    fireEvent.drop(staffTargetCard as HTMLElement, { dataTransfer });
+    fireEvent.dragEnd(staffDraggedCard as HTMLElement, { dataTransfer });
+  });
+
+  it("aplica a classe dedicada aos accordions internos de volume", async () => {
+    setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos?edit=project-ln-1"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    await screen.findByText("Editar projeto");
+
+    const editorDialog = await waitFor(() => {
+      const node = document.querySelector(".project-editor-dialog");
+      expect(node).not.toBeNull();
+      return node as HTMLElement;
+    });
+
+    fireEvent.click(within(editorDialog).getByRole("button", { name: /Conte.do.*cap.tulos/i }));
+
+    const volumeGroup = await waitFor(() => {
+      const node = editorDialog.querySelector(".project-editor-nested-section");
+      expect(node).not.toBeNull();
+      return node as HTMLElement;
+    });
+
+    expect(classTokens(volumeGroup)).toContain("project-editor-nested-section");
+
+    if (volumeGroup.getAttribute("data-state") !== "open") {
+      fireEvent.click(within(volumeGroup).getByRole("button"));
+    }
+
+    await waitFor(() => {
+      expect(volumeGroup).toHaveAttribute("data-state", "open");
+    });
+
+    const volumeMetadataCard = volumeGroup.querySelector("div.rounded-xl");
+    expect(volumeMetadataCard).not.toBeNull();
+    expect(classTokens(volumeMetadataCard as HTMLElement)).toContain("hover:border-primary/40");
   });
 
   it("abre criacao automaticamente com ?edit=new e limpa a query", async () => {

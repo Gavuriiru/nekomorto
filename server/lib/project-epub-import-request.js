@@ -40,7 +40,7 @@ export const mapEpubImportMultipartError = (error) => {
       body: {
         error: "project_snapshot_too_large",
         detail:
-          "O snapshot do projeto excedeu o limite desta requisicao. Salve o projeto e tente novamente.",
+          "O snapshot do projeto excedeu o limite desta requisição. Salve o projeto e tente novamente.",
       },
     };
   }

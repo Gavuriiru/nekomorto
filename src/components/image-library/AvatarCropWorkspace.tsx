@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type Ref } from "react";
 import { ImageRestriction } from "advanced-cropper";
 import { CircleStencil, FixedCropper, type FixedCropperRef } from "react-advanced-cropper";
 
@@ -11,6 +11,8 @@ import {
 } from "@/components/ImageLibraryDialog.avatar-crop";
 
 export type AvatarCropWorkspaceProps = {
+  applyButtonRef?: Ref<HTMLButtonElement>;
+  cancelButtonRef?: Ref<HTMLButtonElement>;
   src: string;
   isApplyingCrop: boolean;
   onCancel: () => void;
@@ -18,6 +20,8 @@ export type AvatarCropWorkspaceProps = {
 };
 
 const AvatarCropWorkspace = ({
+  applyButtonRef,
+  cancelButtonRef,
   src,
   isApplyingCrop,
   onCancel,
@@ -42,7 +46,7 @@ const AvatarCropWorkspace = ({
     }
 
     try {
-      const normalizedDataUrl = await renderAvatarCropDataUrl(cropper, src);
+      const normalizedDataUrl = await renderAvatarCropDataUrl(cropper);
       await onApplyCrop(normalizedDataUrl);
     } catch {
       toast({
@@ -50,7 +54,7 @@ const AvatarCropWorkspace = ({
         description: "Tente novamente em alguns instantes.",
       });
     }
-  }, [isCropReady, onApplyCrop, src]);
+  }, [isCropReady, onApplyCrop]);
 
   return (
     <>
@@ -110,13 +114,14 @@ const AvatarCropWorkspace = ({
       </div>
 
       <div className="mt-2 flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button ref={cancelButtonRef} type="button" variant="outline" onClick={onCancel}>
           Cancelar
         </Button>
         <Button type="button" variant="outline" onClick={handleReset} disabled={!isCropReady}>
           Resetar
         </Button>
         <Button
+          ref={applyButtonRef}
           type="button"
           onClick={() => void handleApply()}
           disabled={isApplyingCrop || !isCropReady}

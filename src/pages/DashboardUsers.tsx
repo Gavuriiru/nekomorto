@@ -16,6 +16,7 @@ import {
 } from "@/components/dashboard/dashboard-form-controls";
 import {
   dashboardPageLayoutTokens,
+  dashboardSubtleSurfaceHoverClassName,
   dashboardStrongSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
 import {
@@ -48,20 +49,20 @@ import { Switch } from "@/components/ui/switch";
 import {
   UserRound,
   BadgeCheck,
+  Camera,
   Check,
   Clock,
   Code,
   Globe,
-  Instagram,
   Languages,
   Layers,
   Paintbrush,
   Palette,
   PenTool,
+  Play,
   Sparkles,
   Video,
   X,
-  Youtube,
   MessageCircle,
   GripVertical,
   Trash2,
@@ -314,10 +315,10 @@ const getDefaultUserEditorAccordionValue = (includeSecurity: boolean) =>
     : ["dados-principais", "perfil-publico", "acesso-permissoes"];
 
 const socialIconMap: Record<string, typeof Globe> = {
-  instagram: Instagram,
+  instagram: Camera,
   twitter: X,
   x: X,
-  youtube: Youtube,
+  youtube: Play,
   discord: MessageCircle,
   "message-circle": MessageCircle,
   globe: Globe,
@@ -1390,8 +1391,12 @@ const DashboardUsers = () => {
   const editorSectionTriggerClassName =
     "project-editor-section-trigger flex w-full items-start gap-4 py-3.5 text-left hover:no-underline md:py-4";
   const editorSectionContentClassName = "project-editor-section-content pb-2.5 px-1";
+  const subtleSummarySurfaceClassName = `border border-border/60 bg-card/65 ${dashboardSubtleSurfaceHoverClassName}`;
+  const subtleSurfaceClassName = `border border-border/60 bg-card/60 ${dashboardSubtleSurfaceHoverClassName}`;
+  const subtleInsetSurfaceClassName = `border border-border/60 bg-background/60 ${dashboardSubtleSurfaceHoverClassName}`;
+  const subtleMutedSurfaceClassName = `border border-border/60 bg-card/50 ${dashboardSubtleSurfaceHoverClassName}`;
   const subtleReorderButtonClassName =
-    "h-8 w-8 border-transparent bg-transparent text-muted-foreground/70 shadow-none hover:border-border/60 hover:bg-background/60 hover:text-foreground focus-visible:ring-primary/60 [&_svg]:opacity-70";
+    "h-8 w-8 border-transparent bg-transparent text-muted-foreground/70 shadow-none hover:border-primary/40 hover:bg-background/60 hover:text-foreground focus-visible:ring-primary/60 [&_svg]:opacity-70";
   const editorUserLabel = editingUser ? "Usuário em edição" : "Novo usuário";
   const editorUserTitle = formState.name.trim() || "Sem nome";
   const editorUserId = formState.id.trim() || "Será definido ao salvar";
@@ -1806,7 +1811,9 @@ const DashboardUsers = () => {
                       {editorDialogDescription}
                     </DialogDescription>
                   </div>
-                  <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-1.5 text-right">
+                  <div
+                    className={`rounded-xl px-3 py-1.5 text-right ${subtleSummarySurfaceClassName}`}
+                  >
                     <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                       Usuário
                     </p>
@@ -1837,7 +1844,9 @@ const DashboardUsers = () => {
 
             <div className="project-editor-layout grid gap-3.5 px-4 pb-4 pt-2.5 md:gap-4 md:px-6 md:pb-5 lg:gap-5 lg:px-8">
               {basicProfileOnlyEdit ? (
-                <div className="rounded-2xl border border-border/60 bg-card/60 px-4 py-3 text-xs text-muted-foreground">
+                <div
+                  className={`rounded-2xl px-4 py-3 text-xs text-muted-foreground ${subtleSurfaceClassName}`}
+                >
                   Você só pode alterar informações básicas deste usuário.
                 </div>
               ) : null}
@@ -1926,7 +1935,7 @@ const DashboardUsers = () => {
                             return (
                               <div
                                 key={category}
-                                className="space-y-2 rounded-xl border border-border/60 p-3"
+                                className={`space-y-2 rounded-xl p-3 ${subtleSurfaceClassName}`}
                               >
                                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                                   {categoryLabel}
@@ -1978,7 +1987,7 @@ const DashboardUsers = () => {
                               )}
                               name={formState.name || "Avatar"}
                               sizeClassName="h-12 w-12"
-                              frameClassName="border border-border/60 bg-card/60"
+                              frameClassName={`border border-border/60 bg-card/60 ${dashboardSubtleSurfaceHoverClassName}`}
                               fallbackClassName="bg-card/60 text-xs text-foreground"
                               fallbackText={(formState.name || "U").slice(0, 1).toUpperCase()}
                             />
@@ -2024,10 +2033,10 @@ const DashboardUsers = () => {
                               <div
                                 key={`${social.label}-${index}`}
                                 data-testid={`user-social-row-${index}`}
-                                className={`overflow-x-auto rounded-xl border p-2 transition ${
+                                className={`overflow-x-auto rounded-xl p-2 ${
                                   socialDragOverIndex === index
-                                    ? "border-primary/40 bg-primary/5"
-                                    : "border-transparent"
+                                    ? `${subtleSurfaceClassName} border-primary/40 bg-primary/5`
+                                    : subtleSurfaceClassName
                                 }`}
                                 onDragOver={(event) => handleSocialDragOver(event, index)}
                                 onDrop={(event) => handleSocialDrop(event, index)}
@@ -2175,7 +2184,7 @@ const DashboardUsers = () => {
                       />
                     </AccordionTrigger>
                     <AccordionContent className={editorSectionContentClassName}>
-                      <div className="grid gap-3 rounded-2xl border border-border/60 bg-card/60 p-4">
+                      <div className={`grid gap-3 rounded-2xl p-4 ${subtleSurfaceClassName}`}>
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="space-y-1">
                             <Label className="text-sm font-medium">Segurança da conta</Label>
@@ -2205,7 +2214,7 @@ const DashboardUsers = () => {
                         </div>
 
                         {!securitySummary?.totpEnabled ? (
-                          <div className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-3">
+                          <div className={`space-y-3 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}>
                             <Button size="sm" onClick={startSelfEnrollment}>
                               Ativar 2FA (TOTP)
                             </Button>
@@ -2318,7 +2327,7 @@ const DashboardUsers = () => {
                             ) : null}
                           </div>
                         ) : (
-                          <div className="space-y-2 rounded-2xl border border-border/60 bg-background/60 p-3">
+                          <div className={`space-y-2 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}>
                             <Input
                               value={securityDisableCode}
                               onChange={(event) => setSecurityDisableCode(event.target.value)}
@@ -2348,7 +2357,7 @@ const DashboardUsers = () => {
                           </div>
                         ) : null}
 
-                        <div className="space-y-2 rounded-2xl border border-border/60 bg-background/60 p-3">
+                        <div className={`space-y-2 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}>
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-sm font-medium">Sessões ativas</p>
                             <Button
@@ -2371,7 +2380,7 @@ const DashboardUsers = () => {
                               {Array.from({ length: 2 }).map((_, index) => (
                                 <div
                                   key={`dashboard-users-security-loading-${index}`}
-                                  className="rounded-xl border border-border/60 bg-card/50 p-2"
+                                  className={`rounded-xl p-2 ${subtleMutedSurfaceClassName}`}
                                 >
                                   <div className="flex flex-wrap items-start justify-between gap-2">
                                     <div className="space-y-2">
@@ -2391,7 +2400,7 @@ const DashboardUsers = () => {
                               {securitySessions.map((session) => (
                                 <div
                                   key={session.sid}
-                                  className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-border/60 bg-card/50 p-2"
+                                  className={`flex flex-wrap items-start justify-between gap-2 rounded-xl p-2 ${subtleMutedSurfaceClassName}`}
                                 >
                                   <div className="space-y-1">
                                     <div className="flex flex-wrap items-center gap-2">
@@ -2576,7 +2585,9 @@ const DashboardUsers = () => {
                         <DashboardFieldStack>
                           <Label>Dono</Label>
                           <DashboardFieldStack density="compact">
-                            <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
+                            <div
+                              className={`flex items-center justify-between gap-4 rounded-2xl px-4 py-3 ${subtleSurfaceClassName}`}
+                            >
                               <span className="text-sm text-muted-foreground">
                                 Permite acesso total ao painel e às configurações críticas.
                               </span>
@@ -2601,7 +2612,9 @@ const DashboardUsers = () => {
                       ) : null}
                       <DashboardFieldStack>
                         <Label>Status</Label>
-                        <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
+                        <div
+                          className={`flex items-center justify-between gap-4 rounded-2xl px-4 py-3 ${subtleSurfaceClassName}`}
+                        >
                           <span className="text-sm text-muted-foreground">
                             {formState.status === "active" ? "Ativo" : "Aposentado"}
                           </span>

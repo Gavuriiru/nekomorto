@@ -1,3 +1,4 @@
+import { SecurityEventSeverity as DefaultSecurityEventSeverity } from "../../lib/security-events.js";
 import {
   buildLegacyManagedUser,
   buildLegacyManagedUserUpdate,
@@ -62,6 +63,13 @@ export const registerUserManagementRoutes = ({
   withUserProfileRevision,
   writeOwnerIds,
 } = {}) => {
+  const securityEventSeverity = {
+    ...DefaultSecurityEventSeverity,
+    ...(SecurityEventSeverity && typeof SecurityEventSeverity === "object"
+      ? SecurityEventSeverity
+      : {}),
+  };
+
   app.post("/api/users", requireAuth, (req, res) => {
     const sessionUser = req.session.user;
     const {
@@ -316,7 +324,7 @@ export const registerUserManagementRoutes = ({
         emitSecurityEvent({
           req,
           type: "privilege_escalation_warning",
-          severity: SecurityEventSeverity.WARNING,
+          severity: securityEventSeverity.WARNING,
           riskScore: 75,
           actorUserId: sessionUser.id,
           targetUserId: targetId,
@@ -433,7 +441,7 @@ export const registerUserManagementRoutes = ({
       emitSecurityEvent({
         req,
         type: "privilege_escalation_warning",
-        severity: SecurityEventSeverity.WARNING,
+        severity: securityEventSeverity.WARNING,
         riskScore: 78,
         actorUserId: sessionUser.id,
         targetUserId: targetId,

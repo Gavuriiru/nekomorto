@@ -65,7 +65,7 @@ const ImageLibraryBrowserCardGrid = ({
         const hasManagementActions = canRename || canDelete || canEditFocal || canEditAltText;
 
         return (
-          <ContextMenu key={`${item.source}:${item.url}`}>
+          <ContextMenu key={`${item.source}:${item.url}`} modal={false}>
             <ContextMenuTrigger asChild>
               <button
                 ref={(node) => setCardRef(item.url, node)}

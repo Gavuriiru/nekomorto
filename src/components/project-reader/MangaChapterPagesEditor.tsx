@@ -384,11 +384,15 @@ const MangaChapterPagesEditor = ({
   const removePage = (event: MouseEvent<HTMLButtonElement>, index: number) => {
     event.stopPropagation();
     const nextPages = pages.filter((_, pageIndex) => pageIndex !== index);
-    setNextChapter(nextPages, {
-      coverImageUrl:
-        chapter.coverImageUrl === pages[index]?.imageUrl ? nextPages[0]?.imageUrl || "" : undefined,
-    });
-    if (getRemovedSpreadPairIds(pages, nextPages).length > 0) {
+    const normalizedNextPages = serializePagesForChange(nextPages);
+    setChapterState(
+      {
+        coverImageUrl:
+          chapter.coverImageUrl === pages[index]?.imageUrl ? nextPages[0]?.imageUrl || "" : undefined,
+      },
+      normalizedNextPages,
+    );
+    if (getRemovedSpreadPairIds(pages, normalizedNextPages).length > 0) {
       announce("Spread desfeito após remover a página.");
     }
   };

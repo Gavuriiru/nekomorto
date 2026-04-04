@@ -102,6 +102,13 @@ const baseUploadItem = {
 const buildUploadListResponse = (files: Array<Record<string, unknown>>) =>
   mockJsonResponse(true, { files });
 
+const expectActiveElementNotHiddenFromAssistiveTech = () => {
+  const activeElement = document.activeElement as HTMLElement | null;
+
+  expect(activeElement).toBeTruthy();
+  expect(activeElement?.closest('[aria-hidden="true"], [data-aria-hidden="true"]')).toBeNull();
+};
+
 const ensureDomRectFromRect = () => {
   const globalScope = globalThis as typeof globalThis & { DOMRect?: typeof DOMRect };
   const windowScope = window as Window & typeof globalThis & { DOMRect?: typeof DOMRect };
@@ -262,6 +269,42 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     globalThis.Image = originalImage;
   });
 
+  it("mantem o foco do menu contextual fora de ancestrais aria-hidden", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return buildUploadListResponse([baseUploadItem]);
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        mode="single"
+        onSave={() => undefined}
+      />,
+    );
+
+    const imageButton = (await screen.findByText("Avatar Base")).closest("button");
+    expect(imageButton).toBeTruthy();
+    fireEvent.contextMenu(imageButton as HTMLButtonElement);
+
+    await screen.findByRole("menuitem", { name: "Definir ponto focal" });
+    const contextMenu = await screen.findByRole("menu");
+    await waitFor(() => {
+      expect(contextMenu).toHaveFocus();
+    });
+    expectActiveElementNotHiddenFromAssistiveTech();
+  });
+
   it("abre editor de avatar somente quando cropAvatar estiver habilitado", async () => {
     apiFetchMock.mockImplementation(async (_base: string, path: string) => {
       if (path.startsWith("/api/uploads/list")) {
@@ -308,6 +351,13 @@ describe("ImageLibraryDialog avatar crop flow", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /Avatar Base/i }));
     expect(await screen.findByRole("heading", { name: "Editor de avatar" })).toBeInTheDocument();
+    const dialogs = await screen.findAllByRole("dialog");
+    const cropDialog = dialogs[dialogs.length - 1];
+    const cancelButton = within(cropDialog).getByRole("button", { name: "Cancelar" });
+    await waitFor(() => {
+      expect(cancelButton).toHaveFocus();
+    });
+    expectActiveElementNotHiddenFromAssistiveTech();
 
     await waitFor(() => {
       expect(cropperRenderMock).toHaveBeenCalled();
@@ -414,9 +464,15 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     fireEvent.click(applyButton);
 
     await waitFor(() => {
-      expect(drawCroppedAreaMock).toHaveBeenCalled();
+      expect(cropperGetCanvasMock).toHaveBeenCalledWith({
+        width: 512,
+        height: 512,
+        fillColor: "transparent",
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: "high",
+      });
     });
-    expect(cropperGetCanvasMock).not.toHaveBeenCalled();
+    expect(drawCroppedAreaMock).not.toHaveBeenCalled();
 
     await waitFor(() => {
       expect(apiFetchMock).toHaveBeenCalledWith(
@@ -1355,51 +1411,9 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     });
   });
 
-  it("gera o PNG final a partir de state, image e coordinates do cropper", async () => {
+  it("gera o PNG final a partir do canvas atual do cropper", async () => {
     const cropperHandle = {
-      getState: () => ({
-        boundary: { width: 320, height: 320 },
-        imageSize: { width: 320, height: 320 },
-        transforms: {
-          rotate: 0,
-          flip: {
-            horizontal: false,
-            vertical: false,
-          },
-        },
-        visibleArea: {
-          left: 0,
-          top: 0,
-          width: 320,
-          height: 320,
-        },
-        coordinates: {
-          left: 5,
-          top: 7,
-          width: 120,
-          height: 120,
-        },
-      }),
-      getCoordinates: () => ({
-        left: 11,
-        top: 13,
-        width: 144,
-        height: 144,
-      }),
-      getImage: () => ({
-        src: "/uploads/users/source-avatar.png",
-        revoke: false,
-        transforms: {
-          rotate: 0,
-          flip: {
-            horizontal: false,
-            vertical: false,
-          },
-        },
-        arrayBuffer: null,
-        width: 320,
-        height: 320,
-      }),
+      getCanvas: cropperGetCanvasMock,
     };
 
     const dataUrl = await renderAvatarCropDataUrl(
@@ -1407,39 +1421,28 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     );
 
     expect(dataUrl).toBe("data:image/png;base64,cropped-avatar");
-    expect(drawCroppedAreaMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        coordinates: {
-          left: 11,
-          top: 13,
-          width: 144,
-          height: 144,
-        },
-      }),
-      expect.objectContaining({
-        src: "/uploads/users/source-avatar.png",
-      }),
-      expect.any(HTMLCanvasElement),
-      expect.any(HTMLCanvasElement),
+    expect(cropperGetCanvasMock).toHaveBeenCalledWith(
       expect.objectContaining({
         width: 512,
         height: 512,
+        fillColor: "transparent",
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: "high",
       }),
     );
+    expect(cropperToDataUrlMock).toHaveBeenCalledWith("image/png");
   });
 
   it("falha de forma controlada quando o cropper nao expõe state/image/coordenadas", async () => {
     await expect(
       renderAvatarCropDataUrl({
-        getState: () => null,
-        getCoordinates: () => null,
-        getImage: () => null,
+        getCanvas: () => null,
       } as Parameters<typeof renderAvatarCropDataUrl>[0]),
-    ).rejects.toThrow("cropper_state_unavailable");
+    ).rejects.toThrow("cropper_canvas_unavailable");
   });
 
   it("nao envia upload quando o cropper nao consegue fornecer o recorte atual", async () => {
-    cropperGetStateMock.mockReturnValue(null);
+    cropperGetCanvasMock.mockReturnValue(null);
     apiFetchMock.mockImplementation(async (_base: string, path: string) => {
       if (path.startsWith("/api/uploads/list")) {
         return buildUploadListResponse([baseUploadItem]);

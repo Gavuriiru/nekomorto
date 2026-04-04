@@ -18,7 +18,14 @@
 
   .avatar-cropper-preview .advanced-cropper-circle-stencil {
     border-radius: 9999px;
+  }
+
+  .avatar-cropper-preview .advanced-cropper-circle-stencil__overlay {
+    color: hsl(0 0% 0% / 0.42);
+  }
+
+  .avatar-cropper-preview .advanced-cropper-circle-stencil__preview {
+    box-sizing: border-box;
     border: 2px solid hsl(0 0% 100% / 0.92) !important;
-    box-shadow: 0 0 0 9999px hsl(0 0% 0% / 0.42);
   }
 }

@@ -4,6 +4,7 @@ import path from "path";
 import readline from "readline";
 import { spawn, spawnSync } from "child_process";
 import { fileURLToPath } from "url";
+import { resolveNpmInvocation } from "./lib/npm-invocation.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,7 +30,6 @@ const PLACEHOLDER_PASSWORDS = new Set([
 
 const args = new Set(process.argv.slice(2));
 const isInteractive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
-const isWindows = process.platform === "win32";
 let promptInterface = null;
 
 const composeBaseArgs = ["compose", "--env-file", POSTGRES_ENV_PATH, "-f", POSTGRES_COMPOSE_PATH];
@@ -47,12 +47,13 @@ Runs full local development setup:
 7. starts npm run dev`);
 };
 
-const resolveCommand = (command) => {
-  if (isWindows && command === "npm") {
-    return "npm.cmd";
-  }
-  return command;
-};
+const resolveInvocation = (command, commandArgs) =>
+  command === "npm"
+    ? resolveNpmInvocation(commandArgs)
+    : {
+        command,
+        args: commandArgs,
+      };
 
 const formatCommand = (command, commandArgs) =>
   [command, ...commandArgs.map((value) => (/\s/.test(value) ? `"${value}"` : value))].join(" ");
@@ -91,8 +92,8 @@ const writeEnvFile = (filePath, entries) => {
 };
 
 const runCheck = (command, commandArgs, { label, tip }) => {
-  const resolvedCommand = resolveCommand(command);
-  const result = spawnSync(resolvedCommand, commandArgs, {
+  const invocation = resolveInvocation(command, commandArgs);
+  const result = spawnSync(invocation.command, invocation.args, {
     cwd: REPO_ROOT,
     encoding: "utf-8",
   });
@@ -104,14 +105,14 @@ const runCheck = (command, commandArgs, { label, tip }) => {
   const details =
     result.error?.message || output || `exit code ${String(result.status ?? "unknown")}`;
   throw new Error(
-    `${label} is not available.\n${tip}\nCommand: ${formatCommand(resolvedCommand, commandArgs)}\nDetails: ${details}`,
+    `${label} is not available.\n${tip}\nCommand: ${formatCommand(invocation.command, invocation.args)}\nDetails: ${details}`,
   );
 };
 
 const runCommand = (command, commandArgs, options = {}) =>
   new Promise((resolve, reject) => {
-    const resolvedCommand = resolveCommand(command);
-    const child = spawn(resolvedCommand, commandArgs, {
+    const invocation = resolveInvocation(command, commandArgs);
+    const child = spawn(invocation.command, invocation.args, {
       cwd: REPO_ROOT,
       stdio: options.stdio || "inherit",
     });
@@ -119,8 +120,8 @@ const runCommand = (command, commandArgs, options = {}) =>
       reject(
         new Error(
           `Failed to execute command: ${formatCommand(
-            resolvedCommand,
-            commandArgs,
+            invocation.command,
+            invocation.args,
           )}\nDetails: ${error.message}`,
         ),
       );
@@ -129,7 +130,10 @@ const runCommand = (command, commandArgs, options = {}) =>
       if (signal) {
         reject(
           new Error(
-            `Command interrupted by signal ${signal}: ${formatCommand(resolvedCommand, commandArgs)}`,
+            `Command interrupted by signal ${signal}: ${formatCommand(
+              invocation.command,
+              invocation.args,
+            )}`,
           ),
         );
         return;
@@ -137,7 +141,10 @@ const runCommand = (command, commandArgs, options = {}) =>
       if (code !== 0) {
         reject(
           new Error(
-            `Command failed (exit ${code}): ${formatCommand(resolvedCommand, commandArgs)}`,
+            `Command failed (exit ${code}): ${formatCommand(
+              invocation.command,
+              invocation.args,
+            )}`,
           ),
         );
         return;
@@ -277,7 +284,7 @@ const waitForPostgresReady = async () => {
   ];
 
   while (Date.now() - startedAt < DB_READY_TIMEOUT_MS) {
-    const result = spawnSync(resolveCommand("docker"), readinessArgs, {
+    const result = spawnSync("docker", readinessArgs, {
       cwd: REPO_ROOT,
       stdio: "ignore",
     });

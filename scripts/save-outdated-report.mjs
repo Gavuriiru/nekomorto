@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { resolveNpmInvocation } from "./lib/npm-invocation.mjs";
 
 const formatTimestamp = (value = new Date()) => {
   const year = String(value.getFullYear());
@@ -14,13 +15,7 @@ const formatTimestamp = (value = new Date()) => {
 
 const runNpmOutdated = () =>
   new Promise((resolve, reject) => {
-    const npmExecPath = process.env.npm_execpath;
-    const command = npmExecPath
-      ? process.execPath
-      : process.platform === "win32"
-        ? "npm.cmd"
-        : "npm";
-    const args = npmExecPath ? [npmExecPath, "outdated", "--json"] : ["outdated", "--json"];
+    const { command, args } = resolveNpmInvocation(["outdated", "--json"]);
     const child = spawn(command, args, {
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,

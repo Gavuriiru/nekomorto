@@ -42,7 +42,20 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const setupApiMock = () => {
+const classTokens = (element: Element | null) =>
+  String(element?.className || "").split(/\s+/).filter(Boolean);
+
+const setupApiMock = ({
+  currentUserGrants = {
+    usuarios_basico: true,
+    usuarios_acesso: true,
+  },
+}: {
+  currentUserGrants?: {
+    usuarios_basico?: boolean;
+    usuarios_acesso?: boolean;
+  };
+} = {}) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
@@ -74,10 +87,7 @@ const setupApiMock = () => {
         name: "Admin",
         username: "admin",
         accessRole: "admin",
-        grants: {
-          usuarios_basico: true,
-          usuarios_acesso: true,
-        },
+        grants: currentUserGrants,
         ownerIds: [],
         primaryOwnerId: null,
       });
@@ -136,6 +146,12 @@ describe("DashboardUsers edit query", () => {
     expect(document.documentElement).toHaveClass("editor-scroll-locked");
     expect(document.body).toHaveClass("editor-scroll-locked");
     expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBe("1");
+    const editorUserSummaryCard = screen.getByText(/^Usu.rio$/i).closest("div.rounded-xl");
+    expect(editorUserSummaryCard).not.toBeNull();
+    expect(classTokens(editorUserSummaryCard)).toContain("hover:border-primary/40");
+    const favoriteWorksCategoryCard = screen.getByText(/Mang/i).closest("div");
+    expect(favoriteWorksCategoryCard).not.toBeNull();
+    expect(String(favoriteWorksCategoryCard?.className || "")).toContain("hover:border-primary/40");
 
     unmount();
 
@@ -145,6 +161,30 @@ describe("DashboardUsers edit query", () => {
     expect(document.documentElement).not.toHaveClass("editor-scroll-locked");
     expect(document.body).not.toHaveClass("editor-scroll-locked");
     expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBeNull();
+  });
+
+  it("mostra o aviso de edição restrita com hover accent quando só há acesso básico", async () => {
+    setupApiMock({
+      currentUserGrants: {
+        usuarios_basico: true,
+        usuarios_acesso: false,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
+        <DashboardUsers />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
+    await screen.findByText(/editar usu.rio/i);
+
+    const restrictedNotice = screen.getByText(/Voc. s. pode alterar informa..es b.sicas/i);
+    const restrictedNoticeCard = restrictedNotice.closest("div.rounded-2xl");
+    expect(restrictedNoticeCard).not.toBeNull();
+    expect(classTokens(restrictedNoticeCard)).toContain("hover:border-primary/40");
   });
 
   it("controla classe editor-modal-scrolled no dialog ao rolar e fechar", async () => {

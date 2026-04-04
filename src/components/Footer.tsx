@@ -1,4 +1,4 @@
-import { Facebook, Instagram, Twitter, MessageCircle, Youtube, X, Globe } from "lucide-react";
+import { Camera, MessageCircle, Play, Users, X, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
@@ -21,11 +21,11 @@ const Footer = () => {
   const showWordmarkInFooter = branding.footer.showWordmark;
   const isInternalLink = (href: string) => href.startsWith("/") && !href.startsWith("//");
   const iconMap: Record<string, typeof Globe> = {
-    instagram: Instagram,
-    facebook: Facebook,
-    twitter: Twitter,
+    instagram: Camera,
+    facebook: Users,
+    twitter: X,
     x: X,
-    youtube: Youtube,
+    youtube: Play,
     discord: MessageCircle,
     "message-circle": MessageCircle,
     globe: Globe,
