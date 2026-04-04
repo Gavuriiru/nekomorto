@@ -176,7 +176,7 @@ const DashboardSearchPopover = ({
       {hasMinimumSearchQueryLength && !isSearchLoading && !hasResults ? (
         <p className="text-sm text-muted-foreground">
           {hasSearchRequestFailed
-            ? "Nao foi possivel carregar sugestoes agora."
+            ? "Não foi possível carregar sugestões agora."
             : uiCopy.search.noResults}
         </p>
       ) : null}

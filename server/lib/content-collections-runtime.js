@@ -65,7 +65,7 @@ export const createContentCollectionsRuntime = (dependencies = {}) => {
     const now = Date.now();
     return (Array.isArray(posts) ? posts : []).map((post, index) => {
       const id = String(post?.id || `${Date.now()}-${index}`);
-      const title = String(post?.title || "Sem tÃƒÂ­tulo");
+      const title = String(post?.title || "Sem título");
       const slug = String(post?.slug || createSlug(title) || id);
       const publishedAt = post?.publishedAt || post?.createdAt || new Date().toISOString();
       const scheduledAt = post?.scheduledAt || null;
@@ -241,7 +241,7 @@ export const createContentCollectionsRuntime = (dependencies = {}) => {
       const normalized = {
         id: String(project?.id || `project-${Date.now()}-${index}`),
         anilistId: project?.anilistId ? Number(project.anilistId) : null,
-        title: String(project?.title || "Sem tÃƒÂ­tulo"),
+        title: String(project?.title || "Sem título"),
         titleOriginal: String(project?.titleOriginal || ""),
         titleEnglish: String(project?.titleEnglish || ""),
         synopsis: String(project?.synopsis || ""),

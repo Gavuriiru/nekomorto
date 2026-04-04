@@ -303,8 +303,8 @@ export function useDashboardProjectsEditorAnimeBatch({
     const quantity = Math.max(1, Number(animeBatchQuantity) || 0);
     if (!startNumber || !quantity) {
       toast({
-        title: "Parametros invalidos",
-        description: "Informe episodio inicial e quantidade validos.",
+        title: "Parâmetros inválidos",
+        description: "Informe episódio inicial e quantidade válidos.",
         variant: "destructive",
       });
       return;
@@ -321,7 +321,7 @@ export function useDashboardProjectsEditorAnimeBatch({
     if (duplicatedNumbers.length > 0) {
       toast({
         title: "Faixa ocupada",
-        description: "A faixa escolhida conflita com episodios ja existentes.",
+        description: "A faixa escolhida conflita com episódios já existentes.",
         variant: "destructive",
       });
       return;
@@ -377,8 +377,8 @@ export function useDashboardProjectsEditorAnimeBatch({
     setAnimeBatchPublicationStatus("draft");
     setAnimeBatchSourceType("TV");
     toast({
-      title: "Episodios criados",
-      description: `${createdEpisodes.length} episodio(s) adicionados ao formulario.`,
+      title: "Episódios criados",
+      description: `${createdEpisodes.length} episódio(s) adicionados ao formulário.`,
       intent: "success",
     });
   }, [
@@ -405,8 +405,8 @@ export function useDashboardProjectsEditorAnimeBatch({
     const canonicalDuration = displayTimeToCanonical(animeBatchOperationDuration);
     if (!canonicalDuration) {
       toast({
-        title: "Duracao invalida",
-        description: "Use MM:SS ou H:MM:SS para aplicar a duracao em lote.",
+        title: "Duração inválida",
+        description: "Use MM:SS ou H:MM:SS para aplicar a duração em lote.",
         variant: "destructive",
       });
       return;
@@ -442,8 +442,8 @@ export function useDashboardProjectsEditorAnimeBatch({
     const dayOffset = Number(animeBatchOperationShiftDays);
     if (!Number.isFinite(dayOffset) || dayOffset === 0) {
       toast({
-        title: "Deslocamento invalido",
-        description: "Informe um numero inteiro de dias para deslocar as datas.",
+        title: "Deslocamento inválido",
+        description: "Informe um número inteiro de dias para deslocar as datas.",
         variant: "destructive",
       });
       return;

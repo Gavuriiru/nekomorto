@@ -768,7 +768,7 @@ const DashboardAuditLog = () => {
             >
               {hasRetainedError ? (
                 <Alert className="mb-3 border-border/70 bg-background text-foreground/70">
-                  <AlertDescription>Mantendo os ultimos resultados carregados.</AlertDescription>
+                  <AlertDescription>Mantendo os últimos resultados carregados.</AlertDescription>
                 </Alert>
               ) : null}
               {forbidden ? (

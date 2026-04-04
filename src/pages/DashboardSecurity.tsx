@@ -195,7 +195,7 @@ const DashboardSecurity = () => {
           return;
         }
         if (!sessionsRes.ok) {
-          setLoadError("Nao foi possivel carregar a lista de sessoes ativas.");
+          setLoadError("Não foi possível carregar a lista de sessões ativas.");
           return;
         }
         const payload = await sessionsRes.json();
@@ -212,7 +212,7 @@ const DashboardSecurity = () => {
         if (requestIdRef.current !== requestId) {
           return;
         }
-        setLoadError("Nao foi possivel carregar a lista de sessoes ativas.");
+        setLoadError("Não foi possível carregar a lista de sessões ativas.");
       } finally {
         if (requestIdRef.current === requestId) {
           setIsInitialLoading(false);
@@ -307,8 +307,8 @@ const DashboardSecurity = () => {
 
   useDashboardRefreshToast({
     active: isRefreshing && hasLoadedOnce,
-    title: "Atualizando sessoes",
-    description: "Buscando a lista mais recente de sessoes ativas.",
+    title: "Atualizando sessões",
+    description: "Buscando a lista mais recente de sessões ativas.",
   });
 
   return (
@@ -379,7 +379,7 @@ const DashboardSecurity = () => {
 
             {hasRetainedLoadError ? (
               <Alert className="border-border/70 bg-background text-foreground/70">
-                <AlertDescription>Mantendo as ultimas sessoes carregadas.</AlertDescription>
+                <AlertDescription>Mantendo as últimas sessões carregadas.</AlertDescription>
               </Alert>
             ) : null}
 
@@ -446,7 +446,7 @@ const DashboardSecurity = () => {
                   const isRevokingSession = revokingSid === session.sid;
                   const revokeButtonLabel = `${
                     isRevokingSession ? "Encerrando" : "Encerrar"
-                  } sessao de ${session.userName || session.userId || "usuario"}`;
+                  } sessão de ${session.userName || session.userId || "usuário"}`;
 
                   return (
                     <article

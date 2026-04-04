@@ -262,7 +262,7 @@ export const createOperationalWebhooksRuntime = (dependencies = {}) => {
   };
 
   const buildSecurityWebhookPayload = (event) => {
-    const title = `Evento crÃ­tico de seguranÃ§a: ${String(event?.type || "security_event")}`;
+    const title = `Evento crítico de segurança: ${String(event?.type || "security_event")}`;
     const description = [
       `Status: ${String(event?.status || "open")}`,
       `Risco: ${Number(event?.riskScore || 0)}`,
@@ -273,7 +273,7 @@ export const createOperationalWebhooksRuntime = (dependencies = {}) => {
       .filter(Boolean)
       .join("\n");
     return {
-      content: "Alerta crÃ­tico de seguranÃ§a detectado.",
+      content: "Alerta crítico de segurança detectado.",
       embeds: [
         {
           title,

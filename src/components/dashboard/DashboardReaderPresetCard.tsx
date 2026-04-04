@@ -318,7 +318,7 @@ const DashboardReaderPresetCard = ({
             <div className="space-y-1">
               <span className="block font-medium text-foreground">Header do site</span>
               <span className="block text-xs text-foreground/70">
-                Define se a barra do site fica fixa no leitor ou segue o fluxo normal da pagina.
+                Define se a barra do site fica fixa no leitor ou segue o fluxo normal da página.
               </span>
             </div>
             <Select
@@ -341,16 +341,16 @@ const DashboardReaderPresetCard = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={PROJECT_READER_SITE_HEADER_VARIANTS.FIXED}>Fixa</SelectItem>
-                <SelectItem value={PROJECT_READER_SITE_HEADER_VARIANTS.STATIC}>Estatica</SelectItem>
+                <SelectItem value={PROJECT_READER_SITE_HEADER_VARIANTS.STATIC}>Estática</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <label className="flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background px-3 py-3 text-sm">
             <span className="space-y-1">
-              <span className="block font-medium text-foreground">Rodape do site</span>
+              <span className="block font-medium text-foreground">Rodapé do site</span>
               <span className="block text-xs text-foreground/70">
-                Exibe o footer publico apos o leitor e comentarios.
+                Exibe o footer público após o leitor e comentários.
               </span>
             </span>
             <Switch

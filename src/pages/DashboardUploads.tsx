@@ -493,7 +493,7 @@ const DashboardUploads = () => {
         if (summaryRequestIdRef.current !== requestId) {
           return;
         }
-        setSummaryError("Nao foi possivel carregar os dados de storage.");
+        setSummaryError("Não foi possível carregar os dados de storage.");
       } finally {
         if (summaryRequestIdRef.current !== requestId) {
           return;
@@ -537,7 +537,7 @@ const DashboardUploads = () => {
         if (cleanupRequestIdRef.current !== requestId) {
           return;
         }
-        setCleanupError("Nao foi possivel analisar o armazenamento nao utilizado.");
+        setCleanupError("Não foi possível analisar o armazenamento não utilizado.");
       } finally {
         if (cleanupRequestIdRef.current !== requestId) {
           return;
@@ -616,7 +616,7 @@ const DashboardUploads = () => {
   useDashboardRefreshToast({
     active: isAnyRefreshing && (hasSummaryLoadedOnce || hasCleanupLoadedOnce),
     title: "Atualizando Armazenamento",
-    description: "Buscando o resumo e a analise mais recente do armazenamento.",
+    description: "Buscando o resumo e a análise mais recente do armazenamento.",
   });
 
   const handleConfirmCleanup = useCallback(async () => {
@@ -652,7 +652,7 @@ const DashboardUploads = () => {
 
       if (payload.failedCount > 0) {
         toast({
-          title: "Limpeza parcial concluida",
+          title: "Limpeza parcial concluída",
           description: `${formatCleanupDescription({
             deletedUnusedUploadsCount: payload.deletedUnusedUploadsCount,
             deletedOrphanedVariantFilesCount: payload.deletedOrphanedVariantFilesCount,
@@ -709,7 +709,7 @@ const DashboardUploads = () => {
     <DashboardShell currentUser={me} isLoadingUser={isLoadingUser}>
       <DashboardPageContainer maxWidth="7xl">
         <DashboardPageHeader
-          badge="Midia"
+          badge="Mídia"
           title="Armazenamento"
           description="Consumo real por área com base nos arquivos presentes em disco."
           actions={
@@ -746,8 +746,8 @@ const DashboardUploads = () => {
                 <Alert className="border-border/70 bg-background text-foreground/70">
                   <AlertDescription>
                     {hasSummaryRetainedError
-                      ? "Nao foi possivel atualizar o resumo agora. Mantendo os ultimos dados visiveis."
-                      : "Nao foi possivel carregar o resumo de storage."}
+                      ? "Não foi possível atualizar o resumo agora. Mantendo os últimos dados visíveis."
+                      : "Não foi possível carregar o resumo de storage."}
                   </AlertDescription>
                 </Alert>
               ) : null}
@@ -820,13 +820,13 @@ const DashboardUploads = () => {
                     ) : hasSummaryBlockingError ? (
                       <tr className="border-t border-border/50">
                         <td colSpan={5} className="px-4 py-10 text-sm text-foreground/70">
-                          Nao foi possivel carregar os dados de storage.
+                          Não foi possível carregar os dados de storage.
                         </td>
                       </tr>
                     ) : summary.areas.length === 0 ? (
                       <tr className="border-t border-border/50">
                         <td colSpan={5} className="px-4 py-10 text-sm text-foreground/70">
-                          Nenhuma area encontrada no inventario.
+                          Nenhuma área encontrada no inventário.
                         </td>
                       </tr>
                     ) : (
@@ -869,7 +869,7 @@ const DashboardUploads = () => {
                   </p>
                 </div>
                 <Badge className="bg-background text-foreground/70">
-                  Analise: {cleanupTimestampLabel}
+                  Análise: {cleanupTimestampLabel}
                 </Badge>
               </div>
 
@@ -877,8 +877,8 @@ const DashboardUploads = () => {
                 <Alert className="rounded-none border-x-0 border-t-0 border-b border-border/70 bg-background text-foreground/70">
                   <AlertDescription>
                     {hasCleanupRetainedError
-                      ? "Nao foi possivel atualizar a analise agora. Mantendo os ultimos dados visiveis."
-                      : "Nao foi possivel analisar o armazenamento nao utilizado."}
+                      ? "Não foi possível atualizar a análise agora. Mantendo os últimos dados visíveis."
+                      : "Não foi possível analisar o armazenamento não utilizado."}
                   </AlertDescription>
                 </Alert>
               ) : null}
@@ -891,17 +891,17 @@ const DashboardUploads = () => {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-foreground">
-                        Analise de limpeza em andamento
+                        Análise de limpeza em andamento
                       </p>
-                      <p className="text-sm text-foreground/70">-- arquivos de variante orfaos</p>
+                      <p className="text-sm text-foreground/70">-- arquivos de variante órfãos</p>
                       <p className="text-sm text-foreground/70">
-                        -- diretorios de variantes orfaos
+                        -- diretórios de variantes órfãos
                       </p>
                       <p className="text-sm text-foreground/70">-- originais soltos (quarentena)</p>
                       <p className="text-sm text-foreground/70">
                         -- arquivos de quarentena vencidos para purga
                       </p>
-                      <p className="text-sm text-foreground/70">-- recuperaveis no total</p>
+                      <p className="text-sm text-foreground/70">-- recuperáveis no total</p>
                       <p className="text-xs text-foreground/70">
                         -- em originais e -- em variantes.
                       </p>
@@ -919,9 +919,9 @@ const DashboardUploads = () => {
                         <tr>
                           <th className="px-4 py-3 text-left">Tipo</th>
                           <th className="px-4 py-3 text-left">Arquivo</th>
-                          <th className="px-4 py-3 text-left">Area</th>
+                          <th className="px-4 py-3 text-left">Área</th>
                           <th className="px-4 py-3 text-left">Criado em</th>
-                          <th className="px-4 py-3 text-right">Recuperavel</th>
+                          <th className="px-4 py-3 text-right">Recuperável</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -930,7 +930,7 @@ const DashboardUploads = () => {
                             key={`dashboard-uploads-cleanup-placeholder-${index}`}
                             className="border-t border-border/50"
                           >
-                            <td className="px-4 py-3 text-foreground/70">Aguardando analise</td>
+                            <td className="px-4 py-3 text-foreground/70">Aguardando análise</td>
                             <td className="px-4 py-3">
                               <Skeleton className="h-4 w-40" />
                             </td>
@@ -1002,9 +1002,9 @@ const DashboardUploads = () => {
                           <tr>
                             <th className="px-4 py-3 text-left">Tipo</th>
                             <th className="px-4 py-3 text-left">Arquivo</th>
-                            <th className="px-4 py-3 text-left">Area</th>
+                            <th className="px-4 py-3 text-left">Área</th>
                             <th className="px-4 py-3 text-left">Criado em</th>
-                            <th className="px-4 py-3 text-right">Recuperavel</th>
+                            <th className="px-4 py-3 text-right">Recuperável</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1043,8 +1043,8 @@ const DashboardUploads = () => {
                       className={`${dashboardPageLayoutTokens.surfaceInset} px-4 py-6 text-sm text-foreground/70`}
                     >
                       {hasCleanupBlockingError
-                        ? "A analise de limpeza ainda nao esta disponivel."
-                        : "Nenhum arquivo elegivel para limpeza."}
+                        ? "A análise de limpeza ainda não está disponível."
+                        : "Nenhum arquivo elegível para limpeza."}
                     </div>
                   )}
                 </div>

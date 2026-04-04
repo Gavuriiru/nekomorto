@@ -96,7 +96,7 @@ const getProjectBadgeAriaLabel = (item: ProjectBadgeItem) => {
     return `Filtrar por tag ${item.label}`;
   }
   if (item.key.startsWith("genre-")) {
-    return `Filtrar por genero ${item.label}`;
+    return `Filtrar por gênero ${item.label}`;
   }
   return item.label;
 };
@@ -938,13 +938,13 @@ const Projects = () => {
         </Select>
       </ProjectsFilterField>
 
-      <ProjectsFilterField label="GÃªneros">
+      <ProjectsFilterField label="Gêneros">
         <Select
           value={selectedGenre}
           onValueChange={(value) => updateFilterQuery(selectedTag, value)}
         >
-          <SelectTrigger className="bg-background/60" aria-label="Filtrar por genero">
-            <SelectValue placeholder="Todos os generos" />
+          <SelectTrigger className="bg-background/60" aria-label="Filtrar por gênero">
+            <SelectValue placeholder="Todos os gêneros" />
           </SelectTrigger>
           <SelectContent>
             {genreOptions.map((genre) => (
@@ -1093,8 +1093,8 @@ const Projects = () => {
                     value={selectedGenre}
                     onValueChange={(value) => updateFilterQuery(selectedTag, value)}
                   >
-                    <SelectTrigger className="bg-background/60" aria-label="Filtrar por genero">
-                      <SelectValue placeholder="Todos os generos" />
+                    <SelectTrigger className="bg-background/60" aria-label="Filtrar por gênero">
+                      <SelectValue placeholder="Todos os gêneros" />
                     </SelectTrigger>
                     <SelectContent>
                       {genreOptions.map((genre) => (

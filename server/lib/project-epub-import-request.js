@@ -54,7 +54,7 @@ export const mapEpubImportExecutionError = (error) => {
       body: {
         error: "epub_import_upload_persist_failed",
         detail:
-          "Nao foi possivel persistir as imagens importadas do EPUB neste momento. Tente novamente em alguns instantes.",
+          "Não foi possível persistir as imagens importadas do EPUB neste momento. Tente novamente em alguns instantes.",
       },
     };
   }
@@ -64,7 +64,7 @@ export const mapEpubImportExecutionError = (error) => {
       body: {
         error: "epub_import_failed",
         detail:
-          "Nao foi possivel processar estilos CSS avancados do EPUB. Tente reexportar o arquivo e importar novamente.",
+          "Não foi possível processar estilos CSS avançados do EPUB. Tente reexportar o arquivo e importar novamente.",
       },
     };
   }

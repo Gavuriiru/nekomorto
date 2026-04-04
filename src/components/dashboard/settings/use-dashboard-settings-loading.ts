@@ -237,14 +237,14 @@ export const useDashboardSettingsLoading = ({
         if (!options?.silent) {
           toast({
             title: "Termos do AniList atualizados",
-            description: "Tags e gÃªneros foram importados para traduÃ§Ã£o.",
+            description: "Tags e gêneros foram importados para tradução.",
           });
         }
       } catch {
         if (!options?.silent) {
           toast({
-            title: "NÃ£o foi possÃ­vel importar",
-            description: "Verifique a conexÃ£o ou tente novamente.",
+            title: "Não foi possível importar",
+            description: "Verifique a conexão ou tente novamente.",
           });
         }
       } finally {
@@ -264,7 +264,7 @@ export const useDashboardSettingsLoading = ({
 
   useDashboardRefreshToast({
     active: isRefreshing && hasLoadedOnce,
-    title: "Atualizando configuraÃ§Ãµes",
+    title: "Atualizando configurações",
     description: "Buscando ajustes globais mais recentes.",
   });
 

@@ -1099,7 +1099,7 @@ const buildDiscardWarnings = ({
     warnings.push(`Paginas somente com imagem ignoradas: ${imageOnly}.`);
   }
   if (unresolvedTocEntry > 0) {
-    warnings.push(`Entradas do TOC nao resolvidas: ${unresolvedTocEntry}.`);
+    warnings.push(`Entradas do TOC não resolvidas: ${unresolvedTocEntry}.`);
   }
   return warnings;
 };
@@ -1717,7 +1717,7 @@ const rewriteInternalImagesInDocument = async ({
     const resolvedAssetHref = normalizeEpubAssetHref(currentSrc, documentHref);
     const manifestItem = resolvedAssetHref ? manifestByHref.get(resolvedAssetHref) || null : null;
     if (!manifestItem || !isImageManifestItem(manifestItem)) {
-      warnings.push(`Imagem interna ignorada no capitulo "${chapterTitle}": ${currentSrc}.`);
+      warnings.push(`Imagem interna ignorada no capítulo "${chapterTitle}": ${currentSrc}.`);
       if (imageContext) {
         imageContext.imageImportFailures += 1;
       }
@@ -1726,7 +1726,7 @@ const rewriteInternalImagesInDocument = async ({
     }
 
     if (!imageContext) {
-      warnings.push(`Imagem interna ignorada no capitulo "${chapterTitle}": ${currentSrc}.`);
+      warnings.push(`Imagem interna ignorada no capítulo "${chapterTitle}": ${currentSrc}.`);
       imageElement.remove();
       continue;
     }
@@ -1773,7 +1773,7 @@ const rewriteInternalImagesInDocument = async ({
       }
     } catch {
       imageContext.imageImportFailures += 1;
-      warnings.push(`Imagem interna ignorada no capitulo "${chapterTitle}": ${currentSrc}.`);
+      warnings.push(`Imagem interna ignorada no capítulo "${chapterTitle}": ${currentSrc}.`);
       imageElement.remove();
     }
   }
@@ -1817,9 +1817,9 @@ const prepareNarrativeDocumentHtml = async ({
     } catch (error) {
       const normalizedDocumentHref = normalizeEpubHref(documentHref);
       const chapterContextLabel =
-        String(chapterTitle || "").trim() || normalizedDocumentHref || "Capitulo";
+        String(chapterTitle || "").trim() || normalizedDocumentHref || "Capítulo";
       const warning =
-        `Estilos CSS avancados foram ignorados no capitulo "${chapterContextLabel}"; ` +
+        `Estilos CSS avançados foram ignorados no capítulo "${chapterContextLabel}"; ` +
         "importacao continuou sem estilos calculados.";
       const fallbackKey = String(normalizedDocumentHref || chapterContextLabel || "")
         .trim()
@@ -1942,7 +1942,7 @@ const importVolumeCoverFromEpub = async ({ epub, project, targetVolume, imageCon
 
   const coverAsset = await resolveEpubVolumeCoverAsset(epub);
   if (!coverAsset?.manifestItem) {
-    warnings.push("Nao foi possivel localizar a capa do volume no EPUB.");
+    warnings.push("Não foi possível localizar a capa do volume no EPUB.");
     return {
       summary: {
         volumeCoverImported: false,
@@ -1954,7 +1954,7 @@ const importVolumeCoverFromEpub = async ({ epub, project, targetVolume, imageCon
   }
 
   if (!imageContext) {
-    warnings.push("Nao foi possivel importar a capa do volume do EPUB.");
+    warnings.push("Não foi possível importar a capa do volume do EPUB.");
     return {
       summary: {
         volumeCoverImported: false,
@@ -2023,7 +2023,7 @@ const importVolumeCoverFromEpub = async ({ epub, project, targetVolume, imageCon
       ],
     };
   } catch {
-    warnings.push("Nao foi possivel importar a capa do volume do EPUB.");
+    warnings.push("Não foi possível importar a capa do volume do EPUB.");
     return {
       summary: {
         volumeCoverImported: false,
@@ -2242,7 +2242,7 @@ const buildFallbackNarrativeChapterCandidates = async ({
         epub,
         rawHtml: partReference.rawHtml,
         documentHref: partReference.href,
-        chapterTitle: group.title || partReference.title || "Capitulo",
+        chapterTitle: group.title || partReference.title || "Capítulo",
         manifestByHref,
         imageContext,
         cssFallbackSeenKeys,
@@ -2455,7 +2455,7 @@ export const importProjectEpub = async ({
   warnings.push(...buildDiscardWarnings(discardedCounts));
 
   for (const [chapterIndex, item] of orderedChapterCandidates.entries()) {
-    const title = String(item?.title || epub.manifest?.[item.id]?.title || "").trim() || "Capitulo";
+    const title = String(item?.title || epub.manifest?.[item.id]?.title || "").trim() || "Capítulo";
     const readingOrder = Number.isFinite(Number(item?.readingOrder))
       ? Number(item.readingOrder)
       : chapterIndex + 1;
@@ -2503,7 +2503,7 @@ export const importProjectEpub = async ({
         const explicitKey = buildEpisodeKey(chapterNumber, targetVolume);
         if (assignedImportKeys.has(explicitKey)) {
           warnings.push(
-            `Capitulo "${title}" repetiu o numero ${chapterNumber}; foi renumerado automaticamente.`,
+            `Capítulo "${title}" repetiu o número ${chapterNumber}; foi renumerado automaticamente.`,
           );
           chapterNumber = null;
         } else {
@@ -2527,7 +2527,7 @@ export const importProjectEpub = async ({
     try {
       content = htmlToLexicalJson(item.sanitizedHtml);
     } catch (error) {
-      const message = `Falha ao converter o capitulo ${chapterIndex + 1} ("${title}"), item "${String(item?.id || "").trim() || "unknown"}": ${String(error?.message || error || "conversion_failed")}`;
+      const message = `Falha ao converter o capítulo ${chapterIndex + 1} ("${title}"), item "${String(item?.id || "").trim() || "unknown"}": ${String(error?.message || error || "conversion_failed")}`;
       console.error("epub_import_conversion_failed", {
         chapterIndex: chapterIndex + 1,
         chapterTitle: title,

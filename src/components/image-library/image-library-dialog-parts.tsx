@@ -111,7 +111,7 @@ export const ImageLibraryFocalPointDialog = ({
       <DialogHeader>
         <DialogTitle>Definir ponto focal</DialogTitle>
         <DialogDescription>
-          Ajuste o enquadramento por preset e regenere as variantes automÃ¡ticas com uma prÃ©via
+          Ajuste o enquadramento por preset e regenere as variantes automáticas com uma prévia
           fiel ao recorte final.
         </DialogDescription>
       </DialogHeader>
@@ -165,8 +165,8 @@ export const ImageLibraryDeleteDialog = ({
         <DialogTitle>Excluir imagem?</DialogTitle>
         <DialogDescription>
           {deleteTarget
-            ? `A imagem "${toEffectiveName(deleteTarget)}" serÃ¡ removida permanentemente.`
-            : "Confirme a exclusÃ£o da imagem."}
+            ? `A imagem "${toEffectiveName(deleteTarget)}" será removida permanentemente.`
+            : "Confirme a exclusão da imagem."}
         </DialogDescription>
       </DialogHeader>
       <div className="flex justify-end gap-2">

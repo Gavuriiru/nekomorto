@@ -436,7 +436,7 @@ const buildImportedChapterPayload = ({
     coverImageUrl: String(existingChapter?.coverImageUrl || "").trim() || coverImageUrl,
     coverImageAlt:
       String(existingChapter?.coverImageAlt || "").trim() ||
-      (coverImageUrl ? `Capa do capitulo ${previewItem.number}` : ""),
+      (coverImageUrl ? `Capa do capítulo ${previewItem.number}` : ""),
     publicationStatus:
       existingChapter?.publicationStatus === "published"
         ? "published"

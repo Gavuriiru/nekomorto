@@ -312,7 +312,7 @@ export const isolateProjectImageUploads = ({
     : projects.map((project, index) => ({ project, index }));
 
   if (targetProjectId && scopedProjects.length === 0) {
-    throw new Error(`Projeto "${targetProjectId}" nao encontrado.`);
+    throw new Error(`Projeto "${targetProjectId}" não encontrado.`);
   }
 
   const projectUsageByUrl = new Map();

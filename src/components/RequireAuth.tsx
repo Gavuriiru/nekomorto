@@ -44,7 +44,7 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
         const target = getFirstAllowedDashboardRoute(grants);
         toast({
           title: "Acesso negado",
-          description: "A area de seguranca e restrita aos donos.",
+          description: "A área de segurança é restrita aos donos.",
         });
         navigate(target, { replace: true });
         return;
@@ -57,7 +57,7 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
         const target = getFirstAllowedDashboardRoute(grants);
         toast({
           title: "Acesso negado",
-          description: "VocÃª foi redirecionado para uma Ã¡rea permitida do painel.",
+          description: "Você foi redirecionado para uma área permitida do painel.",
         });
         navigate(target, { replace: true });
         return;
@@ -83,7 +83,7 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
           const target = getFirstAllowedDashboardRoute(grants);
           toast({
             title: "Acesso negado",
-            description: "A area de seguranca e restrita aos donos.",
+            description: "A área de segurança é restrita aos donos.",
           });
           navigate(target, { replace: true });
           return;

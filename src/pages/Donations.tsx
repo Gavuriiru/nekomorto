@@ -279,7 +279,7 @@ const Donations = () => {
                       <th className="pb-3">Doador</th>
                       <th className="pb-3">Valor</th>
                       <th className="pb-3">Objetivo</th>
-                      <th className="pb-3">M?s/Ano</th>
+                      <th className="pb-3">Mês/Ano</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">

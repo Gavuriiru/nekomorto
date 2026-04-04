@@ -1467,7 +1467,7 @@ const DashboardUsers = () => {
                 <AsyncState
                   kind="loading"
                   title="Carregando usuários"
-                  description="Buscando membros e permissoes."
+                  description="Buscando membros e permissões."
                   className="mt-6"
                 />
               ) : hasLoadError ? (

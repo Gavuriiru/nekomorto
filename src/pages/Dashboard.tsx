@@ -758,7 +758,7 @@ const Dashboard = () => {
       const rows: string[] = [];
       rows.push("Resumo");
       rows.push(`Total de projetos,${totalProjects}`);
-      rows.push(`Total de midias,${totalMedia}`);
+      rows.push(`Total de mídias,${totalMedia}`);
       rows.push(`Projetos ativos,${activeProjects}`);
       rows.push(`Projetos finalizados,${finishedProjects}`);
       rows.push(`Acessos em projetos,${totalProjectViews}`);
@@ -810,7 +810,7 @@ const Dashboard = () => {
       window.URL.revokeObjectURL(url);
     } catch {
       toast({
-        title: "Falha ao exportar relatorio",
+        title: "Falha ao exportar relatório",
         description: "Tente novamente em alguns instantes.",
         variant: "destructive",
       });
@@ -864,7 +864,7 @@ const Dashboard = () => {
                 onClick={() => void handleExportReport()}
                 disabled={isExportingReport}
               >
-                {isExportingReport ? "Exportando..." : "Exportar relatorio"}
+                {isExportingReport ? "Exportando..." : "Exportar relatório"}
               </Button>
             ) : (
               <Link to="/login">

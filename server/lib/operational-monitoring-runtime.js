@@ -69,15 +69,15 @@ export const createOperationalMonitoringRuntime = (dependencies = {}) => {
   const buildMaintenanceHealthCheck = () => ({
     name: "maintenance_mode",
     status: isMaintenanceMode ? "warning" : "ok",
-    message: isMaintenanceMode ? "Modo de manutenÃ§Ã£o ativo." : "Modo de manutenÃ§Ã£o desativado.",
+    message: isMaintenanceMode ? "Modo de manutenção ativo." : "Modo de manutenção desativado.",
   });
 
   const buildSessionConfigHealthCheck = () => ({
     name: "session_config",
     status: sessionCookieConfig.usesDefaultSecretInProduction ? "warning" : "ok",
     message: sessionCookieConfig.usesDefaultSecretInProduction
-      ? "SESSION_SECRET fallback em produÃ§Ã£o."
-      : "ConfiguraÃ§Ã£o de sessÃ£o vÃ¡lida.",
+      ? "SESSION_SECRET fallback em produção."
+      : "Configuração de sessão válida.",
     meta: {
       cookieName: sessionCookieConfig.name,
       secure: Boolean(sessionCookieConfig.cookie?.secure),
@@ -101,10 +101,10 @@ export const createOperationalMonitoringRuntime = (dependencies = {}) => {
       name: "data_repository",
       status: hasRecentError ? "warning" : backlog ? "warning" : "ok",
       message: hasRecentError
-        ? "Houve erro recente na persistÃªncia em background."
+        ? "Houve erro recente na persistência em background."
         : backlog
-          ? "Fila de persistÃªncia acumulada."
-          : "PersistÃªncia em background saudÃ¡vel.",
+          ? "Fila de persistência acumulada."
+          : "Persistência em background saudável.",
       meta: snapshot,
     };
   };
@@ -154,7 +154,7 @@ export const createOperationalMonitoringRuntime = (dependencies = {}) => {
         latencyMs,
         message:
           latencyMs > dbLatencyWarningMs
-            ? "Banco respondeu acima do limite de latÃªncia."
+            ? "Banco respondeu acima do limite de latência."
             : "Banco respondeu ao ping.",
       };
     } catch (error) {
@@ -175,7 +175,7 @@ export const createOperationalMonitoringRuntime = (dependencies = {}) => {
         name: "uploads_dir",
         status: "ok",
         latencyMs: Date.now() - startedAt,
-        message: "DiretÃ³rio de uploads acessÃ­vel.",
+        message: "Diretório de uploads acessível.",
         meta: { path: publicUploadsDir },
       };
     } catch (error) {

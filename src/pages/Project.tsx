@@ -1239,7 +1239,7 @@ const ProjectPage = () => {
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   {isChapterBased
-                    ? "Leia no site ou baixe os capitulos disponiveis."
+                    ? "Leia no site ou baixe os capítulos disponíveis."
                     : "Selecione uma fonte de download para cada item disponível."}
                 </p>
               </div>

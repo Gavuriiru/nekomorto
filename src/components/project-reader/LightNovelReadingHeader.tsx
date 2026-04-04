@@ -39,12 +39,12 @@ const LightNovelReadingHeader = ({
   mediaVariants = {},
   backHref,
   editHref,
-  editActionLabel = "Editar capitulo",
+  editActionLabel = "Editar capítulo",
 }: LightNovelReadingHeaderProps) => {
   const chapterTitleText = String(chapterTitle || "").trim() || projectTitle;
   const synopsisText = String(synopsis || "").trim();
   const projectTypeText = String(projectType || "").trim() || "Light Novel";
-  const chapterBadgeText = String(chapterLabel || "").trim() || "Capitulo";
+  const chapterBadgeText = String(chapterLabel || "").trim() || "Capítulo";
 
   return (
     <section data-testid="project-reading-hero" className="project-reading-masthead relative overflow-hidden">

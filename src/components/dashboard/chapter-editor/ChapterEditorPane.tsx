@@ -741,7 +741,7 @@ const ChapterEditorPane = forwardRef<
         title={
           supportsEpubTools && !isImageChapter
             ? "Dados"
-            : "Identidade do capitulo"
+            : "Identidade do capítulo"
         }
         subtitle={
           supportsEpubTools && !isImageChapter
@@ -1081,7 +1081,7 @@ const ChapterEditorPane = forwardRef<
               <Label className="text-sm">Imagem de capa</Label>{" "}
               <p className="mt-1 text-xs text-muted-foreground">
                 {" "}
-                Usa a pasta dedicada do capitulo na biblioteca.{" "}
+                Usa a pasta dedicada do capítulo na biblioteca.{" "}
               </p>{" "}
             </div>{" "}
             <div className="grid gap-4 sm:grid-cols-[112px_minmax(0,1fr)]">
@@ -1128,8 +1128,8 @@ const ChapterEditorPane = forwardRef<
     const sourcesSection = hasActiveChapter ? (
       <WorkspaceSectionCard
         title="Fontes de download"
-        subtitle="Links opcionais para capitulos hibridos"
-        eyebrow="Distribuicao"
+        subtitle="Links opcionais para capítulos híbridos"
+        eyebrow="Distribuição"
         testId="chapter-sources-section"
         actions={
           <Button
@@ -1156,7 +1156,7 @@ const ChapterEditorPane = forwardRef<
             <Label className="text-sm">Fontes</Label>{" "}
             <p className="mt-1 text-xs text-muted-foreground">
               {" "}
-              Opcional para capitulos com leitura e download.{" "}
+              Opcional para capítulos com leitura e download.{" "}
             </p>{" "}
           </div>{" "}
           <div className="space-y-3">
@@ -1247,7 +1247,7 @@ const ChapterEditorPane = forwardRef<
               {" "}
               <Badge variant="outline" className="shrink-0">
                 {" "}
-                {selectedVolumeChapterCount} capitulo(s){" "}
+                {selectedVolumeChapterCount} capítulo(s){" "}
               </Badge>{" "}
               <Button
                 type="button"

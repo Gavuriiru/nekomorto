@@ -836,7 +836,7 @@ const ProjectReading = () => {
 
   const imageReaderProps = {
     projectTitle: project.title,
-    projectType: project.type || (isLightNovel ? "Light Novel" : "MangÃ¡"),
+    projectType: project.type || (isLightNovel ? "Light Novel" : "Mangá"),
     chapterTitle: chapterHeading,
     chapterLabel: chapterBadgeLabel,
     synopsis: resolvedChapterSynopsis,

@@ -135,7 +135,7 @@ export const createPostVersionRuntime = (dependencies = {}) => {
     const seed = {
       id: String(source.id || fallback.postId || crypto.randomUUID()),
       slug: String(source.slug || fallback.slug || source.title || fallback.postId || "post"),
-      title: String(source.title || fallback.title || "Sem tÃƒÂ­tulo"),
+      title: String(source.title || fallback.title || "Sem título"),
       status: source.status,
       publishedAt: source.publishedAt || source.scheduledAt || new Date().toISOString(),
       scheduledAt: source.scheduledAt || null,
@@ -395,10 +395,10 @@ export const createPostVersionRuntime = (dependencies = {}) => {
   };
 
   const postVersionReasonLabel = (reason) => {
-    if (reason === "create") return "CriaÃƒÂ§ÃƒÂ£o";
+    if (reason === "create") return "Criação";
     if (reason === "manual") return "Manual";
     if (reason === "rollback") return "Rollback";
-    return "AtualizaÃƒÂ§ÃƒÂ£o";
+    return "Atualização";
   };
 
   return {

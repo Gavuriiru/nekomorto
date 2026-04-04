@@ -19,7 +19,7 @@ const formatSeason = (season?: string | null, seasonYear?: number | null) => {
         .toLowerCase()
         .replace("winter", "Inverno")
         .replace("spring", "Primavera")
-        .replace("summer", "VerÃ£o")
+        .replace("summer", "Verão")
         .replace("fall", "Outono")
     : "";
   return `${translated ? `${translated} ` : ""}${seasonYear || ""}`.trim();
@@ -55,13 +55,13 @@ const formatType = (format?: string | null) => {
     case "SPECIAL":
       return "Especial";
     case "MANGA":
-      return "MangÃ¡";
+      return "Mangá";
     case "NOVEL":
       return "Light Novel";
     case "ONE_SHOT":
       return "One-shot";
     case "MUSIC":
-      return "MÃºsica";
+      return "Música";
     default:
       return "";
   }

@@ -1,6 +1,6 @@
 export const DEFAULT_PROJECT_FORMAT_OPTIONS = [
   "Anime",
-  "MangÃ¡",
+  "Mangá",
   "Webtoon",
   "Light Novel",
   "Filme",

@@ -12,9 +12,9 @@ export const defaultSiteSettings = {
     logoUrl: "",
     faviconUrl: "",
     description:
-      "Fansub dedicada a trazer histÃ³rias inesquecÃ­veis com o carinho que a comunidade merece.",
+      "Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece.",
     defaultShareImage: "/placeholder.svg",
-    defaultShareImageAlt: "Imagem padrÃ£o de compartilhamento da Nekomata",
+    defaultShareImageAlt: "Imagem padrão de compartilhamento da Nekomata",
     titleSeparator: " | ",
   },
   theme: {
@@ -24,7 +24,7 @@ export const defaultSiteSettings = {
   },
   navbar: {
     links: [
-      { label: "InÃ­cio", href: "/", icon: "home" },
+      { label: "Início", href: "/", icon: "home" },
       { label: "Projetos", href: "/projetos", icon: "folder-kanban" },
       { label: "Equipe", href: "/equipe", icon: "users" },
       { label: "Recrutamento", href: "/recrutamento", icon: "user-plus" },
@@ -38,7 +38,7 @@ export const defaultSiteSettings = {
       subtitle: "Converse com a equipe e acompanhe novidades em tempo real.",
       panelTitle: "Comunidade do Zuraaa!",
       panelDescription:
-        "Receba alertas de lanÃ§amentos, participe de eventos e fale sobre os nossos projetos.",
+        "Receba alertas de lançamentos, participe de eventos e fale sobre os nossos projetos.",
       ctaLabel: "Entrar no servidor",
       ctaUrl: "https://discord.com/invite/BAHKhdX2ju",
     },
@@ -127,7 +127,7 @@ export const defaultSiteSettings = {
     brandName: "NEKOMATA",
     brandLogoUrl: "",
     brandDescription:
-      "Fansub dedicada a trazer histÃ³rias inesquecÃ­veis com o carinho que a comunidade merece. Traduzimos por paixÃ£o, respeitando autores e apoiando o consumo legal das obras.",
+      "Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece. Traduzimos por paixão, respeitando autores e apoiando o consumo legal das obras.",
     columns: [
       {
         title: "Nekomata",
@@ -140,11 +140,11 @@ export const defaultSiteSettings = {
         title: "Ajude nossa equipe",
         links: [
           { label: "Recrutamento", href: "/recrutamento" },
-          { label: "DoaÃ§Ãµes", href: "/doacoes" },
+          { label: "Doações", href: "/doacoes" },
         ],
       },
       {
-        title: "Links Ãºteis",
+        title: "Links úteis",
         links: [
           { label: "Projetos", href: "/projetos" },
           { label: "FAQ", href: "/faq" },
@@ -167,13 +167,13 @@ export const defaultSiteSettings = {
       },
     ],
     disclaimer: [
-      "Todo o conteÃºdo divulgado aqui pertence a seus respectivos autores e editoras. As traduÃ§Ãµes sÃ£o realizadas por fÃ£s, sem fins lucrativos, com o objetivo de divulgar as obras no Brasil.",
-      "Caso goste de alguma obra, apoie a versÃ£o oficial. A venda de materiais legendados pela equipe Ã© proibida.",
+      "Todo o conteúdo divulgado aqui pertence a seus respectivos autores e editoras. As traduções são realizadas por fãs, sem fins lucrativos, com o objetivo de divulgar as obras no Brasil.",
+      "Caso goste de alguma obra, apoie a versão oficial. A venda de materiais legendados pela equipe é proibida.",
     ],
-    highlightTitle: "AtribuiÃ§Ã£o â€¢ NÃ£o Comercial",
+    highlightTitle: "Atribuição • Não Comercial",
     highlightDescription:
-      "Este site segue a licenÃ§a Creative Commons BY-NC. VocÃª pode compartilhar com crÃ©ditos, sem fins comerciais.",
-    copyright: "Â© 2014 - 2026 Nekomata Fansub. Feito por fÃ£s para fÃ£s.",
+      "Este site segue a licença Creative Commons BY-NC. Você pode compartilhar com créditos, sem fins comerciais.",
+    copyright: "© 2014 - 2026 Nekomata Fansub. Feito por fãs para fãs.",
   },
   seo: {
     redirects: [],

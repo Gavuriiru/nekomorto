@@ -203,7 +203,7 @@ export const useChapterEditorPersistence = ({
       if (findIncompleteDownloadSourceIndex(draft.sources) >= 0) {
         toast({
           title: "Complete as fontes de download",
-          description: "Selecione uma fonte e informe a URL antes de salvar o capitulo.",
+          description: "Selecione uma fonte e informe a URL antes de salvar o capítulo.",
           variant: "destructive",
         });
         return false;

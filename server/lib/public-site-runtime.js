@@ -166,12 +166,12 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
         const projectId = String(update?.projectId || "").trim();
         const project = publicProjects.get(projectId);
         const projectTitle = String(update?.projectTitle || project?.title || "Projeto");
-        const unit = String(update?.unit || "CapÃ­tulo").trim() || "CapÃ­tulo";
+        const unit = String(update?.unit || "Capítulo").trim() || "Capítulo";
         const isExtraUnit = unit.toLowerCase() === "extra";
         const episodeNumber = Number.isFinite(Number(update?.episodeNumber))
           ? Number(update.episodeNumber)
           : null;
-        const kind = String(update?.kind || "AtualizaÃ§Ã£o").trim() || "AtualizaÃ§Ã£o";
+        const kind = String(update?.kind || "Atualização").trim() || "Atualização";
         const link = project ? `${primaryAppOrigin}/projeto/${project.id}` : primaryAppOrigin;
         return {
           title: `${kind}: ${projectTitle}${episodeNumber !== null ? ` - ${unit}${isExtraUnit ? "" : ` ${episodeNumber}`}` : ""}`,
@@ -199,7 +199,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
         const kind = String(update?.kind || "")
           .trim()
           .toLowerCase();
-        return kind === "lanÃ§amento" || kind === "lancamento";
+        return kind === "lançamento" || kind === "lancamento";
       })
       .sort(
         (a, b) => new Date(b?.updatedAt || 0).getTime() - new Date(a?.updatedAt || 0).getTime(),

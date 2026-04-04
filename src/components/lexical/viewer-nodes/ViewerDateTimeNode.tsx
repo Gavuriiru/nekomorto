@@ -18,7 +18,7 @@ export type SerializedViewerDateTimeNode = Spread<
 
 const getDateTimeLabel = (dateTime: Date | undefined) => {
   if (!dateTime || Number.isNaN(dateTime.getTime())) {
-    return "Data invalida";
+    return "Data inválida";
   }
 
   const hasTime = dateTime.getHours() !== 0 || dateTime.getMinutes() !== 0;

@@ -635,7 +635,7 @@ const DashboardAnalytics = () => {
                                   </span>
                                   <span className="min-w-0 flex flex-col gap-1 sm:px-4">
                                     <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/70 sm:hidden">
-                                      Titulo
+                                      Título
                                     </span>
                                     <span className="truncate font-medium text-foreground">
                                       {entry.title}

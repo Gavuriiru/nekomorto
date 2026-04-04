@@ -780,12 +780,12 @@ const ReaderPageNode = memo(
             style={viewportBoundedSurfaceStyle}
           >
             <p className="text-xs font-semibold uppercase tracking-widest text-primary/80">
-              PrÃ©via limitada
+              Prévia limitada
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight">A prÃ©via termina aqui</h2>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight">A prévia termina aqui</h2>
             <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
-              Este capÃ­tulo tem {totalPages} pÃ¡ginas no total e libera {accessiblePageCount} na
-              prÃ©via.
+              Este capítulo tem {totalPages} páginas no total e libera {accessiblePageCount} na
+              prévia.
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               {purchaseUrl ? (
@@ -821,7 +821,7 @@ const ReaderPageNode = memo(
         >
           <img
             src={page.imageUrl || ""}
-            alt={`Pagina ${pageIndex + 1}`}
+            alt={`Página ${pageIndex + 1}`}
             loading={imageLoading ?? (pageIndex < 2 ? "eager" : "lazy")}
             decoding="async"
             fetchPriority={imageFetchPriority}
@@ -5297,7 +5297,7 @@ const PublicProjectReaderContent = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="fixed">Fixa</SelectItem>
-                  <SelectItem value="static">Estatica</SelectItem>
+                  <SelectItem value="static">Estática</SelectItem>
                 </SelectContent>
               </Select>
             </div>

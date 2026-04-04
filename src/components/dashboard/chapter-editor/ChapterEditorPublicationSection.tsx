@@ -18,8 +18,8 @@ const ChapterEditorPublicationSection = ({
 }: ChapterEditorPublicationSectionProps) => (
   <ProjectEditorSectionCard
     title="Publicação"
-    subtitle="Release, status atual e visibilidade do capitulo"
-    eyebrow="Operacao"
+    subtitle="Release, status atual e visibilidade do capítulo"
+    eyebrow="Operação"
     testId="chapter-publication-section"
     actions={
       <Badge

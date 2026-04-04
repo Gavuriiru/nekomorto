@@ -1738,7 +1738,7 @@ const DashboardProjectsEditor = () => {
                                     variant="secondary"
                                     className="text-[10px] uppercase tracking-[0.12em]"
                                   >
-                                    GestÃ£o rÃ¡pida
+                                    Gestão rápida
                                   </Badge>
                                   <Badge
                                     variant="outline"
@@ -1755,7 +1755,7 @@ const DashboardProjectsEditor = () => {
                                     }
                                   >
                                     <SelectTrigger className="w-[220px]">
-                                      <SelectValue placeholder="Filtrar episÃ³dios" />
+                                      <SelectValue placeholder="Filtrar episódios" />
                                     </SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="all">Todos</SelectItem>
@@ -1773,7 +1773,7 @@ const DashboardProjectsEditor = () => {
                                     onClick={selectAllFilteredAnimeEpisodes}
                                     disabled={filteredAnimeEpisodeItems.length === 0}
                                   >
-                                    Selecionar visÃ­veis
+                                    Selecionar visíveis
                                   </Button>
                                   <Button
                                     type="button"
@@ -1782,7 +1782,7 @@ const DashboardProjectsEditor = () => {
                                     onClick={clearSelectedAnimeEpisodes}
                                     disabled={selectedAnimeEpisodeKeys.length === 0}
                                   >
-                                    Limpar seleÃ§Ã£o
+                                    Limpar seleção
                                   </Button>
                                 </div>
                               </div>
@@ -1790,9 +1790,9 @@ const DashboardProjectsEditor = () => {
                                 <div className="grid gap-3 rounded-xl border border-border/60 bg-card/70 p-3">
                                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                     <span>
-                                      {selectedAnimeEpisodeKeys.length} episÃ³dio(s) selecionado(s)
+                                      {selectedAnimeEpisodeKeys.length} episódio(s) selecionado(s)
                                     </span>
-                                    <Badge variant="outline">AÃ§Ãµes em lote</Badge>
+                                    <Badge variant="outline">Ações em lote</Badge>
                                   </div>
                                   <div className="grid gap-3 xl:grid-cols-2">
                                     <div className="flex flex-wrap items-end gap-2">
@@ -1854,7 +1854,7 @@ const DashboardProjectsEditor = () => {
                                     </div>
                                     <div className="flex flex-wrap items-end gap-2">
                                       <DashboardFieldStack>
-                                        <Label className="text-xs">DuraÃ§Ã£o</Label>
+                                        <Label className="text-xs">Duração</Label>
                                         <Input
                                           value={animeBatchOperationDuration}
                                           onChange={(event) =>
@@ -1872,7 +1872,7 @@ const DashboardProjectsEditor = () => {
                                         variant="outline"
                                         onClick={applyAnimeBatchDuration}
                                       >
-                                        Aplicar duraÃ§Ã£o
+                                        Aplicar duração
                                       </Button>
                                       <DashboardFieldStack>
                                         <Label className="text-xs">Deslocar datas</Label>
@@ -1897,7 +1897,7 @@ const DashboardProjectsEditor = () => {
                                     </div>
                                   </div>
                                   <DashboardFieldStack>
-                                    <Label className="text-xs">Etapas concluÃ­das</Label>
+                                    <Label className="text-xs">Etapas concluídas</Label>
                                     <div className="flex flex-wrap gap-2">
                                       {stageOptions.map((stage) => {
                                         const isSelected =
@@ -1943,7 +1943,7 @@ const DashboardProjectsEditor = () => {
                               {removedAnimeEpisode ? (
                                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-card/70 px-3 py-2">
                                   <div className="text-sm text-muted-foreground">
-                                    EpisÃ³dio removido do formulÃ¡rio. VocÃª pode desfazer antes de
+                                    Episódio removido do formulário. Você pode desfazer antes de
                                     salvar.
                                   </div>
                                   <Button
@@ -2764,8 +2764,8 @@ const DashboardProjectsEditor = () => {
                                                             }
                                                           >
                                                             {hasEpisodeContent
-                                                              ? "Com conte?do"
-                                                              : "Sem conte?do"}
+                                                              ? "Com conteúdo"
+                                                              : "Sem conteúdo"}
                                                           </Badge>
                                                         </div>
                                                         <div

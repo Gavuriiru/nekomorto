@@ -2232,7 +2232,7 @@ const DashboardPosts = () => {
               <AsyncState
                 kind="error"
                 title="Não foi possível carregar as postagens"
-                description="Confira a conexao e tente atualizar os dados."
+                description="Confira a conexão e tente atualizar os dados."
                 className={dashboardPageLayoutTokens.surfaceSolid}
                 action={
                   <Button

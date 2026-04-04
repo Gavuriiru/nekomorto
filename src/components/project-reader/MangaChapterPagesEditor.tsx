@@ -389,7 +389,7 @@ const MangaChapterPagesEditor = ({
         chapter.coverImageUrl === pages[index]?.imageUrl ? nextPages[0]?.imageUrl || "" : undefined,
     });
     if (getRemovedSpreadPairIds(pages, nextPages).length > 0) {
-      announce("Spread desfeito apos remover a pagina.");
+      announce("Spread desfeito após remover a página.");
     }
   };
 
