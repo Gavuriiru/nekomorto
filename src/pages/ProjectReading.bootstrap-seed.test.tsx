@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import { PUBLIC_ANALYTICS_INGEST_PATH } from "@/lib/public-analytics";
@@ -7,6 +7,7 @@ import ProjectReading from "@/pages/ProjectReading";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const originalIntersectionObserver = window.IntersectionObserver;
+const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "",
@@ -56,6 +57,7 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
 
 describe("ProjectReading bootstrap-first", () => {
   beforeEach(() => {
+    HTMLElement.prototype.scrollIntoView = vi.fn();
     apiFetchMock.mockReset();
     apiFetchMock.mockImplementation(
       async (_apiBase: string, endpoint: string, options?: RequestInit) => {
@@ -171,6 +173,7 @@ describe("ProjectReading bootstrap-first", () => {
   });
 
   afterEach(() => {
+    HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
     Object.defineProperty(window, "IntersectionObserver", {
       configurable: true,
       writable: true,
@@ -265,5 +268,161 @@ describe("ProjectReading bootstrap-first", () => {
       "href",
       "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
     );
+  });
+
+  it("reidrata o projeto quando o bootstrap parcial nao traz capitulos para o menu do leitor", async () => {
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (endpoint === "/api/public/projects/projeto-teste" && method === "GET") {
+          return mockJsonResponse(true, {
+            project: {
+              id: "projeto-teste",
+              title: "Projeto Bootstrap",
+              titleOriginal: "",
+              titleEnglish: "",
+              synopsis: "Sinopse principal",
+              description: "Descricao",
+              type: "manga",
+              status: "Em andamento",
+              tags: [],
+              genres: [],
+              cover: "/uploads/project-cover.jpg",
+              coverAlt: "Capa",
+              banner: "",
+              bannerAlt: "",
+              heroImageUrl: "/uploads/project-hero.jpg",
+              heroImageAlt: "Hero",
+              forceHero: false,
+              trailerUrl: "",
+              studio: "Studio Teste",
+              episodes: "12 capitulos",
+              producers: [],
+              volumeEntries: [],
+              volumeCovers: [],
+              episodeDownloads: [
+                {
+                  number: 1,
+                  title: "Capitulo 1",
+                  contentFormat: "images",
+                  pages: [
+                    { position: 0, imageUrl: "/uploads/chapter-1-page-1.jpg" },
+                    { position: 1, imageUrl: "/uploads/chapter-1-page-2.jpg" },
+                  ],
+                },
+                {
+                  number: 2,
+                  title: "Capitulo 2",
+                  contentFormat: "images",
+                  pages: [
+                    { position: 0, imageUrl: "/uploads/chapter-2-page-1.jpg" },
+                    { position: 1, imageUrl: "/uploads/chapter-2-page-2.jpg" },
+                  ],
+                },
+              ],
+            },
+          });
+        }
+        if (endpoint === "/api/public/projects/projeto-teste/chapters/1" && method === "GET") {
+          return mockJsonResponse(true, {
+            chapter: {
+              number: 1,
+              title: "Capitulo 1",
+              synopsis: "Resumo do capitulo",
+              contentFormat: "images",
+              pages: [
+                { position: 0, imageUrl: "/uploads/chapter-1-page-1.jpg" },
+                { position: 1, imageUrl: "/uploads/chapter-1-page-2.jpg" },
+              ],
+              hasPages: true,
+            },
+            readerConfig: {
+              layout: "single",
+              background: "theme",
+              imageFit: "both",
+            },
+          });
+        }
+        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && method === "POST") {
+          return mockJsonResponse(true, { ok: true });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
+
+    (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC__ = {
+      settings: {},
+      pages: {},
+      projects: [
+        {
+          id: "projeto-teste",
+          title: "Projeto Bootstrap",
+          titleOriginal: "",
+          titleEnglish: "",
+          synopsis: "Sinopse principal",
+          description: "Descricao",
+          type: "manga",
+          status: "Em andamento",
+          tags: [],
+          genres: [],
+          cover: "/uploads/project-cover.jpg",
+          coverAlt: "Capa",
+          banner: "",
+          bannerAlt: "",
+          heroImageUrl: "/uploads/project-hero.jpg",
+          heroImageAlt: "Hero",
+          forceHero: false,
+          trailerUrl: "",
+          studio: "Studio Teste",
+          episodes: "12 capitulos",
+          producers: [],
+          volumeEntries: [],
+          volumeCovers: [],
+          episodeDownloads: [],
+          views: 0,
+          viewsDaily: {},
+        },
+      ],
+      posts: [],
+      updates: [],
+      teamMembers: [],
+      teamLinkTypes: [],
+      mediaVariants: {},
+      tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+      generatedAt: "2026-03-10T00:00:00.000Z",
+      payloadMode: "critical-home",
+    };
+    (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC_ME__ = null;
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith("", "/api/public/projects/projeto-teste");
+    });
+
+    fireEvent.click(await screen.findByTestId("project-reader-menu-button"));
+
+    const chapterTrigger = await screen.findByRole("combobox", {
+      name: /Selecionar cap.tulo/i,
+    });
+    fireEvent.click(chapterTrigger);
+
+    expect(await screen.findByRole("option", { name: /Cap.*tulo 1/i })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: /Cap.*tulo 2/i })).toBeInTheDocument();
   });
 });

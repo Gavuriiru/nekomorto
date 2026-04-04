@@ -4,6 +4,8 @@ export type ReaderRenderablePage = {
   position: number;
   imageUrl?: string;
   spreadPairId?: string;
+  width?: number;
+  height?: number;
   type?: "page" | "purchase";
   isPurchasePage?: boolean;
 };
@@ -24,7 +26,13 @@ export const buildReaderDisplayPages = ({
   pages,
   previewLimit,
 }: {
-  pages: Array<{ position: number; imageUrl: string; spreadPairId?: string }>;
+  pages: Array<{
+    position: number;
+    imageUrl: string;
+    spreadPairId?: string;
+    width?: number;
+    height?: number;
+  }>;
   previewLimit?: number | null;
 }) => {
   const normalizedPages = pages
@@ -33,6 +41,8 @@ export const buildReaderDisplayPages = ({
       position: index,
       imageUrl: page.imageUrl,
       spreadPairId: page.spreadPairId,
+      width: page.width,
+      height: page.height,
       type: "page" as const,
     }));
 

@@ -202,6 +202,77 @@ describe("ProjectReading SEO image meta", () => {
     });
   });
 
+  it("removes the extra label from the page title metadata when the extra has its own title", async () => {
+    (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC__ = {
+      settings: {
+        theme: {
+          accent: "#3173ff",
+        },
+      },
+      pages: {},
+      projects: [
+        buildBootstrapProject([
+          {
+            number: 1,
+            volume: 2,
+            title: "Historia paralela",
+            displayLabel: "Extra 1",
+            entryKind: "extra",
+            releaseDate: "2026-02-10",
+            duration: "Leitura",
+            coverImageUrl: "/uploads/chapter-extra-1.jpg",
+            coverImageAlt: "Extra 1",
+            sourceType: "Web",
+            sources: [],
+            progressStage: "",
+            completedStages: [],
+            chapterUpdatedAt: "2026-02-10T00:00:00.000Z",
+            hasContent: true,
+          },
+        ]),
+      ],
+      posts: [],
+      updates: [],
+      teamMembers: [],
+      teamLinkTypes: [],
+      mediaVariants: {},
+      tagTranslations: {
+        tags: { psicologico: "Psicologico" },
+        genres: { drama: "Drama" },
+        staffRoles: {},
+      },
+      generatedAt: "2026-03-10T00:00:00.000Z",
+      payloadMode: "full",
+    };
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        hasMetaCall(
+          (arg) =>
+            arg.title === "Historia paralela - Projeto Bootstrap" &&
+            /\/api\/og\/project\/projeto-teste\/reading\/1\?volume=2&v=[a-f0-9]{16}$/.test(
+              String(arg.image || ""),
+            ) &&
+            arg.type === "article",
+        ),
+      ).toBe(true);
+    });
+
+    expect(
+      hasMetaCall((arg) => String(arg.title || "").startsWith("Extra 1 - Historia paralela")),
+    ).toBe(false);
+  });
+
   it("falls back to the project OG when the chapter snapshot cannot be resolved", async () => {
     (
       window as Window & {

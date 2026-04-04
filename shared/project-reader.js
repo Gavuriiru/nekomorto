@@ -85,10 +85,14 @@ export const normalizeProjectEpisodePages = (value) =>
           return null;
         }
         const spreadPairId = normalizeText(entry?.spreadPairId);
+        const width = toFiniteNumber(entry?.width);
+        const height = toFiniteNumber(entry?.height);
         return {
           position: position !== null && position >= 0 ? Math.floor(position) : index,
           imageUrl,
           spreadPairId: spreadPairId || undefined,
+          width: width !== null && width > 0 ? Math.round(width) : undefined,
+          height: height !== null && height > 0 ? Math.round(height) : undefined,
         };
       })
       .filter(Boolean)
@@ -96,6 +100,8 @@ export const normalizeProjectEpisodePages = (value) =>
       .map((entry, index) => ({
         position: index,
         imageUrl: entry.imageUrl,
+        ...(typeof entry.width === "number" ? { width: entry.width } : {}),
+        ...(typeof entry.height === "number" ? { height: entry.height } : {}),
         spreadPairId: entry.spreadPairId,
       }));
 
@@ -118,6 +124,8 @@ export const normalizeProjectEpisodePages = (value) =>
     return normalizedPages.map((page) => ({
       position: page.position,
       imageUrl: page.imageUrl,
+      ...(typeof page.width === "number" ? { width: page.width } : {}),
+      ...(typeof page.height === "number" ? { height: page.height } : {}),
       ...(page.spreadPairId && validSpreadPairIds.has(page.spreadPairId)
         ? { spreadPairId: page.spreadPairId }
         : {}),

@@ -9,8 +9,114 @@ const updateConfigMock = vi.hoisted(() => vi.fn());
 const MENU_TRIGGER_INITIAL_VISIBLE_MS = 5000;
 const MENU_TRIGGER_HIDE_DELAY_MS = 180;
 const MENU_TRIGGER_EXIT_TRANSITION_MS = 320;
+const MENU_OVERLAY_TRANSITION_MS = 220;
 const PROGRESS_OVERLAY_TRANSITION_MS = 180;
+const CONTINUOUS_PAGE_STEP_DURATION_MS = 180;
 const HORIZONTAL_PAGE_URL_SYNC_SETTLE_MS = 220;
+const KEYBOARD_PAGE_HOLD_START_DELAY_MS = 250;
+const KEYBOARD_PAGE_HOLD_REPEAT_MS = 120;
+const originalImage = globalThis.Image;
+
+type MockReaderImageController = {
+  promise: Promise<void>;
+  reject: () => void;
+  resolve: () => void;
+};
+
+const deferredReaderImageSrcs = new Set<string>();
+const mockReaderImageControllers = new Map<string, MockReaderImageController[]>();
+
+const resetMockReaderImages = () => {
+  deferredReaderImageSrcs.clear();
+  mockReaderImageControllers.clear();
+};
+
+const deferReaderImage = (src: string) => {
+  deferredReaderImageSrcs.add(src);
+};
+
+const resolveReaderImage = async (src: string) => {
+  deferredReaderImageSrcs.delete(src);
+  const controllers = mockReaderImageControllers.get(src) || [];
+  await act(async () => {
+    controllers.forEach((controller) => controller.resolve());
+    await Promise.resolve();
+  });
+  mockReaderImageControllers.delete(src);
+};
+
+const rejectReaderImage = async (src: string) => {
+  deferredReaderImageSrcs.delete(src);
+  const controllers = mockReaderImageControllers.get(src) || [];
+  await act(async () => {
+    controllers.forEach((controller) => controller.reject());
+    await Promise.resolve();
+  });
+  mockReaderImageControllers.delete(src);
+};
+
+class MockReaderImage {
+  complete = false;
+  height = 1800;
+  naturalHeight = 1800;
+  naturalWidth = 1200;
+  onerror: null | (() => void) = null;
+  onload: null | (() => void) = null;
+  width = 1200;
+  private controller: MockReaderImageController | null = null;
+  private currentSrc = "";
+
+  set src(value: string) {
+    this.currentSrc = value;
+
+    let settled = false;
+    let resolveController = () => undefined;
+    let rejectController = () => undefined;
+    const promise = new Promise<void>((resolve, reject) => {
+      resolveController = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        this.complete = true;
+        this.onload?.();
+        resolve();
+      };
+      rejectController = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        this.complete = true;
+        this.onerror?.();
+        reject(new Error(`Failed to decode ${value}`));
+      };
+    });
+    const controller: MockReaderImageController = {
+      promise,
+      reject: rejectController,
+      resolve: resolveController,
+    };
+
+    this.complete = false;
+    this.controller = controller;
+    const queuedControllers = mockReaderImageControllers.get(value) || [];
+    queuedControllers.push(controller);
+    mockReaderImageControllers.set(value, queuedControllers);
+
+    if (!deferredReaderImageSrcs.has(value)) {
+      controller.resolve();
+    }
+  }
+
+  get src() {
+    return this.currentSrc;
+  }
+
+  decode() {
+    return this.controller?.promise ?? Promise.resolve();
+  }
+}
 
 vi.mock("@/components/project-reader/use-project-reader-preferences", () => ({
   useProjectReaderPreferences: (...args: unknown[]) => useProjectReaderPreferencesMock(...args),
@@ -130,6 +236,268 @@ const renderReader = (
 const setBrowserLocation = (path: string, state: unknown = null) => {
   window.history.replaceState(state, "", path);
   return window.history.state;
+};
+
+const buildReaderPages = (
+  count: number,
+  {
+    includeIntrinsicDimensions = false,
+  }: {
+    includeIntrinsicDimensions?: boolean;
+  } = {},
+) =>
+  Array.from({ length: count }, (_, index) => ({
+    position: index,
+    imageUrl: `/page-${index + 1}.jpg`,
+    ...(includeIntrinsicDimensions ? { width: 1200, height: 1800 } : {}),
+  }));
+
+const advanceReaderAnimationFrame = async () => {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(16);
+  });
+};
+
+const advanceContinuousPageStep = async (stepCount = 1) => {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(stepCount * (CONTINUOUS_PAGE_STEP_DURATION_MS + 32));
+  });
+};
+
+const advancePaginatedHandoffCommit = async () => {
+  await advanceReaderAnimationFrame();
+  await advanceReaderAnimationFrame();
+};
+
+const setupHorizontalKeyboardReader = ({
+  direction = "ltr",
+  initialPath = "/projeto/projeto-teste/leitura/1",
+  pageCount = 4,
+}: {
+  direction?: "rtl" | "ltr";
+  initialPath?: string;
+  pageCount?: number;
+}) => {
+  setBrowserLocation(initialPath);
+  setVisualViewport({ width: 1280, height: 640 });
+
+  const pageWidth = 600;
+  const viewportWidth = 800;
+  const scrollWidth = pageWidth * pageCount;
+  const initialScrollLeft = direction === "rtl" ? scrollWidth - viewportWidth : 0;
+  const rects = Object.fromEntries([
+    [
+      "project-reading-stage",
+      { top: 240, bottom: 880, width: 1200, height: 640 },
+    ],
+    [
+      "project-reading-horizontal-scroll",
+      {
+        top: 240,
+        bottom: 880,
+        left: 0,
+        right: viewportWidth,
+        width: viewportWidth,
+        height: 640,
+      },
+    ],
+  ]);
+  const rectSpy = mockRectsByTestId(rects);
+
+  renderReader(
+    { layout: "scroll-horizontal", imageFit: "both", direction },
+    {
+      pages: buildReaderPages(pageCount),
+    },
+    { initialEntries: [initialPath] },
+  );
+
+  const stage = screen.getByTestId("project-reading-stage");
+  const horizontalReader = screen.getByTestId("project-reading-horizontal-scroll");
+  setElementSize(horizontalReader, { clientWidth: viewportWidth, scrollWidth });
+  horizontalReader.scrollLeft = initialScrollLeft;
+
+  Array.from({ length: pageCount }, (_, index) => {
+    const pageNode = screen.getByTestId(`reader-page-${index}`);
+    const offsetLeft =
+      direction === "rtl" ? (pageCount - 1 - index) * pageWidth : index * pageWidth;
+    setElementOffsetMetrics(pageNode, {
+      offsetLeft,
+      offsetWidth: pageWidth,
+    });
+    Object.defineProperty(pageNode, "getBoundingClientRect", {
+      configurable: true,
+      value: () => {
+        const left = offsetLeft - horizontalReader.scrollLeft;
+        return {
+          x: left,
+          y: 240,
+          top: 240,
+          bottom: 880,
+          left,
+          right: left + pageWidth,
+          width: pageWidth,
+          height: 640,
+          toJSON: () => ({}),
+        } as DOMRect;
+      },
+    });
+  });
+
+  const scrollToSpy = vi.fn(
+    ({ left }: { left: number }) => {
+      horizontalReader.scrollLeft = left;
+    },
+  );
+  Object.defineProperty(horizontalReader, "scrollTo", {
+    configurable: true,
+    value: scrollToSpy,
+  });
+
+  return {
+    rectSpy,
+    stage,
+    horizontalReader,
+    scrollToSpy,
+  };
+};
+
+const setupVerticalKeyboardReader = ({
+  config = {},
+  direction = "rtl",
+  includeIntrinsicDimensions = false,
+  initialPath = "/projeto/projeto-teste/leitura/1",
+  pageCount = 4,
+  pageTopResolver,
+}: {
+  config?: Record<string, unknown>;
+  direction?: "rtl" | "ltr";
+  includeIntrinsicDimensions?: boolean;
+  initialPath?: string;
+  pageCount?: number;
+  pageTopResolver?: (index: number, defaultTop: number) => number;
+}) => {
+  setBrowserLocation(initialPath);
+  setVisualViewport({ width: 1280, height: 640 });
+  const windowScrollToSpy = vi.fn();
+  const scrollToSpy = vi.fn(
+    ({
+      top = 0,
+    }: {
+      behavior?: ScrollBehavior;
+      left?: number;
+      top?: number;
+    } = {}) => {
+      windowScrollToSpy({ top });
+    },
+  );
+  Object.defineProperty(window, "scrollTo", {
+    configurable: true,
+    writable: true,
+    value: scrollToSpy,
+  });
+
+  const pageHeight = 640;
+  const pageStride = 680;
+  const viewportTop = 240;
+  const viewportHeight = 640;
+  const viewportWidth = 1200;
+
+  const view = renderReader(
+    { layout: "scroll-vertical", imageFit: "both", direction, ...config },
+    {
+      pages: buildReaderPages(pageCount, { includeIntrinsicDimensions }),
+    },
+    { initialEntries: [initialPath] },
+  );
+
+  const stage = screen.getByTestId("project-reading-stage");
+  const verticalReader = screen.getByTestId("project-reading-vertical-scroll") as HTMLDivElement;
+  const verticalStrip = screen.getByTestId("project-reading-vertical-strip");
+  let currentScrollTop = 0;
+  Object.defineProperty(verticalReader, "scrollTop", {
+    configurable: true,
+    get: () => currentScrollTop,
+    set: (value: number) => {
+      currentScrollTop = value;
+    },
+  });
+  setElementSize(verticalReader, {
+    clientHeight: viewportHeight,
+    scrollHeight: pageStride * Math.max(pageCount - 1, 0) + pageHeight,
+  });
+  Object.defineProperty(verticalReader, "getBoundingClientRect", {
+    configurable: true,
+    value: () =>
+      ({
+        x: 0,
+        y: viewportTop,
+        top: viewportTop,
+        bottom: viewportTop + viewportHeight,
+        left: 0,
+        right: viewportWidth,
+        width: viewportWidth,
+        height: viewportHeight,
+        toJSON: () => ({}),
+      }) as DOMRect,
+  });
+  setElementSize(verticalStrip, {
+    offsetHeight: pageStride * Math.max(pageCount - 1, 0) + pageHeight,
+    scrollHeight: pageStride * Math.max(pageCount - 1, 0) + pageHeight,
+  });
+  Object.defineProperty(stage, "getBoundingClientRect", {
+    configurable: true,
+    value: () =>
+      ({
+        x: 0,
+        y: viewportTop,
+        top: viewportTop,
+        bottom: viewportTop + viewportHeight,
+        left: 0,
+        right: 1200,
+        width: 1200,
+        height: viewportHeight,
+        toJSON: () => ({}),
+      }) as DOMRect,
+  });
+
+  Array.from({ length: pageCount }, (_, index) => {
+    const pageNode = screen.getByTestId(`reader-page-${index}`);
+    const defaultTop = index * pageStride;
+    const getPageTop = () =>
+      pageTopResolver ? pageTopResolver(index, defaultTop) : defaultTop;
+    Object.defineProperty(pageNode, "offsetTop", {
+      configurable: true,
+      get: () => getPageTop(),
+    });
+    setElementSize(pageNode, { offsetHeight: pageHeight });
+    setElementOffsetMetrics(pageNode, { offsetWidth: viewportWidth });
+    Object.defineProperty(pageNode, "getBoundingClientRect", {
+      configurable: true,
+      value: () => {
+        const top = viewportTop + getPageTop() - verticalReader.scrollTop;
+        return {
+          x: 0,
+          y: top,
+          top,
+          bottom: top + pageHeight,
+          left: 0,
+          right: viewportWidth,
+          width: viewportWidth,
+          height: pageHeight,
+          toJSON: () => ({}),
+        } as DOMRect;
+      },
+    });
+  });
+
+  return {
+    stage,
+    verticalReader,
+    windowScrollToSpy,
+    scrollToSpy,
+    view,
+  };
 };
 
 const mockElementRect = (
@@ -267,6 +635,31 @@ const setElementSize = (
   }
 };
 
+const setElementOffsetMetrics = (
+  element: Element,
+  {
+    offsetLeft,
+    offsetWidth,
+  }: {
+    offsetLeft?: number;
+    offsetWidth?: number;
+  },
+) => {
+  if (typeof offsetLeft === "number") {
+    Object.defineProperty(element, "offsetLeft", {
+      configurable: true,
+      value: offsetLeft,
+    });
+  }
+
+  if (typeof offsetWidth === "number") {
+    Object.defineProperty(element, "offsetWidth", {
+      configurable: true,
+      value: offsetWidth,
+    });
+  }
+};
+
 const clickPaginatedTarget = ({
   clientX,
   offsetX,
@@ -345,10 +738,14 @@ describe("PublicProjectReader", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    globalThis.Image = originalImage;
   });
 
   beforeEach(() => {
+    resetMockReaderImages();
     useProjectReaderPreferencesMock.mockReset();
+    vi.stubGlobal("Image", MockReaderImage as unknown as typeof Image);
     HTMLElement.prototype.scrollIntoView = vi.fn();
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
@@ -365,6 +762,18 @@ describe("PublicProjectReader", () => {
       writable: true,
       value: 0,
     });
+    Object.defineProperty(window, "pageYOffset", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+    if (document.documentElement) {
+      Object.defineProperty(document.documentElement, "scrollTop", {
+        configurable: true,
+        writable: true,
+        value: 0,
+      });
+    }
     Object.defineProperty(window, "scrollTo", {
       configurable: true,
       writable: true,
@@ -578,7 +987,7 @@ describe("PublicProjectReader", () => {
   it.each([
     { imageFit: "both" },
     { imageFit: "height" },
-  ])("keeps scroll-vertical cinema mode with viewport min-height but no fixed shell height for fit $imageFit", async ({
+  ])("keeps scroll-vertical cinema mode pinned to the viewport height for fit $imageFit", async ({
     imageFit,
   }) => {
     setVisualViewport({ height: 640 });
@@ -590,9 +999,9 @@ describe("PublicProjectReader", () => {
 
     await waitFor(() => {
       expect(shell.style.minHeight).toBe("640px");
-      expect(shell.style.height).toBe("");
+      expect(shell.style.height).toBe("640px");
       expect(stage.style.minHeight).toBe("640px");
-      expect(stage.style.height).toBe("");
+      expect(stage.style.height).toBe("640px");
       expect(surface.style.height).toBe("640px");
     });
   });
@@ -613,7 +1022,7 @@ describe("PublicProjectReader", () => {
     });
   });
 
-  it("falls back to innerHeight in cinema mode for scroll-vertical without fixing shell height", async () => {
+  it("falls back to innerHeight in cinema mode for scroll-vertical while keeping the viewport pinned", async () => {
     renderReader({ layout: "scroll-vertical", imageFit: "both" }, { chromeMode: "cinema" });
 
     const shell = screen.getByTestId("project-reading-full-bleed-shell");
@@ -622,9 +1031,9 @@ describe("PublicProjectReader", () => {
 
     await waitFor(() => {
       expect(shell.style.minHeight).toBe("900px");
-      expect(shell.style.height).toBe("");
+      expect(shell.style.height).toBe("900px");
       expect(stage.style.minHeight).toBe("900px");
-      expect(stage.style.height).toBe("");
+      expect(stage.style.height).toBe("900px");
       expect(surface.style.height).toBe("900px");
     });
   });
@@ -643,8 +1052,9 @@ describe("PublicProjectReader", () => {
     const image = screen.getByRole("img", { name: /P.gina 1/i });
 
     await waitFor(() => {
-      expect(shell.style.height).toBe("");
-      expect(stage.style.height).toBe("");
+      const expectedStageHeight = layout === "scroll-vertical" ? "900px" : "";
+      expect(shell.style.height).toBe(expectedStageHeight);
+      expect(stage.style.height).toBe(expectedStageHeight);
       expect(surface.style.height).toBe("");
     });
 
@@ -739,7 +1149,7 @@ describe("PublicProjectReader", () => {
     expect(externalScrollbarHost.className).not.toContain("px-2");
     expect(externalScrollbarHost.className).not.toContain("md:px-4");
     expect(spacer.style.minWidth).toBe("100%");
-    expect(strip).toHaveClass("gap-0");
+    expect(strip).toHaveClass("gap-0", "flex-row-reverse");
     expect(page0).toHaveClass("w-auto", "max-w-none", "shrink-0");
     expect(page1).toHaveClass("w-auto", "max-w-none", "shrink-0");
     expect(page0.style.width).toBe("");
@@ -755,6 +1165,15 @@ describe("PublicProjectReader", () => {
       expect(horizontalReader.className).toContain("py-2");
       expect(horizontalReader.className).toContain("md:py-4");
     }
+  });
+
+  it("renders scroll-horizontal left-to-right when ltr is selected", () => {
+    renderReader({ layout: "scroll-horizontal", imageFit: "both", direction: "ltr" });
+
+    const strip = screen.getByTestId("project-reading-horizontal-strip");
+
+    expect(strip).toHaveClass("flex-row");
+    expect(strip).not.toHaveClass("flex-row-reverse");
   });
 
   it("syncs scrollLeft between the hidden viewport scrollbar and the external native scrollbar", async () => {
@@ -781,6 +1200,888 @@ describe("PublicProjectReader", () => {
     externalScrollbar.scrollLeft = 640;
     fireEvent.scroll(externalScrollbar);
     expect(horizontalReader.scrollLeft).toBe(640);
+  });
+
+  it("navigates scroll-horizontal with keyboard arrows in rtl", async () => {
+    vi.useFakeTimers();
+    const { horizontalReader, rectSpy } = setupHorizontalKeyboardReader({
+      direction: "rtl",
+      pageCount: 3,
+    });
+
+    fireEvent.keyDown(screen.getByTestId("project-reading-stage"), {
+      key: "ArrowLeft",
+      code: "ArrowLeft",
+    });
+
+    await advanceContinuousPageStep();
+
+    expect(horizontalReader.scrollLeft).toBe(500);
+    expect(window.location.search).toBe("?page=2");
+
+    rectSpy.mockRestore();
+  });
+
+  it("navigates scroll-horizontal with keyboard arrows in ltr", async () => {
+    vi.useFakeTimers();
+    const { horizontalReader, rectSpy } = setupHorizontalKeyboardReader({
+      direction: "ltr",
+      pageCount: 3,
+    });
+
+    fireEvent.keyDown(screen.getByTestId("project-reading-stage"), {
+      key: "ArrowRight",
+      code: "ArrowRight",
+    });
+
+    await advanceContinuousPageStep();
+
+    expect(horizontalReader.scrollLeft).toBe(500);
+    expect(window.location.search).toBe("?page=2");
+
+    rectSpy.mockRestore();
+  });
+
+  it("ignores vertical arrow keys in scroll-horizontal", async () => {
+    setVisualViewport({ width: 1280, height: 640 });
+
+    renderReader(
+      { layout: "scroll-horizontal", imageFit: "both", direction: "rtl" },
+      {
+        pages: [
+          { position: 0, imageUrl: "/page-1.jpg" },
+          { position: 1, imageUrl: "/page-2.jpg" },
+          { position: 2, imageUrl: "/page-3.jpg" },
+        ],
+      },
+    );
+
+    const horizontalReader = await screen.findByTestId("project-reading-horizontal-scroll");
+    const scrollToSpy = vi.fn();
+    Object.defineProperty(horizontalReader, "scrollTo", {
+      configurable: true,
+      value: scrollToSpy,
+    });
+    setElementSize(horizontalReader, { clientWidth: 800, scrollWidth: 1800 });
+
+    fireEvent.keyDown(screen.getByTestId("project-reading-stage"), {
+      key: "ArrowUp",
+      code: "ArrowUp",
+    });
+    fireEvent.keyDown(screen.getByTestId("project-reading-stage"), {
+      key: "ArrowDown",
+      code: "ArrowDown",
+    });
+
+    expect(scrollToSpy).not.toHaveBeenCalled();
+  });
+
+  it("navigates scroll-vertical with left/right keyboard arrows regardless of reading direction", async () => {
+    vi.useFakeTimers();
+    const nextRender = setupVerticalKeyboardReader({
+      direction: "rtl",
+      pageCount: 3,
+    });
+
+    nextRender.scrollToSpy.mockClear();
+
+    fireEvent.keyDown(nextRender.stage, {
+      key: "ArrowRight",
+      code: "ArrowRight",
+    });
+
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+
+    await advanceContinuousPageStep();
+
+    expect(nextRender.verticalReader.scrollTop).toBe(680);
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+    nextRender.view.unmount();
+
+    const previousRender = setupVerticalKeyboardReader({
+      direction: "rtl",
+      initialPath: "/projeto/projeto-teste/leitura/1?page=2",
+      pageCount: 3,
+    });
+
+    await advanceReaderAnimationFrame();
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+    expect(previousRender.verticalReader.scrollTop).toBe(680);
+    previousRender.scrollToSpy.mockClear();
+
+    fireEvent.keyDown(previousRender.stage, {
+      key: "ArrowLeft",
+      code: "ArrowLeft",
+    });
+
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+
+    await advanceContinuousPageStep();
+
+    expect(previousRender.verticalReader.scrollTop).toBe(0);
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+  });
+
+  it("keeps a short horizontal keyboard tap as a single paced page change", async () => {
+    vi.useFakeTimers();
+    const { horizontalReader, rectSpy, stage, scrollToSpy } = setupHorizontalKeyboardReader({
+      direction: "ltr",
+      pageCount: 4,
+    });
+
+    scrollToSpy.mockClear();
+    fireEvent.keyDown(stage, { key: "ArrowRight", code: "ArrowRight" });
+    fireEvent.keyUp(document, { key: "ArrowRight", code: "ArrowRight" });
+
+    expect(window.location.search).toBe("?page=1");
+
+    await advanceContinuousPageStep();
+
+    expect(scrollToSpy).not.toHaveBeenCalled();
+    expect(horizontalReader.scrollLeft).toBe(500);
+    expect(window.location.search).toBe("?page=2");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS + CONTINUOUS_PAGE_STEP_DURATION_MS);
+    });
+
+    expect(horizontalReader.scrollLeft).toBe(500);
+    expect(window.location.search).toBe("?page=2");
+
+    rectSpy.mockRestore();
+  });
+
+  it("repeats scroll-horizontal page changes with a fixed per-page cadence and updates ?page step by step", async () => {
+    vi.useFakeTimers();
+    const { horizontalReader, rectSpy, stage, scrollToSpy } = setupHorizontalKeyboardReader({
+      direction: "ltr",
+      pageCount: 4,
+    });
+
+    expect(window.location.search).toBe("?page=1");
+    scrollToSpy.mockClear();
+
+    fireEvent.keyDown(stage, { key: "ArrowRight", code: "ArrowRight" });
+
+    expect(window.location.search).toBe("?page=1");
+
+    await advanceContinuousPageStep();
+
+    expect(scrollToSpy).not.toHaveBeenCalled();
+    expect(horizontalReader.scrollLeft).toBe(500);
+    expect(window.location.search).toBe("?page=2");
+
+    expect(window.location.search).toBe("?page=2");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS);
+    });
+
+    await advanceContinuousPageStep();
+
+    expect(horizontalReader.scrollLeft).toBe(1100);
+    expect(window.location.search).toBe("?page=3");
+
+    await advanceContinuousPageStep();
+
+    expect(horizontalReader.scrollLeft).toBe(1600);
+    expect(window.location.search).toBe("?page=4");
+
+    rectSpy.mockRestore();
+  });
+
+  it("repeats scroll-vertical page changes with the same fixed per-page cadence", async () => {
+    vi.useFakeTimers();
+    const { stage, verticalReader } = setupVerticalKeyboardReader({
+      direction: "rtl",
+      includeIntrinsicDimensions: true,
+      initialPath: "/projeto/projeto-teste/leitura/1?page=1",
+      pageCount: 4,
+    });
+
+    await advanceReaderAnimationFrame();
+
+    fireEvent.keyDown(stage, { key: "ArrowRight", code: "ArrowRight" });
+
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+
+    await advanceContinuousPageStep();
+
+    expect(verticalReader.scrollTop).toBe(680);
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS);
+    });
+
+    await advanceContinuousPageStep();
+
+    expect(verticalReader.scrollTop).toBe(1360);
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=3");
+  });
+
+  it("reserves vertical page geometry from intrinsic dimensions before the image finishes loading", () => {
+    renderReader(
+      { layout: "scroll-vertical", imageFit: "width" },
+      {
+        pages: buildReaderPages(2, { includeIntrinsicDimensions: true }),
+      },
+    );
+
+    const image = screen.getByRole("img", { name: /Pagina 1/i });
+    const verticalPageContainer = screen.getByTestId("reader-page-0").parentElement as HTMLElement;
+
+    expect(image).toHaveAttribute("width", "1200");
+    expect(image).toHaveAttribute("height", "1800");
+    expect(verticalPageContainer.style.aspectRatio).toBe("1200 / 1800");
+  });
+
+  it("commits a vertical step with intrinsic dimensions without relaunching correction scrolls", async () => {
+    vi.useFakeTimers();
+    const { stage, verticalReader } = setupVerticalKeyboardReader({
+      direction: "rtl",
+      includeIntrinsicDimensions: true,
+      initialPath: "/projeto/projeto-teste/leitura/1?page=1",
+      pageCount: 4,
+    });
+
+    await advanceReaderAnimationFrame();
+
+    fireEvent.keyDown(stage, { key: "ArrowRight", code: "ArrowRight" });
+    fireEvent.keyUp(stage, { key: "ArrowRight", code: "ArrowRight" });
+
+    await advanceContinuousPageStep();
+
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+    const committedScrollTop = verticalReader.scrollTop;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(CONTINUOUS_PAGE_STEP_DURATION_MS * 4);
+    });
+    await advanceReaderAnimationFrame();
+
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+    expect(verticalReader.scrollTop).toBe(committedScrollTop);
+  });
+
+  it("cancels the vertical step when the target page geometry never stabilizes", async () => {
+    vi.useFakeTimers();
+    const { stage, verticalReader } = setupVerticalKeyboardReader({
+      direction: "rtl",
+      initialPath: "/projeto/projeto-teste/leitura/1?page=1",
+      pageCount: 4,
+      pageTopResolver: (index, defaultTop) => {
+        if (index === 1) {
+          return defaultTop;
+        }
+        return defaultTop;
+      },
+    });
+    const secondPage = screen.getByTestId("reader-page-1");
+    Object.defineProperty(secondPage, "getBoundingClientRect", {
+      configurable: true,
+      value: () =>
+        ({
+          x: 0,
+          y: 0,
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          width: 0,
+          height: 0,
+          toJSON: () => ({}),
+        }) as DOMRect,
+    });
+
+    await advanceReaderAnimationFrame();
+
+    fireEvent.keyDown(stage, { key: "ArrowRight", code: "ArrowRight" });
+    fireEvent.keyUp(stage, { key: "ArrowRight", code: "ArrowRight" });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(CONTINUOUS_PAGE_STEP_DURATION_MS * 2);
+    });
+    await advanceReaderAnimationFrame();
+
+    expect(verticalReader.scrollTop).toBe(0);
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(CONTINUOUS_PAGE_STEP_DURATION_MS * 3);
+    });
+    await advanceReaderAnimationFrame();
+
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+    expect(verticalReader.scrollTop).toBe(0);
+  });
+
+  it("keeps hold-driven vertical navigation moving one page at a time", async () => {
+    vi.useFakeTimers();
+    const { stage, verticalReader } = setupVerticalKeyboardReader({
+      direction: "rtl",
+      initialPath: "/projeto/projeto-teste/leitura/1?page=1",
+      pageCount: 4,
+    });
+
+    await advanceReaderAnimationFrame();
+
+    fireEvent.keyDown(stage, { key: "ArrowRight", code: "ArrowRight" });
+
+    await advanceContinuousPageStep();
+    expect(verticalReader.scrollTop).toBe(680);
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS);
+    });
+    await advanceContinuousPageStep();
+
+    expect(verticalReader.scrollTop).toBe(1360);
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=3");
+
+    fireEvent.keyUp(stage, { key: "ArrowRight", code: "ArrowRight" });
+  });
+
+  it("continues vertical hold after the first committed page without requiring another keydown", async () => {
+    vi.useFakeTimers();
+    const { stage, verticalReader } = setupVerticalKeyboardReader({
+      direction: "rtl",
+      initialPath: "/projeto/projeto-teste/leitura/1?page=1",
+      pageCount: 4,
+    });
+
+    await advanceReaderAnimationFrame();
+
+    fireEvent.keyDown(stage, { key: "ArrowRight", code: "ArrowRight" });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS);
+    });
+
+    await advanceContinuousPageStep();
+    expect(verticalReader.scrollTop).toBe(1360);
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=3");
+
+    fireEvent.keyUp(stage, { key: "ArrowRight", code: "ArrowRight" });
+  });
+
+  it("resolves a single vertical step without relaunching a second visible animation", async () => {
+    vi.useFakeTimers();
+    const { stage, verticalReader } = setupVerticalKeyboardReader({
+      direction: "rtl",
+      initialPath: "/projeto/projeto-teste/leitura/1?page=1",
+      pageCount: 4,
+    });
+
+    await advanceReaderAnimationFrame();
+
+    fireEvent.keyDown(stage, { key: "ArrowRight", code: "ArrowRight" });
+    fireEvent.keyUp(stage, { key: "ArrowRight", code: "ArrowRight" });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(CONTINUOUS_PAGE_STEP_DURATION_MS + 24);
+    });
+
+    expect(verticalReader.scrollTop).toBe(680);
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+    const committedScrollTop = verticalReader.scrollTop;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(CONTINUOUS_PAGE_STEP_DURATION_MS * 4);
+    });
+    await advanceReaderAnimationFrame();
+
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+    expect(verticalReader.scrollTop).toBe(committedScrollTop);
+  });
+
+  it("stops vertical hold at the end of the strip without looping past the final page", async () => {
+    vi.useFakeTimers();
+    const { stage, verticalReader } = setupVerticalKeyboardReader({
+      direction: "rtl",
+      initialPath: "/projeto/projeto-teste/leitura/1?page=1",
+      pageCount: 4,
+    });
+
+    await advanceReaderAnimationFrame();
+
+    fireEvent.keyDown(stage, { key: "ArrowRight", code: "ArrowRight" });
+    await advanceContinuousPageStep();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS);
+    });
+    await advanceContinuousPageStep();
+    await advanceContinuousPageStep();
+
+    expect(verticalReader.scrollTop).toBe(2040);
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=4");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_REPEAT_MS * 4);
+    });
+    await advanceReaderAnimationFrame();
+
+    expect(verticalReader.scrollTop).toBe(2040);
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=4");
+
+    fireEvent.keyUp(stage, { key: "ArrowRight", code: "ArrowRight" });
+  });
+
+  it("cancels held vertical navigation when the reader loses focus", async () => {
+    vi.useFakeTimers();
+    const { stage, verticalReader } = setupVerticalKeyboardReader({
+      direction: "rtl",
+      initialPath: "/projeto/projeto-teste/leitura/1?page=1",
+      pageCount: 4,
+    });
+
+    fireEvent.keyDown(stage, { key: "ArrowRight", code: "ArrowRight" });
+    await advanceContinuousPageStep();
+    expect(verticalReader.scrollTop).toBe(680);
+
+    fireEvent.blur(window);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
+        KEYBOARD_PAGE_HOLD_START_DELAY_MS + KEYBOARD_PAGE_HOLD_REPEAT_MS * 4,
+      );
+    });
+
+    expect(verticalReader.scrollTop).toBe(680);
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+  });
+
+  it("repeats paginated page changes while an arrow is held", async () => {
+    vi.useFakeTimers();
+    renderReader(
+      { layout: "single", imageFit: "both", direction: "rtl" },
+      {
+        pages: buildReaderPages(4),
+      },
+      { initialEntries: ["/projeto/projeto-teste/leitura/1?page=1"] },
+    );
+
+    const stage = screen.getByTestId("project-reading-stage");
+
+    fireEvent.keyDown(stage, { key: "ArrowLeft", code: "ArrowLeft" });
+
+    await advancePaginatedHandoffCommit();
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS);
+    });
+
+    await advancePaginatedHandoffCommit();
+    await advancePaginatedHandoffCommit();
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=3");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_REPEAT_MS);
+    });
+
+    await advancePaginatedHandoffCommit();
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=4");
+  });
+
+  it("keeps the current paginated slot visible until the pending slot image is ready", async () => {
+    vi.useFakeTimers();
+    deferReaderImage("/page-2.jpg");
+
+    renderReader(
+      { layout: "single", imageFit: "both", direction: "rtl" },
+      {
+        pages: buildReaderPages(4),
+      },
+      { initialEntries: ["/projeto/projeto-teste/leitura/1?page=1"] },
+    );
+
+    const stage = screen.getByTestId("project-reading-stage");
+    const page0 = screen.getByTestId("reader-page-0");
+
+    fireEvent.keyDown(stage, { key: "ArrowLeft", code: "ArrowLeft" });
+
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "active");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "pending");
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "hidden");
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+    expect(screen.getByTestId("reader-page-0")).toBe(page0);
+
+    await resolveReaderImage("/page-2.jpg");
+    await advanceReaderAnimationFrame();
+
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "active");
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "pending");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "handoff");
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+
+    await advanceReaderAnimationFrame();
+
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "active");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+  });
+
+  it("keeps the final paginated hold target pending until that slot is ready", async () => {
+    vi.useFakeTimers();
+    deferReaderImage("/page-2.jpg");
+    deferReaderImage("/page-3.jpg");
+
+    renderReader(
+      { layout: "single", imageFit: "both", direction: "rtl" },
+      {
+        pages: buildReaderPages(5),
+      },
+      { initialEntries: ["/projeto/projeto-teste/leitura/1?page=1"] },
+    );
+
+    const stage = screen.getByTestId("project-reading-stage");
+
+    fireEvent.keyDown(stage, { key: "ArrowLeft", code: "ArrowLeft" });
+
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "pending");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "hidden");
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS);
+    });
+
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "active");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "buffered");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-state", "pending");
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "hidden");
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+
+    await resolveReaderImage("/page-2.jpg");
+
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "active");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-state", "pending");
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+
+    await resolveReaderImage("/page-3.jpg");
+    await advanceReaderAnimationFrame();
+
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "active");
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-state", "pending");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "handoff");
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+
+    await advanceReaderAnimationFrame();
+
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-state", "active");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=3");
+  });
+
+  it("keeps neighboring paginated slots mounted while keyboard hold advances pages", async () => {
+    vi.useFakeTimers();
+    renderReader(
+      { layout: "single", imageFit: "both", direction: "rtl" },
+      {
+        pages: buildReaderPages(4),
+      },
+      { initialEntries: ["/projeto/projeto-teste/leitura/1?page=1"] },
+    );
+
+    const stage = screen.getByTestId("project-reading-stage");
+    const page0 = screen.getByTestId("reader-page-0");
+    const page1 = screen.getByTestId("reader-page-1");
+
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "active");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "buffered");
+    expect(screen.queryByTestId("reader-paginated-slot-2")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(stage, { key: "ArrowLeft", code: "ArrowLeft" });
+
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "active");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "pending");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-state", "buffered");
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "hidden");
+    expect(screen.getByTestId("reader-page-0")).toBe(page0);
+    expect(screen.getByTestId("reader-page-1")).toBe(page1);
+
+    await advanceReaderAnimationFrame();
+
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "active");
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "pending");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "handoff");
+
+    await advanceReaderAnimationFrame();
+
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "buffered");
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-visibility", "hidden");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "active");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "visible");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS);
+    });
+
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "active");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-state", "pending");
+    expect(screen.getByTestId("reader-paginated-slot-3")).toHaveAttribute("data-state", "buffered");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "hidden");
+    expect(screen.getByTestId("reader-page-1")).toBe(page1);
+    expect(screen.getByTestId("reader-page-2")).toBeInTheDocument();
+
+    await advanceReaderAnimationFrame();
+
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "active");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-state", "pending");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "handoff");
+
+    await advanceReaderAnimationFrame();
+
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "buffered");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "hidden");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-state", "active");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "visible");
+  });
+
+  it("keeps at least one paginated slot visible while chained handoffs overlap", async () => {
+    vi.useFakeTimers();
+    renderReader(
+      { layout: "single", imageFit: "both", direction: "rtl" },
+      {
+        pages: buildReaderPages(5),
+      },
+      { initialEntries: ["/projeto/projeto-teste/leitura/1?page=1"] },
+    );
+
+    const stage = screen.getByTestId("project-reading-stage");
+
+    fireEvent.keyDown(stage, { key: "ArrowLeft", code: "ArrowLeft" });
+    await advancePaginatedHandoffCommit();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS);
+    });
+
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "hidden");
+
+    await advanceReaderAnimationFrame();
+
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "handoff");
+
+    await advanceReaderAnimationFrame();
+
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "visible");
+  });
+
+  it("eagerly warms the paginated slot buffer and leaves distant pages out of the DOM", () => {
+    renderReader(
+      { layout: "single", imageFit: "both", direction: "rtl" },
+      {
+        pages: buildReaderPages(5),
+      },
+      { initialEntries: ["/projeto/projeto-teste/leitura/1?page=1"] },
+    );
+
+    const activePageImage = screen.getByTestId("reader-page-0").querySelector("img");
+    const bufferedPageImage = screen.getByTestId("reader-page-1").querySelector("img");
+
+    expect(activePageImage).not.toBeNull();
+    expect(bufferedPageImage).not.toBeNull();
+    expect(activePageImage).toHaveAttribute("loading", "eager");
+    expect(activePageImage).toHaveAttribute("fetchpriority", "high");
+    expect(bufferedPageImage).toHaveAttribute("loading", "eager");
+    expect(screen.queryByTestId("reader-page-3")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("reader-page-4")).not.toBeInTheDocument();
+  });
+
+  it("stops held keyboard navigation on keyup", async () => {
+    vi.useFakeTimers();
+    const { horizontalReader, rectSpy, stage, scrollToSpy } = setupHorizontalKeyboardReader({
+      direction: "ltr",
+      pageCount: 4,
+    });
+
+    expect(window.location.search).toBe("?page=1");
+    scrollToSpy.mockClear();
+
+    fireEvent.keyDown(stage, { key: "ArrowRight", code: "ArrowRight" });
+
+    await advanceContinuousPageStep();
+
+    fireEvent.keyUp(document, { key: "ArrowRight", code: "ArrowRight" });
+
+    expect(window.location.search).toBe("?page=2");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
+        KEYBOARD_PAGE_HOLD_START_DELAY_MS + CONTINUOUS_PAGE_STEP_DURATION_MS * 2,
+      );
+    });
+
+    expect(scrollToSpy).not.toHaveBeenCalled();
+    expect(horizontalReader.scrollLeft).toBe(500);
+    expect(window.location.search).toBe("?page=2");
+
+    rectSpy.mockRestore();
+  });
+
+  it("stops held keyboard navigation at the last page", async () => {
+    vi.useFakeTimers();
+    const { horizontalReader, rectSpy, stage, scrollToSpy } = setupHorizontalKeyboardReader({
+      direction: "ltr",
+      pageCount: 3,
+    });
+
+    expect(window.location.search).toBe("?page=1");
+    scrollToSpy.mockClear();
+
+    fireEvent.keyDown(stage, { key: "ArrowRight", code: "ArrowRight" });
+
+    await advanceContinuousPageStep();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS);
+    });
+
+    await advanceContinuousPageStep();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
+        KEYBOARD_PAGE_HOLD_START_DELAY_MS + CONTINUOUS_PAGE_STEP_DURATION_MS * 2,
+      );
+    });
+
+    expect(window.location.search).toBe("?page=3");
+    expect(scrollToSpy).not.toHaveBeenCalled();
+    expect(horizontalReader.scrollLeft).toBe(1000);
+
+    rectSpy.mockRestore();
+  });
+
+  it("switches held keyboard navigation direction without continuing the previous loop", async () => {
+    vi.useFakeTimers();
+    const { horizontalReader, rectSpy, stage, scrollToSpy } = setupHorizontalKeyboardReader({
+      direction: "ltr",
+      pageCount: 4,
+    });
+
+    expect(window.location.search).toBe("?page=1");
+    scrollToSpy.mockClear();
+
+    fireEvent.keyDown(stage, { key: "ArrowRight", code: "ArrowRight" });
+
+    await advanceContinuousPageStep();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS);
+    });
+
+    fireEvent.keyDown(stage, { key: "ArrowLeft", code: "ArrowLeft" });
+    await advanceContinuousPageStep();
+
+    expect(scrollToSpy).not.toHaveBeenCalled();
+    expect(horizontalReader.scrollLeft).toBe(1100);
+    expect(window.location.search).toBe("?page=3");
+
+    await advanceContinuousPageStep();
+
+    expect(horizontalReader.scrollLeft).toBe(500);
+    expect(window.location.search).toBe("?page=2");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS);
+    });
+
+    await advanceContinuousPageStep();
+
+    expect(horizontalReader.scrollLeft).toBe(0);
+    expect(window.location.search).toBe("?page=1");
+
+    rectSpy.mockRestore();
+  });
+
+  it("cancels held keyboard navigation on blur", async () => {
+    vi.useFakeTimers();
+    const { horizontalReader, rectSpy, stage, scrollToSpy } = setupHorizontalKeyboardReader({
+      direction: "ltr",
+      pageCount: 4,
+    });
+
+    expect(window.location.search).toBe("?page=1");
+    scrollToSpy.mockClear();
+
+    fireEvent.keyDown(stage, { key: "ArrowRight", code: "ArrowRight" });
+
+    await advanceContinuousPageStep();
+
+    fireEvent(window, new Event("blur"));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
+        KEYBOARD_PAGE_HOLD_START_DELAY_MS + CONTINUOUS_PAGE_STEP_DURATION_MS * 2,
+      );
+    });
+
+    expect(scrollToSpy).not.toHaveBeenCalled();
+    expect(horizontalReader.scrollLeft).toBe(500);
+    expect(window.location.search).toBe("?page=2");
+
+    rectSpy.mockRestore();
+  });
+
+  it("cancels held keyboard navigation when the menu opens and Escape closes the menu", async () => {
+    vi.useFakeTimers();
+    renderReader(
+      { layout: "single", imageFit: "both", direction: "rtl" },
+      {
+        pages: buildReaderPages(4),
+      },
+      { initialEntries: ["/projeto/projeto-teste/leitura/1?page=1"] },
+    );
+
+    const stage = screen.getByTestId("project-reading-stage");
+
+    fireEvent.keyDown(stage, { key: "ArrowLeft", code: "ArrowLeft" });
+    await advancePaginatedHandoffCommit();
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS);
+    });
+
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+    expect(screen.getByTestId("project-reader-sidebar")).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_REPEAT_MS * 3);
+    });
+    await advancePaginatedHandoffCommit();
+
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+
+    fireEvent.keyDown(stage, { key: "Escape", code: "Escape" });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(MENU_OVERLAY_TRANSITION_MS);
+    });
+
+    expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_REPEAT_MS * 3);
+    });
+    await advancePaginatedHandoffCommit();
+
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
   });
 
   it("renders the reader shell with the stable full-bleed info bar", async () => {
@@ -1009,24 +2310,15 @@ describe("PublicProjectReader", () => {
   });
 
   it("uses ?page to align the requested page inside the vertical strip on load", async () => {
-    setVisualViewport({ height: 640 });
-    const rectSpy = mockRectsByTestId({
-      "project-reading-stage": { top: 220, bottom: 860, width: 1200, height: 640 },
-      "reader-page-0": { top: 220, bottom: 860, width: 1200, height: 640 },
-      "reader-page-1": { top: 920, bottom: 1560, width: 1200, height: 640 },
+    const { scrollToSpy, verticalReader } = setupVerticalKeyboardReader({
+      initialPath: "/projeto/projeto-teste/leitura/1?page=2",
+      pageCount: 2,
     });
-
-    renderReader(
-      { layout: "scroll-vertical", imageFit: "both" },
-      {},
-      { initialEntries: ["/projeto/projeto-teste/leitura/1?page=2"] },
-    );
 
     await waitFor(() => {
-      expect(window.scrollTo).toHaveBeenCalledWith({ top: 920, behavior: "auto" });
+      expect(scrollToSpy).toHaveBeenCalledWith({ top: 240, behavior: "auto" });
+      expect(verticalReader.scrollTop).toBe(680);
     });
-
-    rectSpy.mockRestore();
   });
 
   it("does not reapply the initial stage positioning after normal resize recalculations", async () => {
@@ -1165,49 +2457,30 @@ describe("PublicProjectReader", () => {
   });
 
   it("updates ?page in the vertical strip as the most visible page changes", async () => {
-    setVisualViewport({ height: 640 });
-    const rects = {
-      "project-reading-stage": { top: 220, bottom: 860, width: 1200, height: 640 },
-      "reader-page-0": { top: 220, bottom: 860, width: 1200, height: 640 },
-      "reader-page-1": { top: 920, bottom: 1560, width: 1200, height: 640 },
-    };
-    const rectSpy = mockRectsByTestId(rects);
-
-    renderReader({ layout: "scroll-vertical", imageFit: "both" });
+    const { scrollToSpy, verticalReader } = setupVerticalKeyboardReader({ pageCount: 2 });
 
     await waitFor(() => {
       expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
     });
-    await waitFor(() => {
-      expect(window.scrollTo).toHaveBeenCalledWith({ top: 220, behavior: "auto" });
-    });
-    vi.mocked(window.scrollTo).mockClear();
+    scrollToSpy.mockClear();
 
-    rects["reader-page-0"] = { top: -680, bottom: -40, width: 1200, height: 640 };
-    rects["reader-page-1"] = { top: 24, bottom: 664, width: 1200, height: 640 };
-    fireEvent.scroll(window);
+    verticalReader.scrollTop = 680;
+    fireEvent.scroll(verticalReader);
+
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
 
     await waitFor(() => {
       expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
       expect(screen.getByTestId("reader-location-action")).toHaveTextContent("REPLACE");
       expect(screen.getByTestId("reader-location-preserve-scroll")).toHaveTextContent("true");
     });
-    expect(window.scrollTo).not.toHaveBeenCalled();
-
-    rectSpy.mockRestore();
   });
 
   it("moves the left progress indicator during partial vertical scrolling before ?page changes", async () => {
-    setVisualViewport({ height: 640 });
-    window.scrollY = 220;
-    const rects = {
-      "project-reading-stage": { top: 220, bottom: 860, width: 1200, height: 640 },
-      "reader-page-0": { top: 220, bottom: 860, width: 1200, height: 640 },
-      "reader-page-1": { top: 920, bottom: 1560, width: 1200, height: 640 },
-    };
-    const rectSpy = mockRectsByTestId(rects);
-
-    renderReader({ layout: "scroll-vertical", imageFit: "both", progressPosition: "left" });
+    const { verticalReader } = setupVerticalKeyboardReader({
+      config: { progressPosition: "left" },
+      pageCount: 2,
+    });
 
     const indicator = await screen.findByTestId("project-reader-progress-indicator");
     const initialTop = Number.parseFloat(indicator.style.top);
@@ -1217,10 +2490,8 @@ describe("PublicProjectReader", () => {
       expect(screen.getByTestId("project-reader-progress-label")).toHaveTextContent("1");
     });
 
-    rects["reader-page-0"] = { top: -120, bottom: 520, width: 1200, height: 640 };
-    rects["reader-page-1"] = { top: 540, bottom: 1180, width: 1200, height: 640 };
-    window.scrollY = 560;
-    fireEvent.scroll(window);
+    verticalReader.scrollTop = 320;
+    fireEvent.scroll(verticalReader);
 
     await waitFor(() => {
       expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
@@ -1229,35 +2500,28 @@ describe("PublicProjectReader", () => {
         Number.parseFloat(screen.getByTestId("project-reader-progress-indicator").style.top),
       ).toBeGreaterThan(initialTop + 20);
     });
-
-    rectSpy.mockRestore();
   });
 
   it("moves the right progress indicator upward during partial reverse vertical scrolling before ?page changes", async () => {
-    setVisualViewport({ height: 640 });
-    window.scrollY = 920;
-    const rects = {
-      "project-reading-stage": { top: 220, bottom: 860, width: 1200, height: 640 },
-      "reader-page-0": { top: -680, bottom: -40, width: 1200, height: 640 },
-      "reader-page-1": { top: 24, bottom: 664, width: 1200, height: 640 },
-    };
-    const rectSpy = mockRectsByTestId(rects);
-
-    renderReader({ layout: "scroll-vertical", imageFit: "both", progressPosition: "right" });
+    const { verticalReader } = setupVerticalKeyboardReader({
+      config: { progressPosition: "right" },
+      initialPath: "/projeto/projeto-teste/leitura/1?page=2",
+      pageCount: 2,
+    });
 
     const indicator = await screen.findByTestId("project-reader-progress-indicator");
-    fireEvent.scroll(window);
-    const initialTop = Number.parseFloat(indicator.style.top);
-
     await waitFor(() => {
       expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
       expect(screen.getByTestId("project-reader-progress-label")).toHaveTextContent("2");
     });
+    await waitFor(() => {
+      expect(verticalReader.scrollTop).toBe(680);
+    });
+    fireEvent.scroll(verticalReader);
+    const initialTop = Number.parseFloat(indicator.style.top);
 
-    rects["reader-page-0"] = { top: -420, bottom: 220, width: 1200, height: 640 };
-    rects["reader-page-1"] = { top: 240, bottom: 880, width: 1200, height: 640 };
-    window.scrollY = 760;
-    fireEvent.scroll(window);
+    verticalReader.scrollTop = 520;
+    fireEvent.scroll(verticalReader);
 
     await waitFor(() => {
       expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
@@ -1266,8 +2530,6 @@ describe("PublicProjectReader", () => {
         Number.parseFloat(screen.getByTestId("project-reader-progress-indicator").style.top),
       ).toBeLessThan(initialTop - 20);
     });
-
-    rectSpy.mockRestore();
   });
 
   it("keeps bottom progress discrete during partial vertical scrolling before ?page changes", async () => {
@@ -1304,7 +2566,7 @@ describe("PublicProjectReader", () => {
     rectSpy.mockRestore();
   });
 
-  it("moves the right progress indicator during partial horizontal scrolling before ?page changes", async () => {
+  it("moves the right progress indicator during partial horizontal scrolling in ltr before ?page changes", async () => {
     const initialPath = "/projeto/projeto-teste/leitura/1";
     setBrowserLocation(initialPath);
     const replaceStateSpy = vi.spyOn(window.history, "replaceState");
@@ -1332,7 +2594,12 @@ describe("PublicProjectReader", () => {
     const rectSpy = mockRectsByTestId(rects);
 
     renderReader(
-      { layout: "scroll-horizontal", imageFit: "both", progressPosition: "right" },
+      {
+        layout: "scroll-horizontal",
+        imageFit: "both",
+        progressPosition: "right",
+        direction: "ltr",
+      },
       {},
       { initialEntries: [initialPath] },
     );
@@ -1382,7 +2649,7 @@ describe("PublicProjectReader", () => {
     rectSpy.mockRestore();
   });
 
-  it("moves the right progress indicator upward during partial reverse horizontal scrolling before ?page changes", async () => {
+  it("moves the right progress indicator upward during partial reverse horizontal scrolling in ltr before ?page changes", async () => {
     const initialPath = "/projeto/projeto-teste/leitura/1";
     setBrowserLocation(initialPath);
     const replaceStateSpy = vi.spyOn(window.history, "replaceState");
@@ -1410,7 +2677,12 @@ describe("PublicProjectReader", () => {
     const rectSpy = mockRectsByTestId(rects);
 
     renderReader(
-      { layout: "scroll-horizontal", imageFit: "both", progressPosition: "right" },
+      {
+        layout: "scroll-horizontal",
+        imageFit: "both",
+        progressPosition: "right",
+        direction: "ltr",
+      },
       {},
       { initialEntries: [initialPath] },
     );
@@ -1832,6 +3104,56 @@ describe("PublicProjectReader", () => {
     expect(scrollbarHost).toHaveClass("absolute", "top-full", "overflow-visible");
   });
 
+  it("keeps the horizontal strip height stable when the hidden scrollbar gutter measurement drops during scrolling", async () => {
+    setVisualViewport({ height: 640 });
+    renderReader({ layout: "scroll-horizontal", imageFit: "both" }, { chromeMode: "default" });
+
+    const shell = screen.getByTestId("project-reading-full-bleed-shell");
+    const infoBar = screen.getByTestId("project-reading-info-bar");
+    const stage = screen.getByTestId("project-reading-stage");
+    const horizontalReader = screen.getByTestId("project-reading-horizontal-scroll");
+    const surface = screen.getByTestId("reader-page-surface-0");
+    const scrollbarHost = screen.getByTestId("project-reading-horizontal-scrollbar-host");
+    const infoBarWrapper = infoBar.parentElement as HTMLElement;
+
+    mockElementRect(shell, { top: 120, bottom: 904 });
+    mockElementRect(infoBarWrapper, { top: 120, bottom: 200 });
+    mockElementRect(stage, { top: 216, bottom: 856 });
+    mockElementRect(scrollbarHost, { top: 856, bottom: 904, height: 48 });
+    setElementSize(horizontalReader, {
+      clientWidth: 1200,
+      scrollWidth: 2400,
+      clientHeight: 624,
+      offsetHeight: 640,
+    });
+
+    fireEvent(window, new Event("resize"));
+
+    await waitFor(() => {
+      expect(horizontalReader.style.minHeight).toBe("656px");
+      expect(horizontalReader.style.height).toBe("656px");
+    });
+
+    setElementSize(horizontalReader, {
+      clientWidth: 1200,
+      scrollWidth: 2400,
+      clientHeight: 640,
+      offsetHeight: 640,
+    });
+
+    fireEvent(window, new Event("resize"));
+
+    await waitFor(() => {
+      expect(stage.style.minHeight).toBe("640px");
+      expect(stage.style.height).toBe("640px");
+      expect(shell.style.minHeight).toBe("736px");
+      expect(shell.style.height).toBe("736px");
+      expect(surface.style.height).toBe("640px");
+      expect(horizontalReader.style.minHeight).toBe("656px");
+      expect(horizontalReader.style.height).toBe("656px");
+    });
+  });
+
   it("preserves existing query params and hash while syncing ?page", async () => {
     renderReader(
       { imageFit: "both" },
@@ -1885,7 +3207,9 @@ describe("PublicProjectReader", () => {
     expect(progressViewportShell.closest('[data-testid="project-reading-stage"]')).toBe(stage);
     expect(progressViewportShell).toHaveClass("sticky", "top-0", "h-0");
     expect(menuViewport).not.toBe(progressViewport);
-    expect(within(progressViewport).queryByTestId("project-reader-menu-host")).not.toBeInTheDocument();
+    expect(
+      within(progressViewport).queryByTestId("project-reader-menu-host"),
+    ).not.toBeInTheDocument();
     expect(overlay.closest('[data-testid="project-reading-stage"]')).toBe(stage);
     expect(overlay).toHaveClass("absolute");
     expect(overlay.className).not.toContain("fixed");
@@ -1985,9 +3309,11 @@ describe("PublicProjectReader", () => {
     goToNextPaginatedPage();
 
     expect(progressViewport.style.height).toBe("640px");
-    expect(
-      Number.parseFloat(screen.getByTestId("project-reader-progress-indicator").style.left),
-    ).toBeCloseTo(getProgressContainerLength("bottom", { width: 480, height: 640 }) / 2, 4);
+    await waitFor(() => {
+      expect(
+        Number.parseFloat(screen.getByTestId("project-reader-progress-indicator").style.left),
+      ).toBeCloseTo(getProgressContainerLength("bottom", { width: 480, height: 640 }) / 2, 4);
+    });
 
     stageRectSpy.mockRestore();
   });
@@ -2334,38 +3660,35 @@ describe("PublicProjectReader", () => {
     goToNextPaginatedPage();
 
     expect(progressViewport.style.height).toBe("200px");
-    expect(
-      Number.parseFloat(screen.getByTestId("project-reader-progress-indicator").style.top),
-    ).toBeCloseTo(
-      getProgressContainerLength("left", { width: 480, height: 200 }) - getRootFontSizePx() * 2.25,
-      4,
-    );
+    await waitFor(() => {
+      expect(
+        Number.parseFloat(screen.getByTestId("project-reader-progress-indicator").style.top),
+      ).toBeCloseTo(
+        getProgressContainerLength("left", { width: 480, height: 200 }) -
+          getRootFontSizePx() * 2.25,
+        4,
+      );
+    });
 
     stageRectSpy.mockRestore();
   });
 
-  it("uses scrollIntoView when scrubbing in continuous mode", async () => {
-    renderReader(
-      { progressStyle: "default", progressPosition: "bottom", layout: "scroll-vertical" },
-      {
-        pages: [
-          { position: 0, imageUrl: "/page-1.jpg" },
-          { position: 1, imageUrl: "/page-2.jpg" },
-          { position: 2, imageUrl: "/page-3.jpg" },
-        ],
+  it("scrubs through continuous mode one page at a time", async () => {
+    vi.useFakeTimers();
+    setupVerticalKeyboardReader({
+      config: {
+        progressStyle: "default",
+        progressPosition: "bottom",
       },
-    );
-
-    const targetPage = await screen.findByTestId("reader-page-2");
-    const targetScrollSpy = vi.fn();
-    Object.defineProperty(targetPage, "scrollIntoView", {
-      configurable: true,
-      value: targetScrollSpy,
+      includeIntrinsicDimensions: true,
+      pageCount: 3,
     });
 
     const progressTrack = screen.getByTestId("project-reader-progress-track");
     const hitArea = screen.getByTestId("project-reader-progress-hit-area");
     const rectSpy = mockProgressTrackRect(progressTrack, "bottom");
+
+    await advanceReaderAnimationFrame();
 
     fireEvent.pointerDown(hitArea, {
       pointerId: 4,
@@ -2380,33 +3703,28 @@ describe("PublicProjectReader", () => {
       clientY: window.innerHeight - 24,
     });
 
-    await waitFor(() => {
-      expect(targetScrollSpy).toHaveBeenCalledWith({
-        behavior: "smooth",
-        block: "start",
-        inline: "nearest",
-      });
-    });
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+
+    await advanceContinuousPageStep();
+
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+
+    await advanceContinuousPageStep();
+
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=3");
 
     rectSpy.mockRestore();
   });
 
   it("deduplicates repeated scrubs within the same page range", async () => {
-    renderReader(
-      { progressStyle: "default", progressPosition: "right", layout: "scroll-vertical" },
-      {
-        pages: [
-          { position: 0, imageUrl: "/page-1.jpg" },
-          { position: 1, imageUrl: "/page-2.jpg" },
-        ],
+    vi.useFakeTimers();
+    setupVerticalKeyboardReader({
+      config: {
+        progressStyle: "default",
+        progressPosition: "right",
       },
-    );
-
-    const targetPage = await screen.findByTestId("reader-page-1");
-    const targetScrollSpy = vi.fn();
-    Object.defineProperty(targetPage, "scrollIntoView", {
-      configurable: true,
-      value: targetScrollSpy,
+      includeIntrinsicDimensions: true,
+      pageCount: 2,
     });
 
     const progressTrack = screen.getByTestId("project-reader-progress-track");
@@ -2438,9 +3756,17 @@ describe("PublicProjectReader", () => {
       clientY: window.innerHeight / 2 + 16,
     });
 
-    await waitFor(() => {
-      expect(targetScrollSpy).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
+
+    await advanceContinuousPageStep();
+
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(CONTINUOUS_PAGE_STEP_DURATION_MS * 2);
     });
+
+    expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
 
     rectSpy.mockRestore();
   });
@@ -2494,7 +3820,8 @@ describe("PublicProjectReader", () => {
     fireEvent.click(menuButton);
 
     const sidebar = await screen.findByTestId("project-reader-sidebar");
-    const sidebarHeader = within(sidebar).getByText("Leitor").closest("div")?.parentElement as HTMLElement;
+    const sidebarHeader = within(sidebar).getByText("Leitor").closest("div")
+      ?.parentElement as HTMLElement;
     expect(sidebar.tagName).toBe("ASIDE");
     expect(stage.contains(sidebar)).toBe(true);
     await waitFor(() => {
@@ -2516,14 +3843,19 @@ describe("PublicProjectReader", () => {
     expect(within(sidebar).getByText("Leitor")).toBeInTheDocument();
     expect(sidebarHeader).not.toHaveTextContent(/\bCap 1\b/);
     expect(sidebarHeader).not.toHaveTextContent(/P.gina 1/i);
-    expect(within(sidebar).getByRole("button", { name: "Fechar menu do leitor" })).toBeInTheDocument();
+    expect(
+      within(sidebar).getByRole("button", { name: "Fechar menu do leitor" }),
+    ).toBeInTheDocument();
 
     fireEvent.click(within(sidebar).getByRole("button", { name: "Fechar menu do leitor" }));
 
     await waitFor(() => {
       expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
     });
-    expect(screen.getByTestId("project-reader-menu-button")).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByTestId("project-reader-menu-button")).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
   });
 
   it("opens the mobile reader menu as a responsive in-stage overlay with a simplified header", async () => {
@@ -2542,7 +3874,8 @@ describe("PublicProjectReader", () => {
     fireEvent.click(menuButton);
 
     const sidebar = await screen.findByTestId("project-reader-sidebar");
-    const sidebarHeader = within(sidebar).getByText("Leitor").closest("div")?.parentElement as HTMLElement;
+    const sidebarHeader = within(sidebar).getByText("Leitor").closest("div")
+      ?.parentElement as HTMLElement;
     expect(sidebar.tagName).toBe("ASIDE");
     expect(stage.contains(sidebar)).toBe(true);
     expect(stage.contains(menuHost)).toBe(true);
@@ -2567,7 +3900,9 @@ describe("PublicProjectReader", () => {
     expect(within(sidebar).getByText("Leitor")).toBeInTheDocument();
     expect(sidebarHeader).not.toHaveTextContent(/\bCap 1\b/);
     expect(sidebarHeader).not.toHaveTextContent(/P.gina 1/i);
-    expect(within(sidebar).getByRole("button", { name: "Fechar menu do leitor" })).toBeInTheDocument();
+    expect(
+      within(sidebar).getByRole("button", { name: "Fechar menu do leitor" }),
+    ).toBeInTheDocument();
   });
 
   it("updates the reader menu viewport height and maxHeight synchronously on scroll", async () => {
@@ -2887,7 +4222,10 @@ describe("PublicProjectReader", () => {
       "data-state",
       "hidden",
     );
-    expect(screen.getByTestId("project-reader-menu-button")).toHaveAttribute("data-state", "hidden");
+    expect(screen.getByTestId("project-reader-menu-button")).toHaveAttribute(
+      "data-state",
+      "hidden",
+    );
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(MENU_TRIGGER_EXIT_TRANSITION_MS);
@@ -2962,7 +4300,10 @@ describe("PublicProjectReader", () => {
     fireEvent.click(screen.getByTestId("project-reader-menu-button"));
     expect(await screen.findByTestId("project-reader-sidebar")).toBeInTheDocument();
 
-    fireEvent.keyDown(window, { key: "Escape", code: "Escape" });
+    fireEvent.keyDown(screen.getByTestId("project-reading-stage"), {
+      key: "Escape",
+      code: "Escape",
+    });
 
     await waitFor(() => {
       expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();

@@ -121,6 +121,32 @@ const formatReadingChapterOptionLabel = (entry: {
   return parts.join(" \u2022 ");
 };
 
+const getReadableProjectEpisodes = (
+  project: Pick<ReadingProject, "episodeDownloads"> | null | undefined,
+) =>
+  Array.isArray(project?.episodeDownloads)
+    ? project.episodeDownloads.filter((entry) => hasPublicEpisodeReadableContent(entry))
+    : [];
+
+const hasProjectEpisodeForRoute = ({
+  chapterNumber,
+  episodes,
+  volume,
+}: {
+  chapterNumber: number;
+  episodes: Array<{ number?: number; volume?: number }>;
+  volume?: number;
+}) => {
+  if (!Number.isFinite(chapterNumber)) {
+    return false;
+  }
+  if (volume === undefined) {
+    return episodes.some((entry) => Number(entry.number) === chapterNumber);
+  }
+  const targetKey = buildEpisodeKey(chapterNumber, volume);
+  return episodes.some((entry) => buildEpisodeKey(entry.number, entry.volume) === targetKey);
+};
+
 const ProjectReading = () => {
   const { slug, chapter } = useParams<{ slug: string; chapter: string }>();
   const location = useLocation();
@@ -148,7 +174,13 @@ const ProjectReading = () => {
     synopsis?: string;
     content?: string;
     contentFormat?: "lexical" | "images";
-    pages?: Array<{ position: number; imageUrl: string; spreadPairId?: string }>;
+    pages?: Array<{
+      position: number;
+      imageUrl: string;
+      spreadPairId?: string;
+      width?: number;
+      height?: number;
+    }>;
     pageCount?: number;
     hasPages?: boolean;
     coverImageUrl?: string;
@@ -168,6 +200,30 @@ const ProjectReading = () => {
     initialVisible: location.hash.startsWith("#comment-"),
     rootMargin: "400px 0px",
   });
+  const chapterNumber = Number(chapter);
+  const volumeParamRaw = searchParams.get("volume");
+  const parsedVolumeParam = Number(volumeParamRaw);
+  const volumeParam =
+    volumeParamRaw !== null && Number.isFinite(parsedVolumeParam) ? parsedVolumeParam : undefined;
+  const bootstrapReadableEpisodes = useMemo(
+    () => getReadableProjectEpisodes(bootstrapProject),
+    [bootstrapProject],
+  );
+  const bootstrapHasRequestedChapter = useMemo(
+    () =>
+      hasProjectEpisodeForRoute({
+        chapterNumber,
+        episodes: bootstrapReadableEpisodes,
+        volume: volumeParam,
+      }),
+    [bootstrapReadableEpisodes, chapterNumber, volumeParam],
+  );
+  const shouldHydrateProjectFromApi =
+    Boolean(slug) &&
+    (!bootstrapProject ||
+      bootstrapData?.payloadMode === "critical-home" ||
+      bootstrapReadableEpisodes.length === 0 ||
+      !bootstrapHasRequestedChapter);
 
   useEffect(() => {
     setProject(bootstrapProject);
@@ -179,7 +235,15 @@ const ProjectReading = () => {
     let isActive = true;
 
     const loadProject = async () => {
-      if (!slug || bootstrapProject) {
+      if (!shouldHydrateProjectFromApi) {
+        if (isActive) {
+          setHasLoadedProject(Boolean(bootstrapProject));
+        }
+        return;
+      }
+
+      const projectRequestId = String(bootstrapProject?.id || slug || "").trim();
+      if (!projectRequestId) {
         if (isActive) {
           setHasLoadedProject(Boolean(bootstrapProject));
         }
@@ -187,10 +251,15 @@ const ProjectReading = () => {
       }
 
       try {
-        const response = await apiFetch(apiBase, `/api/public/projects/${slug}`);
+        const response = await apiFetch(
+          apiBase,
+          `/api/public/projects/${encodeURIComponent(projectRequestId)}`,
+        );
         if (!response.ok) {
           if (isActive) {
-            setProject(null);
+            if (!bootstrapProject) {
+              setProject(null);
+            }
           }
           return;
         }
@@ -204,7 +273,9 @@ const ProjectReading = () => {
         );
       } catch {
         if (isActive) {
-          setProject(null);
+          if (!bootstrapProject) {
+            setProject(null);
+          }
         }
       } finally {
         if (isActive) {
@@ -217,13 +288,13 @@ const ProjectReading = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, bootstrapData?.mediaVariants, bootstrapProject, slug]);
-
-  const chapterNumber = Number(chapter);
-  const volumeParamRaw = searchParams.get("volume");
-  const parsedVolumeParam = Number(volumeParamRaw);
-  const volumeParam =
-    volumeParamRaw !== null && Number.isFinite(parsedVolumeParam) ? parsedVolumeParam : undefined;
+  }, [
+    apiBase,
+    bootstrapData?.mediaVariants,
+    bootstrapProject,
+    shouldHydrateProjectFromApi,
+    slug,
+  ]);
   const isLightNovel = isLightNovelType(project?.type || "");
   const isManga = isMangaType(project?.type || "");
   const isReaderProject = isLightNovel || isManga;

@@ -250,6 +250,7 @@ import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
 import { resolvePostStatus } from "./lib/post-status.js";
 import { dedupePostVersionRecordsNewestFirst } from "./lib/post-version-dedupe.js";
 import { prisma } from "./lib/prisma-client.js";
+import { withDatabaseStartupRetry } from "./lib/database-startup-retry.js";
 import { applyProjectChapterUpdate } from "./lib/project-chapter-editor.js";
 import {
   applyEpisodePublicationMetadata,
@@ -937,13 +938,23 @@ const backgroundJobQueue = createJobQueue({
   },
 });
 
-dataRepository = await createDataRepository({
-  databaseUrl: DATABASE_URL,
-  ownerIdsFallback: OWNER_IDS,
-  analyticsSchemaVersion: ANALYTICS_SCHEMA_VERSION,
-  analyticsRetentionDays: ANALYTICS_RETENTION_DAYS,
-  analyticsAggRetentionDays: ANALYTICS_AGG_RETENTION_DAYS,
-});
+dataRepository = await withDatabaseStartupRetry(
+  () =>
+    createDataRepository({
+      databaseUrl: DATABASE_URL,
+      ownerIdsFallback: OWNER_IDS,
+      analyticsSchemaVersion: ANALYTICS_SCHEMA_VERSION,
+      analyticsRetentionDays: ANALYTICS_RETENTION_DAYS,
+      analyticsAggRetentionDays: ANALYTICS_AGG_RETENTION_DAYS,
+    }),
+  {
+    onRetry: ({ attempt, error, maxAttempts, retryDelayMs }) => {
+      console.warn(
+        `[startup:database] data repository bootstrap failed on attempt ${attempt}/${maxAttempts}: ${String(error?.message || error || "db_startup_failed")}. Retrying in ${retryDelayMs}ms.`,
+      );
+    },
+  },
+);
 
 const dataRepositoryAdaptersRuntime = createDataRepositoryAdaptersRuntime({
   dataRepository,

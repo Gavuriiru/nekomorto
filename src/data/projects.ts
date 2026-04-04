@@ -20,6 +20,8 @@ export type ProjectEpisodePage = {
   position: number;
   imageUrl: string;
   spreadPairId?: string;
+  width?: number;
+  height?: number;
 };
 
 export type ProjectReaderConfig = {

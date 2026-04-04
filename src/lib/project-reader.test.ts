@@ -44,6 +44,20 @@ describe("normalizeProjectEpisodePages", () => {
       { position: 6, imageUrl: "/uploads/page-7.jpg" },
     ]);
   });
+
+  it("preserva width e height validos e descarta dimensoes invalidas", () => {
+    expect(
+      normalizeProjectEpisodePages([
+        { position: 2, imageUrl: "/uploads/page-2.jpg", width: 1200, height: 1800 },
+        { position: 1, imageUrl: "/uploads/page-1.jpg", width: 0, height: 1600 },
+        { position: 0, imageUrl: "/uploads/page-0.jpg", width: 900.4, height: 1400.6 },
+      ]),
+    ).toEqual([
+      { position: 0, imageUrl: "/uploads/page-0.jpg", width: 900, height: 1401 },
+      { position: 1, imageUrl: "/uploads/page-1.jpg", height: 1600 },
+      { position: 2, imageUrl: "/uploads/page-2.jpg", width: 1200, height: 1800 },
+    ]);
+  });
 });
 
 describe("normalizeProjectReaderConfig", () => {

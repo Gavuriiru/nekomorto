@@ -8,6 +8,9 @@ describe("package.json scripts", () => {
   it("prepara prisma antes do dev integrado e do dev do servidor", () => {
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
 
+    expect(packageJson.scripts["prisma:migrate:deploy"]).toBe(
+      "node scripts/prisma-migrate-deploy.mjs",
+    );
     expect(packageJson.scripts["prisma:prepare"]).toBe(
       "npm run prisma:generate && npm run prisma:migrate:deploy",
     );

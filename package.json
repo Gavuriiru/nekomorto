@@ -24,7 +24,7 @@
     "start": "cross-env NODE_ENV=production node server/index.js",
     "prisma:generate": "prisma generate",
     "prisma:prepare": "npm run prisma:generate && npm run prisma:migrate:deploy",
-    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:deploy": "node scripts/prisma-migrate-deploy.mjs",
     "db:backup": "node --env-file=.env scripts/backup-data.mjs",
     "db:backfill:normalized": "node --env-file=.env scripts/backfill-normalized-runtime.mjs",
     "projects:backfill:anilist": "node --env-file=.env scripts/backfill-project-anilist-metadata.mjs",
