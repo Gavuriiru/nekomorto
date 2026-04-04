@@ -723,6 +723,7 @@ describe("ProjectReading analytics", () => {
     const readerShell = screen.getByTestId("project-reading-full-bleed-shell");
     const readerBar = screen.getByTestId("project-reading-reader-bar");
     const infoBar = screen.getByTestId("project-reading-info-bar");
+    const contextRow = within(infoBar).getByTestId("project-reading-context-row");
     const projectTitle = within(infoBar).getByTestId("project-reading-project-title");
     const chapterContext = within(infoBar).getByTestId("project-reading-chapter-context");
     const synopsis = within(infoBar).getByTestId("project-reading-synopsis");
@@ -740,14 +741,14 @@ describe("ProjectReading analytics", () => {
     expect(readerShell).toHaveClass("w-full");
     expect(readerShell).toHaveClass("gap-2", "md:gap-3");
     expect(readerBar).not.toHaveClass("mx-auto");
-    expect(readerBar).toHaveClass("gap-3", "py-2", "md:py-3");
+    expect(readerBar).toHaveClass("gap-4", "py-3", "md:py-4");
     expect(readerBar.style.maxWidth).toBe("");
     expect(infoBar).toHaveAttribute("data-variant", "reader-full-bleed");
     expect(projectTitle).toHaveAttribute("href", "/projeto/projeto-teste");
     expect(projectTitle).toHaveClass("project-reading-masthead__overline");
     expect(chapterContext).toHaveTextContent(/Cap.*tulo 1/i);
-    expect(within(infoBar).queryByTestId("project-reading-context-row")).not.toBeInTheDocument();
-    expect(screen.queryByText(/^manga$/i)).not.toBeInTheDocument();
+    expect(contextRow).toBeInTheDocument();
+    expect(within(infoBar).queryByTestId("project-reading-project-type")).not.toBeInTheDocument();
     expect(within(actions).getByRole("link", { name: /Voltar ao projeto/i })).toHaveAttribute(
       "href",
       "/projeto/projeto-teste",
@@ -763,13 +764,13 @@ describe("ProjectReading analytics", () => {
     expect(heading).toBeInTheDocument();
     expect(heading).toHaveClass("project-reading-masthead__title");
     expect(synopsis).toHaveClass("project-reading-masthead__synopsis");
+    expect(within(infoBar).queryByTestId("project-reading-meta-row")).not.toBeInTheDocument();
     expect(
       projectTitle.compareDocumentPosition(chapterContext) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
       chapterContext.compareDocumentPosition(synopsis) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(within(infoBar).queryByTestId("project-reading-meta-row")).not.toBeInTheDocument();
     expect(commentsHandoff.style.minHeight).toBe("5rem");
     expect(
       publicHeader.compareDocumentPosition(infoBar) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -1214,6 +1215,51 @@ describe("ProjectReading analytics", () => {
       "data-variant",
       "reader-full-bleed",
     );
+  });
+
+  it("renderiza o footer do site ao final do fluxo do leitor por imagens", async () => {
+    const project = {
+      ...createProjectFixture([
+        {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1",
+          synopsis: "Resumo do capitulo",
+          hasPages: true,
+        },
+      ]),
+      type: "Manga",
+    };
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      chapterResponse: {
+        number: 1,
+        volume: 2,
+        title: "Capitulo 1",
+        synopsis: "Resumo do capitulo",
+        contentFormat: "images",
+        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pageCount: 1,
+        hasPages: true,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId("project-reading-stage");
+
+    const commentsSentinel = screen.getByTestId("project-reading-comments-sentinel");
+    const footer = screen.getByTestId("public-footer");
+
+    expect(footer).toBeInTheDocument();
+    expect(
+      commentsSentinel.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("keeps vertical image reader chapters in natural document flow so deferred comments stay after the stack", async () => {

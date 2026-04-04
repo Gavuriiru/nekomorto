@@ -955,7 +955,6 @@ const ProjectReading = () => {
               </section>
             </section>
           </main>
-          <Footer />
         </>
       ) : (
         <main
@@ -1052,6 +1051,8 @@ const ProjectReading = () => {
           ) : null}
         </>
       ) : null}
+
+      <Footer />
     </div>
   );
 };
