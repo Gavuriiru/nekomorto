@@ -39,8 +39,38 @@ vi.mock("@/components/CommentsSection", () => ({
 }));
 
 vi.mock("@/components/Header", () => ({
-  default: ({ variant = "fixed" }: { variant?: "fixed" | "static" }) => (
-    <div data-testid="public-header" data-variant={variant} />
+  default: ({
+    variant = "fixed",
+    showBottomGradient = true,
+  }: {
+    variant?: "fixed" | "static";
+    showBottomGradient?: boolean;
+  }) => (
+    <div
+      ref={(node) => {
+        if (!node) {
+          return;
+        }
+        Object.defineProperty(node, "getBoundingClientRect", {
+          configurable: true,
+          value: () =>
+            ({
+              x: 0,
+              y: 0,
+              top: 0,
+              bottom: 96,
+              left: 0,
+              right: 1280,
+              width: 1280,
+              height: 96,
+              toJSON: () => ({}),
+            }) as DOMRect,
+        });
+      }}
+      data-testid="public-header"
+      data-variant={variant}
+      data-show-bottom-gradient={String(showBottomGradient)}
+    />
   ),
 }));
 
@@ -130,9 +160,7 @@ const ProjectReadingLocationProbe = () => {
   );
 };
 
-const createReadingEpisodeFixture = (
-  overrides: Partial<ProjectEpisode> = {},
-): ProjectEpisode => ({
+const createReadingEpisodeFixture = (overrides: Partial<ProjectEpisode> = {}): ProjectEpisode => ({
   number: 1,
   title: "Capitulo 1",
   synopsis: "",
@@ -143,8 +171,7 @@ const createReadingEpisodeFixture = (
   ...overrides,
 });
 
-type ProjectEpisodeFixture = Partial<ProjectEpisode> &
-  Pick<ProjectEpisode, "number" | "title">;
+type ProjectEpisodeFixture = Partial<ProjectEpisode> & Pick<ProjectEpisode, "number" | "title">;
 
 const createProjectFixture = (episodeDownloads?: ProjectEpisodeFixture[]): Project => ({
   id: "projeto-teste",
@@ -521,7 +548,9 @@ describe("ProjectReading analytics", () => {
     );
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
-    const editLink = await screen.findByRole("link", { name: /Editar cap.tulo/i });
+    const editLink = await screen.findByRole("link", {
+      name: /Editar cap.tulo/i,
+    });
     expect(editLink).toHaveAttribute(
       "href",
       "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
@@ -566,7 +595,9 @@ describe("ProjectReading analytics", () => {
     );
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
-    const editLink = await screen.findByRole("link", { name: /Editar cap.tulo/i });
+    const editLink = await screen.findByRole("link", {
+      name: /Editar cap.tulo/i,
+    });
     expect(editLink).toHaveAttribute(
       "href",
       "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
@@ -611,7 +642,9 @@ describe("ProjectReading analytics", () => {
     );
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
-    const editLink = await screen.findByRole("link", { name: /Editar cap.tulo/i });
+    const editLink = await screen.findByRole("link", {
+      name: /Editar cap.tulo/i,
+    });
     expect(editLink).toHaveAttribute(
       "href",
       "/dashboard/projetos/projeto-teste/capitulos/1?volume=0",
@@ -697,6 +730,10 @@ describe("ProjectReading analytics", () => {
       readerConfig: {
         layout: "scroll-vertical",
         imageFit: "both",
+        chromeMode: "default",
+        viewportMode: "viewport",
+        siteHeaderVariant: "fixed",
+        showSiteFooter: true,
       },
       chapterResponse: {
         number: 1,
@@ -704,7 +741,12 @@ describe("ProjectReading analytics", () => {
         title: "Capitulo 1",
         synopsis: "Resumo do capitulo",
         contentFormat: "images",
-        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pages: [
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/page-1.jpg",
+          },
+        ],
         pageCount: 1,
         hasPages: true,
       },
@@ -728,7 +770,9 @@ describe("ProjectReading analytics", () => {
     const chapterContext = within(infoBar).getByTestId("project-reading-chapter-context");
     const synopsis = within(infoBar).getByTestId("project-reading-synopsis");
     const actions = within(infoBar).getByTestId("project-reading-actions");
-    const heading = within(readerBar).getByRole("heading", { name: /Cap.*tulo 1/i });
+    const heading = within(readerBar).getByRole("heading", {
+      name: /Cap.*tulo 1/i,
+    });
     const commentsHandoff = screen.getByTestId("project-reading-comments-handoff");
     const commentsSentinel = screen.getByTestId("project-reading-comments-sentinel");
 
@@ -737,7 +781,12 @@ describe("ProjectReading analytics", () => {
     expect(imageLayout).not.toHaveClass("pb-16");
     expect(imageLayout).not.toHaveClass("mx-auto");
     expect(imageLayout.style.maxWidth).toBe("");
-    expect(publicHeader).toHaveAttribute("data-variant", "static");
+    expect(publicHeader).toHaveAttribute("data-variant", "fixed");
+    expect(publicHeader).toHaveAttribute("data-show-bottom-gradient", "true");
+    expect(firstFold).not.toHaveAttribute("data-site-header-attached");
+    await waitFor(() => {
+      expect(screen.getByTestId("project-reading-site-header-offset").style.height).toBe("96px");
+    });
     expect(readerShell).toHaveClass("w-full");
     expect(readerShell).toHaveClass("gap-2", "md:gap-3");
     expect(readerBar).not.toHaveClass("mx-auto");
@@ -823,6 +872,161 @@ describe("ProjectReading analytics", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("muda o wrapper do leitor de imagens pelo readerConfig mesmo com o mesmo projectType", async () => {
+    const project = {
+      ...createProjectFixture([
+        {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1",
+          synopsis: "Resumo do capitulo",
+          hasPages: true,
+        },
+      ]),
+      type: "Manga",
+    };
+    const chapterResponse = {
+      number: 1,
+      volume: 2,
+      title: "Capitulo 1",
+      synopsis: "Resumo do capitulo",
+      contentFormat: "images",
+      pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+      pageCount: 1,
+      hasPages: true,
+    };
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      readerConfig: {
+        layout: "scroll-vertical",
+        imageFit: "both",
+        chromeMode: "default",
+        viewportMode: "viewport",
+        siteHeaderVariant: "fixed",
+        showSiteFooter: true,
+      },
+      chapterResponse,
+    });
+
+    const viewportRender = render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId("project-reading-stage");
+    expect(screen.getByTestId("project-reading-first-fold")).toBeInTheDocument();
+    expect(screen.getByTestId("public-header")).toBeInTheDocument();
+    expect(screen.getByTestId("public-footer")).toBeInTheDocument();
+    viewportRender.unmount();
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      readerConfig: {
+        layout: "scroll-vertical",
+        imageFit: "width",
+        chromeMode: "cinema",
+        viewportMode: "natural",
+        siteHeaderVariant: "static",
+        showSiteFooter: false,
+      },
+      chapterResponse,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    const imageLayout = await screen.findByTestId("project-reading-images-layout");
+    expect(screen.queryByTestId("project-reading-first-fold")).not.toBeInTheDocument();
+    expect(screen.getByTestId("public-header")).toHaveAttribute("data-variant", "static");
+    expect(screen.queryByTestId("project-reading-site-header-offset")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("public-footer")).not.toBeInTheDocument();
+    expect(imageLayout.parentElement).not.toHaveAttribute("data-site-header-attached");
+    expect(imageLayout).toHaveClass("min-h-screen");
+    expect(imageLayout).not.toHaveClass("flex-1", "min-h-0");
+    expect(screen.getByTestId("project-reading-info-bar")).toHaveAttribute(
+      "data-variant",
+      "reader-cinema",
+    );
+    expect(screen.getByTestId("project-reading-stage")).toHaveAttribute(
+      "data-viewport-mode",
+      "natural",
+    );
+  });
+
+  it.each([
+    "Manga",
+    "Webtoon",
+  ] as const)("aplica o mesmo wrapper de imagem quando %s recebe o mesmo readerConfig", async (projectType) => {
+    const project = {
+      ...createProjectFixture([
+        {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1",
+          synopsis: "Resumo do capitulo",
+          hasPages: true,
+        },
+      ]),
+      type: projectType,
+    };
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      readerConfig: {
+        layout: "scroll-vertical",
+        imageFit: "width",
+        chromeMode: "cinema",
+        viewportMode: "natural",
+        siteHeaderVariant: "static",
+        showSiteFooter: false,
+      },
+      chapterResponse: {
+        number: 1,
+        volume: 2,
+        title: "Capitulo 1",
+        synopsis: "Resumo do capitulo",
+        contentFormat: "images",
+        pages: [
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/page-1.jpg",
+          },
+        ],
+        pageCount: 1,
+        hasPages: true,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    const imageLayout = await screen.findByTestId("project-reading-images-layout");
+    expect(screen.queryByTestId("project-reading-first-fold")).not.toBeInTheDocument();
+    expect(screen.getByTestId("public-header")).toHaveAttribute("data-variant", "static");
+    expect(screen.queryByTestId("public-footer")).not.toBeInTheDocument();
+    expect(imageLayout).toHaveClass("flex", "flex-col", "min-h-screen");
+    expect(screen.getByTestId("project-reading-info-bar")).toHaveAttribute(
+      "data-variant",
+      "reader-cinema",
+    );
+    expect(screen.getByTestId("project-reading-stage")).toHaveAttribute(
+      "data-chrome-mode",
+      "cinema",
+    );
+    expect(screen.getByTestId("project-reading-stage")).toHaveAttribute(
+      "data-viewport-mode",
+      "natural",
+    );
+  });
+
   it("mostra Editar extra no hero do leitor de imagens", async () => {
     const project = {
       ...createProjectFixture([
@@ -851,7 +1055,12 @@ describe("ProjectReading analytics", () => {
         title: "Extra 1",
         synopsis: "Resumo do extra",
         contentFormat: "images",
-        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/extra-1.jpg" }],
+        pages: [
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/extra-1.jpg",
+          },
+        ],
         pageCount: 1,
         hasPages: true,
         entryKind: "extra",
@@ -903,7 +1112,12 @@ describe("ProjectReading analytics", () => {
         title: "Capitulo 1",
         synopsis: "Resumo do capitulo",
         contentFormat: "images",
-        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pages: [
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/page-1.jpg",
+          },
+        ],
         pageCount: 1,
         hasPages: true,
       },
@@ -918,7 +1132,9 @@ describe("ProjectReading analytics", () => {
     await screen.findByTestId("project-reading-stage");
     fireEvent.click(screen.getByTestId("project-reader-menu-button"));
 
-    const chapterTrigger = screen.getByRole("combobox", { name: /Selecionar cap.tulo/i });
+    const chapterTrigger = screen.getByRole("combobox", {
+      name: /Selecionar cap.tulo/i,
+    });
     fireEvent.click(chapterTrigger);
 
     expect(await screen.findByRole("option", { name: /Cap.*tulo 2/i })).toBeInTheDocument();
@@ -926,7 +1142,12 @@ describe("ProjectReading analytics", () => {
 
   it("entra no palco ao abrir um capitulo por imagens sem hash na URL", async () => {
     const rectSpy = mockRectsByTestId({
-      "project-reading-stage": { top: 280, bottom: 920, width: 1200, height: 640 },
+      "project-reading-stage": {
+        top: 280,
+        bottom: 920,
+        width: 1200,
+        height: 640,
+      },
       "reader-page-0": { top: 280, bottom: 920, width: 1200, height: 640 },
     });
     const project = {
@@ -950,7 +1171,12 @@ describe("ProjectReading analytics", () => {
         title: "Capitulo 1",
         synopsis: "Resumo do capitulo",
         contentFormat: "images",
-        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pages: [
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/page-1.jpg",
+          },
+        ],
         pageCount: 1,
         hasPages: true,
       },
@@ -965,7 +1191,10 @@ describe("ProjectReading analytics", () => {
     await screen.findByTestId("project-reading-stage");
 
     await waitFor(() => {
-      expect(window.scrollTo).toHaveBeenCalledWith({ top: 280, behavior: "auto" });
+      expect(window.scrollTo).toHaveBeenCalledWith({
+        top: 280,
+        behavior: "auto",
+      });
     });
 
     rectSpy.mockRestore();
@@ -993,7 +1222,12 @@ describe("ProjectReading analytics", () => {
         title: "Capitulo 1",
         synopsis: "Resumo do capitulo",
         contentFormat: "images",
-        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pages: [
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/page-1.jpg",
+          },
+        ],
         pageCount: 1,
         hasPages: true,
       },
@@ -1046,8 +1280,14 @@ describe("ProjectReading analytics", () => {
         synopsis: "Resumo do capitulo",
         contentFormat: "images",
         pages: [
-          { position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" },
-          { position: 1, imageUrl: "/uploads/projects/projeto-teste/page-2.jpg" },
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/page-1.jpg",
+          },
+          {
+            position: 1,
+            imageUrl: "/uploads/projects/projeto-teste/page-2.jpg",
+          },
         ],
         pageCount: 2,
         hasPages: true,
@@ -1073,7 +1313,12 @@ describe("ProjectReading analytics", () => {
 
   it("preserva o fluxo de hash de comentario e nao forca retorno ao palco", async () => {
     const rectSpy = mockRectsByTestId({
-      "project-reading-stage": { top: 280, bottom: 920, width: 1200, height: 640 },
+      "project-reading-stage": {
+        top: 280,
+        bottom: 920,
+        width: 1200,
+        height: 640,
+      },
       "reader-page-0": { top: 280, bottom: 920, width: 1200, height: 640 },
     });
     const project = {
@@ -1097,7 +1342,12 @@ describe("ProjectReading analytics", () => {
         title: "Capitulo 1",
         synopsis: "Resumo do capitulo",
         contentFormat: "images",
-        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pages: [
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/page-1.jpg",
+          },
+        ],
         pageCount: 1,
         hasPages: true,
       },
@@ -1137,7 +1387,12 @@ describe("ProjectReading analytics", () => {
         title: "Capitulo 1",
         synopsis: "Resumo do capitulo",
         contentFormat: "images",
-        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pages: [
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/page-1.jpg",
+          },
+        ],
         pageCount: 1,
         hasPages: true,
       },
@@ -1161,14 +1416,14 @@ describe("ProjectReading analytics", () => {
     });
   });
 
-  it("aplica offset quando o header do manga reader usa o modo fixo do site", async () => {
+  it("aplica offset quando a preferencia legada do leitor resolve o header fixo", async () => {
     window.localStorage.setItem(
       "public.reader.preferences",
       JSON.stringify({
         reader: {
           projectTypes: {
             manga: {
-              siteHeaderVariant: "fixed",
+              showSiteHeader: true,
             },
           },
         },
@@ -1196,7 +1451,12 @@ describe("ProjectReading analytics", () => {
         title: "Capitulo 1",
         synopsis: "Resumo do capitulo",
         contentFormat: "images",
-        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pages: [
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/page-1.jpg",
+          },
+        ],
         pageCount: 1,
         hasPages: true,
       },
@@ -1210,59 +1470,13 @@ describe("ProjectReading analytics", () => {
 
     const publicHeader = await screen.findByTestId("public-header");
     expect(publicHeader).toHaveAttribute("data-variant", "fixed");
-    expect(screen.getByTestId("project-reading-site-header-offset")).toHaveClass("h-20", "md:h-24");
-    expect(screen.getByTestId("project-reading-info-bar")).toHaveAttribute(
-      "data-variant",
-      "reader-full-bleed",
-    );
-  });
-
-  it("renderiza o footer do site ao final do fluxo do leitor por imagens", async () => {
-    const project = {
-      ...createProjectFixture([
-        {
-          number: 1,
-          volume: 2,
-          title: "Capitulo 1",
-          synopsis: "Resumo do capitulo",
-          hasPages: true,
-        },
-      ]),
-      type: "Manga",
-    };
-
-    setupProjectReadingApiMock(undefined, null, {
-      project,
-      chapterResponse: {
-        number: 1,
-        volume: 2,
-        title: "Capitulo 1",
-        synopsis: "Resumo do capitulo",
-        contentFormat: "images",
-        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
-        pageCount: 1,
-        hasPages: true,
-      },
+    expect(publicHeader).toHaveAttribute("data-show-bottom-gradient", "true");
+    await waitFor(() => {
+      expect(screen.getByTestId("project-reading-site-header-offset").style.height).toBe("96px");
     });
-
-    render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
-        <ProjectReading />
-      </MemoryRouter>,
-    );
-
-    await screen.findByTestId("project-reading-stage");
-
-    const commentsSentinel = screen.getByTestId("project-reading-comments-sentinel");
-    const footer = screen.getByTestId("public-footer");
-
-    expect(footer).toBeInTheDocument();
-    expect(
-      commentsSentinel.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
   });
 
-  it("keeps vertical image reader chapters in natural document flow so deferred comments stay after the stack", async () => {
+  it("renderiza o footer do site ao final do fluxo do leitor por imagens quando a config o habilita", async () => {
     const project = {
       ...createProjectFixture([
         {
@@ -1278,13 +1492,86 @@ describe("ProjectReading analytics", () => {
 
     setupProjectReadingApiMock(undefined, null, {
       project,
+      readerConfig: {
+        layout: "scroll-vertical",
+        imageFit: "width",
+        chromeMode: "cinema",
+        viewportMode: "natural",
+        siteHeaderVariant: "static",
+        showSiteFooter: true,
+      },
       chapterResponse: {
         number: 1,
         volume: 2,
         title: "Capitulo 1",
         synopsis: "Resumo do capitulo",
         contentFormat: "images",
-        pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+        pages: [
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/page-1.jpg",
+          },
+        ],
+        pageCount: 1,
+        hasPages: true,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId("project-reading-stage");
+
+    const commentsSentinel = screen.getByTestId("project-reading-comments-sentinel");
+    const footer = screen.getByTestId("public-footer");
+    const publicHeader = screen.getByTestId("public-header");
+
+    expect(publicHeader).toHaveAttribute("data-variant", "static");
+    expect(footer).toBeInTheDocument();
+    expect(
+      commentsSentinel.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("keeps vertical image reader chapters in natural document flow when viewportMode is natural", async () => {
+    const project = {
+      ...createProjectFixture([
+        {
+          number: 1,
+          volume: 2,
+          title: "Capitulo 1",
+          synopsis: "Resumo do capitulo",
+          hasPages: true,
+        },
+      ]),
+      type: "Manga",
+    };
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      readerConfig: {
+        layout: "scroll-vertical",
+        imageFit: "width",
+        chromeMode: "cinema",
+        viewportMode: "natural",
+        siteHeaderVariant: "static",
+        showSiteFooter: false,
+      },
+      chapterResponse: {
+        number: 1,
+        volume: 2,
+        title: "Capitulo 1",
+        synopsis: "Resumo do capitulo",
+        contentFormat: "images",
+        pages: [
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/page-1.jpg",
+          },
+        ],
         pageCount: 1,
         hasPages: true,
       },
@@ -1302,6 +1589,8 @@ describe("ProjectReading analytics", () => {
     const commentsHandoff = screen.getByTestId("project-reading-comments-handoff");
     const commentsSentinel = screen.getByTestId("project-reading-comments-sentinel");
 
+    expect(screen.getByTestId("public-header")).toHaveAttribute("data-variant", "static");
+    expect(screen.queryByTestId("project-reading-site-header-offset")).not.toBeInTheDocument();
     expect(imageLayout).toHaveClass("flex", "flex-col", "min-h-screen");
     expect(imageLayout).not.toHaveClass("flex-1", "min-h-0");
     expect(commentsHandoff.style.minHeight).toBe("5rem");

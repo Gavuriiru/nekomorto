@@ -1,6 +1,6 @@
 import { createContext } from "react";
 import type { SiteSettings } from "@/types/site-settings";
-import { normalizeProjectReaderConfig } from "../../shared/project-reader.js";
+import { getProjectReaderPresetByType } from "../../shared/project-reader.js";
 
 export const defaultSettings: SiteSettings = {
   site: {
@@ -69,11 +69,41 @@ export const defaultSettings: SiteSettings = {
         icon: "google-drive",
         tintIcon: true,
       },
-      { id: "mega", label: "MEGA", color: "#D9272E", icon: "mega", tintIcon: true },
-      { id: "torrent", label: "Torrent", color: "#7C3AED", icon: "torrent", tintIcon: true },
-      { id: "mediafire", label: "Mediafire", color: "#2563EB", icon: "mediafire", tintIcon: true },
-      { id: "telegram", label: "Telegram", color: "#0EA5E9", icon: "telegram", tintIcon: true },
-      { id: "outro", label: "Outro", color: "#64748B", icon: "link", tintIcon: true },
+      {
+        id: "mega",
+        label: "MEGA",
+        color: "#D9272E",
+        icon: "mega",
+        tintIcon: true,
+      },
+      {
+        id: "torrent",
+        label: "Torrent",
+        color: "#7C3AED",
+        icon: "torrent",
+        tintIcon: true,
+      },
+      {
+        id: "mediafire",
+        label: "Mediafire",
+        color: "#2563EB",
+        icon: "mediafire",
+        tintIcon: true,
+      },
+      {
+        id: "telegram",
+        label: "Telegram",
+        color: "#0EA5E9",
+        icon: "telegram",
+        tintIcon: true,
+      },
+      {
+        id: "outro",
+        label: "Outro",
+        color: "#64748B",
+        icon: "link",
+        tintIcon: true,
+      },
     ],
   },
   teamRoles: [
@@ -114,7 +144,10 @@ export const defaultSettings: SiteSettings = {
         links: [
           { label: "Projetos", href: "/projetos" },
           { label: "FAQ", href: "/faq" },
-          { label: "Reportar erros", href: "https://discord.com/invite/BAHKhdX2ju" },
+          {
+            label: "Reportar erros",
+            href: "https://discord.com/invite/BAHKhdX2ju",
+          },
           { label: "Info Anime", href: "https://infoanime.com.br" },
         ],
       },
@@ -123,7 +156,11 @@ export const defaultSettings: SiteSettings = {
       { label: "Instagram", href: "https://instagram.com", icon: "instagram" },
       { label: "Facebook", href: "https://facebook.com", icon: "facebook" },
       { label: "Twitter", href: "https://twitter.com", icon: "twitter" },
-      { label: "Discord", href: "https://discord.com/invite/BAHKhdX2ju", icon: "discord" },
+      {
+        label: "Discord",
+        href: "https://discord.com/invite/BAHKhdX2ju",
+        icon: "discord",
+      },
     ],
     disclaimer: [
       "Todo o conteúdo divulgado aqui pertence a seus respectivos autores e editoras. As traduções são realizadas por fãs, sem fins lucrativos, com o objetivo de divulgar as obras no Brasil.",
@@ -139,13 +176,16 @@ export const defaultSettings: SiteSettings = {
   },
   reader: {
     projectTypes: {
-      manga: normalizeProjectReaderConfig({}, { projectType: "manga" }),
-      webtoon: normalizeProjectReaderConfig({}, { projectType: "webtoon" }),
+      manga: getProjectReaderPresetByType("manga"),
+      webtoon: getProjectReaderPresetByType("webtoon"),
     },
   },
 };
 
-export const mergeSettings = <T>(base: T, override: Partial<T> | undefined): T => {
+export const mergeSettings = <T>(
+  base: T,
+  override: Partial<T> | undefined,
+): T => {
   if (Array.isArray(base)) {
     return (Array.isArray(override) ? override : base) as T;
   }
@@ -155,7 +195,9 @@ export const mergeSettings = <T>(base: T, override: Partial<T> | undefined): T =
       Object.keys(override as Record<string, unknown>).forEach((key) => {
         next[key] = mergeSettings(
           (base as Record<string, unknown>)[key],
-          (override as Record<string, unknown>)[key] as Partial<unknown> | undefined,
+          (override as Record<string, unknown>)[key] as
+            | Partial<unknown>
+            | undefined,
         );
       });
     }

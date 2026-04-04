@@ -3,8 +3,15 @@ import { useDashboardSettingsAutosave } from "@/components/dashboard/settings/us
 import { useDashboardSettingsLoading } from "@/components/dashboard/settings/use-dashboard-settings-loading";
 import { useDashboardSettingsQuerySync } from "@/components/dashboard/settings/use-dashboard-settings-query-sync";
 import type { SiteSettings } from "@/types/site-settings";
-import { normalizeProjectReaderConfig } from "../../../../shared/project-reader.js";
-import { reorderItems, type ReaderProjectTypeKey, type TranslationsPayload } from "./shared";
+import {
+  getProjectReaderPresetByType,
+  mergeProjectReaderConfig,
+} from "../../../../shared/project-reader.js";
+import {
+  reorderItems,
+  type ReaderProjectTypeKey,
+  type TranslationsPayload,
+} from "./shared";
 
 type UseDashboardSettingsResourceOptions = {
   apiBase: string;
@@ -36,7 +43,11 @@ export const useDashboardSettingsResource = ({
       staffRoles: loading.staffRoleTranslations,
       tags: loading.tagTranslations,
     }),
-    [loading.genreTranslations, loading.staffRoleTranslations, loading.tagTranslations],
+    [
+      loading.genreTranslations,
+      loading.staffRoleTranslations,
+      loading.tagTranslations,
+    ],
   );
   const autosave = useDashboardSettingsAutosave({
     apiBase,
@@ -66,8 +77,12 @@ export const useDashboardSettingsResource = ({
   const [newGenre, setNewGenre] = useState("");
   const [staffRoleQuery, setStaffRoleQuery] = useState("");
   const [newStaffRole, setNewStaffRole] = useState("");
-  const [footerSocialDragIndex, setFooterSocialDragIndex] = useState<number | null>(null);
-  const [footerSocialDragOverIndex, setFooterSocialDragOverIndex] = useState<number | null>(null);
+  const [footerSocialDragIndex, setFooterSocialDragIndex] = useState<
+    number | null
+  >(null);
+  const [footerSocialDragOverIndex, setFooterSocialDragOverIndex] = useState<
+    number | null
+  >(null);
 
   const clearFooterSocialDragState = useCallback(() => {
     setFooterSocialDragIndex(null);
@@ -144,7 +159,10 @@ export const useDashboardSettingsResource = ({
   const filteredGenres = useMemo(() => {
     const query = genreQuery.trim().toLowerCase();
     const allGenres = Array.from(
-      new Set([...loading.knownGenres, ...Object.keys(loading.genreTranslations)]),
+      new Set([
+        ...loading.knownGenres,
+        ...Object.keys(loading.genreTranslations),
+      ]),
     );
     return allGenres
       .filter((genre) => !query || genre.toLowerCase().includes(query))
@@ -154,7 +172,10 @@ export const useDashboardSettingsResource = ({
   const filteredStaffRoles = useMemo(() => {
     const query = staffRoleQuery.trim().toLowerCase();
     const allRoles = Array.from(
-      new Set([...loading.knownStaffRoles, ...Object.keys(loading.staffRoleTranslations)]),
+      new Set([
+        ...loading.knownStaffRoles,
+        ...Object.keys(loading.staffRoleTranslations),
+      ]),
     );
     return allRoles
       .filter((role) => !query || role.toLowerCase().includes(query))
@@ -163,14 +184,25 @@ export const useDashboardSettingsResource = ({
 
   const readerPresets = useMemo(
     () => ({
-      manga: normalizeProjectReaderConfig(loading.settings.reader?.projectTypes?.manga, {
-        projectType: "manga",
-      }),
-      webtoon: normalizeProjectReaderConfig(loading.settings.reader?.projectTypes?.webtoon, {
-        projectType: "webtoon",
-      }),
+      manga: mergeProjectReaderConfig(
+        getProjectReaderPresetByType("manga"),
+        loading.settings.reader?.projectTypes?.manga,
+        {
+          projectType: "manga",
+        },
+      ),
+      webtoon: mergeProjectReaderConfig(
+        getProjectReaderPresetByType("webtoon"),
+        loading.settings.reader?.projectTypes?.webtoon,
+        {
+          projectType: "webtoon",
+        },
+      ),
     }),
-    [loading.settings.reader?.projectTypes?.manga, loading.settings.reader?.projectTypes?.webtoon],
+    [
+      loading.settings.reader?.projectTypes?.manga,
+      loading.settings.reader?.projectTypes?.webtoon,
+    ],
   );
 
   const updateReaderPreset = useCallback(

@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { SiteSettings } from "@/types/site-settings";
 import {
+  PROJECT_READER_CHROME_MODES,
   normalizeProjectReaderConfig,
   PROJECT_READER_BACKGROUNDS,
   PROJECT_READER_DIRECTIONS,
@@ -19,6 +20,8 @@ import {
   PROJECT_READER_LAYOUTS,
   PROJECT_READER_PROGRESS_POSITIONS,
   PROJECT_READER_PROGRESS_STYLES,
+  PROJECT_READER_SITE_HEADER_VARIANTS,
+  PROJECT_READER_VIEWPORT_MODES,
 } from "../../../shared/project-reader.js";
 
 type ReaderProjectTypeKey = keyof SiteSettings["reader"]["projectTypes"];
@@ -235,7 +238,7 @@ const DashboardReaderPresetCard = ({
                 })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Selecionar chrome do leitor">
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
@@ -245,24 +248,121 @@ const DashboardReaderPresetCard = ({
               </SelectContent>
             </Select>
           </DashboardFieldStack>
+
+          <DashboardFieldStack>
+            <Label>Chrome do leitor</Label>
+            <Select
+              value={String(preset.chromeMode || PROJECT_READER_CHROME_MODES.DEFAULT)}
+              onValueChange={(value) =>
+                applyUpdate({
+                  chromeMode:
+                    value === PROJECT_READER_CHROME_MODES.CINEMA
+                      ? PROJECT_READER_CHROME_MODES.CINEMA
+                      : PROJECT_READER_CHROME_MODES.DEFAULT,
+                })
+              }
+            >
+              <SelectTrigger aria-label="Selecionar fluxo do viewport">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={PROJECT_READER_CHROME_MODES.DEFAULT}>Padrão</SelectItem>
+                <SelectItem value={PROJECT_READER_CHROME_MODES.CINEMA}>Cinema</SelectItem>
+              </SelectContent>
+            </Select>
+          </DashboardFieldStack>
+
+          <DashboardFieldStack>
+            <Label>Fluxo do viewport</Label>
+            <Select
+              value={String(preset.viewportMode || PROJECT_READER_VIEWPORT_MODES.VIEWPORT)}
+              onValueChange={(value) =>
+                applyUpdate({
+                  viewportMode:
+                    value === PROJECT_READER_VIEWPORT_MODES.NATURAL
+                      ? PROJECT_READER_VIEWPORT_MODES.NATURAL
+                      : PROJECT_READER_VIEWPORT_MODES.VIEWPORT,
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={PROJECT_READER_VIEWPORT_MODES.VIEWPORT}>Altura fixa</SelectItem>
+                <SelectItem value={PROJECT_READER_VIEWPORT_MODES.NATURAL}>Fluxo natural</SelectItem>
+              </SelectContent>
+            </Select>
+          </DashboardFieldStack>
         </div>
 
-        <label className="flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background px-3 py-3 text-sm">
-          <span className="space-y-1">
-            <span className="block font-medium text-foreground">Primeira página isolada</span>
-            <span className="block text-xs text-foreground/70">
-              Útil para capas e páginas ímpares nos layouts paginados.
+        <div className="grid gap-3 md:grid-cols-3">
+          <label className="flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background px-3 py-3 text-sm">
+            <span className="space-y-1">
+              <span className="block font-medium text-foreground">Primeira página isolada</span>
+              <span className="block text-xs text-foreground/70">
+                Útil para capas e páginas ímpares nos layouts paginados.
+              </span>
             </span>
-          </span>
-          <Switch
-            checked={preset.firstPageSingle !== false}
-            onCheckedChange={(checked) =>
-              applyUpdate({
-                firstPageSingle: checked,
-              })
-            }
-          />
-        </label>
+            <Switch
+              checked={preset.firstPageSingle !== false}
+              onCheckedChange={(checked) =>
+                applyUpdate({
+                  firstPageSingle: checked,
+                })
+              }
+            />
+          </label>
+
+          <div className="space-y-2 rounded-xl border border-border/70 bg-background px-3 py-3 text-sm">
+            <div className="space-y-1">
+              <span className="block font-medium text-foreground">Header do site</span>
+              <span className="block text-xs text-foreground/70">
+                Define se a barra do site fica fixa no leitor ou segue o fluxo normal da pagina.
+              </span>
+            </div>
+            <Select
+              value={
+                preset.siteHeaderVariant === PROJECT_READER_SITE_HEADER_VARIANTS.STATIC
+                  ? PROJECT_READER_SITE_HEADER_VARIANTS.STATIC
+                  : PROJECT_READER_SITE_HEADER_VARIANTS.FIXED
+              }
+              onValueChange={(value) =>
+                applyUpdate({
+                  siteHeaderVariant:
+                    value === PROJECT_READER_SITE_HEADER_VARIANTS.STATIC
+                      ? PROJECT_READER_SITE_HEADER_VARIANTS.STATIC
+                      : PROJECT_READER_SITE_HEADER_VARIANTS.FIXED,
+                })
+              }
+            >
+              <SelectTrigger aria-label="Selecionar comportamento do header do site">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={PROJECT_READER_SITE_HEADER_VARIANTS.FIXED}>Fixa</SelectItem>
+                <SelectItem value={PROJECT_READER_SITE_HEADER_VARIANTS.STATIC}>Estatica</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <label className="flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background px-3 py-3 text-sm">
+            <span className="space-y-1">
+              <span className="block font-medium text-foreground">Rodape do site</span>
+              <span className="block text-xs text-foreground/70">
+                Exibe o footer publico apos o leitor e comentarios.
+              </span>
+            </span>
+            <Switch
+              checked={preset.showSiteFooter !== false}
+              onCheckedChange={(checked) =>
+                applyUpdate({
+                  showSiteFooter: checked,
+                })
+              }
+            />
+          </label>
+        </div>
       </CardContent>
     </Card>
   );

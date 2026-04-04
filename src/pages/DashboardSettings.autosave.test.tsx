@@ -90,6 +90,7 @@ let settingsResponse: SiteSettings;
 
 describe("DashboardSettings autosave", () => {
   beforeEach(() => {
+    HTMLElement.prototype.scrollIntoView = vi.fn();
     window.localStorage.clear();
     apiFetchMock.mockReset();
     navigateMock.mockReset();
@@ -99,7 +100,11 @@ describe("DashboardSettings autosave", () => {
     apiFetchMock.mockImplementation(async (_base, path, options) => {
       const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
       if (path === "/api/me") {
-        return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
+        return mockJsonResponse(true, {
+          id: "1",
+          name: "Admin",
+          username: "admin",
+        });
       }
       if (path === "/api/settings" && method === "GET") {
         return mockJsonResponse(true, { settings: settingsResponse });
@@ -139,7 +144,9 @@ describe("DashboardSettings autosave", () => {
       }
       if (path === "/api/settings" && method === "PUT") {
         const body = JSON.parse(String((options as RequestInit).body || "{}"));
-        return mockJsonResponse(true, { settings: body.settings || settingsResponse });
+        return mockJsonResponse(true, {
+          settings: body.settings || settingsResponse,
+        });
       }
       if (path === "/api/tag-translations" && method === "PUT") {
         const body = JSON.parse(String((options as RequestInit).body || "{}"));
@@ -181,7 +188,9 @@ describe("DashboardSettings autosave", () => {
 
     apiFetchMock.mockClear();
     const communityCardTitleInput = await screen.findByLabelText(/Título do card/i);
-    fireEvent.change(communityCardTitleInput, { target: { value: "Entre na comunidade" } });
+    fireEvent.change(communityCardTitleInput, {
+      target: { value: "Entre na comunidade" },
+    });
 
     await act(async () => {
       await waitMs(1300);
@@ -245,7 +254,9 @@ describe("DashboardSettings autosave", () => {
 
     apiFetchMock.mockClear();
     const communityCardTitleInput = await screen.findByLabelText(/Título do card/i);
-    fireEvent.change(communityCardTitleInput, { target: { value: "Tema no payload" } });
+    fireEvent.change(communityCardTitleInput, {
+      target: { value: "Tema no payload" },
+    });
 
     await act(async () => {
       await waitMs(1300);
@@ -295,7 +306,9 @@ describe("DashboardSettings autosave", () => {
 
     apiFetchMock.mockClear();
     const communityCardTitleInput = await screen.findByLabelText(/Título do card/i);
-    fireEvent.change(communityCardTitleInput, { target: { value: "Sanitizar leitor" } });
+    fireEvent.change(communityCardTitleInput, {
+      target: { value: "Sanitizar leitor" },
+    });
 
     await act(async () => {
       await waitMs(1300);
@@ -313,6 +326,36 @@ describe("DashboardSettings autosave", () => {
     expect(payload?.settings?.reader?.projectTypes?.webtoon?.purchasePrice).toBe("");
   }, 10000);
 
+  it("envia os novos campos de preset do leitor no payload de configuracoes", async () => {
+    renderDashboardSettings();
+    await screen.findByRole("heading", { name: /Painel/i });
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Leitor/i }));
+    const mangaCard = await screen.findByTestId("reader-preset-manga");
+
+    apiFetchMock.mockClear();
+    fireEvent.click(
+      within(mangaCard).getByRole("combobox", {
+        name: "Selecionar comportamento do header do site",
+      }),
+    );
+    fireEvent.click(screen.getByRole("option", { name: "Estatica" }));
+    fireEvent.click(within(mangaCard).getByRole("switch", { name: /Rodape do site/i }));
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    const putCalls = getPutCalls();
+    expect(putCalls).toHaveLength(1);
+    const payload = JSON.parse(String(((putCalls[0][2] || {}) as RequestInit).body || "{}"));
+    expect(payload?.settings?.reader?.projectTypes?.manga?.chromeMode).toBe("default");
+    expect(payload?.settings?.reader?.projectTypes?.manga?.viewportMode).toBe("viewport");
+    expect(payload?.settings?.reader?.projectTypes?.manga?.siteHeaderVariant).toBe("static");
+    expect(payload?.settings?.reader?.projectTypes?.manga?.showSiteFooter).toBe(false);
+  }, 10000);
+
   it("editar tradução dispara apenas PUT /api/tag-translations", async () => {
     renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
@@ -321,7 +364,9 @@ describe("DashboardSettings autosave", () => {
     apiFetchMock.mockClear();
 
     const translationInput = await screen.findByPlaceholderText("Action");
-    fireEvent.change(translationInput, { target: { value: "Acao atualizada" } });
+    fireEvent.change(translationInput, {
+      target: { value: "Acao atualizada" },
+    });
 
     await act(async () => {
       await waitMs(1300);
@@ -399,7 +444,9 @@ describe("DashboardSettings autosave", () => {
       clearData: vi.fn(),
     };
 
-    const dragHandle = await screen.findByRole("button", { name: /Arrastar rede Discord/i });
+    const dragHandle = await screen.findByRole("button", {
+      name: /Arrastar rede Discord/i,
+    });
     const topRow = await screen.findByTestId("footer-social-row-0");
 
     fireEvent.dragStart(dragHandle, { dataTransfer });

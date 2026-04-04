@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
 
@@ -40,7 +40,6 @@ import type { PublicBootstrapPayload, PublicBootstrapProject } from "@/types/pub
 import {
   normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,
-  normalizeProjectReaderTypeKey,
   resolveProjectReaderConfig,
 } from "../../shared/project-reader.js";
 import {
@@ -57,8 +56,6 @@ const LexicalViewerFallback = () => (
     Carregando conteúdo...
   </div>
 );
-
-const FIXED_READER_HEADER_OFFSET_CLASS_NAME = "h-20 shrink-0 md:h-24";
 
 type ReadingProject = Project | PublicBootstrapProject;
 
@@ -196,6 +193,8 @@ const ProjectReading = () => {
     () => bootstrapData?.mediaVariants || {},
   );
   const trackedChapterViewsRef = useRef<Set<string>>(new Set());
+  const imageReaderSiteHeaderContainerRef = useRef<HTMLDivElement | null>(null);
+  const [measuredImageReaderHeaderHeight, setMeasuredImageReaderHeaderHeight] = useState(0);
   const { isVisible: isCommentsVisible, sentinelRef: commentsSentinelRef } = useDeferredVisibility({
     initialVisible: location.hash.startsWith("#comment-"),
     rootMargin: "400px 0px",
@@ -288,13 +287,7 @@ const ProjectReading = () => {
     return () => {
       isActive = false;
     };
-  }, [
-    apiBase,
-    bootstrapData?.mediaVariants,
-    bootstrapProject,
-    shouldHydrateProjectFromApi,
-    slug,
-  ]);
+  }, [apiBase, bootstrapData?.mediaVariants, bootstrapProject, shouldHydrateProjectFromApi, slug]);
   const isLightNovel = isLightNovelType(project?.type || "");
   const isManga = isMangaType(project?.type || "");
   const isReaderProject = isLightNovel || isManga;
@@ -724,19 +717,73 @@ const ProjectReading = () => {
     siteReaderConfig: chapterReaderConfig,
     projectReaderConfig: project?.readerConfig,
   });
-  const readerTypeKey = normalizeProjectReaderTypeKey(project?.type);
-  const isMangaReader = readerTypeKey === "manga";
-  const isWebtoonReader = readerTypeKey === "webtoon";
   const imageReaderPreferences = useProjectReaderPreferences({
     projectType: project?.type || "",
     baseConfig: chapterReaderConfigResolved,
     currentUserId,
   });
-  const isVerticalImageReaderLayout =
-    String(chapterReaderConfigResolved.layout || "single") === "scroll-vertical";
-  const shouldUseNaturalImageReaderFlow = isVerticalImageReaderLayout && isWebtoonReader;
-  const mangaSiteHeaderVariant =
-    imageReaderPreferences.resolvedConfig.siteHeaderVariant === "fixed" ? "fixed" : "static";
+  const imageReaderSiteHeaderVariant =
+    imageReaderPreferences.resolvedConfig.siteHeaderVariant === "static" ? "static" : "fixed";
+  const imageReaderViewportMode =
+    imageReaderPreferences.resolvedConfig.viewportMode === "natural" ? "natural" : "viewport";
+  const shouldRenderImageReaderFirstFold = isImageReader && imageReaderViewportMode === "viewport";
+  const shouldUseFixedImageReaderSiteHeader =
+    isImageReader && imageReaderSiteHeaderVariant === "fixed";
+  const shouldShowImageReaderSiteFooter =
+    isImageReader && imageReaderPreferences.resolvedConfig.showSiteFooter !== false;
+
+  useLayoutEffect(() => {
+    if (!shouldUseFixedImageReaderSiteHeader) {
+      setMeasuredImageReaderHeaderHeight(0);
+      return;
+    }
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const container = imageReaderSiteHeaderContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const resolveHeaderNode = () => {
+      const firstChild = container.firstElementChild;
+      if (firstChild instanceof HTMLElement) {
+        return firstChild;
+      }
+      const headerNode = container.querySelector("header");
+      return headerNode instanceof HTMLElement ? headerNode : null;
+    };
+
+    const measureHeaderHeight = () => {
+      const headerNode = resolveHeaderNode();
+      const nextHeight = Math.max(
+        0,
+        Math.ceil(headerNode?.getBoundingClientRect().height || headerNode?.offsetHeight || 0),
+      );
+      setMeasuredImageReaderHeaderHeight((current) =>
+        current === nextHeight ? current : nextHeight,
+      );
+    };
+
+    measureHeaderHeight();
+
+    const headerNode = resolveHeaderNode();
+    const resizeObserver =
+      typeof ResizeObserver === "function" ? new ResizeObserver(() => measureHeaderHeight()) : null;
+
+    if (resizeObserver && headerNode) {
+      resizeObserver.observe(headerNode);
+    }
+
+    window.addEventListener("resize", measureHeaderHeight);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", measureHeaderHeight);
+    };
+  }, [shouldUseFixedImageReaderSiteHeader]);
 
   const shouldShowNotFound = !slug || (!project && hasLoadedProject);
   if (shouldShowNotFound) {
@@ -787,10 +834,6 @@ const ProjectReading = () => {
       ? "Editar extra"
       : "Editar capítulo";
 
-  const shouldRenderMangaSiteHeader = isImageReader && isMangaReader;
-  const imageReaderChromeMode: "default" | "cinema" = shouldRenderMangaSiteHeader
-    ? "default"
-    : "cinema";
   const imageReaderProps = {
     projectTitle: project.title,
     projectType: project.type || (isLightNovel ? "Light Novel" : "MangÃ¡"),
@@ -807,7 +850,6 @@ const ProjectReading = () => {
     currentChapterValue,
     onNavigateChapter: (href: string) => navigate(href),
     backHref: `/projeto/${encodeURIComponent(project.id)}`,
-    chromeMode: imageReaderChromeMode,
     preferences: imageReaderPreferences,
   };
 
@@ -815,32 +857,37 @@ const ProjectReading = () => {
     <div className="flex min-h-screen flex-col bg-background">
       {isImageReader ? (
         <div
-          data-testid={shouldRenderMangaSiteHeader ? "project-reading-first-fold" : undefined}
+          data-testid={shouldRenderImageReaderFirstFold ? "project-reading-first-fold" : undefined}
           className={cn(
             "flex flex-col",
-            shouldRenderMangaSiteHeader ? "project-reading-first-fold min-h-screen" : "",
+            shouldRenderImageReaderFirstFold ? "project-reading-first-fold min-h-screen" : "",
           )}
         >
-          {shouldRenderMangaSiteHeader ? (
+          {shouldUseFixedImageReaderSiteHeader ? (
             <>
-              <Header variant={mangaSiteHeaderVariant} />
-              {mangaSiteHeaderVariant === "fixed" ? (
-                <div
-                  data-testid="project-reading-site-header-offset"
-                  className={FIXED_READER_HEADER_OFFSET_CLASS_NAME}
-                />
-              ) : null}
+              <div ref={imageReaderSiteHeaderContainerRef}>
+                <Header variant="fixed" />
+              </div>
+              <div
+                data-testid="project-reading-site-header-offset"
+                aria-hidden="true"
+                className="shrink-0"
+                style={{
+                  height:
+                    measuredImageReaderHeaderHeight > 0
+                      ? `${measuredImageReaderHeaderHeight}px`
+                      : undefined,
+                }}
+              />
             </>
-          ) : null}
+          ) : (
+            <Header variant="static" />
+          )}
           <div
             data-testid="project-reading-images-layout"
             className={cn(
               "flex flex-col",
-              shouldRenderMangaSiteHeader
-                ? "min-h-0 flex-1"
-                : shouldUseNaturalImageReaderFlow
-                  ? "min-h-screen"
-                  : "min-h-0 flex-1",
+              imageReaderViewportMode === "natural" ? "min-h-screen" : "min-h-0 flex-1",
             )}
           >
             <PublicProjectReader {...imageReaderProps} />
@@ -892,7 +939,9 @@ const ProjectReading = () => {
                         <LexicalViewerFallback />
                       ) : chapterLoadError ? (
                         <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-center text-sm text-muted-foreground">
-                          {"O conte\u00fado do cap\u00edtulo n\u00e3o p\u00f4de ser carregado agora."}
+                          {
+                            "O conte\u00fado do cap\u00edtulo n\u00e3o p\u00f4de ser carregado agora."
+                          }
                         </div>
                       ) : (
                         <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-center text-sm text-muted-foreground">
@@ -1052,7 +1101,7 @@ const ProjectReading = () => {
         </>
       ) : null}
 
-      <Footer />
+      {isImageReader ? shouldShowImageReaderSiteFooter ? <Footer /> : null : <Footer />}
     </div>
   );
 };

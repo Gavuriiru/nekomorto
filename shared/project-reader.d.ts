@@ -1,7 +1,4 @@
-import type {
-  ProjectEpisodePage,
-  ProjectReaderConfig,
-} from "../src/data/projects";
+import type { ProjectEpisodePage, ProjectReaderConfig } from "../src/data/projects";
 import type { SiteSettings } from "../src/types/site-settings";
 
 export const PROJECT_EPISODE_CONTENT_FORMATS: {
@@ -45,6 +42,16 @@ export const PROJECT_READER_PROGRESS_POSITIONS: {
   readonly RIGHT: "right";
 };
 
+export const PROJECT_READER_CHROME_MODES: {
+  readonly DEFAULT: "default";
+  readonly CINEMA: "cinema";
+};
+
+export const PROJECT_READER_VIEWPORT_MODES: {
+  readonly VIEWPORT: "viewport";
+  readonly NATURAL: "natural";
+};
+
 export const PROJECT_READER_SITE_HEADER_VARIANTS: {
   readonly FIXED: "fixed";
   readonly STATIC: "static";
@@ -75,7 +82,10 @@ export type NormalizedProjectReaderConfig = {
   progressStyle: NonNullable<ProjectReaderConfig["progressStyle"]>;
   progressPosition: NonNullable<ProjectReaderConfig["progressPosition"]>;
   firstPageSingle: boolean;
+  chromeMode: NonNullable<ProjectReaderConfig["chromeMode"]>;
+  viewportMode: NonNullable<ProjectReaderConfig["viewportMode"]>;
   siteHeaderVariant: NonNullable<ProjectReaderConfig["siteHeaderVariant"]>;
+  showSiteFooter: boolean;
   previewLimit: number | null;
   purchaseUrl: string;
   purchasePrice: string;
@@ -83,7 +93,10 @@ export type NormalizedProjectReaderConfig = {
 
 export type NormalizedProjectReaderPreferences = {
   projectTypes?: Partial<
-    Record<Exclude<NormalizedProjectReaderTypeKey, "default">, NormalizedProjectReaderConfig>
+    Record<
+      Exclude<NormalizedProjectReaderTypeKey, "default">,
+      Partial<NormalizedProjectReaderConfig>
+    >
   >;
 };
 
@@ -118,13 +131,9 @@ export function hasProjectEpisodeReadableContent(
     | undefined,
 ): boolean;
 
-export function normalizeProjectReaderTypeKey(
-  projectType: unknown,
-): NormalizedProjectReaderTypeKey;
+export function normalizeProjectReaderTypeKey(projectType: unknown): NormalizedProjectReaderTypeKey;
 
-export function getProjectReaderPresetByType(
-  projectType: unknown,
-): NormalizedProjectReaderConfig;
+export function getProjectReaderPresetByType(projectType: unknown): NormalizedProjectReaderConfig;
 
 export function normalizeProjectReaderConfig(
   value: unknown,
@@ -156,4 +165,4 @@ export function normalizeProjectReaderPreferences(
 export function getProjectReaderPreferenceByType(
   value: unknown,
   projectType: unknown,
-): NormalizedProjectReaderConfig | null;
+): Partial<NormalizedProjectReaderConfig> | null;

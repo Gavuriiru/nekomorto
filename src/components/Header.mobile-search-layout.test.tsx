@@ -315,6 +315,41 @@ describe("Header mobile search layout", () => {
     });
   });
 
+  it("nao aplica gradiente quando o header fixo desabilita a sombra inferior", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header showBottomGradient={false} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    const banner = screen.getByRole("banner");
+    expect(classTokens(banner)).toContain("fixed");
+    expect(classTokens(banner)).toContain("top-0");
+    expect(classTokens(banner)).not.toContain("after:top-full");
+    expect(classTokens(banner)).not.toContain("after:inset-x-0");
+    expect(classTokens(banner)).not.toContain("after:h-8");
+    expect(classTokens(banner)).toContain("backdrop-blur-none");
+
+    act(() => {
+      setWindowScrollY(20);
+      window.dispatchEvent(new Event("scroll"));
+    });
+
+    await waitFor(() => {
+      expect(classTokens(banner)).toContain("fixed");
+      expect(classTokens(banner)).toContain("top-0");
+      expect(classTokens(banner)).not.toContain("after:top-full");
+      expect(classTokens(banner)).not.toContain("after:inset-x-0");
+      expect(classTokens(banner)).not.toContain("after:h-8");
+      expect(classTokens(banner)).toContain("backdrop-blur-xl");
+      expect(classTokens(banner)).not.toContain("backdrop-blur-none");
+    });
+  });
+
   it("nao dispara fetch de perfil quando a revalidacao idle nao executa", async () => {
     scheduleOnBrowserLoadIdleMock.mockImplementation(() => () => undefined);
     useIsMobileMock.mockReturnValue(true);

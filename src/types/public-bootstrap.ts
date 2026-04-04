@@ -73,7 +73,11 @@ export type PublicBootstrapProject = {
     progressStyle?: "default" | "hidden";
     progressPosition?: "bottom" | "left" | "right";
     firstPageSingle?: boolean;
+    chromeMode?: "default" | "cinema";
+    viewportMode?: "viewport" | "natural";
     siteHeaderVariant?: "static" | "fixed";
+    showSiteHeader?: boolean;
+    showSiteFooter?: boolean;
     previewLimit?: number | null;
     purchaseUrl?: string;
     purchasePrice?: string;

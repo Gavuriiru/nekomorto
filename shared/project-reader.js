@@ -46,6 +46,16 @@ export const PROJECT_READER_PROGRESS_POSITIONS = Object.freeze({
   RIGHT: "right",
 });
 
+export const PROJECT_READER_CHROME_MODES = Object.freeze({
+  DEFAULT: "default",
+  CINEMA: "cinema",
+});
+
+export const PROJECT_READER_VIEWPORT_MODES = Object.freeze({
+  VIEWPORT: "viewport",
+  NATURAL: "natural",
+});
+
 export const PROJECT_READER_SITE_HEADER_VARIANTS = Object.freeze({
   FIXED: "fixed",
   STATIC: "static",
@@ -236,6 +246,28 @@ const normalizeReaderProgressPosition = (value) => {
   return "";
 };
 
+const normalizeReaderChromeMode = (value) => {
+  const normalized = normalizeText(value).toLowerCase();
+  if (
+    normalized === PROJECT_READER_CHROME_MODES.DEFAULT ||
+    normalized === PROJECT_READER_CHROME_MODES.CINEMA
+  ) {
+    return normalized;
+  }
+  return "";
+};
+
+const normalizeReaderViewportMode = (value) => {
+  const normalized = normalizeText(value).toLowerCase();
+  if (
+    normalized === PROJECT_READER_VIEWPORT_MODES.VIEWPORT ||
+    normalized === PROJECT_READER_VIEWPORT_MODES.NATURAL
+  ) {
+    return normalized;
+  }
+  return "";
+};
+
 const normalizeReaderSiteHeaderVariant = (value) => {
   const normalized = normalizeText(value).toLowerCase();
   if (
@@ -292,55 +324,56 @@ export const normalizeProjectReaderTypeKey = (projectType) => {
   return PROJECT_READER_TYPE_KEYS.DEFAULT;
 };
 
+const PROJECT_READER_BASE_PRESET = Object.freeze({
+  direction: PROJECT_READER_DIRECTIONS.LTR,
+  layout: PROJECT_READER_LAYOUTS.SINGLE,
+  imageFit: PROJECT_READER_IMAGE_FITS.BOTH,
+  background: PROJECT_READER_BACKGROUNDS.THEME,
+  progressStyle: PROJECT_READER_PROGRESS_STYLES.DEFAULT,
+  progressPosition: PROJECT_READER_PROGRESS_POSITIONS.BOTTOM,
+  firstPageSingle: true,
+  chromeMode: PROJECT_READER_CHROME_MODES.DEFAULT,
+  viewportMode: PROJECT_READER_VIEWPORT_MODES.VIEWPORT,
+  siteHeaderVariant: PROJECT_READER_SITE_HEADER_VARIANTS.FIXED,
+  showSiteFooter: true,
+  previewLimit: null,
+  purchaseUrl: "",
+  purchasePrice: "",
+});
+
 export const getProjectReaderPresetByType = (projectType) => {
   const typeKey = normalizeProjectReaderTypeKey(projectType);
   if (typeKey === PROJECT_READER_TYPE_KEYS.WEBTOON) {
     return {
+      ...PROJECT_READER_BASE_PRESET,
       direction: PROJECT_READER_DIRECTIONS.LTR,
       layout: PROJECT_READER_LAYOUTS.SCROLL_VERTICAL,
       imageFit: PROJECT_READER_IMAGE_FITS.WIDTH,
-      background: PROJECT_READER_BACKGROUNDS.THEME,
-      progressStyle: PROJECT_READER_PROGRESS_STYLES.DEFAULT,
-      progressPosition: PROJECT_READER_PROGRESS_POSITIONS.BOTTOM,
       firstPageSingle: false,
-      siteHeaderVariant: PROJECT_READER_SITE_HEADER_VARIANTS.FIXED,
-      previewLimit: null,
-      purchaseUrl: "",
-      purchasePrice: "",
+      chromeMode: PROJECT_READER_CHROME_MODES.CINEMA,
+      viewportMode: PROJECT_READER_VIEWPORT_MODES.NATURAL,
+      siteHeaderVariant: PROJECT_READER_SITE_HEADER_VARIANTS.STATIC,
+      showSiteFooter: false,
     };
   }
   if (typeKey === PROJECT_READER_TYPE_KEYS.MANGA) {
     return {
+      ...PROJECT_READER_BASE_PRESET,
       direction: PROJECT_READER_DIRECTIONS.RTL,
       layout: PROJECT_READER_LAYOUTS.SINGLE,
       imageFit: PROJECT_READER_IMAGE_FITS.BOTH,
-      background: PROJECT_READER_BACKGROUNDS.THEME,
-      progressStyle: PROJECT_READER_PROGRESS_STYLES.DEFAULT,
-      progressPosition: PROJECT_READER_PROGRESS_POSITIONS.BOTTOM,
       firstPageSingle: true,
-      siteHeaderVariant: PROJECT_READER_SITE_HEADER_VARIANTS.STATIC,
-      previewLimit: null,
-      purchaseUrl: "",
-      purchasePrice: "",
+      chromeMode: PROJECT_READER_CHROME_MODES.DEFAULT,
+      viewportMode: PROJECT_READER_VIEWPORT_MODES.VIEWPORT,
+      siteHeaderVariant: PROJECT_READER_SITE_HEADER_VARIANTS.FIXED,
+      showSiteFooter: true,
     };
   }
-  return {
-    direction: PROJECT_READER_DIRECTIONS.LTR,
-    layout: PROJECT_READER_LAYOUTS.SINGLE,
-    imageFit: PROJECT_READER_IMAGE_FITS.BOTH,
-    background: PROJECT_READER_BACKGROUNDS.THEME,
-    progressStyle: PROJECT_READER_PROGRESS_STYLES.DEFAULT,
-    progressPosition: PROJECT_READER_PROGRESS_POSITIONS.BOTTOM,
-    firstPageSingle: true,
-    siteHeaderVariant: PROJECT_READER_SITE_HEADER_VARIANTS.FIXED,
-    previewLimit: null,
-    purchaseUrl: "",
-    purchasePrice: "",
-  };
+  return { ...PROJECT_READER_BASE_PRESET };
 };
 
 export const normalizeProjectReaderConfig = (value, { projectType } = {}) => {
-  const preset = getProjectReaderPresetByType(projectType);
+  const preset = PROJECT_READER_BASE_PRESET;
   const raw = isPlainObject(value) ? value : {};
   const direction = normalizeText(raw.direction).toLowerCase();
   const layout = normalizeReaderLayout(raw.layout);
@@ -348,7 +381,20 @@ export const normalizeProjectReaderConfig = (value, { projectType } = {}) => {
   const background = normalizeReaderBackground(raw.background);
   const progressStyle = normalizeReaderProgressStyle(raw.progressStyle);
   const progressPosition = normalizeReaderProgressPosition(raw.progressPosition);
-  const siteHeaderVariant = normalizeReaderSiteHeaderVariant(raw.siteHeaderVariant);
+  const chromeMode = normalizeReaderChromeMode(raw.chromeMode);
+  const viewportMode = normalizeReaderViewportMode(raw.viewportMode);
+  const siteHeaderVariant =
+    typeof raw.showSiteHeader === "boolean"
+      ? raw.showSiteHeader
+        ? PROJECT_READER_SITE_HEADER_VARIANTS.FIXED
+        : PROJECT_READER_SITE_HEADER_VARIANTS.STATIC
+      : normalizeReaderSiteHeaderVariant(raw.siteHeaderVariant);
+  const showSiteFooter =
+    typeof raw.showSiteFooter === "boolean"
+      ? raw.showSiteFooter
+      : typeof raw.showFooter === "boolean"
+        ? raw.showFooter
+        : null;
   const viewMode = normalizeText(raw.viewMode).toLowerCase();
   const themePreset = normalizeText(raw.themePreset).toLowerCase();
   const previewLimit = toFiniteNumber(raw.previewLimit);
@@ -380,12 +426,78 @@ export const normalizeProjectReaderConfig = (value, { projectType } = {}) => {
     progressPosition: progressPosition || preset.progressPosition,
     firstPageSingle:
       typeof raw.firstPageSingle === "boolean" ? raw.firstPageSingle : preset.firstPageSingle,
+    chromeMode: chromeMode || preset.chromeMode,
+    viewportMode: viewportMode || preset.viewportMode,
     siteHeaderVariant: siteHeaderVariant || preset.siteHeaderVariant,
+    showSiteFooter: typeof showSiteFooter === "boolean" ? showSiteFooter : preset.showSiteFooter,
     previewLimit:
       previewLimit !== null && previewLimit > 0 ? Math.floor(previewLimit) : preset.previewLimit,
     purchaseUrl: normalizeText(raw.purchaseUrl) || preset.purchaseUrl,
     purchasePrice: normalizeText(raw.purchasePrice) || preset.purchasePrice,
   };
+};
+
+const normalizeProjectReaderPreferenceEntry = (value) => {
+  const raw = isPlainObject(value) ? value : {};
+  const direction = normalizeText(raw.direction).toLowerCase();
+  const layout = normalizeReaderLayout(raw.layout);
+  const imageFit = normalizeReaderImageFit(raw.imageFit);
+  const background = normalizeReaderBackground(raw.background);
+  const progressStyle = normalizeReaderProgressStyle(raw.progressStyle);
+  const progressPosition = normalizeReaderProgressPosition(raw.progressPosition);
+  const siteHeaderVariant = normalizeReaderSiteHeaderVariant(raw.siteHeaderVariant);
+  const viewMode = normalizeText(raw.viewMode).toLowerCase();
+  const themePreset = normalizeText(raw.themePreset).toLowerCase();
+  const allowSpread = typeof raw.allowSpread === "boolean" ? raw.allowSpread : null;
+  const showFooter = typeof raw.showFooter === "boolean" ? raw.showFooter : null;
+  const next = {};
+
+  if (direction === PROJECT_READER_DIRECTIONS.LTR || direction === PROJECT_READER_DIRECTIONS.RTL) {
+    next.direction = direction;
+  }
+
+  if (layout) {
+    next.layout = layout;
+  } else if (viewMode === PROJECT_READER_VIEW_MODES.SCROLL) {
+    next.layout = PROJECT_READER_LAYOUTS.SCROLL_VERTICAL;
+  } else if (viewMode === PROJECT_READER_VIEW_MODES.PAGE) {
+    next.layout =
+      allowSpread === true ? PROJECT_READER_LAYOUTS.DOUBLE : PROJECT_READER_LAYOUTS.SINGLE;
+  }
+
+  if (imageFit) {
+    next.imageFit = imageFit;
+  }
+
+  if (background) {
+    next.background = background;
+  } else if (themePreset && LEGACY_THEME_PRESET_TO_BACKGROUND[themePreset]) {
+    next.background = LEGACY_THEME_PRESET_TO_BACKGROUND[themePreset];
+  }
+
+  if (progressStyle) {
+    next.progressStyle = progressStyle;
+  } else if (showFooter === false) {
+    next.progressStyle = PROJECT_READER_PROGRESS_STYLES.HIDDEN;
+  }
+
+  if (progressPosition) {
+    next.progressPosition = progressPosition;
+  }
+
+  if (typeof raw.firstPageSingle === "boolean") {
+    next.firstPageSingle = raw.firstPageSingle;
+  }
+
+  if (typeof raw.showSiteHeader === "boolean") {
+    next.siteHeaderVariant = raw.showSiteHeader
+      ? PROJECT_READER_SITE_HEADER_VARIANTS.FIXED
+      : PROJECT_READER_SITE_HEADER_VARIANTS.STATIC;
+  } else if (siteHeaderVariant) {
+    next.siteHeaderVariant = siteHeaderVariant;
+  }
+
+  return next;
 };
 
 export const mergeProjectReaderConfig = (baseConfig, overrideConfig, { projectType } = {}) =>
@@ -418,20 +530,15 @@ export const resolveProjectReaderConfig = ({
   siteReaderConfig,
   projectReaderConfig,
 } = {}) => {
-  if (isPlainObject(siteReaderConfig) && Object.keys(siteReaderConfig).length > 0) {
-    return normalizeProjectReaderConfig(siteReaderConfig, { projectType });
-  }
-
   const sitePreset = getSiteProjectReaderConfig(siteSettings, projectType);
-  if (sitePreset) {
-    return normalizeProjectReaderConfig(sitePreset, { projectType });
-  }
-
-  if (isPlainObject(projectReaderConfig) && Object.keys(projectReaderConfig).length > 0) {
-    return normalizeProjectReaderConfig(projectReaderConfig, { projectType });
-  }
-
-  return normalizeProjectReaderConfig({}, { projectType });
+  return normalizeProjectReaderConfig(
+    {
+      ...(sitePreset || {}),
+      ...(isPlainObject(projectReaderConfig) ? projectReaderConfig : {}),
+      ...(isPlainObject(siteReaderConfig) ? siteReaderConfig : {}),
+    },
+    { projectType },
+  );
 };
 
 export const normalizeProjectReaderPreferences = (value) => {
@@ -446,9 +553,11 @@ export const normalizeProjectReaderPreferences = (value) => {
     if (!isPlainObject(rawProjectTypes[typeKey])) {
       return;
     }
-    projectTypes[typeKey] = normalizeProjectReaderConfig(rawProjectTypes[typeKey], {
-      projectType: typeKey,
-    });
+    const normalizedEntry = normalizeProjectReaderPreferenceEntry(rawProjectTypes[typeKey]);
+    if (Object.keys(normalizedEntry).length === 0) {
+      return;
+    }
+    projectTypes[typeKey] = normalizedEntry;
   });
 
   if (Object.keys(projectTypes).length === 0) {

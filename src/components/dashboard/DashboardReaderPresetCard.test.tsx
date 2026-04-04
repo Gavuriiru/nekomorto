@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPresetCard";
@@ -97,6 +97,80 @@ describe("DashboardReaderPresetCard", () => {
     expect(singleBadgeReveal).not.toBeNull();
     expect(classTokens(singleBadgeReveal as HTMLElement)).not.toContain("reveal");
     expect(singleBadgeReveal).not.toHaveAttribute("data-reveal");
+  });
+
+  it("renders the new reader config controls and updates the site visibility switches", () => {
+    HTMLElement.prototype.scrollIntoView = vi.fn();
+    const onUpdate = vi.fn();
+    const preset = {
+      direction: "rtl" as const,
+      layout: "single" as const,
+      imageFit: "both" as const,
+      background: "theme" as const,
+      progressStyle: "default" as const,
+      progressPosition: "bottom" as const,
+      firstPageSingle: true,
+      chromeMode: "default" as const,
+      viewportMode: "viewport" as const,
+      siteHeaderVariant: "fixed" as const,
+      showSiteFooter: true,
+      previewLimit: null,
+      purchaseUrl: "",
+      purchasePrice: "",
+    };
+
+    render(
+      <DashboardReaderPresetCard
+        cardClassName=""
+        preset={preset}
+        presetMeta={{
+          key: "webtoon",
+          title: "Webtoon",
+          description: "Preset de teste",
+          projectType: "webtoon",
+        }}
+        onUpdate={onUpdate}
+      />,
+    );
+
+    const card = screen.getByTestId("reader-preset-webtoon");
+    expect(
+      within(card).getByRole("combobox", {
+        name: "Selecionar chrome do leitor",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(card).getByRole("combobox", {
+        name: "Selecionar fluxo do viewport",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(card).getByRole("combobox", {
+        name: "Selecionar comportamento do header do site",
+      }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      within(card).getByRole("combobox", {
+        name: "Selecionar comportamento do header do site",
+      }),
+    );
+    fireEvent.click(screen.getByRole("option", { name: "Estatica" }));
+    expect(onUpdate).toHaveBeenCalledWith("webtoon", expect.any(Function));
+    const headerUpdater = onUpdate.mock.calls.at(-1)?.[1] as
+      | ((value: typeof preset) => unknown)
+      | undefined;
+    expect(headerUpdater?.(preset)).toMatchObject({
+      siteHeaderVariant: "static",
+    });
+
+    fireEvent.click(within(card).getByRole("switch", { name: /Rodape do site/i }));
+    const footerUpdater = onUpdate.mock.calls.at(-1)?.[1] as
+      | ((value: typeof preset) => unknown)
+      | undefined;
+    expect(footerUpdater?.(preset)).toMatchObject({
+      showSiteFooter: false,
+    });
   });
 
   it("does not contain mojibake in the source file", () => {

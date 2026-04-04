@@ -66,7 +66,6 @@ type ReaderChapterOption = {
   href: string;
 };
 
-type ReaderChromeMode = "default" | "cinema";
 type ReaderProgressStyle = "default" | "hidden";
 type ReaderProgressPosition = "bottom" | "left" | "right";
 type ContinuousProgressDirection = "forward" | "backward";
@@ -120,7 +119,6 @@ type PublicProjectReaderBaseProps = {
   currentChapterValue: string;
   onNavigateChapter: (href: string) => void;
   backHref: string;
-  chromeMode?: ReaderChromeMode;
 };
 
 type PublicProjectReaderProps = PublicProjectReaderBaseProps & {
@@ -236,7 +234,9 @@ const getCenteredHorizontalScrollLeft = ({
 }) => {
   const fallbackRect = targetRect ?? targetNode?.getBoundingClientRect();
   const targetWidth =
-    targetNode && targetNode.offsetWidth > 0 ? targetNode.offsetWidth : Math.max(fallbackRect?.width ?? 0, 0);
+    targetNode && targetNode.offsetWidth > 0
+      ? targetNode.offsetWidth
+      : Math.max(fallbackRect?.width ?? 0, 0);
   const targetStart =
     targetNode && targetNode.offsetWidth > 0
       ? targetNode.offsetLeft
@@ -327,11 +327,8 @@ const getVerticalViewportMeasurement = ({
   };
 };
 
-const getLogicalVerticalScrollTop = ({
-  container,
-}: {
-  container: HTMLDivElement;
-}) => Math.max(container.scrollTop, 0);
+const getLogicalVerticalScrollTop = ({ container }: { container: HTMLDivElement }) =>
+  Math.max(container.scrollTop, 0);
 
 const getStageToneClassName = (background: string) => {
   if (background === "black") {
@@ -390,7 +387,8 @@ const getRenderablePageIntrinsicDimensions = (
   page: Pick<ReaderPage, "width" | "height"> | Pick<ReaderRenderablePage, "width" | "height">,
 ) => {
   const width = typeof page.width === "number" && page.width > 0 ? Math.round(page.width) : null;
-  const height = typeof page.height === "number" && page.height > 0 ? Math.round(page.height) : null;
+  const height =
+    typeof page.height === "number" && page.height > 0 ? Math.round(page.height) : null;
   if (width === null || height === null) {
     return null;
   }
@@ -853,7 +851,6 @@ const PublicProjectReaderContent = ({
   currentChapterValue,
   onNavigateChapter,
   backHref,
-  chromeMode = "default",
   preferences,
 }: PublicProjectReaderBaseProps & {
   preferences: ProjectReaderPreferencesState;
@@ -968,8 +965,10 @@ const PublicProjectReaderContent = ({
   const paginated = isPaginatedReaderLayout(layout);
   const isDesktopMenu = viewportWidth >= 768;
   const supportsHoverMenuActivation = supportsFineHoverPointer();
-  const isCinemaMode = chromeMode === "cinema";
-  const siteHeaderVariant = resolvedConfig.siteHeaderVariant === "fixed" ? "fixed" : "static";
+  const isCinemaMode = resolvedConfig.chromeMode === "cinema";
+  const viewportMode: "viewport" | "natural" =
+    resolvedConfig.viewportMode === "natural" ? "natural" : "viewport";
+  const siteHeaderVariant = resolvedConfig.siteHeaderVariant === "static" ? "static" : "fixed";
   const slots = useMemo(
     () =>
       buildReaderSlots({
@@ -1672,8 +1671,12 @@ const PublicProjectReaderContent = ({
       resizeObserver?.observe(stageRef.current);
     }
 
-    window.addEventListener("scroll", handleStageChromeViewportChange, { passive: true });
-    window.addEventListener("resize", handleStageChromeViewportChange, { passive: true });
+    window.addEventListener("scroll", handleStageChromeViewportChange, {
+      passive: true,
+    });
+    window.addEventListener("resize", handleStageChromeViewportChange, {
+      passive: true,
+    });
     viewport?.addEventListener("resize", handleStageChromeViewportChange);
     viewport?.addEventListener("scroll", handleStageChromeViewportChange);
 
@@ -1859,7 +1862,9 @@ const PublicProjectReaderContent = ({
       resizeObserver?.observe(rail);
     }
 
-    window.addEventListener("resize", syncHorizontalScrollMetrics, { passive: true });
+    window.addEventListener("resize", syncHorizontalScrollMetrics, {
+      passive: true,
+    });
     window.visualViewport?.addEventListener("resize", syncHorizontalScrollMetrics);
 
     return () => {
@@ -2126,19 +2131,16 @@ const PublicProjectReaderContent = ({
     [renderablePages],
   );
 
-  const getContinuousStepPageIndices = useCallback(
-    (targetIndex: number) => {
-      const currentPageIndex = activePageIndexRef.current;
-      const startIndex = Math.min(currentPageIndex, targetIndex);
-      const endIndex = Math.max(currentPageIndex, targetIndex);
-      const stepIndices: number[] = [];
-      for (let index = startIndex; index <= endIndex; index += 1) {
-        stepIndices.push(index);
-      }
-      return stepIndices;
-    },
-    [],
-  );
+  const getContinuousStepPageIndices = useCallback((targetIndex: number) => {
+    const currentPageIndex = activePageIndexRef.current;
+    const startIndex = Math.min(currentPageIndex, targetIndex);
+    const endIndex = Math.max(currentPageIndex, targetIndex);
+    const stepIndices: number[] = [];
+    for (let index = startIndex; index <= endIndex; index += 1) {
+      stepIndices.push(index);
+    }
+    return stepIndices;
+  }, []);
 
   const getContinuousStepImageUrls = useCallback(
     (targetIndex: number) => {
@@ -2242,7 +2244,10 @@ const PublicProjectReaderContent = ({
         }
 
         if (typeof image.decode === "function") {
-          image.decode().then(() => finish("ready")).catch(() => finish("failed"));
+          image
+            .decode()
+            .then(() => finish("ready"))
+            .catch(() => finish("failed"));
         }
       });
 
@@ -2501,7 +2506,11 @@ const PublicProjectReaderContent = ({
               }),
             };
           })
-          .filter(Boolean) as Array<{ index: number; start: number; end: number }>,
+          .filter(Boolean) as Array<{
+          index: number;
+          start: number;
+          end: number;
+        }>,
         viewportSize: container.clientWidth,
         currentIndex: activePageIndex,
         visibilityLeadThresholdPx,
@@ -2530,7 +2539,11 @@ const PublicProjectReaderContent = ({
             }),
           };
         })
-        .filter(Boolean) as Array<{ index: number; start: number; end: number }>,
+        .filter(Boolean) as Array<{
+        index: number;
+        start: number;
+        end: number;
+      }>,
       viewportSize: container.clientHeight,
       currentIndex: activePageIndex,
       visibilityLeadThresholdPx,
@@ -2610,7 +2623,11 @@ const PublicProjectReaderContent = ({
               }),
             };
           })
-          .filter(Boolean) as Array<{ index: number; start: number; end: number }>,
+          .filter(Boolean) as Array<{
+          index: number;
+          start: number;
+          end: number;
+        }>,
         viewportSize: container.clientWidth,
         viewportAnchorOffsetPx: getContinuousProgressAnchorOffsetPx({
           viewportSize: container.clientWidth,
@@ -2635,7 +2652,7 @@ const PublicProjectReaderContent = ({
     const nextDirection =
       typeof previousScrollY !== "number"
         ? lastContinuousProgressDirectionRef.current
-          : currentScrollY > previousScrollY
+        : currentScrollY > previousScrollY
           ? "forward"
           : currentScrollY < previousScrollY
             ? "backward"
@@ -2658,7 +2675,11 @@ const PublicProjectReaderContent = ({
             }),
           };
         })
-        .filter(Boolean) as Array<{ index: number; start: number; end: number }>,
+        .filter(Boolean) as Array<{
+        index: number;
+        start: number;
+        end: number;
+      }>,
       viewportSize: container.clientHeight,
       viewportAnchorOffsetPx: getContinuousProgressAnchorOffsetPx({
         viewportSize: container.clientHeight,
@@ -2679,13 +2700,7 @@ const PublicProjectReaderContent = ({
   );
 
   const requestContinuousPageNavigation = useCallback(
-    ({
-      source,
-      targetIndex,
-    }: {
-      source: ReaderPageNavigationSource;
-      targetIndex: number;
-    }) => {
+    ({ source, targetIndex }: { source: ReaderPageNavigationSource; targetIndex: number }) => {
       if (paginated) {
         return false;
       }
@@ -2723,10 +2738,7 @@ const PublicProjectReaderContent = ({
       setReaderContinuousRequestedPageIndex(nextPageIndex);
       return true;
     },
-    [
-      originalPages.length,
-      setReaderContinuousRequestedPageIndex,
-    ],
+    [originalPages.length, setReaderContinuousRequestedPageIndex],
   );
 
   const applyContinuousProgrammaticScrollPosition = useCallback(
@@ -2826,13 +2838,7 @@ const PublicProjectReaderContent = ({
   );
 
   const cancelContinuousVerticalTargetWait = useCallback(
-    ({
-      stopHold = false,
-      targetIndex,
-    }: {
-      stopHold?: boolean;
-      targetIndex: number;
-    }) => {
+    ({ stopHold = false, targetIndex }: { stopHold?: boolean; targetIndex: number }) => {
       continuousReadyWaitTokenRef.current += 1;
       clearContinuousReadyRetryFrame();
       setReaderContinuousWaitingForReadyPageIndex(null);
@@ -3089,10 +3095,7 @@ const PublicProjectReaderContent = ({
   ]);
 
   useEffect(() => {
-    if (
-      paginated ||
-      activeKeyboardHoldDirectionRef.current === null
-    ) {
+    if (paginated || activeKeyboardHoldDirectionRef.current === null) {
       return;
     }
 
@@ -3150,7 +3153,9 @@ const PublicProjectReaderContent = ({
         syncContinuousReaderState();
       };
 
-      container?.addEventListener("scroll", handleViewportScroll, { passive: true });
+      container?.addEventListener("scroll", handleViewportScroll, {
+        passive: true,
+      });
       rail?.addEventListener("scroll", handleRailScroll, { passive: true });
       window.addEventListener("resize", handleResize, { passive: true });
       viewport?.addEventListener("resize", handleResize);
@@ -3449,8 +3454,7 @@ const PublicProjectReaderContent = ({
       const currentTargetIndex = getContinuousNavigationAnchorPageIndex();
       return requestContinuousPageNavigation({
         source,
-        targetIndex:
-          currentTargetIndex + (stepDirection === "next" ? 1 : -1),
+        targetIndex: currentTargetIndex + (stepDirection === "next" ? 1 : -1),
       });
     },
     [
@@ -3559,80 +3563,89 @@ const PublicProjectReaderContent = ({
     ],
   );
 
-  const handleReaderKeyDown = useCallback((event: ReaderKeyEvent) => {
-    const supportsArrowKeyPageNavigation =
-      paginated || layout === "scroll-horizontal" || layout === "scroll-vertical";
-    if (event.key === "Escape" && isMenuOpen) {
+  const handleReaderKeyDown = useCallback(
+    (event: ReaderKeyEvent) => {
+      const supportsArrowKeyPageNavigation =
+        paginated || layout === "scroll-horizontal" || layout === "scroll-vertical";
+      if (event.key === "Escape" && isMenuOpen) {
+        event.preventDefault();
+        event.stopPropagation();
+        clearKeyboardPageHold();
+        setIsMenuOpen(false);
+        revealMenuTrigger();
+        scheduleMenuTriggerHide();
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      const tagName = String(target?.tagName || "").toLowerCase();
+      if (tagName === "input" || tagName === "textarea" || target?.isContentEditable) {
+        return;
+      }
+      if (!supportsArrowKeyPageNavigation) {
+        return;
+      }
+
+      if (
+        layout === "scroll-horizontal" &&
+        (event.key === "ArrowUp" || event.key === "ArrowDown")
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
+      const stepDirection = getKeyboardPageStepDirection(event.key);
+      if (!stepDirection) {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
-      clearKeyboardPageHold();
-      setIsMenuOpen(false);
-      revealMenuTrigger();
-      scheduleMenuTriggerHide();
-      return;
-    }
 
-    const target = event.target as HTMLElement | null;
-    const tagName = String(target?.tagName || "").toLowerCase();
-    if (tagName === "input" || tagName === "textarea" || target?.isContentEditable) {
-      return;
-    }
-    if (!supportsArrowKeyPageNavigation) {
-      return;
-    }
+      if (
+        event.repeat &&
+        (activeKeyboardHoldDirectionRef.current === stepDirection ||
+          lastKeyboardNavigationDirectionRef.current === stepDirection)
+      ) {
+        return;
+      }
 
-    if (layout === "scroll-horizontal" && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
+      if (activeKeyboardHoldDirectionRef.current === stepDirection) {
+        return;
+      }
 
-    const stepDirection = getKeyboardPageStepDirection(event.key);
-    if (!stepDirection) {
-      return;
-    }
+      if (
+        activeKeyboardHoldDirectionRef.current &&
+        activeKeyboardHoldDirectionRef.current !== stepDirection
+      ) {
+        clearKeyboardPageHold();
+      }
 
-    event.preventDefault();
-    event.stopPropagation();
+      const didAdvance = stepReaderPage({
+        direction: stepDirection,
+        behavior: "smooth",
+        source: "keyboard",
+      });
+      if (!didAdvance) {
+        clearKeyboardPageHold(stepDirection);
+        return;
+      }
 
-    if (
-      event.repeat &&
-      (activeKeyboardHoldDirectionRef.current === stepDirection ||
-        lastKeyboardNavigationDirectionRef.current === stepDirection)
-    ) {
-      return;
-    }
-
-    if (activeKeyboardHoldDirectionRef.current === stepDirection) {
-      return;
-    }
-
-    if (activeKeyboardHoldDirectionRef.current && activeKeyboardHoldDirectionRef.current !== stepDirection) {
-      clearKeyboardPageHold();
-    }
-
-    const didAdvance = stepReaderPage({
-      direction: stepDirection,
-      behavior: "smooth",
-      source: "keyboard",
-    });
-    if (!didAdvance) {
-      clearKeyboardPageHold(stepDirection);
-      return;
-    }
-
-    startKeyboardPageHold(stepDirection);
-  }, [
-    clearKeyboardPageHold,
-    getKeyboardPageStepDirection,
-    isMenuOpen,
-    layout,
-    paginated,
-    revealMenuTrigger,
-    scheduleMenuTriggerHide,
-    startKeyboardPageHold,
-    stepReaderPage,
-  ]);
+      startKeyboardPageHold(stepDirection);
+    },
+    [
+      clearKeyboardPageHold,
+      getKeyboardPageStepDirection,
+      isMenuOpen,
+      layout,
+      paginated,
+      revealMenuTrigger,
+      scheduleMenuTriggerHide,
+      startKeyboardPageHold,
+      stepReaderPage,
+    ],
+  );
 
   const handleReaderKeyUp = useCallback(
     (event: KeyboardEvent) => {
@@ -3715,7 +3728,9 @@ const PublicProjectReaderContent = ({
       document.removeEventListener("keydown", handleReaderKeyDown as unknown as EventListener, {
         capture: true,
       });
-      document.removeEventListener("keyup", handleReaderKeyUp, { capture: true });
+      document.removeEventListener("keyup", handleReaderKeyUp, {
+        capture: true,
+      });
       window.removeEventListener("blur", handleWindowBlur);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
@@ -3771,7 +3786,7 @@ const PublicProjectReaderContent = ({
       ? continuousProgressVisualRatio
       : progressPositionRatio;
   const isViewportBoundedReader = usesViewportBoundedHeight(effectiveImageFit);
-  const shouldUseFixedViewportHeight = layout === "scroll-vertical" || isViewportBoundedReader;
+  const shouldUseFixedViewportHeight = viewportMode === "viewport";
   const horizontalScrollbarSpacerWidth = Math.max(
     horizontalScrollMetrics.scrollWidth,
     horizontalScrollMetrics.clientWidth,
@@ -3782,14 +3797,19 @@ const PublicProjectReaderContent = ({
     }
 
     const compensatedHeight = stageViewportHeight + horizontalScrollMetrics.scrollbarHeight;
-    return {
-      minHeight: `${compensatedHeight}px`,
-      height: `${compensatedHeight}px`,
-    };
+    return shouldUseFixedViewportHeight
+      ? {
+          minHeight: `${compensatedHeight}px`,
+          height: `${compensatedHeight}px`,
+        }
+      : {
+          minHeight: `${compensatedHeight}px`,
+        };
   }, [
     horizontalScrollMetrics.scrollbarHeight,
     isViewportBoundedReader,
     layout,
+    shouldUseFixedViewportHeight,
     stageViewportHeight,
   ]);
   const verticalScrollViewportStyle = useMemo(() => {
@@ -3797,11 +3817,15 @@ const PublicProjectReaderContent = ({
       return undefined;
     }
 
-    return {
-      minHeight: `${stageViewportHeight}px`,
-      height: `${stageViewportHeight}px`,
-    };
-  }, [layout, stageViewportHeight]);
+    return shouldUseFixedViewportHeight
+      ? {
+          minHeight: `${stageViewportHeight}px`,
+          height: `${stageViewportHeight}px`,
+        }
+      : {
+          minHeight: `${stageViewportHeight}px`,
+        };
+  }, [layout, shouldUseFixedViewportHeight, stageViewportHeight]);
   const pageItems = useMemo(
     () =>
       buildReaderPageItems({
@@ -4546,12 +4570,7 @@ const PublicProjectReaderContent = ({
         void ensureContinuousImageReady(imageUrl);
       }
     });
-  }, [
-    continuousWarmPageIndices,
-    ensureContinuousImageReady,
-    getContinuousPageImageUrl,
-    paginated,
-  ]);
+  }, [continuousWarmPageIndices, ensureContinuousImageReady, getContinuousPageImageUrl, paginated]);
 
   useEffect(() => {
     if (!paginated || paginatedBufferedSlotIndices.length === 0) {
@@ -4863,9 +4882,7 @@ const PublicProjectReaderContent = ({
                         {renderReaderPage(page, pageIndex, {
                           imageFetchPriority: isActiveSlot ? "high" : "auto",
                           imageFit: pageImageFit,
-                          imageLoading: paginatedWarmPageIndices.has(pageIndex)
-                            ? "eager"
-                            : "lazy",
+                          imageLoading: paginatedWarmPageIndices.has(pageIndex) ? "eager" : "lazy",
                           surfaceClassName: spreadAlignmentClassName,
                         })}
                       </div>
@@ -5266,7 +5283,11 @@ const PublicProjectReaderContent = ({
               <Label className={SIDEBAR_LABEL_CLASS_NAME}>Barra do site</Label>
               <Select
                 value={siteHeaderVariant}
-                onValueChange={(value) => updateConfig({ siteHeaderVariant: value })}
+                onValueChange={(value) =>
+                  updateConfig({
+                    siteHeaderVariant: value === "static" ? "static" : "fixed",
+                  })
+                }
               >
                 <SelectTrigger
                   className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
@@ -5275,8 +5296,8 @@ const PublicProjectReaderContent = ({
                   <SelectValue placeholder="Selecione o comportamento do header" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="static">Oculto</SelectItem>
-                  <SelectItem value="fixed">Visível</SelectItem>
+                  <SelectItem value="fixed">Fixa</SelectItem>
+                  <SelectItem value="static">Estatica</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -5356,8 +5377,8 @@ const PublicProjectReaderContent = ({
       resolvedConfig.progressPosition,
       resolvedConfig.progressStyle,
       resolvedConfig.siteHeaderVariant,
-      siteHeaderVariant,
       showChapterNavigationActions,
+      siteHeaderVariant,
       updateConfig,
     ],
   );
@@ -5574,6 +5595,8 @@ const PublicProjectReaderContent = ({
           data-background={visualState.background}
           data-progress-style={visualState.progressStyle}
           data-progress-position={visualState.progressPosition}
+          data-chrome-mode={isCinemaMode ? "cinema" : "default"}
+          data-viewport-mode={viewportMode}
           tabIndex={0}
           onPointerDownCapture={focusReaderStage}
           className={cn(

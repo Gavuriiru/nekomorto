@@ -136,8 +136,16 @@ const baseProps = {
   baseConfig: {},
   currentUserId: null,
   chapterOptions: [
-    { value: "1", label: "Capitulo 1", href: "/projeto/projeto-teste/leitura/1" },
-    { value: "2", label: "Capitulo 2", href: "/projeto/projeto-teste/leitura/2" },
+    {
+      value: "1",
+      label: "Capitulo 1",
+      href: "/projeto/projeto-teste/leitura/1",
+    },
+    {
+      value: "2",
+      label: "Capitulo 2",
+      href: "/projeto/projeto-teste/leitura/2",
+    },
   ],
   currentChapterValue: "1",
   onNavigateChapter: vi.fn(),
@@ -146,6 +154,14 @@ const baseProps = {
 
 const setReaderConfig = (config: Record<string, unknown>) => {
   updateConfigMock.mockReset();
+  const siteHeaderVariant =
+    config.siteHeaderVariant === "static"
+      ? "static"
+      : typeof config.showSiteHeader === "boolean"
+        ? config.showSiteHeader
+          ? "fixed"
+          : "static"
+        : "fixed";
   useProjectReaderPreferencesMock.mockReturnValue({
     isLoaded: true,
     resolvedConfig: {
@@ -156,7 +172,10 @@ const setReaderConfig = (config: Record<string, unknown>) => {
       progressStyle: "default",
       progressPosition: "bottom",
       firstPageSingle: true,
-      siteHeaderVariant: "static",
+      chromeMode: "default",
+      viewportMode: "viewport",
+      siteHeaderVariant,
+      showSiteFooter: true,
       ...config,
     },
     updateConfig: updateConfigMock,
@@ -218,16 +237,32 @@ const ReaderLocationProbe = () => {
 
 const renderReader = (
   config: Record<string, unknown>,
-  props: Partial<Parameters<typeof PublicProjectReader>[0]> = {},
+  props: Partial<Parameters<typeof PublicProjectReader>[0]> & {
+    chromeMode?: "default" | "cinema";
+    viewportMode?: "viewport" | "natural";
+  } = {},
   options: {
     initialEntries?: string[];
   } = {},
 ) => {
-  setReaderConfig(config);
+  const nextConfig = { ...config };
+  const nextProps = { ...props };
+
+  if (nextProps.chromeMode) {
+    nextConfig.chromeMode = nextProps.chromeMode;
+    delete nextProps.chromeMode;
+  }
+
+  if (nextProps.viewportMode) {
+    nextConfig.viewportMode = nextProps.viewportMode;
+    delete nextProps.viewportMode;
+  }
+
+  setReaderConfig(nextConfig);
 
   return render(
     <MemoryRouter initialEntries={options.initialEntries}>
-      <PublicProjectReader {...baseProps} {...props} />
+      <PublicProjectReader {...baseProps} {...nextProps} />
       <ReaderLocationProbe />
     </MemoryRouter>,
   );
@@ -286,10 +321,7 @@ const setupHorizontalKeyboardReader = ({
   const scrollWidth = pageWidth * pageCount;
   const initialScrollLeft = direction === "rtl" ? scrollWidth - viewportWidth : 0;
   const rects = Object.fromEntries([
-    [
-      "project-reading-stage",
-      { top: 240, bottom: 880, width: 1200, height: 640 },
-    ],
+    ["project-reading-stage", { top: 240, bottom: 880, width: 1200, height: 640 }],
     [
       "project-reading-horizontal-scroll",
       {
@@ -344,11 +376,9 @@ const setupHorizontalKeyboardReader = ({
     });
   });
 
-  const scrollToSpy = vi.fn(
-    ({ left }: { left: number }) => {
-      horizontalReader.scrollLeft = left;
-    },
-  );
+  const scrollToSpy = vi.fn(({ left }: { left: number }) => {
+    horizontalReader.scrollLeft = left;
+  });
   Object.defineProperty(horizontalReader, "scrollTo", {
     configurable: true,
     value: scrollToSpy,
@@ -381,13 +411,7 @@ const setupVerticalKeyboardReader = ({
   setVisualViewport({ width: 1280, height: 640 });
   const windowScrollToSpy = vi.fn();
   const scrollToSpy = vi.fn(
-    ({
-      top = 0,
-    }: {
-      behavior?: ScrollBehavior;
-      left?: number;
-      top?: number;
-    } = {}) => {
+    ({ top = 0 }: { behavior?: ScrollBehavior; left?: number; top?: number } = {}) => {
       windowScrollToSpy({ top });
     },
   );
@@ -464,8 +488,7 @@ const setupVerticalKeyboardReader = ({
   Array.from({ length: pageCount }, (_, index) => {
     const pageNode = screen.getByTestId(`reader-page-${index}`);
     const defaultTop = index * pageStride;
-    const getPageTop = () =>
-      pageTopResolver ? pageTopResolver(index, defaultTop) : defaultTop;
+    const getPageTop = () => (pageTopResolver ? pageTopResolver(index, defaultTop) : defaultTop);
     Object.defineProperty(pageNode, "offsetTop", {
       configurable: true,
       get: () => getPageTop(),
@@ -814,7 +837,9 @@ describe("PublicProjectReader", () => {
     const shell = screen.getByTestId("project-reading-full-bleed-shell");
     const stage = screen.getByTestId("project-reading-stage");
     const surface = screen.getByTestId("reader-page-surface-0");
-    const paginatedArea = screen.getByRole("button", { name: /leitura paginada/i });
+    const paginatedArea = screen.getByRole("button", {
+      name: /leitura paginada/i,
+    });
 
     expect(paginatedArea).toHaveClass("flex-1", "min-h-0");
     expect(surface).not.toHaveClass("h-full", "min-h-0");
@@ -860,7 +885,9 @@ describe("PublicProjectReader", () => {
 
     const coverPage = screen.getByTestId("reader-page-0");
     const coverSurface = screen.getByTestId("reader-page-surface-0");
-    const coverImage = within(coverPage).getByRole("img", { name: /P.gina 1/i });
+    const coverImage = within(coverPage).getByRole("img", {
+      name: /P.gina 1/i,
+    });
 
     expect(screen.queryByTestId("reader-spread-blank")).not.toBeInTheDocument();
     expect(coverPage.parentElement).toHaveClass("justify-center");
@@ -894,7 +921,9 @@ describe("PublicProjectReader", () => {
 
     const isolatedPage = screen.getByTestId("reader-page-0");
     const isolatedSurface = screen.getByTestId("reader-page-surface-0");
-    const isolatedImage = within(isolatedPage).getByRole("img", { name: /P.gina 1/i });
+    const isolatedImage = within(isolatedPage).getByRole("img", {
+      name: /P.gina 1/i,
+    });
 
     expect(screen.queryByTestId("reader-spread-blank")).not.toBeInTheDocument();
     expect(isolatedPage.parentElement).toHaveClass("justify-center");
@@ -938,7 +967,9 @@ describe("PublicProjectReader", () => {
 
     const isolatedPage = screen.getByTestId("reader-page-3");
     const isolatedSurface = screen.getByTestId("reader-page-surface-3");
-    const isolatedImage = within(isolatedPage).getByRole("img", { name: /P.gina 4/i });
+    const isolatedImage = within(isolatedPage).getByRole("img", {
+      name: /P.gina 4/i,
+    });
 
     expect(screen.queryByTestId("reader-spread-blank")).not.toBeInTheDocument();
     expect(isolatedPage.parentElement).toHaveClass("justify-center");
@@ -1042,8 +1073,8 @@ describe("PublicProjectReader", () => {
     { layout: "single" },
     { layout: "scroll-horizontal" },
     { layout: "scroll-vertical" },
-  ])("treats fit width as no-limit for $layout", async ({ layout }) => {
-    renderReader({ layout, imageFit: "width" });
+  ])("treats fit width as no-limit for $layout in natural viewport mode", async ({ layout }) => {
+    renderReader({ layout, imageFit: "width" }, { viewportMode: "natural" });
 
     const shell = screen.getByTestId("project-reading-full-bleed-shell");
     const stage = screen.getByTestId("project-reading-stage");
@@ -1052,9 +1083,8 @@ describe("PublicProjectReader", () => {
     const image = screen.getByRole("img", { name: /P.gina 1/i });
 
     await waitFor(() => {
-      const expectedStageHeight = layout === "scroll-vertical" ? "900px" : "";
-      expect(shell.style.height).toBe(expectedStageHeight);
-      expect(stage.style.height).toBe(expectedStageHeight);
+      expect(shell.style.height).toBe("");
+      expect(stage.style.height).toBe("");
       expect(surface.style.height).toBe("");
     });
 
@@ -1074,8 +1104,11 @@ describe("PublicProjectReader", () => {
     }
   });
 
-  it("bounds fit width to the renderable slot in double-page mode", async () => {
-    renderReader({ layout: "double", imageFit: "width", firstPageSingle: false });
+  it("bounds fit width to the renderable slot in double-page mode without pinning the viewport in natural flow", async () => {
+    renderReader(
+      { layout: "double", imageFit: "width", firstPageSingle: false },
+      { viewportMode: "natural" },
+    );
 
     const shell = screen.getByTestId("project-reading-full-bleed-shell");
     const stage = screen.getByTestId("project-reading-stage");
@@ -1168,7 +1201,11 @@ describe("PublicProjectReader", () => {
   });
 
   it("renders scroll-horizontal left-to-right when ltr is selected", () => {
-    renderReader({ layout: "scroll-horizontal", imageFit: "both", direction: "ltr" });
+    renderReader({
+      layout: "scroll-horizontal",
+      imageFit: "both",
+      direction: "ltr",
+    });
 
     const strip = screen.getByTestId("project-reading-horizontal-strip");
 
@@ -1342,7 +1379,9 @@ describe("PublicProjectReader", () => {
     expect(window.location.search).toBe("?page=2");
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS + CONTINUOUS_PAGE_STEP_DURATION_MS);
+      await vi.advanceTimersByTimeAsync(
+        KEYBOARD_PAGE_HOLD_START_DELAY_MS + CONTINUOUS_PAGE_STEP_DURATION_MS,
+      );
     });
 
     expect(horizontalReader.scrollLeft).toBe(500);
@@ -1704,8 +1743,14 @@ describe("PublicProjectReader", () => {
 
     expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "active");
     expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "pending");
-    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-visibility", "visible");
-    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "hidden");
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute(
+      "data-visibility",
+      "visible",
+    );
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute(
+      "data-visibility",
+      "hidden",
+    );
     expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
     expect(screen.getByTestId("reader-page-0")).toBe(page0);
 
@@ -1713,15 +1758,24 @@ describe("PublicProjectReader", () => {
     await advanceReaderAnimationFrame();
 
     expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "active");
-    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute(
+      "data-visibility",
+      "visible",
+    );
     expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "pending");
-    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "handoff");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute(
+      "data-visibility",
+      "handoff",
+    );
     expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
 
     await advanceReaderAnimationFrame();
 
     expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "active");
-    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute(
+      "data-visibility",
+      "visible",
+    );
     expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=2");
   });
 
@@ -1743,7 +1797,10 @@ describe("PublicProjectReader", () => {
     fireEvent.keyDown(stage, { key: "ArrowLeft", code: "ArrowLeft" });
 
     expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "pending");
-    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "hidden");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute(
+      "data-visibility",
+      "hidden",
+    );
     expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
 
     await act(async () => {
@@ -1753,8 +1810,14 @@ describe("PublicProjectReader", () => {
     expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "active");
     expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "buffered");
     expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-state", "pending");
-    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-visibility", "visible");
-    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "hidden");
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute(
+      "data-visibility",
+      "visible",
+    );
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute(
+      "data-visibility",
+      "hidden",
+    );
     expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
 
     await resolveReaderImage("/page-2.jpg");
@@ -1767,15 +1830,24 @@ describe("PublicProjectReader", () => {
     await advanceReaderAnimationFrame();
 
     expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "active");
-    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute(
+      "data-visibility",
+      "visible",
+    );
     expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-state", "pending");
-    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "handoff");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute(
+      "data-visibility",
+      "handoff",
+    );
     expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
 
     await advanceReaderAnimationFrame();
 
     expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-state", "active");
-    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute(
+      "data-visibility",
+      "visible",
+    );
     expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=3");
   });
 
@@ -1802,24 +1874,42 @@ describe("PublicProjectReader", () => {
     expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "active");
     expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "pending");
     expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-state", "buffered");
-    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-visibility", "visible");
-    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "hidden");
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute(
+      "data-visibility",
+      "visible",
+    );
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute(
+      "data-visibility",
+      "hidden",
+    );
     expect(screen.getByTestId("reader-page-0")).toBe(page0);
     expect(screen.getByTestId("reader-page-1")).toBe(page1);
 
     await advanceReaderAnimationFrame();
 
     expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "active");
-    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute(
+      "data-visibility",
+      "visible",
+    );
     expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "pending");
-    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "handoff");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute(
+      "data-visibility",
+      "handoff",
+    );
 
     await advanceReaderAnimationFrame();
 
     expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-state", "buffered");
-    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute("data-visibility", "hidden");
+    expect(screen.getByTestId("reader-paginated-slot-0")).toHaveAttribute(
+      "data-visibility",
+      "hidden",
+    );
     expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "active");
-    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute(
+      "data-visibility",
+      "visible",
+    );
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS);
@@ -1828,24 +1918,42 @@ describe("PublicProjectReader", () => {
     expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "active");
     expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-state", "pending");
     expect(screen.getByTestId("reader-paginated-slot-3")).toHaveAttribute("data-state", "buffered");
-    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "visible");
-    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "hidden");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute(
+      "data-visibility",
+      "visible",
+    );
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute(
+      "data-visibility",
+      "hidden",
+    );
     expect(screen.getByTestId("reader-page-1")).toBe(page1);
     expect(screen.getByTestId("reader-page-2")).toBeInTheDocument();
 
     await advanceReaderAnimationFrame();
 
     expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "active");
-    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute(
+      "data-visibility",
+      "visible",
+    );
     expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-state", "pending");
-    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "handoff");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute(
+      "data-visibility",
+      "handoff",
+    );
 
     await advanceReaderAnimationFrame();
 
     expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-state", "buffered");
-    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "hidden");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute(
+      "data-visibility",
+      "hidden",
+    );
     expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-state", "active");
-    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute(
+      "data-visibility",
+      "visible",
+    );
   });
 
   it("keeps at least one paginated slot visible while chained handoffs overlap", async () => {
@@ -1867,17 +1975,32 @@ describe("PublicProjectReader", () => {
       await vi.advanceTimersByTimeAsync(KEYBOARD_PAGE_HOLD_START_DELAY_MS);
     });
 
-    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "visible");
-    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "hidden");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute(
+      "data-visibility",
+      "visible",
+    );
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute(
+      "data-visibility",
+      "hidden",
+    );
 
     await advanceReaderAnimationFrame();
 
-    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute("data-visibility", "visible");
-    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "handoff");
+    expect(screen.getByTestId("reader-paginated-slot-1")).toHaveAttribute(
+      "data-visibility",
+      "visible",
+    );
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute(
+      "data-visibility",
+      "handoff",
+    );
 
     await advanceReaderAnimationFrame();
 
-    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute("data-visibility", "visible");
+    expect(screen.getByTestId("reader-paginated-slot-2")).toHaveAttribute(
+      "data-visibility",
+      "visible",
+    );
   });
 
   it("eagerly warms the paginated slot buffer and leaves distant pages out of the DOM", () => {
@@ -2094,7 +2217,9 @@ describe("PublicProjectReader", () => {
     const projectTitle = screen.getByTestId("project-reading-project-title");
     const chapterContext = screen.getByTestId("project-reading-chapter-context");
     const synopsis = screen.getByTestId("project-reading-synopsis");
-    const heading = within(readerBar).getByRole("heading", { name: /Cap.*tulo 1/i });
+    const heading = within(readerBar).getByRole("heading", {
+      name: /Cap.*tulo 1/i,
+    });
 
     expect(shell).toHaveClass("w-full", "flex-1", "min-h-0");
     expect(shell).toHaveClass("gap-2", "md:gap-3");
@@ -2135,8 +2260,12 @@ describe("PublicProjectReader", () => {
 
     const infoBar = screen.getByTestId("project-reading-info-bar");
     const actions = within(infoBar).getByTestId("project-reading-actions");
-    const backLink = within(actions).getByRole("link", { name: /Voltar ao projeto/i });
-    const editLink = within(actions).getByRole("link", { name: /Editar extra/i });
+    const backLink = within(actions).getByRole("link", {
+      name: /Voltar ao projeto/i,
+    });
+    const editLink = within(actions).getByRole("link", {
+      name: /Editar extra/i,
+    });
 
     expect(backLink).toHaveAttribute("href", "/projeto/projeto-teste");
     expect(backLink).toHaveClass(
@@ -2174,7 +2303,9 @@ describe("PublicProjectReader", () => {
     const projectTitle = screen.getByTestId("project-reading-project-title");
     const chapterContext = screen.getByTestId("project-reading-chapter-context");
     const synopsis = screen.getByTestId("project-reading-synopsis");
-    const heading = within(infoBar).getByRole("heading", { name: /Cap.*tulo 1/i });
+    const heading = within(infoBar).getByRole("heading", {
+      name: /Cap.*tulo 1/i,
+    });
 
     expect(infoBar).toHaveAttribute("data-variant", "reader-cinema");
     expect(shell).toHaveClass("relative", "gap-0");
@@ -2212,8 +2343,12 @@ describe("PublicProjectReader", () => {
 
     const infoBar = screen.getByTestId("project-reading-info-bar");
     const actions = within(infoBar).getByTestId("project-reading-actions");
-    const backLink = within(actions).getByRole("link", { name: /Voltar ao projeto/i });
-    const editLink = within(actions).getByRole("link", { name: /Editar cap.tulo/i });
+    const backLink = within(actions).getByRole("link", {
+      name: /Voltar ao projeto/i,
+    });
+    const editLink = within(actions).getByRole("link", {
+      name: /Editar cap.tulo/i,
+    });
 
     expect(backLink).toHaveAttribute("href", "/projeto/projeto-teste");
     expect(backLink).toHaveClass(
@@ -2253,14 +2388,29 @@ describe("PublicProjectReader", () => {
   it("positions a direct load on the stage instead of leaving the top chrome in view", async () => {
     setVisualViewport({ height: 640 });
     const rectSpy = mockRectsByTestId({
-      "project-reading-stage": { top: 260, bottom: 900, width: 1200, height: 640 },
-      "reader-page-0": { top: 260, bottom: 900, left: 120, right: 1080, width: 960, height: 640 },
+      "project-reading-stage": {
+        top: 260,
+        bottom: 900,
+        width: 1200,
+        height: 640,
+      },
+      "reader-page-0": {
+        top: 260,
+        bottom: 900,
+        left: 120,
+        right: 1080,
+        width: 960,
+        height: 640,
+      },
     });
 
     renderReader({ imageFit: "both" });
 
     await waitFor(() => {
-      expect(window.scrollTo).toHaveBeenCalledWith({ top: 260, behavior: "auto" });
+      expect(window.scrollTo).toHaveBeenCalledWith({
+        top: 260,
+        behavior: "auto",
+      });
     });
 
     rectSpy.mockRestore();
@@ -2269,7 +2419,12 @@ describe("PublicProjectReader", () => {
   it("uses ?page to center the requested page inside the horizontal strip on load", async () => {
     setVisualViewport({ width: 1280, height: 640 });
     const rectSpy = mockRectsByTestId({
-      "project-reading-stage": { top: 240, bottom: 880, width: 1200, height: 640 },
+      "project-reading-stage": {
+        top: 240,
+        bottom: 880,
+        width: 1200,
+        height: 640,
+      },
       "project-reading-horizontal-scroll": {
         top: 240,
         bottom: 880,
@@ -2278,7 +2433,14 @@ describe("PublicProjectReader", () => {
         width: 800,
         height: 640,
       },
-      "reader-page-0": { top: 240, bottom: 880, left: 0, right: 600, width: 600, height: 640 },
+      "reader-page-0": {
+        top: 240,
+        bottom: 880,
+        left: 0,
+        right: 600,
+        width: 600,
+        height: 640,
+      },
       "reader-page-1": {
         top: 240,
         bottom: 880,
@@ -2303,7 +2465,10 @@ describe("PublicProjectReader", () => {
     fireEvent(window, new Event("resize"));
 
     await waitFor(() => {
-      expect(window.scrollTo).toHaveBeenCalledWith({ top: 240, behavior: "auto" });
+      expect(window.scrollTo).toHaveBeenCalledWith({
+        top: 240,
+        behavior: "auto",
+      });
       expect(horizontalReader.scrollLeft).toBe(500);
       expect(externalScrollbar.scrollLeft).toBe(500);
     });
@@ -2326,14 +2491,22 @@ describe("PublicProjectReader", () => {
   it("does not reapply the initial stage positioning after normal resize recalculations", async () => {
     setVisualViewport({ height: 640 });
     const rectSpy = mockRectsByTestId({
-      "project-reading-stage": { top: 260, bottom: 900, width: 1200, height: 640 },
+      "project-reading-stage": {
+        top: 260,
+        bottom: 900,
+        width: 1200,
+        height: 640,
+      },
       "reader-page-0": { top: 260, bottom: 900, width: 1200, height: 640 },
     });
 
     renderReader({ imageFit: "both" });
 
     await waitFor(() => {
-      expect(window.scrollTo).toHaveBeenCalledWith({ top: 260, behavior: "auto" });
+      expect(window.scrollTo).toHaveBeenCalledWith({
+        top: 260,
+        behavior: "auto",
+      });
     });
 
     vi.mocked(window.scrollTo).mockClear();
@@ -2459,7 +2632,9 @@ describe("PublicProjectReader", () => {
   });
 
   it("updates ?page in the vertical strip as the most visible page changes", async () => {
-    const { scrollToSpy, verticalReader } = setupVerticalKeyboardReader({ pageCount: 2 });
+    const { scrollToSpy, verticalReader } = setupVerticalKeyboardReader({
+      pageCount: 2,
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId("reader-location-search")).toHaveTextContent("?page=1");
@@ -2537,13 +2712,22 @@ describe("PublicProjectReader", () => {
   it("keeps bottom progress discrete during partial vertical scrolling before ?page changes", async () => {
     setVisualViewport({ height: 640 });
     const rects = {
-      "project-reading-stage": { top: 220, bottom: 860, width: 1200, height: 640 },
+      "project-reading-stage": {
+        top: 220,
+        bottom: 860,
+        width: 1200,
+        height: 640,
+      },
       "reader-page-0": { top: 220, bottom: 860, width: 1200, height: 640 },
       "reader-page-1": { top: 920, bottom: 1560, width: 1200, height: 640 },
     };
     const rectSpy = mockRectsByTestId(rects);
 
-    renderReader({ layout: "scroll-vertical", imageFit: "both", progressPosition: "bottom" });
+    renderReader({
+      layout: "scroll-vertical",
+      imageFit: "both",
+      progressPosition: "bottom",
+    });
 
     const indicator = await screen.findByTestId("project-reader-progress-indicator");
     const initialLeft = Number.parseFloat(indicator.style.left);
@@ -2553,8 +2737,18 @@ describe("PublicProjectReader", () => {
       expect(screen.getByTestId("project-reader-progress-label")).toHaveTextContent("1");
     });
 
-    rects["reader-page-0"] = { top: -120, bottom: 520, width: 1200, height: 640 };
-    rects["reader-page-1"] = { top: 540, bottom: 1180, width: 1200, height: 640 };
+    rects["reader-page-0"] = {
+      top: -120,
+      bottom: 520,
+      width: 1200,
+      height: 640,
+    };
+    rects["reader-page-1"] = {
+      top: 540,
+      bottom: 1180,
+      width: 1200,
+      height: 640,
+    };
     fireEvent.scroll(window);
 
     await waitFor(() => {
@@ -2574,7 +2768,12 @@ describe("PublicProjectReader", () => {
     const replaceStateSpy = vi.spyOn(window.history, "replaceState");
     setVisualViewport({ width: 1280, height: 640 });
     const rects = {
-      "project-reading-stage": { top: 240, bottom: 880, width: 1200, height: 640 },
+      "project-reading-stage": {
+        top: 240,
+        bottom: 880,
+        width: 1200,
+        height: 640,
+      },
       "project-reading-horizontal-scroll": {
         top: 240,
         bottom: 880,
@@ -2583,7 +2782,14 @@ describe("PublicProjectReader", () => {
         width: 800,
         height: 640,
       },
-      "reader-page-0": { top: 240, bottom: 880, left: 0, right: 600, width: 600, height: 640 },
+      "reader-page-0": {
+        top: 240,
+        bottom: 880,
+        left: 0,
+        right: 600,
+        width: 600,
+        height: 640,
+      },
       "reader-page-1": {
         top: 240,
         bottom: 880,
@@ -2657,7 +2863,12 @@ describe("PublicProjectReader", () => {
     const replaceStateSpy = vi.spyOn(window.history, "replaceState");
     setVisualViewport({ width: 1280, height: 640 });
     const rects = {
-      "project-reading-stage": { top: 240, bottom: 880, width: 1200, height: 640 },
+      "project-reading-stage": {
+        top: 240,
+        bottom: 880,
+        width: 1200,
+        height: 640,
+      },
       "project-reading-horizontal-scroll": {
         top: 240,
         bottom: 880,
@@ -2666,7 +2877,14 @@ describe("PublicProjectReader", () => {
         width: 800,
         height: 640,
       },
-      "reader-page-0": { top: 240, bottom: 880, left: 0, right: 600, width: 600, height: 640 },
+      "reader-page-0": {
+        top: 240,
+        bottom: 880,
+        left: 0,
+        right: 600,
+        width: 600,
+        height: 640,
+      },
       "reader-page-1": {
         top: 240,
         bottom: 880,
@@ -2767,7 +2985,12 @@ describe("PublicProjectReader", () => {
     const replaceStateSpy = vi.spyOn(window.history, "replaceState");
     setVisualViewport({ width: 1280, height: 640 });
     const rects = {
-      "project-reading-stage": { top: 240, bottom: 880, width: 1200, height: 640 },
+      "project-reading-stage": {
+        top: 240,
+        bottom: 880,
+        width: 1200,
+        height: 640,
+      },
       "project-reading-horizontal-scroll": {
         top: 240,
         bottom: 880,
@@ -2776,7 +2999,14 @@ describe("PublicProjectReader", () => {
         width: 800,
         height: 640,
       },
-      "reader-page-0": { top: 240, bottom: 880, left: 0, right: 600, width: 600, height: 640 },
+      "reader-page-0": {
+        top: 240,
+        bottom: 880,
+        left: 0,
+        right: 600,
+        width: 600,
+        height: 640,
+      },
       "reader-page-1": {
         top: 240,
         bottom: 880,
@@ -2803,7 +3033,10 @@ describe("PublicProjectReader", () => {
       expect(window.location.search).toBe("?page=1");
     });
     await waitFor(() => {
-      expect(window.scrollTo).toHaveBeenCalledWith({ top: 240, behavior: "auto" });
+      expect(window.scrollTo).toHaveBeenCalledWith({
+        top: 240,
+        behavior: "auto",
+      });
     });
     expect(screen.getByTestId("reader-location-search").textContent).toBe("");
     expect(screen.getByTestId("reader-location-action")).toHaveTextContent("POP");
@@ -2896,7 +3129,12 @@ describe("PublicProjectReader", () => {
     const replaceStateSpy = vi.spyOn(window.history, "replaceState");
     setVisualViewport({ width: 1280, height: 640 });
     const rects = {
-      "project-reading-stage": { top: 240, bottom: 880, width: 1800, height: 640 },
+      "project-reading-stage": {
+        top: 240,
+        bottom: 880,
+        width: 1800,
+        height: 640,
+      },
       "project-reading-horizontal-scroll": {
         top: 240,
         bottom: 880,
@@ -2905,7 +3143,14 @@ describe("PublicProjectReader", () => {
         width: 800,
         height: 640,
       },
-      "reader-page-0": { top: 240, bottom: 880, left: 0, right: 600, width: 600, height: 640 },
+      "reader-page-0": {
+        top: 240,
+        bottom: 880,
+        left: 0,
+        right: 600,
+        width: 600,
+        height: 640,
+      },
       "reader-page-1": {
         top: 240,
         bottom: 880,
@@ -4044,8 +4289,16 @@ describe("PublicProjectReader", () => {
     const sidebar = await screen.findByTestId("project-reader-sidebar");
     const scrollArea = within(sidebar).getByTestId("project-reader-menu-scroll-area");
 
-    setElementSize(sidebar, { clientHeight: 730, offsetHeight: 730, scrollHeight: 742 });
-    setElementSize(scrollArea, { clientHeight: 646, offsetHeight: 646, scrollHeight: 648 });
+    setElementSize(sidebar, {
+      clientHeight: 730,
+      offsetHeight: 730,
+      scrollHeight: 742,
+    });
+    setElementSize(scrollArea, {
+      clientHeight: 646,
+      offsetHeight: 646,
+      scrollHeight: 648,
+    });
     fireEvent.scroll(window);
 
     expect(scrollArea.style.overflowY).toBe("hidden");
@@ -4079,8 +4332,16 @@ describe("PublicProjectReader", () => {
     const sidebar = await screen.findByTestId("project-reader-sidebar");
     const scrollArea = within(sidebar).getByTestId("project-reader-menu-scroll-area");
 
-    setElementSize(sidebar, { clientHeight: 622, offsetHeight: 622, scrollHeight: 780 });
-    setElementSize(scrollArea, { clientHeight: 538, offsetHeight: 538, scrollHeight: 700 });
+    setElementSize(sidebar, {
+      clientHeight: 622,
+      offsetHeight: 622,
+      scrollHeight: 780,
+    });
+    setElementSize(scrollArea, {
+      clientHeight: 538,
+      offsetHeight: 538,
+      scrollHeight: 700,
+    });
     fireEvent.scroll(window);
 
     expect(sidebar.style.height).toBe("622px");
@@ -4093,7 +4354,11 @@ describe("PublicProjectReader", () => {
   });
 
   it("keeps menu and progress clamped to the same visible stage slice near the top", async () => {
-    renderReader({ imageFit: "both", progressStyle: "default", progressPosition: "right" });
+    renderReader({
+      imageFit: "both",
+      progressStyle: "default",
+      progressPosition: "right",
+    });
 
     const stage = screen.getByTestId("project-reading-stage");
     const progressViewport = await screen.findByTestId("project-reader-progress-viewport");
@@ -4137,7 +4402,11 @@ describe("PublicProjectReader", () => {
   });
 
   it("collapses menu and progress without a minimum floor when only a tiny slice of the stage is visible", async () => {
-    renderReader({ imageFit: "both", progressStyle: "default", progressPosition: "left" });
+    renderReader({
+      imageFit: "both",
+      progressStyle: "default",
+      progressPosition: "left",
+    });
 
     const stage = screen.getByTestId("project-reading-stage");
     const progressViewport = await screen.findByTestId("project-reader-progress-viewport");
@@ -4348,9 +4617,15 @@ describe("PublicProjectReader", () => {
     fireEvent.click(screen.getByTestId("project-reader-menu-button"));
     const reopenedSidebar = await screen.findByTestId("project-reader-sidebar");
     expect(
-      within(reopenedSidebar).queryByRole("button", { name: /Pr.ximo cap.tulo/i }),
+      within(reopenedSidebar).queryByRole("button", {
+        name: /Pr.ximo cap.tulo/i,
+      }),
     ).not.toBeInTheDocument();
-    fireEvent.click(within(reopenedSidebar).getByRole("button", { name: /Cap.tulo anterior/i }));
+    fireEvent.click(
+      within(reopenedSidebar).getByRole("button", {
+        name: /Cap.tulo anterior/i,
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
@@ -4371,10 +4646,8 @@ describe("PublicProjectReader", () => {
     trigger.focus();
     fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
 
-    expect(await screen.findByRole("option", { name: "Acompanha a página" })).toBeInTheDocument();
-    expect(
-      await screen.findByRole("option", { name: "Padrão do site (fixo no topo)" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Estatica" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Fixa" })).toBeInTheDocument();
   });
 
   it.skip("updates the saved site header behavior from the reader menu", async () => {
@@ -4387,12 +4660,14 @@ describe("PublicProjectReader", () => {
 
     trigger.focus();
     fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
-    fireEvent.click(await screen.findByRole("option", { name: "Padrão do site (fixo no topo)" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Fixa" }));
 
-    expect(updateConfigMock).toHaveBeenCalledWith({ siteHeaderVariant: "fixed" });
+    expect(updateConfigMock).toHaveBeenCalledWith({
+      siteHeaderVariant: "fixed",
+    });
   });
 
-  it("shows the renamed site header visibility options in the reader menu", async () => {
+  it("shows the site header variant options in the reader menu", async () => {
     renderReader({ imageFit: "both", siteHeaderVariant: "static" });
 
     fireEvent.click(screen.getByTestId("project-reader-menu-button"));
@@ -4403,11 +4678,11 @@ describe("PublicProjectReader", () => {
     trigger.focus();
     fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
 
-    expect(await screen.findByRole("option", { name: "Oculto" })).toBeInTheDocument();
-    expect(await screen.findByRole("option", { name: "Visível" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Fixa" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Estatica" })).toBeInTheDocument();
   });
 
-  it("updates the saved site header behavior from the renamed reader menu option", async () => {
+  it("updates the saved site header variant from the reader menu", async () => {
     renderReader({ imageFit: "both", siteHeaderVariant: "static" });
 
     fireEvent.click(screen.getByTestId("project-reader-menu-button"));
@@ -4417,11 +4692,12 @@ describe("PublicProjectReader", () => {
 
     trigger.focus();
     fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
-    fireEvent.click(await screen.findByRole("option", { name: "Visível" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Fixa" }));
 
-    expect(updateConfigMock).toHaveBeenCalledWith({ siteHeaderVariant: "fixed" });
+    expect(updateConfigMock).toHaveBeenCalledWith({
+      siteHeaderVariant: "fixed",
+    });
   });
-
   it("keeps only one reader dropdown open at a time", async () => {
     renderReader({ imageFit: "both" });
 

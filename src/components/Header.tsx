@@ -27,13 +27,12 @@ import { sanitizePublicHref } from "@/lib/url-safety";
 import { uiCopy } from "@/lib/ui-copy";
 import type { SearchSuggestion } from "@/types/search-suggestion";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
-import {
-  type PublicBootstrapCurrentUser,
-} from "@/lib/public-bootstrap-global";
+import { type PublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
 import type { HeaderActionMenusProps } from "@/components/HeaderActionMenus";
 
 type HeaderProps = {
   variant?: "fixed" | "static";
+  showBottomGradient?: boolean;
   leading?: ReactNode;
   className?: string;
 };
@@ -104,7 +103,12 @@ const HeaderActionsFallback = ({
   </>
 );
 
-const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
+const Header = ({
+  variant = "fixed",
+  showBottomGradient = true,
+  leading,
+  className,
+}: HeaderProps) => {
   const MIN_SUGGEST_QUERY_LENGTH = 2;
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -483,9 +487,16 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       className={cn(
         "left-0 right-0 px-6 py-4 text-foreground transition-[background-color,backdrop-filter] duration-300 ease-in-out md:px-12",
         variant === "fixed"
-          ? "fixed top-0 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-8 after:bg-linear-to-b after:from-background/70 after:via-background/25 after:to-transparent after:transition-opacity after:duration-300 after:ease-in-out"
+          ? "fixed top-0"
           : "",
-        variant === "fixed" ? (isElevated ? "after:opacity-100" : "after:opacity-0") : "",
+        variant === "fixed" && showBottomGradient
+          ? "after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-8 after:bg-linear-to-b after:from-background/70 after:via-background/25 after:to-transparent after:transition-opacity after:duration-300 after:ease-in-out"
+          : "",
+        variant === "fixed" && showBottomGradient
+          ? isElevated
+            ? "after:opacity-100"
+            : "after:opacity-0"
+          : "",
         isElevated ? "bg-background/70 backdrop-blur-xl" : "bg-transparent backdrop-blur-none",
         variant === "static" ? "relative" : "",
         leading ? "z-10" : "z-50",

@@ -15,7 +15,7 @@ const READER_PREFERENCES_STORAGE_KEY = "public.reader.preferences";
 export type ProjectReaderPreferencesState = {
   isLoaded: boolean;
   resolvedConfig: Record<string, unknown> & {
-    siteHeaderVariant?: "static" | "fixed";
+    siteHeaderVariant?: "fixed" | "static";
   };
   updateConfig: (
     nextConfig:
@@ -163,7 +163,9 @@ export const useProjectReaderPreferences = ({
           setIsLoaded(true);
           return;
         }
-        const payload = (await response.json()) as { preferences?: Record<string, unknown> };
+        const payload = (await response.json()) as {
+          preferences?: Record<string, unknown>;
+        };
         const nextRoot = isRecord(payload?.preferences) ? payload.preferences : {};
         rootRef.current = nextRoot;
         setPreferencesRoot(nextRoot);
@@ -193,7 +195,9 @@ export const useProjectReaderPreferences = ({
   const resolvedConfig = useMemo(
     () =>
       storedPreference
-        ? mergeProjectReaderConfig(normalizedBaseConfig, storedPreference, { projectType })
+        ? mergeProjectReaderConfig(normalizedBaseConfig, storedPreference, {
+            projectType,
+          })
         : normalizedBaseConfig,
     [normalizedBaseConfig, projectType, storedPreference],
   );
@@ -236,7 +240,9 @@ export const useProjectReaderPreferences = ({
         if (!response.ok) {
           return normalizedConfig;
         }
-        const payload = (await response.json()) as { preferences?: Record<string, unknown> };
+        const payload = (await response.json()) as {
+          preferences?: Record<string, unknown>;
+        };
         const savedRoot = isRecord(payload?.preferences) ? payload.preferences : nextRoot;
         rootRef.current = savedRoot;
         setPreferencesRoot(savedRoot);

@@ -69,6 +69,7 @@ describe("useProjectReaderPreferences", () => {
               layout: "double",
               direction: "rtl",
               progressStyle: "glow",
+              showSiteHeader: true,
             },
           },
         },
@@ -76,13 +77,16 @@ describe("useProjectReaderPreferences", () => {
     );
 
     const { rerender } = render(
-      <HookHarness projectType="manga" baseConfig={{ layout: "single" }} />,
+      <HookHarness
+        projectType="manga"
+        baseConfig={{ layout: "single", siteHeaderVariant: "static" }}
+      />,
     );
 
     await waitFor(() => expect(screen.getByTestId("loaded")).toHaveTextContent("true"));
     expect(screen.getByTestId("layout")).toHaveTextContent("double");
     expect(screen.getByTestId("progress-style")).toHaveTextContent("default");
-    expect(screen.getByTestId("site-header-variant")).toHaveTextContent("static");
+    expect(screen.getByTestId("site-header-variant")).toHaveTextContent("fixed");
 
     fireEvent.click(screen.getByRole("button", { name: "set-fixed-header" }));
     await waitFor(() =>
@@ -101,7 +105,14 @@ describe("useProjectReaderPreferences", () => {
     expect(storedValue.reader.projectTypes.manga.siteHeaderVariant).toBe("fixed");
 
     rerender(
-      <HookHarness projectType="manga" baseConfig={{ layout: "single", progressStyle: "glow" }} />,
+      <HookHarness
+        projectType="manga"
+        baseConfig={{
+          layout: "single",
+          progressStyle: "glow",
+          siteHeaderVariant: "static",
+        }}
+      />,
     );
 
     expect(screen.getByTestId("layout")).toHaveTextContent("scroll-horizontal");
@@ -149,14 +160,14 @@ describe("useProjectReaderPreferences", () => {
     render(
       <HookHarness
         projectType="webtoon"
-        baseConfig={{ layout: "scroll-vertical" }}
+        baseConfig={{ layout: "scroll-vertical", siteHeaderVariant: "static" }}
         currentUserId="user-1"
       />,
     );
 
     await waitFor(() => expect(screen.getByTestId("loaded")).toHaveTextContent("true"));
     expect(screen.getByTestId("layout")).toHaveTextContent("scroll-horizontal");
-    expect(screen.getByTestId("site-header-variant")).toHaveTextContent("fixed");
+    expect(screen.getByTestId("site-header-variant")).toHaveTextContent("static");
 
     fireEvent.click(screen.getByRole("button", { name: "set-double" }));
 
