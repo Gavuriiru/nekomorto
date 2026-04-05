@@ -250,7 +250,7 @@ const MangaChapterPagesEditor = ({
       appendUploadedUrls(uploadedUrls);
       toast({
         title:
-          uploadedUrls.length === 1 ? "PÃ¡gina enviada" : `${uploadedUrls.length} páginas enviadas`,
+          uploadedUrls.length === 1 ? "Página enviada" : `${uploadedUrls.length} páginas enviadas`,
         intent: "success",
       });
     } catch {
@@ -364,7 +364,7 @@ const MangaChapterPagesEditor = ({
       event,
       index,
       total: pages.length,
-      label: `PÃ¡gina ${index + 1}`,
+      label: `Página ${index + 1}`,
       disabled: isUploading,
       onMove: (targetIndex) => {
         const nextPages = reorderList(pages, index, targetIndex);
@@ -588,7 +588,7 @@ const MangaChapterPagesEditor = ({
                     key={`${page.imageUrl}-${page.position}`}
                     testIdPrefix="manga-page"
                     src={page.imageUrl}
-                    alt={`PÃ¡gina ${index + 1}`}
+                    alt={`Página ${index + 1}`}
                     displayName={page.displayName}
                     index={index}
                     isCover={isCover}
@@ -637,7 +637,7 @@ const MangaChapterPagesEditor = ({
                   key={`${page.imageUrl}-${page.position}`}
                   testIdPrefix="manga-page"
                   src={page.imageUrl}
-                  alt={`PÃ¡gina ${index + 1}`}
+                  alt={`Página ${index + 1}`}
                   displayName={page.displayName}
                   index={index}
                   isCover={isCover}

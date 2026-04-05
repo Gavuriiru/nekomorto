@@ -118,14 +118,14 @@ describe("ImageLibraryDialog mobile layout", () => {
 
     expect(folderTriggerTokens).toContain("w-full");
     expect(folderTriggerTokens).toContain("sm:w-[220px]");
-    expect(folderTriggerTokens).toContain("rounded-md");
-    expect(folderTriggerTokens).toContain("focus:ring-inset");
-    expect(folderTriggerTokens).toContain("data-[state=open]:ring-inset");
+    expect(folderTriggerTokens).toContain("rounded-xl");
+    expect(folderTriggerTokens).toContain("focus-visible:ring-inset");
+    expect(folderTriggerTokens).toContain("bg-card/70");
     expect(sortTriggerTokens).toContain("w-full");
     expect(sortTriggerTokens).toContain("sm:w-[180px]");
-    expect(sortTriggerTokens).toContain("rounded-md");
-    expect(sortTriggerTokens).toContain("focus:ring-inset");
-    expect(sortTriggerTokens).toContain("data-[state=open]:ring-inset");
+    expect(sortTriggerTokens).toContain("rounded-xl");
+    expect(sortTriggerTokens).toContain("focus-visible:ring-inset");
+    expect(sortTriggerTokens).toContain("bg-card/70");
 
     const clearSelectionTokens = classTokens(clearSelectionButton);
 

@@ -243,4 +243,48 @@ describe("usePublicBootstrap store", () => {
 
     expect(apiFetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("preserva inProgressItems ao normalizar o payload buscado", async () => {
+    apiFetchMock.mockResolvedValueOnce(
+      createJsonResponse(true, {
+        settings: {},
+        pages: {},
+        projects: [],
+        inProgressItems: [
+          {
+            projectId: "project-ln",
+            projectTitle: "NouKin",
+            projectType: "Light Novel",
+            number: 3,
+            volume: 0,
+            progressStage: "traducao",
+            completedStages: ["aguardando-raw"],
+          },
+        ],
+        posts: [],
+        updates: [],
+        mediaVariants: {},
+        tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+        generatedAt: "2026-03-05T00:00:00.000Z",
+      }),
+    );
+
+    const { usePublicBootstrap } = await loadHookModule();
+
+    const Harness = () => {
+      const { data } = usePublicBootstrap();
+      const item = data?.inProgressItems?.[0];
+      return (
+        <div data-testid="item">
+          {item ? `${item.projectTitle}|${item.number}|${item.volume ?? "sem-volume"}` : "none"}
+        </div>
+      );
+    };
+
+    render(<Harness />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("item")).toHaveTextContent("NouKin|3|0");
+    });
+  });
 });

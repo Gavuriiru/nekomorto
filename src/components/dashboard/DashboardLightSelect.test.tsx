@@ -1,5 +1,5 @@
 import * as React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Heart, Sparkles, Users } from "lucide-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -48,24 +48,60 @@ describe("DashboardLightSelect", () => {
     render(<Harness />);
 
     const trigger = screen.getByRole("combobox", { name: "Selecao principal" });
+    expect(trigger).toHaveClass("rounded-xl", "border-border/60", "bg-background/60");
+    const triggerLabel = within(trigger).getByText("Sparkles");
+    expect(triggerLabel).toHaveClass("min-w-0", "truncate", "whitespace-nowrap");
+    expect(triggerLabel.parentElement).toHaveClass(
+      "flex",
+      "min-w-0",
+      "max-w-full",
+      "flex-nowrap",
+      "items-center",
+      "gap-2",
+      "overflow-hidden",
+    );
     fireEvent.click(trigger);
 
-    expect(
-      await screen.findByRole("option", { name: "Heart" }),
-    ).toBeInTheDocument();
-    expect(classTokens(screen.getByRole("listbox"))).toContain(
-      "shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]",
+    const heartOption = await screen.findByRole("option", { name: "Heart" });
+    const heartLabel = within(heartOption).getByText("Heart");
+    expect(heartLabel).toHaveClass("min-w-0", "truncate", "whitespace-nowrap");
+    expect(heartLabel.parentElement).toHaveClass(
+      "flex",
+      "min-w-0",
+      "max-w-full",
+      "flex-nowrap",
+      "items-center",
+      "gap-2",
+      "overflow-hidden",
+    );
+    expect(classTokens(screen.getByRole("listbox"))).toEqual(
+      expect.arrayContaining([
+        "rounded-2xl",
+        "border-border/70",
+        "bg-popover/95",
+        "z-[80]",
+        "shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]",
+      ]),
     );
 
-    fireEvent.click(screen.getByRole("option", { name: "Heart" }));
+    fireEvent.click(heartOption);
 
     await waitFor(() => {
       expect(trigger).toHaveAttribute("aria-expanded", "false");
-      expect(
-        screen.queryByRole("option", { name: "Heart" }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "Heart" })).not.toBeInTheDocument();
     });
     expect(trigger).toHaveTextContent("Heart");
+    const selectedHeartLabel = within(trigger).getByText("Heart");
+    expect(selectedHeartLabel).toHaveClass("min-w-0", "truncate", "whitespace-nowrap");
+    expect(selectedHeartLabel.parentElement).toHaveClass(
+      "flex",
+      "min-w-0",
+      "max-w-full",
+      "flex-nowrap",
+      "items-center",
+      "gap-2",
+      "overflow-hidden",
+    );
   });
 
   it("fecha ao clicar fora", async () => {
@@ -91,17 +127,13 @@ describe("DashboardLightSelect", () => {
       name: "Selecao com outside",
     });
     fireEvent.click(trigger);
-    expect(
-      await screen.findByRole("option", { name: "Sparkles" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Sparkles" })).toBeInTheDocument();
 
     fireEvent.mouseDown(screen.getByRole("button", { name: "Fora" }));
 
     await waitFor(() => {
       expect(trigger).toHaveAttribute("aria-expanded", "false");
-      expect(
-        screen.queryByRole("option", { name: "Sparkles" }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "Sparkles" })).not.toBeInTheDocument();
     });
   });
 
@@ -193,21 +225,15 @@ describe("DashboardLightSelect", () => {
     });
 
     fireEvent.click(firstTrigger);
-    expect(
-      await screen.findByRole("option", { name: "Sparkles" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Sparkles" })).toBeInTheDocument();
 
     fireEvent.click(secondTrigger);
 
     await waitFor(() => {
       expect(firstTrigger).toHaveAttribute("aria-expanded", "false");
-      expect(
-        screen.queryByRole("option", { name: "Sparkles" }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "Sparkles" })).not.toBeInTheDocument();
     });
     expect(secondTrigger).toHaveAttribute("aria-expanded", "true");
-    expect(
-      await screen.findByRole("option", { name: "Users" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Users" })).toBeInTheDocument();
   });
 });

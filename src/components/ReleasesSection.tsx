@@ -13,18 +13,19 @@ import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { formatDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
+const HOME_POSTS_PAGE_SIZE = 10;
+
 const ReleasesSection = () => {
-  const pageSize = 8;
   const [currentPage, setCurrentPage] = useState(1);
   const postsSectionRef = useRef<HTMLDivElement | null>(null);
   const { data: bootstrapData, isLoading } = usePublicBootstrap();
   const posts = bootstrapData?.posts || [];
   const mediaVariants = bootstrapData?.mediaVariants || {};
   const isLoadingPosts = isLoading && !bootstrapData;
-  const totalPages = Math.ceil(posts.length / pageSize) || 1;
+  const totalPages = Math.ceil(posts.length / HOME_POSTS_PAGE_SIZE) || 1;
   const pagedReleases = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    return posts.slice(startIndex, startIndex + pageSize);
+    const startIndex = (currentPage - 1) * HOME_POSTS_PAGE_SIZE;
+    return posts.slice(startIndex, startIndex + HOME_POSTS_PAGE_SIZE);
   }, [currentPage, posts]);
   const showPagination = totalPages > 1;
   const changePage = useCallback(

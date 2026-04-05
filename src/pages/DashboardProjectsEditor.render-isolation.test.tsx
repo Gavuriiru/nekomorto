@@ -293,6 +293,30 @@ describe("DashboardProjectsEditor render isolation", () => {
     setupApiMock();
   });
 
+  it("mantem os filtros do editor alinhados ao contrato visual compartilhado", async () => {
+    renderEditor();
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    expect(screen.getByTestId("dashboard-projects-toolbar")).toHaveClass("relative", "z-[30]");
+    expect(screen.getByPlaceholderText("Buscar por título, tags, estúdio...")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Ordenar projetos" })).toHaveTextContent(
+      "Ordem alfabética",
+    );
+
+    const typeTrigger = screen.getByRole("combobox", { name: "Filtrar por formato" });
+    expect(typeTrigger).toHaveClass("rounded-xl", "border-border/60", "bg-background/60");
+
+    fireEvent.click(typeTrigger);
+
+    const option = await screen.findByRole("option", { name: "Light Novel" });
+    expect(option).toHaveClass("rounded-xl", "py-2", "pl-9", "pr-3");
+    expect(screen.getByRole("listbox")).toHaveClass(
+      "rounded-2xl",
+      "border-border/70",
+      "bg-popover/95",
+    );
+  });
+
   it("keeps the lexical editor stable when only project metadata changes", async () => {
     renderEditor();
 

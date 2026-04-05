@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 
 import { Input } from "@/components/public-form-controls";
 import {
@@ -21,6 +21,13 @@ import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import CompactPagination from "@/components/ui/compact-pagination";
+import {
+  dropdownChevronClassName,
+  dropdownItemClassName,
+  dropdownItemIndicatorClassName,
+  dropdownPopoverClassName,
+  dropdownTriggerClassName,
+} from "@/components/ui/dropdown-contract";
 import type { Project } from "@/data/projects";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -53,8 +60,6 @@ const MOBILE_FILTERS_PANEL_ID = "projects-mobile-filters-panel";
 const FILTER_COMBOBOX_INITIAL_LIMIT = 24;
 const FILTER_COMBOBOX_STEP = 24;
 const PROJECT_CARD_SYNOPSIS_CLASS = "projects-public-synopsis";
-const FILTER_TRIGGER_CLASS_NAME =
-  "flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-left text-sm text-foreground shadow-sm transition-colors focus-visible:outline-hidden focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/45 focus-visible:ring-inset";
 
 const parseLetterParam = (value: string | null) => {
   const normalized = String(value || "")
@@ -224,7 +229,10 @@ const buildIndexedPublicProjects = ({
       }
       return {
         project,
-        firstLetter: String(project.title || "").trim().charAt(0).toUpperCase(),
+        firstLetter: String(project.title || "")
+          .trim()
+          .charAt(0)
+          .toUpperCase(),
         normalizedHaystack: normalizeSearchText(
           [
             project.title,
@@ -425,7 +433,10 @@ const ProjectsSearchableFilter = memo(
           aria-label={ariaLabel}
           aria-expanded={isOpen}
           aria-controls={`${id}-listbox`}
-          className={FILTER_TRIGGER_CLASS_NAME}
+          aria-haspopup="listbox"
+          data-placeholder={selectedOption ? undefined : ""}
+          data-state={isOpen ? "open" : "closed"}
+          className={dropdownTriggerClassName}
           onClick={() => onOpenChange(!isOpen)}
           onKeyDown={(event) => {
             if (
@@ -443,15 +454,16 @@ const ProjectsSearchableFilter = memo(
           }}
         >
           <span className="truncate">{selectedOption?.label || placeholder}</span>
-          <ChevronDown
-            className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", {
-              "rotate-180": isOpen,
-            })}
-            aria-hidden="true"
-          />
+          <ChevronDown className={dropdownChevronClassName} aria-hidden="true" />
         </button>
         {isOpen ? (
-          <div className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-30 rounded-2xl border border-border/70 bg-popover/95 p-3 shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)] backdrop-blur-sm">
+          <div
+            data-state="open"
+            className={cn(
+              dropdownPopoverClassName,
+              "absolute inset-x-0 top-[calc(100%+0.5rem)] z-30 p-3",
+            )}
+          >
             {searchEnabled ? (
               <Input
                 ref={inputRef}
@@ -467,7 +479,7 @@ const ProjectsSearchableFilter = memo(
               role="listbox"
               aria-label={label}
               className={cn(
-                "no-scrollbar max-h-64 space-y-1 overflow-y-auto overscroll-contain pr-1",
+                "no-scrollbar max-h-64 overflow-y-auto overscroll-contain p-1",
                 searchEnabled ? "mt-3" : "mt-0",
               )}
             >
@@ -480,23 +492,17 @@ const ProjectsSearchableFilter = memo(
                       type="button"
                       role="option"
                       aria-selected={isSelected}
-                      className={cn(
-                        "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors",
-                        isSelected
-                          ? "bg-primary/12 text-primary"
-                          : "text-foreground hover:bg-accent/60 hover:text-accent-foreground",
-                      )}
+                      data-state={isSelected ? "checked" : "unchecked"}
+                      className={dropdownItemClassName}
                       onClick={() => {
                         onValueChange(option.value);
                         onOpenChange(false);
                       }}
                     >
+                      <span className={dropdownItemIndicatorClassName}>
+                        {isSelected ? <Check className="h-4 w-4" aria-hidden="true" /> : null}
+                      </span>
                       <span className="truncate">{option.label}</span>
-                      {isSelected ? (
-                        <span className="text-[11px] font-semibold uppercase tracking-wide">
-                          ativo
-                        </span>
-                      ) : null}
                     </button>
                   );
                 })
@@ -553,7 +559,14 @@ const ProjectCard = memo(
               maxVisible: 2,
               maxChars: 18,
             }),
-      [genreTranslations, isMobile, project.genres, project.producers, project.tags, tagTranslations],
+      [
+        genreTranslations,
+        isMobile,
+        project.genres,
+        project.producers,
+        project.tags,
+        tagTranslations,
+      ],
     );
 
     return (
@@ -1098,7 +1111,10 @@ const Projects = () => {
   const totalPages = Math.max(1, Math.ceil(filteredProjects.length / projectsPerPage));
   const pageStart = (currentPage - 1) * projectsPerPage;
   const paginatedProjects = filteredProjects.slice(pageStart, pageStart + projectsPerPage);
-  const synopsisKeys = useMemo(() => paginatedProjects.map((project) => project.id), [paginatedProjects]);
+  const synopsisKeys = useMemo(
+    () => paginatedProjects.map((project) => project.id),
+    [paginatedProjects],
+  );
   const synopsisMaxLines = isMobile ? 2 : 4;
   const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
     enabled: paginatedProjects.length > 0,
@@ -1158,13 +1174,7 @@ const Projects = () => {
       },
       { replace: true },
     );
-  }, [
-    commitSearchParams,
-    hasProjectsLoadError,
-    isLoadingProjects,
-    selectedType,
-    typeOptionValues,
-  ]);
+  }, [commitSearchParams, hasProjectsLoadError, isLoadingProjects, selectedType, typeOptionValues]);
 
   useEffect(() => {
     if (isLoadingProjects || hasProjectsLoadError) {
@@ -1220,11 +1230,7 @@ const Projects = () => {
   }, [commitSearchParams, currentPage, hasProjectsLoadError, isLoadingProjects, totalPages]);
 
   const handleFilterChange = useCallback(
-    (
-      key: "letter" | "tag" | "genero" | "type",
-      value: string,
-      emptyValue: "Todas" | "Todos",
-    ) => {
+    (key: "letter" | "tag" | "genero" | "type", value: string, emptyValue: "Todas" | "Todos") => {
       commitSearchParams((params) => {
         if (value === emptyValue) {
           params.delete(key);

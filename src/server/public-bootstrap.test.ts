@@ -12,6 +12,17 @@ describe("public bootstrap payload", () => {
           shareImageAlt: "Home",
         },
       },
+      inProgressItems: [
+        {
+          projectId: "project-ln",
+          projectTitle: "NouKin",
+          projectType: "Light Novel",
+          number: 3,
+          volume: 0,
+          progressStage: "traducao",
+          completedStages: ["aguardando-raw"],
+        },
+      ],
       projects: [
         {
           id: "project-1",
@@ -141,6 +152,7 @@ describe("public bootstrap payload", () => {
         settings: expect.any(Object),
         pages: expect.any(Object),
         projects: expect.any(Array),
+        inProgressItems: expect.any(Array),
         posts: expect.any(Array),
         updates: expect.any(Array),
         teamMembers: expect.any(Array),
@@ -151,6 +163,17 @@ describe("public bootstrap payload", () => {
       }),
     );
     expect(payload.projects).toHaveLength(1);
+    expect(payload.inProgressItems).toEqual([
+      expect.objectContaining({
+        projectId: "project-ln",
+        projectTitle: "NouKin",
+        projectType: "Light Novel",
+        number: 3,
+        volume: 0,
+        progressStage: "traducao",
+        completedStages: ["aguardando-raw"],
+      }),
+    ]);
     expect(payload.posts).toHaveLength(1);
     expect(payload.updates).toHaveLength(1);
     expect(payload.teamMembers).toHaveLength(1);
@@ -309,6 +332,51 @@ describe("public bootstrap payload", () => {
     );
     expect(chapter).not.toHaveProperty("pages");
     expect(chapter).not.toHaveProperty("content");
+  });
+
+  it("sanitizes lightweight in-progress items for public bootstrap consumers", () => {
+    const payload = buildPublicBootstrapPayload({
+      settings: {},
+      pages: {},
+      projects: [],
+      inProgressItems: [
+        {
+          projectId: "project-manga",
+          projectTitle: "Gabriel Dropout",
+          projectType: "Manga",
+          number: 2,
+          volume: 1,
+          entryKind: "main",
+          displayLabel: "",
+          progressStage: "typesetting",
+          completedStages: ["aguardando-raw", "traducao", "limpeza", "redrawing", ""],
+          content: '{"root":{}}',
+          pages: [{ position: 0, imageUrl: "/uploads/secret-page.jpg" }],
+        },
+      ],
+      posts: [],
+      updates: [],
+      teamMembers: [],
+      teamLinkTypes: [],
+      tagTranslations: {},
+      generatedAt: "2026-03-12T10:00:00.000Z",
+    });
+
+    expect(payload.inProgressItems).toEqual([
+      {
+        projectId: "project-manga",
+        projectTitle: "Gabriel Dropout",
+        projectType: "Manga",
+        number: 2,
+        volume: 1,
+        entryKind: "main",
+        displayLabel: "",
+        progressStage: "typesetting",
+        completedStages: ["aguardando-raw", "traducao", "limpeza", "redrawing"],
+      },
+    ]);
+    expect(payload.inProgressItems[0]).not.toHaveProperty("content");
+    expect(payload.inProgressItems[0]).not.toHaveProperty("pages");
   });
 
   it("falls back to full payload mode when value is missing or invalid", () => {

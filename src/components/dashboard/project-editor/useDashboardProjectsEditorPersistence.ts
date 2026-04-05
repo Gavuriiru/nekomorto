@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 
 import { toast } from "@/components/ui/use-toast";
+import { refetchPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { apiFetch } from "@/lib/api-client";
 import { parseAniListMediaId } from "@/lib/anilist";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
@@ -291,6 +292,7 @@ export const useDashboardProjectsEditorPersistence = ({
       description: "As alterações foram salvas com sucesso.",
       intent: "success",
     });
+    void refetchPublicBootstrapCache(apiBase).catch(() => undefined);
     closeEditor();
   }, [
     anilistIdInput,
@@ -335,6 +337,7 @@ export const useDashboardProjectsEditorPersistence = ({
       title: "Projeto movido para a lixeira",
       description: "Você pode restaurar por 3 dias.",
     });
+    void refetchPublicBootstrapCache(apiBase).catch(() => undefined);
   }, [apiBase, closeEditor, deleteTarget, editingProject, refreshProjects, setDeleteTarget]);
 
   const isRestorable = useCallback(
@@ -388,6 +391,7 @@ export const useDashboardProjectsEditorPersistence = ({
       const data = await response.json();
       setProjects((prev) => prev.map((item) => (item.id === project.id ? data.project : item)));
       toast({ title: "Projeto restaurado" });
+      void refetchPublicBootstrapCache(apiBase).catch(() => undefined);
     },
     [apiBase, refreshProjects, setProjects],
   );

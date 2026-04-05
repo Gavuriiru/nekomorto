@@ -81,7 +81,7 @@ const createEditorEpisodeFixture = (
 ): EditorProjectEpisode => ({
   number: 1,
   volume: 1,
-  title: "CapÃ­tulo 1",
+  title: "Capítulo 1",
   synopsis: "",
   releaseDate: "",
   duration: "",
@@ -411,7 +411,9 @@ describe("DashboardProjectsEditor edit query", () => {
       .getByText(/^Projeto$/i)
       .closest("div.rounded-xl");
     expect(editorProjectSummaryCard).not.toBeNull();
-    expect(classTokens(editorProjectSummaryCard as HTMLElement)).toContain("hover:border-primary/40");
+    expect(classTokens(editorProjectSummaryCard as HTMLElement)).toContain(
+      "hover:border-primary/40",
+    );
 
     fireEvent.click(within(editorDialog).getByRole("button", { name: /M.dias/i }));
     const mediaCardLabel = within(editorDialog).getByText(/Imagem do carrossel/i);
@@ -844,7 +846,7 @@ describe("DashboardProjectsEditor edit query", () => {
     ).toBeInTheDocument();
   });
 
-  it("exibe o link da página pública em nova aba só para projeto salvo e sem mojibake no bloco novo", async () => {
+  it("exibe o link da página pública em nova aba só para projeto salvo com os textos corrigidos no bloco novo", async () => {
     setupApiMock({ canManageProjects: true, projects: [projectFixture] });
 
     render(
@@ -872,7 +874,9 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(
       within(editorDialog).getByPlaceholderText("Adicionar estúdio de animação e pressionar Enter"),
     ).toBeInTheDocument();
-    expect(within(editorDialog).queryByText("EstÃºdios e produtoras")).not.toBeInTheDocument();
+    expect(
+      within(editorDialog).queryByText("Est\u00C3\u00BAdios e produtoras"),
+    ).not.toBeInTheDocument();
   });
 
   it("oculta o link da página pública ao criar um projeto novo", async () => {

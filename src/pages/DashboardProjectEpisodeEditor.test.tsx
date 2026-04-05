@@ -543,8 +543,20 @@ describe("DashboardProjectEpisodeEditor", () => {
     await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
 
     const fileSection = screen.getByTestId("anime-episode-file-section");
-    fireEvent.click(within(fileSection).getByRole("combobox", { name: /Origem/i }));
-    fireEvent.click(await screen.findByRole("option", { name: /^Blu-ray$/i }));
+    const sourceTrigger = within(fileSection).getByRole("combobox", { name: /Origem/i });
+    expect(sourceTrigger).toHaveClass("rounded-xl", "border-border/60", "bg-background/60");
+
+    fireEvent.click(sourceTrigger);
+
+    const blurayOption = await screen.findByRole("option", { name: /^Blu-ray$/i });
+    expect(blurayOption).toHaveClass("rounded-xl", "py-2", "pl-9", "pr-3");
+    expect(screen.getByRole("listbox")).toHaveClass(
+      "rounded-2xl",
+      "border-border/70",
+      "bg-popover/95",
+    );
+
+    fireEvent.click(blurayOption);
     fireEvent.click(screen.getByRole("button", { name: /Salvar episódio/i }));
 
     await waitFor(() =>

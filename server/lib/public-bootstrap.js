@@ -131,6 +131,26 @@ const sanitizeEpisodeDownloads = (episodes) =>
       })
     : [];
 
+const sanitizeInProgressItems = (items) =>
+  Array.isArray(items)
+    ? items.map((item) => ({
+        projectId: safeString(item?.projectId),
+        projectTitle: safeString(item?.projectTitle),
+        projectType: safeString(item?.projectType),
+        number: Number.isFinite(Number(item?.number)) ? Number(item.number) : 0,
+        volume: Number.isFinite(Number(item?.volume)) ? Number(item.volume) : undefined,
+        entryKind:
+          String(item?.entryKind || "")
+            .trim()
+            .toLowerCase() === "extra"
+            ? "extra"
+            : "main",
+        displayLabel: safeString(item?.displayLabel),
+        progressStage: safeString(item?.progressStage),
+        completedStages: safeStringArray(item?.completedStages),
+      }))
+    : [];
+
 export const toPublicBootstrapProject = (project) => ({
   id: safeString(project?.id),
   title: safeString(project?.title),
@@ -243,6 +263,7 @@ export const buildPublicBootstrapPayload = ({
   settings,
   pages,
   projects,
+  inProgressItems,
   posts,
   updates,
   teamMembers,
@@ -254,6 +275,7 @@ export const buildPublicBootstrapPayload = ({
   settings: settings && typeof settings === "object" ? settings : {},
   pages: pages && typeof pages === "object" && !Array.isArray(pages) ? pages : {},
   projects: Array.isArray(projects) ? projects.map(toPublicBootstrapProject) : [],
+  inProgressItems: sanitizeInProgressItems(inProgressItems),
   posts: Array.isArray(posts) ? posts.map(toPublicBootstrapPost) : [],
   updates: Array.isArray(updates) ? updates.map(toPublicBootstrapUpdate) : [],
   teamMembers: Array.isArray(teamMembers) ? teamMembers.map(toPublicBootstrapTeamMember) : [],

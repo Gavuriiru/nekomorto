@@ -1,18 +1,8 @@
 @layer components {
   .project-editor-dialog
-    :where(
-      input:not([type="checkbox"]):not([type="radio"]),
-      textarea,
-      select,
-      [role="combobox"]
-    ):focus-visible,
+    :where(input:not([type="checkbox"]):not([type="radio"]), textarea, select):focus-visible,
   .dashboard-strong-focus-scope
-    :where(
-      input:not([type="checkbox"]):not([type="radio"]),
-      textarea,
-      select,
-      [role="combobox"]
-    ):focus-visible,
+    :where(input:not([type="checkbox"]):not([type="radio"]), textarea, select):focus-visible,
   .dashboard-strong-focus-trigger:focus-visible {
     border-color: hsl(var(--primary)) !important;
     box-shadow: none !important;

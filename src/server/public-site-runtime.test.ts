@@ -15,6 +15,19 @@ const createDeps = (overrides = {}) => ({
   createGuid: () => "uuid-1",
   createSlug: (value) => String(value || "").trim().toLowerCase().replace(/\s+/g, "-"),
   extractLocalStylesheetHrefs: () => ["/assets/app.css"],
+  getPublicInProgressItems: () => [
+    {
+      projectId: "project-ln",
+      projectTitle: "NouKin",
+      projectType: "Light Novel",
+      number: 3,
+      volume: 0,
+      entryKind: "main",
+      displayLabel: "",
+      progressStage: "traducao",
+      completedStages: ["aguardando-raw"],
+    },
+  ],
   getPublicVisiblePosts: () => [
     {
       id: "post-1",
@@ -124,8 +137,18 @@ describe("public-site-runtime", () => {
 
     expect(fullPayload.payloadMode).toBe("full");
     expect(fullPayload.mediaVariants).toEqual({ variants: true });
+    expect(fullPayload.inProgressItems).toEqual([
+      expect.objectContaining({
+        projectId: "project-ln",
+        projectTitle: "NouKin",
+        projectType: "Light Novel",
+        number: 3,
+        volume: 0,
+      }),
+    ]);
     expect(criticalPayload.payloadMode).toBe("critical-home");
     expect(Array.isArray(criticalPayload.projects)).toBe(true);
+    expect(criticalPayload.inProgressItems).toEqual(fullPayload.inProgressItems);
 
     const publicHtml = runtime.injectPublicBootstrapHtml({
       html: "<html></html>",

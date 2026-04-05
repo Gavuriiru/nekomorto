@@ -43,6 +43,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  dropdownRichContentClassName,
+  dropdownRichIconClassName,
+  dropdownRichLabelClassName,
+} from "@/components/ui/dropdown-contract";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -2106,17 +2111,19 @@ const DashboardUsers = () => {
                                             value={option.id}
                                             className="pl-2 pr-2 [&>span:first-child]:hidden"
                                           >
-                                            <div className="flex items-center gap-2">
+                                            <div className={dropdownRichContentClassName}>
                                               {isCustomIcon ? (
                                                 <ThemedSvgLogo
                                                   url={option.icon}
                                                   label={option.label}
-                                                  className="h-4 w-4 text-primary"
+                                                  className={`${dropdownRichIconClassName} text-primary`}
                                                 />
                                               ) : (
-                                                <Icon className="h-4 w-4" />
+                                                <Icon className={dropdownRichIconClassName} />
                                               )}
-                                              <span>{option.label}</span>
+                                              <span className={dropdownRichLabelClassName}>
+                                                {option.label}
+                                              </span>
                                             </div>
                                           </SelectItem>
                                         );
@@ -2214,7 +2221,9 @@ const DashboardUsers = () => {
                         </div>
 
                         {!securitySummary?.totpEnabled ? (
-                          <div className={`space-y-3 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}>
+                          <div
+                            className={`space-y-3 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}
+                          >
                             <Button size="sm" onClick={startSelfEnrollment}>
                               Ativar 2FA (TOTP)
                             </Button>
@@ -2327,7 +2336,9 @@ const DashboardUsers = () => {
                             ) : null}
                           </div>
                         ) : (
-                          <div className={`space-y-2 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}>
+                          <div
+                            className={`space-y-2 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}
+                          >
                             <Input
                               value={securityDisableCode}
                               onChange={(event) => setSecurityDisableCode(event.target.value)}
@@ -2695,5 +2706,3 @@ const DashboardUsers = () => {
 };
 
 export default DashboardUsers;
-
-

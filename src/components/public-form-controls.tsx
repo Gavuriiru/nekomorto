@@ -16,9 +16,11 @@ type PublicInputProps = React.ComponentPropsWithoutRef<typeof BaseInput>;
 type PublicTextareaProps = React.ComponentPropsWithoutRef<typeof BaseTextarea>;
 type PublicSelectTriggerProps = React.ComponentPropsWithoutRef<typeof BaseSelectTrigger>;
 
-const Input = React.forwardRef<HTMLInputElement, PublicInputProps>(({ className, ...props }, ref) => (
-  <BaseInput ref={ref} className={cn(publicStrongFocusFieldClassName, className)} {...props} />
-));
+const Input = React.forwardRef<HTMLInputElement, PublicInputProps>(
+  ({ className, ...props }, ref) => (
+    <BaseInput ref={ref} className={cn(publicStrongFocusFieldClassName, className)} {...props} />
+  ),
+);
 Input.displayName = "PublicInput";
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, PublicTextareaProps>(
@@ -32,11 +34,7 @@ const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof BaseSelectTrigger>,
   PublicSelectTriggerProps
 >(({ className, ...props }, ref) => (
-  <BaseSelectTrigger
-    ref={ref}
-    className={cn(publicStrongFocusFieldClassName, className)}
-    {...props}
-  />
+  <BaseSelectTrigger ref={ref} className={className} {...props} />
 ));
 SelectTrigger.displayName = "PublicSelectTrigger";
 

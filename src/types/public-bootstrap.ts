@@ -29,6 +29,18 @@ export type PublicBootstrapEpisode = {
   hasPages?: boolean;
 };
 
+export type PublicBootstrapInProgressItem = {
+  projectId: string;
+  projectTitle: string;
+  projectType: string;
+  number: number;
+  volume?: number;
+  entryKind?: ProjectEpisode["entryKind"];
+  displayLabel?: string;
+  progressStage: string;
+  completedStages: string[];
+};
+
 export type PublicBootstrapVolumeCover = {
   volume?: number;
   coverImageUrl: string;
@@ -125,6 +137,7 @@ export type PublicBootstrapPayload = {
   settings: SiteSettings;
   pages: PublicPagesConfig;
   projects: PublicBootstrapProject[];
+  inProgressItems: PublicBootstrapInProgressItem[];
   posts: PublicBootstrapPost[];
   updates: PublicBootstrapUpdate[];
   teamMembers: PublicTeamMember[];
@@ -143,6 +156,7 @@ export const emptyPublicBootstrapPayload: PublicBootstrapPayload = {
   settings: {} as SiteSettings,
   pages: emptyPublicPagesConfig,
   projects: [],
+  inProgressItems: [],
   posts: [],
   updates: [],
   teamMembers: [],

@@ -3,6 +3,11 @@ import { useMemo } from "react";
 
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import {
+  dropdownRichContentClassName,
+  dropdownRichIconClassName,
+  dropdownRichLabelClassName,
+} from "@/components/ui/dropdown-contract";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -26,13 +31,13 @@ const renderDownloadSourceIcon = (
     (iconKey.startsWith("http") || iconKey.startsWith("data:") || iconKey.startsWith("/uploads/"))
   ) {
     if (!tintIcon) {
-      return <img src={iconKey} alt={label || ""} className="h-4 w-4" />;
+      return <img src={iconKey} alt={label || ""} className={dropdownRichIconClassName} />;
     }
     return (
       <ThemedSvgLogo
         url={iconKey}
         label={label || "Fonte de download"}
-        className="h-4 w-4"
+        className={dropdownRichIconClassName}
         color={color}
       />
     );
@@ -41,7 +46,12 @@ const renderDownloadSourceIcon = (
   const normalized = String(iconKey || "").toLowerCase();
   if (normalized === "google-drive") {
     return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" style={{ color }}>
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className={dropdownRichIconClassName}
+        style={{ color }}
+      >
         <path fill="currentColor" d="M7.5 3h9l4.5 8-4.5 8h-9L3 11z" />
       </svg>
     );
@@ -49,7 +59,7 @@ const renderDownloadSourceIcon = (
 
   if (normalized === "mega") {
     return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
+      <svg viewBox="0 0 24 24" aria-hidden="true" className={dropdownRichIconClassName}>
         <circle cx="12" cy="12" r="10" fill={color} />
         <path
           fill="#fff"
@@ -67,7 +77,7 @@ const renderDownloadSourceIcon = (
     download: Download,
   };
   const Icon = iconMap[normalized] || Download;
-  return <Icon className="h-4 w-4" style={{ color }} />;
+  return <Icon className={dropdownRichIconClassName} style={{ color }} />;
 };
 
 type DownloadSourceSelectProps = {
@@ -111,14 +121,9 @@ const DownloadSourceSelect = ({
       <SelectContent>
         {options.map((option: DownloadSourceOption) => (
           <SelectItem key={option.label} value={option.label}>
-            <span className="flex items-center gap-2">
-              {renderDownloadSourceIcon(
-                option.icon,
-                option.color,
-                option.label,
-                option.tintIcon,
-              )}
-              <span>{option.label}</span>
+            <span className={dropdownRichContentClassName}>
+              {renderDownloadSourceIcon(option.icon, option.color, option.label, option.tintIcon)}
+              <span className={dropdownRichLabelClassName}>{option.label}</span>
             </span>
           </SelectItem>
         ))}

@@ -16,13 +16,11 @@ type DashboardInputProps = React.ComponentPropsWithoutRef<typeof BaseInput>;
 type DashboardTextareaProps = React.ComponentPropsWithoutRef<typeof BaseTextarea>;
 type DashboardSelectTriggerProps = React.ComponentPropsWithoutRef<typeof BaseSelectTrigger>;
 
-const Input = React.forwardRef<HTMLInputElement, DashboardInputProps>(({ className, ...props }, ref) => (
-  <BaseInput
-    ref={ref}
-    className={cn(dashboardStrongFocusFieldClassName, className)}
-    {...props}
-  />
-));
+const Input = React.forwardRef<HTMLInputElement, DashboardInputProps>(
+  ({ className, ...props }, ref) => (
+    <BaseInput ref={ref} className={cn(dashboardStrongFocusFieldClassName, className)} {...props} />
+  ),
+);
 Input.displayName = "DashboardInput";
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, DashboardTextareaProps>(
@@ -40,11 +38,7 @@ const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof BaseSelectTrigger>,
   DashboardSelectTriggerProps
 >(({ className, ...props }, ref) => (
-  <BaseSelectTrigger
-    ref={ref}
-    className={cn(dashboardStrongFocusFieldClassName, className)}
-    {...props}
-  />
+  <BaseSelectTrigger ref={ref} className={className} {...props} />
 ));
 SelectTrigger.displayName = "DashboardSelectTrigger";
 

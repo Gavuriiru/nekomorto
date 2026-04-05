@@ -1,8 +1,16 @@
 import * as React from "react";
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 
-import { dashboardStrongFocusTriggerClassName } from "@/components/dashboard/dashboard-page-tokens";
-import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
+import {
+  dropdownChevronClassName,
+  dropdownItemClassName,
+  dropdownItemIndicatorClassName,
+  dropdownPopoverClassName,
+  dropdownRichContentClassName,
+  dropdownRichIconClassName,
+  dropdownRichLabelClassName,
+  dropdownTriggerClassName,
+} from "@/components/ui/dropdown-contract";
 import { cn } from "@/lib/utils";
 
 export type DashboardLightSelectIcon = React.ComponentType<{
@@ -229,13 +237,11 @@ const DashboardLightSelect = ({
   );
 
   const triggerLabel =
-    selectedOption?.label ||
-    (options.length === 0 ? placeholder : value) ||
-    placeholder;
+    selectedOption?.label || (options.length === 0 ? placeholder : value) || placeholder;
   const TriggerIcon = selectedOption?.icon || null;
 
   return (
-    <div ref={rootRef} className="relative min-w-0">
+    <div ref={rootRef} className={cn("relative min-w-0", isOpen ? "z-[70]" : "")}>
       <button
         ref={triggerRef}
         type="button"
@@ -246,11 +252,9 @@ const DashboardLightSelect = ({
         aria-haspopup="listbox"
         aria-disabled={disabled}
         disabled={disabled}
-        className={cn(
-          "flex h-10 min-w-0 w-full items-center justify-between gap-2 rounded-xl border border-border/70 bg-background px-3 py-2 text-left text-sm shadow-sm transition-[border-color,background-color] duration-200 disabled:cursor-not-allowed disabled:opacity-50",
-          dashboardStrongFocusTriggerClassName,
-          className,
-        )}
+        data-placeholder={selectedOption ? undefined : ""}
+        data-state={isOpen ? "open" : "closed"}
+        className={cn(dropdownTriggerClassName, className)}
         onClick={() => {
           if (disabled) {
             return;
@@ -263,29 +267,25 @@ const DashboardLightSelect = ({
         }}
         onKeyDown={handleTriggerKeyDown}
       >
-        <span className="flex min-w-0 items-center gap-2">
+        <span className={dropdownRichContentClassName}>
           {TriggerIcon ? (
-            <TriggerIcon className="h-4 w-4 shrink-0 text-primary" />
+            <TriggerIcon className={cn(dropdownRichIconClassName, "text-primary")} />
           ) : null}
-          <span className="truncate text-sm text-foreground">
+          <span className={cn(dropdownRichLabelClassName, "text-sm text-foreground")}>
             {triggerLabel || placeholder}
           </span>
         </span>
-        <ChevronDown
-          className={cn(
-            "h-4 w-4 shrink-0 text-foreground/60 transition-transform duration-200",
-            isOpen ? "rotate-180" : "",
-          )}
-        />
+        <ChevronDown className={dropdownChevronClassName} />
       </button>
 
       {isOpen ? (
         <div
           id={listboxId}
           role="listbox"
+          data-state="open"
           className={cn(
-            "absolute left-0 top-full z-40 mt-2 max-h-64 w-full overflow-auto rounded-xl border border-border/70 bg-card p-1",
-            floatingSurfaceShadowClassName,
+            dropdownPopoverClassName,
+            "absolute left-0 top-full z-[80] mt-2 w-full overflow-auto p-1",
           )}
         >
           {options.map((option, index) => {
@@ -304,15 +304,9 @@ const DashboardLightSelect = ({
                 role="option"
                 aria-selected={isSelected}
                 tabIndex={isHighlighted ? 0 : -1}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm outline-none transition-colors",
-                  isSelected
-                    ? "border-primary/20 bg-primary/10 text-foreground"
-                    : "border-transparent text-foreground/80",
-                  isHighlighted && !isSelected
-                    ? "bg-accent/70 text-accent-foreground"
-                    : "",
-                )}
+                data-highlighted={isHighlighted ? "" : undefined}
+                data-state={isSelected ? "checked" : "unchecked"}
+                className={cn(dropdownItemClassName, !isSelected ? "text-foreground/80" : "")}
                 onClick={() => selectValue(option.value)}
                 onFocus={() => setHighlightedIndex(index)}
                 onMouseEnter={() => setHighlightedIndex(index)}
@@ -320,15 +314,11 @@ const DashboardLightSelect = ({
                   switch (event.key) {
                     case "ArrowDown":
                       event.preventDefault();
-                      setHighlightedIndex((previous) =>
-                        clampIndex(previous + 1, options.length),
-                      );
+                      setHighlightedIndex((previous) => clampIndex(previous + 1, options.length));
                       break;
                     case "ArrowUp":
                       event.preventDefault();
-                      setHighlightedIndex((previous) =>
-                        clampIndex(previous - 1, options.length),
-                      );
+                      setHighlightedIndex((previous) => clampIndex(previous - 1, options.length));
                       break;
                     case "Home":
                       event.preventDefault();
@@ -355,10 +345,15 @@ const DashboardLightSelect = ({
                   }
                 }}
               >
-                {OptionIcon ? (
-                  <OptionIcon className="h-4 w-4 shrink-0 text-primary" />
-                ) : null}
-                <span className="truncate">{option.label}</span>
+                <span className={dropdownItemIndicatorClassName}>
+                  {isSelected ? <Check className="h-4 w-4" /> : null}
+                </span>
+                <span className={dropdownRichContentClassName}>
+                  {OptionIcon ? (
+                    <OptionIcon className={cn(dropdownRichIconClassName, "text-primary")} />
+                  ) : null}
+                  <span className={dropdownRichLabelClassName}>{option.label}</span>
+                </span>
               </button>
             );
           })}

@@ -4802,8 +4802,16 @@ describe("PublicProjectReader", () => {
       name: /Selecionar p.gina/i,
     });
 
+    expect(chapterTrigger).toHaveClass("rounded-xl", "border-border/55", "bg-background/70");
+
     fireEvent.click(chapterTrigger);
-    expect(await screen.findByRole("option", { name: /Cap.tulo 1/i })).toBeInTheDocument();
+    const firstChapterOption = await screen.findByRole("option", { name: /Cap.tulo 1/i });
+    expect(firstChapterOption).toHaveClass("rounded-xl", "py-2", "pl-9", "pr-3");
+    expect(screen.getByRole("listbox")).toHaveClass(
+      "rounded-2xl",
+      "border-border/70",
+      "bg-popover/95",
+    );
 
     fireEvent.click(pageTrigger);
 

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardUsers from "@/pages/DashboardUsers";
 
@@ -50,6 +50,10 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
   }) as Response;
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
+const originalScrollIntoView = window.HTMLElement.prototype.scrollIntoView;
+const originalHasPointerCapture = window.HTMLElement.prototype.hasPointerCapture;
+const originalSetPointerCapture = window.HTMLElement.prototype.setPointerCapture;
+const originalReleasePointerCapture = window.HTMLElement.prototype.releasePointerCapture;
 
 const userFixture = {
   id: "user-1",
@@ -69,6 +73,22 @@ const userFixture = {
 
 describe("DashboardUsers socials reorder", () => {
   beforeEach(() => {
+    Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "hasPointerCapture", {
+      configurable: true,
+      value: vi.fn(() => false),
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "setPointerCapture", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "releasePointerCapture", {
+      configurable: true,
+      value: vi.fn(),
+    });
     apiFetchMock.mockReset();
     toastMock.mockReset();
     apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
@@ -109,6 +129,25 @@ describe("DashboardUsers socials reorder", () => {
     });
   });
 
+  afterEach(() => {
+    Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: originalScrollIntoView,
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "hasPointerCapture", {
+      configurable: true,
+      value: originalHasPointerCapture,
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "setPointerCapture", {
+      configurable: true,
+      value: originalSetPointerCapture,
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "releasePointerCapture", {
+      configurable: true,
+      value: originalReleasePointerCapture,
+    });
+  });
+
   it("reordena redes via drag-and-drop e salva no payload em nova ordem", async () => {
     render(
       <MemoryRouter initialEntries={["/dashboard/usuarios"]}>
@@ -131,12 +170,29 @@ describe("DashboardUsers socials reorder", () => {
     expect(socialGrid.className).not.toContain("min-w-[720px]");
     const socialSelectTrigger = within(dialog).getByRole("combobox", { name: "Instagram" });
     expect(socialSelectTrigger.className).toContain("w-14");
+    expect(socialSelectTrigger).toHaveClass("rounded-xl", "border-border/60", "bg-background/60");
+    expect(socialSelectTrigger.className).toContain("flex-nowrap");
     expect(socialMoveDownButton.className).toContain("border-transparent");
     expect(socialMoveDownButton.className).toContain("bg-transparent");
     expect(socialMoveDownButton.className).toContain("hover:border-primary/40");
     expect(classTokens(dropTarget)).toContain("border-border/60");
     expect(classTokens(dropTarget)).toContain("bg-card/60");
     expect(classTokens(dropTarget)).toContain("hover:border-primary/40");
+    fireEvent.click(socialSelectTrigger);
+    const discordOption = await screen.findByRole("option", { name: "Discord" });
+    const discordLabel = within(discordOption).getByText("Discord");
+    expect(discordLabel).toHaveClass("min-w-0", "truncate", "whitespace-nowrap");
+    expect(discordLabel.parentElement).toHaveClass(
+      "flex",
+      "min-w-0",
+      "max-w-full",
+      "flex-nowrap",
+      "items-center",
+      "gap-2",
+      "overflow-hidden",
+    );
+    expect(discordLabel.parentElement?.querySelector("svg")).not.toBeNull();
+    fireEvent.keyDown(discordOption, { key: "Escape", code: "Escape" });
     const dataTransfer = {
       effectAllowed: "move",
       dropEffect: "move",

@@ -8,6 +8,17 @@ describe("public bootstrap global parser", () => {
       settings: {},
       pages: {},
       projects: [],
+      inProgressItems: [
+        {
+          projectId: "project-ln",
+          projectTitle: "NouKin",
+          projectType: "Light Novel",
+          number: 3,
+          volume: 0,
+          progressStage: "traducao",
+          completedStages: ["aguardando-raw"],
+        },
+      ],
       posts: [],
       updates: [],
       tagTranslations: {
@@ -20,6 +31,12 @@ describe("public bootstrap global parser", () => {
     });
 
     expect(parsed?.payloadMode).toBe("critical-home");
+    expect(parsed?.inProgressItems).toEqual([
+      expect.objectContaining({
+        projectTitle: "NouKin",
+        volume: 0,
+      }),
+    ]);
   });
 
   it("normaliza payloadMode invalido para full", () => {
@@ -27,6 +44,7 @@ describe("public bootstrap global parser", () => {
       settings: {},
       pages: {},
       projects: [],
+      inProgressItems: [],
       posts: [],
       updates: [],
       tagTranslations: {

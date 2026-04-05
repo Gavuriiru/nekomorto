@@ -134,8 +134,7 @@ const SIDEBAR_LABEL_CLASS_NAME =
   "text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground/70";
 const SIDEBAR_SECTION_HEADER_CLASS_NAME = "flex items-center gap-2.5";
 const SIDEBAR_SECTION_ICON_CLASS_NAME = "h-[0.95rem] w-[0.95rem] shrink-0 text-primary/80";
-const SIDEBAR_SELECT_TRIGGER_CLASS_NAME =
-  "h-10 rounded-2xl border-border/55 bg-background/70 text-left shadow-sm";
+const SIDEBAR_SELECT_TRIGGER_CLASS_NAME = "h-10 border-border/55 bg-background/70";
 const PROGRESS_EDGE_OFFSET_PX = 12;
 const HIDDEN_PROGRESS_ZONE_SIZE_PX = 48;
 const HIDDEN_PROGRESS_HIDE_DELAY_MS = 180;

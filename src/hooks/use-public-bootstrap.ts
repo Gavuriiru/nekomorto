@@ -73,6 +73,7 @@ const normalizePublicBootstrapPayload = (value: unknown): PublicBootstrapPayload
     settings: data?.settings || emptyPublicBootstrapPayload.settings,
     pages: normalizePublicPagesConfig(data?.pages),
     projects: Array.isArray(data?.projects) ? data.projects : [],
+    inProgressItems: Array.isArray(data?.inProgressItems) ? data.inProgressItems : [],
     posts: Array.isArray(data?.posts) ? data.posts : [],
     updates: Array.isArray(data?.updates) ? data.updates : [],
     teamMembers: Array.isArray(data?.teamMembers) ? (data.teamMembers as PublicTeamMember[]) : [],

@@ -28,6 +28,8 @@ const createDependencies = () => {
         {
           number: 1,
           title: "Episode 1",
+          progressStage: "timing",
+          completedStages: ["aguardando-raw", "traducao", "aguardando-raw"],
           pages: [{ imageUrl: "/uploads/project-1/ep-1.png" }],
         },
       ],
@@ -112,6 +114,8 @@ describe("content-collections-runtime", () => {
             pageCount: 1,
             hasPages: true,
             coverImageUrl: "/uploads/project-1/ep-1.png",
+            progressStage: "timing",
+            completedStages: ["aguardando-raw", "traducao"],
           }),
         ],
       }),

@@ -223,7 +223,7 @@ export const ChapterEditorStructureSection = memo(({
                                 {group.hasMetadata ? "Metadados" : "Sem metadados"}
                               </Badge>
                               {pendingCount > 0 ? (
-                                <Badge variant="outline">ImportaÃ§Ã£o {pendingCount}</Badge>
+                                <Badge variant="outline">Importação {pendingCount}</Badge>
                               ) : null}
                             </div>
                           </div>
@@ -324,7 +324,7 @@ export const ChapterEditorStructureSection = memo(({
                                     </p>
                                   </div>
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <Badge variant="outline">ImportaÃ§Ã£o</Badge>
+                                    <Badge variant="outline">Importação</Badge>
                                     <Badge
                                       variant={
                                         chapter.publicationStatus === "draft" ? "outline" : "secondary"
@@ -433,10 +433,10 @@ export const ChapterEditorStructureSection = memo(({
                                     >
                                       <div className="min-w-0 space-y-1">
                                         <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                          CapÃ­tulo {episode.number}
+                                          Capítulo {episode.number}
                                         </p>
                                         <p className="line-clamp-2 text-sm font-semibold text-foreground">
-                                          {String(episode.title || "").trim() || `CapÃ­tulo ${episode.number}`}
+                                          {String(episode.title || "").trim() || `Capítulo ${episode.number}`}
                                         </p>
                                       </div>
                                       <Badge

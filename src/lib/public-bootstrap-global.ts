@@ -38,6 +38,7 @@ export const asPublicBootstrapPayload = (value: unknown): PublicBootstrapPayload
     settings: candidate.settings || emptyPublicBootstrapPayload.settings,
     pages: normalizePublicPagesConfig(candidate.pages),
     projects: Array.isArray(candidate.projects) ? candidate.projects : [],
+    inProgressItems: Array.isArray(candidate.inProgressItems) ? candidate.inProgressItems : [],
     posts: Array.isArray(candidate.posts) ? candidate.posts : [],
     updates: Array.isArray(candidate.updates) ? candidate.updates : [],
     teamMembers: Array.isArray(candidate.teamMembers)

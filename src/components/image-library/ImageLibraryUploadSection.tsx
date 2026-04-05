@@ -1,8 +1,19 @@
 import type { Dispatch, SetStateAction } from "react";
 
 import { ImageLibraryDialogLoadingGrid } from "@/components/ImageLibraryDialogLoading";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { LibraryImageItem, UploadFolderGroup } from "@/components/image-library/types";
 import ImageLibraryBrowserCardGrid from "@/components/image-library/ImageLibraryBrowserCardGrid";
 
@@ -77,7 +88,7 @@ const ImageLibraryUploadSection = ({
           <Select value={uploadsFolderFilter} onValueChange={setUploadsFolderFilter}>
             <SelectTrigger
               aria-label="Filtrar por pasta"
-              className="h-9 min-w-0 w-full flex-1 basis-[11rem] bg-card/70 transition-[border-color,box-shadow] focus:border-primary/60 focus:ring-2 focus:ring-inset focus:ring-primary/60 focus:ring-offset-0 data-[state=open]:border-primary/60 data-[state=open]:ring-2 data-[state=open]:ring-inset data-[state=open]:ring-primary/60 data-[state=open]:ring-offset-0 sm:flex-none sm:w-[220px]"
+              className="h-9 min-w-0 w-full flex-1 basis-[11rem] bg-card/70 sm:flex-none sm:w-[220px]"
             >
               <SelectValue placeholder="Todas as pastas" />
             </SelectTrigger>
@@ -96,10 +107,13 @@ const ImageLibraryUploadSection = ({
             </SelectContent>
           </Select>
         ) : null}
-        <Select value={sortMode} onValueChange={(value) => setSortMode(value as "recent" | "oldest" | "name")}>
+        <Select
+          value={sortMode}
+          onValueChange={(value) => setSortMode(value as "recent" | "oldest" | "name")}
+        >
           <SelectTrigger
             aria-label="Ordenar biblioteca"
-            className="h-9 min-w-0 w-full flex-1 basis-[9.5rem] bg-card/70 transition-[border-color,box-shadow] focus:border-primary/60 focus:ring-2 focus:ring-inset focus:ring-primary/60 focus:ring-offset-0 data-[state=open]:border-primary/60 data-[state=open]:ring-2 data-[state=open]:ring-inset data-[state=open]:ring-primary/60 data-[state=open]:ring-offset-0 sm:flex-none sm:w-[180px]"
+            className="h-9 min-w-0 w-full flex-1 basis-[9.5rem] bg-card/70 sm:flex-none sm:w-[180px]"
           >
             <SelectValue placeholder="Mais recentes" />
           </SelectTrigger>
@@ -165,7 +179,9 @@ const ImageLibraryUploadSection = ({
                       <AccordionTrigger className="py-2 text-xs hover:no-underline">
                         <span className="flex items-center gap-2">
                           <span className="font-medium text-foreground/90">{folder.title}</span>
-                          <span className="text-[11px] text-muted-foreground">{folder.items.length}</span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {folder.items.length}
+                          </span>
                         </span>
                       </AccordionTrigger>
                       <AccordionContent className="[&>div]:mt-0">

@@ -1,3 +1,5 @@
+import { buildPublicInProgressItems } from "./public-projects.js";
+
 export const PUBLIC_STATIC_PATHS = Object.freeze([
   "/",
   "/projetos",
@@ -51,6 +53,9 @@ export const createPublicVisibilityRuntime = (dependencies = {}) => {
   const getPublicVisibleProjects = () =>
     buildPublicVisibleProjects(normalizeProjects(loadProjects()));
 
+  const getPublicInProgressItems = () =>
+    buildPublicInProgressItems(normalizeProjects(loadProjects()));
+
   const getPublicVisiblePosts = () => {
     const now = Date.now();
     return normalizePosts(loadPosts())
@@ -98,6 +103,7 @@ export const createPublicVisibilityRuntime = (dependencies = {}) => {
   };
 
   return {
+    getPublicInProgressItems,
     getPublicReadableProjects,
     getPublicVisiblePosts,
     getPublicVisibleProjects,

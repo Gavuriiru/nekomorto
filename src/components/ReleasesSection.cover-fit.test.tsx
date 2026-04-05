@@ -202,13 +202,12 @@ describe("ReleasesSection cover fit", () => {
     expect(await screen.findByRole("heading", { level: 3, name: "Post 1" })).toBeInTheDocument();
 
     const pagination = screen.getByRole("navigation");
-    expect(within(pagination).getByRole("link", { name: "8" })).toBeInTheDocument();
-    expect(within(pagination).getAllByText("Mais p\u00E1ginas")).toHaveLength(1);
+    expect(within(pagination).getByRole("link", { name: "7" })).toBeInTheDocument();
 
-    fireEvent.click(within(pagination).getByRole("link", { name: "5" }));
+    fireEvent.click(within(pagination).getByRole("link", { name: "4" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { level: 3, name: "Post 33" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 3, name: "Post 31" })).toBeInTheDocument();
     });
     expect(screen.queryByRole("heading", { level: 3, name: "Post 1" })).not.toBeInTheDocument();
     expect(window.requestAnimationFrame).toHaveBeenCalled();

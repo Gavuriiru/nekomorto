@@ -9,6 +9,7 @@ const REQUIRED_DEPENDENCY_KEYS = [
   "createGuid",
   "createSlug",
   "extractLocalStylesheetHrefs",
+  "getPublicInProgressItems",
   "getPublicVisiblePosts",
   "getPublicVisibleProjects",
   "getPublicVisibleUpdates",
@@ -60,6 +61,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     createGuid,
     createSlug,
     extractLocalStylesheetHrefs,
+    getPublicInProgressItems,
     getPublicVisiblePosts,
     getPublicVisibleProjects,
     getPublicVisibleUpdates,
@@ -342,7 +344,14 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
         : { shareImage: "", shareImageAlt: "" },
   });
 
-  const buildCriticalHomeBootstrapPayload = ({ settings, pages, projects, updates, generatedAt }) => {
+  const buildCriticalHomeBootstrapPayload = ({
+    settings,
+    pages,
+    projects,
+    inProgressItems,
+    updates,
+    generatedAt,
+  }) => {
     const heroSlides = buildPublicHeroSlides(projects, updates);
     const heroProjectIds = new Set(heroSlides.map((slide) => String(slide?.id || "").trim()));
     const criticalProjects = projects
@@ -357,6 +366,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
       settings,
       pages: toCriticalHomePagesPayload(pages),
       projects: criticalProjects,
+      inProgressItems,
       posts: [],
       updates: criticalUpdates,
       tagTranslations: {
@@ -383,6 +393,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     payloadMode = PUBLIC_BOOTSTRAP_MODE_FULL,
   } = {}) => {
     const projects = getPublicVisibleProjects();
+    const inProgressItems = getPublicInProgressItems();
     const posts = getPublicVisiblePosts().map((post) => {
       const resolvedCover = resolvePostCover(post);
       return {
@@ -409,6 +420,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
         settings,
         pages,
         projects,
+        inProgressItems,
         updates,
         generatedAt,
       });
@@ -420,6 +432,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
       settings,
       pages,
       projects,
+      inProgressItems,
       posts,
       updates,
       teamMembers,

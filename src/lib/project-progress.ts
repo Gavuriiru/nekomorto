@@ -1,4 +1,4 @@
-import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
+import { isChapterBasedType } from "@/lib/project-utils";
 
 export type ProjectProgressKind = "anime" | "manga";
 
@@ -16,6 +16,17 @@ export type ProjectProgressState = {
   progress: number;
   currentStageId: string;
   currentStage: ProjectProgressStage;
+};
+
+export type ProjectPublicCardProgressState = {
+  stages: readonly ProjectProgressStage[];
+  completedStages: string[];
+  visualCompletedStages: string[];
+  completedCount: number;
+  progress: number;
+  currentStageId: string;
+  currentStage: ProjectProgressStage;
+  isInProgress: boolean;
 };
 
 export const ANIME_PROGRESS_STAGES = [
@@ -127,12 +138,7 @@ export const getProjectProgressStagesForEditor = (projectType: string) =>
 
 export const getProjectProgressKindForPublicCard = (
   projectType: string,
-): ProjectProgressKind | null => {
-  if (isLightNovelType(projectType)) {
-    return null;
-  }
-  return isMangaType(projectType) ? "manga" : "anime";
-};
+): ProjectProgressKind => (isChapterBasedType(projectType) ? "manga" : "anime");
 
 export const normalizeCompletedStages = (
   completedStages: string[] | null | undefined,
@@ -188,12 +194,41 @@ export const getProjectProgressStateForEditor = (
 export const getProjectProgressStateForPublicCard = (
   projectType: string,
   completedStages?: string[] | null,
-) => {
+  progressStage?: string | null,
+): ProjectPublicCardProgressState | null => {
   const kind = getProjectProgressKindForPublicCard(projectType);
-  if (!kind) {
-    return null;
+  const stages = getProjectProgressStages(kind);
+  const normalizedCompletedStages = normalizeCompletedStages(completedStages, kind);
+  const completedSet = new Set(normalizedCompletedStages);
+  const normalizedProgressStage = normalizeStageId(progressStage);
+  const currentStage =
+    stages.find((stage) => stage.id === normalizedProgressStage) ??
+    stages.find((stage) => !completedSet.has(stage.id)) ??
+    stages[stages.length - 1] ?? {
+      id: DEFAULT_STAGE_ID,
+      label: "Aguardando Raw",
+    };
+  const visualCompletedSet = new Set(normalizedCompletedStages);
+  if (stages.some((stage) => stage.id === currentStage.id)) {
+    visualCompletedSet.add(currentStage.id);
   }
-  return getProjectProgressState({ kind, completedStages });
+  const visualCompletedStages = stages
+    .filter((stage) => visualCompletedSet.has(stage.id))
+    .map((stage) => stage.id);
+  const completedCount = visualCompletedStages.length;
+  const progress = stages.length > 0 ? Math.round((completedCount / stages.length) * 100) : 0;
+  const finalStageId = stages[stages.length - 1]?.id || DEFAULT_STAGE_ID;
+
+  return {
+    stages,
+    completedStages: normalizedCompletedStages,
+    visualCompletedStages,
+    completedCount,
+    progress,
+    currentStageId: currentStage.id,
+    currentStage,
+    isInProgress: !visualCompletedSet.has(finalStageId),
+  };
 };
 
 export const syncProjectProgress = <T extends { completedStages?: string[]; progressStage?: string }>(

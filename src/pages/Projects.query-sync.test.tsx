@@ -120,6 +120,9 @@ const getSearchParams = () =>
 const getRenderedProjectCards = (container: HTMLElement) =>
   Array.from(container.querySelectorAll("a.projects-public-card"));
 
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
+
 const findCenteredProjectCardWrapper = (container: HTMLElement) =>
   Array.from(container.querySelectorAll<HTMLElement>("div")).find((element) => {
     const classTokens = String(element.className).split(/\s+/).filter(Boolean);
@@ -354,6 +357,41 @@ describe("Projects query sync", () => {
 
     const firstProjectCard = getRenderedProjectCards(container)[0];
     expect(firstProjectCard).toHaveClass("hover:border-primary/60");
+  });
+
+  it("mantem o combobox de Projects alinhado ao contrato visual global", async () => {
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+      </MemoryRouter>,
+    );
+
+    const formatTrigger = await screen.findByRole("combobox", { name: "Filtrar por formato" });
+    expect(classTokens(formatTrigger)).toEqual(
+      expect.arrayContaining([
+        "rounded-xl",
+        "border-border/60",
+        "bg-background/60",
+        "shadow-sm",
+        "focus-visible:ring-inset",
+      ]),
+    );
+
+    fireEvent.click(formatTrigger);
+
+    const animeOption = await screen.findByRole("option", { name: "Anime" });
+    const popover = animeOption.closest("div[role='listbox']")?.parentElement as HTMLElement | null;
+
+    expect(popover).not.toBeNull();
+    expect(classTokens(popover as HTMLElement)).toEqual(
+      expect.arrayContaining([
+        "rounded-2xl",
+        "border-border/70",
+        "bg-popover/95",
+        "shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]",
+      ]),
+    );
+    expect(animeOption).toHaveClass("rounded-xl", "py-2", "pl-9", "pr-3");
   });
 
   it("aplica debounce na query e mantém input responsivo durante a digitacao", async () => {
@@ -1050,8 +1088,9 @@ describe("Projects query sync", () => {
 
     expect(synopsisRootRefMock.current).not.toBeNull();
     const synopsisNodes = Array.from(
-      synopsisRootRefMock.current?.querySelectorAll<HTMLElement>('[data-synopsis-role="synopsis"]') ||
-        [],
+      synopsisRootRefMock.current?.querySelectorAll<HTMLElement>(
+        '[data-synopsis-role="synopsis"]',
+      ) || [],
     );
 
     expect(synopsisNodes).toHaveLength(5);

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -17,12 +17,14 @@ const TestSelect = ({
   label,
   placeholder,
   options,
+  renderOption,
   open,
   onOpenChange,
 }: {
   label: string;
   placeholder: string;
   options: string[];
+  renderOption?: (option: string) => React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) => (
@@ -33,7 +35,7 @@ const TestSelect = ({
     <SelectContent>
       {options.map((option) => (
         <SelectItem key={option} value={option}>
-          {option}
+          {renderOption ? renderOption(option) : option}
         </SelectItem>
       ))}
     </SelectContent>
@@ -42,16 +44,8 @@ const TestSelect = ({
 
 const UncontrolledHarness = () => (
   <div>
-    <TestSelect
-      label="Primeiro select"
-      placeholder="Primeira opção"
-      options={["Alpha", "Beta"]}
-    />
-    <TestSelect
-      label="Segundo select"
-      placeholder="Segunda opção"
-      options={["Gamma", "Delta"]}
-    />
+    <TestSelect label="Primeiro select" placeholder="Primeira opção" options={["Alpha", "Beta"]} />
+    <TestSelect label="Segundo select" placeholder="Segunda opção" options={["Gamma", "Delta"]} />
     <button type="button">Fora dos dropdowns</button>
   </div>
 );
@@ -68,11 +62,7 @@ const ControlledHarness = () => {
         open={firstOpen}
         onOpenChange={setFirstOpen}
       />
-      <TestSelect
-        label="Segundo select"
-        placeholder="Segunda opção"
-        options={["Gamma", "Delta"]}
-      />
+      <TestSelect label="Segundo select" placeholder="Segunda opção" options={["Gamma", "Delta"]} />
     </div>
   );
 };
@@ -127,6 +117,16 @@ describe("Select exclusive open behavior", () => {
     const firstTrigger = screen.getByRole("combobox", { name: "Primeiro select" });
     const secondTrigger = screen.getByRole("combobox", { name: "Segundo select" });
 
+    expect(classTokens(firstTrigger)).toEqual(
+      expect.arrayContaining([
+        "rounded-xl",
+        "border-border/60",
+        "bg-background/60",
+        "shadow-sm",
+        "focus-visible:ring-inset",
+      ]),
+    );
+
     firstTrigger.focus();
     fireEvent.keyDown(firstTrigger, { key: "ArrowDown", code: "ArrowDown" });
 
@@ -134,8 +134,13 @@ describe("Select exclusive open behavior", () => {
       expect(firstTrigger).toHaveAttribute("aria-expanded", "true");
     });
     expect(await screen.findByRole("option", { name: "Alpha" })).toBeInTheDocument();
-    expect(classTokens(screen.getByRole("listbox"))).toContain(
-      "shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]",
+    expect(classTokens(screen.getByRole("listbox"))).toEqual(
+      expect.arrayContaining([
+        "rounded-2xl",
+        "border-border/70",
+        "bg-popover/95",
+        "shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]",
+      ]),
     );
 
     secondTrigger.focus();
@@ -163,8 +168,13 @@ describe("Select exclusive open behavior", () => {
       expect(firstTrigger).toHaveAttribute("aria-expanded", "true");
     });
     expect(await screen.findByRole("option", { name: "Alpha" })).toBeInTheDocument();
-    expect(classTokens(screen.getByRole("listbox"))).toContain(
-      "shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]",
+    expect(classTokens(screen.getByRole("listbox"))).toEqual(
+      expect.arrayContaining([
+        "rounded-2xl",
+        "border-border/70",
+        "bg-popover/95",
+        "shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]",
+      ]),
     );
 
     secondTrigger.focus();
@@ -194,5 +204,67 @@ describe("Select exclusive open behavior", () => {
       expect(trigger).toHaveAttribute("aria-expanded", "false");
       expect(screen.queryByRole("option", { name: "Alpha" })).not.toBeInTheDocument();
     });
+  });
+
+  it("applies the shared selected item treatment and preserves rich item children", async () => {
+    render(
+      <Select defaultValue="rich">
+        <SelectTrigger aria-label="Select rico">
+          <SelectValue placeholder="Escolha" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="rich">
+            <span className="flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden">
+              <span aria-hidden="true" data-testid="rich-marker">
+                #
+              </span>
+              <span className="min-w-0 truncate whitespace-nowrap">Opcao rica</span>
+            </span>
+          </SelectItem>
+          <SelectItem value="plain">Opcao simples</SelectItem>
+        </SelectContent>
+      </Select>,
+    );
+
+    const trigger = screen.getByRole("combobox", { name: "Select rico" });
+    expect(trigger).toHaveClass("flex-nowrap");
+    expect(trigger.className).not.toContain("line-clamp-1");
+    const selectedTriggerLabel = within(trigger).getByText("Opcao rica");
+    expect(selectedTriggerLabel).toHaveClass("min-w-0", "truncate", "whitespace-nowrap");
+    expect(selectedTriggerLabel.parentElement).toHaveClass(
+      "flex",
+      "min-w-0",
+      "max-w-full",
+      "flex-nowrap",
+      "items-center",
+      "gap-2",
+      "overflow-hidden",
+    );
+    expect(within(trigger).getByTestId("rich-marker")).toBeInTheDocument();
+
+    fireEvent.click(trigger);
+
+    const richOption = await screen.findByRole("option", { name: "Opcao rica" });
+    expect(richOption).toHaveClass("rounded-xl", "py-2", "pl-9", "pr-3");
+    expect(richOption).toHaveAttribute("data-state", "checked");
+    expect(classTokens(richOption)).toEqual(
+      expect.arrayContaining([
+        "data-[state=checked]:bg-accent",
+        "data-[state=checked]:font-medium",
+        "data-[state=checked]:text-accent-foreground",
+      ]),
+    );
+    const richOptionLabel = within(richOption).getByText("Opcao rica");
+    expect(richOptionLabel).toHaveClass("min-w-0", "truncate", "whitespace-nowrap");
+    expect(richOptionLabel.parentElement).toHaveClass(
+      "flex",
+      "min-w-0",
+      "max-w-full",
+      "flex-nowrap",
+      "items-center",
+      "gap-2",
+      "overflow-hidden",
+    );
+    expect(within(richOption).getByTestId("rich-marker")).toBeInTheDocument();
   });
 });

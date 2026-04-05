@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildPublicInProgressItems,
   buildPublicReadableProjects,
   buildPublicVisibleProjects,
 } from "../../server/lib/public-projects.js";
@@ -88,5 +89,89 @@ describe("public project serialization", () => {
     ]);
 
     expect(visibleProjects.map((project) => project.id)).toEqual(["project-1", "project-2"]);
+  });
+
+  it("builds lightweight in-progress items from draft episodes without exposing heavy content", () => {
+    const inProgressItems = buildPublicInProgressItems([
+      {
+        id: "project-anime",
+        title: "Oshi no Ko",
+        type: "Anime",
+        order: 20,
+        deletedAt: null,
+        episodeDownloads: [
+          {
+            number: 2,
+            title: "Episodio 2",
+            publicationStatus: "draft",
+            progressStage: "timing",
+            completedStages: ["aguardando-raw", "traducao", "revisao"],
+            sources: [{ label: "Drive", url: "https://example.com/file" }],
+            content: '{"root":{}}',
+          },
+        ],
+      },
+      {
+        id: "project-ln",
+        title: "NouKin",
+        type: "Light Novel",
+        order: 10,
+        deletedAt: null,
+        episodeDownloads: [
+          {
+            number: 3,
+            volume: 0,
+            title: "Capitulo 3",
+            publicationStatus: "draft",
+            progressStage: "traducao",
+            completedStages: ["aguardando-raw"],
+            content: '{"root":{}}',
+          },
+        ],
+      },
+      {
+        id: "project-published",
+        title: "Blue Box",
+        type: "Manga",
+        order: 30,
+        deletedAt: null,
+        episodeDownloads: [
+          {
+            number: 12,
+            volume: 2,
+            title: "Capitulo 12",
+            publicationStatus: "published",
+            progressStage: "typesetting",
+            completedStages: ["aguardando-raw", "traducao", "limpeza", "redrawing"],
+            content: '{"root":{}}',
+          },
+        ],
+      },
+    ]);
+
+    expect(inProgressItems).toEqual([
+      {
+        projectId: "project-ln",
+        projectTitle: "NouKin",
+        projectType: "Light Novel",
+        number: 3,
+        volume: 0,
+        entryKind: "main",
+        displayLabel: undefined,
+        progressStage: "traducao",
+        completedStages: ["aguardando-raw"],
+      },
+      {
+        projectId: "project-anime",
+        projectTitle: "Oshi no Ko",
+        projectType: "Anime",
+        number: 2,
+        volume: undefined,
+        entryKind: "main",
+        displayLabel: undefined,
+        progressStage: "timing",
+        completedStages: ["aguardando-raw", "traducao", "revisao"],
+      },
+    ]);
   });
 });

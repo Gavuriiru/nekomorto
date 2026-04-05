@@ -183,6 +183,13 @@ export const createContentCollectionsRuntime = (dependencies = {}) => {
             const readingOrder = Number.isFinite(readingOrderRaw)
               ? Math.round(readingOrderRaw)
               : undefined;
+            const completedStages = Array.from(
+              new Set(
+                (Array.isArray(episodeObject?.completedStages) ? episodeObject.completedStages : [])
+                  .map((stageId) => String(stageId || "").trim())
+                  .filter(Boolean),
+              ),
+            );
             const normalizedPages = normalizeProjectEpisodePages(episodeObject?.pages);
             const contentFormat = normalizeProjectEpisodeContentFormat(
               episode?.contentFormat,
@@ -230,6 +237,8 @@ export const createContentCollectionsRuntime = (dependencies = {}) => {
                   ? "draft"
                   : "published",
               sources: normalizedSources,
+              completedStages,
+              progressStage: String(episodeObject?.progressStage || "").trim() || undefined,
               coverImageAlt: String(episode?.coverImageAlt || episode?.title || "").trim(),
               hash: hash || undefined,
               sizeBytes,
