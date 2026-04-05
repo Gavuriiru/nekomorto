@@ -1,0 +1,64 @@
+name: Public Performance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/public-performance.yml"
+      - "docs/public-performance.md"
+      - "package.json"
+      - "package-lock.json"
+      - "public/**"
+      - "scripts/**"
+      - "shared/**"
+      - "src/components/**"
+      - "src/hooks/**"
+      - "src/lib/**"
+      - "src/pages/**"
+      - "src/routes/**"
+      - "src/styles/**"
+      - "vite.config.ts"
+  workflow_dispatch:
+
+jobs:
+  public_surface:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run public-surface Lighthouse suite
+        run: npm run lighthouse:public-surface:ci
+
+      - name: Compare against accepted baseline
+        run: npm run lighthouse:public-surface:compare
+
+      - name: Publish comparison summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f ".lighthouse/public-surface-comparison.md" ]]; then
+            cat ".lighthouse/public-surface-comparison.md" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload public performance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-performance-artifacts
+          path: |
+            .lighthouse/public-surface-summary.json
+            .lighthouse/public-surface-comparison.json
+            .lighthouse/public-surface-comparison.md
+            .lighthouse/*summary.json
+          if-no-files-found: warn

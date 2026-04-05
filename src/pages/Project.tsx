@@ -503,7 +503,7 @@ const ProjectPage = () => {
     return (
       <Card
         key={key}
-        className={`group w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-[0_24px_90px_-55px_rgba(0,0,0,0.75)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-[0_28px_100px_-50px_rgba(0,0,0,0.85)] ${
+        className={`group w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-[0_22px_68px_-40px_rgba(0,0,0,0.62)] ${
           isAnimeDownloadCard ? "md:h-[210px]" : "md:min-h-[185px]"
         }`}
       >
@@ -979,7 +979,7 @@ const ProjectPage = () => {
               >
                 <div
                   data-testid="project-hero-cover-frame"
-                  className="overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-[0_30px_100px_-55px_rgba(0,0,0,0.95)] animate-slide-up opacity-0"
+                  className="overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-[0_22px_64px_-42px_rgba(0,0,0,0.62)] animate-slide-up opacity-0"
                   style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
                 >
                   <img

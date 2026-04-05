@@ -1,4 +1,6 @@
-﻿import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
+import { memo } from "react";
+
+import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -57,7 +59,7 @@ const ProjectEditorMediaCard = ({
   </div>
 );
 
-const ProjectEditorMediaSection = ({
+const ProjectEditorMediaSectionComponent = ({
   banner,
   cardClassName,
   cover,
@@ -108,6 +110,8 @@ const ProjectEditorMediaSection = ({
   );
 };
 
+const ProjectEditorMediaSection = memo(ProjectEditorMediaSectionComponent);
+
+ProjectEditorMediaSection.displayName = "ProjectEditorMediaSection";
+
 export default ProjectEditorMediaSection;
-
-

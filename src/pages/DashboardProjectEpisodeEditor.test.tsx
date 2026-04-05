@@ -497,6 +497,9 @@ describe("DashboardProjectEpisodeEditor", () => {
     expect(within(coverSection).queryByPlaceholderText(/URL da capa/i)).not.toBeInTheDocument();
     expect(coverLayout.className).not.toContain("ml-auto");
     expect(coverPreview.className).toContain("max-w-[24rem]");
+    expect(coverPreview.firstElementChild).not.toHaveClass(
+      "shadow-[0_24px_70px_-45px_rgba(0,0,0,0.85)]",
+    );
     expect(coverPreview.querySelector(".aspect-video")).not.toBeNull();
     expect(within(coverSection).getByRole("img")).toBeInTheDocument();
     expect(sourceTrigger).toHaveTextContent("Web");
@@ -523,6 +526,14 @@ describe("DashboardProjectEpisodeEditor", () => {
       within(progressSection).getByRole("list", { name: /Etapas editoriais/i }),
     ).toBeInTheDocument();
     expect(within(stageList).getAllByRole("checkbox").length).toBeGreaterThan(0);
+    const currentStageBadge = within(progressSection)
+      .getAllByText("Atual")
+      .find((element) => String((element as HTMLElement).className || "").includes("rounded-full"));
+    expect(currentStageBadge).toHaveClass(
+      "border-[hsl(var(--badge-info-border))]",
+      "bg-[hsl(var(--badge-info-bg))]",
+      "text-[hsl(var(--badge-info-fg))]",
+    );
   });
 
   it("persiste a origem selecionada ao salvar o episódio", async () => {

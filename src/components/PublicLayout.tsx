@@ -15,12 +15,7 @@ const PublicLayout = () => {
       }`}
     >
       {hidesChromeOnRoute ? null : <Header variant="fixed" />}
-      <main
-        key={location.pathname}
-        id="public-main-content"
-        tabIndex={-1}
-        className="a11y-focus-target flex-1 page-transition"
-      >
+      <main id="public-main-content" tabIndex={-1} className="a11y-focus-target flex-1 page-transition">
         <Outlet />
       </main>
       {hidesChromeOnRoute ? null : <Footer />}

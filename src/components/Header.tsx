@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
 import { Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
@@ -12,7 +13,6 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
-import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveBranding } from "@/lib/branding";
 import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
@@ -127,12 +127,7 @@ const Header = ({
   const apiBase = getApiBase();
   const isMobile = useIsMobile();
   const { settings } = useSiteSettings();
-  const { data: bootstrapData } = usePublicBootstrap();
   const { currentUser } = usePublicCurrentUser();
-  const projects = bootstrapData?.projects || [];
-  const posts = bootstrapData?.posts || [];
-  const bootstrapMediaVariants = bootstrapData?.mediaVariants || {};
-  const tagTranslations = bootstrapData?.tagTranslations?.tags || {};
 
   const siteNameRaw = settings.site.name || "Nekomata";
   const siteName = siteNameRaw.toUpperCase();
@@ -155,7 +150,7 @@ const Header = ({
       : [];
   }, [settings.navbar.links]);
   const headerMenuContentClass =
-    "border-border/70 bg-popover/95 text-popover-foreground shadow-xl backdrop-blur-xs";
+    "border-border/70 bg-popover/95 text-popover-foreground backdrop-blur-xs";
   const headerMenuItemClass = "focus:bg-accent focus:text-accent-foreground";
   const isInternalHref = (href: string) => href.startsWith("/") && !href.startsWith("//");
   const normalizePathname = (value: string) => {
@@ -635,7 +630,10 @@ const Header = ({
                 fallback={
                   <div
                     data-testid="public-header-results"
-                    className="search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur-sm md:left-auto md:right-0 md:mx-0 md:w-80"
+                    className={cn(
+                      "search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 backdrop-blur-sm md:left-auto md:right-0 md:mx-0 md:w-80",
+                      floatingSurfaceShadowClassName,
+                    )}
                   >
                     <p className="text-sm text-muted-foreground">
                       {uiCopy.search.loadingSuggestions}
@@ -648,11 +646,7 @@ const Header = ({
                   hasMinimumSearchQueryLength={hasMinimumSearchQueryLength}
                   isSearchLoading={isSearchLoading}
                   hasSearchRequestFailed={hasSearchRequestFailed}
-                  projects={projects}
-                  posts={posts}
-                  tagTranslations={tagTranslations}
                   remoteSuggestions={remoteSuggestions}
-                  bootstrapMediaVariants={bootstrapMediaVariants}
                   remoteMediaVariants={remoteMediaVariants}
                 />
               </Suspense>

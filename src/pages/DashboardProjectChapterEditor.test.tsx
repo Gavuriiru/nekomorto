@@ -2129,6 +2129,14 @@ describe("DashboardProjectChapterEditor", () => {
       "aria-label",
       expect.stringMatching(/Aguardando Raw: atual/i),
     );
+    const currentStageBadge = within(progressCard)
+      .getAllByText("Atual")
+      .find((element) => String((element as HTMLElement).className || "").includes("rounded-full"));
+    expect(currentStageBadge).toHaveClass(
+      "border-[hsl(var(--badge-info-border))]",
+      "bg-[hsl(var(--badge-info-bg))]",
+      "text-[hsl(var(--badge-info-fg))]",
+    );
     expect(within(contentCard).getByRole("heading", { name: /Páginas/i })).toBeInTheDocument();
     expect(document.getElementById("chapter-volume-image") as HTMLInputElement).toHaveClass(
       "w-full",

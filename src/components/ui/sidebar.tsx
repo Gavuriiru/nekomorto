@@ -588,6 +588,7 @@ const SidebarMenuButton = React.forwardRef<
   ) => {
     const Comp = asChild ? Slot : "button";
     const { isMobile, state } = useSidebar();
+    const shouldRenderTooltip = Boolean(tooltip) && !isMobile && state === "collapsed";
 
     const button = (
       <Comp
@@ -600,7 +601,7 @@ const SidebarMenuButton = React.forwardRef<
       />
     );
 
-    if (!tooltip) {
+    if (!shouldRenderTooltip) {
       return button;
     }
 
@@ -613,12 +614,7 @@ const SidebarMenuButton = React.forwardRef<
     return (
       <Tooltip>
         <TooltipTrigger asChild>{button}</TooltipTrigger>
-        <TooltipContent
-          side="right"
-          align="center"
-          hidden={state !== "collapsed" || isMobile}
-          {...tooltip}
-        />
+        <TooltipContent side="right" align="center" {...tooltip} />
       </Tooltip>
     );
   },

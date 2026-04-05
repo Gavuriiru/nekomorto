@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import DashboardAnalytics from "@/pages/DashboardAnalytics";
+import DashboardAnalytics, { __testing as analyticsTesting } from "@/pages/DashboardAnalytics";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const xAxisPropsSpy = vi.hoisted(() => vi.fn());
@@ -19,6 +19,10 @@ vi.mock("@/lib/api-client", () => ({
 
 vi.mock("@/hooks/use-page-meta", () => ({
   usePageMeta: () => undefined,
+}));
+
+vi.mock("@/hooks/use-dashboard-refresh-toast", () => ({
+  useDashboardRefreshToast: () => undefined,
 }));
 
 vi.mock("@/components/DashboardShell", () => ({
@@ -49,6 +53,11 @@ vi.mock("@/components/ui/chart", () => ({
   ChartTooltipContent: () => null,
 }));
 
+Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+  value: vi.fn(),
+  writable: true,
+});
+
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({
     ok,
@@ -62,6 +71,78 @@ type TopContentEntry = {
   title: string;
   views: number;
   uniqueViews: number;
+};
+
+type AnalyticsDataset = {
+  metrics?: OverviewResponse["metrics"];
+  series?: Array<{ date: string; value: number }>;
+  topEntries?: TopContentEntry[];
+  referrerHost?: Array<{ key: string; count: number }>;
+};
+
+type OverviewResponse = {
+  metrics?: {
+    views?: number;
+    uniqueViews?: number;
+    chapterViews?: number;
+    downloadClicks?: number;
+    commentsCreated?: number;
+    commentsApproved?: number;
+  };
+};
+
+const buildAnalyticsDataset = ({
+  views,
+  uniqueViews,
+  topEntries,
+  series,
+  referrerCount,
+}: {
+  views: number;
+  uniqueViews?: number;
+  topEntries?: TopContentEntry[];
+  series?: Array<{ date: string; value: number }>;
+  referrerCount?: number;
+}): AnalyticsDataset => ({
+  metrics: {
+    views,
+    uniqueViews: uniqueViews ?? Math.max(views - 180, 0),
+    chapterViews: Math.max(Math.floor(views / 7), 0),
+    downloadClicks: Math.max(Math.floor(views / 15), 0),
+    commentsCreated: Math.max(Math.floor(views / 40), 0),
+    commentsApproved: Math.max(Math.floor(views / 60), 0),
+  },
+  series:
+    series ??
+    [
+      { date: "2026-02-10", value: Math.max(Math.floor(views / 30), 1) },
+      { date: "2026-02-11", value: Math.max(Math.floor(views / 24), 1) },
+    ],
+  topEntries:
+    topEntries ??
+    [
+      {
+        resourceType: "project",
+        resourceId: `project-${views}`,
+        title: `Projeto ${views}`,
+        views: Math.max(Math.floor(views / 3), 1),
+        uniqueViews: Math.max(Math.floor(views / 5), 1),
+      },
+    ],
+  referrerHost: [{ key: "(internal)", count: referrerCount ?? Math.max(Math.floor(views / 10), 1) }],
+});
+
+const createDeferredResponse = () => {
+  let resolve!: (value: Response) => void;
+  const promise = new Promise<Response>((resolver) => {
+    resolve = resolver;
+  });
+  return { promise, resolve };
+};
+
+const changeAnalyticsSelect = async (index: number, optionName: string) => {
+  fireEvent.click(screen.getAllByRole("combobox")[index] as HTMLElement);
+  fireEvent.click(await screen.findByRole("option", { name: optionName }));
 };
 
 const setupApiMock = ({
@@ -89,23 +170,13 @@ const setupApiMock = ({
     }
     if (endpoint.startsWith("/api/analytics/overview?")) {
       return mockJsonResponse(true, {
-        metrics: {
-          views: 300,
-          uniqueViews: 120,
-          chapterViews: 44,
-          downloadClicks: 19,
-          commentsCreated: 8,
-          commentsApproved: 5,
-        },
+        metrics: buildAnalyticsDataset({ views: 300 }).metrics,
       });
     }
     if (endpoint.startsWith("/api/analytics/timeseries?")) {
       return mockJsonResponse(true, {
         metric: url.searchParams.get("metric") || "views",
-        series: [
-          { date: "2026-02-10", value: 10 },
-          { date: "2026-02-11", value: 15 },
-        ],
+        series: buildAnalyticsDataset({ views: 300 }).series,
       });
     }
     if (endpoint.startsWith("/api/analytics/top-content?")) {
@@ -115,7 +186,7 @@ const setupApiMock = ({
     }
     if (endpoint.startsWith("/api/analytics/acquisition?")) {
       return mockJsonResponse(true, {
-        referrerHost: [{ key: "(internal)", count: 30 }],
+        referrerHost: buildAnalyticsDataset({ views: 300 }).referrerHost,
         utmSource: [],
       });
     }
@@ -150,6 +221,7 @@ const renderPage = (
 
 describe("DashboardAnalytics", () => {
   beforeEach(() => {
+    analyticsTesting.clearAnalyticsCache();
     setupApiMock();
     xAxisPropsSpy.mockReset();
     yAxisPropsSpy.mockReset();
@@ -312,6 +384,214 @@ describe("DashboardAnalytics", () => {
 
     const cols = table.querySelectorAll("colgroup col");
     expect(cols).toHaveLength(4);
+  });
+
+  it("mantem loading bloqueante apenas no primeiro carregamento sem cache", async () => {
+    const dataset = buildAnalyticsDataset({ views: 300, referrerCount: 30 });
+    const overviewDeferred = createDeferredResponse();
+
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string) => {
+      if (endpoint === "/api/me") {
+        return mockJsonResponse(true, {
+          id: "u-1",
+          name: "Admin",
+          username: "admin",
+        });
+      }
+      if (endpoint.startsWith("/api/analytics/overview?")) {
+        return overviewDeferred.promise;
+      }
+      if (endpoint.startsWith("/api/analytics/timeseries?")) {
+        return mockJsonResponse(true, { metric: "views", series: dataset.series });
+      }
+      if (endpoint.startsWith("/api/analytics/top-content?")) {
+        return mockJsonResponse(true, { entries: dataset.topEntries });
+      }
+      if (endpoint.startsWith("/api/analytics/acquisition?")) {
+        return mockJsonResponse(true, { referrerHost: dataset.referrerHost, utmSource: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderPage();
+
+    expect(await screen.findByText(/Carregando análises/i)).toBeInTheDocument();
+
+    overviewDeferred.resolve(mockJsonResponse(true, { metrics: dataset.metrics }));
+
+    await screen.findByText("300");
+    await waitFor(() => {
+      expect(screen.queryByText(/Carregando análises/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it("mantem os dados visiveis e desabilita exportacao durante refresh de filtro", async () => {
+    const defaultDataset = buildAnalyticsDataset({ views: 300, referrerCount: 30 });
+    const nextDataset = buildAnalyticsDataset({ views: 700, referrerCount: 70 });
+    const overviewDeferred = createDeferredResponse();
+
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string) => {
+      const url = new URL(`https://example.test${endpoint}`);
+      const range = url.searchParams.get("range") || "30d";
+      const dataset = range === "7d" ? nextDataset : defaultDataset;
+
+      if (endpoint === "/api/me") {
+        return mockJsonResponse(true, {
+          id: "u-1",
+          name: "Admin",
+          username: "admin",
+        });
+      }
+      if (endpoint.startsWith("/api/analytics/overview?")) {
+        return range === "7d"
+          ? overviewDeferred.promise
+          : mockJsonResponse(true, { metrics: dataset.metrics });
+      }
+      if (endpoint.startsWith("/api/analytics/timeseries?")) {
+        return mockJsonResponse(true, {
+          metric: url.searchParams.get("metric") || "views",
+          series: dataset.series,
+        });
+      }
+      if (endpoint.startsWith("/api/analytics/top-content?")) {
+        return mockJsonResponse(true, { entries: dataset.topEntries });
+      }
+      if (endpoint.startsWith("/api/analytics/acquisition?")) {
+        return mockJsonResponse(true, { referrerHost: dataset.referrerHost, utmSource: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderPage();
+
+    await screen.findByText("300");
+
+    await changeAnalyticsSelect(0, "7 dias");
+
+    expect(screen.queryByText(/Carregando análises/i)).not.toBeInTheDocument();
+    expect(screen.getByText("300")).toBeInTheDocument();
+    expect(screen.getByText("Atualizando dados...")).not.toHaveClass("invisible");
+    expect(screen.getByRole("button", { name: "Exportar" })).toBeDisabled();
+
+    overviewDeferred.resolve(mockJsonResponse(true, { metrics: nextDataset.metrics }));
+
+    await screen.findByText("700");
+    await waitFor(() => {
+      expect(screen.getByText("Atualizando dados...")).toHaveClass("invisible");
+    });
+    expect(screen.getByRole("button", { name: "Exportar" })).not.toBeDisabled();
+  });
+
+  it("preserva o ultimo snapshot quando o refresh falha para um novo filtro", async () => {
+    const defaultDataset = buildAnalyticsDataset({ views: 300, referrerCount: 30 });
+
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string) => {
+      const url = new URL(`https://example.test${endpoint}`);
+      const range = url.searchParams.get("range") || "30d";
+
+      if (endpoint === "/api/me") {
+        return mockJsonResponse(true, {
+          id: "u-1",
+          name: "Admin",
+          username: "admin",
+        });
+      }
+      if (endpoint.startsWith("/api/analytics/overview?")) {
+        if (range === "7d") {
+          return mockJsonResponse(false, { error: "analytics_failed" }, 500);
+        }
+        return mockJsonResponse(true, { metrics: defaultDataset.metrics });
+      }
+      if (endpoint.startsWith("/api/analytics/timeseries?")) {
+        return mockJsonResponse(true, {
+          metric: url.searchParams.get("metric") || "views",
+          series: defaultDataset.series,
+        });
+      }
+      if (endpoint.startsWith("/api/analytics/top-content?")) {
+        return mockJsonResponse(true, { entries: defaultDataset.topEntries });
+      }
+      if (endpoint.startsWith("/api/analytics/acquisition?")) {
+        return mockJsonResponse(true, { referrerHost: defaultDataset.referrerHost, utmSource: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderPage();
+
+    await screen.findByText("300");
+    await changeAnalyticsSelect(0, "7 dias");
+
+    expect(await screen.findByText(/Mantendo os últimos resultados carregados/i)).toBeInTheDocument();
+    expect(screen.getByText("300")).toBeInTheDocument();
+    expect(screen.queryByText(/Carregando análises/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Exportar" })).toBeDisabled();
+  });
+
+  it("reaproveita cache quente ao voltar para um filtro visitado recentemente", async () => {
+    const defaultDataset = buildAnalyticsDataset({ views: 300, referrerCount: 30 });
+    const alternateDataset = buildAnalyticsDataset({ views: 700, referrerCount: 70 });
+    const refreshedDefaultDataset = buildAnalyticsDataset({ views: 320, referrerCount: 32 });
+    const overviewDeferred = createDeferredResponse();
+    let defaultOverviewCalls = 0;
+
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string) => {
+      const url = new URL(`https://example.test${endpoint}`);
+      const range = url.searchParams.get("range") || "30d";
+      const currentDataset = range === "7d" ? alternateDataset : defaultDataset;
+
+      if (endpoint === "/api/me") {
+        return mockJsonResponse(true, {
+          id: "u-1",
+          name: "Admin",
+          username: "admin",
+        });
+      }
+      if (endpoint.startsWith("/api/analytics/overview?")) {
+        if (range === "30d") {
+          defaultOverviewCalls += 1;
+          if (defaultOverviewCalls >= 2) {
+            return overviewDeferred.promise;
+          }
+        }
+        return mockJsonResponse(true, { metrics: currentDataset.metrics });
+      }
+      if (endpoint.startsWith("/api/analytics/timeseries?")) {
+        return mockJsonResponse(true, {
+          metric: url.searchParams.get("metric") || "views",
+          series: currentDataset.series,
+        });
+      }
+      if (endpoint.startsWith("/api/analytics/top-content?")) {
+        return mockJsonResponse(true, { entries: currentDataset.topEntries });
+      }
+      if (endpoint.startsWith("/api/analytics/acquisition?")) {
+        return mockJsonResponse(true, { referrerHost: currentDataset.referrerHost, utmSource: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderPage();
+
+    await screen.findByText("300");
+    await changeAnalyticsSelect(0, "7 dias");
+    await screen.findByText("700");
+
+    await changeAnalyticsSelect(0, "30 dias");
+
+    await waitFor(() => {
+      expect(screen.getByText("300")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("700")).not.toBeInTheDocument();
+    expect(screen.getByText("Atualizando dados...")).toBeInTheDocument();
+
+    overviewDeferred.resolve(mockJsonResponse(true, { metrics: refreshedDefaultDataset.metrics }));
+
+    await screen.findByText("320");
   });
 
   it("navega para a pagina publica ao clicar no link do top conteudo", async () => {

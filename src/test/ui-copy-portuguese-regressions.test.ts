@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const mojibakeGuardFiles = [
   "src/pages/Projects.tsx",
   "src/pages/Donations.tsx",
+  "src/pages/DashboardPages.tsx",
   "src/pages/DashboardProjectsEditor.tsx",
   "src/pages/DashboardUploads.tsx",
   "src/components/project-reader/PublicProjectReader.tsx",
@@ -63,7 +64,23 @@ const knownBadFragmentsByFile: Array<{
   },
   {
     path: "src/pages/Donations.tsx",
-    fragments: ["M?s/Ano"],
+    fragments: ["M?s/Ano", "Copiar endereco", "Observacoes"],
+  },
+  {
+    path: "src/pages/DashboardPages.tsx",
+    fragments: [
+      "Titulo da secao",
+      "Subtitulo",
+      "servico tiver nome e endereco",
+      "Nome do servico",
+      "Rotulo da acao externa",
+      "Endereco para copia",
+      "URL da acao externa",
+      "Icone padrao",
+      "Preview da pagina publica",
+      "Servico sem nome",
+      "na pagina publica.",
+    ],
   },
   {
     path: "server/lib/site-settings-runtime-helpers.js",

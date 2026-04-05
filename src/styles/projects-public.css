@@ -2,4 +2,43 @@
   :root[data-theme-mode="light"] .projects-public-card {
     background: hsl(var(--card));
   }
+
+  .projects-public-synopsis {
+    --projects-public-synopsis-padding-bottom: 0.12em;
+  }
+
+  .projects-public-synopsis-clamp-0 {
+    display: none;
+  }
+
+  .projects-public-synopsis-clamp-1,
+  .projects-public-synopsis-clamp-2,
+  .projects-public-synopsis-clamp-3,
+  .projects-public-synopsis-clamp-4 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    padding-bottom: var(--projects-public-synopsis-padding-bottom, 0.12em);
+    margin-bottom: calc(-1 * var(--projects-public-synopsis-padding-bottom, 0.12em));
+  }
+
+  .projects-public-synopsis-clamp-1 {
+    line-clamp: 1;
+    -webkit-line-clamp: 1;
+  }
+
+  .projects-public-synopsis-clamp-2 {
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+  }
+
+  .projects-public-synopsis-clamp-3 {
+    line-clamp: 3;
+    -webkit-line-clamp: 3;
+  }
+
+  .projects-public-synopsis-clamp-4 {
+    line-clamp: 4;
+    -webkit-line-clamp: 4;
+  }
 }

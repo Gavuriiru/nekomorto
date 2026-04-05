@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-04-05T04:35:57.231Z",
+  "baselineAcceptedAt": null,
+  "summaryGeneratedAt": "2026-04-05T04:00:00.000Z",
+  "routeOrder": [
+    "home-mobile",
+    "projects-mobile",
+    "projects-desktop",
+    "reader-post-mobile",
+    "reader-chapter-mobile"
+  ],
+  "thresholds": {
+    "performanceScoreDrop": 0.03,
+    "largest-contentful-paint": 200,
+    "total-blocking-time": 50,
+    "cumulative-layout-shift": 0.02
+  },
+  "hasRegression": false,
+  "warningCount": 0,
+  "routes": {
+    "home-mobile": {
+      "key": "home-mobile",
+      "label": "Home mobile",
+      "url": "http://127.0.0.1:4173/",
+      "status": "missing-baseline",
+      "warnings": [
+        {
+          "kind": "missing-baseline",
+          "message": "Baseline ainda não foi aceito para esta rota."
+        }
+      ],
+      "baseline": null,
+      "current": {
+        "medianCategories": {
+          "performance": 1,
+          "accessibility": 1,
+          "best-practices": 1,
+          "seo": 1
+        },
+        "medianMetrics": {
+          "first-contentful-paint": 900,
+          "largest-contentful-paint": 1800,
+          "total-blocking-time": 0,
+          "cumulative-layout-shift": 0,
+          "speed-index": 1200,
+          "interaction-to-next-paint": 0
+        }
+      }
+    },
+    "projects-mobile": {
+      "key": "projects-mobile",
+      "label": "Projects mobile",
+      "url": "",
+      "status": "missing-current",
+      "warnings": [
+        {
+          "kind": "missing-current",
+          "message": "Resumo atual ausente para esta rota."
+        },
+        {
+          "kind": "missing-baseline",
+          "message": "Baseline ainda não foi aceito para esta rota."
+        }
+      ],
+      "baseline": null,
+      "current": null
+    },
+    "projects-desktop": {
+      "key": "projects-desktop",
+      "label": "Projects desktop",
+      "url": "",
+      "status": "missing-current",
+      "warnings": [
+        {
+          "kind": "missing-current",
+          "message": "Resumo atual ausente para esta rota."
+        },
+        {
+          "kind": "missing-baseline",
+          "message": "Baseline ainda não foi aceito para esta rota."
+        }
+      ],
+      "baseline": null,
+      "current": null
+    },
+    "reader-post-mobile": {
+      "key": "reader-post-mobile",
+      "label": "Reader post mobile",
+      "url": "",
+      "status": "missing-current",
+      "warnings": [
+        {
+          "kind": "missing-current",
+          "message": "Resumo atual ausente para esta rota."
+        },
+        {
+          "kind": "missing-baseline",
+          "message": "Baseline ainda não foi aceito para esta rota."
+        }
+      ],
+      "baseline": null,
+      "current": null
+    },
+    "reader-chapter-mobile": {
+      "key": "reader-chapter-mobile",
+      "label": "Reader chapter mobile",
+      "url": "",
+      "status": "missing-current",
+      "warnings": [
+        {
+          "kind": "missing-current",
+          "message": "Resumo atual ausente para esta rota."
+        },
+        {
+          "kind": "missing-baseline",
+          "message": "Baseline ainda não foi aceito para esta rota."
+        }
+      ],
+      "baseline": null,
+      "current": null
+    }
+  }
+}

@@ -176,20 +176,40 @@ describe("Projects accessibility", () => {
       </MemoryRouter>,
     );
 
-    const letterTrigger = await screen.findByRole("combobox", { name: "Filtrar por letra" });
-    const tagTrigger = screen.getByRole("combobox", { name: "Filtrar por tag" });
+    const tagTrigger = await screen.findByRole("combobox", { name: "Filtrar por tag" });
+    const genreTrigger = screen.getByRole("combobox", { name: /Filtrar por g.*nero/i });
 
-    letterTrigger.focus();
-    fireEvent.keyDown(letterTrigger, { key: "ArrowDown", code: "ArrowDown" });
-    expect(await screen.findByRole("option", { name: "A" })).toBeInTheDocument();
+    fireEvent.click(tagTrigger);
+    expect(await screen.findByRole("option", { name: "Acao" })).toBeInTheDocument();
 
-    tagTrigger.focus();
-    fireEvent.keyDown(tagTrigger, { key: "ArrowDown", code: "ArrowDown" });
+    fireEvent.click(genreTrigger);
 
     await waitFor(() => {
-      expect(screen.queryByRole("option", { name: "A" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "Acao" })).not.toBeInTheDocument();
     });
 
-    expect(await screen.findByRole("option", { name: "Acao" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Drama" })).toBeInTheDocument();
+  });
+
+  it("mantem apenas um filtro aberto por vez no desktop incluindo A-Z e formato", async () => {
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+      </MemoryRouter>,
+    );
+
+    const letterTrigger = await screen.findByRole("combobox", { name: "Filtrar por letra" });
+    const formatTrigger = screen.getByRole("combobox", { name: "Filtrar por formato" });
+
+    fireEvent.click(letterTrigger);
+    expect(await screen.findByRole("option", { name: "P" })).toBeInTheDocument();
+
+    fireEvent.click(formatTrigger);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("option", { name: "P" })).not.toBeInTheDocument();
+    });
+
+    expect(await screen.findByRole("option", { name: "Anime" })).toBeInTheDocument();
   });
 });

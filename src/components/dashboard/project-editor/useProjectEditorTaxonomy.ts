@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
 import {
   buildTranslationMap,
@@ -211,13 +211,20 @@ export const useProjectEditorTaxonomy = ({
     () => filterTaxonomySuggestions(genreSuggestionOptions, genreInput, formState.genres),
     [formState.genres, genreInput, genreSuggestionOptions],
   );
+  const resolveGenreInputValue = useCallback(
+    (input: string) => resolveTaxonomyInputValue(input, genreSuggestionLookup),
+    [genreSuggestionLookup],
+  );
+  const resolveTagInputValue = useCallback(
+    (input: string) => resolveTaxonomyInputValue(input, tagSuggestionLookup),
+    [tagSuggestionLookup],
+  );
 
   return {
     genreTranslationMap,
     genreSuggestions,
-    resolveGenreInputValue: (input: string) =>
-      resolveTaxonomyInputValue(input, genreSuggestionLookup),
-    resolveTagInputValue: (input: string) => resolveTaxonomyInputValue(input, tagSuggestionLookup),
+    resolveGenreInputValue,
+    resolveTagInputValue,
     staffRoleTranslationMap,
     tagTranslationMap,
     tagSuggestions,

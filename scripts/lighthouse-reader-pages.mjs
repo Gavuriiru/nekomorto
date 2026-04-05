@@ -4,6 +4,12 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import {
+  PUBLIC_SURFACE_CATEGORY_IDS,
+  PUBLIC_SURFACE_METRIC_AUDIT_IDS,
+  collectAuditNumericValues,
+} from "./public-surface-performance-lib.mjs";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const workspaceRoot = path.resolve(__dirname, "..");
@@ -17,7 +23,8 @@ const defaultChapterUrl =
   process.env.LIGHTHOUSE_READER_CHAPTER_URL ||
   "http://127.0.0.1:8080/projeto/projeto-teste/leitura/1?volume=2";
 const defaultRuns = 3;
-const categoryIds = ["performance", "accessibility", "best-practices", "seo"];
+const categoryIds = PUBLIC_SURFACE_CATEGORY_IDS;
+const reportedMetricAuditIds = PUBLIC_SURFACE_METRIC_AUDIT_IDS;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const commandFor = (baseName) => (process.platform === "win32" ? `${baseName}.cmd` : baseName);
@@ -216,8 +223,11 @@ const toCategoryScores = (report) =>
     return result;
   }, {});
 
+const toMetricValues = (report) => collectAuditNumericValues(report, reportedMetricAuditIds);
+
 const summarizeReports = (reports) => {
   const categoriesByRun = reports.map((report) => toCategoryScores(report));
+  const metricsByRun = reports.map((report) => toMetricValues(report));
   const medianCategories = categoryIds.reduce((result, categoryId) => {
     result[categoryId] = median(
       categoriesByRun.map((run) => run[categoryId]).filter((value) => Number.isFinite(value)),
@@ -225,9 +235,18 @@ const summarizeReports = (reports) => {
     return result;
   }, {});
 
+  const medianMetrics = reportedMetricAuditIds.reduce((result, auditId) => {
+    result[auditId] = median(
+      metricsByRun.map((run) => run[auditId]).filter((value) => Number.isFinite(value)),
+    );
+    return result;
+  }, {});
+
   return {
     categoriesByRun,
+    metricsByRun,
     medianCategories,
+    medianMetrics,
   };
 };
 
@@ -265,6 +284,7 @@ const writeSummary = ({ args, summaryByRoute }) => {
         result[categoryId] = 1;
         return result;
       }, {}),
+      reportedMetrics: reportedMetricAuditIds,
     },
   };
   const summaryPath = path.join(outputDir, "reader-pages-summary.json");

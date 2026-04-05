@@ -16,6 +16,7 @@ import {
   SliderTrack,
 } from "react-aria-components";
 import { parseColor } from "@react-stately/color";
+import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
 import "./color-picker.css";
 
 export interface ColorPickerProps extends Omit<AriaColorPickerProps, "children"> {
@@ -151,7 +152,8 @@ export const ColorPicker = ({
     ? `rainbow-color-picker-panel flex flex-col ${panelClassName}`
     : "rainbow-color-picker-panel flex flex-col";
   const popoverClasses =
-    popoverClassName ?? "z-50 rounded-xl border border-border/60 bg-card/95 p-0 shadow-xl";
+    popoverClassName ??
+    `z-50 rounded-xl border border-border/60 bg-card/95 p-0 ${floatingSurfaceShadowClassName}`;
   const panelContent = (
     <>
       <ColorArea

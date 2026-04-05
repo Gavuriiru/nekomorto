@@ -69,6 +69,8 @@ const DashboardHeader = ({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isNavbarMenuOpen, setIsNavbarMenuOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [remoteSuggestions, setRemoteSuggestions] = useState<SearchSuggestion[]>([]);
   const [remoteMediaVariants, setRemoteMediaVariants] = useState<UploadMediaVariantsMap>({});
@@ -100,7 +102,7 @@ const DashboardHeader = ({
       : [];
   }, [settings.navbar.links]);
   const headerMenuContentClass =
-    "border-border/70 bg-popover/95 text-popover-foreground shadow-xl backdrop-blur-xs";
+    "border-border/70 bg-popover/95 text-popover-foreground backdrop-blur-xs";
   const headerMenuItemClass = "focus:bg-accent focus:text-accent-foreground";
   const isInternalHref = (href: string) => href.startsWith("/") && !href.startsWith("//");
   const normalizePathname = (value: string) => {
@@ -525,7 +527,7 @@ const DashboardHeader = ({
             />
 
             <ThemeModeSwitcher />
-            <DropdownMenu>
+            <DropdownMenu open={isNavbarMenuOpen} onOpenChange={setIsNavbarMenuOpen}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
@@ -536,38 +538,44 @@ const DashboardHeader = ({
                   <Menu className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
-                {navbarLinks.map((item) => {
-                  const ItemIcon = getNavbarIcon(item.icon);
-                  return (
-                    <DropdownMenuItem
-                      key={`${item.label}-${item.href}`}
-                      asChild
-                      className={headerMenuItemClass}
-                    >
-                      {isInternalHref(item.href) ? (
-                        <Link to={item.href} className="flex items-center gap-2">
-                          <ItemIcon className="h-4 w-4" />
-                          {item.label}
-                        </Link>
-                      ) : (
-                        <a
-                          href={item.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2"
-                        >
-                          <ItemIcon className="h-4 w-4" />
-                          {item.label}
-                        </a>
-                      )}
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
+              {isNavbarMenuOpen ? (
+                <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
+                  {navbarLinks.map((item) => {
+                    const ItemIcon = getNavbarIcon(item.icon);
+                    return (
+                      <DropdownMenuItem
+                        key={`${item.label}-${item.href}`}
+                        asChild
+                        className={headerMenuItemClass}
+                      >
+                        {isInternalHref(item.href) ? (
+                          <Link to={item.href} className="flex items-center gap-2">
+                            <ItemIcon className="h-4 w-4" />
+                            {item.label}
+                          </Link>
+                        ) : (
+                          <a
+                            href={item.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2"
+                          >
+                            <ItemIcon className="h-4 w-4" />
+                            {item.label}
+                          </a>
+                        )}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              ) : null}
             </DropdownMenu>
 
-            <DropdownMenu modal={false}>
+            <DropdownMenu
+              modal={false}
+              open={isAccountMenuOpen}
+              onOpenChange={setIsAccountMenuOpen}
+            >
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
@@ -586,37 +594,39 @@ const DashboardHeader = ({
                   </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-56 border-border/70 bg-popover/95 text-popover-foreground shadow-xl backdrop-blur-xs"
-              >
-                {menuItems
-                  .filter((item) => item.enabled)
-                  .map((item) => {
-                    const ItemIcon = item.icon;
-                    return (
-                      <DropdownMenuItem
-                        key={item.href}
-                        asChild
-                        className="focus:bg-accent focus:text-accent-foreground"
-                      >
-                        <Link to={item.href} className="flex items-center gap-2">
-                          <ItemIcon className="h-4 w-4" />
-                          {item.label}
-                        </Link>
-                      </DropdownMenuItem>
-                    );
-                  })}
-                <DropdownMenuSeparator className="bg-border/70" />
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="focus:bg-accent focus:text-accent-foreground"
+              {isAccountMenuOpen ? (
+                <DropdownMenuContent
+                  align="end"
+                  className={cn("w-56", headerMenuContentClass)}
                 >
-                  <LogOut className="h-4 w-4" />
-                  {isLoggingOut ? uiCopy.actions.loggingOut : uiCopy.actions.logout}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
+                  {menuItems
+                    .filter((item) => item.enabled)
+                    .map((item) => {
+                      const ItemIcon = item.icon;
+                      return (
+                        <DropdownMenuItem
+                          key={item.href}
+                          asChild
+                          className="focus:bg-accent focus:text-accent-foreground"
+                        >
+                          <Link to={item.href} className="flex items-center gap-2">
+                            <ItemIcon className="h-4 w-4" />
+                            {item.label}
+                          </Link>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  <DropdownMenuSeparator className="bg-border/70" />
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="focus:bg-accent focus:text-accent-foreground"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    {isLoggingOut ? uiCopy.actions.loggingOut : uiCopy.actions.logout}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              ) : null}
             </DropdownMenu>
           </div>
         </div>

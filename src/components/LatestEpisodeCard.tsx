@@ -11,6 +11,8 @@ import { formatDate } from "@/lib/date";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 
 const PT_DIACRITICS_REGEX = /[\u0300-\u036f]/g;
+const RECENT_UPDATES_CARD_HEIGHT_PX = 164;
+const RECENT_UPDATES_THUMB_WIDTH = "calc(var(--card-h) * 9 / 14)";
 
 const normalizeLookupKey = (value: string) =>
   String(value || "")
@@ -90,10 +92,17 @@ const LatestEpisodeCard = () => {
             {Array.from({ length: 3 }).map((_, index) => (
               <div
                 key={`update-skeleton-${index}`}
-                className="flex items-start gap-4 rounded-xl bg-background/40 p-4"
+                style={{ "--card-h": `${RECENT_UPDATES_CARD_HEIGHT_PX}px` } as CSSProperties}
+                className="flex h-(--card-h) overflow-hidden rounded-2xl bg-background/40"
               >
-                <Skeleton className="h-20 w-16 rounded-lg" />
-                <div className="flex-1 space-y-2">
+                <Skeleton
+                  className="h-full shrink-0"
+                  style={{
+                    aspectRatio: PROJECT_COVER_ASPECT_RATIO,
+                    width: RECENT_UPDATES_THUMB_WIDTH,
+                  }}
+                />
+                <div className="flex min-w-0 flex-1 flex-col gap-2 p-[1.125rem]">
                   <Skeleton className="h-3 w-24" />
                   <Skeleton className="h-4 w-3/4" />
                   <Skeleton className="h-3 w-2/3" />
@@ -150,26 +159,28 @@ const LatestEpisodeCard = () => {
                   <Link
                     key={update.id}
                     to={`/projeto/${update.projectId}`}
-                    style={{ "--card-h": "164px", "--card-pad": "16px" } as CSSProperties}
-                    className="recent-updates-item group relative block h-(--card-h) overflow-hidden rounded-2xl bg-linear-to-br from-background/70 via-background/40 to-background/70 transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-primary/60 reveal"
+                    style={{ "--card-h": `${RECENT_UPDATES_CARD_HEIGHT_PX}px` } as CSSProperties}
+                    className="recent-updates-item group flex h-(--card-h) overflow-hidden rounded-2xl bg-linear-to-br from-background/70 via-background/40 to-background/70 transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-primary/60 reveal"
                     data-reveal
                   >
-                    <div className="absolute inset-(--card-pad) flex items-start gap-4">
-                      <div
-                        className="h-full shrink-0 overflow-hidden rounded-xl bg-secondary/60"
-                        style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
-                      >
+                    <div
+                      className="h-full shrink-0 overflow-hidden bg-secondary/60"
+                      style={{
+                        aspectRatio: PROJECT_COVER_ASPECT_RATIO,
+                        width: RECENT_UPDATES_THUMB_WIDTH,
+                      }}
+                    >
                         <UploadPicture
                           src={update.image || "/placeholder.svg"}
                           alt={update.projectTitle}
                           preset="posterThumb"
                           mediaVariants={mediaVariants}
-                          sizes="96px"
+                          sizes="105px"
                           className="block h-full w-full"
-                          imgClassName="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                         />
                       </div>
-                      <div className="flex h-full min-w-0 flex-1 flex-col gap-3">
+                      <div className="flex h-full min-w-0 flex-1 flex-col gap-3 p-[1.125rem]">
                         <div className="no-scrollbar flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
                           <Badge
                             variant="secondary"
@@ -211,7 +222,6 @@ const LatestEpisodeCard = () => {
                           {formatDate(update.updatedAt.split("T")[0])}
                         </span>
                       </div>
-                    </div>
                   </Link>
                 );
               })}

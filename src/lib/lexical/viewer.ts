@@ -14,6 +14,9 @@ type SerializedLexicalNodeLike = {
 const getSerializedRoot = (serializedState: unknown) =>
   (serializedState as { root?: { type?: string; children?: unknown[] } } | null | undefined)?.root;
 
+const NORMALIZED_VIEWER_STATE_CACHE_LIMIT = 100;
+const normalizedViewerStateCache = new Map<string, string>();
+
 const hasNonEmptyRootChildren = (serializedState: unknown) => {
   const root = getSerializedRoot(serializedState);
   return Array.isArray(root?.children) && root.children.length > 0;
@@ -124,4 +127,47 @@ export const normalizeLexicalViewerJson = (value: string) => {
   } catch {
     return EMPTY_LEXICAL_JSON;
   }
+};
+
+export const readPreparedLexicalViewerState = (value?: string | null) => {
+  const serializedValue = String(value || "");
+  if (!serializedValue) {
+    return EMPTY_LEXICAL_JSON;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(serializedValue);
+  } catch {
+    return EMPTY_LEXICAL_JSON;
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    return EMPTY_LEXICAL_JSON;
+  }
+  if (hasExplicitlyEmptyRoot(parsed)) {
+    return EMPTY_LEXICAL_JSON;
+  }
+  if (!hasSerializableRoot(parsed)) {
+    return EMPTY_LEXICAL_JSON;
+  }
+  return serializedValue;
+};
+
+export const prepareLexicalViewerState = (value: string) => {
+  const cacheKey = String(value || "");
+  const cached = normalizedViewerStateCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const normalized = normalizeLexicalViewerJson(cacheKey) ?? EMPTY_LEXICAL_JSON;
+  normalizedViewerStateCache.set(cacheKey, normalized);
+  if (normalizedViewerStateCache.size > NORMALIZED_VIEWER_STATE_CACHE_LIMIT) {
+    const oldestKey = normalizedViewerStateCache.keys().next().value;
+    if (oldestKey) {
+      normalizedViewerStateCache.delete(oldestKey);
+    }
+  }
+  return normalized;
 };

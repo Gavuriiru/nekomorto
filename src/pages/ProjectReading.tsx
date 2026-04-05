@@ -37,6 +37,7 @@ import { isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicBootstrapPayload, PublicBootstrapProject } from "@/types/public-bootstrap";
+import { prepareLexicalViewerState } from "@/lib/lexical/viewer";
 import {
   normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,
@@ -118,6 +119,50 @@ const formatReadingChapterOptionLabel = (entry: {
   return parts.join(" \u2022 ");
 };
 
+const hasExplicitZeroVolume = (value: unknown) => {
+  if (value === null || value === undefined) {
+    return false;
+  }
+  if (typeof value === "string" && value.trim() === "") {
+    return false;
+  }
+  return Number(value) === 0;
+};
+
+const compareReaderChapterNavigationOrder = (
+  left: { number?: number; volume?: number; readingOrder?: number },
+  right: { number?: number; volume?: number; readingOrder?: number },
+) => {
+  const leftReadingOrder = Number(left.readingOrder);
+  const rightReadingOrder = Number(right.readingOrder);
+  const hasLeftReadingOrder = Number.isFinite(leftReadingOrder);
+  const hasRightReadingOrder = Number.isFinite(rightReadingOrder);
+  if (hasLeftReadingOrder || hasRightReadingOrder) {
+    if (!hasLeftReadingOrder) {
+      return 1;
+    }
+    if (!hasRightReadingOrder) {
+      return -1;
+    }
+    if (leftReadingOrder !== rightReadingOrder) {
+      return leftReadingOrder - rightReadingOrder;
+    }
+  }
+
+  const leftHasExplicitZeroVolume = hasExplicitZeroVolume(left.volume);
+  const rightHasExplicitZeroVolume = hasExplicitZeroVolume(right.volume);
+  if (leftHasExplicitZeroVolume !== rightHasExplicitZeroVolume) {
+    return leftHasExplicitZeroVolume ? -1 : 1;
+  }
+
+  const numberDelta = (Number(left.number) || 0) - (Number(right.number) || 0);
+  if (numberDelta !== 0) {
+    return numberDelta;
+  }
+
+  return (Number(left.volume) || 0) - (Number(right.volume) || 0);
+};
+
 const getReadableProjectEpisodes = (
   project: Pick<ReadingProject, "episodeDownloads"> | null | undefined,
 ) =>
@@ -186,6 +231,7 @@ const ProjectReading = () => {
   const [chapterReaderConfig, setChapterReaderConfig] = useState<Record<string, unknown> | null>(
     null,
   );
+  const [preparedChapterEditorState, setPreparedChapterEditorState] = useState("");
   const [hasLoadedProject, setHasLoadedProject] = useState(Boolean(bootstrapProject));
   const [hasLoadedChapter, setHasLoadedChapter] = useState(false);
   const [chapterLoadError, setChapterLoadError] = useState(false);
@@ -298,28 +344,7 @@ const ProjectReading = () => {
     }
     return (project.episodeDownloads || [])
       .filter((entry) => hasPublicEpisodeReadableContent(entry))
-      .sort((a, b) => {
-        const leftReadingOrder = Number(a.readingOrder);
-        const rightReadingOrder = Number(b.readingOrder);
-        const hasLeftReadingOrder = Number.isFinite(leftReadingOrder);
-        const hasRightReadingOrder = Number.isFinite(rightReadingOrder);
-        if (hasLeftReadingOrder || hasRightReadingOrder) {
-          if (!hasLeftReadingOrder) {
-            return 1;
-          }
-          if (!hasRightReadingOrder) {
-            return -1;
-          }
-          if (leftReadingOrder !== rightReadingOrder) {
-            return leftReadingOrder - rightReadingOrder;
-          }
-        }
-        const numberDelta = (a.number || 0) - (b.number || 0);
-        if (numberDelta !== 0) {
-          return numberDelta;
-        }
-        return (a.volume || 0) - (b.volume || 0);
-      });
+      .sort(compareReaderChapterNavigationOrder);
   }, [project]);
 
   const chapterData = useMemo(() => {
@@ -619,6 +644,7 @@ const ProjectReading = () => {
       setChapterLoadError(false);
       setChapterContent(null);
       setChapterReaderConfig(null);
+      setPreparedChapterEditorState("");
 
       if (!project?.id || !Number.isFinite(chapterNumber)) {
         if (isActive) {
@@ -668,6 +694,25 @@ const ProjectReading = () => {
       isActive = false;
     };
   }, [apiBase, chapterNumber, project?.id, volumeParam]);
+
+  useEffect(() => {
+    const content = String(chapterContent?.content || "");
+    if (!content) {
+      setPreparedChapterEditorState("");
+      return;
+    }
+    setPreparedChapterEditorState((current) => {
+      const nextValue = prepareLexicalViewerState(content);
+      return current === nextValue ? current : nextValue;
+    });
+  }, [chapterContent?.content]);
+
+  useEffect(() => {
+    if (!chapterContent?.content) {
+      return;
+    }
+    void import("@/components/lexical/LexicalViewer");
+  }, [chapterContent?.content]);
 
   useEffect(() => {
     const currentChapterContent = chapterContent;
@@ -927,6 +972,7 @@ const ProjectReading = () => {
                         <Suspense fallback={<LexicalViewerFallback />}>
                           <LexicalViewer
                             value={chapterLexical}
+                            editorStateJson={preparedChapterEditorState || undefined}
                             ariaLabel={`Conte\u00fado de leitura de ${pageTitle}`}
                             className="post-content reader-content min-w-0 w-full text-muted-foreground"
                             pollTarget={
@@ -980,7 +1026,7 @@ const ProjectReading = () => {
                         <Button
                           asChild
                           size="sm"
-                          className="project-reading-nav-btn project-reading-nav-btn--next project-reading-chapter-nav__button"
+                          className="project-reading-nav-btn project-reading-nav-btn--next project-reading-chapter-nav__button project-reading-chapter-nav__button--next ml-auto"
                         >
                           <Link to={nextChapterLink.href} title={nextChapterLink.label}>
                             <span>{"Pr\u00f3ximo cap\u00edtulo"}</span>
@@ -1044,6 +1090,7 @@ const ProjectReading = () => {
                     <Suspense fallback={<LexicalViewerFallback />}>
                       <LexicalViewer
                         value={chapterLexical}
+                        editorStateJson={preparedChapterEditorState || undefined}
                         ariaLabel={`Conteúdo de leitura de ${pageTitle}`}
                         className="post-content reader-content min-w-0 w-full text-muted-foreground"
                         pollTarget={

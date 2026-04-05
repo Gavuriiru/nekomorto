@@ -54,6 +54,11 @@ const createDeferredResponse = () => {
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
+const getRoundedBadgesByText = (label: string) =>
+  screen
+    .getAllByText(label)
+    .filter((element) => String((element as HTMLElement).className || "").includes("rounded-full"));
+
 const baseEditorialSettings = {
   version: 1,
   mentionMode: "role_id",
@@ -940,5 +945,74 @@ describe("DashboardWebhooks layout", () => {
         }),
       );
     });
+  });
+
+  it("usa variantes semanticas para os badges de status das entregas", async () => {
+    setupApiMock({
+      deliveriesResponse: mockJsonResponse(true, {
+        ...defaultDeliveriesPayload,
+        items: [
+          {
+            ...defaultDeliveriesPayload.items[0],
+            id: "delivery-queued",
+            status: "queued",
+            error: "",
+            statusCode: null,
+            isRetryable: false,
+          },
+          {
+            ...defaultDeliveriesPayload.items[0],
+            id: "delivery-processing",
+            status: "processing",
+            error: "",
+            statusCode: null,
+            isRetryable: false,
+          },
+          {
+            ...defaultDeliveriesPayload.items[0],
+            id: "delivery-sent",
+            status: "sent",
+            error: "",
+            statusCode: 200,
+            isRetryable: false,
+          },
+          {
+            ...defaultDeliveriesPayload.items[0],
+            id: "delivery-failed",
+            status: "failed",
+          },
+        ],
+        total: 4,
+      }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId("dashboard-webhooks-deliveries-list");
+
+    expect(getRoundedBadgesByText("Na fila")[0]).toHaveClass(
+      "border-[hsl(var(--badge-neutral-border))]",
+      "bg-[hsl(var(--badge-neutral-bg))]",
+      "text-[hsl(var(--badge-neutral-fg))]",
+    );
+    expect(getRoundedBadgesByText("Processando")[0]).toHaveClass(
+      "border-[hsl(var(--badge-warning-border))]",
+      "bg-[hsl(var(--badge-warning-bg))]",
+      "text-[hsl(var(--badge-warning-fg))]",
+    );
+    expect(getRoundedBadgesByText("Enviado")[0]).toHaveClass(
+      "border-[hsl(var(--badge-success-border))]",
+      "bg-[hsl(var(--badge-success-bg))]",
+      "text-[hsl(var(--badge-success-fg))]",
+    );
+    expect(getRoundedBadgesByText("Falhou")[0]).toHaveClass(
+      "border-[hsl(var(--badge-danger-border))]",
+      "bg-[hsl(var(--badge-danger-bg))]",
+      "text-[hsl(var(--badge-danger-fg))]",
+    );
   });
 });

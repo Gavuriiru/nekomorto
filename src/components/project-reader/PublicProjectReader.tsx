@@ -50,6 +50,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
 type ReaderPage = {
@@ -159,6 +160,29 @@ const MENU_OVERLAY_TRANSITION_MS = 220;
 const MENU_TRIGGER_ENTER_TRANSITION_MS = 300;
 const MENU_TRIGGER_EXIT_TRANSITION_MS = 320;
 const MENU_TRIGGER_HOST_TOP_OFFSET_PX = 12;
+const READER_MENU_HINT_STORAGE_KEY = "public.reader.menuHintSeen";
+
+const hasSeenReaderMenuHint = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  try {
+    return window.localStorage.getItem(READER_MENU_HINT_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+const markReaderMenuHintSeen = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.setItem(READER_MENU_HINT_STORAGE_KEY, "1");
+  } catch {
+    // Ignore localStorage failures.
+  }
+};
 
 const getVisibleViewportMetrics = () => {
   if (typeof window === "undefined") {
@@ -857,7 +881,7 @@ const PublicProjectReaderContent = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { resolvedConfig, updateConfig } = preferences;
+  const { isLoaded, resolvedConfig, updateConfig } = preferences;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMenuTriggerVisible, setIsMenuTriggerVisible] = useState(true);
   const [isMenuTriggerMounted, setIsMenuTriggerMounted] = useState(true);
@@ -947,6 +971,7 @@ const PublicProjectReaderContent = ({
   const keyboardHoldRepeatIntervalRef = useRef<number | null>(null);
   const lastKeyboardNavigationDirectionRef = useRef<ReaderPageStepDirection | null>(null);
   const forceImmediateHorizontalPageUrlSyncRef = useRef(false);
+  const hasShownReaderMenuHintRef = useRef(false);
   const readerMenuPanelId = useId();
   const readerMenuTitleId = useId();
   const isStageInViewport = visibleStageChromeMetrics.isVisible;
@@ -1418,6 +1443,23 @@ const PublicProjectReaderContent = ({
       stageChromeMeasurementFrameRef,
     ],
   );
+
+  useEffect(() => {
+    if (!isLoaded || hasShownReaderMenuHintRef.current) {
+      return;
+    }
+
+    hasShownReaderMenuHintRef.current = true;
+    if (hasSeenReaderMenuHint()) {
+      return;
+    }
+
+    markReaderMenuHintSeen();
+    toast({
+      title: "O menu está disponível no canto do leitor.",
+      intent: "info",
+    });
+  }, [isLoaded]);
 
   useEffect(() => {
     setIsMenuOpen(false);
@@ -5150,7 +5192,7 @@ const PublicProjectReaderContent = ({
             {showChapterNavigationActions ? (
               <div
                 className={cn(
-                  "grid gap-2.5",
+                  "project-reading-reader-menu-nav grid gap-2.5",
                   previousChapterOption && nextChapterOption ? "grid-cols-2" : "grid-cols-1",
                 )}
               >
@@ -5158,7 +5200,7 @@ const PublicProjectReaderContent = ({
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-10 w-full rounded-2xl border-border/55 bg-background/70 px-4 shadow-sm"
+                    className="project-reading-nav-btn project-reading-nav-btn--secondary project-reading-reader-menu-nav__button h-10 w-full rounded-2xl px-4 shadow-sm"
                     onClick={() => navigateChapterByOption(previousChapterOption)}
                     aria-label="Capítulo anterior"
                   >
@@ -5171,7 +5213,7 @@ const PublicProjectReaderContent = ({
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-10 w-full rounded-2xl border-border/55 bg-background/70 px-4 shadow-sm"
+                    className="project-reading-nav-btn project-reading-nav-btn--next project-reading-reader-menu-nav__button h-10 w-full rounded-2xl px-4 shadow-sm"
                     onClick={() => navigateChapterByOption(nextChapterOption)}
                     aria-label="Próximo capítulo"
                   >

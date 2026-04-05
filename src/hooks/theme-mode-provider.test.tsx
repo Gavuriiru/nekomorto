@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SiteSettings } from "@/types/site-settings";
 import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
@@ -10,6 +11,7 @@ import {
 } from "@/hooks/theme-mode-context";
 import { ThemeModeProvider } from "@/hooks/theme-mode-provider";
 import { useThemeMode } from "@/hooks/use-theme-mode";
+import { Badge } from "@/components/ui/badge";
 
 const createSettings = (override: Partial<SiteSettings> = {}) =>
   mergeSettings(defaultSettings, override);
@@ -36,7 +38,7 @@ const ThemeProbe = () => {
   );
 };
 
-const renderWithSettings = (settings: SiteSettings) =>
+const renderWithSettings = (settings: SiteSettings, children: ReactNode = <ThemeProbe />) =>
   render(
     <SiteSettingsContext.Provider
       value={{
@@ -45,9 +47,7 @@ const renderWithSettings = (settings: SiteSettings) =>
         refresh: async () => undefined,
       }}
     >
-      <ThemeModeProvider>
-        <ThemeProbe />
-      </ThemeModeProvider>
+      <ThemeModeProvider>{children}</ThemeModeProvider>
     </SiteSettingsContext.Provider>,
   );
 
@@ -272,5 +272,31 @@ describe("ThemeModeProvider", () => {
     } finally {
       animationFrames.restore();
     }
+  });
+
+  it("keeps semantic badges tied to theme tokens in light mode without dark selectors", async () => {
+    renderWithSettings(
+      createSettings({ theme: { accent: "#9667e0", mode: "light" } }),
+      <>
+        <ThemeProbe />
+        <Badge variant="success" data-testid="theme-badge">
+          Sucesso
+        </Badge>
+      </>,
+    );
+
+    const badge = screen.getByTestId("theme-badge");
+
+    await waitFor(() => {
+      assertDocumentTheme("light");
+    });
+
+    expect(badge).toHaveClass(
+      "border-[hsl(var(--badge-success-border))]",
+      "bg-[hsl(var(--badge-success-bg))]",
+      "text-[hsl(var(--badge-success-fg))]",
+    );
+    expect(String(badge.className)).not.toContain("dark:");
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
   });
 });

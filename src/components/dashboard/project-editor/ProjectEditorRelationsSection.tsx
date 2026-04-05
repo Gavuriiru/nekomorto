@@ -1,14 +1,11 @@
-import type { Dispatch, SetStateAction } from "react";
+import { memo, type Dispatch, type SetStateAction } from "react";
 
 import ReorderControls from "@/components/ReorderControls";
 import { Input } from "@/components/dashboard/dashboard-form-controls";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 
-import type {
-  ProjectForm,
-  ProjectRelation,
-} from "./dashboard-projects-editor-types";
+import type { ProjectForm, ProjectRelation } from "./dashboard-projects-editor-types";
 import ProjectEditorAccordionHeader from "./ProjectEditorAccordionHeader";
 
 type ProjectEditorRelationsSectionProps = {
@@ -26,7 +23,7 @@ type ProjectEditorRelationsSectionProps = {
   triggerClassName: string;
 };
 
-const ProjectEditorRelationsSection = ({
+const ProjectEditorRelationsSectionComponent = ({
   cardClassName,
   contentClassName,
   dragOverIndex,
@@ -42,10 +39,7 @@ const ProjectEditorRelationsSection = ({
 }: ProjectEditorRelationsSectionProps) => (
   <AccordionItem value="relacoes" className={sectionClassName}>
     <AccordionTrigger className={triggerClassName}>
-      <ProjectEditorAccordionHeader
-        title="Relações"
-        subtitle={`${relations.length} itens`}
-      />
+      <ProjectEditorAccordionHeader title="Relações" subtitle={`${relations.length} itens`} />
     </AccordionTrigger>
     <AccordionContent className={contentClassName}>
       <div className="space-y-3">
@@ -141,5 +135,9 @@ const ProjectEditorRelationsSection = ({
     </AccordionContent>
   </AccordionItem>
 );
+
+const ProjectEditorRelationsSection = memo(ProjectEditorRelationsSectionComponent);
+
+ProjectEditorRelationsSection.displayName = "ProjectEditorRelationsSection";
 
 export default ProjectEditorRelationsSection;

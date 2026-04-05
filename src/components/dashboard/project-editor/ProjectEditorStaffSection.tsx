@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { memo, type Dispatch, type SetStateAction } from "react";
 
 import ReorderControls from "@/components/ReorderControls";
 import ProjectMemberCombobox from "@/components/dashboard/ProjectMemberCombobox";
@@ -15,10 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { translateAnilistRole } from "@/lib/project-taxonomy";
 
-import type {
-  ProjectForm,
-  ProjectStaff,
-} from "./dashboard-projects-editor-types";
+import type { ProjectForm, ProjectStaff } from "./dashboard-projects-editor-types";
 import ProjectEditorAccordionHeader from "./ProjectEditorAccordionHeader";
 
 type StaffFieldKey = "staff" | "animeStaff";
@@ -41,7 +38,10 @@ type ProjectEditorStaffSectionProps = {
   sectionValue: string;
   setFormState: Dispatch<SetStateAction<ProjectForm>>;
   setMemberInput: Dispatch<SetStateAction<Record<number, string>>>;
-  shiftDraftAfterRemoval: (draft: Record<number, string>, removedIndex: number) => Record<number, string>;
+  shiftDraftAfterRemoval: (
+    draft: Record<number, string>,
+    removedIndex: number,
+  ) => Record<number, string>;
   staffEntries: ProjectStaff[];
   staffKey: StaffFieldKey;
   title: string;
@@ -49,7 +49,7 @@ type ProjectEditorStaffSectionProps = {
   variant: "anime" | "fansub";
 };
 
-const ProjectEditorStaffSection = ({
+const ProjectEditorStaffSectionComponent = ({
   cardClassName,
   contentClassName,
   dragOverIndex,
@@ -86,10 +86,7 @@ const ProjectEditorStaffSection = ({
   return (
     <AccordionItem value={sectionValue} className={sectionClassName}>
       <AccordionTrigger className={triggerClassName}>
-        <ProjectEditorAccordionHeader
-          title={title}
-          subtitle={`${staffEntries.length} funções`}
-        />
+        <ProjectEditorAccordionHeader title={title} subtitle={`${staffEntries.length} funções`} />
       </AccordionTrigger>
       <AccordionContent className={contentClassName}>
         <div className="space-y-3">
@@ -98,7 +95,9 @@ const ProjectEditorStaffSection = ({
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => updateStaffEntries((current) => [...current, { role: "", members: [] }])}
+              onClick={() =>
+                updateStaffEntries((current) => [...current, { role: "", members: [] }])
+              }
             >
               Adicionar função
             </Button>
@@ -206,11 +205,7 @@ const ProjectEditorStaffSection = ({
                 <div className="mt-2 flex flex-wrap gap-2">
                   {(role.members || []).map((member) =>
                     variant === "anime" ? (
-                      <Badge
-                        key={member}
-                        variant="secondary"
-                        className="flex items-center gap-1"
-                      >
+                      <Badge key={member} variant="secondary" className="flex items-center gap-1">
                         <span>{member}</span>
                         <button
                           type="button"
@@ -247,5 +242,9 @@ const ProjectEditorStaffSection = ({
     </AccordionItem>
   );
 };
+
+const ProjectEditorStaffSection = memo(ProjectEditorStaffSectionComponent);
+
+ProjectEditorStaffSection.displayName = "ProjectEditorStaffSection";
 
 export default ProjectEditorStaffSection;

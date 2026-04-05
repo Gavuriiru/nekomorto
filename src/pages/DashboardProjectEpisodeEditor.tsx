@@ -1276,7 +1276,7 @@ const DashboardProjectEpisodeEditor = () => {
                                             : "Pendente"}
                                       </span>
                                       {isCurrentStage ? (
-                                        <Badge variant="outline">Atual</Badge>
+                                        <Badge variant="info">Atual</Badge>
                                       ) : null}
                                     </div>
                                   </label>
@@ -1300,7 +1300,7 @@ const DashboardProjectEpisodeEditor = () => {
                                 className="w-full max-w-[24rem]"
                                 data-testid="anime-episode-cover-preview"
                               >
-                                <div className="overflow-hidden rounded-[26px] border border-border/60 bg-gradient-to-b from-background via-background to-muted/30 shadow-[0_24px_70px_-45px_rgba(0,0,0,0.85)]">
+                                <div className="overflow-hidden rounded-[26px] border border-border/60 bg-gradient-to-b from-background via-background to-muted/30">
                                   <div className="relative aspect-video bg-muted/35">
                                     {activeDraft.coverImageUrl ? (
                                       <>

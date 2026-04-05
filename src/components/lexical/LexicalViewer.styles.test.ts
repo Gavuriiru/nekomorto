@@ -42,7 +42,7 @@ describe("Lexical viewer styles", () => {
     expect(cssSource).toContain(".lexical-playground.lexical-playground--viewer .lexical-tweet");
     expect(cssSource).toContain(".lexical-tweet__target");
     expect(cssSource).toContain(
-      "clip-path: inset(0 round var(--lexical-content-embed-radius, 16px));",
+      "clip-path: inset(-1.2px round calc(var(--lexical-content-embed-radius, 16px) + 1.2px));",
     );
     expect(cssSource).toContain(".twitter-tweet-rendered");
     expect(cssSource).toContain('iframe[src*="twitter.com"]');

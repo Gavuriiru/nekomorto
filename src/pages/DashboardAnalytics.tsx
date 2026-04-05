@@ -1,7 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
+import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
+import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import {
+  dashboardAnimationDelay,
+  dashboardMotionDelays,
+} from "@/components/dashboard/dashboard-motion";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import {
   Select,
   SelectContent,
@@ -9,18 +16,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/dashboard/dashboard-form-controls";
-import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
-import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
-import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardShell from "@/components/DashboardShell";
-import {
-  dashboardAnimationDelay,
-  dashboardMotionDelays,
-} from "@/components/dashboard/dashboard-motion";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
+import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
+import { uiCopy } from "@/lib/ui-copy";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import {
   Table,
   TableBody,
@@ -29,12 +37,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
-import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
-import { usePageMeta } from "@/hooks/use-page-meta";
-import { uiCopy } from "@/lib/ui-copy";
 
 type RangeValue = "7d" | "30d" | "90d";
 type TypeValue = "all" | "post" | "project";
@@ -75,26 +77,54 @@ type AcquisitionResponse = {
   utmCampaign?: AcquisitionEntry[];
 };
 
+type AnalyticsFilters = {
+  range: RangeValue;
+  type: TypeValue;
+  metric: MetricValue;
+};
+
+type AnalyticsSnapshot = {
+  filters: AnalyticsFilters;
+  overview: OverviewResponse;
+  timeseries: TimeseriesResponse;
+  topContent: TopContentResponse;
+  acquisition: AcquisitionResponse;
+};
+
+type AnalyticsCacheEntry = {
+  snapshot: AnalyticsSnapshot;
+  expiresAt: number;
+};
+
+const ANALYTICS_CACHE_TTL_MS = 60_000;
+const ANALYTICS_CACHE_MAX_ENTRIES = 10;
+
+const analyticsCache = new Map<string, AnalyticsCacheEntry>();
+
 const formatInt = (value: number) => Number(value || 0).toLocaleString("pt-BR");
 const formatPercent = (value: number) => `${(value * 100).toFixed(1).replace(".", ",")}%`;
+
 const formatResourceType = (value: string) => {
   const normalized = String(value || "").toLowerCase();
   if (normalized === "project") return "Projeto";
   if (normalized === "post") return "Post";
   return "Outro";
 };
+
 const formatAcquisitionLabel = (value: string) => {
   const normalized = String(value || "").toLowerCase();
   if (normalized === "(internal)") return "(interno)";
   if (normalized === "(direct)") return "(direto)";
   return value;
 };
+
 const formatMetricLabel = (value: MetricValue) => {
   if (value === "unique_views") return "Views únicas";
   if (value === "chapter_views") return "Leituras de capítulos";
   if (value === "download_clicks") return "Cliques em downloads";
   return "Views";
 };
+
 const formatChartDateLabel = (value: string) => {
   const parts = String(value || "").split("-");
   if (parts.length !== 3) {
@@ -106,6 +136,7 @@ const formatChartDateLabel = (value: string) => {
   }
   return `${day}/${month}`;
 };
+
 const getTopContentHref = (resourceType: string, resourceId: string) => {
   const normalizedType = String(resourceType || "").toLowerCase();
   const normalizedId = String(resourceId || "").trim();
@@ -120,10 +151,13 @@ const getTopContentHref = (resourceType: string, resourceId: string) => {
   }
   return null;
 };
+
 const parseRange = (value: string | null): RangeValue =>
   value === "7d" || value === "30d" || value === "90d" ? value : "30d";
+
 const parseType = (value: string | null): TypeValue =>
   value === "post" || value === "project" || value === "all" ? value : "all";
+
 const parseMetric = (value: string | null): MetricValue =>
   value === "unique_views" ||
   value === "chapter_views" ||
@@ -132,14 +166,39 @@ const parseMetric = (value: string | null): MetricValue =>
     ? value
     : "views";
 
-const buildAnalyticsSearchParams = (
-  base: URLSearchParams,
-  next: {
-    range: RangeValue;
-    type: TypeValue;
-    metric: MetricValue;
-  },
-) => {
+const buildAnalyticsCacheKey = (filters: AnalyticsFilters) =>
+  `${filters.range}:${filters.type}:${filters.metric}`;
+
+const readAnalyticsCache = (key: string) => {
+  const cached = analyticsCache.get(key);
+  if (!cached) {
+    return null;
+  }
+  if (cached.expiresAt <= Date.now()) {
+    analyticsCache.delete(key);
+    return null;
+  }
+  analyticsCache.delete(key);
+  analyticsCache.set(key, cached);
+  return cached.snapshot;
+};
+
+const writeAnalyticsCache = (key: string, snapshot: AnalyticsSnapshot) => {
+  analyticsCache.delete(key);
+  analyticsCache.set(key, {
+    snapshot,
+    expiresAt: Date.now() + ANALYTICS_CACHE_TTL_MS,
+  });
+  while (analyticsCache.size > ANALYTICS_CACHE_MAX_ENTRIES) {
+    const firstKey = analyticsCache.keys().next().value;
+    if (!firstKey) {
+      break;
+    }
+    analyticsCache.delete(firstKey);
+  }
+};
+
+const buildAnalyticsSearchParams = (base: URLSearchParams, next: AnalyticsFilters) => {
   const params = new URLSearchParams(base);
   if (next.range === "30d") {
     params.delete("range");
@@ -159,6 +218,12 @@ const buildAnalyticsSearchParams = (
   return params;
 };
 
+export const __testing = {
+  clearAnalyticsCache: () => {
+    analyticsCache.clear();
+  },
+};
+
 const DashboardAnalytics = () => {
   usePageMeta({ title: uiCopy.navigation.analytics, noIndex: true });
 
@@ -168,62 +233,116 @@ const DashboardAnalytics = () => {
   const range = parseRange(searchParams.get("range"));
   const type = parseType(searchParams.get("type"));
   const metric = parseMetric(searchParams.get("metric"));
-  const [overview, setOverview] = useState<OverviewResponse>({});
-  const [timeseries, setTimeseries] = useState<TimeseriesResponse>({ series: [] });
-  const [topContent, setTopContent] = useState<TopContentResponse>({ entries: [] });
-  const [acquisition, setAcquisition] = useState<AcquisitionResponse>({});
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const requestedFilters = useMemo<AnalyticsFilters>(
+    () => ({ range, type, metric }),
+    [metric, range, type],
+  );
+  const queryKey = useMemo(() => buildAnalyticsCacheKey(requestedFilters), [requestedFilters]);
+  const [initialSnapshot] = useState<AnalyticsSnapshot | null>(() => readAnalyticsCache(queryKey));
+  const [displayedSnapshot, setDisplayedSnapshot] = useState<AnalyticsSnapshot | null>(
+    initialSnapshot,
+  );
+  const [loadError, setLoadError] = useState("");
+  const [isInitialLoading, setIsInitialLoading] = useState(!initialSnapshot);
+  const [isRefreshing, setIsRefreshing] = useState(Boolean(initialSnapshot));
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(Boolean(initialSnapshot));
   const [reloadTick, setReloadTick] = useState(0);
+  const hasLoadedOnceRef = useRef(hasLoadedOnce);
   const { currentUser, isLoadingUser } = useDashboardCurrentUser();
 
   useEffect(() => {
+    hasLoadedOnceRef.current = hasLoadedOnce;
+  }, [hasLoadedOnce]);
+
+  useEffect(() => {
+    const cachedSnapshot = readAnalyticsCache(queryKey);
+    if (cachedSnapshot) {
+      setDisplayedSnapshot(cachedSnapshot);
+      setHasLoadedOnce(true);
+      setIsInitialLoading(false);
+    }
+
     let isActive = true;
+    const shouldRefreshInBackground = hasLoadedOnceRef.current || Boolean(cachedSnapshot);
+
     const load = async () => {
-      setIsLoading(true);
-      setError("");
-      const params = new URLSearchParams({ range, type });
+      if (shouldRefreshInBackground) {
+        setIsRefreshing(true);
+      } else {
+        setIsInitialLoading(true);
+      }
+      setLoadError("");
+
+      const nextFilters: AnalyticsFilters = { range, type, metric };
+      const params = new URLSearchParams({
+        range: nextFilters.range,
+        type: nextFilters.type,
+      });
+
       try {
         const [overviewRes, timeseriesRes, topRes, acquisitionRes] = await Promise.all([
-          apiFetch(apiBase, `/api/analytics/overview?${params.toString()}`, { auth: true }),
-          apiFetch(apiBase, `/api/analytics/timeseries?${params.toString()}&metric=${metric}`, {
+          apiFetch(apiBase, `/api/analytics/overview?${params.toString()}`, {
             auth: true,
+            cache: "no-store",
           }),
+          apiFetch(
+            apiBase,
+            `/api/analytics/timeseries?${params.toString()}&metric=${nextFilters.metric}`,
+            {
+              auth: true,
+              cache: "no-store",
+            },
+          ),
           apiFetch(apiBase, `/api/analytics/top-content?${params.toString()}&limit=10`, {
             auth: true,
+            cache: "no-store",
           }),
-          apiFetch(apiBase, `/api/analytics/acquisition?${params.toString()}`, { auth: true }),
+          apiFetch(apiBase, `/api/analytics/acquisition?${params.toString()}`, {
+            auth: true,
+            cache: "no-store",
+          }),
         ]);
-        if (!isActive) return;
-        if (!overviewRes.ok || !timeseriesRes.ok || !topRes.ok || !acquisitionRes.ok) {
-          setError("Não foi possível carregar as análises.");
-          setOverview({});
-          setTimeseries({ series: [] });
-          setTopContent({ entries: [] });
-          setAcquisition({});
+
+        if (!isActive) {
           return;
         }
+
+        if (!overviewRes.ok || !timeseriesRes.ok || !topRes.ok || !acquisitionRes.ok) {
+          setLoadError("Não foi possível carregar as análises.");
+          return;
+        }
+
         const [overviewData, timeseriesData, topData, acquisitionData] = await Promise.all([
           overviewRes.json(),
           timeseriesRes.json(),
           topRes.json(),
           acquisitionRes.json(),
         ]);
-        if (!isActive) return;
-        setOverview((overviewData || {}) as OverviewResponse);
-        setTimeseries((timeseriesData || {}) as TimeseriesResponse);
-        setTopContent((topData || {}) as TopContentResponse);
-        setAcquisition((acquisitionData || {}) as AcquisitionResponse);
+
+        if (!isActive) {
+          return;
+        }
+
+        const nextSnapshot: AnalyticsSnapshot = {
+          filters: nextFilters,
+          overview: (overviewData || {}) as OverviewResponse,
+          timeseries: (timeseriesData || {}) as TimeseriesResponse,
+          topContent: (topData || {}) as TopContentResponse,
+          acquisition: (acquisitionData || {}) as AcquisitionResponse,
+        };
+
+        setDisplayedSnapshot(nextSnapshot);
+        setHasLoadedOnce(true);
+        writeAnalyticsCache(queryKey, nextSnapshot);
       } catch {
-        if (!isActive) return;
-        setError("Erro de conexão ao carregar as análises.");
-        setOverview({});
-        setTimeseries({ series: [] });
-        setTopContent({ entries: [] });
-        setAcquisition({});
+        if (!isActive) {
+          return;
+        }
+        setLoadError("Erro de conexão ao carregar as análises.");
       } finally {
         if (isActive) {
-          setIsLoading(false);
+          setIsInitialLoading(false);
+          setIsRefreshing(false);
         }
       }
     };
@@ -232,21 +351,41 @@ const DashboardAnalytics = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, metric, range, reloadTick, type]);
+  }, [apiBase, metric, queryKey, range, reloadTick, type]);
+
+  const displayedFilters = displayedSnapshot?.filters ?? requestedFilters;
+  const isSnapshotAlignedWithRequestedFilters =
+    displayedSnapshot !== null && buildAnalyticsCacheKey(displayedFilters) === queryKey;
+
+  useDashboardRefreshToast({
+    active: isRefreshing && hasLoadedOnce,
+    title: "Atualizando análises",
+    description: "Buscando métricas e tendências do período selecionado.",
+  });
 
   const chartData = useMemo(
-    () => (Array.isArray(timeseries.series) ? timeseries.series.map((item) => ({ ...item })) : []),
-    [timeseries.series],
+    () =>
+      Array.isArray(displayedSnapshot?.timeseries.series)
+        ? displayedSnapshot.timeseries.series.map((item) => ({ ...item }))
+        : [],
+    [displayedSnapshot?.timeseries.series],
   );
 
-  const metrics = overview.metrics || {};
-  const topEntries = Array.isArray(topContent.entries) ? topContent.entries : [];
-  const referrerEntries = Array.isArray(acquisition.referrerHost) ? acquisition.referrerHost : [];
-  const sourceEntries = Array.isArray(acquisition.utmSource) ? acquisition.utmSource : [];
-
+  const metrics = displayedSnapshot?.overview.metrics || {};
+  const topEntries = Array.isArray(displayedSnapshot?.topContent.entries)
+    ? displayedSnapshot.topContent.entries
+    : [];
+  const referrerEntries = Array.isArray(displayedSnapshot?.acquisition.referrerHost)
+    ? displayedSnapshot.acquisition.referrerHost
+    : [];
+  const sourceEntries = Array.isArray(displayedSnapshot?.acquisition.utmSource)
+    ? displayedSnapshot.acquisition.utmSource
+    : [];
   const commentsCreated = Number(metrics.commentsCreated || 0);
   const commentsApproved = Number(metrics.commentsApproved || 0);
   const commentsApprovalRate = commentsCreated > 0 ? commentsApproved / commentsCreated : null;
+  const hasBlockingError = !displayedSnapshot && Boolean(loadError);
+  const hasRetainedError = Boolean(displayedSnapshot) && Boolean(loadError);
 
   const updateFilters = (nextRange: RangeValue, nextType: TypeValue, nextMetric: MetricValue) => {
     const nextParams = buildAnalyticsSearchParams(searchParams, {
@@ -272,6 +411,10 @@ const DashboardAnalytics = () => {
   };
 
   const exportCsv = () => {
+    if (!displayedSnapshot || isRefreshing || !isSnapshotAlignedWithRequestedFilters) {
+      return;
+    }
+
     const lines: string[] = [];
     lines.push("section,key,value");
     lines.push(`kpi,views,${Number(metrics.views || 0)}`);
@@ -309,7 +452,7 @@ const DashboardAnalytics = () => {
     const url = window.URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `analytics-${range}-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.download = `analytics-${displayedFilters.range}-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);
@@ -368,10 +511,24 @@ const DashboardAnalytics = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex items-center self-start lg:self-auto">
+                <Badge
+                  variant="secondary"
+                  aria-hidden={!isRefreshing}
+                  className={
+                    isRefreshing
+                      ? "bg-background text-foreground/70"
+                      : "pointer-events-none invisible bg-background text-foreground/70"
+                  }
+                >
+                  Atualizando dados...
+                </Badge>
+              </div>
               <Button
                 className="self-start lg:ml-auto lg:self-auto"
                 variant="outline"
                 onClick={exportCsv}
+                disabled={!displayedSnapshot || isRefreshing || !isSnapshotAlignedWithRequestedFilters}
               >
                 Exportar
               </Button>
@@ -379,24 +536,41 @@ const DashboardAnalytics = () => {
           }
         />
 
-        {isLoading ? (
+        {hasRetainedError ? (
+          <Alert
+            className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
+            style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
+          >
+            <AlertDescription className="flex flex-col gap-3 text-foreground/70 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-1">
+                <p>{loadError}</p>
+                <p>Mantendo os últimos resultados carregados.</p>
+              </div>
+              <Button variant="outline" onClick={() => setReloadTick((previous) => previous + 1)}>
+                Tentar novamente
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        {isInitialLoading && !displayedSnapshot ? (
           <AsyncState
             kind="loading"
             title="Carregando análises"
             description="Buscando métricas, série temporal e aquisição."
           />
-        ) : error ? (
+        ) : hasBlockingError ? (
           <AsyncState
             kind="error"
             title="Não foi possível carregar as análises"
-            description={error}
+            description={loadError}
             action={
               <Button variant="outline" onClick={() => setReloadTick((previous) => previous + 1)}>
                 Tentar novamente
               </Button>
             }
           />
-        ) : (
+        ) : displayedSnapshot ? (
           <>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card
@@ -502,14 +676,17 @@ const DashboardAnalytics = () => {
                 style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
               >
                 <CardHeader>
-                  <CardTitle>Série temporal ({formatMetricLabel(metric)})</CardTitle>
+                  <CardTitle>Série temporal ({formatMetricLabel(displayedFilters.metric)})</CardTitle>
                 </CardHeader>
                 <CardContent className="min-w-0">
                   {chartData.length ? (
                     <ChartContainer
                       className="min-w-0 w-full max-w-full h-52 sm:h-60 lg:h-[280px]"
                       config={{
-                        metric: { label: formatMetricLabel(metric), color: "hsl(var(--accent))" },
+                        metric: {
+                          label: formatMetricLabel(displayedFilters.metric),
+                          color: "hsl(var(--accent))",
+                        },
                       }}
                     >
                       <LineChart
@@ -684,7 +861,7 @@ const DashboardAnalytics = () => {
               </CardContent>
             </Card>
           </>
-        )}
+        ) : null}
       </DashboardPageContainer>
     </DashboardShell>
   );

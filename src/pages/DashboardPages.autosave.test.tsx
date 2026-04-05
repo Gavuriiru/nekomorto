@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dashboardMotionDelays } from "@/components/dashboard/dashboard-motion";
-import DashboardPages from "@/pages/DashboardPages";
+import DashboardPages, { __testing } from "@/pages/DashboardPages";
 
 const { apiFetchMock, navigateMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
@@ -108,7 +108,9 @@ const renderDashboardPages = () =>
 
 describe("DashboardPages autosave", () => {
   beforeEach(() => {
+    __testing.clearDashboardPagesCache();
     window.localStorage.clear();
+    window.history.replaceState({}, "", "/dashboard/paginas");
     apiFetchMock.mockReset();
     navigateMock.mockReset();
     toastMock.mockReset();
@@ -129,6 +131,8 @@ describe("DashboardPages autosave", () => {
               reasonIcon: "HeartHandshake",
               reasonText: "",
               reasonNote: "",
+              monthlyGoalRaised: "",
+              monthlyGoalTarget: "",
               pixKey: "PIX-INIT",
               pixNote: "",
               qrCustomUrl: "",
@@ -542,5 +546,416 @@ describe("DashboardPages autosave", () => {
     expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal");
     expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal-delay-1");
     expect(headerBadgeReveal).toHaveAttribute("data-reveal");
+  });
+
+  it("normaliza a meta mensal e persiste os novos campos sem perder os dados do Pix", async () => {
+    renderDashboardPages();
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    const donationsTab = screen.getByRole("tab", { name: /Doa/i });
+    fireEvent.mouseDown(donationsTab);
+    await waitFor(() => {
+      expect(donationsTab).toHaveAttribute("aria-selected", "true");
+    });
+
+    const raisedInput = screen.getByLabelText(/Arrecadado no m.s/i);
+    const targetInput = screen.getByLabelText(/Meta do m.s/i);
+    const supportersInput = screen.getByLabelText(/Apoiadores no m.s/i);
+    const goalNoteInput = screen.getByLabelText(/Nota da meta/i);
+
+    apiFetchMock.mockClear();
+
+    fireEvent.change(raisedInput, {
+      target: { value: "1234.5abc" },
+    });
+    expect(raisedInput).toHaveValue("1.234,5");
+
+    fireEvent.change(targetInput, {
+      target: { value: "2500.75" },
+    });
+    expect(targetInput).toHaveValue("2.500,75");
+
+    fireEvent.change(supportersInput, {
+      target: { value: "0012abc" },
+    });
+    expect(supportersInput).toHaveValue("12");
+
+    fireEvent.change(goalNoteInput, {
+      target: { value: "  VPS + dominio  " },
+    });
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    let payload: any;
+    await waitFor(() => {
+      const matchingPayload = getPutPageCalls()
+        .map((call) => JSON.parse(String(((call[2] || {}) as RequestInit).body || "{}")))
+        .find(
+          (candidate) =>
+            candidate.pages?.donations?.monthlyGoalRaised === "1.234,50" &&
+            candidate.pages?.donations?.monthlyGoalTarget === "2.500,75" &&
+            candidate.pages?.donations?.monthlyGoalSupporters === "12" &&
+            candidate.pages?.donations?.monthlyGoalNote === "VPS + dominio",
+        );
+
+      expect(matchingPayload).toBeDefined();
+      payload = matchingPayload;
+    });
+
+    expect(payload.pages?.donations?.monthlyGoalRaised).toBe("1.234,50");
+    expect(payload.pages?.donations?.monthlyGoalTarget).toBe("2.500,75");
+    expect(payload.pages?.donations?.monthlyGoalSupporters).toBe("12");
+    expect(payload.pages?.donations?.monthlyGoalNote).toBe("VPS + dominio");
+    expect(payload.pages?.donations?.pixKey).toBe("PIX-INIT");
+  });
+
+  it("mantém foco ao editar títulos e nomes nos blocos reordenáveis de doações", async () => {
+    renderDashboardPages();
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    const donationsTab = screen.getByRole("tab", { name: /Doa/i });
+    fireEvent.mouseDown(donationsTab);
+    await waitFor(() => {
+      expect(donationsTab).toHaveAttribute("aria-selected", "true");
+    });
+
+    const costsEditor = screen.getByText("Custos").closest("div")?.parentElement;
+    const cryptoEditor = screen.getByTestId("donations-crypto-editor");
+    const donorsEditor = screen.getByText("Doadores").closest("div")?.parentElement;
+
+    expect(costsEditor).not.toBeNull();
+    expect(donorsEditor).not.toBeNull();
+
+    fireEvent.click(within(costsEditor as HTMLElement).getByRole("button", { name: /Adicionar/i }));
+    fireEvent.click(within(cryptoEditor).getByRole("button", { name: /Adicionar/i }));
+    fireEvent.click(within(donorsEditor as HTMLElement).getByRole("button", { name: /Adicionar/i }));
+
+    const costInput = within(screen.getByTestId("donations-cost-item-0")).getByDisplayValue(
+      "Novo custo",
+    ) as HTMLInputElement;
+    costInput.focus();
+    expect(costInput).toHaveFocus();
+    fireEvent.change(costInput, { target: { value: "Hospedagem" } });
+    const updatedCostInput = within(screen.getByTestId("donations-cost-item-0")).getByDisplayValue(
+      "Hospedagem",
+    ) as HTMLInputElement;
+    expect(updatedCostInput).toHaveFocus();
+    fireEvent.change(updatedCostInput, { target: { value: "Hospedagem web" } });
+    expect(
+      within(screen.getByTestId("donations-cost-item-0")).getByDisplayValue("Hospedagem web"),
+    ).toHaveFocus();
+
+    const cryptoNameInput = within(screen.getByTestId("donations-crypto-item-0")).getByLabelText(
+      /Nome do serviço/i,
+    ) as HTMLInputElement;
+    cryptoNameInput.focus();
+    expect(cryptoNameInput).toHaveFocus();
+    fireEvent.change(cryptoNameInput, { target: { value: "Bit" } });
+    const updatedCryptoNameInput = within(screen.getByTestId("donations-crypto-item-0"))
+      .getByDisplayValue("Bit") as HTMLInputElement;
+    expect(updatedCryptoNameInput).toHaveFocus();
+    fireEvent.change(updatedCryptoNameInput, { target: { value: "Bitcoin" } });
+    expect(
+      within(screen.getByTestId("donations-crypto-item-0")).getByDisplayValue("Bitcoin"),
+    ).toHaveFocus();
+
+    const donorNameInput = within(screen.getByTestId("donations-donor-item-0")).getByDisplayValue(
+      "Novo doador",
+    ) as HTMLInputElement;
+    donorNameInput.focus();
+    expect(donorNameInput).toHaveFocus();
+    fireEvent.change(donorNameInput, { target: { value: "Alice" } });
+    const updatedDonorNameInput = within(
+      screen.getByTestId("donations-donor-item-0"),
+    ).getByDisplayValue("Alice") as HTMLInputElement;
+    expect(updatedDonorNameInput).toHaveFocus();
+    fireEvent.change(updatedDonorNameInput, { target: { value: "Alice Silva" } });
+    expect(
+      within(screen.getByTestId("donations-donor-item-0")).getByDisplayValue("Alice Silva"),
+    ).toHaveFocus();
+  });
+
+  it("preserva o foco do serviço cripto ativo após autosave e resposta da API", async () => {
+    renderDashboardPages();
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    const donationsTab = screen.getByRole("tab", { name: /Doa/i });
+    fireEvent.mouseDown(donationsTab);
+    await waitFor(() => {
+      expect(donationsTab).toHaveAttribute("aria-selected", "true");
+    });
+
+    const cryptoEditor = screen.getByTestId("donations-crypto-editor");
+    fireEvent.click(within(cryptoEditor).getByRole("button", { name: /Adicionar/i }));
+    apiFetchMock.mockClear();
+
+    const cryptoNameInput = within(screen.getByTestId("donations-crypto-item-0")).getByLabelText(
+      /Nome do serviço/i,
+    ) as HTMLInputElement;
+    cryptoNameInput.focus();
+    fireEvent.change(cryptoNameInput, { target: { value: "Bitcoin" } });
+
+    const focusedInputBeforeSave = within(screen.getByTestId("donations-crypto-item-0"))
+      .getByDisplayValue("Bitcoin") as HTMLInputElement;
+    expect(focusedInputBeforeSave).toHaveFocus();
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    expect(getPutPageCalls().length).toBeGreaterThan(0);
+    const focusedInputAfterSave = within(screen.getByTestId("donations-crypto-item-0"))
+      .getByDisplayValue("Bitcoin") as HTMLInputElement;
+    expect(focusedInputAfterSave).toHaveFocus();
+  });
+
+  it("adiciona, reordena e persiste servicos de cripto com preview de logo customizada", async () => {
+    renderDashboardPages();
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    const donationsTab = screen.getByRole("tab", { name: /Doa/i });
+    fireEvent.mouseDown(donationsTab);
+    await waitFor(() => {
+      expect(donationsTab).toHaveAttribute("aria-selected", "true");
+    });
+
+    const cryptoEditor = screen.getByTestId("donations-crypto-editor");
+    apiFetchMock.mockClear();
+
+    fireEvent.click(within(cryptoEditor).getByRole("button", { name: /Adicionar/i }));
+    fireEvent.click(within(cryptoEditor).getByRole("button", { name: /Adicionar/i }));
+
+    const getCryptoItem = (index: number) =>
+      within(cryptoEditor).getByTestId(`donations-crypto-item-${index}`);
+
+    fireEvent.change(within(getCryptoItem(0)).getByLabelText(/Nome do serviço/i), {
+      target: { value: "Bitcoin" },
+    });
+    fireEvent.change(within(getCryptoItem(0)).getByLabelText(/Ticker/i), {
+      target: { value: "BTC" },
+    });
+    fireEvent.change(within(getCryptoItem(0)).getByLabelText(/Rede/i), {
+      target: { value: "Bitcoin" },
+    });
+    fireEvent.change(within(getCryptoItem(0)).getByLabelText(/Endereço para cópia/i), {
+      target: { value: "bc1-bitcoin" },
+    });
+    fireEvent.change(within(getCryptoItem(0)).getByLabelText(/Logo customizada/i), {
+      target: { value: "https://cdn.example.com/btc.png" },
+    });
+
+    await waitFor(() => {
+      expect(within(getCryptoItem(0)).getByAltText("Logo Bitcoin")).toHaveAttribute(
+        "src",
+        "https://cdn.example.com/btc.png",
+      );
+    });
+
+    fireEvent.change(within(getCryptoItem(1)).getByLabelText(/Nome do serviço/i), {
+      target: { value: "Ethereum" },
+    });
+    fireEvent.change(within(getCryptoItem(1)).getByLabelText(/Ticker/i), {
+      target: { value: "ETH" },
+    });
+    fireEvent.change(within(getCryptoItem(1)).getByLabelText(/Rede/i), {
+      target: { value: "ERC-20" },
+    });
+    fireEvent.change(within(getCryptoItem(1)).getByLabelText(/Endereço para cópia/i), {
+      target: { value: "0x-ethereum" },
+    });
+    fireEvent.change(within(getCryptoItem(1)).getByLabelText(/Rótulo da ação externa/i), {
+      target: { value: "Abrir app" },
+    });
+    fireEvent.change(within(getCryptoItem(1)).getByLabelText(/URL da ação externa/i), {
+      target: { value: "https://wallet.example.com/eth" },
+    });
+
+    fireEvent.click(
+      within(getCryptoItem(1)).getByRole("button", {
+        name: /Mover serviço cripto 2 para cima/i,
+      }),
+    );
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    const putCalls = getPutPageCalls();
+    expect(putCalls.length).toBeGreaterThan(0);
+    const lastPutCall = putCalls[putCalls.length - 1];
+    const payload = JSON.parse(String(((lastPutCall?.[2] || {}) as RequestInit).body || "{}"));
+    expect(payload.pages?.donations?.cryptoServices).toEqual([
+      expect.objectContaining({
+        name: "Ethereum",
+        ticker: "ETH",
+        network: "ERC-20",
+        address: "0x-ethereum",
+        actionLabel: "Abrir app",
+        actionUrl: "https://wallet.example.com/eth",
+      }),
+      expect.objectContaining({
+        name: "Bitcoin",
+        ticker: "BTC",
+        network: "Bitcoin",
+        address: "bc1-bitcoin",
+        iconUrl: "https://cdn.example.com/btc.png",
+      }),
+    ]);
+    payload.pages?.donations?.cryptoServices?.forEach((service: Record<string, unknown>) => {
+      expect(service).not.toHaveProperty("_editorKey");
+    });
+  });
+
+  it("não envia _editorKey no payload de custos, cripto e doadores", async () => {
+    renderDashboardPages();
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    const donationsTab = screen.getByRole("tab", { name: /Doa/i });
+    fireEvent.mouseDown(donationsTab);
+    await waitFor(() => {
+      expect(donationsTab).toHaveAttribute("aria-selected", "true");
+    });
+
+    const costsEditor = screen.getByText("Custos").closest("div")?.parentElement;
+    const cryptoEditor = screen.getByTestId("donations-crypto-editor");
+    const donorsEditor = screen.getByText("Doadores").closest("div")?.parentElement;
+    expect(costsEditor).not.toBeNull();
+    expect(donorsEditor).not.toBeNull();
+    apiFetchMock.mockClear();
+
+    fireEvent.click(within(costsEditor as HTMLElement).getByRole("button", { name: /Adicionar/i }));
+    fireEvent.click(within(cryptoEditor).getByRole("button", { name: /Adicionar/i }));
+    fireEvent.click(within(donorsEditor as HTMLElement).getByRole("button", { name: /Adicionar/i }));
+
+    fireEvent.change(
+      within(screen.getByTestId("donations-cost-item-0")).getByDisplayValue("Novo custo"),
+      { target: { value: "Infraestrutura" } },
+    );
+    fireEvent.change(
+      within(screen.getByTestId("donations-crypto-item-0")).getByLabelText(/Nome do serviço/i),
+      { target: { value: "Bitcoin" } },
+    );
+    fireEvent.change(
+      within(screen.getByTestId("donations-crypto-item-0")).getByLabelText(/Endereço para cópia/i),
+      { target: { value: "bc1-payload" } },
+    );
+    fireEvent.change(
+      within(screen.getByTestId("donations-donor-item-0")).getByDisplayValue("Novo doador"),
+      { target: { value: "Alice" } },
+    );
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    const putCalls = getPutPageCalls();
+    expect(putCalls.length).toBeGreaterThan(0);
+    const lastPutCall = putCalls[putCalls.length - 1];
+    const payload = JSON.parse(String(((lastPutCall?.[2] || {}) as RequestInit).body || "{}"));
+
+    expect(payload.pages?.donations?.costs?.[0]).toEqual(
+      expect.objectContaining({
+        title: "Infraestrutura",
+      }),
+    );
+    expect(payload.pages?.donations?.cryptoServices?.[0]).toEqual(
+      expect.objectContaining({
+        name: "Bitcoin",
+        address: "bc1-payload",
+      }),
+    );
+    expect(payload.pages?.donations?.donors?.[0]).toEqual(
+      expect.objectContaining({
+        name: "Alice",
+      }),
+    );
+    expect(payload.pages?.donations?.costs?.[0]).not.toHaveProperty("_editorKey");
+    expect(payload.pages?.donations?.cryptoServices?.[0]).not.toHaveProperty("_editorKey");
+    expect(payload.pages?.donations?.donors?.[0]).not.toHaveProperty("_editorKey");
+  });
+
+  it("remove servicos de cripto do payload sem afetar Pix ou meta mensal", async () => {
+    apiFetchMock.mockImplementation(async (_base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === "/api/me") {
+        return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
+      }
+      if (path === "/api/pages" && method === "GET") {
+        return mockJsonResponse(true, {
+          pages: {
+            donations: {
+              heroTitle: "",
+              heroSubtitle: "",
+              costs: [],
+              reasonTitle: "",
+              reasonIcon: "HeartHandshake",
+              reasonText: "",
+              reasonNote: "",
+              monthlyGoalRaised: "",
+              monthlyGoalTarget: "",
+              monthlyGoalSupporters: "",
+              monthlyGoalNote: "",
+              cryptoTitle: "Criptomoedas",
+              cryptoSubtitle: "",
+              cryptoServices: [
+                {
+                  name: "Litecoin",
+                  ticker: "LTC",
+                  network: "Litecoin",
+                  address: "ltc-address",
+                  qrValue: "",
+                  note: "",
+                  icon: "Coins",
+                  iconUrl: "",
+                  actionLabel: "",
+                  actionUrl: "",
+                },
+              ],
+              pixKey: "PIX-INIT",
+              pixNote: "",
+              qrCustomUrl: "",
+              pixIcon: "QrCode",
+              donorsIcon: "PiggyBank",
+              donors: [],
+            },
+          },
+        });
+      }
+      if (path === "/api/pages" && method === "PUT") {
+        const body = JSON.parse(String((options as RequestInit).body || "{}"));
+        return mockJsonResponse(true, { pages: body.pages || {} });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderDashboardPages();
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    const donationsTab = screen.getByRole("tab", { name: /Doa/i });
+    fireEvent.mouseDown(donationsTab);
+    await waitFor(() => {
+      expect(donationsTab).toHaveAttribute("aria-selected", "true");
+    });
+
+    const cryptoEditor = screen.getByTestId("donations-crypto-editor");
+    apiFetchMock.mockClear();
+    const getFirstItem = () => within(cryptoEditor).getByTestId("donations-crypto-item-0");
+
+    fireEvent.click(
+      within(getFirstItem()).getByRole("button", { name: /Remover serviço cripto 1/i }),
+    );
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    const putCalls = getPutPageCalls();
+    expect(putCalls.length).toBeGreaterThan(0);
+    const lastPutCall = putCalls[putCalls.length - 1];
+    const payload = JSON.parse(String(((lastPutCall?.[2] || {}) as RequestInit).body || "{}"));
+    expect(payload.pages?.donations?.cryptoServices).toEqual([]);
+    expect(payload.pages?.donations?.pixKey).toBe("PIX-INIT");
+    expect(payload.pages?.donations?.monthlyGoalRaised).toBe("");
   });
 });

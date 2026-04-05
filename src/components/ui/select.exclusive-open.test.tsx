@@ -10,6 +10,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
+
 const TestSelect = ({
   label,
   placeholder,
@@ -131,6 +134,9 @@ describe("Select exclusive open behavior", () => {
       expect(firstTrigger).toHaveAttribute("aria-expanded", "true");
     });
     expect(await screen.findByRole("option", { name: "Alpha" })).toBeInTheDocument();
+    expect(classTokens(screen.getByRole("listbox"))).toContain(
+      "shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]",
+    );
 
     secondTrigger.focus();
     fireEvent.keyDown(secondTrigger, { key: "ArrowDown", code: "ArrowDown" });
@@ -157,6 +163,9 @@ describe("Select exclusive open behavior", () => {
       expect(firstTrigger).toHaveAttribute("aria-expanded", "true");
     });
     expect(await screen.findByRole("option", { name: "Alpha" })).toBeInTheDocument();
+    expect(classTokens(screen.getByRole("listbox"))).toContain(
+      "shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]",
+    );
 
     secondTrigger.focus();
     fireEvent.keyDown(secondTrigger, { key: "ArrowDown", code: "ArrowDown" });

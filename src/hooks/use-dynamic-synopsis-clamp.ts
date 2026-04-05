@@ -75,6 +75,7 @@ export const useDynamicSynopsisClamp = <T extends HTMLElement = HTMLDivElement>(
         return;
       }
 
+      const columnStyle = window.getComputedStyle(column);
       const synopsisStyle = window.getComputedStyle(synopsis);
       const lineHeightPx = toPx(synopsisStyle.lineHeight);
       const fontSizePx = toPx(synopsisStyle.fontSize);
@@ -83,9 +84,18 @@ export const useDynamicSynopsisClamp = <T extends HTMLElement = HTMLDivElement>(
         return;
       }
 
+      const columnPaddingTop = toPx(columnStyle.paddingTop);
+      const columnPaddingBottom = toPx(columnStyle.paddingBottom);
       const synopsisMarginTop = toPx(synopsisStyle.marginTop);
-      const availableHeight =
-        column.clientHeight - title.offsetHeight - (badges?.offsetHeight || 0) - synopsisMarginTop;
+      const availableHeight = Math.max(
+        0,
+        column.clientHeight -
+          columnPaddingTop -
+          columnPaddingBottom -
+          title.offsetHeight -
+          (badges?.offsetHeight || 0) -
+          synopsisMarginTop,
+      );
       const lines = clampLines(Math.floor(availableHeight / lineHeight), maxLines);
       next[key] = lines;
     });

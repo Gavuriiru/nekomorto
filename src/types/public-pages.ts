@@ -34,6 +34,19 @@ export type DonationsPageDonor = {
   date: string;
 };
 
+export type DonationsCryptoService = {
+  name: string;
+  ticker: string;
+  network: string;
+  address: string;
+  qrValue: string;
+  note: string;
+  icon: string;
+  iconUrl: string;
+  actionLabel: string;
+  actionUrl: string;
+};
+
 export type FaqPageItem = {
   question: string;
   answer: string;
@@ -79,6 +92,13 @@ export type DonationsPageConfig = PublicShareImagePage & {
   reasonIcon: string;
   reasonText: string;
   reasonNote: string;
+  monthlyGoalRaised: string;
+  monthlyGoalTarget: string;
+  monthlyGoalSupporters: string;
+  monthlyGoalNote: string;
+  cryptoTitle: string;
+  cryptoSubtitle: string;
+  cryptoServices: DonationsCryptoService[];
   pixKey: string;
   pixNote: string;
   pixCity: string;
@@ -156,6 +176,13 @@ export const emptyPublicPagesConfig: PublicPagesConfig = {
     reasonIcon: "",
     reasonText: "",
     reasonNote: "",
+    monthlyGoalRaised: "",
+    monthlyGoalTarget: "",
+    monthlyGoalSupporters: "",
+    monthlyGoalNote: "",
+    cryptoTitle: "",
+    cryptoSubtitle: "",
+    cryptoServices: [],
     pixKey: "",
     pixNote: "",
     pixCity: "",

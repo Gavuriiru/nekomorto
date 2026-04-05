@@ -1,4 +1,4 @@
-import { unzipSync } from "fflate";
+﻿import { unzipSync } from "fflate";
 import { LayoutGroup, useReducedMotion } from "framer-motion";
 import {
   FileArchive,
@@ -147,6 +147,7 @@ const MangaChapterPagesEditor = ({
     [dragIndex, dragOverIndex, pages],
   );
   const draggedPage = dragIndex !== null ? pages[dragIndex] : null;
+  const shouldUseAnimatedLayout = dragIndex !== null || dragOverIndex !== null;
 
   const setChapterState = (
     overrides: Partial<ProjectEpisode>,
@@ -249,7 +250,7 @@ const MangaChapterPagesEditor = ({
       appendUploadedUrls(uploadedUrls);
       toast({
         title:
-          uploadedUrls.length === 1 ? "Página enviada" : `${uploadedUrls.length} páginas enviadas`,
+          uploadedUrls.length === 1 ? "PÃ¡gina enviada" : `${uploadedUrls.length} páginas enviadas`,
         intent: "success",
       });
     } catch {
@@ -363,7 +364,7 @@ const MangaChapterPagesEditor = ({
       event,
       index,
       total: pages.length,
-      label: `Página ${index + 1}`,
+      label: `PÃ¡gina ${index + 1}`,
       disabled: isUploading,
       onMove: (targetIndex) => {
         const nextPages = reorderList(pages, index, targetIndex);
@@ -564,35 +565,85 @@ const MangaChapterPagesEditor = ({
       </div>
 
       {pages.length > 0 ? (
-        <LayoutGroup
-          id={`manga-pages-${projectSnapshot.id}-${chapter.number}-${chapter.volume ?? "none"}`}
-        >
+        shouldUseAnimatedLayout ? (
+          <LayoutGroup
+            id={`manga-pages-${projectSnapshot.id}-${chapter.number}-${chapter.volume ?? "none"}`}
+          >
+            <div
+              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+              data-testid="manga-pages-grid"
+            >
+              {previewPages.map((page, index) => {
+                const isCover = chapter.coverImageUrl === page.imageUrl;
+                const isSpread = Boolean(page.spreadPairId);
+                const isDragged = draggedPage === page;
+                const isPreviewTarget = dragIndex !== null && dragOverIndex === index;
+                const canJoinWithNext = Boolean(
+                  !page.spreadPairId &&
+                    previewPages[index + 1] &&
+                    !previewPages[index + 1]?.spreadPairId,
+                );
+                return (
+                  <MangaPageTile
+                    key={`${page.imageUrl}-${page.position}`}
+                    testIdPrefix="manga-page"
+                    src={page.imageUrl}
+                    alt={`PÃ¡gina ${index + 1}`}
+                    displayName={page.displayName}
+                    index={index}
+                    isCover={isCover}
+                    isSpread={isSpread}
+                    isDragged={isDragged}
+                    isPreviewTarget={isPreviewTarget}
+                    disabled={isUploading}
+                    canJoinWithNext={canJoinWithNext}
+                    reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
+                    reorderTransition={reorderTransition}
+                    onDragStart={(event) => handlePageDragStart(event, index)}
+                    onDragEnd={clearDragState}
+                    onDragOver={(event) => handlePageDragOver(event, index)}
+                    onDrop={(event) => handlePageDrop(event, index)}
+                    onKeyDown={(event) => handlePageKeyDown(event, index)}
+                    onJoinSpread={
+                      canJoinWithNext ? (event) => joinSpreadPair(event, index) : undefined
+                    }
+                    onUnsetSpread={
+                      isSpread && page.spreadPairId
+                        ? (event) => unsetSpreadPair(event, page.spreadPairId || "")
+                        : undefined
+                    }
+                    onSetCover={
+                      isCover ? undefined : (event) => setPageAsCover(event, page.imageUrl)
+                    }
+                    onRemove={(event) => removePage(event, index)}
+                  />
+                );
+              })}
+            </div>
+          </LayoutGroup>
+        ) : (
           <div
             className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
             data-testid="manga-pages-grid"
           >
-            {previewPages.map((page, index) => {
+            {pages.map((page, index) => {
               const isCover = chapter.coverImageUrl === page.imageUrl;
               const isSpread = Boolean(page.spreadPairId);
-              const isDragged = draggedPage === page;
-              const isPreviewTarget = dragIndex !== null && dragOverIndex === index;
               const canJoinWithNext = Boolean(
-                !page.spreadPairId &&
-                  previewPages[index + 1] &&
-                  !previewPages[index + 1]?.spreadPairId,
+                !page.spreadPairId && pages[index + 1] && !pages[index + 1]?.spreadPairId,
               );
               return (
                 <MangaPageTile
                   key={`${page.imageUrl}-${page.position}`}
                   testIdPrefix="manga-page"
                   src={page.imageUrl}
-                  alt={`Página ${index + 1}`}
+                  alt={`PÃ¡gina ${index + 1}`}
                   displayName={page.displayName}
                   index={index}
                   isCover={isCover}
                   isSpread={isSpread}
-                  isDragged={isDragged}
-                  isPreviewTarget={isPreviewTarget}
+                  isDragged={false}
+                  isPreviewTarget={false}
                   disabled={isUploading}
                   canJoinWithNext={canJoinWithNext}
                   reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
@@ -618,7 +669,7 @@ const MangaChapterPagesEditor = ({
               );
             })}
           </div>
-        </LayoutGroup>
+        )
       ) : (
         <div
           className="rounded-[20px] border border-dashed border-border/60 bg-background/35 px-4 py-8 text-center text-sm text-muted-foreground"
@@ -711,3 +762,5 @@ const MangaChapterPagesEditor = ({
 };
 
 export default MangaChapterPagesEditor;
+
+

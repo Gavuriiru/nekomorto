@@ -236,6 +236,8 @@ describe("DashboardHeader mobile search layout", () => {
     expect(classTokens(results)).toContain("xl:w-80");
     expect(classTokens(results)).toContain("left-0");
     expect(classTokens(results)).toContain("right-0");
+    expect(classTokens(results)).toContain("shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]");
+    expect(classTokens(results)).not.toContain("shadow-lg");
 
     fireEvent.mouseDown(document.body);
 
@@ -393,6 +395,9 @@ describe("DashboardHeader mobile search layout", () => {
     const profileButton = screen.getByText("Admin").closest("button");
     expect(profileButton).toBeTruthy();
     fireEvent.keyDown(profileButton as HTMLButtonElement, { key: "ArrowDown" });
+    const profileMenu = await screen.findByRole("menu");
+    expect(classTokens(profileMenu)).toContain("shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]");
+    expect(classTokens(profileMenu)).not.toContain("shadow-xl");
     fireEvent.click(await screen.findByRole("menuitem", { name: /Sair/i }));
 
     await waitFor(() => {
@@ -426,5 +431,38 @@ describe("DashboardHeader mobile search layout", () => {
     expect(classTokens(themeToggle)).toContain("text-foreground/80");
     expect(setThemePreferenceMock).not.toHaveBeenCalled();
     expect(getOldEagerPublicCalls()).toHaveLength(0);
+  });
+
+  it("monta os menus do cabecalho somente quando abertos", async () => {
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <DashboardHeader
+          currentUser={{
+            name: "Admin",
+            username: "admin",
+            avatarUrl: null,
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Sobre" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /Sair/i })).not.toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Abrir menu" }), {
+      key: "ArrowDown",
+    });
+    expect(await screen.findByRole("menuitem", { name: "Sobre" })).toBeInTheDocument();
+
+    fireEvent.keyDown(document.activeElement || document.body, { key: "Escape" });
+    await waitFor(() => {
+      expect(screen.queryByRole("menuitem", { name: "Sobre" })).not.toBeInTheDocument();
+    });
+
+    const profileButton = screen.getByText("Admin").closest("button");
+    expect(profileButton).toBeTruthy();
+    fireEvent.keyDown(profileButton as HTMLButtonElement, { key: "ArrowDown" });
+    expect(await screen.findByRole("menuitem", { name: /Sair/i })).toBeInTheDocument();
   });
 });

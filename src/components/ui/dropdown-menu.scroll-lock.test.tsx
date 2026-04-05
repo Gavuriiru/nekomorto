@@ -8,6 +8,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
+
 const removeClassName = (className: string) => {
   document.body.className = document.body.className
     .split(/\s+/)
@@ -39,7 +42,8 @@ describe("DropdownMenu scroll lock", () => {
     render(<TestDropdownMenu />);
 
     await user.click(screen.getByRole("button", { name: "Abrir menu" }));
-    await screen.findByRole("menu");
+    const menu = await screen.findByRole("menu");
+    expect(classTokens(menu)).toContain("shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]");
 
     await waitFor(() => {
       expect(document.body.getAttribute("data-scroll-locked")).toBeNull();
@@ -52,7 +56,8 @@ describe("DropdownMenu scroll lock", () => {
     render(<TestDropdownMenu modal />);
 
     await user.click(screen.getByRole("button", { name: "Abrir menu" }));
-    await screen.findByRole("menu");
+    const menu = await screen.findByRole("menu");
+    expect(classTokens(menu)).toContain("shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]");
 
     await waitFor(() => {
       const lockCount = Number.parseInt(document.body.getAttribute("data-scroll-locked") || "", 10);

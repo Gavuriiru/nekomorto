@@ -3,14 +3,21 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import {
+  PUBLIC_SURFACE_CATEGORY_IDS,
+  PUBLIC_SURFACE_METRIC_AUDIT_IDS,
+  collectAuditNumericValues,
+} from "./public-surface-performance-lib.mjs";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const workspaceRoot = path.resolve(__dirname, "..");
 const outputDir = path.join(workspaceRoot, ".lighthouse");
 const lighthouseTmpDir = path.join(outputDir, "tmp");
 
-const categoryIds = ["performance", "accessibility", "best-practices", "seo"];
+const categoryIds = PUBLIC_SURFACE_CATEGORY_IDS;
 const strictCategoryIds = ["performance", "accessibility", "seo"];
+const reportedMetricAuditIds = PUBLIC_SURFACE_METRIC_AUDIT_IDS;
 const defaultRuns = 3;
 const defaultUrl = process.env.LIGHTHOUSE_PROJECTS_URL || "http://127.0.0.1:8080/projetos";
 const profileConfigs = {
@@ -158,8 +165,11 @@ const toCategoryScores = (report) =>
     return result;
   }, {});
 
+const toMetricValues = (report) => collectAuditNumericValues(report, reportedMetricAuditIds);
+
 const computeMedianSummary = (reports) => {
   const categoryScoresByRun = reports.map((report) => toCategoryScores(report));
+  const metricValuesByRun = reports.map((report) => toMetricValues(report));
   const medianCategories = categoryIds.reduce((result, categoryId) => {
     const values = categoryScoresByRun
       .map((run) => run[categoryId])
@@ -168,9 +178,19 @@ const computeMedianSummary = (reports) => {
     return result;
   }, {});
 
+  const medianMetrics = reportedMetricAuditIds.reduce((result, auditId) => {
+    const values = metricValuesByRun
+      .map((run) => run[auditId])
+      .filter((value) => Number.isFinite(value));
+    result[auditId] = median(values);
+    return result;
+  }, {});
+
   return {
     categoriesByRun: categoryScoresByRun,
+    metricsByRun: metricValuesByRun,
     medianCategories,
+    medianMetrics,
   };
 };
 
@@ -195,13 +215,16 @@ const writeSummary = ({ url, runs, strict, profile, summary }) => {
     runs,
     strict,
     medianCategories: summary.medianCategories,
+    medianMetrics: summary.medianMetrics,
     categoriesByRun: summary.categoriesByRun,
+    metricsByRun: summary.metricsByRun,
     thresholds: {
       blockingCategories: strictCategoryIds.reduce((result, categoryId) => {
         result[categoryId] = 1;
         return result;
       }, {}),
       reportedOnlyCategories: ["best-practices"],
+      reportedMetrics: reportedMetricAuditIds,
     },
   };
   const summaryPath = path.join(outputDir, `projects-${profile}-summary.json`);

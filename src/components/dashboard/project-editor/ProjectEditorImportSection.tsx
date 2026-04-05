@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import { Input } from "@/components/dashboard/dashboard-form-controls";
 import { Button } from "@/components/ui/button";
@@ -15,7 +17,7 @@ type ProjectEditorImportSectionProps = {
   triggerClassName: string;
 };
 
-export const ProjectEditorImportSection = ({
+const ProjectEditorImportSectionComponent = ({
   anilistIdInput,
   contentClassName,
   onAnilistIdInputChange,
@@ -47,5 +49,9 @@ export const ProjectEditorImportSection = ({
     </AccordionContent>
   </AccordionItem>
 );
+
+export const ProjectEditorImportSection = memo(ProjectEditorImportSectionComponent);
+
+ProjectEditorImportSection.displayName = "ProjectEditorImportSection";
 
 export default ProjectEditorImportSection;

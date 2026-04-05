@@ -30,7 +30,36 @@ const setBootstrapDonationsPage = () => {
     settings: {},
     pages: {
       donations: {
+        monthlyGoalRaised: "125,50",
+        monthlyGoalTarget: "500",
+        monthlyGoalSupporters: "8",
         pixKey: "pix-chave-teste",
+        cryptoServices: [
+          {
+            name: "Bitcoin",
+            ticker: "BTC",
+            network: "Bitcoin",
+            address: "bc1-layout",
+            qrValue: "",
+            note: "",
+            icon: "Bitcoin",
+            iconUrl: "",
+            actionLabel: "",
+            actionUrl: "",
+          },
+          {
+            name: "Ethereum",
+            ticker: "ETH",
+            network: "ERC-20",
+            address: "0x-layout",
+            qrValue: "",
+            note: "",
+            icon: "Wallet",
+            iconUrl: "",
+            actionLabel: "",
+            actionUrl: "",
+          },
+        ],
       },
     },
     projects: [],
@@ -75,5 +104,62 @@ describe("Donations mobile PIX CTA layout", () => {
     const wrapperTokens = classTokens(wrapper as HTMLElement);
     expect(wrapperTokens).toContain("w-full");
     expect(wrapperTokens).toContain("md:justify-center");
+  });
+
+  it("renderiza a meta mensal em seção separada acima do bloco de Pix", async () => {
+    render(<Donations />);
+
+    const monthlyGoalHeading = await screen.findByText(/Meta de /i);
+    const pixHeading = screen.getByText(/^Pix$/);
+    const monthlyGoalSection = monthlyGoalHeading.closest("section");
+    const pixSection = pixHeading.closest("section");
+
+    expect(
+      monthlyGoalHeading.compareDocumentPosition(pixHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(monthlyGoalSection).not.toBeNull();
+    expect(pixSection).not.toBeNull();
+    expect(monthlyGoalSection).not.toBe(pixSection);
+  });
+
+  it("mantem o CTA da meta apontando para o Pix sem quebrar o layout mobile", async () => {
+    render(<Donations />);
+
+    const supportLink = await screen.findByRole("link", { name: "Apoiar agora" });
+    const copyButton = screen.getByRole("button", { name: "Copiar chave PIX" });
+
+    expect(supportLink).toHaveAttribute("href", "#pix-doacoes");
+    expect(classTokens(copyButton)).toContain("w-full");
+    expect(classTokens(copyButton)).toContain("md:w-auto");
+  });
+
+  it("renderiza a secao de cripto depois do Pix e antes da lista de doadores", async () => {
+    render(<Donations />);
+
+    const pixHeading = await screen.findByText(/^Pix$/);
+    const cryptoSection = screen.getByTestId("donations-crypto-section");
+    const donorsHeading = screen.getByText("Lista de doadores");
+
+    expect(
+      pixHeading.compareDocumentPosition(cryptoSection) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      cryptoSection.compareDocumentPosition(donorsHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(cryptoSection).toBeInTheDocument();
+  });
+
+  it("mantem a secao de cripto em card unico full width com abas no topo mobile e na lateral no desktop", async () => {
+    render(<Donations />);
+
+    const cryptoCard = await screen.findByTestId("donations-crypto-card");
+    const tablist = screen.getByTestId("donations-crypto-tablist");
+
+    expect(cryptoCard).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Criptomoedas" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("donations-crypto-subtitle")).not.toBeInTheDocument();
+    expect(classTokens(tablist)).toContain("overflow-x-auto");
+    expect(classTokens(tablist)).toContain("md:flex-col");
+    expect(classTokens(tablist)).not.toContain("lg:grid-cols-2");
   });
 });

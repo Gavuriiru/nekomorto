@@ -126,14 +126,14 @@ describe("DashboardSecurity semantic badges", () => {
     expect(classTokens(firstSessionCard as HTMLElement)).toContain("bg-background");
     expect(classTokens(firstSessionCard as HTMLElement)).toContain("hover:border-primary/40");
     expect(await screen.findByText("Sua sess\u00E3o atual")).toHaveClass(
-      "bg-emerald-500/20",
-      "text-emerald-800",
-      "dark:text-emerald-200",
+      "border-[hsl(var(--badge-success-border))]",
+      "bg-[hsl(var(--badge-success-bg))]",
+      "text-[hsl(var(--badge-success-fg))]",
     );
     expect(screen.getByText("Pendente MFA")).toHaveClass(
-      "bg-amber-500/20",
-      "text-amber-900",
-      "dark:text-amber-200",
+      "border-[hsl(var(--badge-warning-border))]",
+      "bg-[hsl(var(--badge-warning-bg))]",
+      "text-[hsl(var(--badge-warning-fg))]",
     );
   });
 

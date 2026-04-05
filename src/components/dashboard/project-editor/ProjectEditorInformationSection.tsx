@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { memo, type Dispatch, type SetStateAction } from "react";
 
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import {
@@ -17,10 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { translateGenre, translateTag } from "@/lib/project-taxonomy";
 
-import type {
-  ProjectForm,
-  TaxonomySuggestionOption,
-} from "./dashboard-projects-editor-types";
+import type { ProjectForm, TaxonomySuggestionOption } from "./dashboard-projects-editor-types";
 import ProjectEditorAccordionHeader from "./ProjectEditorAccordionHeader";
 
 type ProjectEditorInformationSectionProps = {
@@ -62,7 +59,7 @@ type ProjectEditorInformationSectionProps = {
   triggerClassName: string;
 };
 
-export const ProjectEditorInformationSection = ({
+const ProjectEditorInformationSectionComponent = ({
   adjacentMetadataInputClassName,
   animationStudioInput,
   contentClassName,
@@ -498,5 +495,103 @@ export const ProjectEditorInformationSection = ({
     </AccordionContent>
   </AccordionItem>
 );
+
+const areProjectEditorInformationArraysEqual = (left: string[], right: string[]) =>
+  left.length === right.length && left.every((value, index) => value === right[index]);
+
+const areProjectEditorInformationPropsEqual = (
+  previousProps: ProjectEditorInformationSectionProps,
+  nextProps: ProjectEditorInformationSectionProps,
+) => {
+  if (
+    previousProps.adjacentMetadataInputClassName !== nextProps.adjacentMetadataInputClassName ||
+    previousProps.animationStudioInput !== nextProps.animationStudioInput ||
+    previousProps.contentClassName !== nextProps.contentClassName ||
+    previousProps.editorSectionBlockClassName !== nextProps.editorSectionBlockClassName ||
+    previousProps.editorSectionBlockDividerClassName !==
+      nextProps.editorSectionBlockDividerClassName ||
+    previousProps.editorSectionBlockTitleClassName !== nextProps.editorSectionBlockTitleClassName ||
+    previousProps.genreInput !== nextProps.genreInput ||
+    previousProps.genreSuggestions !== nextProps.genreSuggestions ||
+    previousProps.genreTranslationMap !== nextProps.genreTranslationMap ||
+    previousProps.hasAniListReference !== nextProps.hasAniListReference ||
+    previousProps.onAddAnimationStudio !== nextProps.onAddAnimationStudio ||
+    previousProps.onAddGenre !== nextProps.onAddGenre ||
+    previousProps.onAddProducer !== nextProps.onAddProducer ||
+    previousProps.onAddTag !== nextProps.onAddTag ||
+    previousProps.onAppendGenreValue !== nextProps.onAppendGenreValue ||
+    previousProps.onAppendTagValue !== nextProps.onAppendTagValue ||
+    previousProps.onRemoveAnimationStudio !== nextProps.onRemoveAnimationStudio ||
+    previousProps.onRemoveGenre !== nextProps.onRemoveGenre ||
+    previousProps.onRemoveProducer !== nextProps.onRemoveProducer ||
+    previousProps.onRemoveTag !== nextProps.onRemoveTag ||
+    previousProps.producerInput !== nextProps.producerInput ||
+    previousProps.sectionClassName !== nextProps.sectionClassName ||
+    previousProps.setAnimationStudioInput !== nextProps.setAnimationStudioInput ||
+    previousProps.setFormState !== nextProps.setFormState ||
+    previousProps.setGenreInput !== nextProps.setGenreInput ||
+    previousProps.setProducerInput !== nextProps.setProducerInput ||
+    previousProps.setTagInput !== nextProps.setTagInput ||
+    previousProps.tagInput !== nextProps.tagInput ||
+    previousProps.tagSuggestions !== nextProps.tagSuggestions ||
+    previousProps.tagTranslationMap !== nextProps.tagTranslationMap ||
+    previousProps.triggerClassName !== nextProps.triggerClassName
+  ) {
+    return false;
+  }
+
+  if (
+    !areProjectEditorInformationArraysEqual(
+      previousProps.formatSelectOptions,
+      nextProps.formatSelectOptions,
+    ) ||
+    !areProjectEditorInformationArraysEqual(previousProps.statusOptions, nextProps.statusOptions) ||
+    !areProjectEditorInformationArraysEqual(
+      previousProps.translatedSortedEditorGenres,
+      nextProps.translatedSortedEditorGenres,
+    ) ||
+    !areProjectEditorInformationArraysEqual(
+      previousProps.translatedSortedEditorTags,
+      nextProps.translatedSortedEditorTags,
+    )
+  ) {
+    return false;
+  }
+
+  const previousFormState = previousProps.formState;
+  const nextFormState = nextProps.formState;
+
+  return (
+    previousFormState.id === nextFormState.id &&
+    previousFormState.title === nextFormState.title &&
+    previousFormState.titleOriginal === nextFormState.titleOriginal &&
+    previousFormState.titleEnglish === nextFormState.titleEnglish &&
+    previousFormState.forceHero === nextFormState.forceHero &&
+    previousFormState.synopsis === nextFormState.synopsis &&
+    previousFormState.type === nextFormState.type &&
+    previousFormState.status === nextFormState.status &&
+    previousFormState.year === nextFormState.year &&
+    previousFormState.season === nextFormState.season &&
+    previousFormState.studio === nextFormState.studio &&
+    previousFormState.episodes === nextFormState.episodes &&
+    previousFormState.country === nextFormState.country &&
+    previousFormState.source === nextFormState.source &&
+    previousFormState.discordRoleId === nextFormState.discordRoleId &&
+    areProjectEditorInformationArraysEqual(
+      previousFormState.animationStudios,
+      nextFormState.animationStudios,
+    ) &&
+    areProjectEditorInformationArraysEqual(previousFormState.producers, nextFormState.producers) &&
+    areProjectEditorInformationArraysEqual(previousFormState.tags, nextFormState.tags) &&
+    areProjectEditorInformationArraysEqual(previousFormState.genres, nextFormState.genres)
+  );
+};
+
+export const ProjectEditorInformationSection = memo(
+  ProjectEditorInformationSectionComponent,
+  areProjectEditorInformationPropsEqual,
+);
+
+ProjectEditorInformationSection.displayName = "ProjectEditorInformationSection";
 
 export default ProjectEditorInformationSection;

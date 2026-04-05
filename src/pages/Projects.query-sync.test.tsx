@@ -2,6 +2,13 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const useDynamicSynopsisClampMock = vi.hoisted(() => vi.fn());
+const synopsisRootRefMock = vi.hoisted(() => ({ current: null as HTMLDivElement | null }));
+
+vi.mock("@/hooks/use-dynamic-synopsis-clamp", () => ({
+  useDynamicSynopsisClamp: (...args: unknown[]) => useDynamicSynopsisClampMock(...args),
+}));
+
 import Projects from "@/pages/Projects";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
@@ -200,6 +207,12 @@ const mockPrimaryBadgeLayoutMetrics = ({
 describe("Projects query sync", () => {
   beforeEach(() => {
     setupApiMock();
+    useDynamicSynopsisClampMock.mockReset();
+    synopsisRootRefMock.current = null;
+    useDynamicSynopsisClampMock.mockReturnValue({
+      rootRef: synopsisRootRefMock,
+      lineByKey: {},
+    });
     window.scrollTo = vi.fn();
     window.localStorage.clear();
     clearBootstrapPayload();
@@ -262,6 +275,51 @@ describe("Projects query sync", () => {
       expect(params.get("letter")).toBe("P");
       expect(params.get("type")).toBe("Anime");
       expect(params.get("page")).toBe("2");
+    });
+  });
+
+  it("abre A-Z e Formato como popovers sem busca interna e sincroniza letter/type na URL", async () => {
+    setupApiMock({
+      projects: createProjects(24, {
+        type: "Anime",
+        tags: ["acao"],
+        genres: ["drama"],
+      }),
+    });
+
+    const { container } = render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const letterTrigger = await screen.findByRole("combobox", { name: "Filtrar por letra" });
+    expect(container.querySelector("select")).toBeNull();
+
+    fireEvent.click(letterTrigger);
+
+    const letterListbox = await screen.findByRole("listbox", { name: "A-Z" });
+    expect(screen.queryByLabelText(/Buscar em a-z/i)).not.toBeInTheDocument();
+    expect(within(letterListbox).getByRole("option", { name: "P" })).toBeInTheDocument();
+
+    fireEvent.click(within(letterListbox).getByRole("option", { name: "P" }));
+
+    await waitFor(() => {
+      expect(getSearchParams().get("letter")).toBe("P");
+    });
+
+    const formatTrigger = screen.getByRole("combobox", { name: "Filtrar por formato" });
+    fireEvent.click(formatTrigger);
+
+    const formatListbox = await screen.findByRole("listbox", { name: "Formato" });
+    expect(screen.queryByLabelText(/Buscar em formato/i)).not.toBeInTheDocument();
+    expect(within(formatListbox).getByRole("option", { name: "Anime" })).toBeInTheDocument();
+
+    fireEvent.click(within(formatListbox).getByRole("option", { name: "Anime" }));
+
+    await waitFor(() => {
+      expect(getSearchParams().get("type")).toBe("Anime");
     });
   });
 
@@ -828,7 +886,7 @@ describe("Projects query sync", () => {
     expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
   });
 
-  it("prioriza apenas a primeira capa no desktop e preserva a medicao de layout auxiliar", async () => {
+  it("prioriza apenas a primeira capa no desktop sem medicao auxiliar de badges", async () => {
     const projects = Array.from({ length: 7 }, (_, index) => ({
       ...createProject(index + 1, { title: `Projeto ${index + 1}` }),
       cover: `/uploads/projects/projeto-${index + 1}.png`,
@@ -890,11 +948,17 @@ describe("Projects query sync", () => {
       expect(coverImage).toHaveAttribute("loading", "lazy");
       expect(coverImage).not.toHaveAttribute("fetchpriority");
     });
-    expect(container.querySelector("[data-badge-key]")).not.toBeNull();
-    expect(resizeObserverObserveMock).toHaveBeenCalled();
+    expect(useDynamicSynopsisClampMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        keys: projects.map((project) => project.id),
+        maxLines: 4,
+      }),
+    );
+    expect(container.querySelector("[data-badge-key]")).toBeNull();
   });
 
-  it("prioriza apenas a primeira capa no mobile e remove medicao de layout auxiliar", async () => {
+  it("usa clamp adaptativo mobile sem reintroduzir medicao auxiliar de badges", async () => {
     setViewportIsMobile(true);
     const projects = Array.from({ length: 7 }, (_, index) => ({
       ...createProject(index + 1, { title: `Projeto ${index + 1}` }),
@@ -947,53 +1011,85 @@ describe("Projects query sync", () => {
       expect(coverImage).toHaveAttribute("loading", "lazy");
       expect(coverImage).not.toHaveAttribute("fetchpriority");
     });
+    expect(useDynamicSynopsisClampMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        keys: projects.map((project) => project.id),
+        maxLines: 2,
+      }),
+    );
     expect(container.querySelector("[data-badge-key]")).toBeNull();
     Array.from(container.querySelectorAll('[data-synopsis-role="synopsis"]')).forEach((node) => {
-      expect(node).toHaveClass("line-clamp-2");
+      expect(node).toHaveClass("projects-public-synopsis", "projects-public-synopsis-clamp-2");
     });
-    expect(resizeObserverObserveMock).not.toHaveBeenCalled();
   });
 
-  it("usa a largura real do shell clicavel ao decidir quantos badges cabem", async () => {
-    const restoreLayoutMetrics = mockPrimaryBadgeLayoutMetrics({
-      rowWidth: 116,
-      clickableBadgeShellWidth: 44,
-      badgeWidth: 36,
+  it("conecta a grade ao rootRef do clamp e aplica classes dinamicas por projeto", async () => {
+    setupApiMock({
+      projects: createProjects(5),
+    });
+    useDynamicSynopsisClampMock.mockReturnValue({
+      rootRef: synopsisRootRefMock,
+      lineByKey: {
+        "project-1": 0,
+        "project-2": 1,
+        "project-3": 2,
+        "project-4": 3,
+        "project-5": 4,
+      },
     });
 
-    try {
-      setupApiMock({
-        projects: [
-          createProject(1, {
-            tags: ["acao", "comedia"],
-            genres: ["drama"],
-          }),
-        ],
-      });
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
 
-      render(
-        <MemoryRouter initialEntries={["/projetos"]}>
-          <Projects />
-          <LocationProbe />
-        </MemoryRouter>,
-      );
+    await screen.findByText("Projeto 1");
 
-      await screen.findByText("Projeto 1");
+    expect(synopsisRootRefMock.current).not.toBeNull();
+    const synopsisNodes = Array.from(
+      synopsisRootRefMock.current?.querySelectorAll<HTMLElement>('[data-synopsis-role="synopsis"]') ||
+        [],
+    );
 
-      await waitFor(() => {
-        expect(screen.getByText("+2")).toBeInTheDocument();
-      });
+    expect(synopsisNodes).toHaveLength(5);
+    expect(synopsisNodes[0]).toHaveClass("projects-public-synopsis-clamp-0");
+    expect(synopsisNodes[1]).toHaveClass("projects-public-synopsis-clamp-1");
+    expect(synopsisNodes[2]).toHaveClass("projects-public-synopsis-clamp-2");
+    expect(synopsisNodes[3]).toHaveClass("projects-public-synopsis-clamp-3");
+    expect(synopsisNodes[4]).toHaveClass("projects-public-synopsis-clamp-4");
+  });
 
-      expect(screen.getByRole("button", { name: /Filtrar por tag A.*o/i })).toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: "Filtrar por tag comedia" }),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: /Filtrar por g.*nero Drama/i }),
-      ).not.toBeInTheDocument();
-    } finally {
-      restoreLayoutMetrics();
-    }
+  it("usa layout deterministico para exibir dois badges e overflow fixo", async () => {
+    setupApiMock({
+      projects: [
+        createProject(1, {
+          tags: ["acao", "comedia"],
+          genres: ["drama"],
+        }),
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Projeto 1");
+
+    await waitFor(() => {
+      expect(screen.getByText("+1")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: /Filtrar por tag A.*o/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Filtrar por tag comedia/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Filtrar por g.*nero Drama/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("adiciona aria-label e alvo minimo aos badges clicaveis", async () => {

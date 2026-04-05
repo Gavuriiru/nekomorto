@@ -20,6 +20,7 @@ import { apiFetch, apiFetchBestEffort } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
 import { extractFirstImageFromPostContent } from "@/lib/post-cover";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+import { prepareLexicalViewerState } from "@/lib/lexical/viewer";
 import { estimateReadTime } from "@/lib/post-content";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicBootstrapPayload, PublicBootstrapPost } from "@/types/public-bootstrap";
@@ -151,6 +152,9 @@ const Post = () => {
   const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>(
     () => bootstrapData?.mediaVariants || {},
   );
+  const [preparedPostEditorState, setPreparedPostEditorState] = useState(() =>
+    bootstrapPostRecord?.content ? prepareLexicalViewerState(bootstrapPostRecord.content) : "",
+  );
   const trackedViewsRef = useRef<Set<string>>(new Set());
   const { settings } = useSiteSettings();
   const { isVisible: areDeferredSectionsVisible, sentinelRef: deferredSectionsSentinelRef } =
@@ -164,7 +168,29 @@ const Post = () => {
     setHasLoaded(Boolean(bootstrapPostRecord));
     setLoadError(false);
     setMediaVariants(bootstrapData?.mediaVariants || {});
+    setPreparedPostEditorState(
+      bootstrapPostRecord?.content ? prepareLexicalViewerState(bootstrapPostRecord.content) : "",
+    );
   }, [bootstrapData, bootstrapPostRecord]);
+
+  useEffect(() => {
+    const content = String(post?.content || "");
+    if (!content) {
+      setPreparedPostEditorState("");
+      return;
+    }
+    setPreparedPostEditorState((current) => {
+      const nextValue = prepareLexicalViewerState(content);
+      return current === nextValue ? current : nextValue;
+    });
+  }, [post?.content]);
+
+  useEffect(() => {
+    if (!post?.content) {
+      return;
+    }
+    void import("@/components/lexical/LexicalViewer");
+  }, [post?.content]);
 
   useEffect(() => {
     let isActive = true;
@@ -401,7 +427,7 @@ const Post = () => {
               <div data-testid="post-reader-cover-shell" className="w-full">
                 <div
                   data-testid="post-reader-cover-frame"
-                  className="relative aspect-3/2 overflow-hidden rounded-2xl border border-border/80 bg-card/40 shadow-[0_42px_120px_-48px_rgba(0,0,0,0.95)]"
+                  className="relative aspect-3/2 overflow-hidden rounded-2xl border border-border/80 bg-card/40"
                 >
                   <UploadPicture
                     src={heroCoverSrc}
@@ -430,6 +456,7 @@ const Post = () => {
                           <Suspense fallback={<LexicalViewerFallback />}>
                             <LexicalViewer
                               value={post.content}
+                              editorStateJson={preparedPostEditorState || undefined}
                               ariaLabel={`Conteúdo da postagem ${post.title}`}
                               className="post-content reader-content min-w-0 w-full text-muted-foreground"
                               pollTarget={post.slug ? { type: "post", slug: post.slug } : undefined}

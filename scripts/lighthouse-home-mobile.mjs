@@ -4,6 +4,12 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import {
+  PUBLIC_SURFACE_CATEGORY_IDS,
+  PUBLIC_SURFACE_METRIC_AUDIT_IDS,
+  collectAuditNumericValues,
+} from "./public-surface-performance-lib.mjs";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const workspaceRoot = path.resolve(__dirname, "..");
@@ -13,7 +19,8 @@ const configPath = path.join(workspaceRoot, "scripts", "lighthouse-home-mobile.c
 
 const defaultUrl = process.env.LIGHTHOUSE_HOME_URL || "http://127.0.0.1:4173/";
 const defaultRuns = 3;
-const categoryIds = ["performance", "accessibility", "best-practices", "seo"];
+const categoryIds = PUBLIC_SURFACE_CATEGORY_IDS;
+const reportedMetricAuditIds = PUBLIC_SURFACE_METRIC_AUDIT_IDS;
 const metricThresholds = Object.freeze({
   "first-contentful-paint": 1600,
   "largest-contentful-paint": 2200,
@@ -182,12 +189,7 @@ const toCategoryScores = (report) =>
     return result;
   }, {});
 
-const toMetricValues = (report) =>
-  Object.keys(metricThresholds).reduce((result, auditId) => {
-    const numericValue = Number(report?.audits?.[auditId]?.numericValue);
-    result[auditId] = Number.isFinite(numericValue) ? numericValue : NaN;
-    return result;
-  }, {});
+const toMetricValues = (report) => collectAuditNumericValues(report, reportedMetricAuditIds);
 
 const computeMedianSummary = (reports) => {
   const categoryScoresByRun = reports.map((report) => toCategoryScores(report));
@@ -201,7 +203,7 @@ const computeMedianSummary = (reports) => {
     return result;
   }, {});
 
-  const medianMetrics = Object.keys(metricThresholds).reduce((result, auditId) => {
+  const medianMetrics = reportedMetricAuditIds.reduce((result, auditId) => {
     const values = metricValuesByRun
       .map((run) => run[auditId])
       .filter((value) => Number.isFinite(value));
@@ -258,6 +260,7 @@ const writeSummary = ({ url, runs, strict, summary }) => {
         return result;
       }, {}),
       metrics: metricThresholds,
+      reportedMetrics: reportedMetricAuditIds,
     },
   };
   const summaryPath = path.join(outputDir, "home-mobile-summary.json");

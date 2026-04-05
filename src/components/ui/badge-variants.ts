@@ -10,9 +10,16 @@ export const badgeVariants = cva(
           "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
         destructive:
           "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-        success: "border-transparent bg-emerald-500/20 text-emerald-800 dark:text-emerald-200",
-        warning: "border-transparent bg-amber-500/20 text-amber-900 dark:text-amber-200",
-        danger: "border-transparent bg-red-500/20 text-red-800 dark:text-red-200",
+        success:
+          "border-[hsl(var(--badge-success-border))] bg-[hsl(var(--badge-success-bg))] text-[hsl(var(--badge-success-fg))]",
+        warning:
+          "border-[hsl(var(--badge-warning-border))] bg-[hsl(var(--badge-warning-bg))] text-[hsl(var(--badge-warning-fg))]",
+        danger:
+          "border-[hsl(var(--badge-danger-border))] bg-[hsl(var(--badge-danger-bg))] text-[hsl(var(--badge-danger-fg))]",
+        info:
+          "border-[hsl(var(--badge-info-border))] bg-[hsl(var(--badge-info-bg))] text-[hsl(var(--badge-info-fg))]",
+        neutral:
+          "border-[hsl(var(--badge-neutral-border))] bg-[hsl(var(--badge-neutral-bg))] text-[hsl(var(--badge-neutral-fg))]",
         outline: "text-foreground",
       },
     },

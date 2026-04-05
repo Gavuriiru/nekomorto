@@ -8,7 +8,10 @@ import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { EMPTY_LEXICAL_JSON } from "@/lib/lexical/empty-state";
-import { normalizeLexicalViewerJson } from "@/lib/lexical/viewer";
+import {
+  prepareLexicalViewerState,
+  readPreparedLexicalViewerState,
+} from "@/lib/lexical/viewer";
 import LexicalViewerNodes from "./LexicalViewerNodes";
 import LexicalViewerTheme from "./LexicalViewerTheme";
 import { ViewerPollProvider, type PollTarget } from "./viewer-nodes/ViewerPollContext";
@@ -18,6 +21,7 @@ import "@/styles/rich-content.css";
 
 type LexicalViewerProps = {
   value: string;
+  editorStateJson?: string;
   className?: string;
   pollTarget?: PollTarget;
   ariaLabel?: string;
@@ -41,20 +45,25 @@ const getOrCreatePollVoterId = () => {
   return generated;
 };
 
-const getNormalizedEditorState = (value: string) =>
-  normalizeLexicalViewerJson(value) ?? EMPTY_LEXICAL_JSON;
+const resolveViewerEditorState = (value: string, editorStateJson?: string) => {
+  const preparedState = readPreparedLexicalViewerState(editorStateJson);
+  if (preparedState !== EMPTY_LEXICAL_JSON || String(editorStateJson || "").trim()) {
+    return preparedState;
+  }
+  return prepareLexicalViewerState(value);
+};
 
-const ValuePlugin = ({ value }: { value: string }) => {
+const ValuePlugin = ({ editorStateJson }: { editorStateJson: string }) => {
   const [editor] = useLexicalComposerContext();
   const lastValueRef = React.useRef<string | null>(null);
   const pendingValueRef = React.useRef<string | null>(null);
   const scheduledRef = React.useRef(false);
 
   React.useEffect(() => {
-    if (value === lastValueRef.current) {
+    if (editorStateJson === lastValueRef.current) {
       return;
     }
-    pendingValueRef.current = value;
+    pendingValueRef.current = editorStateJson;
     if (scheduledRef.current) {
       return;
     }
@@ -71,7 +80,7 @@ const ValuePlugin = ({ value }: { value: string }) => {
         return;
       }
       try {
-        const state = editor.parseEditorState(getNormalizedEditorState(nextValue));
+        const state = editor.parseEditorState(nextValue);
         editor.setEditorState(state);
       } catch {
         const state = editor.parseEditorState(EMPTY_LEXICAL_JSON);
@@ -80,7 +89,7 @@ const ValuePlugin = ({ value }: { value: string }) => {
         lastValueRef.current = nextValue;
       }
     });
-  }, [editor, value]);
+  }, [editor, editorStateJson]);
 
   return null;
 };
@@ -135,9 +144,19 @@ const ChecklistA11yPlugin = () => {
   return null;
 };
 
-const LexicalViewer = ({ value, className, pollTarget, ariaLabel }: LexicalViewerProps) => {
+const LexicalViewer = ({
+  value,
+  editorStateJson,
+  className,
+  pollTarget,
+  ariaLabel,
+}: LexicalViewerProps) => {
   const apiBase = getApiBase();
   const voterId = React.useMemo(() => getOrCreatePollVoterId(), []);
+  const preparedEditorState = React.useMemo(
+    () => resolveViewerEditorState(value, editorStateJson),
+    [editorStateJson, value],
+  );
   const persistVote = React.useCallback(
     async (payload: {
       question: string;
@@ -186,7 +205,7 @@ const LexicalViewer = ({ value, className, pollTarget, ariaLabel }: LexicalViewe
       console.error(error);
     },
     editable: false,
-    editorState: getNormalizedEditorState(value),
+    editorState: preparedEditorState,
   }).current;
   const viewerLabel = String(ariaLabel || "Conteúdo").trim() || "Conteúdo";
 
@@ -210,7 +229,7 @@ const LexicalViewer = ({ value, className, pollTarget, ariaLabel }: LexicalViewe
               ErrorBoundary={LexicalErrorBoundary}
             />
           </div>
-          <ValuePlugin value={value} />
+          <ValuePlugin editorStateJson={preparedEditorState} />
           <EditablePlugin />
           <ChecklistA11yPlugin />
         </div>

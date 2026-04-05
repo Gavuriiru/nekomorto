@@ -300,6 +300,8 @@ describe("Project mobile hero layout", () => {
     const coverFrameTokens = classTokens(coverFrame);
     expect(coverFrameTokens).not.toContain("h-full");
     expect(coverFrameTokens).not.toContain("md:max-h-[620px]");
+    expect(coverFrameTokens).toContain("shadow-[0_22px_64px_-42px_rgba(0,0,0,0.62)]");
+    expect(coverFrameTokens).not.toContain("shadow-[0_30px_100px_-55px_rgba(0,0,0,0.95)]");
     expect(coverFrame.style.aspectRatio).toBe("9 / 14");
 
     const contentColumn = heading.parentElement as HTMLElement | null;

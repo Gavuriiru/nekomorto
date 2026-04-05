@@ -62,6 +62,19 @@ const countApiCalls = (path: string, method = "GET") =>
 
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
+const findAncestor = (
+  element: HTMLElement,
+  predicate: (candidate: HTMLElement) => boolean,
+): HTMLElement | null => {
+  let current = element.parentElement;
+  while (current) {
+    if (predicate(current)) {
+      return current;
+    }
+    current = current.parentElement;
+  }
+  return null;
+};
 
 const renderPopover = (open: boolean) =>
   render(
@@ -124,6 +137,15 @@ describe("DashboardNotificationsPopover loading state", () => {
     expect(apiFetchMock).not.toHaveBeenCalled();
   });
 
+  it("nao monta o conteudo enquanto o popover esta fechado", () => {
+    setupApiMock();
+
+    renderPopover(false);
+
+    expect(screen.queryByText("NotificaÃ§Ãµes operacionais")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-notifications-loading")).not.toBeInTheDocument();
+  });
+
   it("mostra placeholders enquanto a primeira carga sob demanda esta pendente", async () => {
     apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
       const method = String(options?.method || "GET").toUpperCase();
@@ -164,6 +186,13 @@ describe("DashboardNotificationsPopover loading state", () => {
     expect(await screen.findByText("Falha em webhook")).toBeInTheDocument();
     const notificationLink = screen.getByRole("link", { name: /Falha em webhook/i });
     expect(classTokens(notificationLink)).toContain("hover:border-primary/60");
+    const popoverSurface = findAncestor(notificationLink, (candidate) =>
+      classTokens(candidate).includes("w-[min(30rem,calc(100vw-1rem))]"),
+    );
+    expect(popoverSurface).not.toBeNull();
+    expect(classTokens(popoverSurface as HTMLElement)).toContain(
+      "shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]",
+    );
 
     await waitFor(() => {
       expect(apiFetchMock).toHaveBeenCalledWith(

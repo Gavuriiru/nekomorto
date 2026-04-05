@@ -15,7 +15,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
-import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import { cn } from "@/lib/utils";
 
 const TOP_PROJECTS_LIMIT = 10;
@@ -25,6 +24,8 @@ const TOP_PROJECTS_CARD_HEIGHT_PX = 164;
 const TOP_PROJECTS_GAP_PX = 12;
 const TOP_PROJECTS_VISIBLE_MOBILE = 2;
 const TOP_PROJECTS_VISIBLE_DESKTOP = 3;
+const TOP_PROJECTS_THUMB_ASPECT_RATIO = "9 / 14";
+const TOP_PROJECTS_THUMB_WIDTH = "calc(var(--top-card-h) * 9 / 14)";
 
 type TopProjectsMode = "all" | "7d" | "30d";
 
@@ -188,7 +189,7 @@ const TopProjectsSection = () => {
                 <div className="flex gap-4">
                   <Skeleton
                     className="h-32 shrink-0 rounded-xl"
-                    style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+                    style={{ aspectRatio: TOP_PROJECTS_THUMB_ASPECT_RATIO }}
                   />
                   <div className="min-w-0 flex-1 space-y-2">
                     <Skeleton className="h-3 w-10" />
@@ -222,30 +223,33 @@ const TopProjectsSection = () => {
                     key={entry.id}
                     data-testid={`top-project-item-${index + 1}`}
                     to={`/projeto/${entry.id}`}
-                    className={`group relative block h-(--top-card-h) rounded-2xl border border-border/50 bg-linear-to-br from-background/70 via-background/40 to-background/70 transition-all duration-300 hover:-translate-y-1 ${publicStrongSurfaceHoverClassName}`}
+                    className={`group flex h-(--top-card-h) overflow-hidden rounded-2xl border border-border/50 bg-linear-to-br from-background/70 via-background/40 to-background/70 transition-all duration-300 hover:-translate-y-1 ${publicStrongSurfaceHoverClassName}`}
                   >
-                    <div className="absolute inset-4 flex h-auto items-stretch gap-4">
-                      <div
-                        className="h-full shrink-0 overflow-hidden rounded-xl bg-secondary/60"
-                        style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
-                      >
-                        <UploadPicture
-                          src={entry.project.cover || "/placeholder.svg"}
-                          alt={entry.title}
-                          preset="posterThumb"
-                          mediaVariants={mediaVariants}
-                          sizes="96px"
-                          className="block h-full w-full"
-                          imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
-                          loading="lazy"
-                        />
-                      </div>
+                    <div
+                      className="h-full shrink-0 overflow-hidden bg-secondary/60"
+                      style={{
+                        aspectRatio: TOP_PROJECTS_THUMB_ASPECT_RATIO,
+                        width: TOP_PROJECTS_THUMB_WIDTH,
+                      }}
+                    >
+                      <UploadPicture
+                        src={entry.project.cover || "/placeholder.svg"}
+                        alt={entry.title}
+                        preset="posterThumb"
+                        mediaVariants={mediaVariants}
+                        sizes="96px"
+                        className="block h-full w-full"
+                        imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    </div>
 
-                      <div
-                        data-synopsis-role="column"
-                        data-synopsis-key={entry.id}
-                        className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
-                      >
+                    <div
+                      data-synopsis-role="column"
+                      data-synopsis-key={entry.id}
+                      className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-[1.125rem]"
+                    >
+                      <div data-synopsis-role="title" className="space-y-1.5">
                         <div
                           data-testid={`top-project-item-${index + 1}-meta-row`}
                           className="flex min-w-0 items-center justify-between gap-2"
@@ -281,23 +285,21 @@ const TopProjectsSection = () => {
                             </span>
                           </div>
                         </div>
-                        <div data-synopsis-role="title" className="mt-1.5 space-y-1.5">
-                          <h3 className="clamp-safe-2 text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
-                            {entry.title}
-                          </h3>
-                        </div>
-                        <p
-                          data-synopsis-role="synopsis"
-                          className={cn(
-                            "mt-2 text-xs leading-relaxed text-muted-foreground",
-                            getSynopsisClampClass(entry.id),
-                          )}
-                        >
-                          {entry.project.synopsis ||
-                            entry.project.description ||
-                            "Sem sinopse cadastrada."}
-                        </p>
+                        <h3 className="clamp-safe-2 text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+                          {entry.title}
+                        </h3>
                       </div>
+                      <p
+                        data-synopsis-role="synopsis"
+                        className={cn(
+                          "mt-2 text-xs leading-relaxed text-muted-foreground",
+                          getSynopsisClampClass(entry.id),
+                        )}
+                      >
+                        {entry.project.synopsis ||
+                          entry.project.description ||
+                          "Sem sinopse cadastrada."}
+                      </p>
                     </div>
                   </Link>
                 );

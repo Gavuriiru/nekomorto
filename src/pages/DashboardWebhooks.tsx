@@ -200,9 +200,9 @@ const WEBHOOK_DELIVERY_STATUS_LABELS: Record<string, string> = {
 };
 const WEBHOOK_DELIVERY_STATUS_VARIANTS: Record<
   string,
-  "secondary" | "warning" | "success" | "danger" | "outline"
+  "neutral" | "warning" | "success" | "danger" | "outline"
 > = {
-  queued: "secondary",
+  queued: "neutral",
   processing: "warning",
   retrying: "warning",
   sent: "success",

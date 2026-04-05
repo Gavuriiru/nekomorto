@@ -2,6 +2,7 @@ import * as React from "react";
 import { ChevronDown } from "lucide-react";
 
 import { dashboardStrongFocusTriggerClassName } from "@/components/dashboard/dashboard-page-tokens";
+import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
 import { cn } from "@/lib/utils";
 
 export type DashboardLightSelectIcon = React.ComponentType<{
@@ -282,7 +283,10 @@ const DashboardLightSelect = ({
         <div
           id={listboxId}
           role="listbox"
-          className="absolute left-0 top-full z-40 mt-2 max-h-64 w-full overflow-auto rounded-xl border border-border/70 bg-card p-1 shadow-[0_18px_38px_-30px_rgba(0,0,0,0.82)]"
+          className={cn(
+            "absolute left-0 top-full z-40 mt-2 max-h-64 w-full overflow-auto rounded-xl border border-border/70 bg-card p-1",
+            floatingSurfaceShadowClassName,
+          )}
         >
           {options.map((option, index) => {
             const OptionIcon = option.icon || null;

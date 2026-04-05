@@ -276,7 +276,8 @@ const DashboardNotificationsPopover = ({
           ) : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[min(30rem,calc(100vw-1rem))] p-0">
+      {open ? (
+        <PopoverContent align="end" className="w-[min(30rem,calc(100vw-1rem))] p-0">
         <div className="border-b border-border/70 px-4 py-3">
           <p className="text-sm font-semibold">Notificações operacionais</p>
           <p className="text-xs text-muted-foreground">Atualização automática a cada 15s.</p>
@@ -348,7 +349,8 @@ const DashboardNotificationsPopover = ({
             })
           )}
         </div>
-      </PopoverContent>
+        </PopoverContent>
+      ) : null}
     </Popover>
   );
 };

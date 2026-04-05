@@ -1,33 +1,30 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 
-import { Badge } from "@/components/ui/badge";
 import UploadPicture from "@/components/UploadPicture";
-import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
+import { Badge } from "@/components/ui/badge";
+import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
+import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
+import { buildPublicSearchIndex } from "@/lib/public-search-index";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
-import { buildTranslationMap, translateTag } from "@/lib/project-taxonomy";
 import {
   rankPosts,
   rankProjects,
   selectVisibleTags,
   sortAlphabeticallyPtBr,
 } from "@/lib/search-ranking";
+import { buildTranslationMap, translateTag } from "@/lib/project-taxonomy";
 import { cn } from "@/lib/utils";
-import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
-import type { PublicBootstrapPost, PublicBootstrapProject } from "@/types/public-bootstrap";
-import type { SearchSuggestion } from "@/types/search-suggestion";
 import { uiCopy } from "@/lib/ui-copy";
+import type { SearchSuggestion } from "@/types/search-suggestion";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
 type HeaderSearchPopoverProps = {
   queryTrimmed: string;
   hasMinimumSearchQueryLength: boolean;
   isSearchLoading: boolean;
   hasSearchRequestFailed: boolean;
-  projects: PublicBootstrapProject[];
-  posts: PublicBootstrapPost[];
-  tagTranslations: Record<string, string>;
   remoteSuggestions: SearchSuggestion[];
-  bootstrapMediaVariants: UploadMediaVariantsMap;
   remoteMediaVariants: UploadMediaVariantsMap;
 };
 
@@ -36,39 +33,23 @@ const HeaderSearchPopover = ({
   hasMinimumSearchQueryLength,
   isSearchLoading,
   hasSearchRequestFailed,
-  projects,
-  posts,
-  tagTranslations,
   remoteSuggestions,
-  bootstrapMediaVariants,
   remoteMediaVariants,
 }: HeaderSearchPopoverProps) => {
-  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
+  const { data: bootstrapData } = usePublicBootstrap();
+  const projects = bootstrapData?.projects || [];
+  const posts = bootstrapData?.posts || [];
+  const bootstrapMediaVariants = bootstrapData?.mediaVariants || {};
+  const tagTranslations = bootstrapData?.tagTranslations?.tags || {};
 
-  const projectItems = useMemo(
+  const { projectItems, postItems } = useMemo(
     () =>
-      projects.map((project) => ({
-        label: project.title,
-        href: `/projeto/${project.id}`,
-        image: project.cover,
-        synopsis: project.synopsis,
-        tags: selectVisibleTags(
-          sortAlphabeticallyPtBr(project.tags.map((tag) => translateTag(tag, tagTranslationMap))),
-          2,
-          18,
-        ),
-      })),
-    [projects, tagTranslationMap],
-  );
-
-  const postItems = useMemo(
-    () =>
-      posts.map((post) => ({
-        label: post.title,
-        href: `/postagem/${post.slug}`,
-        excerpt: post.excerpt || "",
-      })),
-    [posts],
+      buildPublicSearchIndex({
+        projects,
+        posts,
+        tagTranslations,
+      }),
+    [posts, projects, tagTranslations],
   );
 
   const fallbackProjects = useMemo(() => {
@@ -85,27 +66,26 @@ const HeaderSearchPopover = ({
     return rankPosts(postItems, queryTrimmed);
   }, [postItems, queryTrimmed]);
 
-  const remoteProjects = useMemo(
-    () =>
-      remoteSuggestions
-        .filter((suggestion) => suggestion.kind === "project")
-        .map((item) => ({
-          label: item.label,
-          href: item.href,
-          image: item.image || "/placeholder.svg",
-          synopsis: item.description || item.meta || "",
-          tags: selectVisibleTags(
-            sortAlphabeticallyPtBr(
-              (Array.isArray(item.tags) ? item.tags : [])
-                .map((tag) => translateTag(String(tag || "").trim(), tagTranslationMap))
-                .filter(Boolean),
-            ),
-            2,
-            18,
+  const remoteProjects = useMemo(() => {
+    const tagTranslationMap = buildTranslationMap(tagTranslations);
+    return remoteSuggestions
+      .filter((suggestion) => suggestion.kind === "project")
+      .map((item) => ({
+        label: item.label,
+        href: item.href,
+        image: item.image || "/placeholder.svg",
+        synopsis: item.description || item.meta || "",
+        tags: selectVisibleTags(
+          sortAlphabeticallyPtBr(
+            (Array.isArray(item.tags) ? item.tags : [])
+              .map((tag) => translateTag(String(tag || "").trim(), tagTranslationMap))
+              .filter(Boolean),
           ),
-        })),
-    [remoteSuggestions, tagTranslationMap],
-  );
+          2,
+          18,
+        ),
+      }));
+  }, [remoteSuggestions, tagTranslations]);
 
   const remotePosts = useMemo(
     () =>
@@ -132,34 +112,14 @@ const HeaderSearchPopover = ({
   );
   const hasResults =
     hasMinimumSearchQueryLength && (activeProjects.length > 0 || activePosts.length > 0);
-  const synopsisKeys = useMemo(() => activeProjects.map((item) => item.href), [activeProjects]);
-  const { rootRef: synopsisRootRef, lineByKey: synopsisLineByKey } = useDynamicSynopsisClamp({
-    enabled: true,
-    keys: synopsisKeys,
-    maxLines: 4,
-  });
-  const getSynopsisClampClass = (key: string) => {
-    const lines = synopsisLineByKey[key] ?? 2;
-    if (lines <= 0) {
-      return "hidden";
-    }
-    if (lines === 1) {
-      return "line-clamp-1";
-    }
-    if (lines === 2) {
-      return "line-clamp-2";
-    }
-    if (lines === 3) {
-      return "line-clamp-3";
-    }
-    return "line-clamp-4";
-  };
 
   return (
     <div
-      ref={synopsisRootRef}
       data-testid="public-header-results"
-      className="search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur-sm md:left-auto md:right-0 md:mx-0 md:w-80"
+      className={cn(
+        "search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 backdrop-blur-sm md:left-auto md:right-0 md:mx-0 md:w-80",
+        floatingSurfaceShadowClassName,
+      )}
     >
       {!hasMinimumSearchQueryLength ? (
         <p className="text-sm text-muted-foreground">{uiCopy.search.minimumPrompt}</p>
@@ -167,7 +127,7 @@ const HeaderSearchPopover = ({
         <p className="text-sm text-muted-foreground">{uiCopy.search.loadingSuggestions}</p>
       ) : null}
 
-      {hasMinimumSearchQueryLength && activeProjects.length > 0 && (
+      {hasMinimumSearchQueryLength && activeProjects.length > 0 ? (
         <div className="mb-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Projetos
@@ -194,7 +154,6 @@ const HeaderSearchPopover = ({
                   </div>
                   <div
                     data-synopsis-role="column"
-                    data-synopsis-key={item.href}
                     className="min-h-0 min-w-0 flex flex-1 self-stretch flex-col"
                   >
                     <p
@@ -204,15 +163,12 @@ const HeaderSearchPopover = ({
                       {item.label}
                     </p>
                     <p
-                      className={cn(
-                        "mt-1 min-h-0 flex-1 overflow-hidden text-xs leading-snug text-muted-foreground",
-                        getSynopsisClampClass(item.href),
-                      )}
                       data-synopsis-role="synopsis"
+                      className="mt-1 line-clamp-4 min-h-0 flex-1 overflow-hidden text-xs leading-snug text-muted-foreground"
                     >
                       {item.synopsis}
                     </p>
-                    {item.tags.length > 0 && (
+                    {item.tags.length > 0 ? (
                       <div
                         data-synopsis-role="badges"
                         className="flex min-w-0 shrink-0 flex-nowrap gap-1.5 overflow-hidden pb-1 pt-2"
@@ -227,16 +183,16 @@ const HeaderSearchPopover = ({
                           </Badge>
                         ))}
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </Link>
               </li>
             ))}
           </ul>
         </div>
-      )}
+      ) : null}
 
-      {hasMinimumSearchQueryLength && activePosts.length > 0 && (
+      {hasMinimumSearchQueryLength && activePosts.length > 0 ? (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Posts
@@ -254,11 +210,11 @@ const HeaderSearchPopover = ({
             ))}
           </ul>
         </div>
-      )}
+      ) : null}
 
-      {hasMinimumSearchQueryLength && !isSearchLoading && !hasResults && (
+      {hasMinimumSearchQueryLength && !isSearchLoading && !hasResults ? (
         <p className="text-sm text-muted-foreground">{uiCopy.search.noResults}</p>
-      )}
+      ) : null}
     </div>
   );
 };

@@ -26,7 +26,16 @@ vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
   return {
     ...actual,
-    useParams: () => ({ slug: "projeto-teste", chapter: "1" }),
+    useParams: () => {
+      const location = actual.useLocation();
+      const match = String(location.pathname || "").match(
+        /^\/projeto\/([^/]+)\/leitura\/([^/?#]+)/i,
+      );
+      return {
+        slug: match?.[1] ? decodeURIComponent(match[1]) : "projeto-teste",
+        chapter: match?.[2] ? decodeURIComponent(match[2]) : "1",
+      };
+    },
   };
 });
 
@@ -153,6 +162,7 @@ const ProjectReadingLocationProbe = () => {
 
   return (
     <>
+      <div data-testid="project-reading-location-pathname">{location.pathname}</div>
       <div data-testid="project-reading-location-search">{location.search}</div>
       <div data-testid="project-reading-location-hash">{location.hash}</div>
       <div data-testid="project-reading-location-action">{navigationType}</div>
@@ -201,6 +211,55 @@ const createProjectFixture = (episodeDownloads?: ProjectEpisodeFixture[]): Proje
       content: "<p>Conteudo</p>",
     }),
   ],
+});
+
+const createLexicalChapterResponse = ({
+  number,
+  volume,
+  title,
+  synopsis = "Resumo do capitulo",
+}: {
+  number: number;
+  volume?: number;
+  title: string;
+  synopsis?: string;
+}) => ({
+  number,
+  volume,
+  title,
+  synopsis,
+  content: "<p>Conteudo</p>",
+  contentFormat: "lexical" as const,
+});
+
+const createImageChapterResponse = ({
+  number,
+  volume,
+  title,
+  synopsis = "Resumo do capitulo",
+}: {
+  number: number;
+  volume?: number;
+  title: string;
+  synopsis?: string;
+}) => ({
+  number,
+  volume,
+  title,
+  synopsis,
+  contentFormat: "images" as const,
+  pages: [
+    {
+      position: 0,
+      imageUrl: `/uploads/projects/projeto-teste/ch-${number}-v-${volume ?? "none"}-1.jpg`,
+    },
+    {
+      position: 1,
+      imageUrl: `/uploads/projects/projeto-teste/ch-${number}-v-${volume ?? "none"}-2.jpg`,
+    },
+  ],
+  pageCount: 2,
+  hasPages: true,
 });
 
 const setupProjectReadingApiMock = (
@@ -1140,6 +1199,150 @@ describe("ProjectReading analytics", () => {
     expect(await screen.findByRole("option", { name: /Cap.*tulo 2/i })).toBeInTheDocument();
   });
 
+  it("mantem a mesma ordem de volume zero no menu do image reader", async () => {
+    const imageEpisodes = [
+      {
+        number: 1,
+        volume: 0,
+        title: "Capitulo 1 - Volume 0",
+        synopsis: "Resumo do capitulo 1 v0",
+        contentFormat: "images",
+        pages: [
+          { position: 0, imageUrl: "/uploads/projects/projeto-teste/ch-1-v-0-1.jpg" },
+          { position: 1, imageUrl: "/uploads/projects/projeto-teste/ch-1-v-0-2.jpg" },
+        ],
+        hasPages: true,
+      },
+      {
+        number: 2,
+        volume: 0,
+        title: "Capitulo 2 - Volume 0",
+        synopsis: "Resumo do capitulo 2 v0",
+        contentFormat: "images",
+        pages: [
+          { position: 0, imageUrl: "/uploads/projects/projeto-teste/ch-2-v-0-1.jpg" },
+          { position: 1, imageUrl: "/uploads/projects/projeto-teste/ch-2-v-0-2.jpg" },
+        ],
+        hasPages: true,
+      },
+      {
+        number: 1,
+        volume: 1,
+        title: "Capitulo 1 - Volume 1",
+        synopsis: "Resumo do capitulo 1 v1",
+        contentFormat: "images",
+        pages: [
+          { position: 0, imageUrl: "/uploads/projects/projeto-teste/ch-1-v-1-1.jpg" },
+          { position: 1, imageUrl: "/uploads/projects/projeto-teste/ch-1-v-1-2.jpg" },
+        ],
+        hasPages: true,
+      },
+      {
+        number: 2,
+        volume: 1,
+        title: "Capitulo 2 - Volume 1",
+        synopsis: "Resumo do capitulo 2 v1",
+        contentFormat: "images",
+        pages: [
+          { position: 0, imageUrl: "/uploads/projects/projeto-teste/ch-2-v-1-1.jpg" },
+          { position: 1, imageUrl: "/uploads/projects/projeto-teste/ch-2-v-1-2.jpg" },
+        ],
+        hasPages: true,
+      },
+    ] satisfies ProjectEpisodeFixture[];
+    const project = {
+      ...createProjectFixture(imageEpisodes),
+      type: "Manga",
+    };
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      chapterEndpoint: "/api/public/projects/projeto-teste/chapters/2?volume=0",
+      chapterResponse: createImageChapterResponse({
+        number: 2,
+        volume: 0,
+        title: "Capitulo 2 - Volume 0",
+      }),
+    });
+
+    const baseImplementation = apiFetchMock.getMockImplementation();
+    if (!baseImplementation) {
+      throw new Error("expected apiFetch mock implementation");
+    }
+
+    apiFetchMock.mockImplementation(
+      async (apiBase: string, endpoint: string, options?: RequestInit) => {
+        if (
+          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=1" &&
+          (!options?.method || options.method === "GET")
+        ) {
+          return mockJsonResponse(true, {
+            chapter: createImageChapterResponse({
+              number: 1,
+              volume: 1,
+              title: "Capitulo 1 - Volume 1",
+            }),
+          });
+        }
+
+        return baseImplementation(apiBase, endpoint, options);
+      },
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/2?volume=0"]}>
+        <ProjectReading />
+        <ProjectReadingLocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId("project-reading-stage");
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+
+    const sidebar = await screen.findByTestId("project-reader-sidebar");
+    const previousButton = within(sidebar).getByRole("button", {
+      name: /Cap.tulo anterior/i,
+    });
+    const nextButton = within(sidebar).getByRole("button", {
+      name: /Pr.ximo cap.tulo/i,
+    });
+    expect(previousButton).toHaveClass(
+      "project-reading-nav-btn",
+      "project-reading-nav-btn--secondary",
+    );
+    expect(nextButton).toHaveClass("project-reading-nav-btn", "project-reading-nav-btn--next");
+    fireEvent.click(nextButton);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("project-reading-location-pathname").textContent).toBe(
+        "/projeto/projeto-teste/leitura/1",
+      );
+      expect(screen.getByTestId("project-reading-location-search").textContent).toMatch(
+        /^\?volume=1(?:&page=1)?$/,
+      );
+    });
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+
+    const chapterTrigger = screen.getByRole("combobox", {
+      name: /Selecionar cap.tulo/i,
+    });
+    fireEvent.click(chapterTrigger);
+
+    const optionTexts = (await screen.findAllByRole("option")).map((option) =>
+      String(option.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim(),
+    );
+    expect(optionTexts[0]).toMatch(/Vol\. 0 .*Cap.*tulo 1/i);
+    expect(optionTexts[1]).toMatch(/Vol\. 0 .*Cap.*tulo 2/i);
+    expect(optionTexts[2]).toMatch(/Vol\. 1 .*Cap.*tulo 1/i);
+    expect(optionTexts[3]).toMatch(/Vol\. 1 .*Cap.*tulo 2/i);
+  });
+
   it("entra no palco ao abrir um capitulo por imagens sem hash na URL", async () => {
     const rectSpy = mockRectsByTestId({
       "project-reading-stage": {
@@ -1653,6 +1856,187 @@ describe("ProjectReading analytics", () => {
     );
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
+    expect(screen.queryByRole("link", { name: /Pr.ximo cap.tulo/i })).not.toBeInTheDocument();
+  });
+
+  it("coloca capitulos com volume zero no inicio global da navegacao textual", async () => {
+    const episodeDownloads = [
+      {
+        number: 1,
+        volume: 0,
+        title: "Capitulo 1 - Volume 0",
+        synopsis: "Resumo do capitulo 1 v0",
+        content: "<p>Conteudo 1 v0</p>",
+        hasContent: true,
+      },
+      {
+        number: 2,
+        volume: 0,
+        title: "Capitulo 2 - Volume 0",
+        synopsis: "Resumo do capitulo 2 v0",
+        content: "<p>Conteudo 2 v0</p>",
+        hasContent: true,
+      },
+      {
+        number: 1,
+        volume: 1,
+        title: "Capitulo 1 - Volume 1",
+        synopsis: "Resumo do capitulo 1 v1",
+        content: "<p>Conteudo 1 v1</p>",
+        hasContent: true,
+      },
+      {
+        number: 2,
+        volume: 1,
+        title: "Capitulo 2 - Volume 1",
+        synopsis: "Resumo do capitulo 2 v1",
+        content: "<p>Conteudo 2 v1</p>",
+        hasContent: true,
+      },
+    ] satisfies ProjectEpisodeFixture[];
+    const project = createProjectFixture(episodeDownloads);
+    const renderReadingChapter = (chapterNumber: number, volume: number) => {
+      setupProjectReadingApiMock(undefined, null, {
+        project,
+        chapterEndpoint: `/api/public/projects/projeto-teste/chapters/${chapterNumber}?volume=${volume}`,
+        chapterResponse: createLexicalChapterResponse({
+          number: chapterNumber,
+          volume,
+          title: `Capitulo ${chapterNumber} - Volume ${volume}`,
+        }),
+      });
+
+      return render(
+        <MemoryRouter
+          initialEntries={[`/projeto/projeto-teste/leitura/${chapterNumber}?volume=${volume}`]}
+        >
+          <ProjectReading />
+        </MemoryRouter>,
+      );
+    };
+
+    const firstRender = renderReadingChapter(1, 0);
+    expect(
+      await screen.findByRole("heading", { name: /Cap.*tulo 1 - Volume 0/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Cap.tulo anterior/i })).not.toBeInTheDocument();
+    const firstNextLink = screen.getByRole("link", { name: /Pr.ximo cap.tulo/i });
+    expect(firstNextLink).toHaveClass(
+      "project-reading-nav-btn",
+      "project-reading-nav-btn--next",
+      "project-reading-chapter-nav__button--next",
+      "ml-auto",
+    );
+    expect(firstNextLink).toHaveAttribute("href", "/projeto/projeto-teste/leitura/2?volume=0");
+    firstRender.unmount();
+
+    const secondRender = renderReadingChapter(2, 0);
+    expect(
+      await screen.findByRole("heading", { name: /Cap.*tulo 2 - Volume 0/i }),
+    ).toBeInTheDocument();
+    const secondNextLink = screen.getByRole("link", { name: /Pr.ximo cap.tulo/i });
+    expect(secondNextLink).toHaveClass(
+      "project-reading-nav-btn",
+      "project-reading-nav-btn--next",
+      "project-reading-chapter-nav__button--next",
+      "ml-auto",
+    );
+    expect(secondNextLink).toHaveAttribute("href", "/projeto/projeto-teste/leitura/1?volume=1");
+    secondRender.unmount();
+
+    renderReadingChapter(1, 1);
+    expect(
+      await screen.findByRole("heading", { name: /Cap.*tulo 1 - Volume 1/i }),
+    ).toBeInTheDocument();
+    const previousLink = screen.getByRole("link", { name: /Cap.tulo anterior/i });
+    expect(previousLink).toHaveClass(
+      "project-reading-nav-btn",
+      "project-reading-nav-btn--secondary",
+    );
+    expect(previousLink).toHaveAttribute("href", "/projeto/projeto-teste/leitura/2?volume=0");
+  });
+
+  it("preserva readingOrder manual antes da regra especial do volume zero", async () => {
+    const orderedEpisodes = [
+      {
+        number: 1,
+        volume: 1,
+        title: "Capitulo 1 - Volume 1",
+        synopsis: "Resumo do capitulo 1 v1",
+        content: "<p>Conteudo 1 v1</p>",
+        hasContent: true,
+        readingOrder: 1,
+      },
+      {
+        number: 2,
+        volume: 1,
+        title: "Capitulo 2 - Volume 1",
+        synopsis: "Resumo do capitulo 2 v1",
+        content: "<p>Conteudo 2 v1</p>",
+        hasContent: true,
+        readingOrder: 2,
+      },
+      {
+        number: 1,
+        volume: 0,
+        title: "Capitulo 1 - Volume 0",
+        synopsis: "Resumo do capitulo 1 v0",
+        content: "<p>Conteudo 1 v0</p>",
+        hasContent: true,
+        readingOrder: 3,
+      },
+    ] satisfies ProjectEpisodeFixture[];
+    const project = createProjectFixture(orderedEpisodes);
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      chapterEndpoint: "/api/public/projects/projeto-teste/chapters/1?volume=1",
+      chapterResponse: createLexicalChapterResponse({
+        number: 1,
+        volume: 1,
+        title: "Capitulo 1 - Volume 1",
+      }),
+    });
+
+    const firstRender = render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=1"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: /Cap.*tulo 1 - Volume 1/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Cap.tulo anterior/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Pr.ximo cap.tulo/i })).toHaveAttribute(
+      "href",
+      "/projeto/projeto-teste/leitura/2?volume=1",
+    );
+    firstRender.unmount();
+
+    setupProjectReadingApiMock(undefined, null, {
+      project,
+      chapterEndpoint: "/api/public/projects/projeto-teste/chapters/1?volume=0",
+      chapterResponse: createLexicalChapterResponse({
+        number: 1,
+        volume: 0,
+        title: "Capitulo 1 - Volume 0",
+      }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=0"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: /Cap.*tulo 1 - Volume 0/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Cap.tulo anterior/i })).toHaveAttribute(
+      "href",
+      "/projeto/projeto-teste/leitura/2?volume=1",
+    );
     expect(screen.queryByRole("link", { name: /Pr.ximo cap.tulo/i })).not.toBeInTheDocument();
   });
 

@@ -653,10 +653,8 @@
   display: block;
   width: 100%;
   max-width: var(--lexical-content-tweet-max-width, 550px);
-  overflow: hidden;
-  overflow: clip;
   border-radius: var(--lexical-content-embed-radius, 16px);
-  clip-path: inset(0 round var(--lexical-content-embed-radius, 16px));
+  clip-path: inset(-3px round calc(var(--lexical-content-embed-radius, 16px) + 3px));
   background: transparent;
   vertical-align: top;
   isolation: isolate;
@@ -664,19 +662,53 @@
 }
 
 .lexical-playground .lexical-tweet > *,
-.lexical-playground .lexical-tweet__target > * {
+.lexical-playground .lexical-tweet__target > *,
+.lexical-playground .lexical-tweet__stage > * {
   margin: 0 !important;
 }
 
 .lexical-playground .lexical-tweet__target {
+  display: grid;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 !important;
+  background: transparent !important;
+  vertical-align: top;
+  line-height: 0;
+  align-items: start;
+}
+
+.lexical-playground .lexical-tweet__stage {
+  grid-area: 1 / 1;
   display: block;
   width: 100%;
   max-width: 100%;
   margin: 0 !important;
   background: transparent !important;
-  border-radius: inherit;
   vertical-align: top;
   line-height: 0;
+  transition: opacity 220ms ease;
+  will-change: opacity;
+}
+
+.lexical-playground .lexical-tweet__stage--active {
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.lexical-playground .lexical-tweet__stage--entering,
+.lexical-playground .lexical-tweet__stage--fading-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lexical-playground .lexical-tweet__stage--entering {
+  z-index: 2;
+}
+
+.lexical-playground .lexical-tweet__stage--fading-out {
+  z-index: 0;
 }
 
 .lexical-playground .lexical-tweet .twitter-tweet,
@@ -689,7 +721,6 @@
   max-width: 100% !important;
   background: transparent !important;
   border: 0 !important;
-  border-radius: inherit;
   vertical-align: top;
   line-height: normal;
 }
@@ -703,8 +734,6 @@
   max-width: 100% !important;
   border: 0 !important;
   background: transparent !important;
-  border-radius: inherit !important;
-  clip-path: inset(0 round var(--lexical-content-embed-radius, 16px));
   vertical-align: top;
 }
 

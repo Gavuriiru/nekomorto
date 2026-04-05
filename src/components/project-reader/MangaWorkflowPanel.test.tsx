@@ -635,6 +635,14 @@ describe("MangaWorkflowPanel", () => {
       "aria-label",
       expect.stringMatching(/Aguardando Raw: atual/i),
     );
+    const currentStageBadge = within(progressSection)
+      .getAllByText("Atual")
+      .find((element) => String((element as HTMLElement).className || "").includes("rounded-full"));
+    expect(currentStageBadge).toHaveClass(
+      "border-[hsl(var(--badge-info-border))]",
+      "bg-[hsl(var(--badge-info-bg))]",
+      "text-[hsl(var(--badge-info-fg))]",
+    );
     fireEvent.change(screen.getByLabelText(/Sinopse/i), {
       target: { value: "Sinopse do rascunho vazio" },
     });

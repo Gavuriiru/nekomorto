@@ -1,11 +1,9 @@
-import {
+﻿import {
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from "@/components/dashboard/dashboard-form-controls";
+import DashboardLightSelect, {
+  type DashboardLightSelectOption,
+} from "@/components/dashboard/DashboardLightSelect";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -32,7 +30,7 @@ import {
   Plus,
   Search,
 } from "lucide-react";
-import type { KeyboardEvent as ReactKeyboardEvent } from "react";
+import { memo, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import ChapterEditorAccordionHeader from "./ChapterEditorAccordionHeader";
 
@@ -72,8 +70,15 @@ const structureSectionClassName =
 const structureTriggerClassName =
   "project-editor-section-trigger flex w-full items-start gap-4 px-5 py-3.5 text-left hover:no-underline md:py-4";
 const structureContentClassName = "project-editor-section-content px-5 pb-5";
+const filterOptions: DashboardLightSelectOption[] = [
+  { value: "all", label: "Todos" },
+  { value: "draft", label: "Rascunhos" },
+  { value: "published", label: "Publicados" },
+  { value: "with-content", label: "Com conteúdo" },
+  { value: "without-content", label: "Sem conteúdo" },
+];
 
-export const ChapterEditorStructureSection = ({
+export const ChapterEditorStructureSection = memo(({
   projectId,
   activeChapterKey,
   selectedStageChapterId,
@@ -121,18 +126,12 @@ export const ChapterEditorStructureSection = ({
                   className="pl-9"
                 />
               </div>
-              <Select value={filterMode} onValueChange={(value) => onFilterModeChange(value as ChapterFilterMode)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filtrar" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="draft">Rascunhos</SelectItem>
-                  <SelectItem value="published">Publicados</SelectItem>
-                  <SelectItem value="with-content">Com conteúdo</SelectItem>
-                  <SelectItem value="without-content">Sem conteúdo</SelectItem>
-                </SelectContent>
-              </Select>
+              <DashboardLightSelect
+                ariaLabel="Filtrar estrutura"
+                value={filterMode}
+                options={filterOptions}
+                onValueChange={(value) => onFilterModeChange(value as ChapterFilterMode)}
+              />
             </div>
             <div className="space-y-3" data-testid="chapter-structure-intro-row">
               <p
@@ -224,7 +223,7 @@ export const ChapterEditorStructureSection = ({
                                 {group.hasMetadata ? "Metadados" : "Sem metadados"}
                               </Badge>
                               {pendingCount > 0 ? (
-                                <Badge variant="outline">Importação {pendingCount}</Badge>
+                                <Badge variant="outline">ImportaÃ§Ã£o {pendingCount}</Badge>
                               ) : null}
                             </div>
                           </div>
@@ -325,7 +324,7 @@ export const ChapterEditorStructureSection = ({
                                     </p>
                                   </div>
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <Badge variant="outline">Importação</Badge>
+                                    <Badge variant="outline">ImportaÃ§Ã£o</Badge>
                                     <Badge
                                       variant={
                                         chapter.publicationStatus === "draft" ? "outline" : "secondary"
@@ -434,10 +433,10 @@ export const ChapterEditorStructureSection = ({
                                     >
                                       <div className="min-w-0 space-y-1">
                                         <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                          Capítulo {episode.number}
+                                          CapÃ­tulo {episode.number}
                                         </p>
                                         <p className="line-clamp-2 text-sm font-semibold text-foreground">
-                                          {String(episode.title || "").trim() || `Capítulo ${episode.number}`}
+                                          {String(episode.title || "").trim() || `CapÃ­tulo ${episode.number}`}
                                         </p>
                                       </div>
                                       <Badge
@@ -549,6 +548,10 @@ export const ChapterEditorStructureSection = ({
       </AccordionContent>
     </AccordionItem>
   </Accordion>
-);
+));
+
+ChapterEditorStructureSection.displayName = "ChapterEditorStructureSection";
 
 export default ChapterEditorStructureSection;
+
+

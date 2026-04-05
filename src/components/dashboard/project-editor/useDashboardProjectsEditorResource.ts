@@ -9,9 +9,7 @@ import {
   parseDashboardPageParam,
 } from "@/lib/dashboard-query-state";
 
-import type {
-  ProjectRecord,
-} from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
+import type { ProjectRecord } from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import { DEFAULT_PROJECT_FORMAT_OPTIONS } from "@/components/dashboard/project-editor/project-editor-constants";
 import type { Dispatch, SetStateAction } from "react";
 
@@ -25,6 +23,23 @@ type DashboardProjectsPageCacheEntry = {
   genreTranslations: Record<string, string>;
   staffRoleTranslations: Record<string, string>;
   expiresAt: number;
+};
+
+type DashboardProjectsResourceState = {
+  projects: ProjectRecord[];
+  projectTypeOptions: string[];
+  memberDirectory: string[];
+  tagTranslations: Record<string, string>;
+  genreTranslations: Record<string, string>;
+  staffRoleTranslations: Record<string, string>;
+  isInitialLoading: boolean;
+  isRefreshing: boolean;
+  hasLoadedOnce: boolean;
+  hasResolvedProjects: boolean;
+  hasResolvedProjectTypes: boolean;
+  hasResolvedMemberDirectory: boolean;
+  hasResolvedTranslations: boolean;
+  hasLoadError: boolean;
 };
 
 const PROJECTS_PAGE_CACHE_TTL_MS = 60_000;
@@ -51,7 +66,9 @@ export const readProjectsPageCache = () => {
   return cloneProjectsPageCache(projectsPageCache);
 };
 
-export const writeProjectsPageCache = (value: Omit<DashboardProjectsPageCacheEntry, "expiresAt">) => {
+export const writeProjectsPageCache = (
+  value: Omit<DashboardProjectsPageCacheEntry, "expiresAt">,
+) => {
   projectsPageCache = {
     ...cloneProjectsPageCache(value),
     expiresAt: Date.now() + PROJECTS_PAGE_CACHE_TTL_MS,
@@ -69,6 +86,28 @@ const parseTypeParam = (value: string | null) => {
   }
   return normalized;
 };
+
+const resolveNextStateValue = <T>(updater: SetStateAction<T>, previousValue: T): T =>
+  typeof updater === "function" ? (updater as (previousValue: T) => T)(previousValue) : updater;
+
+const buildInitialResourceState = (
+  cached: ReturnType<typeof readProjectsPageCache>,
+): DashboardProjectsResourceState => ({
+  projects: cached?.projects ?? [],
+  projectTypeOptions: cached?.projectTypeOptions ?? defaultFormatOptions,
+  memberDirectory: cached?.memberDirectory ?? [],
+  tagTranslations: cached?.tagTranslations ?? {},
+  genreTranslations: cached?.genreTranslations ?? {},
+  staffRoleTranslations: cached?.staffRoleTranslations ?? {},
+  isInitialLoading: !cached,
+  isRefreshing: Boolean(cached),
+  hasLoadedOnce: Boolean(cached),
+  hasResolvedProjects: Boolean(cached),
+  hasResolvedProjectTypes: Boolean(cached),
+  hasResolvedMemberDirectory: Boolean(cached),
+  hasResolvedTranslations: Boolean(cached),
+  hasLoadError: false,
+});
 
 type SortMode = "alpha" | "status" | "views" | "comments" | "recent";
 const SORT_MODES = ["alpha", "status", "views", "comments", "recent"] as const;
@@ -105,41 +144,14 @@ export type UseDashboardProjectsEditorResourceResult = {
   tagTranslations: Record<string, string>;
 };
 
-export function useDashboardProjectsEditorResource(apiBase: string): UseDashboardProjectsEditorResourceResult {
+export function useDashboardProjectsEditorResource(
+  apiBase: string,
+): UseDashboardProjectsEditorResourceResult {
   const initialCacheRef = useRef(readProjectsPageCache());
   const [searchParams, setSearchParams] = useSearchParams();
-  const [projects, setProjects] = useState<ProjectRecord[]>(
-    initialCacheRef.current?.projects ?? [],
+  const [resourceState, setResourceState] = useState<DashboardProjectsResourceState>(() =>
+    buildInitialResourceState(initialCacheRef.current),
   );
-  const [projectTypeOptions, setProjectTypeOptions] = useState<string[]>(
-    initialCacheRef.current?.projectTypeOptions ?? defaultFormatOptions,
-  );
-  const [memberDirectory, setMemberDirectory] = useState<string[]>(
-    initialCacheRef.current?.memberDirectory ?? [],
-  );
-  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
-    initialCacheRef.current?.tagTranslations ?? {},
-  );
-  const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>(
-    initialCacheRef.current?.genreTranslations ?? {},
-  );
-  const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>(
-    initialCacheRef.current?.staffRoleTranslations ?? {},
-  );
-  const [isInitialLoading, setIsInitialLoading] = useState(!initialCacheRef.current);
-  const [isRefreshing, setIsRefreshing] = useState(Boolean(initialCacheRef.current));
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(Boolean(initialCacheRef.current));
-  const [hasResolvedProjects, setHasResolvedProjects] = useState(Boolean(initialCacheRef.current));
-  const [hasResolvedProjectTypes, setHasResolvedProjectTypes] = useState(
-    Boolean(initialCacheRef.current),
-  );
-  const [hasResolvedMemberDirectory, setHasResolvedMemberDirectory] = useState(
-    Boolean(initialCacheRef.current),
-  );
-  const [hasResolvedTranslations, setHasResolvedTranslations] = useState(
-    Boolean(initialCacheRef.current),
-  );
-  const [hasLoadError, setHasLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
   const [sortMode, setSortMode] = useState<SortMode>(() => {
     return parseDashboardEnumParam(searchParams.get("sort"), SORT_MODES, "alpha");
@@ -148,7 +160,7 @@ export function useDashboardProjectsEditorResource(apiBase: string): UseDashboar
     parseDashboardPageParam(searchParams.get("page")),
   );
   const [selectedType, setSelectedType] = useState(() => parseTypeParam(searchParams.get("type")));
-  const hasLoadedOnceRef = useRef(hasLoadedOnce);
+  const hasLoadedOnceRef = useRef(resourceState.hasLoadedOnce);
   const isApplyingSearchParamsRef = useRef(false);
   const queryStateRef = useRef({
     sortMode,
@@ -157,9 +169,60 @@ export function useDashboardProjectsEditorResource(apiBase: string): UseDashboar
   });
   const requestIdRef = useRef(0);
 
+  const setProjects = useCallback<Dispatch<SetStateAction<ProjectRecord[]>>>((updater) => {
+    setResourceState((previousState) => ({
+      ...previousState,
+      projects: resolveNextStateValue(updater, previousState.projects),
+    }));
+  }, []);
+
+  const setProjectTypeOptions = useCallback<Dispatch<SetStateAction<string[]>>>((updater) => {
+    setResourceState((previousState) => ({
+      ...previousState,
+      projectTypeOptions: resolveNextStateValue(updater, previousState.projectTypeOptions),
+    }));
+  }, []);
+
+  const setMemberDirectory = useCallback<Dispatch<SetStateAction<string[]>>>((updater) => {
+    setResourceState((previousState) => ({
+      ...previousState,
+      memberDirectory: resolveNextStateValue(updater, previousState.memberDirectory),
+    }));
+  }, []);
+
+  const setTagTranslations = useCallback<Dispatch<SetStateAction<Record<string, string>>>>(
+    (updater) => {
+      setResourceState((previousState) => ({
+        ...previousState,
+        tagTranslations: resolveNextStateValue(updater, previousState.tagTranslations),
+      }));
+    },
+    [],
+  );
+
+  const setGenreTranslations = useCallback<Dispatch<SetStateAction<Record<string, string>>>>(
+    (updater) => {
+      setResourceState((previousState) => ({
+        ...previousState,
+        genreTranslations: resolveNextStateValue(updater, previousState.genreTranslations),
+      }));
+    },
+    [],
+  );
+
+  const setStaffRoleTranslations = useCallback<Dispatch<SetStateAction<Record<string, string>>>>(
+    (updater) => {
+      setResourceState((previousState) => ({
+        ...previousState,
+        staffRoleTranslations: resolveNextStateValue(updater, previousState.staffRoleTranslations),
+      }));
+    },
+    [],
+  );
+
   useEffect(() => {
-    hasLoadedOnceRef.current = hasLoadedOnce;
-  }, [hasLoadedOnce]);
+    hasLoadedOnceRef.current = resourceState.hasLoadedOnce;
+  }, [resourceState.hasLoadedOnce]);
 
   useEffect(() => {
     queryStateRef.current = {
@@ -214,137 +277,158 @@ export function useDashboardProjectsEditorResource(apiBase: string): UseDashboar
 
   useEffect(() => {
     let isActive = true;
+
     const load = async () => {
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
-      const background = hasLoadedOnceRef.current;
       const cached = initialCacheRef.current;
+      const hasWarmState = hasLoadedOnceRef.current;
 
-      setHasLoadError(false);
-      if (background) {
-        setIsRefreshing(true);
-      } else {
-        setIsInitialLoading(true);
-        setHasResolvedProjects(false);
-      }
-      if (!cached) {
-        setHasResolvedProjectTypes(false);
-        setHasResolvedMemberDirectory(false);
-        setHasResolvedTranslations(false);
-      }
+      setResourceState((previousState) => ({
+        ...previousState,
+        hasLoadError: false,
+        isRefreshing: hasWarmState,
+        isInitialLoading: !hasWarmState,
+        hasResolvedProjects: hasWarmState ? previousState.hasResolvedProjects : false,
+        hasResolvedProjectTypes: cached ? previousState.hasResolvedProjectTypes : false,
+        hasResolvedMemberDirectory: cached ? previousState.hasResolvedMemberDirectory : false,
+        hasResolvedTranslations: cached ? previousState.hasResolvedTranslations : false,
+      }));
 
       try {
-        const projectsResponse = await apiFetch(apiBase, "/api/projects", { auth: true });
-        if (!projectsResponse.ok) {
-          throw new Error("projects_load_failed");
-        }
-        const projectsData = await projectsResponse.json();
-        const nextProjects = Array.isArray(projectsData.projects) ? projectsData.projects : [];
+        const [projectsResult, projectTypesResult, usersResult, translationsResult] =
+          await Promise.allSettled([
+            apiFetch(apiBase, "/api/projects", { auth: true }),
+            apiFetch(apiBase, "/api/project-types", {
+              auth: true,
+              cache: "no-store",
+            }),
+            apiFetch(apiBase, "/api/users", { auth: true }),
+            apiFetch(apiBase, "/api/public/tag-translations", {
+              cache: "no-store",
+            }),
+          ]);
+
         if (!isActive || requestIdRef.current !== requestId) {
           return;
         }
 
-        setProjects(nextProjects);
-        setHasResolvedProjects(true);
-        setHasLoadedOnce(true);
-        setHasLoadError(false);
+        if (projectsResult.status !== "fulfilled" || !projectsResult.value.ok) {
+          throw new Error("projects_load_failed");
+        }
 
-        const projectTypesPromise = apiFetch(apiBase, "/api/project-types", {
-          auth: true,
-          cache: "no-store",
-        });
-        const usersPromise = apiFetch(apiBase, "/api/users", { auth: true });
-        const translationsPromise = apiFetch(apiBase, "/api/public/tag-translations", {
-          cache: "no-store",
-        });
-
-        const [projectTypesResult, usersResult, translationsResult] = await Promise.allSettled([
-          projectTypesPromise,
-          usersPromise,
-          translationsPromise,
+        const [projectsData, projectTypesData, usersData, translationsData] = await Promise.all([
+          projectsResult.value.json(),
+          projectTypesResult.status === "fulfilled" && projectTypesResult.value.ok
+            ? projectTypesResult.value.json()
+            : Promise.resolve(null),
+          usersResult.status === "fulfilled" && usersResult.value.ok
+            ? usersResult.value.json()
+            : Promise.resolve(null),
+          translationsResult.status === "fulfilled" && translationsResult.value.ok
+            ? translationsResult.value.json()
+            : Promise.resolve(null),
         ]);
 
         if (!isActive || requestIdRef.current !== requestId) {
           return;
         }
 
-        let nextProjectTypeOptions = defaultFormatOptions;
-        if (projectTypesResult.status === "fulfilled" && projectTypesResult.value.ok) {
-          const data = await projectTypesResult.value.json();
-          const remoteTypes = Array.isArray(data?.types)
-            ? data.types.map((item: unknown) => String(item || "").trim()).filter(Boolean)
-            : [];
-          const uniqueTypes = Array.from(new Set([...remoteTypes, ...defaultFormatOptions]));
-          nextProjectTypeOptions = uniqueTypes.length > 0 ? uniqueTypes : defaultFormatOptions;
-        }
-        setProjectTypeOptions(nextProjectTypeOptions);
-        setHasResolvedProjectTypes(true);
+        const nextProjects = Array.isArray(projectsData?.projects) ? projectsData.projects : [];
+        const remoteTypes = Array.isArray(projectTypesData?.types)
+          ? projectTypesData.types.map((item: unknown) => String(item || "").trim()).filter(Boolean)
+          : [];
+        const nextProjectTypeOptions = Array.from(
+          new Set([...remoteTypes, ...defaultFormatOptions]),
+        );
+        const nextMemberDirectory = Array.isArray(usersData?.users)
+          ? Array.from(
+              new Set(
+                usersData.users
+                  .filter((user: { name?: string; status?: string }) => user.status === "active")
+                  .map((user: { name?: string }) => user.name)
+                  .filter((name: string | undefined): name is string => Boolean(name)),
+              ),
+            ).sort((left, right) => left.localeCompare(right, "pt-BR"))
+          : [];
+        const nextTagTranslations =
+          translationsData && typeof translationsData.tags === "object" && translationsData.tags
+            ? (translationsData.tags as Record<string, string>)
+            : {};
+        const nextGenreTranslations =
+          translationsData && typeof translationsData.genres === "object" && translationsData.genres
+            ? (translationsData.genres as Record<string, string>)
+            : {};
+        const nextStaffRoleTranslations =
+          translationsData &&
+          typeof translationsData.staffRoles === "object" &&
+          translationsData.staffRoles
+            ? (translationsData.staffRoles as Record<string, string>)
+            : {};
 
-        let nextMemberDirectory: string[] = [];
-        if (usersResult.status === "fulfilled" && usersResult.value.ok) {
-          const data = (await usersResult.value.json()) as {
-            users?: Array<{ name?: string; status?: string }>;
-          };
-          const names = Array.isArray(data.users)
-            ? data.users
-                .filter((user) => user.status === "active")
-                .map((user) => user.name)
-                .filter((name): name is string => Boolean(name))
-            : [];
-          nextMemberDirectory = Array.from(new Set(names)).sort((a, b) =>
-            a.localeCompare(b, "pt-BR"),
-          );
-        }
-        setMemberDirectory(nextMemberDirectory);
-        setHasResolvedMemberDirectory(true);
-
-        let nextTagTranslations: Record<string, string> = {};
-        let nextGenreTranslations: Record<string, string> = {};
-        let nextStaffRoleTranslations: Record<string, string> = {};
-        if (translationsResult.status === "fulfilled" && translationsResult.value.ok) {
-          const data = await translationsResult.value.json();
-          nextTagTranslations = data?.tags || {};
-          nextGenreTranslations = data?.genres || {};
-          nextStaffRoleTranslations = data?.staffRoles || {};
-        }
-        setTagTranslations(nextTagTranslations);
-        setGenreTranslations(nextGenreTranslations);
-        setStaffRoleTranslations(nextStaffRoleTranslations);
-        setHasResolvedTranslations(true);
-
-        writeProjectsPageCache({
+        setResourceState((previousState) => ({
+          ...previousState,
           projects: nextProjects,
-          projectTypeOptions: nextProjectTypeOptions,
+          projectTypeOptions:
+            nextProjectTypeOptions.length > 0 ? nextProjectTypeOptions : defaultFormatOptions,
           memberDirectory: nextMemberDirectory,
           tagTranslations: nextTagTranslations,
           genreTranslations: nextGenreTranslations,
           staffRoleTranslations: nextStaffRoleTranslations,
-        });
+          isInitialLoading: false,
+          isRefreshing: false,
+          hasLoadedOnce: true,
+          hasResolvedProjects: true,
+          hasResolvedProjectTypes: true,
+          hasResolvedMemberDirectory: true,
+          hasResolvedTranslations: true,
+          hasLoadError: false,
+        }));
+
+        const cacheValue = {
+          projects: nextProjects,
+          projectTypeOptions:
+            nextProjectTypeOptions.length > 0 ? nextProjectTypeOptions : defaultFormatOptions,
+          memberDirectory: nextMemberDirectory,
+          tagTranslations: nextTagTranslations,
+          genreTranslations: nextGenreTranslations,
+          staffRoleTranslations: nextStaffRoleTranslations,
+        };
+
+        initialCacheRef.current = cacheValue;
+        writeProjectsPageCache(cacheValue);
       } catch {
-        if (isActive && requestIdRef.current === requestId) {
-          if (!hasLoadedOnceRef.current) {
-            setProjects([]);
-            setProjectTypeOptions(defaultFormatOptions);
-            setMemberDirectory([]);
-            setTagTranslations({});
-            setGenreTranslations({});
-            setStaffRoleTranslations({});
-            setHasResolvedProjectTypes(false);
-            setHasResolvedMemberDirectory(false);
-            setHasResolvedTranslations(false);
-          }
-          setHasLoadError(true);
+        if (!isActive || requestIdRef.current !== requestId) {
+          return;
         }
-      } finally {
-        if (isActive && requestIdRef.current === requestId) {
-          setIsInitialLoading(false);
-          setIsRefreshing(false);
-          if (cached) {
-            setHasResolvedProjectTypes(true);
-            setHasResolvedMemberDirectory(true);
-            setHasResolvedTranslations(true);
+
+        setResourceState((previousState) => {
+          if (hasLoadedOnceRef.current) {
+            return {
+              ...previousState,
+              isInitialLoading: false,
+              isRefreshing: false,
+              hasLoadError: true,
+            };
           }
-        }
+
+          return {
+            ...previousState,
+            projects: [],
+            projectTypeOptions: defaultFormatOptions,
+            memberDirectory: [],
+            tagTranslations: {},
+            genreTranslations: {},
+            staffRoleTranslations: {},
+            isInitialLoading: false,
+            isRefreshing: false,
+            hasResolvedProjects: false,
+            hasResolvedProjectTypes: false,
+            hasResolvedMemberDirectory: false,
+            hasResolvedTranslations: false,
+            hasLoadError: true,
+          };
+        });
       }
     };
 
@@ -356,18 +440,18 @@ export function useDashboardProjectsEditorResource(apiBase: string): UseDashboar
 
   return {
     currentPage,
-    genreTranslations,
-    hasLoadError,
-    hasLoadedOnce,
-    hasResolvedMemberDirectory,
-    hasResolvedProjectTypes,
-    hasResolvedProjects,
-    hasResolvedTranslations,
-    isInitialLoading,
-    isRefreshing,
-    memberDirectory,
-    projectTypeOptions,
-    projects,
+    genreTranslations: resourceState.genreTranslations,
+    hasLoadError: resourceState.hasLoadError,
+    hasLoadedOnce: resourceState.hasLoadedOnce,
+    hasResolvedMemberDirectory: resourceState.hasResolvedMemberDirectory,
+    hasResolvedProjectTypes: resourceState.hasResolvedProjectTypes,
+    hasResolvedProjects: resourceState.hasResolvedProjects,
+    hasResolvedTranslations: resourceState.hasResolvedTranslations,
+    isInitialLoading: resourceState.isInitialLoading,
+    isRefreshing: resourceState.isRefreshing,
+    memberDirectory: resourceState.memberDirectory,
+    projectTypeOptions: resourceState.projectTypeOptions,
+    projects: resourceState.projects,
     refreshProjects,
     searchParams,
     selectedType,
@@ -382,7 +466,7 @@ export function useDashboardProjectsEditorResource(apiBase: string): UseDashboar
     setStaffRoleTranslations,
     setTagTranslations,
     sortMode,
-    staffRoleTranslations,
-    tagTranslations,
+    staffRoleTranslations: resourceState.staffRoleTranslations,
+    tagTranslations: resourceState.tagTranslations,
   };
 }

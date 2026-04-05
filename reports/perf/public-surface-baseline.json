@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "acceptedAt": null,
+  "sourceGeneratedAt": null,
+  "routeOrder": [
+    "home-mobile",
+    "projects-mobile",
+    "projects-desktop",
+    "reader-post-mobile",
+    "reader-chapter-mobile"
+  ],
+  "categoryIds": [
+    "performance",
+    "accessibility",
+    "best-practices",
+    "seo"
+  ],
+  "metricAuditIds": [
+    "first-contentful-paint",
+    "largest-contentful-paint",
+    "total-blocking-time",
+    "cumulative-layout-shift",
+    "speed-index",
+    "interaction-to-next-paint"
+  ],
+  "comparisonThresholds": {
+    "performanceScoreDrop": 0.03,
+    "largest-contentful-paint": 200,
+    "total-blocking-time": 50,
+    "cumulative-layout-shift": 0.02
+  },
+  "routes": {},
+  "notes": [
+    "Run `npm run lighthouse:public-surface:ci` and then `npm run lighthouse:public-surface:accept` to accept the first stable baseline."
+  ]
+}

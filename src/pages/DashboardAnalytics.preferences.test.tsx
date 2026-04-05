@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import DashboardAnalytics from "@/pages/DashboardAnalytics";
+import DashboardAnalytics, { __testing as analyticsTesting } from "@/pages/DashboardAnalytics";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 
@@ -17,6 +17,10 @@ vi.mock("@/lib/api-client", () => ({
 
 vi.mock("@/hooks/use-page-meta", () => ({
   usePageMeta: () => undefined,
+}));
+
+vi.mock("@/hooks/use-dashboard-refresh-toast", () => ({
+  useDashboardRefreshToast: () => undefined,
 }));
 
 vi.mock("@/components/DashboardShell", () => ({
@@ -129,6 +133,7 @@ const NavigateCleanQuery = () => {
 describe("DashboardAnalytics query sync", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
+    analyticsTesting.clearAnalyticsCache();
   });
 
   it("usa defaults quando URL inicial esta limpa", async () => {

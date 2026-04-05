@@ -188,7 +188,7 @@ describe("Post reader layout", () => {
     const coverFrameClasses = classTokens(coverFrame);
     expect(coverFrameClasses).toContain("aspect-3/2");
     expect(coverFrameClasses).toContain("border-border/80");
-    expect(coverFrameClasses).toContain("shadow-[0_42px_120px_-48px_rgba(0,0,0,0.95)]");
+    expect(Array.from(coverFrameClasses).some((token) => token.startsWith("shadow-"))).toBe(false);
 
     const readerLayoutClasses = classTokens(readerLayout);
     expect(readerLayoutClasses).not.toContain("lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]");

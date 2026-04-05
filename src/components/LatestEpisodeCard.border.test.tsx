@@ -114,14 +114,18 @@ describe("LatestEpisodeCard border styles", () => {
 
     updateLinks.forEach((link) => {
       expect(link).toHaveClass("recent-updates-item");
+      expect(link).toHaveClass("flex");
       expect(link).toHaveClass("overflow-hidden");
       expect(link).not.toHaveClass("border", "border-transparent");
+      expect(link).not.toHaveClass("relative");
+      expect(link).not.toHaveClass("block");
       expect(link).toHaveClass("hover:-translate-y-1");
       expect(link).not.toHaveClass("border-border/60");
       expect(link).toHaveClass("hover:border-primary/60");
     });
 
     const firstUpdateLink = updateLinks[0];
+    expect(firstUpdateLink.querySelector("div.absolute")).toBeNull();
     const badgesRow = firstUpdateLink.querySelector("div.no-scrollbar");
     expect(badgesRow).not.toBeNull();
     expect(badgesRow).toHaveClass("flex-nowrap");
@@ -166,6 +170,7 @@ describe("LatestEpisodeCard border styles", () => {
     const coverImage = await screen.findByRole("img", { name: "Projeto Alpha" });
     const coverPicture = coverImage.parentElement;
     const coverWrapper = coverPicture?.parentElement;
+    const updateLink = coverWrapper?.parentElement;
     const sources = Array.from(container.querySelectorAll("source"));
 
     expect(sources).toHaveLength(4);
@@ -182,9 +187,15 @@ describe("LatestEpisodeCard border styles", () => {
       expect.stringContaining("/uploads/_variants/u1/posterThumb-v1.jpeg"),
     );
     expect(coverWrapper).not.toBeNull();
+    expect(updateLink).not.toBeNull();
+    expect(updateLink?.firstElementChild).toBe(coverWrapper);
+    expect(updateLink?.querySelector("div.absolute")).toBeNull();
     expect(coverWrapper).toHaveClass("h-full");
+    expect(coverWrapper).toHaveClass("shrink-0");
     expect(coverWrapper).not.toHaveClass("aspect-46/65");
+    expect(coverWrapper).not.toHaveClass("rounded-xl");
     expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
+    expect(coverWrapper?.style.width).toBe("calc(var(--card-h) * 9 / 14)");
   });
 
   it("oculta badges de unidade e volume no mobile mesmo para unidade Extra", async () => {

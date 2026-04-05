@@ -370,14 +370,14 @@ describe("Dashboard overview async states", () => {
     await screen.findByRole("heading", { name: /Painel de controle da comunidade/i });
 
     expect(await screen.findByText("Degradado")).toHaveClass(
-      "bg-amber-500/20",
-      "text-amber-900",
-      "dark:text-amber-200",
+      "border-[hsl(var(--badge-warning-border))]",
+      "bg-[hsl(var(--badge-warning-bg))]",
+      "text-[hsl(var(--badge-warning-fg))]",
     );
     expect(screen.getByText(/Cr.*tico/i)).toHaveClass(
-      "bg-red-500/20",
-      "text-red-800",
-      "dark:text-red-200",
+      "border-[hsl(var(--badge-danger-border))]",
+      "bg-[hsl(var(--badge-danger-bg))]",
+      "text-[hsl(var(--badge-danger-fg))]",
     );
   });
 

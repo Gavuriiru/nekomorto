@@ -6,6 +6,7 @@ import PublicProjectReader from "@/components/project-reader/PublicProjectReader
 
 const useProjectReaderPreferencesMock = vi.hoisted(() => vi.fn());
 const updateConfigMock = vi.hoisted(() => vi.fn());
+const toastMock = vi.hoisted(() => vi.fn());
 const MENU_TRIGGER_INITIAL_VISIBLE_MS = 5000;
 const MENU_TRIGGER_HIDE_DELAY_MS = 180;
 const MENU_TRIGGER_EXIT_TRANSITION_MS = 320;
@@ -15,6 +16,7 @@ const CONTINUOUS_PAGE_STEP_DURATION_MS = 180;
 const HORIZONTAL_PAGE_URL_SYNC_SETTLE_MS = 220;
 const KEYBOARD_PAGE_HOLD_START_DELAY_MS = 250;
 const KEYBOARD_PAGE_HOLD_REPEAT_MS = 120;
+const READER_MENU_HINT_STORAGE_KEY = "public.reader.menuHintSeen";
 const originalImage = globalThis.Image;
 
 type MockReaderImageController = {
@@ -122,6 +124,10 @@ vi.mock("@/components/project-reader/use-project-reader-preferences", () => ({
   useProjectReaderPreferences: (...args: unknown[]) => useProjectReaderPreferencesMock(...args),
 }));
 
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: (...args: unknown[]) => toastMock(...args),
+}));
+
 const baseProps = {
   projectTitle: "Projeto Teste",
   projectType: "manga",
@@ -152,7 +158,12 @@ const baseProps = {
   backHref: "/projeto/projeto-teste",
 };
 
-const setReaderConfig = (config: Record<string, unknown>) => {
+const setReaderConfig = (
+  config: Record<string, unknown>,
+  options: {
+    isLoaded?: boolean;
+  } = {},
+) => {
   updateConfigMock.mockReset();
   const siteHeaderVariant =
     config.siteHeaderVariant === "static"
@@ -163,7 +174,7 @@ const setReaderConfig = (config: Record<string, unknown>) => {
           : "static"
         : "fixed";
   useProjectReaderPreferencesMock.mockReturnValue({
-    isLoaded: true,
+    isLoaded: options.isLoaded ?? true,
     resolvedConfig: {
       direction: "rtl",
       layout: "single",
@@ -243,6 +254,9 @@ const renderReader = (
   } = {},
   options: {
     initialEntries?: string[];
+    readerState?: {
+      isLoaded?: boolean;
+    };
   } = {},
 ) => {
   const nextConfig = { ...config };
@@ -258,7 +272,7 @@ const renderReader = (
     delete nextProps.viewportMode;
   }
 
-  setReaderConfig(nextConfig);
+  setReaderConfig(nextConfig, options.readerState);
 
   return render(
     <MemoryRouter initialEntries={options.initialEntries}>
@@ -763,11 +777,14 @@ describe("PublicProjectReader", () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     globalThis.Image = originalImage;
+    window.localStorage.clear();
   });
 
   beforeEach(() => {
     resetMockReaderImages();
     useProjectReaderPreferencesMock.mockReset();
+    toastMock.mockReset();
+    window.localStorage.clear();
     vi.stubGlobal("Image", MockReaderImage as unknown as typeof Image);
     HTMLElement.prototype.scrollIntoView = vi.fn();
     Object.defineProperty(window, "innerWidth", {
@@ -813,6 +830,39 @@ describe("PublicProjectReader", () => {
       writable: true,
       value: undefined,
     });
+  });
+
+  it("shows the reader menu toast only after preferences finish loading", async () => {
+    const nextConfig = { imageFit: "both" };
+    const view = renderReader(nextConfig, {}, { readerState: { isLoaded: false } });
+
+    expect(toastMock).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(READER_MENU_HINT_STORAGE_KEY)).toBeNull();
+
+    setReaderConfig(nextConfig, { isLoaded: true });
+    view.rerender(
+      <MemoryRouter>
+        <PublicProjectReader {...baseProps} />
+        <ReaderLocationProbe />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith({
+        title: "O menu está disponível no canto do leitor.",
+        intent: "info",
+      });
+    });
+    expect(toastMock).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem(READER_MENU_HINT_STORAGE_KEY)).toBe("1");
+  });
+
+  it("does not show the reader menu toast again when the local hint sentinel already exists", () => {
+    window.localStorage.setItem(READER_MENU_HINT_STORAGE_KEY, "1");
+
+    renderReader({ imageFit: "both" });
+
+    expect(toastMock).not.toHaveBeenCalled();
   });
 
   it("does not clip the stage and keeps no-limit free from full-width wrappers", async () => {
@@ -4579,6 +4629,48 @@ describe("PublicProjectReader", () => {
     await waitFor(() => {
       expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
     });
+  });
+
+  it("applies the reader nav variants to previous and next chapter menu actions", async () => {
+    renderReader(
+      { imageFit: "both" },
+      {
+        chapterOptions: [
+          {
+            value: "1",
+            label: "Capitulo 1",
+            href: "/projeto/projeto-teste/leitura/1",
+          },
+          {
+            value: "2",
+            label: "Capitulo 2",
+            href: "/projeto/projeto-teste/leitura/2",
+          },
+          {
+            value: "3",
+            label: "Capitulo 3",
+            href: "/projeto/projeto-teste/leitura/3",
+          },
+        ],
+        currentChapterValue: "2",
+      },
+      { initialEntries: ["/projeto/projeto-teste/leitura/2"] },
+    );
+
+    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
+    const sidebar = await screen.findByTestId("project-reader-sidebar");
+    const previousButton = within(sidebar).getByRole("button", {
+      name: /Cap.tulo anterior/i,
+    });
+    const nextButton = within(sidebar).getByRole("button", {
+      name: /Pr.ximo cap.tulo/i,
+    });
+
+    expect(previousButton).toHaveClass(
+      "project-reading-nav-btn",
+      "project-reading-nav-btn--secondary",
+    );
+    expect(nextButton).toHaveClass("project-reading-nav-btn", "project-reading-nav-btn--next");
   });
 
   it("closes the menu after using previous and next chapter actions", async () => {

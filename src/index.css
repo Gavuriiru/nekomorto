@@ -208,6 +208,22 @@
     --input: 220 10% 16%;
     --ring: 263 72% 70%;
 
+    --badge-success-bg: 158 62% 24%;
+    --badge-success-fg: 0 0% 98%;
+    --badge-success-border: 158 74% 42%;
+    --badge-warning-bg: 44 92% 54%;
+    --badge-warning-fg: 30 100% 10%;
+    --badge-warning-border: 40 94% 40%;
+    --badge-danger-bg: 0 68% 38%;
+    --badge-danger-fg: 0 0% 98%;
+    --badge-danger-border: 0 78% 58%;
+    --badge-info-bg: 210 86% 40%;
+    --badge-info-fg: 0 0% 98%;
+    --badge-info-border: 210 92% 60%;
+    --badge-neutral-bg: 220 14% 34%;
+    --badge-neutral-fg: 0 0% 98%;
+    --badge-neutral-border: 220 18% 52%;
+
     --radius: 0.75rem;
 
     /* Custom gradients */
@@ -288,6 +304,22 @@
     --border: 216 24% 76%;
     --input: 216 24% 88%;
     --ring: 263 70% 44%;
+
+    --badge-success-bg: 149 80% 90%;
+    --badge-success-fg: 158 84% 20%;
+    --badge-success-border: 158 90% 16%;
+    --badge-warning-bg: 48 96% 89%;
+    --badge-warning-fg: 30 100% 10%;
+    --badge-warning-border: 38 92% 28%;
+    --badge-danger-bg: 0 93% 94%;
+    --badge-danger-fg: 0 72% 36%;
+    --badge-danger-border: 0 78% 28%;
+    --badge-info-bg: 204 94% 94%;
+    --badge-info-fg: 210 92% 32%;
+    --badge-info-border: 210 94% 24%;
+    --badge-neutral-bg: 210 40% 96%;
+    --badge-neutral-fg: 220 18% 24%;
+    --badge-neutral-border: 220 20% 16%;
 
     --gradient-hero: linear-gradient(
       180deg,

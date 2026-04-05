@@ -72,6 +72,11 @@ const getUtcDayKeyFromOffset = (offsetDays: number) => {
   return day.toISOString().slice(0, 10);
 };
 
+const classTokens = (element: HTMLElement) =>
+  String(element.className)
+    .split(/\s+/)
+    .filter(Boolean);
+
 describe("TopProjectsSection", () => {
   beforeEach(() => {
     usePublicBootstrapMock.mockReset();
@@ -191,9 +196,28 @@ describe("TopProjectsSection", () => {
     expect(String(list.getAttribute("style") || "")).toContain("--top-card-h: 164px");
     expect(String(list.getAttribute("style") || "")).toContain("--top-gap: 12px");
     const firstItem = screen.getByTestId("top-project-item-1");
-    expect(firstItem).toHaveClass("h-(--top-card-h)", "rounded-2xl");
+    expect(firstItem).toHaveClass("h-(--top-card-h)", "rounded-2xl", "flex", "overflow-hidden");
     expect(firstItem).toHaveClass("hover:-translate-y-1");
     expect(firstItem).toHaveClass("hover:border-primary/60");
+    const firstCoverImage = screen.getByAltText("Projeto 12");
+    const firstCoverPicture = firstCoverImage.parentElement as HTMLElement | null;
+    const firstCoverShell = firstCoverPicture?.parentElement as HTMLElement | null;
+    expect(firstCoverPicture).not.toBeNull();
+    expect(firstCoverShell).not.toBeNull();
+    expect(firstItem.firstElementChild).toBe(firstCoverShell);
+    expect(classTokens(firstCoverShell as HTMLElement)).toContain("h-full");
+    expect(classTokens(firstCoverShell as HTMLElement)).not.toContain("rounded-xl");
+    expect(classTokens(firstCoverShell as HTMLElement)).not.toContain("w-[4.5rem]");
+    expect(classTokens(firstCoverShell as HTMLElement)).not.toContain("sm:w-20");
+    expect(firstCoverShell?.style.width).toBe("calc(var(--top-card-h) * 9 / 14)");
+    expect(firstCoverShell?.style.aspectRatio).toBe("9 / 14");
+    const titleBlock = firstMetaRow.parentElement as HTMLElement | null;
+    expect(titleBlock).not.toBeNull();
+    expect(titleBlock).toHaveAttribute("data-synopsis-role", "title");
+    const synopsisColumn = titleBlock?.parentElement as HTMLElement | null;
+    expect(synopsisColumn).not.toBeNull();
+    expect(classTokens(synopsisColumn as HTMLElement)).toContain("p-[1.125rem]");
+    expect(classTokens(synopsisColumn as HTMLElement)).toContain("flex-1");
     const firstLink = headings[0].closest("a");
     expect(firstLink).toHaveClass("rounded-2xl");
   });

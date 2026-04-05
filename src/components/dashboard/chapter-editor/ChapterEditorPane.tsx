@@ -19,6 +19,7 @@ import {
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
+import DashboardLightSelect from "@/components/dashboard/DashboardLightSelect";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import { useChapterEditorLeaveGuard } from "@/components/dashboard/chapter-editor/useChapterEditorLeaveGuard";
 import ChapterEditorDialogs from "@/components/dashboard/chapter-editor/ChapterEditorDialogs";
@@ -870,8 +871,13 @@ const ChapterEditorPane = forwardRef<
             <DashboardFieldStack>
               {" "}
               <Label>Tipo de entrada</Label>{" "}
-              <Select
+              <DashboardLightSelect
+                ariaLabel="Tipo de entrada"
                 value={draft.entryKind === "extra" ? "extra" : "main"}
+                options={[
+                  { value: "main", label: "Capítulo" },
+                  { value: "extra", label: "Extra" },
+                ]}
                 onValueChange={(value) =>
                   updateDraft((current) => {
                     const nextEntryKind = value === "extra" ? "extra" : "main";
@@ -886,18 +892,7 @@ const ChapterEditorPane = forwardRef<
                     };
                   })
                 }
-              >
-                {" "}
-                <SelectTrigger>
-                  {" "}
-                  <SelectValue placeholder="Tipo" />{" "}
-                </SelectTrigger>{" "}
-                <SelectContent>
-                  {" "}
-                  <SelectItem value="main">Capítulo</SelectItem>{" "}
-                  <SelectItem value="extra">Extra</SelectItem>{" "}
-                </SelectContent>{" "}
-              </Select>{" "}
+              />{" "}
             </DashboardFieldStack>{" "}
             {!isImageChapter && !supportsEpubTools ? (
               <DashboardFieldStack>
@@ -2163,3 +2158,4 @@ const ChapterEditorPane = forwardRef<
 );
 ChapterEditorPane.displayName = "ChapterEditorPane";
 export default ChapterEditorPane;
+

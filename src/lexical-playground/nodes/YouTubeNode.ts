@@ -19,59 +19,13 @@ import type {
 } from 'lexical';
 import type {JSX} from 'react';
 
-import {BlockWithAlignableContents} from '@lexical/react/LexicalBlockWithAlignableContents';
 import {
   DecoratorBlockNode,
   SerializedDecoratorBlockNode,
 } from '@lexical/react/LexicalDecoratorBlockNode';
 import * as React from 'react';
 
-type YouTubeComponentProps = Readonly<{
-  className: Readonly<{
-    base: string;
-    focus: string;
-  }>;
-  format: ElementFormatType | null;
-  nodeKey: NodeKey;
-  videoID: string;
-}>;
-
-function YouTubeComponent({
-  className,
-  format,
-  nodeKey,
-  videoID,
-}: YouTubeComponentProps) {
-  return (
-    <BlockWithAlignableContents
-      className={className}
-      format={format}
-      nodeKey={nodeKey}>
-      <div
-        className="lexical-youtube"
-        data-lexical-youtube-embed="true"
-        style={{display: 'block', width: '100%'}}>
-        <iframe
-          data-lexical-youtube-iframe="true"
-          width="560"
-          height="315"
-          src={`https://www.youtube-nocookie.com/embed/${videoID}`}
-          style={{
-            aspectRatio: '16 / 9',
-            border: 0,
-            display: 'block',
-            height: 'auto',
-            maxWidth: '100%',
-            width: '100%',
-          }}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen={true}
-          title="Video do YouTube"
-        />
-      </div>
-    </BlockWithAlignableContents>
-  );
-}
+import YouTubeComponent from './YouTubeComponent';
 
 export type SerializedYouTubeNode = Spread<
   {
@@ -174,14 +128,13 @@ export class YouTubeNode extends DecoratorBlockNode {
       base: embedBlockTheme.base || '',
       focus: embedBlockTheme.focus || '',
     };
-    return (
-      <YouTubeComponent
-        className={className}
-        format={this.__format}
-        nodeKey={this.getKey()}
-        videoID={this.__id}
-      />
-    );
+
+    return React.createElement(YouTubeComponent, {
+      className,
+      format: this.__format,
+      nodeKey: this.getKey(),
+      videoID: this.__id,
+    });
   }
 }
 

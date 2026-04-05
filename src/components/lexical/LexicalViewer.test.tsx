@@ -43,23 +43,53 @@ const INVALID_TOP_LEVEL_TEXT_STATE = JSON.stringify({
   },
 });
 
+const VALID_PARAGRAPH_STATE = JSON.stringify({
+  root: {
+    children: [
+      {
+        children: [
+          {
+            detail: 0,
+            format: 0,
+            mode: "normal",
+            style: "",
+            text: "texto valido",
+            type: "text",
+            version: 1,
+          },
+        ],
+        direction: null,
+        format: "",
+        indent: 0,
+        type: "paragraph",
+        version: 1,
+      },
+    ],
+    direction: null,
+    format: "",
+    indent: 0,
+    type: "root",
+    version: 1,
+  },
+});
+
 describe("LexicalViewer", () => {
   it("nao crasha com json invalido", () => {
     expect(() => render(<LexicalViewer value="{" />)).not.toThrow();
 
-    expect(screen.getByLabelText("Conteúdo")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Conte/i })).toBeInTheDocument();
   });
 
   it("nao crasha com root vazio", () => {
     expect(() => render(<LexicalViewer value={EMPTY_ROOT_STATE} />)).not.toThrow();
 
-    expect(screen.getByLabelText("Conteúdo")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Conte/i })).toBeInTheDocument();
   });
 
   it("nao crasha com estrutura invalida no topo", () => {
     expect(() => render(<LexicalViewer value={INVALID_TOP_LEVEL_TEXT_STATE} />)).not.toThrow();
 
-    expect(screen.getByLabelText("Conteúdo")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Conte/i })).toBeInTheDocument();
   });
 
   it("marca o wrapper do viewer sem perder classes externas", () => {
@@ -74,8 +104,24 @@ describe("LexicalViewer", () => {
   });
 
   it("usa aria-label explicito quando fornecido", () => {
-    render(<LexicalViewer value={EMPTY_ROOT_STATE} ariaLabel="Conteúdo de teste" />);
+    render(<LexicalViewer value={EMPTY_ROOT_STATE} ariaLabel="ConteÃºdo de teste" />);
 
-    expect(screen.getByLabelText("Conteúdo de teste")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /teste/i })).toBeInTheDocument();
+  });
+
+  it("prioriza o editorStateJson preparado quando fornecido", () => {
+    expect(() =>
+      render(<LexicalViewer value="{" editorStateJson={VALID_PARAGRAPH_STATE} />),
+    ).not.toThrow();
+
+    expect(screen.getByRole("textbox", { name: /Conte/i })).toBeInTheDocument();
+  });
+
+  it("faz fallback quando o editorStateJson preparado e invalido", () => {
+    expect(() =>
+      render(<LexicalViewer value={VALID_PARAGRAPH_STATE} editorStateJson="{" />),
+    ).not.toThrow();
+
+    expect(screen.getByRole("textbox", { name: /Conte/i })).toBeInTheDocument();
   });
 });

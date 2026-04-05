@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import UploadPicture from "@/components/UploadPicture";
 import { dashboardStrongSurfaceHoverClassName } from "@/components/dashboard/dashboard-page-tokens";
 import { Badge } from "@/components/ui/badge";
+import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import { cn } from "@/lib/utils";
@@ -76,7 +77,10 @@ const DashboardSearchPopover = ({
     <div
       ref={synopsisRootRef}
       data-testid="dashboard-header-results"
-      className="search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur-sm xl:left-auto xl:right-0 xl:mx-0 xl:w-80"
+      className={cn(
+        "search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 backdrop-blur-sm xl:left-auto xl:right-0 xl:mx-0 xl:w-80",
+        floatingSurfaceShadowClassName,
+      )}
     >
       {!hasMinimumSearchQueryLength ? (
         <p className="text-sm text-muted-foreground">{uiCopy.search.minimumPrompt}</p>

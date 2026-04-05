@@ -122,19 +122,19 @@ describe("DashboardAuditLog semantic badges", () => {
     expect(screen.getAllByText("login-1")).toHaveLength(1);
 
     expect(getStatusBadges("Sucesso")[0]).toHaveClass(
-      "bg-emerald-500/20",
-      "text-emerald-800",
-      "dark:text-emerald-200",
+      "border-[hsl(var(--badge-success-border))]",
+      "bg-[hsl(var(--badge-success-bg))]",
+      "text-[hsl(var(--badge-success-fg))]",
     );
     expect(getStatusBadges("Negado")[0]).toHaveClass(
-      "bg-amber-500/20",
-      "text-amber-900",
-      "dark:text-amber-200",
+      "border-[hsl(var(--badge-warning-border))]",
+      "bg-[hsl(var(--badge-warning-bg))]",
+      "text-[hsl(var(--badge-warning-fg))]",
     );
     expect(getStatusBadges("Falha")[0]).toHaveClass(
-      "bg-red-500/20",
-      "text-red-800",
-      "dark:text-red-200",
+      "border-[hsl(var(--badge-danger-border))]",
+      "bg-[hsl(var(--badge-danger-bg))]",
+      "text-[hsl(var(--badge-danger-fg))]",
     );
 
     fireEvent.click(screen.getAllByRole("button", { name: "Ver" })[0]);
@@ -144,7 +144,11 @@ describe("DashboardAuditLog semantic badges", () => {
     const successBadges = getStatusBadges("Sucesso");
     expect(successBadges).toHaveLength(2);
     successBadges.forEach((badge) => {
-      expect(badge).toHaveClass("bg-emerald-500/20", "text-emerald-800", "dark:text-emerald-200");
+      expect(badge).toHaveClass(
+        "border-[hsl(var(--badge-success-border))]",
+        "bg-[hsl(var(--badge-success-bg))]",
+        "text-[hsl(var(--badge-success-fg))]",
+      );
     });
   });
 });

@@ -19,6 +19,7 @@ coverage
 .turbo
 .parcel-cache
 .rollup.cache
+.lighthouse/
 *.local
 
 # Editor directories and files
@@ -54,4 +55,7 @@ ops/postgres/backups/
 # Local tooling / generated assets
 temp_block.txt
 public/uploads/
-/reports/
+/reports/*
+!/reports/perf/
+/reports/perf/*
+!/reports/perf/public-surface-baseline.json

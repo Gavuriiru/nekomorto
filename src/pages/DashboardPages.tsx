@@ -42,6 +42,13 @@ import {
   GripVertical,
   Plus,
   Trash2,
+  Coins,
+  Wallet,
+  BadgeDollarSign,
+  Landmark,
+  Banknote,
+  CircleDollarSign,
+  Bitcoin,
   Heart,
   Sparkles,
   Users,
@@ -81,14 +88,36 @@ import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePixQrCode } from "@/hooks/use-pix-qr-code";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import {
+  DEFAULT_DONATIONS_CRYPTO_ICON,
+  emptyDonationsCryptoService,
+  normalizeDonationsCryptoServices,
+} from "@/lib/donations-crypto";
+import {
+  finalizeMonthlyGoalAmountInput,
+  normalizeMonthlyGoalAmountInput,
+  sanitizeMonthlyGoalSupportersInput,
+} from "@/lib/donations-monthly-goal";
 import { getShareImageAltFallback, resolveAssetAltText } from "@/lib/image-alt";
 import { normalizeAssetUrl } from "@/lib/asset-url";
+import type { DonationsCryptoService } from "@/types/public-pages";
 
 type AboutHighlight = { label: string; text: string; icon: string };
 type AboutValue = { title: string; description: string; icon: string };
 type AboutPillar = { title: string; description: string; icon: string };
-type DonationsCost = { title: string; description: string; icon: string };
-type Donor = { name: string; amount: string; goal: string; date: string };
+type DashboardPagesEditorRecord = { _editorKey?: string };
+type DonationsCost = DashboardPagesEditorRecord & {
+  title: string;
+  description: string;
+  icon: string;
+};
+type Donor = DashboardPagesEditorRecord & {
+  name: string;
+  amount: string;
+  goal: string;
+  date: string;
+};
+type CryptoService = DonationsCryptoService & DashboardPagesEditorRecord;
 type FAQItem = { question: string; answer: string };
 type FAQGroup = { title: string; icon: string; items: FAQItem[] };
 type FAQIntro = { title: string; icon: string; text: string; note: string };
@@ -121,6 +150,13 @@ type PagesConfig = {
     reasonIcon: string;
     reasonText: string;
     reasonNote: string;
+    monthlyGoalRaised: string;
+    monthlyGoalTarget: string;
+    monthlyGoalSupporters: string;
+    monthlyGoalNote: string;
+    cryptoTitle: string;
+    cryptoSubtitle: string;
+    cryptoServices: CryptoService[];
     pixKey: string;
     pixNote: string;
     pixCity: string;
@@ -162,6 +198,13 @@ const iconOptions = [
   "Zap",
   "Server",
   "PiggyBank",
+  "Coins",
+  "Wallet",
+  "BadgeDollarSign",
+  "Landmark",
+  "Banknote",
+  "CircleDollarSign",
+  "Bitcoin",
   "HeartHandshake",
   "QrCode",
   "HelpCircle",
@@ -187,6 +230,13 @@ const editorIconMap: Record<string, typeof Heart> = {
   Zap,
   Server,
   PiggyBank,
+  Coins,
+  Wallet,
+  BadgeDollarSign,
+  Landmark,
+  Banknote,
+  CircleDollarSign,
+  Bitcoin,
   HeartHandshake,
   QrCode,
   HelpCircle,
@@ -236,6 +286,13 @@ const emptyPages: PagesConfig = {
     reasonIcon: "HeartHandshake",
     reasonText: "",
     reasonNote: "",
+    monthlyGoalRaised: "",
+    monthlyGoalTarget: "",
+    monthlyGoalSupporters: "",
+    monthlyGoalNote: "",
+    cryptoTitle: "",
+    cryptoSubtitle: "",
+    cryptoServices: [],
     pixKey: "",
     pixNote: "",
     pixCity: "",
@@ -286,6 +343,58 @@ let dashboardPagesCache: DashboardPagesCacheEntry | null = null;
 
 const clonePagesConfig = (value: PagesConfig) =>
   JSON.parse(JSON.stringify(value)) as PagesConfig;
+
+const generateDashboardPagesEditorLocalId = () => {
+  const alpha = String.fromCharCode(97 + Math.floor(Math.random() * 26));
+  const random = Math.random().toString(36).slice(2, 9);
+  const stamp = Date.now().toString(36).slice(-3);
+  return `${alpha}${random}${stamp}`;
+};
+
+const resolveDashboardPagesEditorLocalKey = (
+  currentKey: string | null | undefined,
+  fallbackKey?: string | null,
+) => {
+  const normalizedCurrentKey = String(currentKey || "").trim();
+  if (normalizedCurrentKey) {
+    return normalizedCurrentKey;
+  }
+  const normalizedFallbackKey = String(fallbackKey || "").trim();
+  if (normalizedFallbackKey) {
+    return normalizedFallbackKey;
+  }
+  return generateDashboardPagesEditorLocalId();
+};
+
+const withDashboardPagesEditorKeys = <T extends DashboardPagesEditorRecord>(
+  items: T[] | null | undefined,
+  previousItems?: Array<DashboardPagesEditorRecord | null | undefined>,
+) => {
+  if (!Array.isArray(items)) {
+    return [] as T[];
+  }
+
+  return items.map((item, index) => ({
+    ...item,
+    _editorKey: resolveDashboardPagesEditorLocalKey(
+      item?._editorKey,
+      previousItems?.[index]?._editorKey,
+    ),
+  }));
+};
+
+const stripDashboardPagesEditorKeys = <T extends DashboardPagesEditorRecord>(
+  items: T[] | null | undefined,
+) => {
+  if (!Array.isArray(items)) {
+    return [] as Array<Omit<T, "_editorKey">>;
+  }
+
+  return items.map((item) => {
+    const { _editorKey: _ignoredEditorKey, ...nextItem } = item;
+    return nextItem;
+  });
+};
 
 const readDashboardPagesCache = () => {
   if (!dashboardPagesCache) {
@@ -385,6 +494,55 @@ const normalizePagesShareImages = (pages: PagesConfig): PagesConfig => ({
   team: normalizePageShareImage(pages.team, "team"),
   recruitment: normalizePageShareImage(pages.recruitment, "recruitment"),
 });
+
+const normalizeDonationsMonthlyGoalFields = (
+  donations: PagesConfig["donations"],
+): PagesConfig["donations"] => ({
+  ...donations,
+  costs: stripDashboardPagesEditorKeys(donations.costs),
+  monthlyGoalRaised: finalizeMonthlyGoalAmountInput(donations.monthlyGoalRaised),
+  monthlyGoalTarget: finalizeMonthlyGoalAmountInput(donations.monthlyGoalTarget),
+  monthlyGoalSupporters: sanitizeMonthlyGoalSupportersInput(donations.monthlyGoalSupporters),
+  monthlyGoalNote: String(donations.monthlyGoalNote || "").trim(),
+  cryptoTitle: String(donations.cryptoTitle || "").trim(),
+  cryptoSubtitle: String(donations.cryptoSubtitle || "").trim(),
+  cryptoServices: stripDashboardPagesEditorKeys(
+    normalizeDonationsCryptoServices(donations.cryptoServices),
+  ),
+  donors: stripDashboardPagesEditorKeys(donations.donors),
+});
+
+const normalizePagesConfigForSave = (pages: PagesConfig): PagesConfig => ({
+  ...pages,
+  donations: normalizeDonationsMonthlyGoalFields(pages.donations),
+});
+
+const normalizeDonationsEditorCollections = (
+  donations: PagesConfig["donations"],
+  previousDonations?: PagesConfig["donations"] | null,
+): PagesConfig["donations"] => ({
+  ...donations,
+  costs: withDashboardPagesEditorKeys(donations.costs, previousDonations?.costs),
+  cryptoServices: withDashboardPagesEditorKeys(
+    donations.cryptoServices,
+    previousDonations?.cryptoServices,
+  ),
+  donors: withDashboardPagesEditorKeys(donations.donors, previousDonations?.donors),
+});
+
+const normalizePagesConfigForState = (
+  pages: PagesConfig,
+  previousPages?: PagesConfig | null,
+): PagesConfig => {
+  const normalizedPages = normalizePagesShareImages(normalizePagesConfigForSave(pages));
+  return {
+    ...normalizedPages,
+    donations: normalizeDonationsEditorCollections(
+      normalizedPages.donations,
+      previousPages?.donations,
+    ),
+  };
+};
 
 const DASHBOARD_PAGES_DEFAULT_TAB: DashboardPagesTabKey = "donations";
 const DASHBOARD_PAGES_TAB_SET = new Set<DashboardPagesTabKey>(
@@ -488,8 +646,11 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
       readAutosavePreference(autosaveStorageKeys.pages, true),
   );
   const initialCacheRef = useRef(readDashboardPagesCache());
-  const [pages, setPages] = useState<PagesConfig>(
-    initialCacheRef.current ?? defaultPages,
+  const [pages, setPages] = useState<PagesConfig>(() =>
+    normalizePagesConfigForState(
+      initialCacheRef.current ?? defaultPages,
+      initialCacheRef.current,
+    ),
   );
   const [isInitialLoading, setIsInitialLoading] = useState(
     !initialCacheRef.current,
@@ -521,6 +682,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
     useState<ShareImagePageKey>("home");
   const requestIdRef = useRef(0);
   const hasLoadedOnceRef = useRef(hasLoadedOnce);
+  const pagesRef = useRef(pages);
   const tabUrlSyncTimeoutRef = useRef<number | null>(null);
 
   const merchantName =
@@ -598,6 +760,10 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
   }, [hasLoadedOnce]);
 
   useEffect(() => {
+    pagesRef.current = pages;
+  }, [pages]);
+
+  useEffect(() => {
     const load = async () => {
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
@@ -619,8 +785,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
           return;
         }
         const data = await response.json();
-        const nextPages = normalizePagesShareImages(
+        const nextPages = normalizePagesConfigForState(
           mergePagesConfig(data.pages),
+          pagesRef.current,
         );
         setPages(nextPages);
         setHasLoadedOnce(true);
@@ -646,22 +813,26 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
 
   const savePages = useCallback(
     async (nextPages: PagesConfig) => {
-      const normalizedNextPages = normalizePagesShareImages(nextPages);
+      const normalizedNextPages = normalizePagesConfigForState(
+        nextPages,
+        pagesRef.current,
+      );
+      const payloadPages = normalizePagesConfigForSave(normalizedNextPages);
       const response = await apiFetch(apiBase, "/api/pages", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         auth: true,
-        body: JSON.stringify({ pages: normalizedNextPages }),
+        body: JSON.stringify({ pages: payloadPages }),
       });
       if (!response.ok) {
         throw new Error("save_failed");
       }
       const data = await response.json().catch(() => null);
-      const normalizedPages = normalizePagesShareImages(
+      const normalizedPages = normalizePagesConfigForState(
         mergePagesConfig(
-          (data?.pages as Partial<PagesConfig> | undefined) ||
-            normalizedNextPages,
+          (data?.pages as Partial<PagesConfig> | undefined) || payloadPages,
         ),
+        normalizedNextPages,
       );
       setPages(normalizedPages);
       writeDashboardPagesCache(normalizedPages);
@@ -733,6 +904,46 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
       ...prev,
       donations: { ...prev.donations, ...patch },
     }));
+  const updateMonthlyGoalAmount = (
+    field: "monthlyGoalRaised" | "monthlyGoalTarget",
+    value: string,
+  ) =>
+    updateDonations({
+      [field]: normalizeMonthlyGoalAmountInput(value),
+    } as Pick<PagesConfig["donations"], typeof field>);
+  const finalizeMonthlyGoalAmountField = (
+    field: "monthlyGoalRaised" | "monthlyGoalTarget",
+    value?: string,
+  ) => {
+    const sourceValue =
+      typeof value === "string" ? value : pages.donations[field];
+    const normalizedValue = finalizeMonthlyGoalAmountInput(sourceValue);
+    if (normalizedValue === sourceValue) {
+      return;
+    }
+    updateDonations({
+      [field]: normalizedValue,
+    } as Pick<PagesConfig["donations"], typeof field>);
+  };
+  const updateMonthlyGoalSupporters = (value: string) =>
+    updateDonations({
+      monthlyGoalSupporters: sanitizeMonthlyGoalSupportersInput(value),
+    });
+  const updateCryptoServiceAt = (
+    index: number,
+    patch: Partial<CryptoService>,
+  ) => {
+    const next = [...pages.donations.cryptoServices];
+    next[index] = {
+      ...next[index],
+      ...patch,
+    };
+    updateDonations({ cryptoServices: next });
+  };
+  const removeCryptoServiceAt = (index: number) =>
+    updateDonations({
+      cryptoServices: pages.donations.cryptoServices.filter((_, itemIndex) => itemIndex !== index),
+    });
   const updateFaq = (patch: Partial<PagesConfig["faq"]>) =>
     setPages((prev) => ({ ...prev, faq: { ...prev.faq, ...patch } }));
   const updateTeam = (patch: Partial<PagesConfig["team"]>) =>
@@ -817,6 +1028,10 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
       updateAbout({ pillars: reorder(pages.about.pillars, from, to) });
     } else if (list === "donations.costs") {
       updateDonations({ costs: reorder(pages.donations.costs, from, to) });
+    } else if (list === "donations.cryptoServices") {
+      updateDonations({
+        cryptoServices: reorder(pages.donations.cryptoServices, from, to),
+      });
     } else if (list === "donations.donors") {
       updateDonations({ donors: reorder(pages.donations.donors, from, to) });
     } else if (list === "faq.intro") {
@@ -1771,6 +1986,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     costs: [
                                       ...pages.donations.costs,
                                       {
+                                        _editorKey: generateDashboardPagesEditorLocalId(),
                                         title: "Novo custo",
                                         description: "",
                                         icon: "Server",
@@ -1786,7 +2002,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                             <div className="grid gap-4 md:grid-cols-2">
                               {pages.donations.costs.map((item, index) => (
                                 <div
-                                  key={`${item.title}-${index}`}
+                                  key={item._editorKey || `donations-cost-${index}`}
+                                  data-testid={`donations-cost-item-${index}`}
                                   draggable
                                   onDragStart={() =>
                                     handleDragStart("donations.costs", index)
@@ -1941,6 +2158,96 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                           lift={false}
                           className={dashboardPagesCardClassName}
                         >
+                          <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                            <DashboardFieldStack>
+                              <Label htmlFor="donations-monthly-goal-raised">
+                                Arrecadado no mês
+                              </Label>
+                              <Input
+                                id="donations-monthly-goal-raised"
+                                value={pages.donations.monthlyGoalRaised}
+                                onChange={(e) =>
+                                  updateMonthlyGoalAmount(
+                                    "monthlyGoalRaised",
+                                    e.target.value,
+                                  )
+                                }
+                                onBlur={(e) =>
+                                  finalizeMonthlyGoalAmountField(
+                                    "monthlyGoalRaised",
+                                    e.target.value,
+                                  )
+                                }
+                                inputMode="decimal"
+                                placeholder="0,00"
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
+                              <Label htmlFor="donations-monthly-goal-target">Meta do mês</Label>
+                              <Input
+                                id="donations-monthly-goal-target"
+                                value={pages.donations.monthlyGoalTarget}
+                                onChange={(e) =>
+                                  updateMonthlyGoalAmount(
+                                    "monthlyGoalTarget",
+                                    e.target.value,
+                                  )
+                                }
+                                onBlur={(e) =>
+                                  finalizeMonthlyGoalAmountField(
+                                    "monthlyGoalTarget",
+                                    e.target.value,
+                                  )
+                                }
+                                inputMode="decimal"
+                                placeholder="0,00"
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack>
+                              <Label htmlFor="donations-monthly-goal-supporters">
+                                Apoiadores no mês
+                              </Label>
+                              <Input
+                                id="donations-monthly-goal-supporters"
+                                value={pages.donations.monthlyGoalSupporters}
+                                onChange={(e) =>
+                                  updateMonthlyGoalSupporters(e.target.value)
+                                }
+                                onBlur={(e) =>
+                                  updateMonthlyGoalSupporters(e.target.value)
+                                }
+                                inputMode="numeric"
+                                placeholder="0"
+                              />
+                            </DashboardFieldStack>
+                            <DashboardFieldStack className="md:col-span-2">
+                              <Label htmlFor="donations-monthly-goal-note">
+                                Nota da meta
+                              </Label>
+                              <Textarea
+                                id="donations-monthly-goal-note"
+                                value={pages.donations.monthlyGoalNote}
+                                onChange={(e) =>
+                                  updateDonations({
+                                    monthlyGoalNote: e.target.value,
+                                  })
+                                }
+                                placeholder="Ex.: Meta para pagar VPS + domínio."
+                              />
+                            </DashboardFieldStack>
+                            <p
+                              className={`text-xs ${dashboardPagesMetaTextClassName} md:col-span-2`}
+                            >
+                              Aceita vírgula ou ponto. Deixe a meta vazia para
+                              ocultar a barra na página pública.
+                            </p>
+                          </CardContent>
+                        </Card>
+
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
+                        >
                           <CardContent className="grid gap-4 p-6 md:grid-cols-[1.2fr_0.8fr]">
                             <div className="space-y-4">
                               <DashboardFieldStack>
@@ -2017,6 +2324,370 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                         <Card
                           lift={false}
                           className={dashboardPagesCardClassName}
+                          data-testid="donations-crypto-editor"
+                        >
+                          <CardContent className="space-y-4 p-6">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <h2
+                                  className={`text-sm font-semibold uppercase tracking-widest ${dashboardPagesMetaTextClassName}`}
+                                >
+                                  Criptomoedas
+                                </h2>
+                                <p
+                                  className={`mt-1 text-xs ${dashboardPagesMetaTextClassName}`}
+                                >
+                                  A seção pública aparece quando pelo menos um
+                                  serviço tiver nome e endereço.
+                                </p>
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  updateDonations({
+                                    cryptoServices: [
+                                      ...pages.donations.cryptoServices,
+                                      {
+                                        ...emptyDonationsCryptoService,
+                                        _editorKey: generateDashboardPagesEditorLocalId(),
+                                        icon: DEFAULT_DONATIONS_CRYPTO_ICON,
+                                      },
+                                    ],
+                                  })
+                                }
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Adicionar
+                              </Button>
+                            </div>
+
+                            <div className="grid gap-4">
+                              {pages.donations.cryptoServices.map(
+                                (service, index) => {
+                                  const previewLogoUrl = String(
+                                    service.iconUrl || "",
+                                  ).trim();
+                                  const PreviewIcon =
+                                    editorIconMap[service.icon] || Coins;
+
+                                  return (
+                                    <div
+                                      key={
+                                        service._editorKey ||
+                                        `donations-crypto-service-${index}`
+                                      }
+                                      data-testid={`donations-crypto-item-${index}`}
+                                      draggable
+                                      onDragStart={() =>
+                                        handleDragStart(
+                                          "donations.cryptoServices",
+                                          index,
+                                        )
+                                      }
+                                      onDragOver={(event) =>
+                                        handleDragOver(
+                                          event,
+                                          "donations.cryptoServices",
+                                          index,
+                                        )
+                                      }
+                                      onDrop={() =>
+                                        handleDrop(
+                                          "donations.cryptoServices",
+                                          index,
+                                        )
+                                      }
+                                      onDragEnd={clearDragState}
+                                      className={getReorderableSurfaceClassName(
+                                        "donations.cryptoServices",
+                                        index,
+                                        "p-4",
+                                      )}
+                                    >
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div
+                                          className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                        >
+                                          <GripVertical className="h-4 w-4" />
+                                          Arraste para reordenar
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <ReorderControls
+                                            label={`serviço cripto ${index + 1}`}
+                                            index={index}
+                                            total={
+                                              pages.donations.cryptoServices
+                                                .length
+                                            }
+                                            onMove={(targetIndex) =>
+                                              moveListItem(
+                                                "donations.cryptoServices",
+                                                index,
+                                                targetIndex,
+                                              )
+                                            }
+                                          />
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label={`Remover serviço cripto ${index + 1}`}
+                                            onClick={() =>
+                                              removeCryptoServiceAt(index)
+                                            }
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+
+                                      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_200px]">
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                          <DashboardFieldStack>
+                                            <Label
+                                              htmlFor={`donations-crypto-name-${index}`}
+                                            >
+                                              Nome do serviço
+                                            </Label>
+                                            <Input
+                                              id={`donations-crypto-name-${index}`}
+                                              aria-label={`Nome do serviço cripto ${index + 1}`}
+                                              value={service.name}
+                                              onChange={(e) =>
+                                                updateCryptoServiceAt(index, {
+                                                  name: e.target.value,
+                                                })
+                                              }
+                                              placeholder="Bitcoin"
+                                            />
+                                          </DashboardFieldStack>
+                                          <DashboardFieldStack>
+                                            <Label
+                                              htmlFor={`donations-crypto-ticker-${index}`}
+                                            >
+                                              Ticker
+                                            </Label>
+                                            <Input
+                                              id={`donations-crypto-ticker-${index}`}
+                                              aria-label={`Ticker do serviço cripto ${index + 1}`}
+                                              value={service.ticker}
+                                              onChange={(e) =>
+                                                updateCryptoServiceAt(index, {
+                                                  ticker: e.target.value,
+                                                })
+                                              }
+                                              placeholder="BTC"
+                                            />
+                                          </DashboardFieldStack>
+                                          <DashboardFieldStack>
+                                            <Label
+                                              htmlFor={`donations-crypto-network-${index}`}
+                                            >
+                                              Rede
+                                            </Label>
+                                            <Input
+                                              id={`donations-crypto-network-${index}`}
+                                              aria-label={`Rede do serviço cripto ${index + 1}`}
+                                              value={service.network}
+                                              onChange={(e) =>
+                                                updateCryptoServiceAt(index, {
+                                                  network: e.target.value,
+                                                })
+                                              }
+                                              placeholder="Bitcoin"
+                                            />
+                                          </DashboardFieldStack>
+                                          <DashboardFieldStack>
+                                            <Label
+                                              htmlFor={`donations-crypto-action-label-${index}`}
+                                            >
+                                              Rótulo da ação externa
+                                            </Label>
+                                            <Input
+                                              id={`donations-crypto-action-label-${index}`}
+                                              aria-label={`Rótulo da ação externa do serviço cripto ${index + 1}`}
+                                              value={service.actionLabel}
+                                              onChange={(e) =>
+                                                updateCryptoServiceAt(index, {
+                                                  actionLabel: e.target.value,
+                                                })
+                                              }
+                                              placeholder="Abrir carteira"
+                                            />
+                                          </DashboardFieldStack>
+                                          <DashboardFieldStack className="md:col-span-2">
+                                            <Label
+                                              htmlFor={`donations-crypto-address-${index}`}
+                                            >
+                                              Endereço para cópia
+                                            </Label>
+                                            <Textarea
+                                              id={`donations-crypto-address-${index}`}
+                                              aria-label={`Endereço para cópia do serviço cripto ${index + 1}`}
+                                              value={service.address}
+                                              onChange={(e) =>
+                                                updateCryptoServiceAt(index, {
+                                                  address: e.target.value,
+                                                })
+                                              }
+                                              placeholder="bc1..."
+                                            />
+                                          </DashboardFieldStack>
+                                          <DashboardFieldStack className="md:col-span-2">
+                                            <Label
+                                              htmlFor={`donations-crypto-qr-value-${index}`}
+                                            >
+                                              Valor para QR (opcional)
+                                            </Label>
+                                            <Input
+                                              id={`donations-crypto-qr-value-${index}`}
+                                              aria-label={`Valor para QR do serviço cripto ${index + 1}`}
+                                              value={service.qrValue}
+                                              onChange={(e) =>
+                                                updateCryptoServiceAt(index, {
+                                                  qrValue: e.target.value,
+                                                })
+                                              }
+                                              placeholder="Se vazio, usa o endereço"
+                                            />
+                                          </DashboardFieldStack>
+                                          <DashboardFieldStack>
+                                            <Label
+                                              htmlFor={`donations-crypto-action-url-${index}`}
+                                            >
+                                              URL da ação externa
+                                            </Label>
+                                            <Input
+                                              id={`donations-crypto-action-url-${index}`}
+                                              aria-label={`URL da ação externa do serviço cripto ${index + 1}`}
+                                              value={service.actionUrl}
+                                              onChange={(e) =>
+                                                updateCryptoServiceAt(index, {
+                                                  actionUrl: e.target.value,
+                                                })
+                                              }
+                                              placeholder="https://..."
+                                            />
+                                          </DashboardFieldStack>
+                                          <DashboardFieldStack>
+                                            <Label
+                                              htmlFor={`donations-crypto-icon-url-${index}`}
+                                            >
+                                              Logo customizada (URL)
+                                            </Label>
+                                            <Input
+                                              id={`donations-crypto-icon-url-${index}`}
+                                              aria-label={`Logo customizada do serviço cripto ${index + 1}`}
+                                              value={service.iconUrl}
+                                              onChange={(e) =>
+                                                updateCryptoServiceAt(index, {
+                                                  iconUrl: e.target.value,
+                                                })
+                                              }
+                                              placeholder="https://..."
+                                            />
+                                          </DashboardFieldStack>
+                                          <DashboardFieldStack className="md:col-span-2">
+                                            <Label
+                                              htmlFor={`donations-crypto-note-${index}`}
+                                            >
+                                              Nota
+                                            </Label>
+                                            <Textarea
+                                              id={`donations-crypto-note-${index}`}
+                                              aria-label={`Nota do serviço cripto ${index + 1}`}
+                                              value={service.note}
+                                              onChange={(e) =>
+                                                updateCryptoServiceAt(index, {
+                                                  note: e.target.value,
+                                                })
+                                              }
+                                              placeholder="Ex.: ERC-20, sem memo."
+                                            />
+                                          </DashboardFieldStack>
+                                        </div>
+
+                                        <div
+                                          className={`${dashboardPagesControlSurfaceClassName} flex flex-col gap-4 p-4`}
+                                        >
+                                          <DashboardFieldStack>
+                                            <Label
+                                              htmlFor={`donations-crypto-icon-${index}`}
+                                            >
+                                              Ícone padrão
+                                            </Label>
+                                            <IconSelect
+                                              value={
+                                                service.icon ||
+                                                DEFAULT_DONATIONS_CRYPTO_ICON
+                                              }
+                                              onChange={(nextIcon) =>
+                                                updateCryptoServiceAt(index, {
+                                                  icon: nextIcon,
+                                                })
+                                              }
+                                              ariaLabel={`Selecionar ícone do serviço cripto ${index + 1}`}
+                                            />
+                                          </DashboardFieldStack>
+                                          <div className="space-y-2">
+                                            <p
+                                              className={`text-xs ${dashboardPagesMetaTextClassName}`}
+                                            >
+                                              Prévia da página pública
+                                            </p>
+                                            <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/70 p-3">
+                                              <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-background">
+                                                {previewLogoUrl ? (
+                                                  <img
+                                                    src={normalizeAssetUrl(
+                                                      previewLogoUrl,
+                                                    )}
+                                                    alt={
+                                                      service.name
+                                                        ? `Logo ${service.name}`
+                                                        : `Logo do serviço cripto ${index + 1}`
+                                                    }
+                                                    className="h-full w-full object-cover"
+                                                  />
+                                                ) : (
+                                                  <PreviewIcon className="h-6 w-6 text-primary" />
+                                                )}
+                                              </div>
+                                              <div className="min-w-0">
+                                                <p className="truncate text-sm font-medium text-foreground">
+                                                  {service.name ||
+                                                    "Serviço sem nome"}
+                                                </p>
+                                                <p
+                                                  className={`truncate text-xs ${dashboardPagesMetaTextClassName}`}
+                                                >
+                                                  {service.ticker ||
+                                                    service.network ||
+                                                    "Sem metadados extras"}
+                                                </p>
+                                              </div>
+                                            </div>
+                                            <p
+                                              className={`text-xs ${dashboardPagesMetaTextClassName}`}
+                                            >
+                                              Se a URL da logo estiver
+                                              preenchida, ela substitui o ícone
+                                              na página pública.
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                },
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card
+                          lift={false}
+                          className={dashboardPagesCardClassName}
                         >
                           <CardContent className="space-y-4 p-6">
                             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2043,6 +2714,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     donors: [
                                       ...pages.donations.donors,
                                       {
+                                        _editorKey: generateDashboardPagesEditorLocalId(),
                                         name: "Novo doador",
                                         amount: "",
                                         goal: "",
@@ -2059,7 +2731,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                             <div className="grid gap-4">
                               {pages.donations.donors.map((donor, index) => (
                                 <div
-                                  key={`${donor.name}-${index}`}
+                                  key={donor._editorKey || `donations-donor-${index}`}
+                                  data-testid={`donations-donor-item-${index}`}
                                   draggable
                                   onDragStart={() =>
                                     handleDragStart("donations.donors", index)

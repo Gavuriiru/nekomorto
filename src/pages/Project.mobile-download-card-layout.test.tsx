@@ -153,6 +153,12 @@ describe("Project mobile download card layout", () => {
     expect(episodeCard).not.toBeNull();
     expect(classTokens(episodeCard as HTMLElement)).toContain("w-full");
     expect(classTokens(episodeCard as HTMLElement)).toContain("md:h-[210px]");
+    expect(classTokens(episodeCard as HTMLElement)).toContain(
+      "shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]",
+    );
+    expect(classTokens(episodeCard as HTMLElement)).toContain(
+      "hover:shadow-[0_22px_68px_-40px_rgba(0,0,0,0.62)]",
+    );
     expect(classTokens(episodeCard as HTMLElement)).not.toContain("md:min-h-[185px]");
     expect(classTokens(episodeCard as HTMLElement)).not.toContain("md:w-[920px]");
 

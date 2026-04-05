@@ -129,4 +129,19 @@ describe("theme token contrast", () => {
     assertPair(lightTokens, "ring", "background", 3);
     assertPair(lightTokens, "sidebar-ring", "sidebar-background", 3);
   });
+
+  it("keeps semantic badge text at or above 4.5:1 in dark and light themes", () => {
+    const semanticPairs: Array<[string, string]> = [
+      ["badge-success-fg", "badge-success-bg"],
+      ["badge-warning-fg", "badge-warning-bg"],
+      ["badge-danger-fg", "badge-danger-bg"],
+      ["badge-info-fg", "badge-info-bg"],
+      ["badge-neutral-fg", "badge-neutral-bg"],
+    ];
+
+    semanticPairs.forEach(([foregroundToken, backgroundToken]) => {
+      assertPair(rootTokens, foregroundToken, backgroundToken, 4.5);
+      assertPair(lightTokens, foregroundToken, backgroundToken, 4.5);
+    });
+  });
 });

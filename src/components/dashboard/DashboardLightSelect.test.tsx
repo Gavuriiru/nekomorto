@@ -13,6 +13,9 @@ const baseOptions = [
   { value: "users", label: "Users", icon: Users },
 ];
 
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
+
 describe("DashboardLightSelect", () => {
   beforeEach(() => {
     Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
@@ -50,6 +53,9 @@ describe("DashboardLightSelect", () => {
     expect(
       await screen.findByRole("option", { name: "Heart" }),
     ).toBeInTheDocument();
+    expect(classTokens(screen.getByRole("listbox"))).toContain(
+      "shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]",
+    );
 
     fireEvent.click(screen.getByRole("option", { name: "Heart" }));
 

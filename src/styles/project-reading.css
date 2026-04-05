@@ -328,38 +328,32 @@
       0 0 0 4px hsl(var(--ring) / 0.55);
   }
 
-  .project-reading-nav-btn--secondary {
-    border-color: hsl(var(--border) / 0.9);
-    background: linear-gradient(130deg, hsl(var(--background) / 0.68), hsl(var(--card) / 0.72));
+  .project-reading-chapter-nav .project-reading-nav-btn--secondary,
+  .project-reading-reader-menu-nav .project-reading-nav-btn--secondary,
+  .project-reading-chapter-nav .project-reading-nav-btn--next,
+  .project-reading-reader-menu-nav .project-reading-nav-btn--next {
+    border-color: hsl(var(--border) / 0.82);
+    background: transparent;
+    color: hsl(var(--foreground) / 0.94);
     box-shadow:
-      inset 0 1px 0 hsl(var(--foreground) / 0.05),
-      0 1px 0 hsl(var(--foreground) / 0.03);
+      inset 0 1px 0 hsl(0 0% 100% / 0.05),
+      0 8px 20px -22px hsl(0 0% 0% / 0.55);
     backdrop-filter: blur(8px);
   }
 
-  .project-reading-nav-btn--secondary:hover {
-    border-color: hsl(var(--primary) / 0.5);
-    background: linear-gradient(130deg, hsl(var(--background) / 0.6), hsl(var(--card) / 0.68));
+  .project-reading-chapter-nav
+    .project-reading-nav-btn--secondary:is(:hover, :active, :focus-visible),
+  .project-reading-reader-menu-nav
+    .project-reading-nav-btn--secondary:is(:hover, :active, :focus-visible),
+  .project-reading-chapter-nav .project-reading-nav-btn--next:is(:hover, :active, :focus-visible),
+  .project-reading-reader-menu-nav
+    .project-reading-nav-btn--next:is(:hover, :active, :focus-visible) {
+    border-color: hsl(var(--accent) / 0.96);
+    background: linear-gradient(135deg, hsl(var(--accent) / 1), hsl(var(--accent) / 0.94));
+    color: hsl(var(--accent-foreground));
     box-shadow:
-      inset 0 1px 0 hsl(var(--foreground) / 0.06),
-      0 6px 16px -14px hsl(0 0% 0% / 0.6);
-  }
-
-  .project-reading-nav-btn--next {
-    border: 1px solid hsl(var(--primary) / 0.76);
-    background: linear-gradient(130deg, hsl(var(--primary) / 0.98), hsl(var(--primary) / 0.86));
-    color: hsl(var(--primary-foreground));
-    box-shadow:
-      inset 0 1px 0 hsl(0 0% 100% / 0.16),
-      0 10px 24px -16px hsl(0 0% 0% / 0.7);
-  }
-
-  .project-reading-nav-btn--next:hover {
-    border-color: hsl(var(--primary) / 0.9);
-    background: linear-gradient(130deg, hsl(var(--primary) / 1), hsl(var(--primary) / 0.9));
-    box-shadow:
-      inset 0 1px 0 hsl(0 0% 100% / 0.2),
-      0 12px 28px -16px hsl(0 0% 0% / 0.75);
+      inset 0 1px 0 hsl(0 0% 100% / 0.18),
+      0 16px 34px -18px hsl(var(--accent) / 0.72);
   }
 
   .project-reading-chapter-nav__button {

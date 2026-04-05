@@ -1595,7 +1595,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                                   {isCompleted ? "Concluída" : isCurrentStage ? "Atual" : "Pendente"}
                                 </span>
                                 {isCurrentStage ? (
-                                  <Badge variant="outline" className="shrink-0">
+                                  <Badge variant="info" className="shrink-0">
                                     Atual
                                   </Badge>
                                 ) : null}
