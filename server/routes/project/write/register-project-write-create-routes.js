@@ -65,6 +65,7 @@ export const registerProjectWriteCreateRoutes = ({
       localizeProjectImageFields,
       normalizeProjects,
       project: nextProjectRaw,
+      requirePublicContentForPublication: true,
       upsertUploadEntries,
     });
     if (!localizedCreate.ok) {

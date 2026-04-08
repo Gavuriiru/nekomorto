@@ -1,5 +1,6 @@
 import type { DownloadSource, ProjectEpisode } from "@/data/projects";
 import { resolveNextMainEpisodeNumber } from "@/lib/project-episode-key";
+import { getProjectEpisodeCompleteDownloadSources } from "@/lib/project-publication";
 
 export type AnimeEpisodeQuickFilter =
   | "all"
@@ -44,7 +45,7 @@ export const getAnimeEpisodeCompletionIssues = (
 ): AnimeEpisodeCompletionIssue[] => {
   const issues: AnimeEpisodeCompletionIssue[] = [];
   const hasDate = String(episode?.releaseDate || "").trim().length > 0;
-  const hasLinks = (episode?.sources || []).some((source) => String(source?.url || "").trim());
+  const hasLinks = getProjectEpisodeCompleteDownloadSources(episode).length > 0;
   const hasCover = String(episode?.coverImageUrl || "").trim().length > 0;
   const hasFileSize = Number(episode?.sizeBytes) > 0;
   const hasHash = String(episode?.hash || "").trim().length > 0;

@@ -285,10 +285,23 @@ describe("registerContentRoutes", () => {
         loadProjects: vi.fn(() => [
           {
             id: "project-1",
+            type: "Light Novel",
             deletedAt: null,
             episodeDownloads: [
-              { number: 7, volume: 1, publicationStatus: "published" },
-              { number: 7, volume: 2, publicationStatus: "published" },
+              {
+                number: 7,
+                volume: 1,
+                publicationStatus: "published",
+                content: '{"root":{"children":[{"type":"paragraph"}]}}',
+                sources: [],
+              },
+              {
+                number: 7,
+                volume: 2,
+                publicationStatus: "published",
+                content: '{"root":{"children":[{"type":"paragraph"}]}}',
+                sources: [],
+              },
             ],
           },
         ]),
@@ -314,6 +327,53 @@ describe("registerContentRoutes", () => {
 
     expect(res.statusCode).toBe(400);
     expect(res.body).toEqual({ error: "volume_required" });
+    expect(dependencies.writeComments).not.toHaveBeenCalled();
+  });
+
+  it("rejects comments for legacy-invalid published chapters without public content", async () => {
+    const { app, routes } = createAppRecorder();
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        loadProjects: vi.fn(() => [
+          {
+            id: "project-1",
+            type: "Light Novel",
+            deletedAt: null,
+            episodeDownloads: [
+              {
+                number: 8,
+                volume: 1,
+                publicationStatus: "published",
+                content: "",
+                sources: [],
+              },
+            ],
+          },
+        ]),
+      },
+    });
+
+    registerContentRoutes(dependencies);
+
+    const route = getRoute(routes, "POST", "/api/public/comments");
+    const res = await invokeFinalHandler(route, {
+      body: {
+        targetType: "chapter",
+        targetId: "project-1",
+        chapterNumber: 8,
+        chapterVolume: 1,
+        name: "Leitor",
+        email: "reader@example.com",
+        content: "Comentando sem conteudo publico",
+      },
+      headers: {},
+      ip: "127.0.0.1",
+      session: null,
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toEqual({ error: "target_not_found" });
     expect(dependencies.writeComments).not.toHaveBeenCalled();
   });
 });

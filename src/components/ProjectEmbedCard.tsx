@@ -12,6 +12,7 @@ import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { cn } from "@/lib/utils";
 import type { PublicBootstrapPayload } from "@/types/public-bootstrap";
 
 type ProjectEmbedCardProps = {
@@ -23,7 +24,9 @@ type ProjectEmbedRecord = Pick<
   "id" | "cover" | "episodes" | "status" | "studio" | "synopsis" | "tags" | "title" | "type"
 >;
 
-const COVER_ROW_HEIGHT = "calc(8rem * 65 / 46)";
+const COVER_ROW_HEIGHT = "192px";
+const COVER_THUMB_WIDTH = "calc(192px * 9 / 14)";
+const PROJECT_EMBED_IMAGE_SIZES = "124px";
 
 const resolveBootstrapProject = (
   bootstrapData: PublicBootstrapPayload | null,
@@ -58,6 +61,25 @@ const mergeMediaVariants = (base: UploadMediaVariantsMap, nextValue: unknown) =>
   ...(nextValue && typeof nextValue === "object" ? (nextValue as UploadMediaVariantsMap) : {}),
 });
 
+const getSynopsisClampClass = (lines: number | undefined) => {
+  if (typeof lines !== "number") {
+    return "clamp-safe-2";
+  }
+  if (lines <= 0) {
+    return "hidden";
+  }
+  if (lines === 1) {
+    return "clamp-safe-1";
+  }
+  if (lines === 2) {
+    return "clamp-safe-2";
+  }
+  if (lines === 3) {
+    return "clamp-safe-3";
+  }
+  return "clamp-safe-4";
+};
+
 const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   const apiBase = getApiBase();
   const [bootstrapData] = useState<PublicBootstrapPayload | null>(() =>
@@ -91,8 +113,9 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
     if (typeof lines !== "number") {
       return 2;
     }
-    return Math.max(1, Math.min(lines, 4));
+    return Math.max(0, Math.min(lines, 4));
   })();
+  const synopsisClampClass = getSynopsisClampClass(lineByKey[synopsisKey]);
 
   useEffect(() => {
     setProject(bootstrapProject);
@@ -181,31 +204,35 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
       to={`/projeto/${project?.id ?? projectId}`}
       className="block rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
     >
-      <Card className="bg-card shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg">
-        <CardContent className="space-y-4 p-4">
+      <Card className="overflow-hidden bg-card shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg">
+        <CardContent className="p-0">
           <div
             ref={synopsisRootRef}
             data-testid="project-embed-row"
-            className="group flex items-stretch gap-4"
+            className="group flex items-stretch"
             style={{ height: COVER_ROW_HEIGHT }}
           >
             <div
-              className="h-full shrink-0 self-start overflow-hidden rounded-xl"
-              style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+              className="h-full shrink-0 self-start overflow-hidden bg-secondary/60"
+              style={{
+                aspectRatio: PROJECT_COVER_ASPECT_RATIO,
+                width: COVER_THUMB_WIDTH,
+              }}
             >
               <UploadPicture
                 src={project?.cover || "/placeholder.svg"}
                 alt={project?.title || "Projeto"}
-                preset="poster"
+                preset="posterThumb"
                 mediaVariants={projectMediaVariants}
                 className="block h-full w-full"
-                imgClassName="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                sizes={PROJECT_EMBED_IMAGE_SIZES}
+                imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
               />
             </div>
             <div
               data-synopsis-role="column"
               data-synopsis-key={synopsisKey}
-              className="flex min-h-0 min-w-0 flex-1 self-stretch flex-col overflow-hidden"
+              className="flex min-h-0 min-w-0 flex-1 self-stretch flex-col overflow-hidden p-4"
             >
               <div data-synopsis-role="title" className="space-y-1">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-primary/80">
@@ -218,13 +245,10 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
               <p
                 data-synopsis-role="synopsis"
                 data-synopsis-lines={synopsisMaxLines}
-                className="mt-2 text-sm text-muted-foreground break-normal [overflow-wrap:normal] [word-break:normal]"
-                style={{
-                  display: "-webkit-box",
-                  WebkitBoxOrient: "vertical",
-                  WebkitLineClamp: synopsisMaxLines,
-                  overflow: "hidden",
-                }}
+                className={cn(
+                  "mt-2 min-h-0 text-sm text-muted-foreground break-normal [overflow-wrap:normal] [word-break:normal]",
+                  synopsisClampClass,
+                )}
               >
                 {project?.synopsis || ""}
               </p>

@@ -79,6 +79,7 @@ export const registerProjectWriteProjectRoutes = ({
       localizeProjectImageFields,
       normalizeProjects,
       project: mergedRaw,
+      requirePublicContentForPublication: true,
       requireImagePagesForPublication: true,
       upsertUploadEntries,
     });

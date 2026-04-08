@@ -11,6 +11,7 @@ import {
   resolveEpisodeEditorLocalKey,
 } from "@/lib/project-anime-episodes";
 import { buildEpisodeKey, findDuplicateEpisodeKey } from "@/lib/project-episode-key";
+import { resolveProjectEpisodePublicationState } from "@/lib/project-publication";
 import { getProjectProgressStateForEditor } from "@/lib/project-progress";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
@@ -412,8 +413,11 @@ export type PrepareProjectSaveStateResult =
         | "discord_role_invalid"
         | "duplicate_episode"
         | "duplicate_volume"
-        | "invalid_episode_size";
+        | "invalid_episode_size"
+        | "download_sources_required_for_publication"
+        | "reader_content_or_download_required_for_publication";
       duplicateEpisodeIndex?: number;
+      invalidPublishedEpisodeIndex?: number;
       firstInvalidEpisodeSizeIndex?: number | null;
       nextEpisodeSizeDrafts: Record<number, string>;
       nextEpisodeSizeErrors: Record<number, string>;
@@ -534,6 +538,28 @@ export const prepareProjectSaveState = ({
       firstInvalidEpisodeSizeIndex,
       nextEpisodeSizeDrafts,
       nextEpisodeSizeErrors,
+      normalizedDiscordRoleId,
+      normalizedTitle,
+    };
+  }
+
+  const invalidPublishedEpisodeIndex = normalizedEpisodesForSave.findIndex((episode) => {
+    const publicationState = resolveProjectEpisodePublicationState(formState.type || "", episode);
+    return episode.publicationStatus === "published" && Boolean(publicationState.errorCode);
+  });
+
+  if (invalidPublishedEpisodeIndex >= 0) {
+    const invalidPublicationState = resolveProjectEpisodePublicationState(
+      formState.type || "",
+      normalizedEpisodesForSave[invalidPublishedEpisodeIndex],
+    );
+    return {
+      ok: false,
+      code:
+        invalidPublicationState.errorCode || "reader_content_or_download_required_for_publication",
+      invalidPublishedEpisodeIndex,
+      nextEpisodeSizeDrafts,
+      nextEpisodeSizeErrors: {},
       normalizedDiscordRoleId,
       normalizedTitle,
     };

@@ -16,6 +16,10 @@ import {
   IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
   normalizeProjectSnapshotChapterOrderForPersist,
 } from "@/lib/dashboard-project-chapter";
+import {
+  DOWNLOAD_SOURCES_REQUIRED_FOR_PUBLICATION_MESSAGE,
+  READER_CONTENT_OR_DOWNLOAD_REQUIRED_FOR_PUBLICATION_MESSAGE,
+} from "@/lib/project-publication";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import {
   DEFAULT_API_CAPABILITIES,
@@ -135,6 +139,20 @@ const buildProjectPersistenceFailureState = ({
     return {
       title: "Não foi possível publicar o capítulo",
       description: IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
+    };
+  }
+
+  if (errorCode === "reader_content_or_download_required_for_publication") {
+    return {
+      title: "NÃ£o foi possÃ­vel publicar o capÃ­tulo",
+      description: READER_CONTENT_OR_DOWNLOAD_REQUIRED_FOR_PUBLICATION_MESSAGE,
+    };
+  }
+
+  if (errorCode === "download_sources_required_for_publication") {
+    return {
+      title: "NÃ£o foi possÃ­vel publicar o capÃ­tulo",
+      description: DOWNLOAD_SOURCES_REQUIRED_FOR_PUBLICATION_MESSAGE,
     };
   }
 

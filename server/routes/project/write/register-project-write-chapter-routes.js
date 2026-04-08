@@ -111,6 +111,7 @@ export const registerProjectWriteChapterRoutes = ({
       localizeProjectImageFields,
       normalizeProjects,
       project: mergedRaw,
+      requirePublicContentForPublication: true,
       requireImagePagesForPublication: true,
       upsertUploadEntries,
     });

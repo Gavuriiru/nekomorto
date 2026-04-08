@@ -3735,6 +3735,9 @@ describe("DashboardProjectChapterEditor", () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+    fireEvent.change(await screen.findByTestId("mock-lexical"), {
+      target: { value: "Conteudo pronto para leitura" },
+    });
 
     fireEvent.click(getTopActions().getByRole("button", { name: /Publicar/i }));
 
@@ -3751,6 +3754,29 @@ describe("DashboardProjectChapterEditor", () => {
         }),
       );
     });
+  });
+
+  it("bloqueia a publicação local quando o capítulo não tem conteúdo nem fonte completa", async () => {
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
+    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+
+    fireEvent.click(getTopActions().getByRole("button", { name: /Publicar/i }));
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Não foi possível publicar o capítulo",
+          variant: "destructive",
+        }),
+      );
+    });
+    expect(
+      apiFetchMock.mock.calls.some(
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+      ),
+    ).toBe(false);
   });
 
   it("preserva o volume atual na URL ao alterar o status de um capítulo ambíguo quando a resposta volta sem volume", async () => {

@@ -193,7 +193,7 @@ const animeProjectFixture: ProjectRecord = {
       completedStages: [],
       content: "",
       contentFormat: "lexical",
-      publicationStatus: "published",
+      publicationStatus: "draft",
       coverImageUrl: "/uploads/episodios/2.jpg",
       coverImageAlt: "",
       hash: "",
@@ -637,6 +637,28 @@ describe("DashboardProjectEpisodeEditor", () => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
           title: "Complete as fontes de download",
+          variant: "destructive",
+        }),
+      ),
+    );
+    expect(apiState.getPersistedProjects()).toHaveLength(0);
+  });
+
+  it("bloqueia a publicacao local quando o episodio nao tem fonte completa", async () => {
+    const apiState = setupApiMock();
+    renderEditor("/dashboard/projetos/project-1/episodios/2");
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
+
+    const statusTrigger = screen.getByRole("combobox", { name: /Status/i });
+    fireEvent.click(statusTrigger);
+    fireEvent.click(await screen.findByRole("option", { name: /^Publicado$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Salvar episódio/i }));
+
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Não foi possível publicar o episódio",
           variant: "destructive",
         }),
       ),

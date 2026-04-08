@@ -1,9 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
+const useDynamicSynopsisClampMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "http://api.local",
@@ -13,44 +15,51 @@ vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
+vi.mock("@/hooks/use-dynamic-synopsis-clamp", () => ({
+  useDynamicSynopsisClamp: (...args: unknown[]) => useDynamicSynopsisClampMock(...args),
+}));
+
+const buildProject = (overrides: Record<string, unknown> = {}) => ({
+  id: "project-1",
+  title: "Projeto Embed",
+  synopsis: "Sinopse",
+  description: "Descricao",
+  type: "Anime",
+  status: "Em andamento",
+  year: "2025",
+  studio: "Studio Teste",
+  episodes: "12",
+  tags: ["Mystery", "Drama", "Action", "Comedy"],
+  genres: [],
+  cover: "/placeholder.svg",
+  banner: "/placeholder.svg",
+  season: "",
+  schedule: "",
+  rating: "",
+  episodeDownloads: [],
+  staff: [],
+  ...overrides,
+});
+
+const renderProjectEmbedCard = () =>
+  render(
+    <MemoryRouter>
+      <ProjectEmbedCard projectId="project-1" />
+    </MemoryRouter>,
+  );
+
 describe("ProjectEmbedCard", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
-    vi.stubGlobal(
-      "ResizeObserver",
-      class {
-        observe() {}
-        unobserve() {}
-        disconnect() {}
-      },
-    );
+    useDynamicSynopsisClampMock.mockReset();
+    useDynamicSynopsisClampMock.mockReturnValue({
+      rootRef: { current: null },
+      lineByKey: {},
+    });
   });
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("ordena tags por traducao exibida e faz fallback para tag original", async () => {
-    const project = {
-      id: "project-1",
-      title: "Projeto Embed",
-      synopsis: "Sinopse",
-      description: "Descricao",
-      type: "Anime",
-      status: "Em andamento",
-      year: "2025",
-      studio: "Studio Teste",
-      episodes: "12",
-      tags: ["Mystery", "Drama", "Action", "Comedy"],
-      genres: [],
-      cover: "/placeholder.svg",
-      banner: "/placeholder.svg",
-      season: "",
-      schedule: "",
-      rating: "",
-      episodeDownloads: [],
-      staff: [],
-    };
+  it("ordena tags por traducao exibida, mantem badges no rodape e usa clamp padrao de duas linhas", async () => {
+    const project = buildProject();
 
     apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string) => {
       if (endpoint === "/api/public/projects/project-1") {
@@ -74,11 +83,7 @@ describe("ProjectEmbedCard", () => {
       return { ok: false, json: async () => ({}) };
     });
 
-    const { container } = render(
-      <MemoryRouter>
-        <ProjectEmbedCard projectId="project-1" />
-      </MemoryRouter>,
-    );
+    const { container } = renderProjectEmbedCard();
 
     const acao = await screen.findByText("Acao");
     const comedia = screen.getByText("Comedia");
@@ -110,25 +115,24 @@ describe("ProjectEmbedCard", () => {
     expect(statusBadge).toHaveClass("max-w-[8.5rem]", "truncate");
     expect(studioBadge).toHaveClass("max-w-[8.5rem]", "truncate");
     expect(cardRoot).not.toBeNull();
+    expect(cardRoot).toHaveClass("overflow-hidden");
     expect(cardRoot).not.toHaveClass("border", "border-border");
     expect(cardRoot).toHaveClass("hover:border-primary/60");
     expect(title).toHaveClass("clamp-safe-2");
     expect(title).not.toHaveClass("sm:line-clamp-none");
-    expect(row).toHaveClass("group", "flex", "items-stretch", "gap-4");
+    expect(row).toHaveClass("group", "flex", "items-stretch");
+    expect(row).not.toHaveClass("gap-4");
     expect(synopsis).toHaveClass(
       "mt-2",
+      "clamp-safe-2",
       "break-normal",
       "[overflow-wrap:normal]",
       "[word-break:normal]",
     );
-    const synopsisLines = Number(synopsis.getAttribute("data-synopsis-lines"));
-    expect(Number.isFinite(synopsisLines)).toBe(true);
-    expect(synopsisLines).toBeGreaterThanOrEqual(1);
-    expect(synopsisLines).toBeLessThanOrEqual(4);
-    expect(String(synopsis.getAttribute("style") || "")).toMatch(/display:\s*-webkit-box/i);
-    expect(String(synopsis.getAttribute("style") || "")).toMatch(/overflow:\s*hidden/i);
+    expect(synopsis).toHaveAttribute("data-synopsis-lines", "2");
     expect(synopsisColumn).toHaveAttribute("data-synopsis-role", "column");
     expect(synopsisColumn).toHaveAttribute("data-synopsis-key", "project-1");
+    expect(synopsisColumn).toHaveClass("p-4", "self-stretch");
     expect(synopsisTitle).toHaveAttribute("data-synopsis-role", "title");
     expect(synopsisText).toHaveAttribute("data-synopsis-role", "synopsis");
     expect(synopsisBadges).toHaveAttribute("data-synopsis-role", "badges");
@@ -148,27 +152,10 @@ describe("ProjectEmbedCard", () => {
     ).not.toBe(0);
   });
 
-  it("mantem thumbnail lateral fixa no mobile sem ocupar largura total", async () => {
-    const project = {
-      id: "project-1",
-      title: "Projeto Embed",
-      synopsis: "Sinopse",
-      description: "Descricao",
-      type: "Anime",
-      status: "Em andamento",
-      year: "2025",
-      studio: "Studio Teste",
-      episodes: "12",
+  it("renderiza a capa lateral edge-to-edge com proporcao 9:14 e largura fixa", async () => {
+    const project = buildProject({
       tags: ["Drama"],
-      genres: [],
-      cover: "/placeholder.svg",
-      banner: "/placeholder.svg",
-      season: "",
-      schedule: "",
-      rating: "",
-      episodeDownloads: [],
-      staff: [],
-    };
+    });
 
     apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string) => {
       if (endpoint === "/api/public/projects/project-1") {
@@ -180,65 +167,114 @@ describe("ProjectEmbedCard", () => {
       return { ok: false, json: async () => ({}) };
     });
 
-    const { container } = render(
-      <MemoryRouter>
-        <ProjectEmbedCard projectId="project-1" />
-      </MemoryRouter>,
-    );
+    const { container } = renderProjectEmbedCard();
 
     await screen.findByText("Projeto Embed");
 
     const row = screen.getByTestId("project-embed-row");
-    expect(row).not.toBeNull();
-    expect(row).toHaveClass("flex", "items-stretch", "gap-4");
-    expect(row).toHaveStyle({ height: "calc(8rem * 65 / 46)" });
-    expect(row).not.toHaveClass("items-start");
-    expect(row).not.toHaveClass("flex-col");
+    expect(row).toHaveClass("flex", "items-stretch");
+    expect(row).not.toHaveClass("items-start", "flex-col", "gap-4");
+    expect(row).toHaveStyle({ height: "192px" });
 
-    const contentColumn = row?.querySelector("div.min-w-0.flex-1");
+    const contentColumn = container.querySelector<HTMLElement>('[data-synopsis-role="column"]');
     expect(contentColumn).not.toBeNull();
-    expect(contentColumn).toHaveClass("min-h-0", "min-w-0", "self-stretch", "overflow-hidden");
-    expect(contentColumn).toHaveAttribute("data-synopsis-role", "column");
-    expect(contentColumn).toHaveAttribute("data-synopsis-key", "project-1");
+    expect(contentColumn).toHaveClass(
+      "min-h-0",
+      "min-w-0",
+      "flex-1",
+      "self-stretch",
+      "overflow-hidden",
+      "p-4",
+    );
 
     const coverImage = screen.getByRole("img", { name: "Projeto Embed" });
-    const coverPicture = coverImage.parentElement;
-    const coverWrapper = coverPicture?.parentElement;
+    const coverPicture = coverImage.parentElement as HTMLElement | null;
+    const coverWrapper = coverPicture?.parentElement as HTMLElement | null;
+    const cardRoot = row.closest("div.rounded-lg") as HTMLElement | null;
+
     expect(coverPicture).not.toBeNull();
     expect(coverPicture).toHaveClass("block", "h-full", "w-full");
     expect(coverWrapper).not.toBeNull();
-    expect(coverWrapper).toHaveClass("h-full", "shrink-0", "self-start");
+    expect(coverWrapper).toHaveClass("h-full", "shrink-0", "self-start", "bg-secondary/60");
+    expect(coverWrapper).not.toHaveClass("rounded-xl", "w-full");
     expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
-    expect(coverWrapper).not.toHaveClass("w-full");
-    expect(coverWrapper).not.toHaveClass(
-      "border",
-      "border-border",
-      "group-hover:border-primary/40",
+    expect(coverWrapper?.style.width).toMatch(/^calc\(/);
+    expect(coverWrapper?.style.width).not.toBe("100%");
+    expect(row.firstElementChild).toBe(coverWrapper);
+    expect(cardRoot).not.toBeNull();
+    expect(cardRoot).toHaveClass("overflow-hidden");
+    expect(coverImage).toHaveAttribute("sizes", "124px");
+    expect(coverImage).toHaveClass(
+      "h-full",
+      "w-full",
+      "object-cover",
+      "object-center",
+      "transition-transform",
+      "duration-300",
+      "group-hover:scale-105",
     );
-    expect(String(coverImage.getAttribute("style") || "")).not.toMatch(/aspect-ratio/i);
   });
 
-  it("renderiza variants poster quando o endpoint entrega mediaVariants", async () => {
-    const project = {
-      id: "project-1",
-      title: "Projeto Embed",
-      synopsis: "Sinopse",
-      description: "Descricao",
-      type: "Anime",
-      status: "Em andamento",
-      year: "2025",
-      studio: "Studio Teste",
-      episodes: "12",
+  it("mapeia o clamp dinamico para classes explicitas e oculta a sinopse com zero linhas", async () => {
+    const project = buildProject({
       tags: ["Drama"],
-      genres: [],
-      cover: "/uploads/projects/embed-cover.png",
-      banner: "/placeholder.svg",
-      season: "",
-      schedule: "",
-      rating: "",
-      episodeDownloads: [],
-      staff: [],
+    });
+    let currentLineByKey: Record<string, number> = {
+      "project-1": 0,
     };
+
+    useDynamicSynopsisClampMock.mockImplementation(() => ({
+      rootRef: { current: null },
+      lineByKey: currentLineByKey,
+    }));
+
+    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string) => {
+      if (endpoint === "/api/public/projects/project-1") {
+        return { ok: true, json: async () => ({ project }) };
+      }
+      if (endpoint === "/api/public/tag-translations") {
+        return { ok: true, json: async () => ({ tags: {}, genres: {}, staffRoles: {} }) };
+      }
+      return { ok: false, json: async () => ({}) };
+    });
+
+    const { rerender } = renderProjectEmbedCard();
+
+    const synopsis = await screen.findByText("Sinopse");
+    expect(synopsis).toHaveClass("hidden");
+    expect(synopsis).toHaveAttribute("data-synopsis-lines", "0");
+
+    currentLineByKey = { "project-1": 1 };
+    rerender(
+      <MemoryRouter>
+        <ProjectEmbedCard projectId="project-1" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("Sinopse")).toHaveClass("clamp-safe-1");
+
+    currentLineByKey = { "project-1": 3 };
+    rerender(
+      <MemoryRouter>
+        <ProjectEmbedCard projectId="project-1" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("Sinopse")).toHaveClass("clamp-safe-3");
+
+    currentLineByKey = { "project-1": 4 };
+    rerender(
+      <MemoryRouter>
+        <ProjectEmbedCard projectId="project-1" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("Sinopse")).toHaveClass("clamp-safe-4");
+    expect(screen.getByText("Sinopse")).toHaveAttribute("data-synopsis-lines", "4");
+  });
+
+  it("renderiza posterThumb com fallback semantico para poster quando a API entrega apenas poster", async () => {
+    const project = buildProject({
+      tags: ["Drama"],
+      cover: "/uploads/projects/embed-cover.png",
+    });
 
     apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string) => {
       if (endpoint === "/api/public/projects/project-1") {
@@ -269,11 +305,7 @@ describe("ProjectEmbedCard", () => {
       return { ok: false, json: async () => ({}) };
     });
 
-    const { container } = render(
-      <MemoryRouter>
-        <ProjectEmbedCard projectId="project-1" />
-      </MemoryRouter>,
-    );
+    const { container } = renderProjectEmbedCard();
 
     const coverImage = await screen.findByRole("img", { name: "Projeto Embed" });
     const sources = Array.from(container.querySelectorAll("source"));
@@ -282,5 +314,6 @@ describe("ProjectEmbedCard", () => {
     expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/poster-v2.avif"));
     expect(sources[1]).toHaveAttribute("srcset", expect.stringContaining("/poster-v2.webp"));
     expect(coverImage).toHaveAttribute("src", expect.stringContaining("/poster-v2.jpeg"));
+    expect(coverImage).toHaveAttribute("sizes", "124px");
   });
 });

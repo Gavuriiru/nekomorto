@@ -168,6 +168,17 @@ const formatLocalTimeShort = (value?: string | null) => {
   return parsed.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 };
 
+const isPostCurrentlyPublic = (post?: Pick<PostRecord, "status" | "publishedAt"> | null) => {
+  if (!post) {
+    return false;
+  }
+  if (post.status !== "published" && post.status !== "scheduled") {
+    return false;
+  }
+  const publishTimeMs = new Date(post.publishedAt).getTime();
+  return Number.isFinite(publishTimeMs) && publishTimeMs <= Date.now();
+};
+
 const buildMonthCalendarGrid = (monthCursor: Date) => {
   const start = toMonthStart(monthCursor);
   const monthStartWeekday = start.getDay();
@@ -1568,6 +1579,10 @@ const DashboardPosts = () => {
   const editorPostTitle = formState.title.trim() || "Sem título";
   const editorPostId = editingPost?.id || "Será definido ao salvar";
   const editorSlugValue = formState.slug.trim() || editingPost?.slug || "";
+  const editorPublicHref =
+    persistedEditingPost?.slug && isPostCurrentlyPublic(persistedEditingPost)
+      ? `/postagem/${persistedEditingPost.slug}`
+      : "";
   const editorPostSlug = editorSlugValue ? `/${editorSlugValue}` : "Slug será definido ao salvar";
   const editorStatusLabel = postStatusLabels[formState.status];
   const editorAuthorLabel = formState.author.trim() || currentUser?.name || "Sem autor";
@@ -2090,6 +2105,19 @@ const DashboardPosts = () => {
                           ) : null}
                         </div>
                         <div className="flex flex-wrap items-center justify-end gap-2">
+                          {editorPublicHref ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
+                              asChild
+                            >
+                              <Link target="_blank" rel="noreferrer" to={editorPublicHref}>
+                                <Eye className="h-4 w-4" aria-hidden="true" />
+                                <span className="sr-only md:not-sr-only">Visualizar página</span>
+                              </Link>
+                            </Button>
+                          ) : null}
                           <Button variant="ghost" onClick={requestCloseEditor}>
                             Cancelar
                           </Button>

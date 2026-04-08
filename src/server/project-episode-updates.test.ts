@@ -328,6 +328,46 @@ describe("project episode updates", () => {
     ).toBe(false);
   });
 
+  it("requires a complete source for published anime entries and reader content or source for light novel", () => {
+    expect(
+      isEpisodePublic("Anime", {
+        publicationStatus: "published",
+        sources: [{ label: "Google Drive", url: "" }],
+      }),
+    ).toBe(false);
+
+    expect(
+      isEpisodePublic("Anime", {
+        publicationStatus: "published",
+        sources: [{ label: "Google Drive", url: "https://example.com/ep-1" }],
+      }),
+    ).toBe(true);
+
+    expect(
+      isEpisodePublic("Light Novel", {
+        publicationStatus: "published",
+        content: "",
+        sources: [],
+      }),
+    ).toBe(false);
+
+    expect(
+      isEpisodePublic("Light Novel", {
+        publicationStatus: "published",
+        content: '{"root":{"children":[{"type":"paragraph","children":[{"text":"Conteudo"}]}]}}',
+        sources: [],
+      }),
+    ).toBe(true);
+
+    expect(
+      isEpisodePublic("Light Novel", {
+        publicationStatus: "published",
+        content: "",
+        sources: [{ label: "Google Drive", url: "https://example.com/cap-1" }],
+      }),
+    ).toBe(true);
+  });
+
   it("keeps draft manga chapters out of updates", () => {
     const updates = collectEpisodeUpdates(
       {

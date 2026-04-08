@@ -96,9 +96,22 @@ describe("registerPublicProjectRoutes", () => {
         getPublicReadableProjects: vi.fn(() => [
           {
             id: "project-1",
+            type: "Light Novel",
             episodeDownloads: [
-              { number: 5, volume: 1, publicationStatus: "published" },
-              { number: 5, volume: 2, publicationStatus: "published" },
+              {
+                number: 5,
+                volume: 1,
+                publicationStatus: "published",
+                content: '{"root":{"children":[{"type":"paragraph"}]}}',
+                sources: [],
+              },
+              {
+                number: 5,
+                volume: 2,
+                publicationStatus: "published",
+                content: '{"root":{"children":[{"type":"paragraph"}]}}',
+                sources: [],
+              },
             ],
           },
         ]),
@@ -188,13 +201,61 @@ describe("registerPublicProjectRoutes", () => {
     });
   });
 
+  it("returns not_found when a published chapter is legacy-invalid and has no readable content or source", async () => {
+    const { app, routes } = createAppRecorder();
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        getPublicReadableProjects: vi.fn(() => [
+          {
+            id: "project-1",
+            type: "Light Novel",
+            episodeDownloads: [
+              {
+                number: 7,
+                volume: 1,
+                publicationStatus: "published",
+                content: "",
+                sources: [],
+              },
+            ],
+          },
+        ]),
+      },
+    });
+
+    registerPublicProjectRoutes(dependencies);
+
+    const route = getRoute(routes, "GET", "/api/public/projects/:id/chapters/:number");
+    const res = await invokeFinalHandler(route, {
+      params: { id: "project-1", number: "7" },
+      query: { volume: "1" },
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toEqual({ error: "not_found" });
+  });
+
   it("reuses the same published chapter lookup for poll voting and blocks ambiguous requests", async () => {
     const { app, routes } = createAppRecorder();
     const project = {
       id: "project-1",
+      type: "Light Novel",
       episodeDownloads: [
-        { number: 9, volume: 1, publicationStatus: "published", content: "{}" },
-        { number: 9, volume: 2, publicationStatus: "published", content: "{}" },
+        {
+          number: 9,
+          volume: 1,
+          publicationStatus: "published",
+          content: '{"root":{"children":[{"type":"paragraph"}]}}',
+          sources: [],
+        },
+        {
+          number: 9,
+          volume: 2,
+          publicationStatus: "published",
+          content: '{"root":{"children":[{"type":"paragraph"}]}}',
+          sources: [],
+        },
       ],
     };
     const dependencies = createDependencies({

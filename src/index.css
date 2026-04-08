@@ -553,7 +553,9 @@
   }
 
   .clamp-safe-1,
-  .clamp-safe-2 {
+  .clamp-safe-2,
+  .clamp-safe-3,
+  .clamp-safe-4 {
     --clamp-safe-padding-bottom: 0.12em;
     display: -webkit-box;
     -webkit-box-orient: vertical;
@@ -570,6 +572,16 @@
   .clamp-safe-2 {
     line-clamp: 2;
     -webkit-line-clamp: 2;
+  }
+
+  .clamp-safe-3 {
+    line-clamp: 3;
+    -webkit-line-clamp: 3;
+  }
+
+  .clamp-safe-4 {
+    line-clamp: 4;
+    -webkit-line-clamp: 4;
   }
 
   @media (min-width: 1024px) {

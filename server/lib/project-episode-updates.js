@@ -8,6 +8,7 @@ import {
 } from "./project-episodes.js";
 import { isChapterBasedType, normalizeTypeLookupKey } from "./project-type-utils.js";
 import { normalizeProjectEpisodePages } from "../../shared/project-reader.js";
+import { isProjectEpisodePublic } from "../../shared/project-publication.js";
 
 const sortStrings = (values) => [...values].sort((a, b) => a.localeCompare(b, "en"));
 
@@ -57,13 +58,10 @@ const getEpisodeReadableSignature = (episode) => {
 };
 
 export const isEpisodePublic = (projectType, episode) => {
-  if (getEpisodePublicationStatus(episode) !== "published") {
+  if (!episode) {
     return false;
   }
-  if (!isChapterBasedType(projectType || "")) {
-    return getEpisodeSourceSignature(episode).length > 0;
-  }
-  return hasEpisodeReadableContent(episode) || getEpisodeSourceSignature(episode).length > 0;
+  return isProjectEpisodePublic(projectType || "", episode);
 };
 
 export const getEpisodePublicSignature = (projectType, episode) =>

@@ -5,6 +5,7 @@ import { refetchPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { apiFetch } from "@/lib/api-client";
 import { parseAniListMediaId } from "@/lib/anilist";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
+import { resolveProjectEpisodePublicationErrorState } from "@/lib/project-publication";
 
 import { buildProjectFormPatchFromAniList } from "./project-editor-anilist";
 import {
@@ -159,6 +160,34 @@ export const useDashboardProjectsEditorPersistence = ({
         return;
       }
 
+      if (
+        savePreparation.code === "download_sources_required_for_publication" ||
+        savePreparation.code === "reader_content_or_download_required_for_publication"
+      ) {
+        setEditorAccordionValue((prev) =>
+          prev.includes("episodios") ? prev : [...prev, "episodios"],
+        );
+        const invalidPublishedEpisodeIndex = savePreparation.invalidPublishedEpisodeIndex;
+        if (
+          typeof invalidPublishedEpisodeIndex === "number" &&
+          Number.isInteger(invalidPublishedEpisodeIndex)
+        ) {
+          revealEpisodeAtIndex(invalidPublishedEpisodeIndex);
+        }
+        const publicationFailure = resolveProjectEpisodePublicationErrorState(
+          formState.type || "",
+          savePreparation.code,
+        );
+        toast({
+          title: publicationFailure?.title || "NÃ£o foi possÃ­vel publicar o episÃ³dio",
+          description:
+            publicationFailure?.description ||
+            "Revise o episÃ³dio antes de tentar salvar novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       setEpisodeSizeDrafts(savePreparation.nextEpisodeSizeDrafts);
       setEpisodeSizeErrors(savePreparation.nextEpisodeSizeErrors);
       toast({
@@ -263,6 +292,33 @@ export const useDashboardProjectsEditorPersistence = ({
           title: "Volumes duplicados",
           description:
             "O servidor bloqueou o save porque existe mais de uma entrada para o mesmo volume.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (
+        code === "download_sources_required_for_publication" ||
+        code === "reader_content_or_download_required_for_publication"
+      ) {
+        const invalidKey = String(data?.key || "");
+        const invalidIndex = normalizedEpisodesForSave.findIndex(
+          (episode) => buildEpisodeKey(episode.number, episode.volume) === invalidKey,
+        );
+        setEditorAccordionValue((prev) =>
+          prev.includes("episodios") ? prev : [...prev, "episodios"],
+        );
+        if (invalidIndex >= 0) {
+          revealEpisodeAtIndex(invalidIndex);
+        }
+        const publicationFailure = resolveProjectEpisodePublicationErrorState(
+          formState.type || "",
+          code,
+        );
+        toast({
+          title: publicationFailure?.title || "NÃ£o foi possÃ­vel publicar o episÃ³dio",
+          description:
+            publicationFailure?.description ||
+            "Revise o episÃ³dio antes de tentar salvar novamente.",
           variant: "destructive",
         });
         return;

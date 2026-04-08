@@ -175,4 +175,42 @@ describe("useDashboardProjectsEditorPersistence", () => {
     expect(refetchPublicBootstrapCacheMock).toHaveBeenCalledWith("http://api.local");
     expect(options.setProjects).toHaveBeenCalledTimes(1);
   });
+
+  it("abre a seção de episódios e bloqueia o save local quando há publicação sem acesso público real", async () => {
+    const options = createOptions({
+      formState: createFormState({
+        type: "Anime",
+        episodeDownloads: [
+          {
+            number: 1,
+            title: "Episódio 1",
+            synopsis: "",
+            releaseDate: "",
+            duration: "",
+            sourceType: "Web",
+            sources: [],
+            content: "",
+            contentFormat: "lexical",
+            publicationStatus: "published",
+            completedStages: [],
+          },
+        ],
+      }),
+    });
+    const { result } = renderHook(() => useDashboardProjectsEditorPersistence(options));
+
+    await act(async () => {
+      await result.current.handleSave();
+    });
+
+    expect(options.setEditorAccordionValue).toHaveBeenCalledTimes(1);
+    expect(options.revealEpisodeAtIndex).toHaveBeenCalledWith(0);
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Não foi possível publicar o episódio",
+        variant: "destructive",
+      }),
+    );
+    expect(apiFetchMock).not.toHaveBeenCalled();
+  });
 });

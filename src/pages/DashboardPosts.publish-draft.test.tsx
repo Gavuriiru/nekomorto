@@ -168,6 +168,26 @@ describe("DashboardPosts publish draft", () => {
     });
   });
 
+  it("exibe link de visualizacao quando o post ja esta publico", async () => {
+    setupApiMock("published");
+
+    render(
+      <MemoryRouter>
+        <DashboardPosts />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    fireEvent.click(screen.getByText("Post published"));
+
+    const dialog = await screen.findByRole("dialog");
+    const viewLink = within(dialog).getByRole("link", { name: "Visualizar página" });
+
+    expect(viewLink).toHaveAttribute("href", "/postagem/post-published");
+    expect(viewLink).toHaveAttribute("target", "_blank");
+    expect(viewLink).toHaveAttribute("rel", "noreferrer");
+  });
+
   it.each([
     "published",
     "scheduled",

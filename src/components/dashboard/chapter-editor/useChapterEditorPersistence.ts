@@ -8,11 +8,12 @@ import {
   VOLUME_REQUIRED_IDENTITY_MESSAGE,
   normalizeChapterForSave,
 } from "@/lib/dashboard-project-chapter";
-import {
-  getEpisodeCoverAltFallback,
-  resolveAssetAltText,
-} from "@/lib/image-alt";
+import { getEpisodeCoverAltFallback, resolveAssetAltText } from "@/lib/image-alt";
 import { resolveEpisodeLookup } from "@/lib/project-episode-key";
+import {
+  resolveProjectEpisodePublicationErrorState,
+  resolveProjectEpisodePublicationState,
+} from "@/lib/project-publication";
 import { overlayDraftOnProject } from "@/lib/project-epub";
 import { findIncompleteDownloadSourceIndex } from "@/lib/project-download-sources";
 
@@ -27,7 +28,6 @@ type UseChapterEditorPersistenceOptions = {
   hasActiveChapter: boolean;
   isDirty: boolean;
   isImageChapter: boolean;
-  isPublishedImageChapterMissingPages: boolean;
   normalizeEditorChapter: (chapter: ProjectEpisode) => ProjectEpisode;
   onChapterSaved: (
     project: ProjectRecord,
@@ -56,7 +56,6 @@ export const useChapterEditorPersistence = ({
   hasActiveChapter,
   isDirty,
   isImageChapter,
-  isPublishedImageChapterMissingPages,
   normalizeEditorChapter,
   onChapterSaved,
   onVolumeRequiredConflict,
@@ -65,6 +64,31 @@ export const useChapterEditorPersistence = ({
   const [identityError, setIdentityError] = useState<string | null>(null);
   const [isSavingChapter, setIsSavingChapter] = useState(false);
   const [isVolumeRequiredSaveDialogOpen, setIsVolumeRequiredSaveDialogOpen] = useState(false);
+
+  const showPublicationError = useCallback(
+    (errorCode: string) => {
+      const publicationFailure = resolveProjectEpisodePublicationErrorState(
+        project.type || "",
+        errorCode,
+      );
+      if (publicationFailure) {
+        toast({
+          title: publicationFailure.title,
+          description: publicationFailure.description,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (errorCode === "image_pages_required_for_publication") {
+        toast({
+          title: "N\u00e3o foi poss\u00edvel publicar o cap\u00edtulo",
+          description: IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
+          variant: "destructive",
+        });
+      }
+    },
+    [project.type],
+  );
 
   const focusChapterVolumeInput = useCallback(() => {
     if (typeof document === "undefined") {
@@ -140,10 +164,7 @@ export const useChapterEditorPersistence = ({
             chapter: {
               ...normalizedSnapshot,
               coverImageAlt: snapshot.coverImageUrl
-                ? resolveAssetAltText(
-                    snapshot.coverImageAlt,
-                    getEpisodeCoverAltFallback(true),
-                  )
+                ? resolveAssetAltText(snapshot.coverImageAlt, getEpisodeCoverAltFallback(true))
                 : "",
             },
           },
@@ -153,24 +174,24 @@ export const useChapterEditorPersistence = ({
         const data = await response.json().catch(() => null);
         const errorCode = String(data?.error || "").trim();
         if (errorCode === "duplicate_episode_key") {
-          setIdentityError("Já existe um capítulo com essa combinação de número e volume.");
+          setIdentityError("J\u00e1 existe um cap\u00edtulo com essa combina\u00e7\u00e3o de n\u00famero e volume.");
         } else if (errorCode === "volume_required") {
-          setIdentityError("Informe o volume para salvar um capítulo com número ambíguo.");
-        } else if (errorCode === "image_pages_required_for_publication") {
-          toast({
-            title: "Não foi possível publicar o capítulo",
-            description: IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
-            variant: "destructive",
-          });
+          setIdentityError("Informe o volume para salvar um cap\u00edtulo com n\u00famero amb\u00edguo.");
+        } else if (
+          errorCode === "image_pages_required_for_publication" ||
+          errorCode === "reader_content_or_download_required_for_publication" ||
+          errorCode === "download_sources_required_for_publication"
+        ) {
+          showPublicationError(errorCode);
         } else if (errorCode === "not_found") {
           toast({
-            title: "Capítulo não encontrado",
+            title: "Cap\u00edtulo n\u00e3o encontrado",
             description: "Recarregue o projeto antes de continuar editando.",
             variant: "destructive",
           });
         } else {
           toast({
-            title: "Não foi possível salvar o capítulo",
+            title: "N\u00e3o foi poss\u00edvel salvar o cap\u00edtulo",
             description: "Tente novamente em alguns instantes.",
             variant: "destructive",
           });
@@ -192,7 +213,15 @@ export const useChapterEditorPersistence = ({
       void refetchPublicBootstrapCache(apiBase).catch(() => undefined);
       return normalizedSavedChapter;
     },
-    [activeChapter, apiBase, normalizeEditorChapter, onChapterSaved, project.id, project.revision],
+    [
+      activeChapter,
+      apiBase,
+      normalizeEditorChapter,
+      onChapterSaved,
+      project.id,
+      project.revision,
+      showPublicationError,
+    ],
   );
 
   const handleChapterSave = useCallback(
@@ -203,31 +232,28 @@ export const useChapterEditorPersistence = ({
       if (findIncompleteDownloadSourceIndex(draft.sources) >= 0) {
         toast({
           title: "Complete as fontes de download",
-          description: "Selecione uma fonte e informe a URL antes de salvar o capítulo.",
+          description: "Selecione uma fonte e informe a URL antes de salvar o cap\u00edtulo.",
           variant: "destructive",
         });
         return false;
       }
       const resolvedPublicationStatus = nextPublicationStatus ?? draft.publicationStatus;
-      if (
-        resolvedPublicationStatus === "published" &&
-        isPublishedImageChapterMissingPages
-      ) {
-        toast({
-          title: "Não foi possível publicar o capítulo",
-          description: IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
-          variant: "destructive",
-        });
+      const nextSnapshot = {
+        ...draft,
+        publicationStatus: resolvedPublicationStatus,
+      };
+      const publicationState = resolveProjectEpisodePublicationState(
+        project.type || "",
+        nextSnapshot,
+      );
+      if (resolvedPublicationStatus === "published" && publicationState.errorCode) {
+        showPublicationError(publicationState.errorCode);
         return false;
       }
       const shouldPersist = isDirty || resolvedPublicationStatus !== draft.publicationStatus;
       if (!shouldPersist) {
         return true;
       }
-      const nextSnapshot = {
-        ...draft,
-        publicationStatus: resolvedPublicationStatus,
-      };
       if (blockAmbiguousChapterSave(nextSnapshot)) {
         return false;
       }
@@ -246,9 +272,10 @@ export const useChapterEditorPersistence = ({
       draft,
       hasActiveChapter,
       isDirty,
-      isPublishedImageChapterMissingPages,
       isSavingChapter,
       persistChapter,
+      project.type,
+      showPublicationError,
     ],
   );
 

@@ -240,7 +240,14 @@ type HeroSlideFrameProps = {
   mediaVariants: UploadMediaVariantsMap;
   heroViewportClass: string;
   shouldRenderNavbarOverlay: boolean;
+  shouldRenderFullBleedOverlays: boolean;
+  shouldRenderCopyOverlay: boolean;
+  shouldRenderBottomOverlay: boolean;
+  fullBleedOverlayHorizontalClass: string;
+  fullBleedOverlayVerticalClass: string;
   navbarOverlayClass: string;
+  copyOverlayClass: string;
+  bottomOverlayClass: string;
   transparentPixel: string;
   clampSynopsis: (text: string, limit?: number) => string;
 };
@@ -254,7 +261,14 @@ const HeroSlideFrame = ({
   mediaVariants,
   heroViewportClass,
   shouldRenderNavbarOverlay,
+  shouldRenderFullBleedOverlays,
+  shouldRenderCopyOverlay,
+  shouldRenderBottomOverlay,
+  fullBleedOverlayHorizontalClass,
+  fullBleedOverlayVerticalClass,
   navbarOverlayClass,
+  copyOverlayClass,
+  bottomOverlayClass,
   transparentPixel,
   clampSynopsis,
 }: HeroSlideFrameProps) => {
@@ -306,18 +320,35 @@ const HeroSlideFrame = ({
         )}
       </div>
 
-      <div className="absolute inset-0 bg-linear-to-r from-background via-background/80 to-transparent" />
-      <div className="absolute inset-0 bg-linear-to-t from-background via-background/30 to-transparent" />
+      {shouldRenderFullBleedOverlays ? (
+        <>
+          <div
+            data-testid="hero-full-bleed-overlay-horizontal"
+            className={fullBleedOverlayHorizontalClass}
+          />
+          <div
+            data-testid="hero-full-bleed-overlay-vertical"
+            className={fullBleedOverlayVerticalClass}
+          />
+        </>
+      ) : null}
 
       {shouldRenderNavbarOverlay ? (
         <div data-testid="hero-navbar-overlay" className={navbarOverlayClass} />
       ) : null}
 
+      {shouldRenderBottomOverlay ? (
+        <div data-testid="hero-bottom-overlay" className={bottomOverlayClass} />
+      ) : null}
+
       <div className="relative z-10 w-full px-6 pb-16 md:px-12 md:pb-24">
-        <div className="max-w-3xl">
+        <div className="relative max-w-3xl">
+          {shouldRenderCopyOverlay ? (
+            <div data-testid="hero-copy-overlay" className={copyOverlayClass} />
+          ) : null}
           <div
             data-testid={`hero-slide-meta-${slide.id}`}
-            className="mb-3 flex flex-col items-start gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground md:flex-row md:flex-wrap md:items-center md:gap-3"
+            className="relative z-10 mb-3 flex flex-col items-start gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground md:flex-row md:flex-wrap md:items-center md:gap-3"
           >
             {slide.id === latestSlideId ? (
               <span
@@ -356,21 +387,21 @@ const HeroSlideFrame = ({
           </div>
 
           <h1
-            className="mb-6 text-2xl font-black leading-tight text-foreground animate-slide-up opacity-0 md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl"
+            className="relative z-10 mb-6 text-2xl font-black leading-tight text-foreground animate-slide-up opacity-0 md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl"
             style={heroEntryDelayStyles.title}
           >
             {slide.title}
           </h1>
 
           <p
-            className="max-w-2xl text-base leading-relaxed text-muted-foreground animate-slide-up opacity-0 md:text-lg xl:text-xl 2xl:text-2xl"
+            className="relative z-10 max-w-2xl text-base leading-relaxed text-muted-foreground animate-slide-up opacity-0 md:text-lg xl:text-xl 2xl:text-2xl"
             style={heroEntryDelayStyles.synopsis}
           >
             {clampSynopsis(slide.description)}
           </p>
 
           <div
-            className="mt-8 flex flex-wrap gap-4 animate-slide-up opacity-0"
+            className="relative z-10 mt-8 flex flex-wrap gap-4 animate-slide-up opacity-0"
             style={heroEntryDelayStyles.actions}
           >
             <Link
@@ -577,9 +608,23 @@ const HeroSection = () => {
   }, []);
 
   const heroViewportClass = "min-h-[78vh] md:min-h-screen";
-  const shouldRenderNavbarOverlay = effectiveMode === "light";
+  const isLightTheme = effectiveMode === "light";
+  const shouldRenderNavbarOverlay = isLightTheme;
+  const shouldRenderFullBleedOverlays = true;
+  const shouldRenderCopyOverlay = isLightTheme;
+  const shouldRenderBottomOverlay = isLightTheme;
+  const fullBleedOverlayHorizontalClass = isLightTheme
+    ? "absolute inset-0 bg-[linear-gradient(90deg,hsl(220_12%_7%/_0.9)_0%,hsl(220_12%_7%/_0.76)_34%,hsl(220_12%_7%/_0.5)_58%,hsl(220_12%_7%/_0.2)_78%,transparent_100%)]"
+    : "absolute inset-0 bg-linear-to-r from-background via-background/80 to-transparent";
+  const fullBleedOverlayVerticalClass = isLightTheme
+    ? "absolute inset-0 bg-[linear-gradient(180deg,hsl(220_12%_7%/_0.18)_0%,hsl(220_12%_7%/_0.28)_18%,hsl(220_12%_7%/_0.44)_44%,hsl(220_12%_7%/_0.7)_72%,hsl(220_12%_7%/_0.9)_100%)]"
+    : "absolute inset-0 bg-linear-to-t from-background via-background/30 to-transparent";
   const navbarOverlayClass =
-    "pointer-events-none absolute inset-x-0 top-0 h-28 bg-linear-to-b from-background/95 via-background/70 to-transparent md:h-36";
+    "pointer-events-none absolute inset-x-0 top-0 h-36 bg-[linear-gradient(180deg,hsl(210_33%_98%/_0.98)_0%,hsl(210_33%_98%/_0.9)_20%,hsl(210_33%_98%/_0.7)_42%,hsl(210_33%_98%/_0.38)_68%,transparent_100%)] md:h-44";
+  const copyOverlayClass =
+    "pointer-events-none absolute -bottom-20 -left-8 -right-20 -top-12 rounded-[3rem] bg-[radial-gradient(ellipse_at_24%_24%,hsl(0_0%_100%/_0.95)_0%,hsl(210_33%_98%/_0.84)_14%,hsl(210_33%_98%/_0.62)_30%,hsl(210_33%_98%/_0.34)_48%,hsl(220_12%_7%/_0.18)_66%,transparent_86%)] md:-bottom-24 md:-left-12 md:-right-28 md:-top-16";
+  const bottomOverlayClass =
+    "pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-[linear-gradient(180deg,transparent_0%,hsl(210_33%_98%/_0.12)_18%,hsl(210_33%_98%/_0.32)_40%,hsl(210_33%_98%/_0.58)_66%,hsl(210_33%_98%/_0.88)_88%,hsl(210_33%_98%/_0.98)_100%)] md:h-44";
   const transparentPixel = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
   const shouldRenderCarousel = renderedSlides.length > 0;
   const shouldRenderCarouselControls = isCarouselEnhanced && renderedSlides.length > 1;
@@ -589,154 +634,30 @@ const HeroSection = () => {
       {shouldRenderCarousel ? (
         <Carousel opts={{ loop: true }} setApi={setApi} className={heroViewportClass}>
           <CarouselContent className="ml-0">
-            {renderedSlides.map((slide, index) => {
-              const isActive = index === activeIndex;
-              const isPrioritySlide = index === 0 || isActive;
-              const shouldLoadImage = loadedSlideIds.has(slide.id) || isPrioritySlide;
-              const loading = isPrioritySlide ? "eager" : "lazy";
-              const imagePriorityProps = {
-                fetchPriority: isPrioritySlide ? "high" : "auto",
-              } as const;
-              return (
-                <CarouselItem key={slide.id} className="pl-0">
-                  <div className={`relative flex items-end overflow-hidden ${heroViewportClass}`}>
-                    <div className="absolute inset-0">
-                      {slide.optimizedImageSet ? (
-                        <picture>
-                          <source
-                            type="image/avif"
-                            srcSet={shouldLoadImage ? slide.optimizedImageSet.avif : undefined}
-                          />
-                          <source
-                            type="image/webp"
-                            srcSet={shouldLoadImage ? slide.optimizedImageSet.webp : undefined}
-                          />
-                          <img
-                            src={shouldLoadImage ? slide.optimizedImageSet.jpg : transparentPixel}
-                            alt=""
-                            aria-hidden="true"
-                            className="h-full w-full object-cover object-center"
-                            loading={loading}
-                            decoding="async"
-                            {...imagePriorityProps}
-                          />
-                        </picture>
-                      ) : (
-                        <UploadPicture
-                          src={shouldLoadImage ? slide.image : transparentPixel}
-                          alt=""
-                          preset="hero"
-                          mediaVariants={shouldLoadImage ? mediaVariants : undefined}
-                          applyFocalObjectPosition
-                          className="h-full w-full"
-                          imgClassName="h-full w-full object-cover object-center"
-                          aria-hidden="true"
-                          loading={loading}
-                          decoding="async"
-                          {...imagePriorityProps}
-                        />
-                      )}
-                    </div>
-
-                    <div className="absolute inset-0 bg-linear-to-r from-background via-background/80 to-transparent" />
-                    <div className="absolute inset-0 bg-linear-to-t from-background via-background/30 to-transparent" />
-
-                    {shouldRenderNavbarOverlay ? (
-                      <div data-testid="hero-navbar-overlay" className={navbarOverlayClass} />
-                    ) : null}
-
-                    <div className="relative z-10 w-full px-6 pb-16 md:px-12 md:pb-24">
-                      <div className="max-w-3xl">
-                        <div
-                          data-testid={`hero-slide-meta-${slide.id}`}
-                          className="mb-3 flex flex-col items-start gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground md:flex-row md:flex-wrap md:items-center md:gap-3"
-                        >
-                          {slide.id === latestSlideId ? (
-                            <span
-                              data-testid={`hero-slide-latest-${slide.id}`}
-                              className="inline-block rounded-full border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) px-3 py-1 text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3)) animate-slide-up opacity-0"
-                              style={heroEntryDelayStyles.type}
-                            >
-                              Último Lançamento
-                            </span>
-                          ) : null}
-                          {slide.format || slide.status ? (
-                            <div
-                              data-testid={`hero-slide-type-status-${slide.id}`}
-                              className="flex flex-wrap items-center gap-3"
-                            >
-                              {slide.format ? (
-                                <span
-                                  className="animate-slide-up opacity-0"
-                                  style={heroEntryDelayStyles.type}
-                                >
-                                  {slide.format}
-                                </span>
-                              ) : null}
-                              {slide.format && slide.status ? (
-                                <span
-                                  className="animate-slide-up text-muted-foreground/50 opacity-0"
-                                  style={heroEntryDelayStyles.separator}
-                                >
-                                  •
-                                </span>
-                              ) : null}
-                              {slide.status ? (
-                                <span
-                                  className="animate-slide-up opacity-0"
-                                  style={heroEntryDelayStyles.status}
-                                >
-                                  {slide.status}
-                                </span>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <h1
-                          className="text-2xl font-black leading-tight text-foreground animate-slide-up opacity-0 md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl mb-6"
-                          style={heroEntryDelayStyles.title}
-                        >
-                          {slide.title}
-                        </h1>
-
-                        <p
-                          className="text-base leading-relaxed text-muted-foreground animate-slide-up opacity-0 md:text-lg xl:text-xl 2xl:text-2xl max-w-2xl"
-                          style={heroEntryDelayStyles.synopsis}
-                        >
-                          {clampSynopsis(slide.description)}
-                        </p>
-
-                        <div
-                          className="mt-8 flex flex-wrap gap-4 animate-slide-up opacity-0"
-                          style={heroEntryDelayStyles.actions}
-                        >
-                          <Link
-                            to={`/projeto/${slide.projectId}`}
-                            aria-label={`Acessar página de ${slide.title}`}
-                            className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 hover:brightness-110 bg-(--hero-accent,hsl(var(--primary))) text-(--hero-accent-foreground,hsl(var(--primary-foreground)))"
-                          >
-                            <Globe className="h-4 w-4" />
-                            Acessar Página
-                          </Link>
-                          {slide.trailerUrl ? (
-                            <a
-                              href={slide.trailerUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 border border-border/40 bg-background/70 text-foreground hover:bg-background/90"
-                            >
-                              <Play className="h-4 w-4" />
-                              Assistir Trailer
-                            </a>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CarouselItem>
-              );
-            })}
+            {renderedSlides.map((slide, index) => (
+              <CarouselItem key={slide.id} className="pl-0">
+                <HeroSlideFrame
+                  slide={slide}
+                  index={index}
+                  activeIndex={activeIndex}
+                  latestSlideId={latestSlideId}
+                  loadedSlideIds={loadedSlideIds}
+                  mediaVariants={mediaVariants}
+                  heroViewportClass={heroViewportClass}
+                  shouldRenderNavbarOverlay={shouldRenderNavbarOverlay}
+                  shouldRenderFullBleedOverlays={shouldRenderFullBleedOverlays}
+                  shouldRenderCopyOverlay={shouldRenderCopyOverlay}
+                  shouldRenderBottomOverlay={shouldRenderBottomOverlay}
+                  fullBleedOverlayHorizontalClass={fullBleedOverlayHorizontalClass}
+                  fullBleedOverlayVerticalClass={fullBleedOverlayVerticalClass}
+                  navbarOverlayClass={navbarOverlayClass}
+                  copyOverlayClass={copyOverlayClass}
+                  bottomOverlayClass={bottomOverlayClass}
+                  transparentPixel={transparentPixel}
+                  clampSynopsis={clampSynopsis}
+                />
+              </CarouselItem>
+            ))}
           </CarouselContent>
           {shouldRenderCarouselControls ? (
             <CarouselPrevious
@@ -761,7 +682,14 @@ const HeroSection = () => {
           mediaVariants={mediaVariants}
           heroViewportClass={heroViewportClass}
           shouldRenderNavbarOverlay={shouldRenderNavbarOverlay}
+          shouldRenderFullBleedOverlays={shouldRenderFullBleedOverlays}
+          shouldRenderCopyOverlay={shouldRenderCopyOverlay}
+          shouldRenderBottomOverlay={shouldRenderBottomOverlay}
+          fullBleedOverlayHorizontalClass={fullBleedOverlayHorizontalClass}
+          fullBleedOverlayVerticalClass={fullBleedOverlayVerticalClass}
           navbarOverlayClass={navbarOverlayClass}
+          copyOverlayClass={copyOverlayClass}
+          bottomOverlayClass={bottomOverlayClass}
           transparentPixel={transparentPixel}
           clampSynopsis={clampSynopsis}
         />

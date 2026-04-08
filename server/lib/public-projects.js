@@ -3,18 +3,26 @@ import {
   getEpisodePublicationStatus,
   hasEpisodeContent,
   hasEpisodePages,
-  isPublishedEpisode,
 } from "./project-episodes.js";
+import {
+  getProjectEpisodeCompleteDownloadSources,
+  isProjectEpisodePublic,
+} from "../../shared/project-publication.js";
 
 export const getPubliclyVisibleEpisodes = (project) =>
   (Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : []).filter((episode) =>
-    isPublishedEpisode(episode),
+    isProjectEpisodePublic(project?.type || "", episode),
   );
+
+const toPublicReadableEpisode = (episode) => ({
+  ...(episode || {}),
+  sources: getProjectEpisodeCompleteDownloadSources(episode),
+});
 
 export const toPublicEpisode = (episode) => {
   const { content: _content, pages: _pages, ...rest } = episode || {};
   return {
-    ...rest,
+    ...toPublicReadableEpisode(rest),
     hasContent: hasEpisodeContent(episode),
     hasPages: hasEpisodePages(episode),
   };
@@ -22,7 +30,7 @@ export const toPublicEpisode = (episode) => {
 
 export const toPublicReadableProject = (project) => ({
   ...project,
-  episodeDownloads: getPubliclyVisibleEpisodes(project),
+  episodeDownloads: getPubliclyVisibleEpisodes(project).map(toPublicReadableEpisode),
 });
 
 export const toPublicProject = (project) => ({

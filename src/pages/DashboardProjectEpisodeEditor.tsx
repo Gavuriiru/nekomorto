@@ -69,6 +69,10 @@ import {
   resolveNextMainEpisodeNumber,
 } from "@/lib/project-episode-key";
 import {
+  resolveProjectEpisodePublicationErrorState,
+  resolveProjectEpisodePublicationState,
+} from "@/lib/project-publication";
+import {
   getProjectProgressStateForEditor,
   getProjectProgressStagesForEditor,
   syncProjectProgress,
@@ -521,10 +525,22 @@ const DashboardProjectEpisodeEditor = () => {
       if (!response.ok) {
         const data = await response.json().catch(() => null);
         const code = typeof data?.error === "string" ? data.error : "";
+        const publicationFailure = resolveProjectEpisodePublicationErrorState(
+          nextProject.type || project?.type || "",
+          code,
+        );
         if (code === "forbidden") {
           toast({
             title: "Acesso negado",
             description: "Você não tem permissão para salvar episódios.",
+            variant: "destructive",
+          });
+          return null;
+        }
+        if (publicationFailure) {
+          toast({
+            title: publicationFailure.title,
+            description: publicationFailure.description,
             variant: "destructive",
           });
           return null;
@@ -542,7 +558,7 @@ const DashboardProjectEpisodeEditor = () => {
       void refetchPublicBootstrapCache();
       return persistedProject;
     },
-    [apiBase, projectId],
+    [apiBase, project?.type, projectId],
   );
 
   const createEpisode = useCallback(
@@ -629,6 +645,24 @@ const DashboardProjectEpisodeEditor = () => {
         description: "Cada episódio precisa ter um número único neste projeto.",
         variant: "destructive",
       });
+      return null;
+    }
+    const publicationState = resolveProjectEpisodePublicationState(
+      project.type || "",
+      normalizedDraft,
+    );
+    if (normalizedDraft.publicationStatus === "published" && publicationState.errorCode) {
+      const publicationFailure = resolveProjectEpisodePublicationErrorState(
+        project.type || "",
+        publicationState.errorCode,
+      );
+      if (publicationFailure) {
+        toast({
+          title: publicationFailure.title,
+          description: publicationFailure.description,
+          variant: "destructive",
+        });
+      }
       return null;
     }
     setIsSaving(true);

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildEpisodeKey,
   findDuplicateEpisodeKey,
+  findPublishedEpisodeWithoutPublicAccess,
   findPublishedImageEpisodeWithoutPages,
   resolveEpisodeLookup,
   resolvePublishedEpisodeLookup,
@@ -52,9 +53,22 @@ describe("project episode helpers", () => {
 
   it("builds standardized published lookup results for route callers", () => {
     const project = {
+      type: "Anime",
       episodeDownloads: [
-        { number: 5, volume: 1, title: "Cap 5 v1", publicationStatus: "published" },
-        { number: 5, volume: 2, title: "Cap 5 v2", publicationStatus: "published" },
+        {
+          number: 5,
+          volume: 1,
+          title: "Cap 5 v1",
+          publicationStatus: "published",
+          sources: [{ label: "Google Drive", url: "https://example.com/cap-5-v1" }],
+        },
+        {
+          number: 5,
+          volume: 2,
+          title: "Cap 5 v2",
+          publicationStatus: "published",
+          sources: [{ label: "Google Drive", url: "https://example.com/cap-5-v2" }],
+        },
         { number: 6, volume: 1, title: "Cap 6 v1", publicationStatus: "draft" },
       ],
     };
@@ -130,5 +144,84 @@ describe("project episode helpers", () => {
         },
       ]),
     ).toBeNull();
+  });
+
+  it("detects the first published entry without real public access by project type", () => {
+    expect(
+      findPublishedEpisodeWithoutPublicAccess("Anime", [
+        {
+          number: 1,
+          sources: [],
+          publicationStatus: "draft",
+        },
+        {
+          number: 2,
+          sources: [{ label: "Google Drive", url: "" }],
+          publicationStatus: "published",
+        },
+      ]),
+    ).toMatchObject({
+      key: "2:0",
+      errorCode: "download_sources_required_for_publication",
+    });
+
+    expect(
+      findPublishedEpisodeWithoutPublicAccess("Light Novel", [
+        {
+          number: 3,
+          volume: 1,
+          content: "",
+          sources: [],
+          publicationStatus: "published",
+        },
+      ]),
+    ).toMatchObject({
+      key: "3:1",
+      errorCode: "reader_content_or_download_required_for_publication",
+    });
+
+    expect(
+      findPublishedEpisodeWithoutPublicAccess("Manga", [
+        {
+          number: 4,
+          volume: 1,
+          contentFormat: "images",
+          pages: [{ position: 0, imageUrl: "/uploads/manga/cap4-1.jpg" }],
+          publicationStatus: "published",
+          sources: [],
+        },
+      ]),
+    ).toBeNull();
+  });
+
+  it("keeps invalid legacy published entries out of published lookup results", () => {
+    const project = {
+      type: "Anime",
+      episodeDownloads: [
+        {
+          number: 1,
+          publicationStatus: "published",
+          sources: [],
+        },
+        {
+          number: 2,
+          publicationStatus: "published",
+          sources: [{ label: "Google Drive", url: "https://example.com/ep-2" }],
+        },
+      ],
+    };
+
+    expect(resolvePublishedEpisodeLookup(project, 1, null)).toMatchObject({
+      ok: false,
+      code: "not_found",
+      error: "not_found",
+      statusCode: 404,
+    });
+
+    expect(resolvePublishedEpisodeLookup(project, 2, null)).toMatchObject({
+      ok: true,
+      key: "2:0",
+      statusCode: 200,
+    });
   });
 });

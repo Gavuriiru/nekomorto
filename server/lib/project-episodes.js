@@ -3,6 +3,11 @@ import {
   hasProjectEpisodeReadableContent,
   normalizeProjectEpisodeContentFormat,
 } from "../../shared/project-reader.js";
+import {
+  getProjectEpisodeCompleteDownloadSources,
+  isProjectEpisodePublic,
+  resolveProjectEpisodePublicationState,
+} from "../../shared/project-publication.js";
 
 export const getEpisodeNumberValue = (value) => {
   const parsed = Number(value);
@@ -46,9 +51,7 @@ export const buildEpisodeKey = (number, volume) => {
 };
 
 export const getEpisodeSourceUrls = (episode) =>
-  Array.isArray(episode?.sources)
-    ? episode.sources.map((source) => String(source?.url || "").trim()).filter(Boolean)
-    : [];
+  getProjectEpisodeCompleteDownloadSources(episode).map((source) => source.url);
 
 export const hasEpisodeSources = (episode) => getEpisodeSourceUrls(episode).length > 0;
 
@@ -110,11 +113,29 @@ export const findPublishedImageEpisodeWithoutPages = (episodes) => {
   return null;
 };
 
+export const findPublishedEpisodeWithoutPublicAccess = (projectType, episodes) => {
+  const list = Array.isArray(episodes) ? episodes : [];
+  for (let index = 0; index < list.length; index += 1) {
+    const episode = list[index];
+    const publicationState = resolveProjectEpisodePublicationState(projectType, episode);
+    if (!publicationState.errorCode) {
+      continue;
+    }
+    return {
+      index,
+      key: buildEpisodeKey(episode?.number, episode?.volume),
+      episode,
+      errorCode: publicationState.errorCode,
+    };
+  }
+  return null;
+};
+
 export const resolveEpisodeLookup = (
   project,
   episodeNumber,
   volume,
-  { requirePublished = false } = {},
+  { requirePublished = false, episodeFilter = null } = {},
 ) => {
   const safeNumber = getEpisodeNumberValue(episodeNumber);
   if (safeNumber === null) {
@@ -127,6 +148,9 @@ export const resolveEpisodeLookup = (
     .filter(({ episode }) => getEpisodeNumberValue(episode?.number) === safeNumber)
     .filter(({ episode }) => {
       if (requirePublished && !isPublishedEpisode(episode)) {
+        return false;
+      }
+      if (typeof episodeFilter === "function" && !episodeFilter(episode)) {
         return false;
       }
       return true;
@@ -174,6 +198,7 @@ export const resolvePublishedEpisodeLookup = (
 ) => {
   const lookup = resolveEpisodeLookup(project, episodeNumber, volume, {
     requirePublished: true,
+    episodeFilter: (episode) => isProjectEpisodePublic(project?.type || "", episode),
   });
 
   if (lookup.ok) {

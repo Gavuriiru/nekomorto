@@ -1,3 +1,5 @@
+import { findPublishedEpisodeWithoutPublicAccess } from "../../../lib/project-episodes.js";
+
 export const prepareLocalizedProjectMutation = async ({
   PUBLIC_UPLOADS_DIR,
   findDuplicateEpisodeKey,
@@ -8,6 +10,7 @@ export const prepareLocalizedProjectMutation = async ({
   normalizeProjects,
   project,
   requireImagePagesForPublication = false,
+  requirePublicContentForPublication = requireImagePagesForPublication,
   upsertUploadEntries,
 } = {}) => {
   const localizedProject = await localizeProjectImageFields({
@@ -42,17 +45,18 @@ export const prepareLocalizedProjectMutation = async ({
     };
   }
 
-  if (requireImagePagesForPublication) {
-    const publishedImageEpisodeWithoutPages = findPublishedImageEpisodeWithoutPages(
+  if (requirePublicContentForPublication) {
+    const publishedEpisodeWithoutPublicAccess = findPublishedEpisodeWithoutPublicAccess(
+      normalizedProject.type || "",
       normalizedProject.episodeDownloads,
     );
-    if (publishedImageEpisodeWithoutPages) {
+    if (publishedEpisodeWithoutPublicAccess) {
       return {
         ok: false,
         status: 400,
         body: {
-          error: "image_pages_required_for_publication",
-          key: publishedImageEpisodeWithoutPages.key,
+          error: publishedEpisodeWithoutPublicAccess.errorCode,
+          key: publishedEpisodeWithoutPublicAccess.key,
         },
       };
     }

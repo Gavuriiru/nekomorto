@@ -12,6 +12,7 @@ describe("public project serialization", () => {
       {
         id: "project-1",
         title: "Projeto",
+        type: "Light Novel",
         order: 2,
         deletedAt: null,
         episodeDownloads: [
@@ -23,7 +24,7 @@ describe("public project serialization", () => {
             coverImageAlt: "Capa do capitulo 1",
             publicationStatus: "published",
             content: '{"root":{"children":[{"type":"paragraph","children":[],"version":1}]}}',
-            sources: [],
+            sources: [{ label: "Google Drive", url: "https://example.com/cap-1" }],
           },
           {
             number: 2,
@@ -32,6 +33,14 @@ describe("public project serialization", () => {
             publicationStatus: "draft",
             content: '{"root":{"children":[{"type":"paragraph","children":[],"version":1}]}}',
             sources: [],
+          },
+          {
+            number: 3,
+            volume: 1,
+            title: "Capitulo 3",
+            publicationStatus: "published",
+            content: "",
+            sources: [{ label: "Google Drive", url: "" }],
           },
         ],
       },
@@ -46,6 +55,7 @@ describe("public project serialization", () => {
         coverImageUrl: "/uploads/projects/project-1/episodes/chapter-1.jpg",
         coverImageAlt: "Capa do capitulo 1",
         content: expect.stringContaining('"root"'),
+        sources: [{ label: "Google Drive", url: "https://example.com/cap-1" }],
       }),
     ]);
 
@@ -58,9 +68,73 @@ describe("public project serialization", () => {
         coverImageUrl: "/uploads/projects/project-1/episodes/chapter-1.jpg",
         coverImageAlt: "Capa do capitulo 1",
         hasContent: true,
+        sources: [{ label: "Google Drive", url: "https://example.com/cap-1" }],
       }),
     ]);
     expect(visibleProjects[0].episodeDownloads[0]).not.toHaveProperty("content");
+  });
+
+  it("filters legacy published entries without public access while keeping empty drafts in progress", () => {
+    const visibleProjects = buildPublicVisibleProjects([
+      {
+        id: "project-anime",
+        title: "Anime",
+        type: "Anime",
+        order: 1,
+        deletedAt: null,
+        episodeDownloads: [
+          {
+            number: 1,
+            title: "Ep 1",
+            publicationStatus: "published",
+            sources: [],
+          },
+          {
+            number: 2,
+            title: "Ep 2",
+            publicationStatus: "published",
+            sources: [{ label: "Google Drive", url: "https://example.com/ep-2" }],
+          },
+        ],
+      },
+    ]);
+
+    expect(visibleProjects[0].episodeDownloads).toEqual([
+      expect.objectContaining({
+        number: 2,
+        sources: [{ label: "Google Drive", url: "https://example.com/ep-2" }],
+      }),
+    ]);
+
+    expect(
+      buildPublicInProgressItems([
+        {
+          id: "project-ln",
+          title: "LN",
+          type: "Light Novel",
+          order: 1,
+          deletedAt: null,
+          episodeDownloads: [
+            {
+              number: 4,
+              volume: 1,
+              publicationStatus: "draft",
+              content: "",
+              sources: [],
+              progressStage: "traducao",
+              completedStages: ["aguardando-raw"],
+            },
+          ],
+        },
+      ]),
+    ).toEqual([
+      expect.objectContaining({
+        projectId: "project-ln",
+        number: 4,
+        volume: 1,
+        progressStage: "traducao",
+      }),
+    ]);
   });
 
   it("sorts projects by order and excludes deleted projects", () => {

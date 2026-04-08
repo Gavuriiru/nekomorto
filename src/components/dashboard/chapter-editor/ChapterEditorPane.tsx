@@ -50,7 +50,6 @@ import { getApiBase } from "@/lib/api-base";
 import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
 import {
   EMPTY_CHAPTER_DRAFT,
-  IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
   VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION,
   buildNewChapterDraft,
   buildChapterVolumeLabel,
@@ -413,8 +412,6 @@ const ChapterEditorPane = forwardRef<
         draft.contentFormat,
         normalizedDraftPages.length > 0 ? "images" : "lexical",
       ) === "images";
-    const isPublishedImageChapterMissingPages =
-      isImageChapter && normalizedDraftPages.length === 0;
     const projectSnapshotForImageExport = useMemo(
       () => overlayDraftOnProject(project, activeChapterKey, draft),
       [activeChapterKey, draft, project],
@@ -451,7 +448,6 @@ const ChapterEditorPane = forwardRef<
       hasActiveChapter,
       isDirty,
       isImageChapter,
-      isPublishedImageChapterMissingPages,
       normalizeEditorChapter,
       onChapterSaved,
       onVolumeRequiredConflict: () => {

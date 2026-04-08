@@ -31,6 +31,7 @@ const CONTRACT_BASE = Object.freeze({
     "Fluxo MFA opcional usa pending_mfa; finalize em POST /api/auth/mfa/verify.",
     "Endpoints publicos de conteudo expoem mediaVariants com presets responsivos para srcset por largura (incluindo cardHomeXs/cardHomeSm/heroXs/heroSm/heroMd/posterThumbSm), mantendo avif/webp/fallback.",
     "Endpoints de upload podem retornar variantsGenerated e variantGenerationError para observabilidade.",
+    "Publicacao de episodios/capitulos valida acesso publico real: anime e similares exigem ao menos uma fonte completa; light novel exige texto no leitor ou fonte; manga/webtoon exigem paginas ou fonte. Erros esperados: download_sources_required_for_publication e reader_content_or_download_required_for_publication.",
   ],
   endpoints: [
     {
@@ -167,10 +168,34 @@ const CONTRACT_BASE = Object.freeze({
       ],
     },
     {
+      method: "POST",
+      path: "/api/projects",
+      auth: "session",
+      cache: "no-store",
+      idempotent: "optional_by_header",
+      notes: [
+        "Accepts the full project snapshot in the request body and requires title plus id.",
+        "Published anime and other non-reader entries require at least one complete download source and may return download_sources_required_for_publication.",
+        "Published light novel chapters require lexical reader content or one complete source; manga/webtoon chapters require pages or one complete source and may return reader_content_or_download_required_for_publication.",
+      ],
+    },
+    {
       method: "GET",
       path: "/api/projects/:id",
       auth: "session",
       cache: "no-store",
+    },
+    {
+      method: "PUT",
+      path: "/api/projects/:id",
+      auth: "session",
+      cache: "no-store",
+      idempotent: "optional_by_header",
+      notes: [
+        "Accepts the full project snapshot in the request body.",
+        "Published anime and other non-reader entries require at least one complete download source and may return download_sources_required_for_publication.",
+        "Published light novel chapters require lexical reader content or one complete source; manga/webtoon chapters require pages or one complete source and may return reader_content_or_download_required_for_publication.",
+      ],
     },
     {
       method: "PUT",
@@ -182,7 +207,9 @@ const CONTRACT_BASE = Object.freeze({
         "Accepts chapter payload in body.chapter.",
         "Supports optional ?volume= to resolve chapters in multivolume projects.",
         "Image chapters accept contentFormat='images', pages[] and pageCount.",
-        "Image chapters can stay empty while in draft, but publication requires at least one page and may return image_pages_required_for_publication.",
+        "Draft chapters can stay empty, but published chapters require reader content or one complete download source.",
+        "Published light novel chapters without public content may return reader_content_or_download_required_for_publication.",
+        "Published manga/webtoon chapters without pages or complete download sources may return reader_content_or_download_required_for_publication.",
       ],
     },
     {

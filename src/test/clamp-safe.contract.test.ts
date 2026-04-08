@@ -15,7 +15,9 @@ const extractBlock = (selectorPattern: RegExp) => {
 
 describe("clamp safe contract", () => {
   it("defines shared clamp-safe utilities with descender padding compensation", () => {
-    const baseBlock = extractBlock(/\.clamp-safe-1,\s*\n\s*\.clamp-safe-2\s*\{([\s\S]*?)\n  \}/);
+    const baseBlock = extractBlock(
+      /\.clamp-safe-1,\s*\n\s*\.clamp-safe-2,\s*\n\s*\.clamp-safe-3,\s*\n\s*\.clamp-safe-4\s*\{([\s\S]*?)\n  \}/,
+    );
 
     expect(baseBlock).toContain("--clamp-safe-padding-bottom: 0.12em;");
     expect(baseBlock).toContain("display: -webkit-box;");
@@ -29,6 +31,12 @@ describe("clamp safe contract", () => {
     );
     expect(cssSource).toMatch(
       /\.clamp-safe-2\s*\{[\s\S]*?line-clamp: 2;[\s\S]*?-webkit-line-clamp: 2;[\s\S]*?\n  \}/,
+    );
+    expect(cssSource).toMatch(
+      /\.clamp-safe-3\s*\{[\s\S]*?line-clamp: 3;[\s\S]*?-webkit-line-clamp: 3;[\s\S]*?\n  \}/,
+    );
+    expect(cssSource).toMatch(
+      /\.clamp-safe-4\s*\{[\s\S]*?line-clamp: 4;[\s\S]*?-webkit-line-clamp: 4;[\s\S]*?\n  \}/,
     );
   });
 
