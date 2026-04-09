@@ -17,7 +17,9 @@ interface WorkItem {
   id: string;
   title: string;
   entry: string;
-  progressState: NonNullable<ReturnType<typeof getProjectProgressStateForPublicCard>>;
+  progressState: NonNullable<
+    ReturnType<typeof getProjectProgressStateForPublicCard>
+  >;
   projectId: string;
 }
 
@@ -27,7 +29,8 @@ const VISIBLE_PROGRESS_ITEMS = 5;
 const PROGRESS_CARD_ITEM_MIN_HEIGHT = "5.75rem";
 const PROGRESS_CARD_LIST_MAX_HEIGHT = `calc((${PROGRESS_CARD_ITEM_MIN_HEIGHT} * ${VISIBLE_PROGRESS_ITEMS}) + (0.75rem * ${VISIBLE_PROGRESS_ITEMS - 1}) + 0.5rem)`;
 
-const hasNumericVolume = (value: number | undefined) => Number.isFinite(Number(value));
+const hasNumericVolume = (value: number | undefined) =>
+  Number.isFinite(Number(value));
 
 const buildEntryLabel = (
   item: PublicBootstrapInProgressItem,
@@ -38,7 +41,9 @@ const buildEntryLabel = (
     return displayLabel;
   }
   if (progressKind === "manga") {
-    const volumeLabel = hasNumericVolume(item.volume) ? ` • Vol. ${Number(item.volume)}` : "";
+    const volumeLabel = hasNumericVolume(item.volume)
+      ? ` • Vol. ${Number(item.volume)}`
+      : "";
     return `Capítulo ${item.number}${volumeLabel}`;
   }
   return `Episódio ${item.number}`;
@@ -52,7 +57,8 @@ const WorkStatusCard = () => {
   const { data: bootstrapData, isLoading } = usePublicBootstrap();
   const inProgressItems = bootstrapData?.inProgressItems || [];
   const isLoadingProjects = isLoading && !bootstrapData;
-  const useAccentInProgressCard = bootstrapData?.settings?.theme?.useAccentInProgressCard === true;
+  const useAccentInProgressCard =
+    bootstrapData?.settings?.theme?.useAccentInProgressCard === true;
 
   const workItems = useMemo<WorkItem[]>(() => {
     const items: WorkItem[] = [];
@@ -78,10 +84,16 @@ const WorkStatusCard = () => {
     return items;
   }, [inProgressItems]);
 
-  const itemsInProgress = workItems.filter((item) => item.progressState.isInProgress);
+  const itemsInProgress = workItems.filter(
+    (item) => item.progressState.isInProgress,
+  );
 
   return (
-    <Card lift={false} className="bg-card border-border reveal shadow-none" data-reveal>
+    <Card
+      lift={false}
+      className="bg-card border-border reveal shadow-none"
+      data-reveal
+    >
       <CardHeader className="px-4 pb-3 pt-4">
         <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
           <Clock className="w-4 h-4 text-primary/80" />
@@ -92,7 +104,10 @@ const WorkStatusCard = () => {
         {isLoadingProjects ? (
           <div className="space-y-3">
             {Array.from({ length: 2 }).map((_, index) => (
-              <div key={`progress-skeleton-${index}`} className="rounded-md bg-secondary/40 p-3">
+              <div
+                key={`progress-skeleton-${index}`}
+                className="rounded-md bg-secondary/40 p-3"
+              >
                 <Skeleton className="h-3 w-2/3" />
                 <Skeleton className="mt-2 h-2 w-1/2" />
                 <Skeleton className="mt-3 h-2 w-full" />
@@ -116,14 +131,14 @@ const WorkStatusCard = () => {
                 <Link
                   key={item.id}
                   to={`/projeto/${item.projectId}`}
-                  className="group/item block min-h-[5.75rem] rounded-md border border-border/50 bg-secondary/50 p-3 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-secondary hover:shadow-lg"
+                  className="group/item interactive-lift-md interactive-surface-transition block min-h-[5.75rem] rounded-md border border-border/50 bg-secondary/50 p-3 hover:border-primary/60 hover:bg-secondary focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate transition-colors duration-300 group-hover/item:text-primary">
+                      <p className="interactive-content-transition truncate text-sm font-medium text-foreground group-hover/item:text-primary">
                         {item.title}
                       </p>
-                      <span className="block truncate text-xs text-muted-foreground transition-colors duration-300 group-hover/item:text-foreground/80">
+                      <span className="interactive-content-transition block truncate text-xs text-muted-foreground group-hover/item:text-foreground/80">
                         {item.entry}
                       </span>
                     </div>

@@ -191,6 +191,47 @@ describe("client lexical serialize", () => {
     );
   });
 
+  it("normaliza um estado com epub-anchor node serializado", () => {
+    const normalized = normalizeLexicalJson(
+      JSON.stringify({
+        root: {
+          children: [
+            {
+              children: [
+                {
+                  anchorId: "note-1",
+                  type: "epub-anchor",
+                  version: 1,
+                },
+                createTextNode("text", "Texto com ancora"),
+              ],
+              direction: null,
+              format: "",
+              indent: 0,
+              textFormat: 0,
+              textStyle: "",
+              type: "paragraph",
+              version: 1,
+            },
+          ],
+          direction: null,
+          format: "",
+          indent: 0,
+          type: "root",
+          version: 1,
+        },
+      }),
+    );
+
+    expect(normalized).not.toBeNull();
+    expect(JSON.parse(String(normalized)).root.children[0].children[0]).toEqual(
+      expect.objectContaining({
+        type: "epub-anchor",
+        anchorId: "note-1",
+      }),
+    );
+  });
+
   it("preserva font-size inline ao converter html para lexical", () => {
     const serialized = htmlToLexicalJson('<span style="font-size: 1.5em">texto grande</span>');
     const textNode = JSON.parse(serialized).root.children[0].children[0];

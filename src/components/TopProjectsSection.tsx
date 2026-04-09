@@ -41,7 +41,9 @@ const toSafeNonNegativeInt = (value: unknown) => {
 
 const buildRecentUtcDayKeys = (days: number, now = new Date()) => {
   const keys: string[] = [];
-  const endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const endDate = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
   for (let offset = 0; offset < days; offset += 1) {
     const day = new Date(endDate);
     day.setUTCDate(endDate.getUTCDate() - offset);
@@ -50,7 +52,10 @@ const buildRecentUtcDayKeys = (days: number, now = new Date()) => {
   return keys;
 };
 
-const sumViewsByDayKeys = (viewsDaily: Record<string, number>, dayKeys: string[]) => {
+const sumViewsByDayKeys = (
+  viewsDaily: Record<string, number>,
+  dayKeys: string[],
+) => {
   if (!viewsDaily || typeof viewsDaily !== "object") {
     return 0;
   }
@@ -109,9 +114,17 @@ const TopProjectsSection = () => {
       .filter((item) => item.id && item.title)
       .sort((left, right) => {
         const leftMetric =
-          mode === "30d" ? left.views30d : mode === "7d" ? left.views7d : left.viewsAll;
+          mode === "30d"
+            ? left.views30d
+            : mode === "7d"
+              ? left.views7d
+              : left.viewsAll;
         const rightMetric =
-          mode === "30d" ? right.views30d : mode === "7d" ? right.views7d : right.viewsAll;
+          mode === "30d"
+            ? right.views30d
+            : mode === "7d"
+              ? right.views7d
+              : right.viewsAll;
         if (rightMetric !== leftMetric) {
           return rightMetric - leftMetric;
         }
@@ -123,7 +136,10 @@ const TopProjectsSection = () => {
       .slice(0, TOP_PROJECTS_LIMIT);
   }, [mode, projects]);
 
-  const synopsisKeys = useMemo(() => topProjects.map((item) => item.id), [topProjects]);
+  const synopsisKeys = useMemo(
+    () => topProjects.map((item) => item.id),
+    [topProjects],
+  );
   const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
     enabled: topProjects.length > 0,
     keys: synopsisKeys,
@@ -216,14 +232,18 @@ const TopProjectsSection = () => {
             >
               {topProjects.map((entry, index) => {
                 const metricValue =
-                  mode === "30d" ? entry.views30d : mode === "7d" ? entry.views7d : entry.viewsAll;
+                  mode === "30d"
+                    ? entry.views30d
+                    : mode === "7d"
+                      ? entry.views7d
+                      : entry.viewsAll;
 
                 return (
                   <Link
                     key={entry.id}
                     data-testid={`top-project-item-${index + 1}`}
                     to={`/projeto/${entry.id}`}
-                    className={`group flex h-(--top-card-h) overflow-hidden rounded-2xl border border-border/50 bg-linear-to-br from-background/70 via-background/40 to-background/70 transition-all duration-300 hover:-translate-y-1 ${publicStrongSurfaceHoverClassName}`}
+                    className={`group interactive-lift-md interactive-surface-transition flex h-(--top-card-h) overflow-hidden rounded-2xl border border-border/50 bg-linear-to-br from-background/70 via-background/40 to-background/70 ${publicStrongSurfaceHoverClassName} focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45`}
                   >
                     <div
                       className="h-full shrink-0 overflow-hidden bg-secondary/60"
@@ -239,7 +259,7 @@ const TopProjectsSection = () => {
                         mediaVariants={mediaVariants}
                         sizes="96px"
                         className="block h-full w-full"
-                        imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                        imgClassName="interactive-media-transition h-full w-full object-cover object-center group-hover:scale-105 group-focus-visible:scale-105"
                         loading="lazy"
                       />
                     </div>
@@ -285,7 +305,7 @@ const TopProjectsSection = () => {
                             </span>
                           </div>
                         </div>
-                        <h3 className="clamp-safe-2 text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+                        <h3 className="clamp-safe-2 interactive-content-transition text-base font-semibold leading-snug text-foreground group-hover:text-primary group-focus-visible:text-primary">
                           {entry.title}
                         </h3>
                       </div>

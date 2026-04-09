@@ -1,6 +1,6 @@
 import { resolveProjectPosterPreload } from "./public-media-variants.js";
 
-export const PROJECTS_LIST_IMAGE_SIZES = "(max-width: 767px) 100px, 142px";
+export const PROJECTS_LIST_IMAGE_SIZES = "(max-width: 767px) 129px, 154px";
 export const PROJECTS_PRELOAD_LIMIT = 6;
 export const DESKTOP_PROJECTS_PRELOAD_MEDIA = "(min-width: 768px)";
 

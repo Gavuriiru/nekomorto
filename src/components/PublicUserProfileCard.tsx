@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
 import {
   BadgeCheck,
   Camera,
@@ -38,6 +38,8 @@ import { cn } from "@/lib/utils";
 import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/url-safety";
 
 const FAVORITE_WORK_CATEGORIES = ["manga", "anime"] as const;
+const FAVORITES_HINT_TEXT = "Clique para ver as obras favoritas";
+const FAVORITES_TOGGLE_IGNORE_SELECTOR = "a,button";
 
 type PublicUserProfileCardProps = {
   member: PublicTeamMember;
@@ -148,7 +150,7 @@ const PublicUserProfileAvatar = ({
   }, [normalizedImageSrc]);
 
   return (
-    <div className="relative z-10 h-56 w-56 overflow-hidden rounded-full border border-white/10 ring-4 ring-background/70 shadow-[0_20px_46px_-24px_rgba(0,0,0,0.82)] transition-transform duration-500 group-hover:scale-105 sm:h-60 sm:w-60 md:h-64 md:w-64 lg:h-64 lg:w-64">
+    <div className="relative z-10 h-56 w-56 overflow-hidden rounded-full border border-white/10 ring-4 ring-background/70 shadow-[0_20px_46px_-24px_rgba(0,0,0,0.82)] sm:h-60 sm:w-60 md:h-64 md:w-64 lg:h-64 lg:w-64">
       <UploadPicture
         src={resolvedSrc}
         alt={name}
@@ -195,6 +197,9 @@ const resolveSocialLink = (
   };
 };
 
+const shouldIgnoreFavoritePanelToggle = (target: EventTarget | null) =>
+  target instanceof Element && Boolean(target.closest(FAVORITES_TOGGLE_IGNORE_SELECTOR));
+
 const PublicUserProfileCard = ({
   member,
   linkTypes = [],
@@ -239,12 +244,38 @@ const PublicUserProfileCard = ({
 
   const favoriteWorks = normalizeFavoriteWorksByCategory(member.favoriteWorks);
   const hasFavoriteWorks = favoriteWorks.manga.length > 0 || favoriteWorks.anime.length > 0;
+  const isFavoritesOpen = hasFavoriteWorks && isFavoritePanelOpen;
   const linkTypeMap = useMemo(
     () => new Map((linkTypes || []).map((item) => [item.id, item])),
     [linkTypes],
   );
   const resolvedImageSrc = String(imageSrc || member.avatarUrl || "").trim() || "/placeholder.svg";
   const socials = (member.socials || []).filter((social) => social.href);
+
+  const toggleFavoritePanel = () => {
+    if (!hasFavoriteWorks) {
+      return;
+    }
+    setFavoritePanelOpen((current) => !current);
+  };
+
+  const handleFavoriteCardClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (!hasFavoriteWorks || shouldIgnoreFavoritePanelToggle(event.target)) {
+      return;
+    }
+    toggleFavoritePanel();
+  };
+
+  const handleFavoriteCardKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!hasFavoriteWorks || event.target !== event.currentTarget) {
+      return;
+    }
+    if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") {
+      return;
+    }
+    event.preventDefault();
+    toggleFavoritePanel();
+  };
 
   const renderRoleBadge = (label: string, key: string, tone: "default" | "retired" = "default") => {
     const RoleIcon = getRoleIcon(label);
@@ -294,11 +325,13 @@ const PublicUserProfileCard = ({
     <Card
       data-testid={testId}
       className={cn(
-        "group overflow-hidden rounded-[28px] border shadow-[0_24px_70px_-36px_rgba(0,0,0,0.75)] transition-colors duration-300",
-        retired
-          ? "border-border/35 bg-card/80 hover:border-primary/60 hover:bg-card/85"
-          : "border-border/50 bg-card/85 hover:border-primary/60 hover:bg-card/90",
+        "group overflow-hidden rounded-[28px] border shadow-[0_24px_70px_-36px_rgba(0,0,0,0.75)]",
+        hasFavoriteWorks && "team-member-card--interactive",
+        retired ? "border-border/35 bg-card/80" : "border-border/50 bg-card/85",
       )}
+      tabIndex={hasFavoriteWorks ? 0 : undefined}
+      onClick={hasFavoriteWorks ? handleFavoriteCardClick : undefined}
+      onKeyDown={hasFavoriteWorks ? handleFavoriteCardKeyDown : undefined}
     >
       <CardContent className="p-5 sm:p-6">
         <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[260px_minmax(0,1fr)] lg:items-stretch">
@@ -324,7 +357,7 @@ const PublicUserProfileCard = ({
               hasFavoriteWorks && "team-member-frame--has-favorites",
               retired && "team-member-frame--retired",
             )}
-            data-mobile-favorites-open={hasFavoriteWorks && isFavoritePanelOpen ? "true" : "false"}
+            data-favorites-open={isFavoritesOpen ? "true" : "false"}
           >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0 space-y-3 sm:pr-4">
@@ -366,11 +399,11 @@ const PublicUserProfileCard = ({
               <button
                 type="button"
                 className="team-member-favorites-toggle inline-flex w-fit items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary transition hover:border-primary/60 hover:bg-primary/15 md:hidden"
-                aria-pressed={isFavoritePanelOpen}
-                aria-label={isFavoritePanelOpen ? "Ver bio" : "Ver obras favoritas"}
-                onClick={() => setFavoritePanelOpen((current) => !current)}
+                aria-pressed={isFavoritesOpen}
+                aria-label={isFavoritesOpen ? "Ver bio" : "Ver obras favoritas"}
+                onClick={toggleFavoritePanel}
               >
-                {isFavoritePanelOpen ? "Ver bio" : "Ver obras favoritas"}
+                {isFavoritesOpen ? "Ver bio" : "Ver obras favoritas"}
               </button>
             ) : null}
 
@@ -432,6 +465,12 @@ const PublicUserProfileCard = ({
                     })}
                   </div>
                 </div>
+              ) : null}
+
+              {hasFavoriteWorks ? (
+                <p className="team-member-favorites-hint" aria-hidden="true">
+                  {FAVORITES_HINT_TEXT}
+                </p>
               ) : null}
             </div>
           </div>

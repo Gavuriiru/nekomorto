@@ -275,6 +275,113 @@ const applyEditorialStyleToElement = (element, editorialStyle) => {
 const isBlockImageStyle = (editorialStyle) =>
   parseStyleDeclaration(editorialStyle).display === "block";
 
+const normalizeAnchorId = (value) => {
+  const trimmed = String(value || "")
+    .trim()
+    .replace(/^#/, "");
+  if (!trimmed) {
+    return "";
+  }
+  try {
+    return decodeURIComponent(trimmed).trim();
+  } catch {
+    return trimmed;
+  }
+};
+
+const applyAnchorAttributes = (element, anchorId) => {
+  element.setAttribute("id", anchorId);
+  element.setAttribute("data-lexical-epub-anchor", anchorId);
+  element.setAttribute("aria-hidden", "true");
+  element.style.display = "inline-block";
+  element.style.width = "0";
+  element.style.height = "0";
+  element.style.overflow = "hidden";
+  element.style.lineHeight = "0";
+  element.style.pointerEvents = "none";
+};
+
+class ServerEpubAnchorNode extends DecoratorNode {
+  static getType() {
+    return "epub-anchor";
+  }
+
+  static clone(node) {
+    return new ServerEpubAnchorNode(node.__anchorId, node.__key);
+  }
+
+  constructor(anchorId, key) {
+    super(key);
+    this.__anchorId = normalizeAnchorId(anchorId);
+  }
+
+  static importJSON(serializedNode) {
+    return $createServerEpubAnchorNode({
+      anchorId: serializedNode.anchorId,
+    });
+  }
+
+  static importDOM() {
+    const createConversion = () => ({
+      conversion: (node) => {
+        if (!(node instanceof globalThis.HTMLElement)) {
+          return null;
+        }
+        const anchorId = normalizeAnchorId(
+          node.getAttribute("data-epub-anchor") || node.getAttribute("id") || "",
+        );
+        if (!anchorId) {
+          return null;
+        }
+        return {
+          node: $createServerEpubAnchorNode({ anchorId }),
+        };
+      },
+      priority: 4,
+    });
+
+    return {
+      "epub-anchor": createConversion,
+      span: createConversion,
+    };
+  }
+
+  isInline() {
+    return true;
+  }
+
+  exportJSON() {
+    return {
+      type: "epub-anchor",
+      version: 1,
+      anchorId: this.__anchorId,
+    };
+  }
+
+  createDOM() {
+    const element = globalThis.document.createElement("span");
+    applyAnchorAttributes(element, this.__anchorId);
+    return element;
+  }
+
+  updateDOM() {
+    return false;
+  }
+
+  exportDOM() {
+    const element = globalThis.document.createElement("span");
+    applyAnchorAttributes(element, this.__anchorId);
+    return { element };
+  }
+
+  decorate() {
+    return null;
+  }
+}
+
+const $createServerEpubAnchorNode = ({ anchorId }) =>
+  $applyNodeReplacement(new ServerEpubAnchorNode(anchorId));
+
 class ServerImageNode extends DecoratorNode {
   static getType() {
     return "image";
@@ -843,6 +950,7 @@ const lexicalNodes = [
   TableNode,
   TableRowNode,
   TableCellNode,
+  ServerEpubAnchorNode,
   ServerInlineEditorialStyleBridgeNode,
   ServerEpubParagraphNode,
   ServerEpubHeadingNode,

@@ -11,9 +11,8 @@ export const publicPageLayoutTokens = {
   surfaceDefault: "rounded-2xl border border-border/60 bg-card/60",
   surfaceMuted: "rounded-2xl border border-dashed border-border/60 bg-card/60",
   sectionLabelBase:
-    "flex items-center gap-3 font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-foreground",
+    "flex items-center gap-3 font-semibold uppercase tracking-widest text-muted-foreground",
   sectionLabelXs: "text-xs",
   sectionLabelSm: "text-sm",
-  sectionLabelIcon:
-    "h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary",
+  sectionLabelIcon: "h-4 w-4 text-primary/80",
 } as const;

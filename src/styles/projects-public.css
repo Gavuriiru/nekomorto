@@ -1,4 +1,52 @@
 @layer components {
+  .projects-public-card-shell {
+    isolation: isolate;
+    transform: translate3d(0, 0, 0);
+    transition: transform var(--interactive-duration-medium)
+      var(--interactive-ease-standard);
+    will-change: transform;
+  }
+
+  .projects-public-card-shell:hover,
+  .projects-public-card-shell:focus-within {
+    transform: translate3d(0, -0.25rem, 0);
+  }
+
+  .projects-public-card-shadow {
+    inset: 0;
+    pointer-events: none;
+    position: absolute;
+    transition:
+      opacity var(--interactive-duration-medium)
+        var(--interactive-ease-standard),
+      transform var(--interactive-duration-medium)
+        var(--interactive-ease-standard);
+  }
+
+  .projects-public-card-shadow--base {
+    box-shadow: 0 28px 120px -60px rgba(0, 0, 0, 0.55);
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  .projects-public-card-shadow--hover {
+    box-shadow: 0 34px 112px -56px rgba(0, 0, 0, 0.62);
+    opacity: 0;
+    transform: translate3d(0, 0.35rem, 0) scale(0.985);
+  }
+
+  .projects-public-card-shell:hover .projects-public-card-shadow--base,
+  .projects-public-card-shell:focus-within .projects-public-card-shadow--base {
+    opacity: 0.2;
+    transform: translate3d(0, 0.25rem, 0) scale(0.99);
+  }
+
+  .projects-public-card-shell:hover .projects-public-card-shadow--hover,
+  .projects-public-card-shell:focus-within .projects-public-card-shadow--hover {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
   :root[data-theme-mode="light"] .projects-public-card {
     background: hsl(var(--card));
   }
@@ -19,7 +67,9 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     padding-bottom: var(--projects-public-synopsis-padding-bottom, 0.12em);
-    margin-bottom: calc(-1 * var(--projects-public-synopsis-padding-bottom, 0.12em));
+    margin-bottom: calc(
+      -1 * var(--projects-public-synopsis-padding-bottom, 0.12em)
+    );
   }
 
   .projects-public-synopsis-clamp-1 {

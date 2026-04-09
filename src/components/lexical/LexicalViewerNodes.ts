@@ -10,6 +10,7 @@ import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 
+import { EpubAnchorNode } from "@/components/lexical/nodes/EpubAnchorNode";
 import { EpubHeadingNode } from "@/components/lexical/nodes/EpubHeadingNode";
 import { EpubImageNode } from "@/components/lexical/nodes/EpubImageNode";
 import { EpubParagraphNode } from "@/components/lexical/nodes/EpubParagraphNode";
@@ -46,6 +47,7 @@ const LexicalViewerNodes: Array<Klass<LexicalNode>> = [
   AutoLinkNode,
   LinkNode,
   OverflowNode,
+  EpubAnchorNode,
   EpubParagraphNode,
   EpubHeadingNode,
   EpubImageNode,

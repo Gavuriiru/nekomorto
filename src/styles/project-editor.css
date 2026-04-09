@@ -98,13 +98,7 @@
       background 180ms ease;
   }
 
-  .project-editor-section:hover {
-    border-color: hsl(var(--primary) / 0.4);
-    background: linear-gradient(170deg, hsl(var(--card) / 0.86), hsl(var(--background) / 0.6));
-  }
-
-  .project-editor-section[data-state="open"],
-  .project-editor-section[data-state="open"]:hover {
+  .project-editor-section[data-state="open"] {
     border-color: hsl(var(--primary) / 0.35);
     background: linear-gradient(170deg, hsl(var(--card) / 0.88), hsl(var(--background) / 0.62));
   }
@@ -117,13 +111,7 @@
       background 180ms ease;
   }
 
-  .project-editor-nested-section:hover {
-    border-color: hsl(var(--primary) / 0.4);
-    background: linear-gradient(170deg, hsl(var(--card) / 0.54), hsl(var(--background) / 0.4));
-  }
-
-  .project-editor-nested-section[data-state="open"],
-  .project-editor-nested-section[data-state="open"]:hover {
+  .project-editor-nested-section[data-state="open"] {
     border-color: hsl(var(--primary) / 0.35);
     background: linear-gradient(170deg, hsl(var(--card) / 0.58), hsl(var(--background) / 0.43));
   }
@@ -153,15 +141,6 @@
     transition:
       border-color 180ms ease,
       background 180ms ease;
-  }
-
-  .project-editor-episode-card:hover {
-    border-color: hsl(var(--primary) / 0.4);
-    background: linear-gradient(170deg, hsl(var(--card) / 0.9), hsl(var(--background) / 0.66));
-  }
-
-  .project-editor-episode-card.lift-hover:hover {
-    box-shadow: none;
   }
 
   .project-editor-episode-header {

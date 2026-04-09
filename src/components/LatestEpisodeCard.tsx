@@ -51,7 +51,9 @@ const normalizeReasonForDisplay = (value: string) =>
   LEGACY_REASON_WORD_REPLACEMENTS.reduce(
     (result, item) => {
       const regex = new RegExp(`\\b${item.from}\\b`, "gi");
-      return result.replace(regex, (match) => applyReplacementWithCase(match, item.to));
+      return result.replace(regex, (match) =>
+        applyReplacementWithCase(match, item.to),
+      );
     },
     String(value || ""),
   );
@@ -74,7 +76,7 @@ const LatestEpisodeCard = () => {
   return (
     <Card
       lift={false}
-      className="bg-card overflow-hidden reveal shadow-none transition-all duration-300 hover:bg-card/90 hover:shadow-lg"
+      className="bg-card overflow-hidden reveal shadow-none"
       data-reveal
     >
       <CardHeader className="px-4 pb-3 pt-4">
@@ -92,7 +94,11 @@ const LatestEpisodeCard = () => {
             {Array.from({ length: 3 }).map((_, index) => (
               <div
                 key={`update-skeleton-${index}`}
-                style={{ "--card-h": `${RECENT_UPDATES_CARD_HEIGHT_PX}px` } as CSSProperties}
+                style={
+                  {
+                    "--card-h": `${RECENT_UPDATES_CARD_HEIGHT_PX}px`,
+                  } as CSSProperties
+                }
                 className="flex h-(--card-h) overflow-hidden rounded-2xl bg-background/40"
               >
                 <Skeleton
@@ -119,13 +125,17 @@ const LatestEpisodeCard = () => {
             {[...recentUpdates]
               .sort(
                 (a, b) =>
-                  new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
+                  new Date(b.updatedAt || 0).getTime() -
+                  new Date(a.updatedAt || 0).getTime(),
               )
               .slice(0, 4)
               .map((update) => {
-                const typeLabel = (projectTypes[update.projectId] || "").toLowerCase();
+                const typeLabel = (
+                  projectTypes[update.projectId] || ""
+                ).toLowerCase();
                 const hasChapterHint =
-                  /cap/i.test(update.unit || "") || /cap/i.test(update.reason || "");
+                  /cap/i.test(update.unit || "") ||
+                  /cap/i.test(update.reason || "");
                 const isChapterBased =
                   typeLabel.includes("mang") ||
                   typeLabel.includes("webtoon") ||
@@ -144,23 +154,37 @@ const LatestEpisodeCard = () => {
                     ? "Capítulo"
                     : "Episódio";
                 const isExtraUnit = unitLabel.toLowerCase() === "extra";
-                const unitShort = isExtraUnit ? "Extra" : /cap/i.test(unitLabel) ? "Cap" : "Ep";
-                const normalizedReason = normalizeReasonForDisplay(String(update.reason || ""));
+                const unitShort = isExtraUnit
+                  ? "Extra"
+                  : /cap/i.test(unitLabel)
+                    ? "Cap"
+                    : "Ep";
+                const normalizedReason = normalizeReasonForDisplay(
+                  String(update.reason || ""),
+                );
                 const reason = normalizedReason
-                  ? normalizedReason.charAt(0).toUpperCase() + normalizedReason.slice(1)
+                  ? normalizedReason.charAt(0).toUpperCase() +
+                    normalizedReason.slice(1)
                   : "";
-                const normalizedKind = normalizeLookupKey(String(update.kind || ""));
+                const normalizedKind = normalizeLookupKey(
+                  String(update.kind || ""),
+                );
                 const kindLabel = normalizedKind.startsWith("lan")
                   ? "Lançamento"
-                  : normalizedKind.includes("ajuste") || normalizedKind.includes("atualiza")
+                  : normalizedKind.includes("ajuste") ||
+                      normalizedKind.includes("atualiza")
                     ? "Ajuste"
                     : update.kind;
                 return (
                   <Link
                     key={update.id}
                     to={`/projeto/${update.projectId}`}
-                    style={{ "--card-h": `${RECENT_UPDATES_CARD_HEIGHT_PX}px` } as CSSProperties}
-                    className="recent-updates-item group flex h-(--card-h) overflow-hidden rounded-2xl bg-linear-to-br from-background/70 via-background/40 to-background/70 transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-primary/60 reveal"
+                    style={
+                      {
+                        "--card-h": `${RECENT_UPDATES_CARD_HEIGHT_PX}px`,
+                      } as CSSProperties
+                    }
+                    className="recent-updates-item group flex h-(--card-h) overflow-hidden rounded-2xl bg-linear-to-br from-background/70 via-background/40 to-background/70 motion-safe:hover:-translate-y-1 motion-safe:focus-visible:-translate-y-1 reveal"
                     data-reveal
                   >
                     <div
@@ -170,58 +194,63 @@ const LatestEpisodeCard = () => {
                         width: RECENT_UPDATES_THUMB_WIDTH,
                       }}
                     >
-                        <UploadPicture
-                          src={update.image || "/placeholder.svg"}
-                          alt={update.projectTitle}
-                          preset="posterThumb"
-                          mediaVariants={mediaVariants}
-                          sizes="105px"
-                          className="block h-full w-full"
-                          imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
-                        />
-                      </div>
-                      <div className="flex h-full min-w-0 flex-1 flex-col gap-3 p-[1.125rem]">
-                        <div className="no-scrollbar flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
-                          <Badge
-                            variant="secondary"
-                            className="hidden shrink-0 text-[10px] md:inline-flex"
-                          >
-                            {isExtraUnit ? "Extra" : `${unitShort} ${update.episodeNumber}`}
-                          </Badge>
-                          {update.volume ? (
-                            <Badge
-                              variant="outline"
-                              className="hidden shrink-0 text-[10px] md:inline-flex"
-                            >
-                              Vol. {update.volume}
-                            </Badge>
-                          ) : null}
+                      <UploadPicture
+                        src={update.image || "/placeholder.svg"}
+                        alt={update.projectTitle}
+                        preset="posterThumb"
+                        mediaVariants={mediaVariants}
+                        sizes="105px"
+                        className="block h-full w-full"
+                        imgClassName="interactive-media-transition h-full w-full object-cover object-center group-hover:scale-105 group-focus-visible:scale-105"
+                      />
+                    </div>
+                    <div className="flex h-full min-w-0 flex-1 flex-col gap-3 p-[1.125rem]">
+                      <div className="no-scrollbar flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
+                        <Badge
+                          variant="secondary"
+                          className="hidden shrink-0 text-[10px] md:inline-flex"
+                        >
+                          {isExtraUnit
+                            ? "Extra"
+                            : `${unitShort} ${update.episodeNumber}`}
+                        </Badge>
+                        {update.volume ? (
                           <Badge
                             variant="outline"
-                            className={`shrink-0 text-[10px] ${
-                              kindLabel === "Lançamento"
-                                ? "border-primary/50 text-primary"
-                                : kindLabel === "Ajuste"
-                                  ? "border-amber-500/50 text-amber-400"
-                                  : "border-border/60 text-muted-foreground"
-                            }`}
+                            className="hidden shrink-0 text-[10px] md:inline-flex"
                           >
-                            {kindLabel}
+                            Vol. {update.volume}
                           </Badge>
-                        </div>
-                        <div className="space-y-1">
-                          <h4 className="clamp-safe-2 text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
-                            {update.projectTitle}
-                          </h4>
-                          <p className="line-clamp-1 text-xs leading-relaxed text-muted-foreground md:line-clamp-2">
-                            {reason}
-                          </p>
-                        </div>
-                        <span className="mt-auto inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                          <Clock className="h-3 w-3 text-primary/70" aria-hidden="true" />
-                          {formatDate(update.updatedAt.split("T")[0])}
-                        </span>
+                        ) : null}
+                        <Badge
+                          variant="outline"
+                          className={`shrink-0 text-[10px] ${
+                            kindLabel === "Lançamento"
+                              ? "border-primary/50 text-primary"
+                              : kindLabel === "Ajuste"
+                                ? "border-amber-500/50 text-amber-400"
+                                : "border-border/60 text-muted-foreground"
+                          }`}
+                        >
+                          {kindLabel}
+                        </Badge>
                       </div>
+                      <div className="space-y-1">
+                        <h4 className="clamp-safe-2 interactive-content-transition text-sm font-semibold text-foreground group-hover:text-primary group-focus-visible:text-primary">
+                          {update.projectTitle}
+                        </h4>
+                        <p className="line-clamp-1 text-xs leading-relaxed text-muted-foreground md:line-clamp-2">
+                          {reason}
+                        </p>
+                      </div>
+                      <span className="mt-auto inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <Clock
+                          className="h-3 w-3 text-primary/70"
+                          aria-hidden="true"
+                        />
+                        {formatDate(update.updatedAt.split("T")[0])}
+                      </span>
+                    </div>
                   </Link>
                 );
               })}

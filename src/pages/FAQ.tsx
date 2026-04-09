@@ -139,22 +139,15 @@ const FAQ = () => {
             {faq.introCards.map((card) => {
               const Icon = resolveFaqIcon(card.icon, HelpCircle);
               return (
-                <Card
-                  key={card.title}
-                  className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg"
-                >
+                <Card key={card.title} className="bg-card/80 shadow-lg">
                   <CardContent className="space-y-4 p-6">
-                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
-                      <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
+                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                      <Icon className="h-4 w-4 text-primary/80" />
                       {card.title}
                     </div>
-                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
-                      {card.text}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{card.text}</p>
                     <Separator className="bg-border/60" />
-                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
-                      {card.note}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{card.note}</p>
                   </CardContent>
                 </Card>
               );
@@ -180,14 +173,10 @@ const FAQ = () => {
                       {group.items.map((item) => (
                         <div
                           key={item.question}
-                          className="group/item rounded-2xl border border-border/60 bg-background/60 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-background/70 hover:shadow-lg"
+                          className="rounded-2xl border border-border/60 bg-background/60 p-4"
                         >
-                          <p className="text-sm font-semibold text-foreground transition-colors duration-300 group-hover/item:text-primary">
-                            {item.question}
-                          </p>
-                          <p className="mt-2 text-sm text-muted-foreground transition-colors duration-300 group-hover/item:text-foreground/80">
-                            {item.answer}
-                          </p>
+                          <p className="text-sm font-semibold text-foreground">{item.question}</p>
+                          <p className="mt-2 text-sm text-muted-foreground">{item.answer}</p>
                         </div>
                       ))}
                     </div>

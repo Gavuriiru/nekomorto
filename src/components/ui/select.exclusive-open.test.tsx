@@ -122,7 +122,6 @@ describe("Select exclusive open behavior", () => {
         "rounded-xl",
         "border-border/60",
         "bg-background/60",
-        "shadow-sm",
         "focus-visible:ring-inset",
       ]),
     );

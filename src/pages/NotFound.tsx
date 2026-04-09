@@ -46,12 +46,12 @@ const NotFound = () => {
               </div>
             </div>
 
-            <Card className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg">
+            <Card className="bg-card/80 shadow-lg">
               <CardContent className="space-y-4 p-6 md:p-8">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground transition-colors duration-300 group-hover:text-primary">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                   Sugestões rápidas
                 </p>
-                <div className="space-y-3 text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                <div className="space-y-3 text-sm text-muted-foreground">
                   <p>Confira os projetos e lançamentos mais recentes.</p>
                   <p>Conheça a equipe e o nosso manifesto.</p>
                   <p>Acompanhe novidades e atualizações no site.</p>

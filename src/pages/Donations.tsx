@@ -45,10 +45,7 @@ import {
   normalizeDonationsCryptoService,
   normalizeDonationsCryptoServices,
 } from "@/lib/donations-crypto";
-import {
-  MONTHLY_GOAL_MILESTONES,
-  buildMonthlyGoalSummary,
-} from "@/lib/donations-monthly-goal";
+import { MONTHLY_GOAL_MILESTONES, buildMonthlyGoalSummary } from "@/lib/donations-monthly-goal";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import type { DonationsCryptoService } from "@/types/public-pages";
@@ -159,11 +156,7 @@ const CryptoDonationPanel = ({
               onClick={() => void onCopy(service.address, copyKey)}
               disabled={!service.address}
             >
-              {copiedKey === copyKey ? (
-                <Check className="h-4 w-4" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
+              {copiedKey === copyKey ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               {copiedKey === copyKey ? "Copiado" : "Copiar endereço"}
             </Button>
             {actionUrl ? (
@@ -374,18 +367,13 @@ const Donations = () => {
             {donations.costs.map((item) => {
               const Icon = resolveDonationsIcon(item.icon, Sparkles);
               return (
-                <Card
-                  key={item.title}
-                  className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg"
-                >
+                <Card key={item.title} className="bg-card/80 shadow-lg">
                   <CardContent className="space-y-3 p-6">
-                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
-                      <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
+                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                      <Icon className="h-4 w-4 text-primary/80" />
                       {item.title}
                     </div>
-                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
-                      {item.description}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{item.description}</p>
                   </CardContent>
                 </Card>
               );
@@ -399,10 +387,10 @@ const Donations = () => {
             data-reveal
           >
             <Card
-              className={`group/goal shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+              className={`shadow-lg ${
                 monthlyGoal.isComplete
-                  ? "border-primary/30 bg-primary/5 hover:border-primary/50"
-                  : "border-border/60 bg-card/90 hover:border-primary/60"
+                  ? "border-primary/30 bg-primary/5"
+                  : "border-border/60 bg-card/90"
               }`}
             >
               <CardContent className="space-y-5 p-6 md:p-8">
@@ -410,16 +398,14 @@ const Donations = () => {
                   <div className="space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <div
-                        className={`text-sm font-semibold uppercase tracking-widest transition-colors duration-300 ${
-                          monthlyGoal.isComplete
-                            ? "text-primary"
-                            : "text-muted-foreground group-hover/goal:text-primary"
+                        className={`text-sm font-semibold uppercase tracking-widest ${
+                          monthlyGoal.isComplete ? "text-primary" : "text-muted-foreground"
                         }`}
                       >
                         {monthlyGoal.title}
                       </div>
                       {monthlyGoal.isComplete ? (
-                        <Badge className="border border-primary/15 bg-primary/10 text-primary hover:bg-primary/10">
+                        <Badge className="border border-primary/15 bg-primary/10 text-primary">
                           Concluída
                         </Badge>
                       ) : null}
@@ -510,37 +496,28 @@ const Donations = () => {
         >
           <Card className="border-border/60 bg-card/90 shadow-xl">
             <CardContent className="grid gap-6 p-6 md:grid-cols-[1.1fr_0.9fr] md:p-8">
-              <div className="group/reason space-y-4 rounded-2xl p-2 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60">
-                <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover/reason:text-primary">
+              <div className="space-y-4 rounded-2xl p-2">
+                <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                   {(() => {
-                    const ReasonIcon = resolveDonationsIcon(
-                      donations.reasonIcon,
-                      HeartHandshake,
-                    );
-                    return (
-                      <ReasonIcon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover/reason:text-primary" />
-                    );
+                    const ReasonIcon = resolveDonationsIcon(donations.reasonIcon, HeartHandshake);
+                    return <ReasonIcon className="h-4 w-4 text-primary/80" />;
                   })()}
                   {donations.reasonTitle}
                 </div>
-                <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover/reason:text-foreground/80 md:text-base">
-                  {donations.reasonText}
-                </p>
-                <div className="rounded-2xl border border-border/60 bg-background/60 p-4 text-sm text-muted-foreground transition-all duration-300 group-hover/reason:border-primary/60 group-hover/reason:bg-background/70 group-hover/reason:text-foreground/80">
+                <p className="text-sm text-muted-foreground md:text-base">{donations.reasonText}</p>
+                <div className="rounded-2xl border border-border/60 bg-background/60 p-4 text-sm text-muted-foreground">
                   {donations.reasonNote}
                 </div>
               </div>
               <div
                 id="pix-doacoes"
-                className="group/pix rounded-2xl border border-border/60 bg-background/50 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-background/70 hover:shadow-lg"
+                className="rounded-2xl border border-border/60 bg-background/50 p-5"
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover/pix:text-primary">
+                  <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                     {(() => {
                       const PixIcon = resolveDonationsIcon(donations.pixIcon, QrCode);
-                      return (
-                        <PixIcon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover/pix:text-primary" />
-                      );
+                      return <PixIcon className="h-4 w-4 text-primary/80" />;
                     })()}
                     Pix
                   </div>
@@ -589,7 +566,7 @@ const Donations = () => {
           >
             <Card
               data-testid="donations-crypto-card"
-              className="border-border/60 bg-card/90 shadow-lg transition-all duration-300 hover:border-primary/60 hover:bg-card/95 hover:shadow-xl"
+              className="border-border/60 bg-card/90 shadow-lg"
             >
               <CardContent className="space-y-4 p-5 md:space-y-5 md:p-6">
                 <div
@@ -650,7 +627,9 @@ const Donations = () => {
                                   aria-hidden="true"
                                   data-testid={`donations-crypto-tab-icon-${index}`}
                                   className={`h-4 w-4 transition-transform duration-300 ${
-                                    isActive ? "scale-105 text-primary" : "text-muted-foreground group-hover/tab:text-primary"
+                                    isActive
+                                      ? "scale-105 text-primary"
+                                      : "text-muted-foreground group-hover/tab:text-primary"
                                   }`}
                                 />
                               )}
@@ -666,7 +645,9 @@ const Donations = () => {
                       role={hasMultipleCryptoServices ? "tabpanel" : undefined}
                       id={`donations-crypto-panel-${activeCryptoIndex}`}
                       aria-labelledby={
-                        hasMultipleCryptoServices ? `donations-crypto-tab-${activeCryptoIndex}` : undefined
+                        hasMultipleCryptoServices
+                          ? `donations-crypto-tab-${activeCryptoIndex}`
+                          : undefined
                       }
                       data-testid="donations-crypto-panel"
                       className="rounded-[1.5rem] border border-border/60 bg-background/55 p-4 shadow-[0_20px_60px_-42px_rgba(15,23,42,0.9)] md:p-5"
@@ -689,14 +670,12 @@ const Donations = () => {
           className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-24 pt-4 reveal`}
           data-reveal
         >
-          <Card className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg">
+          <Card className="bg-card/80 shadow-lg">
             <CardContent className="p-6 md:p-8">
-              <div className="flex items-center gap-3 text-xl font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
+              <div className="flex items-center gap-3 text-xl font-semibold text-foreground">
                 {(() => {
                   const DonorsIcon = iconMap[donations.donorsIcon] || PiggyBank;
-                  return (
-                    <DonorsIcon className="h-5 w-5 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
-                  );
+                  return <DonorsIcon className="h-5 w-5 text-primary/80" />;
                 })()}
                 Lista de doadores
               </div>

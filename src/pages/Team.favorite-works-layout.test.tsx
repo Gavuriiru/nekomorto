@@ -107,12 +107,18 @@ describe("Team favorite works layout", () => {
     expect(within(favoriteFrame as HTMLElement).getByText("One Piece")).toBeInTheDocument();
     expect(within(favoriteFrame as HTMLElement).getByText("Frieren")).toBeInTheDocument();
     expect(within(favoriteFrame as HTMLElement).queryByText("Excedente")).toBeNull();
+    expect(
+      within(favoriteFrame as HTMLElement).getByText("Clique para ver as obras favoritas"),
+    ).toBeInTheDocument();
 
     const defaultHeading = screen.getByRole("heading", { name: defaultMemberName });
     const defaultFrame = defaultHeading.closest("div.team-member-frame");
     expect(defaultFrame).not.toBeNull();
     expect(defaultFrame).not.toHaveClass("team-member-frame--has-favorites");
     expect(within(defaultFrame as HTMLElement).queryByText("Obras favoritas")).toBeNull();
+    expect(
+      within(defaultFrame as HTMLElement).queryByText("Clique para ver as obras favoritas"),
+    ).toBeNull();
   });
 
   it("alterna estado mobile com botao de obras favoritas", async () => {
@@ -130,15 +136,15 @@ describe("Team favorite works layout", () => {
       name: "Ver obras favoritas",
     });
     expect(toggleButton).toHaveAttribute("aria-pressed", "false");
-    expect(favoriteFrame).toHaveAttribute("data-mobile-favorites-open", "false");
+    expect(favoriteFrame).toHaveAttribute("data-favorites-open", "false");
 
     fireEvent.click(toggleButton);
     expect(toggleButton).toHaveAttribute("aria-pressed", "true");
     expect(toggleButton).toHaveTextContent("Ver bio");
-    expect(favoriteFrame).toHaveAttribute("data-mobile-favorites-open", "true");
+    expect(favoriteFrame).toHaveAttribute("data-favorites-open", "true");
   });
 
-  it("mantem classes estruturais para troca por hover/focus no desktop", async () => {
+  it("alterna favoritas por clique no card e suporta teclado no desktop", async () => {
     render(
       <MemoryRouter>
         <Team />
@@ -147,8 +153,11 @@ describe("Team favorite works layout", () => {
 
     const favoriteHeading = await screen.findByRole("heading", { name: favoriteMemberName });
     const favoriteFrame = favoriteHeading.closest("div.team-member-frame");
+    const favoriteCard = favoriteFrame?.closest("div.group");
     expect(favoriteFrame).not.toBeNull();
+    expect(favoriteCard).not.toBeNull();
     expect(favoriteFrame).toHaveClass("team-member-frame--has-favorites");
+    expect(favoriteCard).toHaveAttribute("tabindex", "0");
 
     const panelShell = favoriteFrame?.querySelector(".team-member-panel-shell");
     const bioPanel = favoriteFrame?.querySelector(".team-member-panel--bio");
@@ -159,5 +168,14 @@ describe("Team favorite works layout", () => {
     expect(favoritesPanel).not.toBeNull();
     expect(bioPanel).not.toHaveClass("flex");
     expect(favoritesPanel).not.toHaveClass("flex");
+
+    fireEvent.mouseEnter(favoriteCard as HTMLElement);
+    expect(favoriteFrame).toHaveAttribute("data-favorites-open", "false");
+
+    fireEvent.click(favoriteCard as HTMLElement);
+    expect(favoriteFrame).toHaveAttribute("data-favorites-open", "true");
+
+    fireEvent.keyDown(favoriteCard as HTMLElement, { key: " " });
+    expect(favoriteFrame).toHaveAttribute("data-favorites-open", "false");
   });
 });

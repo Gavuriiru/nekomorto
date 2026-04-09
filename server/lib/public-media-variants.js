@@ -465,7 +465,7 @@ export const resolveProjectPosterPreload = ({
   coverUrl,
   mediaVariants,
   resolveVariantUrl,
-  imagesizes = "(max-width: 767px) 100px, 142px",
+  imagesizes = "(max-width: 767px) 129px, 154px",
 } = {}) => {
   const sourceCoverUrl = String(coverUrl || "").trim();
   if (!sourceCoverUrl) {
@@ -525,7 +525,7 @@ export const resolveProjectPosterPreload = ({
     as: "image",
     type: fallbackCandidate.type,
     imagesrcset: srcset,
-    imagesizes: String(imagesizes || "").trim() || "(max-width: 767px) 100px, 142px",
+    imagesizes: String(imagesizes || "").trim() || "(max-width: 767px) 129px, 154px",
   };
 };
 

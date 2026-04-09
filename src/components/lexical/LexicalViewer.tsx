@@ -7,6 +7,7 @@ import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { resolveEpubViewerLinkAction } from "@/lib/epub-internal-links";
 import { EMPTY_LEXICAL_JSON } from "@/lib/lexical/empty-state";
 import {
   prepareLexicalViewerState,
@@ -25,6 +26,7 @@ type LexicalViewerProps = {
   className?: string;
   pollTarget?: PollTarget;
   ariaLabel?: string;
+  onInternalLinkNavigate?: (href: string) => void;
 };
 
 const POLL_VOTER_STORAGE_KEY = "rainbow_poll_voter_id";
@@ -144,14 +146,21 @@ const ChecklistA11yPlugin = () => {
   return null;
 };
 
+const isModifiedNavigationEvent = (
+  event: Pick<MouseEvent, "button" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey">,
+) =>
+  event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey;
+
 const LexicalViewer = ({
   value,
   editorStateJson,
   className,
   pollTarget,
   ariaLabel,
+  onInternalLinkNavigate,
 }: LexicalViewerProps) => {
   const apiBase = getApiBase();
+  const viewerRootRef = React.useRef<HTMLDivElement | null>(null);
   const voterId = React.useMemo(() => getOrCreatePollVoterId(), []);
   const preparedEditorState = React.useMemo(
     () => resolveViewerEditorState(value, editorStateJson),
@@ -207,12 +216,57 @@ const LexicalViewer = ({
     editable: false,
     editorState: preparedEditorState,
   }).current;
+  const handleInternalLinkClick = React.useCallback(
+    (event: MouseEvent) => {
+      if (event.defaultPrevented || isModifiedNavigationEvent(event)) {
+        return;
+      }
+      const targetElement =
+        event.target instanceof Element
+          ? event.target
+          : event.target instanceof Node
+            ? event.target.parentElement
+            : null;
+      const target = targetElement?.closest<HTMLAnchorElement>("a[href]") || null;
+      if (!target) {
+        return;
+      }
+      const rawHref = String(target.getAttribute("href") || "").trim();
+      const linkAction = resolveEpubViewerLinkAction(rawHref, {
+        allowInternalChapterNavigation: Boolean(onInternalLinkNavigate),
+      });
+      if (!linkAction) {
+        return;
+      }
+      if (linkAction.kind === "internal-chapter") {
+        event.preventDefault();
+        onInternalLinkNavigate?.(linkAction.href);
+        return;
+      }
+      if (linkAction.kind === "block-raw-epub") {
+        event.preventDefault();
+      }
+    },
+    [onInternalLinkNavigate],
+  );
   const viewerLabel = String(ariaLabel || "Conteúdo").trim() || "Conteúdo";
+
+  React.useLayoutEffect(() => {
+    const rootElement = viewerRootRef.current;
+    if (!rootElement) {
+      return;
+    }
+    rootElement.addEventListener("click", handleInternalLinkClick, true);
+    return () => {
+      rootElement.removeEventListener("click", handleInternalLinkClick, true);
+    };
+  }, [handleInternalLinkClick]);
 
   return (
     <ViewerPollProvider value={pollContextValue}>
       <LexicalComposer initialConfig={initialConfig}>
         <div
+          ref={viewerRootRef}
           className={`lexical-playground lexical-playground--viewer ${className || ""}`}
           data-lexical-viewer="true"
         >

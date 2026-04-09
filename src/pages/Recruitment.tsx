@@ -45,7 +45,9 @@ type RecruitmentPageRole = Omit<RecruitmentRole, "icon"> & {
   icon?: string;
 };
 
-const isRecruitmentIconKey = (value: string | undefined): value is keyof typeof iconMap =>
+const isRecruitmentIconKey = (
+  value: string | undefined,
+): value is keyof typeof iconMap =>
   typeof value === "string" && value in iconMap;
 
 const defaultRecruitment = {
@@ -58,47 +60,56 @@ const defaultRecruitment = {
   roles: [
     {
       title: "Tradutor",
-      description: "Adapta o texto original para português mantendo tom, contexto e naturalidade.",
+      description:
+        "Adapta o texto original para português mantendo tom, contexto e naturalidade.",
       icon: "Languages",
     },
     {
       title: "Revisor",
-      description: "Garante coerência, gramática e fluidez do texto antes da etapa visual.",
+      description:
+        "Garante coerência, gramática e fluidez do texto antes da etapa visual.",
       icon: "ScanText",
     },
     {
       title: "Typesetter",
-      description: "Integra o texto à arte, ajustando tipografia, efeitos e legibilidade.",
+      description:
+        "Integra o texto à arte, ajustando tipografia, efeitos e legibilidade.",
       icon: "PenTool",
     },
     {
       title: "Quality Check",
-      description: "Revisa o resultado final buscando erros visuais, timing e consistência.",
+      description:
+        "Revisa o resultado final buscando erros visuais, timing e consistência.",
       icon: "ShieldCheck",
     },
     {
       title: "Encoder",
-      description: "Responsável por exportação e ajustes finais de qualidade do vídeo/arquivo.",
+      description:
+        "Responsável por exportação e ajustes finais de qualidade do vídeo/arquivo.",
       icon: "Video",
     },
     {
       title: "Cleaner",
-      description: "Remove textos da arte original preparando o material para o typesetting.",
+      description:
+        "Remove textos da arte original preparando o material para o typesetting.",
       icon: "Paintbrush",
     },
     {
       title: "Redrawer",
-      description: "Reconstrói partes da arte removidas pelo cleaning para preservar o visual.",
+      description:
+        "Reconstrói partes da arte removidas pelo cleaning para preservar o visual.",
       icon: "Layers",
     },
     {
       title: "Timer",
-      description: "Sincroniza falas com o tempo, garantindo leitura confortável e precisa.",
+      description:
+        "Sincroniza falas com o tempo, garantindo leitura confortável e precisa.",
       icon: "Timer",
     },
     {
       title: "Karaoke/FX",
-      description: "Cria efeitos especiais e animações para openings/endings quando necessário.",
+      description:
+        "Cria efeitos especiais e animações para openings/endings quando necessário.",
       icon: "Sparkles",
     },
   ] as RecruitmentRole[],
@@ -116,11 +127,13 @@ const Recruitment = () => {
     if (!incoming) {
       return defaultRecruitment;
     }
-    const roles = (incoming.roles || defaultRecruitment.roles).map((role: RecruitmentPageRole) => ({
-      title: role.title,
-      description: role.description,
-      icon: isRecruitmentIconKey(role.icon) ? role.icon : "Sparkles",
-    }));
+    const roles = (incoming.roles || defaultRecruitment.roles).map(
+      (role: RecruitmentPageRole) => ({
+        title: role.title,
+        description: role.description,
+        icon: isRecruitmentIconKey(role.icon) ? role.icon : "Sparkles",
+      }),
+    );
     return {
       ...defaultRecruitment,
       ...incoming,
@@ -157,23 +170,25 @@ const Recruitment = () => {
         >
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {recruitment.roles.map((role, index) => {
-              const Icon = isRecruitmentIconKey(role.icon) ? iconMap[role.icon] : Sparkles;
+              const Icon = isRecruitmentIconKey(role.icon)
+                ? iconMap[role.icon]
+                : Sparkles;
               return (
                 <Card
                   key={role.title}
-                  className="group bg-card/70 animate-fade-in opacity-0 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg"
+                  className="group interactive-lift-md interactive-surface-transition bg-card/70 animate-fade-in opacity-0 hover:border-primary/60 hover:bg-card/90"
                   style={{ animationDelay: `${index * 80}ms` }}
                 >
                   <CardContent className="space-y-3 p-5">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/80 text-primary transition-all duration-300 group-hover:scale-105 group-hover:bg-primary/15">
+                      <span className="interactive-control-transition flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/80 text-primary group-hover:scale-105 group-hover:bg-primary/15">
                         <Icon className="h-5 w-5" />
                       </span>
-                      <h2 className="text-base font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
+                      <h2 className="interactive-content-transition text-base font-semibold text-foreground group-hover:text-primary">
                         {role.title}
                       </h2>
                     </div>
-                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                    <p className="interactive-content-transition text-sm text-muted-foreground group-hover:text-foreground/80">
                       {role.description}
                     </p>
                   </CardContent>
@@ -188,22 +203,19 @@ const Recruitment = () => {
           data-reveal
         >
           <Card
-            className="group bg-card/70 animate-fade-in opacity-0 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg"
+            className="bg-card/70 animate-fade-in opacity-0"
             style={{ animationDelay: "0.4s" }}
           >
             <CardContent className="flex flex-col items-stretch justify-between gap-4 p-6 md:flex-row md:items-center">
               <div className="space-y-1">
-                <h2 className="text-lg font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
+                <h2 className="text-lg font-semibold text-foreground">
                   {recruitment.ctaTitle}
                 </h2>
-                <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                <p className="text-sm text-muted-foreground">
                   {recruitment.ctaSubtitle}
                 </p>
               </div>
-              <Button
-                asChild
-                className="w-full bg-primary text-primary-foreground transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md md:w-auto"
-              >
+              <Button asChild className="w-full md:w-auto">
                 <a href={discordUrl} target="_blank" rel="noreferrer">
                   {recruitment.ctaButtonLabel}
                 </a>

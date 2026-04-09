@@ -103,8 +103,12 @@ describe("LatestEpisodeCard border styles", () => {
     expect(cardRoot).not.toHaveClass("lift-hover");
     expect(cardRoot).toHaveClass("shadow-none");
     expect(cardRoot).not.toHaveClass("shadow-xs");
-    expect(cardRoot).not.toHaveClass("border", "border-border", "hover:border-primary/60");
-    expect(cardRoot).toHaveClass("hover:shadow-lg");
+    expect(cardRoot).not.toHaveClass(
+      "border",
+      "border-border",
+      "hover:border-primary/60",
+    );
+    expect(cardRoot).not.toHaveClass("hover:shadow-lg");
 
     const updateLinks = screen.getAllByRole("link");
     expect(updateLinks).toHaveLength(2);
@@ -119,9 +123,9 @@ describe("LatestEpisodeCard border styles", () => {
       expect(link).not.toHaveClass("border", "border-transparent");
       expect(link).not.toHaveClass("relative");
       expect(link).not.toHaveClass("block");
-      expect(link).toHaveClass("hover:-translate-y-1");
+      expect(link).toHaveClass("motion-safe:hover:-translate-y-1");
       expect(link).not.toHaveClass("border-border/60");
-      expect(link).toHaveClass("hover:border-primary/60");
+      expect(link).not.toHaveClass("hover:border-primary/60");
     });
 
     const firstUpdateLink = updateLinks[0];
@@ -151,9 +155,9 @@ describe("LatestEpisodeCard border styles", () => {
     expect(reason).toHaveClass("line-clamp-1");
     expect(reason).toHaveClass("md:line-clamp-2");
 
-    expect(screen.getByRole("heading", { level: 4, name: "Projeto Alpha" })).toHaveClass(
-      "clamp-safe-2",
-    );
+    expect(
+      screen.getByRole("heading", { level: 4, name: "Projeto Alpha" }),
+    ).toHaveClass("clamp-safe-2");
 
     expect(container.querySelector(".soft-divider")).toBeNull();
   });
@@ -167,7 +171,9 @@ describe("LatestEpisodeCard border styles", () => {
       </MemoryRouter>,
     );
 
-    const coverImage = await screen.findByRole("img", { name: "Projeto Alpha" });
+    const coverImage = await screen.findByRole("img", {
+      name: "Projeto Alpha",
+    });
     const coverPicture = coverImage.parentElement;
     const coverWrapper = coverPicture?.parentElement;
     const updateLink = coverWrapper?.parentElement;
@@ -230,7 +236,9 @@ describe("LatestEpisodeCard border styles", () => {
                 formats: {
                   avif: { url: "/uploads/_variants/ue/posterThumb-v1.avif" },
                   webp: { url: "/uploads/_variants/ue/posterThumb-v1.webp" },
-                  fallback: { url: "/uploads/_variants/ue/posterThumb-v1.jpeg" },
+                  fallback: {
+                    url: "/uploads/_variants/ue/posterThumb-v1.jpeg",
+                  },
                 },
               },
             },

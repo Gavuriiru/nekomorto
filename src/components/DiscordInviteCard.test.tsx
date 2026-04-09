@@ -53,17 +53,26 @@ describe("DiscordInviteCard", () => {
     expect(cardRoot).not.toHaveClass("lift-hover");
     expect(cardRoot).toHaveClass("shadow-none");
     expect(cardRoot).not.toHaveClass("shadow-xs");
-    expect(screen.getByText("Fale com a equipe em tempo real.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Fale com a equipe em tempo real."),
+    ).toBeInTheDocument();
     expect(screen.getByText("Servidor oficial")).toBeInTheDocument();
     expect(
       screen.getByText("Atualizacoes, avisos e bate-papo com os membros."),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Entrar agora" })).toBeInTheDocument();
-    const panelDescription = screen.getByText("Atualizacoes, avisos e bate-papo com os membros.");
-    const panel = panelDescription.closest("div.group\\/panel");
+    const ctaLink = screen.getByRole("link", { name: "Entrar agora" });
+    expect(ctaLink).toBeInTheDocument();
+    expect(ctaLink).toHaveClass(
+      "interactive-control-transition",
+      "interactive-lift-sm",
+    );
+    const panelDescription = screen.getByText(
+      "Atualizacoes, avisos e bate-papo com os membros.",
+    );
+    const panel = panelDescription.closest("div.rounded-xl");
     expect(panel).not.toBeNull();
-    expect(panel).toHaveClass("hover:-translate-y-1");
-    expect(panel).toHaveClass("hover:border-primary/60");
+    expect(panel).not.toHaveClass("hover:-translate-y-1");
+    expect(panel).not.toHaveClass("hover:border-primary/60");
   });
 
   it("usa a ctaUrl configurada quando preenchida", () => {
@@ -106,10 +115,9 @@ describe("DiscordInviteCard", () => {
 
     render(<DiscordInviteCard />);
 
-    expect(screen.getByRole("link", { name: "Entrar no servidor" })).toHaveAttribute(
-      "href",
-      "https://discord.com/invite/fallback-card",
-    );
+    expect(
+      screen.getByRole("link", { name: "Entrar no servidor" }),
+    ).toHaveAttribute("href", "https://discord.com/invite/fallback-card");
   });
 
   it("nao exibe redes sociais do footer", () => {
@@ -127,21 +135,51 @@ describe("DiscordInviteCard", () => {
       },
       footer: {
         socialLinks: [
-          { label: "Instagram", href: "https://instagram.com/nekomata", icon: "instagram" },
-          { label: "Facebook", href: "https://facebook.com/nekomata", icon: "facebook" },
-          { label: "Twitter", href: "https://twitter.com/nekomata", icon: "twitter" },
-          { label: "YouTube", href: "https://youtube.com/nekomata", icon: "youtube" },
-          { label: "Discord", href: "https://discord.gg/nekomata", icon: "discord" },
+          {
+            label: "Instagram",
+            href: "https://instagram.com/nekomata",
+            icon: "instagram",
+          },
+          {
+            label: "Facebook",
+            href: "https://facebook.com/nekomata",
+            icon: "facebook",
+          },
+          {
+            label: "Twitter",
+            href: "https://twitter.com/nekomata",
+            icon: "twitter",
+          },
+          {
+            label: "YouTube",
+            href: "https://youtube.com/nekomata",
+            icon: "youtube",
+          },
+          {
+            label: "Discord",
+            href: "https://discord.gg/nekomata",
+            icon: "discord",
+          },
         ],
       },
     });
 
     render(<DiscordInviteCard />);
 
-    expect(screen.queryByRole("link", { name: "Instagram" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Facebook" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Twitter" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "YouTube" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Discord" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Instagram" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Facebook" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Twitter" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "YouTube" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Discord" }),
+    ).not.toBeInTheDocument();
   });
 });

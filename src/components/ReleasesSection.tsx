@@ -40,9 +40,15 @@ const ReleasesSection = () => {
         if (!section) {
           return;
         }
-        const fixedHeader = document.querySelector("header.fixed.top-0") as HTMLElement | null;
+        const fixedHeader = document.querySelector(
+          "header.fixed.top-0",
+        ) as HTMLElement | null;
         const headerOffset = fixedHeader?.getBoundingClientRect().height ?? 0;
-        const targetTop = section.getBoundingClientRect().top + window.scrollY - headerOffset - 12;
+        const targetTop =
+          section.getBoundingClientRect().top +
+          window.scrollY -
+          headerOffset -
+          12;
         window.scrollTo({ top: Math.max(targetTop, 0), behavior: "smooth" });
       });
     },
@@ -84,20 +90,21 @@ const ReleasesSection = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 {pagedReleases.map((release, index) => {
                   const isOrphan =
-                    pagedReleases.length % 2 === 1 && index === pagedReleases.length - 1;
+                    pagedReleases.length % 2 === 1 &&
+                    index === pagedReleases.length - 1;
                   return (
                     <Link
                       key={release.id}
                       to={`/postagem/${release.slug}`}
                       className={cn(
-                        "group reveal",
+                        "group reveal rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 interactive-lift-md",
                         isOrphan &&
                           "sm:col-span-2 sm:justify-self-center sm:w-full sm:max-w-[calc((100%-2rem)/2)]",
                       )}
                       data-reveal
                       style={{ transitionDelay: `${index * 80}ms` }}
                     >
-                      <Card className="bg-card h-full overflow-hidden shadow-none transition-all duration-300 hover:-translate-y-1 hover:bg-card/90 hover:shadow-lg">
+                      <Card className="interactive-surface-transition bg-card h-full overflow-hidden shadow-none group-hover:bg-card/90 group-focus-visible:bg-card/90">
                         <CardContent className="p-0 flex flex-col h-full">
                           <div className="relative w-full aspect-3/2 overflow-hidden bg-secondary">
                             <UploadPicture
@@ -107,12 +114,12 @@ const ReleasesSection = () => {
                               mediaVariants={mediaVariants}
                               sizes="(min-width: 1024px) 406px, (min-width: 640px) calc((100vw - 8rem) / 2), calc(100vw - 3rem)"
                               className="absolute inset-0 block h-full w-full"
-                              imgClassName="absolute inset-0 block h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                              imgClassName="interactive-media-transition absolute inset-0 block h-full w-full object-cover object-center group-hover:scale-105 group-focus-visible:scale-105"
                               loading="lazy"
                             />
                           </div>
                           <div className="p-5 space-y-2">
-                            <h3 className="text-xl md:text-2xl font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
+                            <h3 className="interactive-content-transition text-xl md:text-2xl font-semibold leading-snug text-foreground group-hover:text-primary group-focus-visible:text-primary">
                               {release.title}
                             </h3>
                             <p className="text-sm text-muted-foreground line-clamp-3">
@@ -121,7 +128,10 @@ const ReleasesSection = () => {
                           </div>
                           <div className="mt-auto px-5 pb-5 flex items-center justify-between gap-3 text-xs text-muted-foreground">
                             <span className="inline-flex items-center gap-1.5">
-                              <User className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                              <User
+                                className="h-4 w-4 text-primary/70"
+                                aria-hidden="true"
+                              />
                               {release.author || "Equipe"}
                             </span>
                             <span className="inline-flex items-center gap-1.5">

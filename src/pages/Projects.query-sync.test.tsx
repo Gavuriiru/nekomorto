@@ -16,7 +16,7 @@ const resizeObserverObserveMock = vi.hoisted(() => vi.fn());
 const resizeObserverDisconnectMock = vi.hoisted(() => vi.fn());
 const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
 const SEARCH_QUERY_DEBOUNCE_MS = 60;
-const PROJECTS_LIST_IMAGE_SIZES = "(max-width: 767px) 100px, 142px";
+const PROJECTS_LIST_IMAGE_SIZES = "(max-width: 767px) 129px, 154px";
 
 type BootstrapWindow = Window &
   typeof globalThis & {
@@ -372,7 +372,6 @@ describe("Projects query sync", () => {
         "rounded-xl",
         "border-border/60",
         "bg-background/60",
-        "shadow-sm",
         "focus-visible:ring-inset",
       ]),
     );
@@ -919,9 +918,33 @@ describe("Projects query sync", () => {
     expect(coverImage).toHaveAttribute("src", expect.stringContaining("/poster-thumb-v3.jpeg"));
     expect(coverImage).toHaveAttribute("sizes", PROJECTS_LIST_IMAGE_SIZES);
     expect(coverWrapper).not.toBeNull();
-    expect(coverWrapper).toHaveClass("h-39", "md:h-50");
-    expect(coverWrapper).not.toHaveClass("w-28", "md:w-36");
+    expect(coverWrapper).toHaveClass("h-full", "shrink-0", "overflow-hidden");
+    expect(coverWrapper).not.toHaveClass("h-39", "md:h-50", "rounded-xl");
     expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
+    const cardRoot = coverWrapper?.closest("a.projects-public-card");
+    const cardShell = cardRoot?.parentElement;
+    expect(cardRoot).not.toBeNull();
+    expect(cardRoot).toHaveClass(
+      "relative",
+      "z-10",
+      "items-stretch",
+      "overflow-hidden",
+      "rounded-2xl",
+      "hover:border-primary/60",
+    );
+    expect(cardRoot).not.toHaveClass("gap-5", "p-5", "hover:-translate-y-1", "hover:shadow-lg");
+    expect(cardShell).not.toBeNull();
+    expect(cardShell).toHaveClass(
+      "projects-public-card-shell",
+      "group",
+      "relative",
+      "overflow-visible",
+      "rounded-2xl",
+    );
+    const shadowLayers = cardShell?.querySelectorAll(".projects-public-card-shadow");
+    expect(shadowLayers).toHaveLength(2);
+    expect(shadowLayers?.[0]).toHaveClass("projects-public-card-shadow--base");
+    expect(shadowLayers?.[1]).toHaveClass("projects-public-card-shadow--hover");
   });
 
   it("prioriza apenas a primeira capa no desktop sem medicao auxiliar de badges", async () => {

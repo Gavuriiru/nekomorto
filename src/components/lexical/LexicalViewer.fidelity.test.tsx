@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 
 import LexicalViewer from "@/components/lexical/LexicalViewer";
 import LexicalViewerNodes from "@/components/lexical/LexicalViewerNodes";
+import { $createEpubAnchorNode } from "@/components/lexical/nodes/EpubAnchorNode";
 import { $createEpubHeadingNode } from "@/components/lexical/nodes/EpubHeadingNode";
 import { $createEpubImageNode } from "@/components/lexical/nodes/EpubImageNode";
 import { $createEpubParagraphNode } from "@/components/lexical/nodes/EpubParagraphNode";
@@ -175,6 +176,19 @@ describe("LexicalViewer fidelity", () => {
     expect(image.getAttribute("style")).toContain("display: block");
     expect(image.getAttribute("style")).toContain("margin-left: auto");
     expect(image.getAttribute("style")).toContain("margin-right: auto");
+  });
+
+  it("renderiza anchors EPUB com id navegavel no DOM do viewer", async () => {
+    const value = serializeViewerState(() => {
+      const paragraph = $createParagraphNode();
+      paragraph.append($createEpubAnchorNode({ anchorId: "note-1" }), $createTextNode("Nota EPUB"));
+      $getRoot().append(paragraph);
+    });
+
+    const { container } = render(<LexicalViewer value={value} ariaLabel="Conteudo com ancora" />);
+
+    expect(await screen.findByRole("textbox", { name: "Conteudo com ancora" })).toBeInTheDocument();
+    expect(container.querySelector('span#note-1[data-lexical-epub-anchor="note-1"]')).toBeTruthy();
   });
 
   it("renderiza colapsavel fechado por padrao no fallback de chrome", async () => {

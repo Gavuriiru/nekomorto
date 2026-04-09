@@ -24,6 +24,7 @@ import {CollapsibleTitleNode} from '../plugins/CollapsiblePlugin/CollapsibleTitl
 import {AutocompleteNode} from './AutocompleteNode';
 import {DateTimeNode} from './DateTimeNode/DateTimeNode';
 import {EmojiNode} from './EmojiNode';
+import {EpubAnchorNode} from '@/components/lexical/nodes/EpubAnchorNode';
 import {EpubHeadingNode} from '@/components/lexical/nodes/EpubHeadingNode';
 import {EpubImageNode} from '@/components/lexical/nodes/EpubImageNode';
 import {EpubParagraphNode} from '@/components/lexical/nodes/EpubParagraphNode';
@@ -54,6 +55,7 @@ const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   AutoLinkNode,
   LinkNode,
   OverflowNode,
+  EpubAnchorNode,
   EpubParagraphNode,
   EpubHeadingNode,
   EpubImageNode,

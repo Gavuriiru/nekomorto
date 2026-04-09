@@ -54,7 +54,7 @@ const alphabetOptions = ["Todas", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
 const MAX_QUERY_LENGTH = 80;
 const SEARCH_QUERY_DEBOUNCE_MS = 60;
-const PROJECTS_LIST_IMAGE_SIZES = "(max-width: 767px) 100px, 142px";
+const PROJECTS_LIST_IMAGE_SIZES = "(max-width: 767px) 129px, 154px";
 const PRIORITY_PROJECT_IMAGE_COUNT = 1;
 const MOBILE_FILTERS_PANEL_ID = "projects-mobile-filters-panel";
 const FILTER_COMBOBOX_INITIAL_LIMIT = 24;
@@ -211,8 +211,12 @@ const buildIndexedPublicProjects = ({
 
   const items = [...projects]
     .map((project) => {
-      const tags = Array.isArray(project.tags) ? project.tags.filter(Boolean) : [];
-      const genres = Array.isArray(project.genres) ? project.genres.filter(Boolean) : [];
+      const tags = Array.isArray(project.tags)
+        ? project.tags.filter(Boolean)
+        : [];
+      const genres = Array.isArray(project.genres)
+        ? project.genres.filter(Boolean)
+        : [];
       const translatedTags = tags.map((tag) => {
         const translated = String(tagTranslations[tag] || tag).trim();
         tagEntries.set(tag, translated || tag);
@@ -243,7 +247,9 @@ const buildIndexedPublicProjects = ({
             project.type,
             project.status,
             project.studio,
-            ...(Array.isArray(project.animationStudios) ? project.animationStudios : []),
+            ...(Array.isArray(project.animationStudios)
+              ? project.animationStudios
+              : []),
             ...(Array.isArray(project.producers) ? project.producers : []),
             ...tags,
             ...genres,
@@ -258,7 +264,9 @@ const buildIndexedPublicProjects = ({
         type,
       } satisfies IndexedPublicProject;
     })
-    .sort((left, right) => comparePtBr(left.project.title, right.project.title));
+    .sort((left, right) =>
+      comparePtBr(left.project.title, right.project.title),
+    );
 
   return {
     items,
@@ -324,7 +332,11 @@ const ProjectPrimaryBadge = ({ item, navigate }: ProjectPrimaryBadgeProps) => {
   );
 };
 
-const ProjectsFilterField = ({ label, className, children }: ProjectsFilterFieldProps) => (
+const ProjectsFilterField = ({
+  label,
+  className,
+  children,
+}: ProjectsFilterFieldProps) => (
   <div className={cn("flex flex-col gap-2", className)}>
     <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
       {label}
@@ -345,12 +357,18 @@ const ProjectsResultsSummary = ({
     )}
   >
     <div className="flex flex-wrap gap-2">
-      <span className="font-semibold text-foreground">{filteredProjectsCount}</span>
+      <span className="font-semibold text-foreground">
+        {filteredProjectsCount}
+      </span>
       <span>projetos encontrados</span>
       <span className="text-muted-foreground">&bull;</span>
       <span>Atualizado semanalmente</span>
     </div>
-    <Button variant="ghost" onClick={onResetFilters} className="w-full text-xs uppercase sm:w-auto">
+    <Button
+      variant="ghost"
+      onClick={onResetFilters}
+      className="w-full text-xs uppercase sm:w-auto"
+    >
       Limpar filtros
     </Button>
   </div>
@@ -389,9 +407,13 @@ const ProjectsSearchableFilter = memo(
       if (!normalizedQuery) {
         return options;
       }
-      return options.filter((option) => option.searchText.includes(normalizedQuery));
+      return options.filter((option) =>
+        option.searchText.includes(normalizedQuery),
+      );
     }, [options, query, searchEnabled]);
-    const visibleOptions = searchEnabled ? filteredOptions.slice(0, visibleCount) : filteredOptions;
+    const visibleOptions = searchEnabled
+      ? filteredOptions.slice(0, visibleCount)
+      : filteredOptions;
 
     useEffect(() => {
       if (!isOpen) {
@@ -453,8 +475,13 @@ const ProjectsSearchableFilter = memo(
             }
           }}
         >
-          <span className="truncate">{selectedOption?.label || placeholder}</span>
-          <ChevronDown className={dropdownChevronClassName} aria-hidden="true" />
+          <span className="truncate">
+            {selectedOption?.label || placeholder}
+          </span>
+          <ChevronDown
+            className={dropdownChevronClassName}
+            aria-hidden="true"
+          />
         </button>
         {isOpen ? (
           <div
@@ -500,7 +527,9 @@ const ProjectsSearchableFilter = memo(
                       }}
                     >
                       <span className={dropdownItemIndicatorClassName}>
-                        {isSelected ? <Check className="h-4 w-4" aria-hidden="true" /> : null}
+                        {isSelected ? (
+                          <Check className="h-4 w-4" aria-hidden="true" />
+                        ) : null}
                       </span>
                       <span className="truncate">{option.label}</span>
                     </button>
@@ -517,7 +546,9 @@ const ProjectsSearchableFilter = memo(
                 type="button"
                 variant="ghost"
                 className="mt-3 w-full text-xs uppercase"
-                onClick={() => setVisibleCount((current) => current + visibleCountStep)}
+                onClick={() =>
+                  setVisibleCount((current) => current + visibleCountStep)
+                }
               >
                 Mostrar mais
               </Button>
@@ -570,92 +601,109 @@ const ProjectCard = memo(
     );
 
     return (
-      <Link
-        to={`/projeto/${project.id}`}
-        className={`projects-public-card group flex h-50 w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-[transform,border-color,box-shadow,color] duration-300 hover:-translate-y-1 ${publicStrongSurfaceHoverClassName} hover:shadow-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 md:h-60`}
-      >
+      <div className="projects-public-card-shell group relative h-50 w-full overflow-visible rounded-2xl md:h-60">
         <div
-          className="h-39 shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-50"
-          style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
-        >
-          <UploadPicture
-            src={project.cover}
-            alt={project.title}
-            preset="posterThumb"
-            mediaVariants={mediaVariants}
-            className="block h-full w-full"
-            imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
-            sizes={PROJECTS_LIST_IMAGE_SIZES}
-            loading={isPriorityImage ? "eager" : "lazy"}
-            fetchPriority={isPriorityImage ? "high" : undefined}
-          />
-        </div>
+          aria-hidden="true"
+          className="projects-public-card-shadow projects-public-card-shadow--base rounded-[inherit]"
+        />
         <div
-          data-synopsis-role="column"
-          data-synopsis-key={project.id}
-          className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
+          aria-hidden="true"
+          className="projects-public-card-shadow projects-public-card-shadow--hover rounded-[inherit]"
+        />
+        <Link
+          to={`/projeto/${project.id}`}
+          className={`projects-public-card relative z-10 flex h-full w-full items-stretch overflow-hidden rounded-2xl border border-border/60 bg-gradient-card transition-[border-color,background-color,color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${publicStrongSurfaceHoverClassName} focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45`}
         >
-          <div data-synopsis-role="title" className="shrink-0">
-            <p className="text-xs uppercase tracking-[0.2em] text-primary/80 transition-colors duration-300 group-hover:text-primary">
-              {project.type}
-            </p>
-            <h2 className="line-clamp-2 text-xl font-semibold leading-snug text-foreground transition-colors duration-300 group-hover:text-primary md:text-2xl">
-              {project.title}
-            </h2>
-          </div>
-
-          <p
-            data-synopsis-role="synopsis"
-            className={cn(
-              "mt-2 overflow-hidden text-sm leading-snug text-muted-foreground transition-colors duration-300 break-normal hyphens-none group-hover:text-foreground/80",
-              PROJECT_CARD_SYNOPSIS_CLASS,
-              synopsisClampClass,
-            )}
+          <div
+            className="h-full shrink-0 overflow-hidden bg-secondary"
+            style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
           >
-            {project.synopsis}
-          </p>
+            <UploadPicture
+              src={project.cover}
+              alt={project.title}
+              preset="posterThumb"
+              mediaVariants={mediaVariants}
+              className="block h-full w-full"
+              imgClassName="interactive-media-transition h-full w-full object-cover object-center group-hover:scale-105 group-focus-within:scale-105"
+              sizes={PROJECTS_LIST_IMAGE_SIZES}
+              loading={isPriorityImage ? "eager" : "lazy"}
+              fetchPriority={isPriorityImage ? "high" : undefined}
+            />
+          </div>
+          <div
+            data-synopsis-role="column"
+            data-synopsis-key={project.id}
+            className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-5"
+          >
+            <div data-synopsis-role="title" className="shrink-0">
+              <p className="interactive-content-transition text-xs uppercase tracking-[0.2em] text-primary/80 group-hover:text-primary group-focus-within:text-primary">
+                {project.type}
+              </p>
+              <h2 className="interactive-content-transition line-clamp-2 text-xl font-semibold leading-snug text-foreground group-hover:text-primary group-focus-within:text-primary md:text-2xl">
+                {project.title}
+              </h2>
+            </div>
 
-          <div data-synopsis-role="badges" className="mt-auto flex shrink-0 flex-col gap-2 pt-3">
-            {!isMobile && (visibleItems.length > 0 || extraCount > 0) ? (
-              <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
-                {visibleItems.map((item) => (
-                  <ProjectPrimaryBadge key={item.key} item={item} navigate={navigate} />
-                ))}
-                {showOverflowBadge ? (
-                  <Badge
-                    variant="secondary"
-                    className="inline-flex h-6 w-9 shrink-0 justify-center whitespace-nowrap px-2 text-[9px] uppercase leading-none"
-                    title={`+${extraCount} tags`}
+            <p
+              data-synopsis-role="synopsis"
+              className={cn(
+                "interactive-content-transition mt-2 overflow-hidden text-sm leading-snug text-muted-foreground break-normal hyphens-none group-hover:text-foreground/80 group-focus-within:text-foreground/80",
+                PROJECT_CARD_SYNOPSIS_CLASS,
+                synopsisClampClass,
+              )}
+            >
+              {project.synopsis}
+            </p>
+
+            <div
+              data-synopsis-role="badges"
+              className="mt-auto flex shrink-0 flex-col gap-2 pt-3"
+            >
+              {!isMobile && (visibleItems.length > 0 || extraCount > 0) ? (
+                <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
+                  {visibleItems.map((item) => (
+                    <ProjectPrimaryBadge
+                      key={item.key}
+                      item={item}
+                      navigate={navigate}
+                    />
+                  ))}
+                  {showOverflowBadge ? (
+                    <Badge
+                      variant="secondary"
+                      className="inline-flex h-6 w-9 shrink-0 justify-center whitespace-nowrap px-2 text-[9px] uppercase leading-none"
+                      title={`+${extraCount} tags`}
+                    >
+                      +{extraCount}
+                    </Badge>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                {project.status ? (
+                  <span className="shrink-0 rounded-full bg-background/50 px-3 py-1 truncate">
+                    {project.status}
+                  </span>
+                ) : null}
+                {project.studio ? (
+                  <span
+                    className="hidden shrink-0 max-w-36 rounded-full bg-background/50 px-3 py-1 truncate lg:inline-flex lg:max-w-48"
+                    title={project.studio}
                   >
-                    +{extraCount}
-                  </Badge>
+                    {project.studio}
+                  </span>
+                ) : null}
+                {project.episodes ? (
+                  <span className="hidden shrink-0 rounded-full bg-background/50 px-3 py-1 truncate xl:inline-flex">
+                    {project.episodes}
+                  </span>
                 ) : null}
               </div>
-            ) : null}
-
-            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-              {project.status ? (
-                <span className="shrink-0 rounded-full bg-background/50 px-3 py-1 truncate">
-                  {project.status}
-                </span>
-              ) : null}
-              {project.studio ? (
-                <span
-                  className="hidden shrink-0 max-w-36 rounded-full bg-background/50 px-3 py-1 truncate lg:inline-flex lg:max-w-48"
-                  title={project.studio}
-                >
-                  {project.studio}
-                </span>
-              ) : null}
-              {project.episodes ? (
-                <span className="hidden shrink-0 rounded-full bg-background/50 px-3 py-1 truncate xl:inline-flex">
-                  {project.episodes}
-                </span>
-              ) : null}
             </div>
           </div>
-        </div>
-      </Link>
+        </Link>
+      </div>
     );
   },
 );
@@ -699,7 +747,9 @@ const ProjectsFiltersPanel = memo(
             placeholder="Todas as letras"
             searchEnabled={false}
             isOpen={openFilterId === "letter"}
-            onOpenChange={(nextOpen) => onOpenFilterChange(nextOpen ? "letter" : null)}
+            onOpenChange={(nextOpen) =>
+              onOpenFilterChange(nextOpen ? "letter" : null)
+            }
             onValueChange={onLetterChange}
           />
         </ProjectsFilterField>
@@ -715,7 +765,9 @@ const ProjectsFiltersPanel = memo(
             searchPlaceholder="Buscar tag"
             emptyMessage="Nenhuma tag encontrada."
             isOpen={openFilterId === "tag"}
-            onOpenChange={(nextOpen) => onOpenFilterChange(nextOpen ? "tag" : null)}
+            onOpenChange={(nextOpen) =>
+              onOpenFilterChange(nextOpen ? "tag" : null)
+            }
             onValueChange={onTagChange}
           />
         </ProjectsFilterField>
@@ -731,7 +783,9 @@ const ProjectsFiltersPanel = memo(
             searchPlaceholder="Buscar gênero"
             emptyMessage="Nenhum gênero encontrado."
             isOpen={openFilterId === "genre"}
-            onOpenChange={(nextOpen) => onOpenFilterChange(nextOpen ? "genre" : null)}
+            onOpenChange={(nextOpen) =>
+              onOpenFilterChange(nextOpen ? "genre" : null)
+            }
             onValueChange={onGenreChange}
           />
         </ProjectsFilterField>
@@ -746,7 +800,9 @@ const ProjectsFiltersPanel = memo(
             placeholder="Todos os formatos"
             searchEnabled={false}
             isOpen={openFilterId === "type"}
-            onOpenChange={(nextOpen) => onOpenFilterChange(nextOpen ? "type" : null)}
+            onOpenChange={(nextOpen) =>
+              onOpenFilterChange(nextOpen ? "type" : null)
+            }
             onValueChange={onTypeChange}
           />
         </ProjectsFilterField>
@@ -761,7 +817,9 @@ const ProjectsFiltersPanel = memo(
           </span>
           <Input
             value={searchInputValue}
-            onChange={(event) => onSearchInputChange(event.target.value.slice(0, MAX_QUERY_LENGTH))}
+            onChange={(event) =>
+              onSearchInputChange(event.target.value.slice(0, MAX_QUERY_LENGTH))
+            }
             placeholder="Buscar por título, sinopse, tag ou gênero"
             className="bg-background/60"
             aria-label="Buscar projetos"
@@ -783,7 +841,9 @@ const ProjectsFiltersPanel = memo(
                     Filtros
                   </span>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                    <span className="font-semibold text-foreground">{filteredProjectsCount}</span>
+                    <span className="font-semibold text-foreground">
+                      {filteredProjectsCount}
+                    </span>
                     <span>projetos encontrados</span>
                   </div>
                 </div>
@@ -830,13 +890,19 @@ const ProjectsGrid = memo(
     rootRef,
     getSynopsisClampClass,
   }: ProjectsGridProps) => (
-    <div ref={rootRef} className="mt-10 grid gap-6 md:grid-cols-2 md:auto-rows-fr">
+    <div
+      ref={rootRef}
+      className="mt-10 grid gap-6 md:grid-cols-2 md:auto-rows-fr"
+    >
       {projects.map((project, index) => {
-        const isLastSingle = projects.length % 2 === 1 && index === projects.length - 1;
+        const isLastSingle =
+          projects.length % 2 === 1 && index === projects.length - 1;
         return (
           <div
             key={project.id}
-            className={isLastSingle ? "md:col-span-2 flex justify-center" : undefined}
+            className={
+              isLastSingle ? "md:col-span-2 flex justify-center" : undefined
+            }
           >
             {isLastSingle ? (
               <div className="w-full md:w-[calc(50%-0.75rem)]">
@@ -876,26 +942,37 @@ const Projects = () => {
   const apiBase = getApiBase();
   const isMobile = useIsMobile();
   const bootstrap = readWindowPublicBootstrap();
-  const hasFullBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");
-  const bootstrapProjects = hasFullBootstrap ? ((bootstrap?.projects || []) as Project[]) : [];
-  const bootstrapTagTranslations = hasFullBootstrap ? bootstrap?.tagTranslations : null;
-  const bootstrapMediaVariants = hasFullBootstrap ? bootstrap?.mediaVariants || {} : {};
+  const hasFullBootstrap = Boolean(
+    bootstrap && bootstrap.payloadMode !== "critical-home",
+  );
+  const bootstrapProjects = hasFullBootstrap
+    ? ((bootstrap?.projects || []) as Project[])
+    : [];
+  const bootstrapTagTranslations = hasFullBootstrap
+    ? bootstrap?.tagTranslations
+    : null;
+  const bootstrapMediaVariants = hasFullBootstrap
+    ? bootstrap?.mediaVariants || {}
+    : {};
   const [projects, setProjects] = useState<Project[]>(() => bootstrapProjects);
-  const [isLoadingProjects, setIsLoadingProjects] = useState(() => !hasFullBootstrap);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(
+    () => !hasFullBootstrap,
+  );
   const [hasProjectsLoadError, setHasProjectsLoadError] = useState(false);
   const [projectsLoadVersion, setProjectsLoadVersion] = useState(0);
-  const [projectsMediaVariants, setProjectsMediaVariants] = useState<UploadMediaVariantsMap>(
-    () => bootstrapMediaVariants,
-  );
-  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
-    () => bootstrapTagTranslations?.tags || {},
-  );
-  const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>(
-    () => bootstrapTagTranslations?.genres || {},
-  );
+  const [projectsMediaVariants, setProjectsMediaVariants] =
+    useState<UploadMediaVariantsMap>(() => bootstrapMediaVariants);
+  const [tagTranslations, setTagTranslations] = useState<
+    Record<string, string>
+  >(() => bootstrapTagTranslations?.tags || {});
+  const [genreTranslations, setGenreTranslations] = useState<
+    Record<string, string>
+  >(() => bootstrapTagTranslations?.genres || {});
   const [searchParams, setSearchParams] = useSearchParams();
   const searchParamsRef = useRef(searchParams);
-  const [searchInputValue, setSearchInputValue] = useState(() => searchParams.get("q") || "");
+  const [searchInputValue, setSearchInputValue] = useState(
+    () => searchParams.get("q") || "",
+  );
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [openFilterId, setOpenFilterId] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -909,7 +986,8 @@ const Projects = () => {
   const selectedLetter = parseLetterParam(searchParams.get("letter"));
   const selectedType = parseTypeParam(searchParams.get("type"));
   const selectedTag = searchParams.get("tag") || "Todas";
-  const selectedGenre = searchParams.get("genero") || searchParams.get("genre") || "Todos";
+  const selectedGenre =
+    searchParams.get("genero") || searchParams.get("genre") || "Todos";
   const selectedQuery = searchParams.get("q") || "";
   const currentPage = parseProjectsPageParam(searchParams.get("page"));
 
@@ -965,7 +1043,9 @@ const Projects = () => {
         }
         setProjects(Array.isArray(data.projects) ? data.projects : []);
         setProjectsMediaVariants(
-          data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+          data?.mediaVariants && typeof data.mediaVariants === "object"
+            ? data.mediaVariants
+            : {},
         );
         setHasProjectsLoadError(false);
       } catch {
@@ -995,9 +1075,13 @@ const Projects = () => {
 
     const loadTranslations = async () => {
       try {
-        const response = await apiFetch(apiBase, "/api/public/tag-translations", {
-          cache: "no-store",
-        });
+        const response = await apiFetch(
+          apiBase,
+          "/api/public/tag-translations",
+          {
+            cache: "no-store",
+          },
+        );
         if (!response.ok) {
           return;
         }
@@ -1047,7 +1131,10 @@ const Projects = () => {
   }, [isMobileFiltersOpen]);
 
   const commitSearchParams = useCallback(
-    (mutate: (params: URLSearchParams) => void, options?: { replace?: boolean }) => {
+    (
+      mutate: (params: URLSearchParams) => void,
+      options?: { replace?: boolean },
+    ) => {
       const current = new URLSearchParams(searchParamsRef.current);
       const next = new URLSearchParams(current);
       mutate(next);
@@ -1088,14 +1175,26 @@ const Projects = () => {
     () =>
       indexedProjects.items
         .filter((item) => {
-          const matchesTag = selectedTag === "Todas" || item.tagSet.has(selectedTag);
-          const matchesGenre = selectedGenre === "Todos" || item.genreSet.has(selectedGenre);
-          const matchesType = selectedType === "Todos" || item.type === selectedType;
-          const matchesLetter = selectedLetter === "Todas" || item.firstLetter === selectedLetter;
+          const matchesTag =
+            selectedTag === "Todas" || item.tagSet.has(selectedTag);
+          const matchesGenre =
+            selectedGenre === "Todos" || item.genreSet.has(selectedGenre);
+          const matchesType =
+            selectedType === "Todos" || item.type === selectedType;
+          const matchesLetter =
+            selectedLetter === "Todas" || item.firstLetter === selectedLetter;
           const matchesQuery =
             normalizedQueryTokens.length === 0 ||
-            normalizedQueryTokens.every((token) => item.normalizedHaystack.includes(token));
-          return matchesTag && matchesGenre && matchesType && matchesLetter && matchesQuery;
+            normalizedQueryTokens.every((token) =>
+              item.normalizedHaystack.includes(token),
+            );
+          return (
+            matchesTag &&
+            matchesGenre &&
+            matchesType &&
+            matchesLetter &&
+            matchesQuery
+          );
         })
         .map((item) => item.project),
     [
@@ -1108,9 +1207,15 @@ const Projects = () => {
     ],
   );
 
-  const totalPages = Math.max(1, Math.ceil(filteredProjects.length / projectsPerPage));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredProjects.length / projectsPerPage),
+  );
   const pageStart = (currentPage - 1) * projectsPerPage;
-  const paginatedProjects = filteredProjects.slice(pageStart, pageStart + projectsPerPage);
+  const paginatedProjects = filteredProjects.slice(
+    pageStart,
+    pageStart + projectsPerPage,
+  );
   const synopsisKeys = useMemo(
     () => paginatedProjects.map((project) => project.id),
     [paginatedProjects],
@@ -1174,13 +1279,22 @@ const Projects = () => {
       },
       { replace: true },
     );
-  }, [commitSearchParams, hasProjectsLoadError, isLoadingProjects, selectedType, typeOptionValues]);
+  }, [
+    commitSearchParams,
+    hasProjectsLoadError,
+    isLoadingProjects,
+    selectedType,
+    typeOptionValues,
+  ]);
 
   useEffect(() => {
     if (isLoadingProjects || hasProjectsLoadError) {
       return;
     }
-    if (selectedTag === "Todas" || tagOptions.some((option) => option.value === selectedTag)) {
+    if (
+      selectedTag === "Todas" ||
+      tagOptions.some((option) => option.value === selectedTag)
+    ) {
       return;
     }
     commitSearchParams(
@@ -1189,7 +1303,13 @@ const Projects = () => {
       },
       { replace: true },
     );
-  }, [commitSearchParams, hasProjectsLoadError, isLoadingProjects, selectedTag, tagOptions]);
+  }, [
+    commitSearchParams,
+    hasProjectsLoadError,
+    isLoadingProjects,
+    selectedTag,
+    tagOptions,
+  ]);
 
   useEffect(() => {
     if (isLoadingProjects || hasProjectsLoadError) {
@@ -1208,7 +1328,13 @@ const Projects = () => {
       },
       { replace: true },
     );
-  }, [commitSearchParams, genreOptions, hasProjectsLoadError, isLoadingProjects, selectedGenre]);
+  }, [
+    commitSearchParams,
+    genreOptions,
+    hasProjectsLoadError,
+    isLoadingProjects,
+    selectedGenre,
+  ]);
 
   useEffect(() => {
     if (isLoadingProjects || hasProjectsLoadError) {
@@ -1227,10 +1353,20 @@ const Projects = () => {
       },
       { replace: true },
     );
-  }, [commitSearchParams, currentPage, hasProjectsLoadError, isLoadingProjects, totalPages]);
+  }, [
+    commitSearchParams,
+    currentPage,
+    hasProjectsLoadError,
+    isLoadingProjects,
+    totalPages,
+  ]);
 
   const handleFilterChange = useCallback(
-    (key: "letter" | "tag" | "genero" | "type", value: string, emptyValue: "Todas" | "Todos") => {
+    (
+      key: "letter" | "tag" | "genero" | "type",
+      value: string,
+      emptyValue: "Todas" | "Todos",
+    ) => {
       commitSearchParams((params) => {
         if (value === emptyValue) {
           params.delete(key);
@@ -1247,7 +1383,8 @@ const Projects = () => {
   );
 
   const handleLetterChange = useCallback(
-    (value: string) => handleFilterChange("letter", parseLetterParam(value), "Todas"),
+    (value: string) =>
+      handleFilterChange("letter", parseLetterParam(value), "Todas"),
     [handleFilterChange],
   );
   const handleTagChange = useCallback(
@@ -1313,7 +1450,9 @@ const Projects = () => {
           <ProjectsFiltersPanel
             isMobile={isMobile}
             isMobileFiltersOpen={isMobileFiltersOpen}
-            onToggleMobileFilters={() => setIsMobileFiltersOpen((current) => !current)}
+            onToggleMobileFilters={() =>
+              setIsMobileFiltersOpen((current) => !current)
+            }
             searchInputValue={searchInputValue}
             onSearchInputChange={setSearchInputValue}
             letterOptions={letterOptions}
@@ -1321,8 +1460,12 @@ const Projects = () => {
             selectedTag={selectedTag}
             selectedGenre={selectedGenre}
             selectedType={selectedType}
-            tagOptions={tagOptions.length > 0 ? tagOptions : EMPTY_FILTER_OPTIONS}
-            genreOptions={genreOptions.length > 0 ? genreOptions : EMPTY_FILTER_OPTIONS}
+            tagOptions={
+              tagOptions.length > 0 ? tagOptions : EMPTY_FILTER_OPTIONS
+            }
+            genreOptions={
+              genreOptions.length > 0 ? genreOptions : EMPTY_FILTER_OPTIONS
+            }
             typeOptions={typeOptions}
             filteredProjectsCount={filteredProjects.length}
             activeFiltersSummary={activeFiltersSummary}
@@ -1351,7 +1494,9 @@ const Projects = () => {
               action={
                 <Button
                   variant="outline"
-                  onClick={() => setProjectsLoadVersion((current) => current + 1)}
+                  onClick={() =>
+                    setProjectsLoadVersion((current) => current + 1)
+                  }
                 >
                   Tentar novamente
                 </Button>
@@ -1364,7 +1509,11 @@ const Projects = () => {
               description="Ajuste os filtros para ampliar os resultados."
               className="mt-10"
               action={
-                <Button variant="ghost" onClick={resetFilters} className="text-xs uppercase">
+                <Button
+                  variant="ghost"
+                  onClick={resetFilters}
+                  className="text-xs uppercase"
+                >
                   Limpar filtros
                 </Button>
               }

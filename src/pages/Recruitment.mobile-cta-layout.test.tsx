@@ -30,7 +30,11 @@ const createSettings = (override: Partial<SiteSettings> = {}) =>
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
-const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
+const mockJsonResponse = (
+  ok: boolean,
+  payload: unknown,
+  status = ok ? 200 : 500,
+) =>
   ({
     ok,
     status,
@@ -40,7 +44,9 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
 describe("Recruitment mobile CTA layout", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
-    apiFetchMock.mockResolvedValue(mockJsonResponse(false, { error: "not_found" }, 404));
+    apiFetchMock.mockResolvedValue(
+      mockJsonResponse(false, { error: "not_found" }, 404),
+    );
 
     useSiteSettingsMock.mockReset();
     useSiteSettingsMock.mockReturnValue({
@@ -69,18 +75,25 @@ describe("Recruitment mobile CTA layout", () => {
     expect(main).not.toBeNull();
     expect(main).toHaveClass("pb-20");
 
-    const ctaLink = await screen.findByRole("link", { name: "Entrar no Discord" });
+    const ctaLink = await screen.findByRole("link", {
+      name: "Entrar no Discord",
+    });
     const ctaLinkTokens = classTokens(ctaLink);
 
     expect(ctaLinkTokens).toContain("w-full");
     expect(ctaLinkTokens).toContain("md:w-auto");
-    expect(ctaLink).toHaveAttribute("href", "https://discord.gg/recruitment-test");
+    expect(ctaLink).toHaveAttribute(
+      "href",
+      "https://discord.gg/recruitment-test",
+    );
   });
 
   it("usa container de CTA com alinhamento stretch no mobile", async () => {
     render(<Recruitment />);
 
-    const ctaHeading = await screen.findByRole("heading", { name: "Pronto para participar?" });
+    const ctaHeading = await screen.findByRole("heading", {
+      name: "Pronto para participar?",
+    });
     const ctaTextBlock = ctaHeading.closest("div.space-y-1");
     expect(ctaTextBlock).not.toBeNull();
 
@@ -90,5 +103,27 @@ describe("Recruitment mobile CTA layout", () => {
     const ctaContentTokens = classTokens(ctaContent as HTMLElement);
     expect(ctaContentTokens).toContain("items-stretch");
     expect(ctaContentTokens).not.toContain("items-start");
+  });
+
+  it("mantem o card de CTA estatico e concentra o hover no botao do Discord", async () => {
+    render(<Recruitment />);
+
+    const ctaHeading = await screen.findByRole("heading", {
+      name: "Pronto para participar?",
+    });
+    const ctaCard = ctaHeading.closest("div.rounded-lg");
+    expect(ctaCard).not.toBeNull();
+
+    const ctaCardTokens = classTokens(ctaCard as HTMLElement);
+    expect(ctaCardTokens).not.toContain("hover:-translate-y-1");
+    expect(ctaCardTokens).not.toContain("hover:border-primary/60");
+    expect(ctaCardTokens).not.toContain("hover:bg-card/90");
+    expect(ctaCardTokens).not.toContain("hover:shadow-lg");
+
+    const ctaLink = screen.getByRole("link", { name: "Entrar no Discord" });
+    const ctaLinkTokens = classTokens(ctaLink);
+    expect(ctaLinkTokens).toContain("interactive-lift-sm");
+    expect(ctaLinkTokens).toContain("interactive-control-transition");
+    expect(ctaLinkTokens).toContain("hover:bg-primary/90");
   });
 });

@@ -564,9 +564,9 @@ describe("Project mobile hero layout", () => {
       expect(classTokens(card)).not.toContain("border-border/60");
       expect(classTokens(card)).not.toContain("border-border");
       expect(classTokens(card)).not.toContain("hover:border-primary/60");
-      expect(classTokens(card)).toContain("hover:-translate-y-1");
-      expect(classTokens(card)).toContain("hover:bg-card/90");
-      expect(classTokens(card)).toContain("hover:shadow-lg");
+      expect(classTokens(card)).not.toContain("hover:-translate-y-1");
+      expect(classTokens(card)).not.toContain("hover:bg-card/90");
+      expect(classTokens(card)).not.toContain("hover:shadow-lg");
     });
 
     const relatedItem = screen.getByRole("link", { name: /Projeto Relacionado/i });
@@ -620,10 +620,7 @@ describe("Project mobile hero layout", () => {
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
     const readLink = screen.getByRole("link", { name: /Come.* leitura/i });
-    expect(readLink).toHaveAttribute(
-      "href",
-      "/projeto/project-1/leitura/1?volume=2",
-    );
+    expect(readLink).toHaveAttribute("href", "/projeto/project-1/leitura/1?volume=2");
     const actionsRow = screen.getByTestId("project-hero-actions-row");
     const actionLinks = within(actionsRow).getAllByRole("link");
     expect(actionLinks.at(-1)).toBe(readLink);
@@ -663,18 +660,16 @@ describe("Project mobile hero layout", () => {
     expect(classTokens(readCard as HTMLElement)).toContain("w-full");
     expect(classTokens(readCard as HTMLElement)).toContain("group/chapter-card");
     expect(classTokens(readCard as HTMLElement)).toContain("!transform-none");
-    expect(classTokens(readCard as HTMLElement)).toContain("hover:!translate-y-0");
     expect(classTokens(readCard as HTMLElement)).not.toContain("hover:-translate-y-1");
+    expect(classTokens(readCard as HTMLElement)).not.toContain("hover:!translate-y-0");
+    expect(classTokens(readCard as HTMLElement)).not.toContain("hover:border-primary/60");
     expect((readCard as HTMLElement).querySelector(".chapter-download-card__thumb")).toBeNull();
     const chapterTitle = within(readCard as HTMLElement).getByText(/Cap.tulo 1/i);
     expect(classTokens(chapterTitle as HTMLElement)).toContain("chapter-download-card__title");
     expect(classTokens(chapterTitle as HTMLElement)).toContain("text-base");
     expect(within(readCard as HTMLElement).queryByText(/Vol\.\s*2/i)).not.toBeInTheDocument();
     const sourceLink = within(readCard as HTMLElement).getByRole("link", { name: "Drive" });
-    expect(sourceLink).toHaveAttribute(
-      "href",
-      "https://example.com/drive",
-    );
+    expect(sourceLink).toHaveAttribute("href", "https://example.com/drive");
     const actionsRow = findAncestor(sourceLink, (candidate) =>
       classTokens(candidate).includes("chapter-download-card__actions"),
     );
@@ -685,7 +680,9 @@ describe("Project mobile hero layout", () => {
     expect(classTokens(readLink)).toContain("order-last");
     expect(classTokens(actionsRow as HTMLElement)).toContain("flex-wrap");
     expect(classTokens(actionsRow as HTMLElement)).toContain("gap-2");
-    expect(within(readCard as HTMLElement).queryByText("Resumo do capitulo")).not.toBeInTheDocument();
+    expect(
+      within(readCard as HTMLElement).queryByText("Resumo do capitulo"),
+    ).not.toBeInTheDocument();
   });
 
   it("mantem o CTA do leitor como ultima acao do hero para mangas", async () => {
@@ -947,8 +944,9 @@ describe("Project mobile hero layout", () => {
     expect(classTokens(episodeCard as HTMLElement)).toContain("w-full");
     expect(classTokens(episodeCard as HTMLElement)).toContain("group/chapter-card");
     expect(classTokens(episodeCard as HTMLElement)).toContain("!transform-none");
-    expect(classTokens(episodeCard as HTMLElement)).toContain("hover:!translate-y-0");
     expect(classTokens(episodeCard as HTMLElement)).not.toContain("hover:-translate-y-1");
+    expect(classTokens(episodeCard as HTMLElement)).not.toContain("hover:!translate-y-0");
+    expect(classTokens(episodeCard as HTMLElement)).not.toContain("hover:border-primary/60");
     expect((episodeCard as HTMLElement).querySelector(".chapter-download-card__thumb")).toBeNull();
     expect(within(episodeCard as HTMLElement).queryByRole("link", { name: /Ler/i })).toBeNull();
     expect(within(episodeCard as HTMLElement).getByRole("link", { name: "Drive" })).toHaveAttribute(

@@ -10,7 +10,11 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
-import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
+import {
+  buildTranslationMap,
+  sortByTranslatedLabel,
+  translateTag,
+} from "@/lib/project-taxonomy";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { cn } from "@/lib/utils";
 import type { PublicBootstrapPayload } from "@/types/public-bootstrap";
@@ -21,7 +25,15 @@ type ProjectEmbedCardProps = {
 
 type ProjectEmbedRecord = Pick<
   Project,
-  "id" | "cover" | "episodes" | "status" | "studio" | "synopsis" | "tags" | "title" | "type"
+  | "id"
+  | "cover"
+  | "episodes"
+  | "status"
+  | "studio"
+  | "synopsis"
+  | "tags"
+  | "title"
+  | "type"
 >;
 
 const COVER_ROW_HEIGHT = "192px";
@@ -56,9 +68,14 @@ const resolveBootstrapProject = (
   };
 };
 
-const mergeMediaVariants = (base: UploadMediaVariantsMap, nextValue: unknown) => ({
+const mergeMediaVariants = (
+  base: UploadMediaVariantsMap,
+  nextValue: unknown,
+) => ({
   ...base,
-  ...(nextValue && typeof nextValue === "object" ? (nextValue as UploadMediaVariantsMap) : {}),
+  ...(nextValue && typeof nextValue === "object"
+    ? (nextValue as UploadMediaVariantsMap)
+    : {}),
 });
 
 const getSynopsisClampClass = (lines: number | undefined) => {
@@ -89,15 +106,19 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
     () => resolveBootstrapProject(bootstrapData, projectId),
     [bootstrapData, projectId],
   );
-  const [project, setProject] = useState<ProjectEmbedRecord | null>(bootstrapProject);
-  const [projectMediaVariants, setProjectMediaVariants] = useState<UploadMediaVariantsMap>(
-    () => bootstrapData?.mediaVariants || {},
+  const [project, setProject] = useState<ProjectEmbedRecord | null>(
+    bootstrapProject,
   );
+  const [projectMediaVariants, setProjectMediaVariants] =
+    useState<UploadMediaVariantsMap>(() => bootstrapData?.mediaVariants || {});
   const [hasLoaded, setHasLoaded] = useState(Boolean(bootstrapProject));
-  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
-    () => bootstrapData?.tagTranslations?.tags || {},
+  const [tagTranslations, setTagTranslations] = useState<
+    Record<string, string>
+  >(() => bootstrapData?.tagTranslations?.tags || {});
+  const tagTranslationMap = useMemo(
+    () => buildTranslationMap(tagTranslations),
+    [tagTranslations],
   );
-  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
   const synopsisKey = project?.id ?? projectId ?? "project-embed";
   const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
     enabled: Boolean(projectId),
@@ -106,7 +127,9 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   });
   const sortedTags = useMemo(() => {
     const tags = Array.isArray(project?.tags) ? project.tags : [];
-    return sortByTranslatedLabel(tags, (tag) => translateTag(tag, tagTranslationMap));
+    return sortByTranslatedLabel(tags, (tag) =>
+      translateTag(tag, tagTranslationMap),
+    );
   }, [project?.tags, tagTranslationMap]);
   const synopsisMaxLines = (() => {
     const lines = lineByKey[synopsisKey];
@@ -131,7 +154,10 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await apiFetch(apiBase, `/api/public/projects/${projectId}`);
+        const response = await apiFetch(
+          apiBase,
+          `/api/public/projects/${projectId}`,
+        );
         if (!response.ok) {
           if (isActive) {
             setProject(null);
@@ -142,7 +168,10 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
         if (isActive) {
           setProject(data.project || null);
           setProjectMediaVariants((current) =>
-            mergeMediaVariants(bootstrapData?.mediaVariants || current, data?.mediaVariants),
+            mergeMediaVariants(
+              bootstrapData?.mediaVariants || current,
+              data?.mediaVariants,
+            ),
           );
         }
       } catch {
@@ -168,9 +197,13 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
     let isActive = true;
     const loadTranslations = async () => {
       try {
-        const response = await apiFetch(apiBase, "/api/public/tag-translations", {
-          cache: "no-store",
-        });
+        const response = await apiFetch(
+          apiBase,
+          "/api/public/tag-translations",
+          {
+            cache: "no-store",
+          },
+        );
         if (!response.ok || !isActive) {
           return;
         }
@@ -202,9 +235,9 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   return (
     <Link
       to={`/projeto/${project?.id ?? projectId}`}
-      className="block rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
+      className="group block rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 interactive-lift-md"
     >
-      <Card className="overflow-hidden bg-card shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg">
+      <Card className="interactive-surface-transition overflow-hidden bg-card shadow-xs group-hover:border-primary/60 group-hover:bg-card/90 group-focus-visible:border-primary/60 group-focus-visible:bg-card/90">
         <CardContent className="p-0">
           <div
             ref={synopsisRootRef}
@@ -226,7 +259,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
                 mediaVariants={projectMediaVariants}
                 className="block h-full w-full"
                 sizes={PROJECT_EMBED_IMAGE_SIZES}
-                imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                imgClassName="interactive-media-transition h-full w-full object-cover object-center group-hover:scale-105 group-focus-visible:scale-105"
               />
             </div>
             <div
@@ -238,7 +271,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
                 <p className="text-[10px] uppercase tracking-[0.2em] text-primary/80">
                   {project?.type || ""}
                 </p>
-                <span className="clamp-safe-2 text-lg font-semibold text-foreground transition group-hover:text-primary">
+                <span className="clamp-safe-2 interactive-content-transition text-lg font-semibold text-foreground group-hover:text-primary group-focus-visible:text-primary">
                   {project?.title || "Projeto"}
                 </span>
               </div>
@@ -252,7 +285,10 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
               >
                 {project?.synopsis || ""}
               </p>
-              <div data-synopsis-role="badges" className="mt-auto space-y-2 pt-2">
+              <div
+                data-synopsis-role="badges"
+                className="mt-auto space-y-2 pt-2"
+              >
                 <div
                   data-testid="project-embed-primary-badges"
                   className="flex flex-nowrap items-center gap-2 overflow-hidden text-xs sm:flex-wrap"
@@ -291,7 +327,11 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
                     className="hidden flex-wrap gap-1.5 sm:flex"
                   >
                     {sortedTags.slice(0, 4).map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-[9px] uppercase">
+                      <Badge
+                        key={tag}
+                        variant="secondary"
+                        className="text-[9px] uppercase"
+                      >
                         {translateTag(tag, tagTranslationMap)}
                       </Badge>
                     ))}

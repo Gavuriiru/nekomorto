@@ -16,7 +16,8 @@ vi.mock("@/lib/api-client", () => ({
 }));
 
 vi.mock("@/hooks/use-dynamic-synopsis-clamp", () => ({
-  useDynamicSynopsisClamp: (...args: unknown[]) => useDynamicSynopsisClampMock(...args),
+  useDynamicSynopsisClamp: (...args: unknown[]) =>
+    useDynamicSynopsisClampMock(...args),
 }));
 
 const buildProject = (overrides: Record<string, unknown> = {}) => ({
@@ -61,27 +62,29 @@ describe("ProjectEmbedCard", () => {
   it("ordena tags por traducao exibida, mantem badges no rodape e usa clamp padrao de duas linhas", async () => {
     const project = buildProject();
 
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string) => {
-      if (endpoint === "/api/public/projects/project-1") {
-        return { ok: true, json: async () => ({ project }) };
-      }
-      if (endpoint === "/api/public/tag-translations") {
-        return {
-          ok: true,
-          json: async () => ({
-            tags: {
-              ACTION: "Acao",
-              comedy: "Comedia",
-              mYsTeRy: "Misterio",
-              drama: "",
-            },
-            genres: {},
-            staffRoles: {},
-          }),
-        };
-      }
-      return { ok: false, json: async () => ({}) };
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string) => {
+        if (endpoint === "/api/public/projects/project-1") {
+          return { ok: true, json: async () => ({ project }) };
+        }
+        if (endpoint === "/api/public/tag-translations") {
+          return {
+            ok: true,
+            json: async () => ({
+              tags: {
+                ACTION: "Acao",
+                comedy: "Comedia",
+                mYsTeRy: "Misterio",
+                drama: "",
+              },
+              genres: {},
+              staffRoles: {},
+            }),
+          };
+        }
+        return { ok: false, json: async () => ({}) };
+      },
+    );
 
     const { container } = renderProjectEmbedCard();
 
@@ -100,24 +103,44 @@ describe("ProjectEmbedCard", () => {
     const row = screen.getByTestId("project-embed-row");
     const cardLink = title.closest("a");
     const cardRoot = cardLink?.firstElementChild as HTMLElement | null;
-    const synopsisColumn = container.querySelector<HTMLElement>('[data-synopsis-role="column"]');
-    const synopsisTitle = container.querySelector<HTMLElement>('[data-synopsis-role="title"]');
-    const synopsisText = container.querySelector<HTMLElement>('[data-synopsis-role="synopsis"]');
-    const synopsisBadges = container.querySelector<HTMLElement>('[data-synopsis-role="badges"]');
+    const synopsisColumn = container.querySelector<HTMLElement>(
+      '[data-synopsis-role="column"]',
+    );
+    const synopsisTitle = container.querySelector<HTMLElement>(
+      '[data-synopsis-role="title"]',
+    );
+    const synopsisText = container.querySelector<HTMLElement>(
+      '[data-synopsis-role="synopsis"]',
+    );
+    const synopsisBadges = container.querySelector<HTMLElement>(
+      '[data-synopsis-role="badges"]',
+    );
 
-    expect(acao.compareDocumentPosition(comedia) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(comedia.compareDocumentPosition(drama) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(drama.compareDocumentPosition(misterio) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(
+      acao.compareDocumentPosition(comedia) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      comedia.compareDocumentPosition(drama) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      drama.compareDocumentPosition(misterio) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
     expect(tagsWrapper).toHaveClass("hidden", "sm:flex");
     expect(episodesBadge).toHaveClass("hidden", "sm:inline-flex");
-    expect(badgesRow).toHaveClass("flex-nowrap", "overflow-hidden", "sm:flex-wrap");
+    expect(badgesRow).toHaveClass(
+      "flex-nowrap",
+      "overflow-hidden",
+      "sm:flex-wrap",
+    );
     expect(badgesSection).toHaveClass("mt-auto");
     expect(statusBadge).toHaveClass("max-w-[8.5rem]", "truncate");
     expect(studioBadge).toHaveClass("max-w-[8.5rem]", "truncate");
     expect(cardRoot).not.toBeNull();
+    expect(cardLink).toHaveClass("interactive-lift-md");
     expect(cardRoot).toHaveClass("overflow-hidden");
     expect(cardRoot).not.toHaveClass("border", "border-border");
-    expect(cardRoot).toHaveClass("hover:border-primary/60");
+    expect(cardRoot).toHaveClass("group-hover:border-primary/60");
     expect(title).toHaveClass("clamp-safe-2");
     expect(title).not.toHaveClass("sm:line-clamp-none");
     expect(row).toHaveClass("group", "flex", "items-stretch");
@@ -145,10 +168,12 @@ describe("ProjectEmbedCard", () => {
     }
     expect(synopsisTitle).not.toContainElement(synopsisText);
     expect(
-      synopsisTitle.compareDocumentPosition(synopsisText) & Node.DOCUMENT_POSITION_FOLLOWING,
+      synopsisTitle.compareDocumentPosition(synopsisText) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
     expect(
-      synopsisText.compareDocumentPosition(synopsisBadges) & Node.DOCUMENT_POSITION_FOLLOWING,
+      synopsisText.compareDocumentPosition(synopsisBadges) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
   });
 
@@ -157,15 +182,20 @@ describe("ProjectEmbedCard", () => {
       tags: ["Drama"],
     });
 
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string) => {
-      if (endpoint === "/api/public/projects/project-1") {
-        return { ok: true, json: async () => ({ project }) };
-      }
-      if (endpoint === "/api/public/tag-translations") {
-        return { ok: true, json: async () => ({ tags: {}, genres: {}, staffRoles: {} }) };
-      }
-      return { ok: false, json: async () => ({}) };
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string) => {
+        if (endpoint === "/api/public/projects/project-1") {
+          return { ok: true, json: async () => ({ project }) };
+        }
+        if (endpoint === "/api/public/tag-translations") {
+          return {
+            ok: true,
+            json: async () => ({ tags: {}, genres: {}, staffRoles: {} }),
+          };
+        }
+        return { ok: false, json: async () => ({}) };
+      },
+    );
 
     const { container } = renderProjectEmbedCard();
 
@@ -176,7 +206,9 @@ describe("ProjectEmbedCard", () => {
     expect(row).not.toHaveClass("items-start", "flex-col", "gap-4");
     expect(row).toHaveStyle({ height: "192px" });
 
-    const contentColumn = container.querySelector<HTMLElement>('[data-synopsis-role="column"]');
+    const contentColumn = container.querySelector<HTMLElement>(
+      '[data-synopsis-role="column"]',
+    );
     expect(contentColumn).not.toBeNull();
     expect(contentColumn).toHaveClass(
       "min-h-0",
@@ -195,7 +227,12 @@ describe("ProjectEmbedCard", () => {
     expect(coverPicture).not.toBeNull();
     expect(coverPicture).toHaveClass("block", "h-full", "w-full");
     expect(coverWrapper).not.toBeNull();
-    expect(coverWrapper).toHaveClass("h-full", "shrink-0", "self-start", "bg-secondary/60");
+    expect(coverWrapper).toHaveClass(
+      "h-full",
+      "shrink-0",
+      "self-start",
+      "bg-secondary/60",
+    );
     expect(coverWrapper).not.toHaveClass("rounded-xl", "w-full");
     expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
     expect(coverWrapper?.style.width).toMatch(/^calc\(/);
@@ -209,8 +246,7 @@ describe("ProjectEmbedCard", () => {
       "w-full",
       "object-cover",
       "object-center",
-      "transition-transform",
-      "duration-300",
+      "interactive-media-transition",
       "group-hover:scale-105",
     );
   });
@@ -228,15 +264,20 @@ describe("ProjectEmbedCard", () => {
       lineByKey: currentLineByKey,
     }));
 
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string) => {
-      if (endpoint === "/api/public/projects/project-1") {
-        return { ok: true, json: async () => ({ project }) };
-      }
-      if (endpoint === "/api/public/tag-translations") {
-        return { ok: true, json: async () => ({ tags: {}, genres: {}, staffRoles: {} }) };
-      }
-      return { ok: false, json: async () => ({}) };
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string) => {
+        if (endpoint === "/api/public/projects/project-1") {
+          return { ok: true, json: async () => ({ project }) };
+        }
+        if (endpoint === "/api/public/tag-translations") {
+          return {
+            ok: true,
+            json: async () => ({ tags: {}, genres: {}, staffRoles: {} }),
+          };
+        }
+        return { ok: false, json: async () => ({}) };
+      },
+    );
 
     const { rerender } = renderProjectEmbedCard();
 
@@ -267,7 +308,10 @@ describe("ProjectEmbedCard", () => {
       </MemoryRouter>,
     );
     expect(screen.getByText("Sinopse")).toHaveClass("clamp-safe-4");
-    expect(screen.getByText("Sinopse")).toHaveAttribute("data-synopsis-lines", "4");
+    expect(screen.getByText("Sinopse")).toHaveAttribute(
+      "data-synopsis-lines",
+      "4",
+    );
   });
 
   it("renderiza posterThumb com fallback semantico para poster quando a API entrega apenas poster", async () => {
@@ -276,44 +320,62 @@ describe("ProjectEmbedCard", () => {
       cover: "/uploads/projects/embed-cover.png",
     });
 
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string) => {
-      if (endpoint === "/api/public/projects/project-1") {
-        return {
-          ok: true,
-          json: async () => ({
-            project,
-            mediaVariants: {
-              "/uploads/projects/embed-cover.png": {
-                variantsVersion: 2,
-                variants: {
-                  poster: {
-                    formats: {
-                      avif: { url: "/uploads/_variants/p1/poster-v2.avif" },
-                      webp: { url: "/uploads/_variants/p1/poster-v2.webp" },
-                      fallback: { url: "/uploads/_variants/p1/poster-v2.jpeg" },
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string) => {
+        if (endpoint === "/api/public/projects/project-1") {
+          return {
+            ok: true,
+            json: async () => ({
+              project,
+              mediaVariants: {
+                "/uploads/projects/embed-cover.png": {
+                  variantsVersion: 2,
+                  variants: {
+                    poster: {
+                      formats: {
+                        avif: { url: "/uploads/_variants/p1/poster-v2.avif" },
+                        webp: { url: "/uploads/_variants/p1/poster-v2.webp" },
+                        fallback: {
+                          url: "/uploads/_variants/p1/poster-v2.jpeg",
+                        },
+                      },
                     },
                   },
                 },
               },
-            },
-          }),
-        };
-      }
-      if (endpoint === "/api/public/tag-translations") {
-        return { ok: true, json: async () => ({ tags: {}, genres: {}, staffRoles: {} }) };
-      }
-      return { ok: false, json: async () => ({}) };
-    });
+            }),
+          };
+        }
+        if (endpoint === "/api/public/tag-translations") {
+          return {
+            ok: true,
+            json: async () => ({ tags: {}, genres: {}, staffRoles: {} }),
+          };
+        }
+        return { ok: false, json: async () => ({}) };
+      },
+    );
 
     const { container } = renderProjectEmbedCard();
 
-    const coverImage = await screen.findByRole("img", { name: "Projeto Embed" });
+    const coverImage = await screen.findByRole("img", {
+      name: "Projeto Embed",
+    });
     const sources = Array.from(container.querySelectorAll("source"));
 
     expect(sources).toHaveLength(2);
-    expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/poster-v2.avif"));
-    expect(sources[1]).toHaveAttribute("srcset", expect.stringContaining("/poster-v2.webp"));
-    expect(coverImage).toHaveAttribute("src", expect.stringContaining("/poster-v2.jpeg"));
+    expect(sources[0]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/poster-v2.avif"),
+    );
+    expect(sources[1]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/poster-v2.webp"),
+    );
+    expect(coverImage).toHaveAttribute(
+      "src",
+      expect.stringContaining("/poster-v2.jpeg"),
+    );
     expect(coverImage).toHaveAttribute("sizes", "124px");
   });
 });

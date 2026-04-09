@@ -1357,6 +1357,108 @@ describe("project EPUB import", () => {
     );
   });
 
+  it("preserva anchors EPUB e reescreve links para hash quando o alvo cai no mesmo capitulo importado", async () => {
+    epubState.toc = [
+      { id: "chapter-1-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
+      { id: "chapter-2-toc", title: "Chapter 2", href: "OEBPS/Text/chapter002.xhtml#Ref_2" },
+    ];
+    epubState.flow = [
+      { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      { id: "chapter001_notes", href: "OEBPS/Text/chapter001_notes.xhtml" },
+      { id: "chapter002", title: "Chapter 2", href: "OEBPS/Text/chapter002.xhtml" },
+    ];
+    epubState.manifest = {
+      chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
+      chapter001_notes: { id: "chapter001_notes", href: "OEBPS/Text/chapter001_notes.xhtml" },
+      chapter002: { id: "chapter002", href: "OEBPS/Text/chapter002.xhtml" },
+    };
+    epubState.chapters = {
+      chapter001: `
+        <p>
+          <a href="chapter001_notes.xhtml#note-inline">Nota inline</a>
+          <a href="chapter001_notes.xhtml#note-block">Nota block</a>
+        </p>
+      `,
+      chapter001_notes: `
+        <a id="note-inline"></a>
+        <p id="note-block">Texto da nota</p>
+      `,
+      chapter002: "<p>Outro capitulo.</p>",
+    };
+
+    await importProjectEpub({
+      buffer: Buffer.from("fake"),
+      targetVolume: 1,
+      defaultStatus: "draft",
+      project: { episodeDownloads: [] },
+    });
+
+    const importedHtml = String(htmlToLexicalJsonMock.mock.calls[0]?.[0] || "");
+    expect(importedHtml).toContain('href="#note-inline"');
+    expect(importedHtml).toContain('href="#note-block"');
+    expect(importedHtml).toContain('<epub-anchor data-epub-anchor="note-inline"></epub-anchor>');
+    expect(importedHtml).toContain('<epub-anchor data-epub-anchor="note-block"></epub-anchor>');
+    expect(importedHtml).not.toContain("chapter001_notes.xhtml");
+  });
+
+  it("reescreve links EPUB para outros capitulos usando href interno do reader", async () => {
+    epubState.toc = [
+      { id: "chapter-1-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
+      { id: "chapter-2-toc", title: "Chapter 2", href: "OEBPS/Text/chapter002.xhtml#Ref_2" },
+    ];
+    epubState.flow = [
+      { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      { id: "chapter002", title: "Chapter 2", href: "OEBPS/Text/chapter002.xhtml" },
+    ];
+    epubState.manifest = {
+      chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
+      chapter002: { id: "chapter002", href: "OEBPS/Text/chapter002.xhtml" },
+    };
+    epubState.chapters = {
+      chapter001: '<p><a href="chapter002.xhtml#note-1">Abrir nota do outro capitulo</a></p>',
+      chapter002: '<a name="note-1"></a><p>Nota do capitulo 2</p>',
+    };
+
+    await importProjectEpub({
+      buffer: Buffer.from("fake"),
+      targetVolume: 1,
+      defaultStatus: "draft",
+      project: { episodeDownloads: [] },
+    });
+
+    const importedHtml = String(htmlToLexicalJsonMock.mock.calls[0]?.[0] || "");
+    expect(importedHtml).toContain('href="epub-internal://chapter/2?volume=1#note-1"');
+    expect(importedHtml).not.toContain("chapter002.xhtml#note-1");
+  });
+
+  it("desativa link interno do EPUB sem destino importado e gera warning", async () => {
+    epubState.toc = [{ id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
+    epubState.flow = [{ id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
+    epubState.manifest = {
+      chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
+    };
+    epubState.chapters = {
+      chapter001: '<p><a href="missing.xhtml#note-404">Nota perdida</a></p>',
+    };
+
+    const result = await importProjectEpub({
+      buffer: Buffer.from("fake"),
+      targetVolume: 1,
+      defaultStatus: "draft",
+      project: { episodeDownloads: [] },
+    });
+
+    const importedHtml = String(htmlToLexicalJsonMock.mock.calls[0]?.[0] || "");
+    expect(importedHtml).toContain("Nota perdida");
+    expect(importedHtml).not.toContain("missing.xhtml#note-404");
+    expect(importedHtml).not.toContain("<a ");
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        'Link interno do EPUB ignorado em "Chapter 1": missing.xhtml#note-404.',
+      ]),
+    );
+  });
+
   it("aborta a importacao no primeiro capitulo invalido com contexto de capitulo", async () => {
     epubState.flow = [{ id: "broken", title: "Chapter 9", href: "OEBPS/Text/chapter009.xhtml" }];
     epubState.manifest = {

@@ -170,6 +170,21 @@ describe("server lexical HTML bridge", () => {
     expect(String(children[0]?.editorialStyle || "")).toContain("font-size: 2em");
   });
 
+  it("mapeia epub-anchor para node interno preservando o id da ancora", () => {
+    const serialized = htmlToLexicalJson(
+      '<p><epub-anchor data-epub-anchor="note-1"></epub-anchor>Texto com nota</p>',
+    );
+    const children = getRootChildren(serialized);
+    const paragraphChildren = (children[0]?.children || []) as Array<Record<string, unknown>>;
+
+    expect(paragraphChildren[0]).toEqual(
+      expect.objectContaining({
+        type: "epub-anchor",
+        anchorId: "note-1",
+      }),
+    );
+  });
+
   it("retorna o estado vazio canonico para html vazio", () => {
     expect(JSON.parse(htmlToLexicalJson(""))).toEqual(JSON.parse(EMPTY_LEXICAL_JSON));
   });

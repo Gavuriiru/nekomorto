@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
 
@@ -26,6 +26,7 @@ import { normalizeAssetUrl } from "@/lib/asset-url";
 import { cn } from "@/lib/utils";
 import { PUBLIC_ANALYTICS_INGEST_PATH } from "@/lib/public-analytics";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+import { resolveEpubInternalProjectReadingHref } from "@/lib/epub-internal-links";
 import {
   buildDashboardProjectChapterEditorHref,
   buildProjectPublicReadingHref,
@@ -636,6 +637,20 @@ const ProjectReading = () => {
     volumeParam,
   ]);
 
+  const handleInternalChapterLinkNavigate = useCallback(
+    (href: string) => {
+      if (!project?.id) {
+        return;
+      }
+      const targetHref = resolveEpubInternalProjectReadingHref(href, project.id, sortedChapters);
+      if (!targetHref) {
+        return;
+      }
+      navigate(targetHref);
+    },
+    [navigate, project?.id, sortedChapters],
+  );
+
   useEffect(() => {
     let isActive = true;
 
@@ -975,6 +990,7 @@ const ProjectReading = () => {
                             editorStateJson={preparedChapterEditorState || undefined}
                             ariaLabel={`Conte\u00fado de leitura de ${pageTitle}`}
                             className="post-content reader-content min-w-0 w-full text-muted-foreground"
+                            onInternalLinkNavigate={handleInternalChapterLinkNavigate}
                             pollTarget={
                               project.id && Number.isFinite(chapterNumber)
                                 ? {
@@ -1093,6 +1109,7 @@ const ProjectReading = () => {
                         editorStateJson={preparedChapterEditorState || undefined}
                         ariaLabel={`Conteúdo de leitura de ${pageTitle}`}
                         className="post-content reader-content min-w-0 w-full text-muted-foreground"
+                        onInternalLinkNavigate={handleInternalChapterLinkNavigate}
                         pollTarget={
                           project.id && Number.isFinite(chapterNumber)
                             ? {

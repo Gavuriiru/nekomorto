@@ -8,10 +8,6 @@
     transition: transform 380ms ease;
   }
 
-  .project-reading-masthead:hover .project-reading-masthead__media {
-    transform: scale(1.03);
-  }
-
   .project-reading-masthead__backdrop--veil {
     background: hsl(var(--background) / 0.5);
     backdrop-filter: blur(3px);
@@ -285,13 +281,6 @@
       border-color 180ms ease,
       box-shadow 220ms ease,
       background 220ms ease;
-  }
-
-  .project-reading-reader-shell:hover {
-    border-color: hsl(var(--border) / 0.8);
-    box-shadow:
-      0 14px 32px -24px hsl(0 0% 0% / 0.66),
-      inset 0 1px 0 hsl(var(--foreground) / 0.05);
   }
 
   .project-reading-reader-shell__content {

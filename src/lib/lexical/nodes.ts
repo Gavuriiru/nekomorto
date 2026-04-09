@@ -3,6 +3,7 @@ import { ListItemNode, ListNode } from "@lexical/list";
 import { LinkNode, AutoLinkNode } from "@lexical/link";
 import { CodeNode, CodeHighlightNode } from "@lexical/code";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
+import { EpubAnchorNode } from "@/components/lexical/nodes/EpubAnchorNode";
 import { EpubHeadingNode } from "@/components/lexical/nodes/EpubHeadingNode";
 import { EpubImageNode } from "@/components/lexical/nodes/EpubImageNode";
 import { EpubParagraphNode } from "@/components/lexical/nodes/EpubParagraphNode";
@@ -21,6 +22,7 @@ export const lexicalNodes = [
   TableNode,
   TableRowNode,
   TableCellNode,
+  EpubAnchorNode,
   EpubParagraphNode,
   EpubHeadingNode,
   EpubImageNode,

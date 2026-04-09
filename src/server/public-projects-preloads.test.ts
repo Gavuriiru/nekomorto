@@ -6,6 +6,8 @@ import {
   resolvePublicProjectsListPreloads,
 } from "../../server/lib/public-projects-preloads.js";
 
+const EXPECTED_PROJECTS_LIST_IMAGE_SIZES = "(max-width: 767px) 129px, 154px";
+
 describe("public projects list preloads", () => {
   it("ordena os projetos da listagem e pre-carrega as seis primeiras capas", () => {
     const projects = [
@@ -48,13 +50,14 @@ describe("public projects list preloads", () => {
       resolveVariantUrl: () => "",
     });
 
+    expect(PROJECTS_LIST_IMAGE_SIZES).toBe(EXPECTED_PROJECTS_LIST_IMAGE_SIZES);
     expect(preloads).toHaveLength(6);
     expect(preloads[0]).toEqual(
       expect.objectContaining({
         href: "/uploads/_variants/alpha/poster-thumb-v3.jpeg",
         as: "image",
         type: "image/avif",
-        imagesizes: PROJECTS_LIST_IMAGE_SIZES,
+        imagesizes: EXPECTED_PROJECTS_LIST_IMAGE_SIZES,
         imagesrcset: expect.stringContaining("/uploads/_variants/alpha/poster-thumb-v3.avif 320w"),
         fetchpriority: "high",
       }),

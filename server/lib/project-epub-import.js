@@ -43,6 +43,7 @@ const IMPORT_ALLOWED_TAGS = [
   "td",
   "hr",
   "img",
+  "epub-anchor",
 ];
 
 const IMPORT_ALLOWED_ATTRIBUTES = {
@@ -68,6 +69,7 @@ const IMPORT_ALLOWED_ATTRIBUTES = {
   sub: ["style"],
   sup: ["style"],
   img: ["src", "alt", "width", "height", "style", "data-epub-align"],
+  "epub-anchor": ["data-epub-anchor"],
 };
 
 const BLOCK_ALLOWED_STYLE_PATTERNS = {
@@ -112,6 +114,23 @@ const ZERO_LIKE_STYLE_VALUES = new Set([
   "none",
   "initial",
   "inherit",
+]);
+
+const VOID_HTML_TAG_NAMES = new Set([
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
 ]);
 
 const EXTRA_TECHNICAL_NUMBER_BASE = 100000;
@@ -310,6 +329,189 @@ const normalizeEpubAssetHref = (value, currentDocumentHref) => {
     return raw;
   }
   return resolveRelativeEpubHref(currentDocumentHref, raw);
+};
+
+const normalizeEpubAnchorId = (value) => {
+  const trimmed = String(value || "")
+    .trim()
+    .replace(/^#/, "");
+  if (!trimmed) {
+    return "";
+  }
+  try {
+    return decodeURIComponent(trimmed).trim();
+  } catch {
+    return trimmed;
+  }
+};
+
+const buildEpubAnchorHash = (fragment) => {
+  const normalizedFragment = normalizeEpubAnchorId(fragment);
+  if (!normalizedFragment) {
+    return "";
+  }
+  return `#${encodeURIComponent(normalizedFragment)}`;
+};
+
+const buildEpubInternalChapterHref = ({ chapterNumber, volume, fragment } = {}) => {
+  const parsedChapterNumber = Number(chapterNumber);
+  if (!Number.isFinite(parsedChapterNumber)) {
+    return "";
+  }
+  const params = new URLSearchParams();
+  const parsedVolume = Number(volume);
+  if (Number.isFinite(parsedVolume)) {
+    params.set("volume", String(Math.floor(parsedVolume)));
+  }
+  const hash = buildEpubAnchorHash(fragment);
+  const search = params.toString();
+  return `epub-internal://chapter/${Math.floor(parsedChapterNumber)}${search ? `?${search}` : ""}${hash}`;
+};
+
+const isExternalReadableHref = (value) => /^(?:https?:|mailto:)/i.test(String(value || "").trim());
+
+const resolveEpubInternalLinkTarget = ({ href, currentDocumentHref } = {}) => {
+  const rawHref = String(href || "").trim();
+  if (!rawHref || isExternalReadableHref(rawHref)) {
+    return null;
+  }
+  const hashIndex = rawHref.indexOf("#");
+  const rawPath = hashIndex >= 0 ? rawHref.slice(0, hashIndex) : rawHref;
+  const rawFragment = hashIndex >= 0 ? rawHref.slice(hashIndex + 1) : "";
+  const fragment = normalizeEpubAnchorId(rawFragment);
+  const resolvedDocumentHref = rawPath
+    ? normalizeEpubAssetHref(rawPath, currentDocumentHref)
+    : normalizeEpubHref(currentDocumentHref);
+  if (!resolvedDocumentHref) {
+    return fragment
+      ? {
+          documentHref: normalizeEpubHref(currentDocumentHref),
+          fragment,
+        }
+      : null;
+  }
+  if (/^https?:\/\//i.test(resolvedDocumentHref)) {
+    return null;
+  }
+  return {
+    documentHref: resolvedDocumentHref,
+    fragment,
+  };
+};
+
+const createEpubAnchorMarkerElement = (document, anchorId) => {
+  const marker = document.createElement("epub-anchor");
+  marker.setAttribute("data-epub-anchor", anchorId);
+  return marker;
+};
+
+const canHostEpubAnchorMarkers = (element) => {
+  if (!element || typeof element.tagName !== "string") {
+    return false;
+  }
+  return !VOID_HTML_TAG_NAMES.has(String(element.tagName || "").toLowerCase());
+};
+
+const prependEpubAnchorMarkers = (element, anchorIds) => {
+  if (!element || !canHostEpubAnchorMarkers(element)) {
+    return false;
+  }
+  const markerIds = Array.isArray(anchorIds) ? anchorIds.filter(Boolean) : [];
+  if (!markerIds.length) {
+    return false;
+  }
+  const firstChild = element.firstChild;
+  markerIds
+    .slice()
+    .reverse()
+    .forEach((anchorId) => {
+      const marker = createEpubAnchorMarkerElement(element.ownerDocument, anchorId);
+      if (firstChild) {
+        element.insertBefore(marker, firstChild);
+      } else {
+        element.appendChild(marker);
+      }
+    });
+  return true;
+};
+
+const insertEpubAnchorMarkersBeforeElement = (element, anchorIds) => {
+  const parent = element?.parentNode;
+  if (!parent) {
+    return false;
+  }
+  const markerIds = Array.isArray(anchorIds) ? anchorIds.filter(Boolean) : [];
+  if (!markerIds.length) {
+    return false;
+  }
+  markerIds
+    .slice()
+    .reverse()
+    .forEach((anchorId) => {
+      const marker = createEpubAnchorMarkerElement(element.ownerDocument, anchorId);
+      parent.insertBefore(marker, element);
+    });
+  return true;
+};
+
+const extractAnchorIdsFromElement = (element) => {
+  const ids = [];
+  const anchorId = normalizeEpubAnchorId(element?.getAttribute?.("id") || "");
+  const anchorName = normalizeEpubAnchorId(element?.getAttribute?.("name") || "");
+  if (anchorId) {
+    ids.push(anchorId);
+  }
+  if (anchorName && !ids.includes(anchorName)) {
+    ids.push(anchorName);
+  }
+  return ids;
+};
+
+const injectEpubAnchorMarkers = (document) => {
+  const anchorIds = new Set();
+  const candidates = [...document.querySelectorAll("[id], a[name]")];
+
+  candidates.forEach((element) => {
+    const resolvedAnchorIds = extractAnchorIdsFromElement(element);
+    if (!resolvedAnchorIds.length) {
+      return;
+    }
+    resolvedAnchorIds.forEach((anchorId) => anchorIds.add(anchorId));
+    element.removeAttribute("id");
+    element.removeAttribute("name");
+
+    const tagName = String(element.tagName || "").toLowerCase();
+    const href = String(element.getAttribute("href") || "").trim();
+    const hasRenderableContent =
+      String(element.textContent || "").trim().length > 0 || element.children.length > 0;
+
+    if (tagName === "a" && !href && !hasRenderableContent) {
+      const nextElement = element.nextElementSibling;
+      if (nextElement && prependEpubAnchorMarkers(nextElement, resolvedAnchorIds)) {
+        element.remove();
+        return;
+      }
+      const previousElement = element.previousElementSibling;
+      if (previousElement && canHostEpubAnchorMarkers(previousElement)) {
+        resolvedAnchorIds.forEach((anchorId) => {
+          previousElement.appendChild(createEpubAnchorMarkerElement(document, anchorId));
+        });
+        element.remove();
+        return;
+      }
+      if (insertEpubAnchorMarkersBeforeElement(element, resolvedAnchorIds)) {
+        element.remove();
+        return;
+      }
+    }
+
+    if (prependEpubAnchorMarkers(element, resolvedAnchorIds)) {
+      return;
+    }
+    insertEpubAnchorMarkersBeforeElement(element, resolvedAnchorIds);
+  });
+
+  return Array.from(anchorIds);
 };
 
 const CSS_BLOCK_COMMENT_PATTERN = /\/\*[\s\S]*?\*\//g;
@@ -1231,11 +1433,20 @@ const buildFrontMatterBundleFromFlow = async ({
       warnings.push(...prepared.warnings);
     }
     if (prepared.html) {
-      chapterParts.push(prepared.html);
+      chapterParts.push({
+        id: String(part?.id || "").trim(),
+        href: normalizeEpubHref(part?.href),
+        html: prepared.html,
+        anchors: Array.isArray(prepared.anchors) ? prepared.anchors : [],
+      });
     }
   }
 
-  const sanitizedHtml = chapterParts.join("\n").trim();
+  const sanitizedHtml = chapterParts
+    .map((part) => String(part?.html || "").trim())
+    .filter(Boolean)
+    .join("\n")
+    .trim();
   if (!sanitizedHtml) {
     return {
       chapter: null,
@@ -1268,6 +1479,7 @@ const buildFrontMatterBundleFromFlow = async ({
       entryKind: "extra",
       entrySubtype: "extra",
       displayLabel: "Extra",
+      sourceDocuments: chapterParts,
     },
     consumedKeys: selectedKeys,
   };
@@ -2343,10 +2555,202 @@ const prepareNarrativeDocumentHtml = async ({
         }
       }
     }
+    const anchors = injectEpubAnchorMarkers(dom.window.document.body || dom.window.document);
     return {
       html: sanitizeChapterHtml(dom.window.document.body.innerHTML),
+      anchors,
       warnings,
     };
+  } finally {
+    dom.window.close();
+  }
+};
+
+const resolveImportedChapterSourceDocuments = (item) => {
+  const sourceDocuments = Array.isArray(item?.sourceDocuments) ? item.sourceDocuments : [];
+  const normalized = sourceDocuments
+    .map((entry) => ({
+      id: String(entry?.id || "").trim(),
+      href: normalizeEpubHref(entry?.href),
+      html: String(entry?.html || "").trim(),
+      anchors: Array.isArray(entry?.anchors)
+        ? entry.anchors.map((anchorId) => normalizeEpubAnchorId(anchorId)).filter(Boolean)
+        : [],
+    }))
+    .filter((entry) => entry.html);
+
+  if (normalized.length > 0) {
+    return normalized;
+  }
+
+  const fallbackHtml = String(item?.sanitizedHtml || "").trim();
+  if (!fallbackHtml) {
+    return [];
+  }
+
+  return [
+    {
+      id: String(item?.id || "").trim(),
+      href: normalizeEpubHref(item?.href),
+      html: fallbackHtml,
+      anchors: [],
+    },
+  ];
+};
+
+const buildImportedChapterSourceDocumentMap = (entries) => {
+  const sourceDocumentToChapter = new Map();
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    const sourceDocuments = Array.isArray(entry?.sourceDocuments) ? entry.sourceDocuments : [];
+    const anchorIds = new Set();
+    sourceDocuments.forEach((documentEntry) => {
+      const anchors = Array.isArray(documentEntry?.anchors) ? documentEntry.anchors : [];
+      anchors.forEach((anchorId) => {
+        const normalizedAnchorId = normalizeEpubAnchorId(anchorId);
+        if (normalizedAnchorId) {
+          anchorIds.add(normalizedAnchorId);
+        }
+      });
+    });
+    const descriptor = {
+      chapterNumber: entry.number,
+      volume: entry.volume,
+      title: entry.title,
+      episodeKey: entry.episodeKey,
+      sourceDocuments,
+      anchorIds,
+    };
+    sourceDocuments.forEach((documentEntry) => {
+      const href = normalizeEpubHref(documentEntry?.href);
+      if (href) {
+        sourceDocumentToChapter.set(href, descriptor);
+      }
+    });
+  }
+  return sourceDocumentToChapter;
+};
+
+const unwrapAnchorElement = (element) => {
+  const parent = element?.parentNode;
+  if (!parent) {
+    return;
+  }
+  while (element.firstChild) {
+    parent.insertBefore(element.firstChild, element);
+  }
+  parent.removeChild(element);
+};
+
+const pushEpubInternalLinkWarning = ({
+  warnings,
+  warningKeys,
+  chapterTitle,
+  rawHref,
+  reason,
+}) => {
+  if (!Array.isArray(warnings)) {
+    return;
+  }
+  const normalizedChapterTitle = String(chapterTitle || "").trim() || "Capitulo";
+  const normalizedHref = String(rawHref || "").trim();
+  const normalizedReason = String(reason || "").trim() || "unresolved";
+  const warningKey = `${normalizedChapterTitle}::${normalizedHref}::${normalizedReason}`;
+  if (warningKeys instanceof Set && warningKeys.has(warningKey)) {
+    return;
+  }
+  warningKeys?.add(warningKey);
+  warnings.push(`Link interno do EPUB ignorado em "${normalizedChapterTitle}": ${normalizedHref}.`);
+};
+
+const rewriteImportedChapterSourceDocumentHtml = ({
+  html,
+  currentDocumentHref,
+  currentChapter,
+  sourceDocumentToChapter,
+  warnings,
+  warningKeys,
+}) => {
+  const sourceHtml = String(html || "").trim();
+  if (!sourceHtml) {
+    return "";
+  }
+
+  const dom = new JSDOM(`<body>${sourceHtml}</body>`);
+  try {
+    const links = [...dom.window.document.querySelectorAll("a[href]")];
+    links.forEach((linkElement) => {
+      const rawHref = String(linkElement.getAttribute("href") || "").trim();
+      if (!rawHref || isExternalReadableHref(rawHref)) {
+        return;
+      }
+
+      const resolvedTarget = resolveEpubInternalLinkTarget({
+        href: rawHref,
+        currentDocumentHref,
+      });
+      if (!resolvedTarget) {
+        return;
+      }
+
+      const targetChapter =
+        sourceDocumentToChapter instanceof Map
+          ? sourceDocumentToChapter.get(normalizeEpubHref(resolvedTarget.documentHref))
+          : null;
+      if (!targetChapter) {
+        pushEpubInternalLinkWarning({
+          warnings,
+          warningKeys,
+          chapterTitle: currentChapter?.title,
+          rawHref,
+          reason: "target_chapter_not_imported",
+        });
+        unwrapAnchorElement(linkElement);
+        return;
+      }
+
+      if (
+        resolvedTarget.fragment &&
+        !(targetChapter.anchorIds instanceof Set && targetChapter.anchorIds.has(resolvedTarget.fragment))
+      ) {
+        pushEpubInternalLinkWarning({
+          warnings,
+          warningKeys,
+          chapterTitle: currentChapter?.title,
+          rawHref,
+          reason: "target_fragment_not_found",
+        });
+        unwrapAnchorElement(linkElement);
+        return;
+      }
+
+      if (String(targetChapter.episodeKey || "") === String(currentChapter?.episodeKey || "")) {
+        linkElement.setAttribute(
+          "href",
+          resolvedTarget.fragment ? buildEpubAnchorHash(resolvedTarget.fragment) : "#",
+        );
+        return;
+      }
+
+      const internalHref = buildEpubInternalChapterHref({
+        chapterNumber: targetChapter.chapterNumber,
+        volume: targetChapter.volume,
+        fragment: resolvedTarget.fragment,
+      });
+      if (!internalHref) {
+        pushEpubInternalLinkWarning({
+          warnings,
+          warningKeys,
+          chapterTitle: currentChapter?.title,
+          rawHref,
+          reason: "internal_href_build_failed",
+        });
+        unwrapAnchorElement(linkElement);
+        return;
+      }
+      linkElement.setAttribute("href", internalHref);
+    });
+
+    return String(dom.window.document.body.innerHTML || "").trim();
   } finally {
     dom.window.close();
   }
@@ -2609,11 +3013,20 @@ const buildNarrativeChapterCandidatesFromToc = async ({
       warnings.push(...prepared.warnings);
       const sanitizedHtml = prepared.html;
       if (sanitizedHtml) {
-        chapterParts.push(sanitizedHtml);
+        chapterParts.push({
+          id: String(partReference?.id || "").trim(),
+          href: normalizeEpubHref(partReference?.href),
+          html: sanitizedHtml,
+          anchors: Array.isArray(prepared.anchors) ? prepared.anchors : [],
+        });
       }
     }
 
-    const sanitizedHtml = chapterParts.join("\n").trim();
+    const sanitizedHtml = chapterParts
+      .map((part) => String(part?.html || "").trim())
+      .filter(Boolean)
+      .join("\n")
+      .trim();
     if (!sanitizedHtml) {
       continue;
     }
@@ -2637,6 +3050,7 @@ const buildNarrativeChapterCandidatesFromToc = async ({
           .toLowerCase() === "main"
           ? ""
           : resolveDisplayLabelForSubtype(item?.classification?.subtype, item.title),
+      sourceDocuments: chapterParts,
     });
   }
 
@@ -2757,10 +3171,19 @@ const buildFallbackNarrativeChapterCandidates = async ({
       warnings.push(...prepared.warnings);
       const sanitizedHtml = prepared.html;
       if (sanitizedHtml) {
-        chapterParts.push(sanitizedHtml);
+        chapterParts.push({
+          id: String(partReference?.id || "").trim(),
+          href: normalizeEpubHref(partReference?.href),
+          html: sanitizedHtml,
+          anchors: Array.isArray(prepared.anchors) ? prepared.anchors : [],
+        });
       }
     }
-    const sanitizedHtml = chapterParts.join("\n").trim();
+    const sanitizedHtml = chapterParts
+      .map((part) => String(part?.html || "").trim())
+      .filter(Boolean)
+      .join("\n")
+      .trim();
     if (!sanitizedHtml) {
       continue;
     }
@@ -2789,6 +3212,7 @@ const buildFallbackNarrativeChapterCandidates = async ({
               String(group.title || firstPart?.title || "").trim(),
             ),
       classification: primaryClassification,
+      sourceDocuments: chapterParts,
     });
   }
 
@@ -3034,24 +3458,12 @@ export const importProjectEpub = async ({
       existingEpisode && getEpisodePublicationStatus(existingEpisode) === "published"
         ? "published"
         : normalizedDefaultStatus;
-    let content;
-    try {
-      content = htmlToLexicalJson(item.sanitizedHtml);
-    } catch (error) {
+    const sourceDocuments = resolveImportedChapterSourceDocuments(item);
+    const manifestId = String(item?.id || "").trim() || null;
+    /* legacy single-pass conversion block removed */
+    if (false) {
       const message = `Falha ao converter o capítulo ${chapterIndex + 1} ("${title}"), item "${String(item?.id || "").trim() || "unknown"}": ${String(error?.message || error || "conversion_failed")}`;
-      console.error("epub_import_conversion_failed", {
-        chapterIndex: chapterIndex + 1,
-        chapterTitle: title,
-        manifestId: String(item?.id || "").trim() || null,
-        message,
-      });
-      const chapterError = new Error(message);
-      chapterError.code = "epub_chapter_conversion_failed";
-      chapterError.chapterIndex = chapterIndex + 1;
-      chapterError.chapterTitle = title;
-      chapterError.manifestId = String(item?.id || "").trim() || null;
-      chapterError.causeMessage = String(error?.message || error || "conversion_failed");
-      throw chapterError;
+
     }
 
     chapters.push({
@@ -3074,13 +3486,63 @@ export const importProjectEpub = async ({
       completedStages: Array.isArray(existingEpisode?.completedStages)
         ? existingEpisode.completedStages
         : [],
-      content,
+      content: String(item?.sanitizedHtml || "").trim(),
       contentFormat: "lexical",
       publicationStatus,
       chapterUpdatedAt: String(existingEpisode?.chapterUpdatedAt || ""),
       episodeKey,
       mergeMode: existingEpisode ? "update" : "create",
+      sourceDocuments,
+      chapterIndex,
+      manifestId,
     });
+  }
+
+  const sourceDocumentToChapter = buildImportedChapterSourceDocumentMap(chapters);
+  const unresolvedInternalLinkWarningKeys = new Set();
+  for (const chapter of chapters) {
+    const sourceDocuments = Array.isArray(chapter?.sourceDocuments) ? chapter.sourceDocuments : [];
+    const rewrittenHtml = sourceDocuments
+      .map((documentEntry) =>
+        rewriteImportedChapterSourceDocumentHtml({
+          html: documentEntry?.html,
+          currentDocumentHref: documentEntry?.href,
+          currentChapter: chapter,
+          sourceDocumentToChapter,
+          warnings,
+          warningKeys: unresolvedInternalLinkWarningKeys,
+        }),
+      )
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+    const sourceHtml = rewrittenHtml || String(chapter?.content || "").trim();
+    try {
+      chapter.content = htmlToLexicalJson(sourceHtml);
+    } catch (error) {
+      const resolvedChapterIndex = Number.isFinite(Number(chapter?.chapterIndex))
+        ? Number(chapter.chapterIndex) + 1
+        : 1;
+      const chapterTitle = String(chapter?.title || "").trim() || "CapÃ­tulo";
+      const manifestId = String(chapter?.manifestId || "").trim() || null;
+      const message = `Falha ao converter o capÃ­tulo ${resolvedChapterIndex} ("${chapterTitle}"), item "${manifestId || "unknown"}": ${String(error?.message || error || "conversion_failed")}`;
+      console.error("epub_import_conversion_failed", {
+        chapterIndex: resolvedChapterIndex,
+        chapterTitle,
+        manifestId,
+        message,
+      });
+      const chapterError = new Error(message);
+      chapterError.code = "epub_chapter_conversion_failed";
+      chapterError.chapterIndex = resolvedChapterIndex;
+      chapterError.chapterTitle = chapterTitle;
+      chapterError.manifestId = manifestId;
+      chapterError.causeMessage = String(error?.message || error || "conversion_failed");
+      throw chapterError;
+    }
+    delete chapter.sourceDocuments;
+    delete chapter.chapterIndex;
+    delete chapter.manifestId;
   }
 
   const createdCount = chapters.filter((chapter) => chapter.mergeMode === "create").length;
