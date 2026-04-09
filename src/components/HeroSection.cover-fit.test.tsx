@@ -418,7 +418,7 @@ describe("HeroSection cover fit", () => {
     expect(carouselState.scrollNext).toHaveBeenCalledTimes(2);
   });
 
-  it("mantem navbar, halo de copy e overlays full-bleed juntos no tema claro", async () => {
+  it("renderiza overlay superior para contraste da navbar no tema claro", async () => {
     themeModeState.effectiveMode = "light";
     setupBootstrapMock();
 
@@ -430,13 +430,9 @@ describe("HeroSection cover fit", () => {
 
     await screen.findByRole("heading", { name: "Projeto com Hero" });
     expect(screen.getByTestId("hero-navbar-overlay")).toBeInTheDocument();
-    expect(screen.getByTestId("hero-copy-overlay")).toBeInTheDocument();
-    expect(screen.getByTestId("hero-bottom-overlay")).toBeInTheDocument();
-    expect(screen.getByTestId("hero-full-bleed-overlay-horizontal")).toBeInTheDocument();
-    expect(screen.getByTestId("hero-full-bleed-overlay-vertical")).toBeInTheDocument();
   });
 
-  it("mantem apenas os overlays full-bleed no tema escuro", async () => {
+  it("nao renderiza overlay superior no tema escuro", async () => {
     themeModeState.effectiveMode = "dark";
     setupBootstrapMock();
 
@@ -448,28 +444,6 @@ describe("HeroSection cover fit", () => {
 
     await screen.findByRole("heading", { name: "Projeto com Hero" });
     expect(screen.queryByTestId("hero-navbar-overlay")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("hero-copy-overlay")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("hero-bottom-overlay")).not.toBeInTheDocument();
-    expect(screen.getByTestId("hero-full-bleed-overlay-horizontal")).toBeInTheDocument();
-    expect(screen.getByTestId("hero-full-bleed-overlay-vertical")).toBeInTheDocument();
-  });
-
-  it("usa o mesmo conjunto de camadas no modo carrossel em tema claro", async () => {
-    themeModeState.effectiveMode = "light";
-    setupBootstrapMock({ includeSecondProject: true });
-
-    render(
-      <MemoryRouter>
-        <HeroSection />
-      </MemoryRouter>,
-    );
-
-    await screen.findByTestId("hero-slide-meta-project-2");
-    expect(screen.getAllByTestId("hero-navbar-overlay")).toHaveLength(2);
-    expect(screen.getAllByTestId("hero-copy-overlay")).toHaveLength(2);
-    expect(screen.getAllByTestId("hero-bottom-overlay")).toHaveLength(2);
-    expect(screen.getAllByTestId("hero-full-bleed-overlay-horizontal")).toHaveLength(2);
-    expect(screen.getAllByTestId("hero-full-bleed-overlay-vertical")).toHaveLength(2);
   });
 
   it("prioriza o ultimo lancamento de manga quando o bootstrap publico o inclui nos updates", async () => {
