@@ -3,13 +3,13 @@ import App from "./App.tsx";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { primePublicBootstrapCache } from "@/hooks/use-public-bootstrap";
-import { scheduleBootstrapPwaRegistration } from "@/lib/pwa-bootstrap";
+import { armHomeHeroShellCleanup } from "@/lib/home-hero";
 import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
+import { installPwaCleanupReloadBridge, runPwaCleanup } from "@/lib/pwa-cleanup";
+import { startPublicFreshnessCoordinator } from "@/lib/public-freshness";
 import { installVitePreloadRecovery } from "@/lib/vite-preload-recovery";
 import "./styles/fonts.css";
 import "./index.css";
-
-const HOME_HERO_READY_EVENT = "nekomata:hero-ready";
 
 installVitePreloadRecovery();
 
@@ -50,47 +50,9 @@ const setBootstrapTitle = (siteName: string, separator: string) => {
   document.title = pageTitle ? `${pageTitle}${resolvedSeparator}${siteName}` : siteName;
 };
 
-const armHomeHeroShellCleanup = () => {
-  const shell = document.getElementById("home-hero-shell");
-  if (!shell) {
-    return () => undefined;
-  }
-
-  let timeoutId = 0;
-  let removed = false;
-
-  const removeShell = () => {
-    if (removed) {
-      return;
-    }
-    removed = true;
-    shell.remove();
-    window.removeEventListener(HOME_HERO_READY_EVENT, removeShell);
-    if (timeoutId) {
-      window.clearTimeout(timeoutId);
-    }
-  };
-
-  window.addEventListener(HOME_HERO_READY_EVENT, removeShell, { once: true });
-  timeoutId = window.setTimeout(removeShell, 7000);
-
-  return () => {
-    window.removeEventListener(HOME_HERO_READY_EVENT, removeShell);
-    if (timeoutId) {
-      window.clearTimeout(timeoutId);
-    }
-  };
-};
-
 const bootstrap = async () => {
-  const registerPwa = () => {
-    void import("@/lib/pwa-register").then(({ registerPwa }) => registerPwa()).catch(() => null);
-  };
-
-  scheduleBootstrapPwaRegistration({
-    globalWindow: window,
-    registerPwa,
-  });
+  installPwaCleanupReloadBridge();
+  void runPwaCleanup().catch(() => undefined);
 
   const apiBase = getApiBase();
   const globalWindow = window as Window & {
@@ -145,8 +107,9 @@ const bootstrap = async () => {
     return;
   }
 
-  const cleanupHomeHeroShell =
-    window.location.pathname === "/" ? armHomeHeroShellCleanup() : () => undefined;
+  if (window.location.pathname === "/") {
+    armHomeHeroShellCleanup();
+  }
 
   createRoot(root).render(
     <App
@@ -155,9 +118,10 @@ const bootstrap = async () => {
     />,
   );
 
-  window.setTimeout(() => {
-    cleanupHomeHeroShell();
-  }, 8000);
+  startPublicFreshnessCoordinator({
+    globalWindow: window,
+    apiBase,
+  });
 };
 
 bootstrap();

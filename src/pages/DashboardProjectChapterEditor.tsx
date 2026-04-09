@@ -12,7 +12,11 @@ import type {
   StructureScrollAnchor,
   VolumeSelectionOptions,
 } from "@/components/dashboard/chapter-editor/chapter-editor-types";
-import { reconcileStageChapters, revokeStagePages, type StageChapter } from "@/components/project-reader/MangaWorkflowPanel";
+import {
+  reconcileStageChapters,
+  revokeStagePages,
+  type StageChapter,
+} from "@/components/project-reader/MangaWorkflowPanel";
 import AsyncState from "@/components/ui/async-state";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +30,7 @@ import { toast } from "@/components/ui/use-toast";
 import type { ProjectEpisode, ProjectVolumeEntry } from "@/data/projects";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { canManageProjectsAccess } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
 import {
   EMPTY_CHAPTER_DRAFT,
@@ -138,7 +143,11 @@ type CurrentUser = {
   name: string;
   username: string;
   avatarUrl?: string | null;
+  accessRole?: string;
   permissions?: string[];
+  ownerIds?: string[];
+  primaryOwnerId?: string | null;
+  grants?: Partial<Record<string, boolean>>;
 };
 
 const DashboardProjectChapterEditor = () => {
@@ -220,8 +229,7 @@ const DashboardProjectChapterEditor = () => {
   );
 
   const canManageProjects = useMemo(() => {
-    const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
-    return permissions.includes("*") || permissions.includes("projetos");
+    return canManageProjectsAccess(currentUser);
   }, [currentUser]);
 
   const volumeParam = searchParams.get("volume");
@@ -480,11 +488,14 @@ const DashboardProjectChapterEditor = () => {
     [],
   );
 
-  const ensureVolumeDraftSelection = useCallback((volume: number | null) => {
-    const nextSelection = ensureProjectVolumeEntryDraft(volumeEntriesDraft, volume);
-    setVolumeEntriesDraft(nextSelection.entries);
-    setSelectedVolume(nextSelection.selectedVolume);
-  }, [volumeEntriesDraft]);
+  const ensureVolumeDraftSelection = useCallback(
+    (volume: number | null) => {
+      const nextSelection = ensureProjectVolumeEntryDraft(volumeEntriesDraft, volume);
+      setVolumeEntriesDraft(nextSelection.entries);
+      setSelectedVolume(nextSelection.selectedVolume);
+    },
+    [volumeEntriesDraft],
+  );
   const selectVolumeFromStage = useCallback((volume: number | null) => {
     const normalizedVolume =
       Number.isFinite(Number(volume)) && Number(volume) > 0 ? Math.floor(Number(volume)) : null;
@@ -1126,11 +1137,7 @@ const DashboardProjectChapterEditor = () => {
         normalizedPersistedChapter.volume,
       );
       syncProjectSnapshot(
-        overlayDraftOnProject(
-          persistedProject,
-          persistedChapterKey,
-          normalizedPersistedChapter,
-        ),
+        overlayDraftOnProject(persistedProject, persistedChapterKey, normalizedPersistedChapter),
       );
       setSelectedStageChapterId(null);
       setActiveDraft(normalizedPersistedChapter);
@@ -1237,10 +1244,10 @@ const DashboardProjectChapterEditor = () => {
                   <Link to={buildDashboardProjectEditorHref(projectId)}>Voltar ao projeto</Link>
                 </Button>
               }
-          />
-        </DashboardPageContainer>
-      </DashboardShell>
-    );
+            />
+          </DashboardPageContainer>
+        </DashboardShell>
+      );
     }
     if (!shouldFallbackToNeutralRoute) {
       return <NotFound />;
@@ -1372,5 +1379,3 @@ const DashboardProjectChapterEditor = () => {
 };
 
 export default DashboardProjectChapterEditor;
-
-

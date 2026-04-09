@@ -151,7 +151,7 @@ const CONTINUOUS_READY_LAYOUT_RETRY_MAX_FRAMES = 8;
 const HORIZONTAL_PAGE_URL_SYNC_SETTLE_MS = 220;
 const KEYBOARD_PAGE_HOLD_START_DELAY_MS = 250;
 const KEYBOARD_PAGE_HOLD_REPEAT_MS = 120;
-const MENU_TRIGGER_INITIAL_VISIBLE_MS = 5000;
+const MENU_TRIGGER_INITIAL_VISIBLE_MS = 15000;
 const MENU_TRIGGER_HOTSPOT_SIZE_PX = 72;
 const MENU_PANEL_BOTTOM_INSET_PX = 16;
 const MENU_SCROLL_FIT_EPSILON_PX = 2;
@@ -968,6 +968,7 @@ const PublicProjectReaderContent = ({
   const activeKeyboardHoldDirectionRef = useRef<ReaderPageStepDirection | null>(null);
   const keyboardHoldStartTimeoutRef = useRef<number | null>(null);
   const keyboardHoldRepeatIntervalRef = useRef<number | null>(null);
+  const readerMenuHintTimeoutRef = useRef<number | null>(null);
   const lastKeyboardNavigationDirectionRef = useRef<ReaderPageStepDirection | null>(null);
   const forceImmediateHorizontalPageUrlSyncRef = useRef(false);
   const hasShownReaderMenuHintRef = useRef(false);
@@ -1295,6 +1296,13 @@ const PublicProjectReaderContent = ({
     }
   }, []);
 
+  const clearReaderMenuHintTimer = useCallback(() => {
+    if (readerMenuHintTimeoutRef.current !== null) {
+      window.clearTimeout(readerMenuHintTimeoutRef.current);
+      readerMenuHintTimeoutRef.current = null;
+    }
+  }, []);
+
   const clearKeyboardPageHold = useCallback(
     (direction?: ReaderPageStepDirection | null) => {
       if (!direction || activeKeyboardHoldDirectionRef.current === direction) {
@@ -1427,6 +1435,7 @@ const PublicProjectReaderContent = ({
       clearMenuTriggerHideTimer();
       clearProgressOverlayUnmountTimer();
       clearProgressInteractionTimer();
+      clearReaderMenuHintTimer();
     },
     [
       clearHiddenProgressHideTimer,
@@ -1439,26 +1448,40 @@ const PublicProjectReaderContent = ({
       clearMenuTriggerHideTimer,
       clearProgressInteractionTimer,
       clearProgressOverlayUnmountTimer,
+      clearReaderMenuHintTimer,
       stageChromeMeasurementFrameRef,
     ],
   );
 
   useEffect(() => {
+    clearReaderMenuHintTimer();
+
     if (!isLoaded || hasShownReaderMenuHintRef.current) {
       return;
     }
 
-    hasShownReaderMenuHintRef.current = true;
     if (hasSeenReaderMenuHint()) {
+      hasShownReaderMenuHintRef.current = true;
       return;
     }
 
-    markReaderMenuHintSeen();
-    toast({
-      title: "O menu está disponível no canto do leitor.",
-      intent: "info",
-    });
-  }, [isLoaded]);
+    readerMenuHintTimeoutRef.current = window.setTimeout(() => {
+      if (hasShownReaderMenuHintRef.current) {
+        readerMenuHintTimeoutRef.current = null;
+        return;
+      }
+
+      hasShownReaderMenuHintRef.current = true;
+      markReaderMenuHintSeen();
+      toast({
+        title: "O menu está disponível no canto do leitor.",
+        intent: "info",
+      });
+      readerMenuHintTimeoutRef.current = null;
+    }, 0);
+
+    return clearReaderMenuHintTimer;
+  }, [clearReaderMenuHintTimer, isLoaded]);
 
   useEffect(() => {
     setIsMenuOpen(false);

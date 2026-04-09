@@ -190,6 +190,104 @@ describe("project EPUB import with real lexical bridge", () => {
     );
   });
 
+  it("usa o navigation document quando epub.toc vem vazio e preserva caution como extra", async () => {
+    epubState.toc = [];
+    epubState.flow = [
+      { id: "cautionDoc", href: "item/xhtml/p-caution.xhtml" },
+      { id: "tocPage", href: "item/xhtml/p-toc-001.xhtml" },
+      { id: "chapter001", href: "item/xhtml/p-002.xhtml" },
+      { id: "chapter002", href: "item/xhtml/p-005.xhtml" },
+    ];
+    epubState.manifest = {
+      toc: {
+        id: "toc",
+        href: "item/navigation-documents.xhtml",
+        "media-type": "application/xhtml+xml",
+        properties: "nav",
+      },
+      cautionDoc: { id: "cautionDoc", href: "item/xhtml/p-caution.xhtml" },
+      tocPage: { id: "tocPage", href: "item/xhtml/p-toc-001.xhtml" },
+      chapter001: { id: "chapter001", href: "item/xhtml/p-002.xhtml" },
+      chapter002: { id: "chapter002", href: "item/xhtml/p-005.xhtml" },
+    };
+    epubState.chapters = {
+      toc: `<!doctype html>
+        <html xmlns:epub="http://www.idpf.org/2007/ops">
+          <body>
+            <nav epub:type="toc">
+              <ol>
+                <li><a href="xhtml/p-002.xhtml#id-a002">Chapter 1</a></li>
+                <li><a href="xhtml/p-005.xhtml#id-a003">Chapter 2</a></li>
+              </ol>
+            </nav>
+          </body>
+        </html>`,
+      cautionDoc: `<!doctype html>
+        <html>
+          <head><title>Caution</title></head>
+          <body class="p-caution">
+            <div class="main">
+              <p>Do not redistribute this EPUB.</p>
+            </div>
+          </body>
+        </html>`,
+      tocPage: `<!doctype html>
+        <html>
+          <body class="p-toc">
+            <div class="main">
+              <p>Contents</p>
+            </div>
+          </body>
+        </html>`,
+      chapter001: `<!doctype html>
+        <html>
+          <head><title>Livro Base</title></head>
+          <body class="p-text">
+            <div class="main">
+              <p id="id-a002" class="bold">Chapter 1</p>
+              <p>Texto do primeiro capitulo.</p>
+            </div>
+          </body>
+        </html>`,
+      chapter002: `<!doctype html>
+        <html>
+          <head><title>Livro Base</title></head>
+          <body class="p-text">
+            <div class="main">
+              <p id="id-a003" class="bold">Chapter 2</p>
+              <p>Texto do segundo capitulo.</p>
+            </div>
+          </body>
+        </html>`,
+    };
+
+    const result = await importProjectEpub({
+      buffer: Buffer.from("fake"),
+      targetVolume: 1,
+      defaultStatus: "draft",
+      project: { episodeDownloads: [] },
+    });
+
+    expect(result.summary.chapters).toBe(3);
+    expect(result.summary.mainImported).toBe(2);
+    expect(result.summary.extrasImported).toBe(1);
+    expect(result.chapters.map((chapter) => chapter.title)).toEqual([
+      "Caution",
+      "Chapter 1",
+      "Chapter 2",
+    ]);
+    expect(result.chapters[0]).toEqual(
+      expect.objectContaining({
+        entryKind: "extra",
+      }),
+    );
+
+    const parsedExtra = JSON.parse(String(result.chapters[0]?.content || ""));
+    const parsedChapterOne = JSON.parse(String(result.chapters[1]?.content || ""));
+    expect(JSON.stringify(parsedExtra)).toContain("Do not redistribute this EPUB.");
+    expect(JSON.stringify(parsedChapterOne)).toContain("Texto do primeiro capitulo.");
+  });
+
   it("importa imagem interna dentro do intervalo narrativo do TOC", async () => {
     const loadUploads = vi.fn(() => []);
     const writeUploads = vi.fn();
@@ -233,6 +331,67 @@ describe("project EPUB import with real lexical bridge", () => {
     const parsed = JSON.parse(String(result.chapters[0]?.content || ""));
     expect(JSON.stringify(parsed)).toContain('"type":"epub-image"');
     expect(JSON.stringify(parsed)).toContain("/uploads/tmp/epub-imports/test/import/image-1.jpg");
+    expect(result.summary.imagesImported).toBe(1);
+    expect(result.summary.imageImportFailures).toBe(0);
+  });
+
+  it("converte paginas XHTML com svg image em epub-image no lexical", async () => {
+    const loadUploads = vi.fn(() => []);
+    const writeUploads = vi.fn();
+
+    epubState.toc = [
+      { id: "c1-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
+      { id: "c2-toc", title: "Chapter 2", href: "OEBPS/Text/chapter002.xhtml#Ref_2" },
+    ];
+    epubState.flow = [
+      { id: "c1", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      { id: "c1img", href: "OEBPS/Text/chapter001_img.xhtml" },
+      { id: "c1b", href: "OEBPS/Text/chapter001_b.xhtml" },
+      { id: "c2", title: "Chapter 2", href: "OEBPS/Text/chapter002.xhtml" },
+    ];
+    epubState.manifest = {
+      c1: { id: "c1", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      c1img: { id: "c1img", href: "OEBPS/Text/chapter001_img.xhtml" },
+      c1b: { id: "c1b", href: "OEBPS/Text/chapter001_b.xhtml" },
+      c2: { id: "c2", title: "Chapter 2", href: "OEBPS/Text/chapter002.xhtml" },
+      art1: { id: "art1", href: "OEBPS/Images/Art_P8.jpg", "media-type": "image/jpeg" },
+    };
+    epubState.chapters = {
+      c1: "<p>Texto antes da ilustracao.</p>",
+      c1img: `<!doctype html>
+        <html xmlns:xlink="http://www.w3.org/1999/xlink">
+          <body>
+            <p class="fit">
+              <svg width="100%" height="100%" viewBox="0 0 1122 1600" role="img" aria-label="Ilustracao">
+                <image width="1122" height="1600" xlink:href="../Images/Art_P8.jpg"></image>
+              </svg>
+            </p>
+          </body>
+        </html>`,
+      c1b: "<p>Texto depois da ilustracao.</p>",
+      c2: "<p>Texto do segundo capitulo.</p>",
+    };
+    epubState.images = {
+      art1: Buffer.from("fake-image"),
+    };
+
+    const result = await importProjectEpub({
+      buffer: Buffer.from("fake"),
+      targetVolume: 1,
+      defaultStatus: "draft",
+      project: { episodeDownloads: [] },
+      uploadsDir: "D:/dev/nekomorto/public/uploads",
+      loadUploads,
+      writeUploads,
+      uploadUserId: "test-user",
+    });
+
+    expect(result.chapters).toHaveLength(2);
+    const parsed = JSON.parse(String(result.chapters[0]?.content || ""));
+    expect(JSON.stringify(parsed)).toContain('"type":"epub-image"');
+    expect(JSON.stringify(parsed)).toContain("/uploads/tmp/epub-imports/test/import/image-1.jpg");
+    expect(JSON.stringify(parsed)).toContain("Texto antes da ilustracao.");
+    expect(JSON.stringify(parsed)).toContain("Texto depois da ilustracao.");
     expect(result.summary.imagesImported).toBe(1);
     expect(result.summary.imageImportFailures).toBe(0);
   });

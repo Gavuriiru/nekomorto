@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/dashboard/dashboard-form-controls";
+import DashboardDedicatedEditorHeader from "@/components/dashboard/DashboardDedicatedEditorHeader";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
@@ -30,6 +31,7 @@ import type { Project, ProjectEpisode } from "@/data/projects";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { refetchPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { canManageProjectsAccess } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import {
@@ -95,7 +97,11 @@ type CurrentUser = {
   name: string;
   username: string;
   avatarUrl?: string | null;
+  accessRole?: string;
   permissions?: string[];
+  ownerIds?: string[];
+  primaryOwnerId?: string | null;
+  grants?: Partial<Record<string, boolean>>;
 };
 
 type EditableAnimeEpisode = ProjectEpisode & {
@@ -114,10 +120,6 @@ type PendingEpisodeAction =
 
 const editorSectionClassName =
   "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
-const editorMastheadClassName =
-  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
-const editorCommandBarClassName =
-  "sticky top-3 z-20 overflow-hidden rounded-2xl border border-border/60 bg-background/92 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.72)] backdrop-blur supports-backdrop-filter:bg-background/78";
 
 const formatCountLabel = (count: number, singular: string, plural: string) =>
   `${count} ${count === 1 ? singular : plural}`;
@@ -306,8 +308,7 @@ const DashboardProjectEpisodeEditor = () => {
   const fallbackNeutralToastKeyRef = useRef<string | null>(null);
 
   const canManageProjects = useMemo(() => {
-    const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
-    return permissions.includes("*") || permissions.includes("projetos");
+    return canManageProjectsAccess(currentUser);
   }, [currentUser]);
 
   const loadProject = useCallback(async () => {
@@ -949,38 +950,37 @@ const DashboardProjectEpisodeEditor = () => {
       >
         <DashboardPageContainer maxWidth="editor" reveal={false}>
           <div className="space-y-4 pb-8">
-            <section
-              className={editorMastheadClassName}
-              data-testid="anime-episode-editor-masthead"
-            >
-              <div className="grid gap-5 px-4 py-5 md:px-6 md:py-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:px-8">
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-                      Episódios de anime
-                    </Badge>
-                    {activeDraft
-                      ? buildCompletionBadges(activeDraft).map((badge) => (
-                          <Badge
-                            key={badge.issue}
-                            variant="outline"
-                            className="text-[10px] uppercase tracking-[0.12em]"
-                          >
-                            {badge.label}
-                          </Badge>
-                        ))
-                      : null}
-                  </div>
-                  <div className="space-y-2">
-                    <h1 className="text-2xl font-semibold tracking-tight md:text-[2rem]">
-                      Gerenciamento de Episódios
-                    </h1>
-                    <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                      Liste, adicione e ajuste episódios sem sair do fluxo principal de publicação.
-                    </p>
-                  </div>
-                </div>
-                <div className="rounded-[22px] border border-border/50 bg-background/45 p-4 text-left shadow-[0_16px_50px_-40px_rgba(0,0,0,0.8)] lg:text-right">
+            <DashboardDedicatedEditorHeader
+              shellTestId="anime-episode-editor-header-shell"
+              mastheadTestId="anime-episode-editor-masthead"
+              commandBarTestId="anime-episode-editor-command-bar"
+              primaryRowTestId="anime-episode-editor-action-rail"
+              primaryStatusTestId="anime-episode-editor-top-status-group"
+              primaryActionsTestId="anime-episode-editor-top-actions"
+              secondaryMetaTestId="anime-episode-editor-status-bar"
+              secondaryActionsTestId="anime-episode-editor-secondary-actions"
+              badges={
+                <>
+                  <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                    Episódios de anime
+                  </Badge>
+                  {activeDraft
+                    ? buildCompletionBadges(activeDraft).map((badge) => (
+                        <Badge
+                          key={badge.issue}
+                          variant="outline"
+                          className="text-[10px] uppercase tracking-[0.12em]"
+                        >
+                          {badge.label}
+                        </Badge>
+                      ))
+                    : null}
+                </>
+              }
+              title="Gerenciamento de Episódios"
+              description="Liste, adicione e ajuste episódios sem sair do fluxo principal de publicação."
+              summaryCard={
+                <>
                   <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                     Projeto
                   </p>
@@ -996,110 +996,95 @@ const DashboardProjectEpisodeEditor = () => {
                           "episódios disponíveis",
                         )}
                   </p>
-                </div>
-              </div>
-            </section>
-
-            <div
-              className={editorCommandBarClassName}
-              data-testid="anime-episode-editor-command-bar"
-            >
-              <div className="space-y-3 px-4 py-3 md:px-6 lg:px-8">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {activeDraft ? (
-                      <>
-                        <Badge
-                          variant={isDirty ? "outline" : "secondary"}
-                          className="text-[10px] uppercase tracking-[0.12em]"
-                        >
-                          {isDirty ? "Alterações pendentes" : "Tudo salvo"}
-                        </Badge>
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] uppercase tracking-[0.12em]"
-                        >
-                          {progressState.currentStage.label}
-                        </Badge>
-                      </>
-                    ) : (
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] uppercase tracking-[0.12em]"
-                      >
-                        Adicione um episódio ou escolha um item na lista.
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => void handleAddEpisode()}
-                      disabled={isCreating || isSaving}
+                </>
+              }
+              primaryStatus={
+                activeDraft ? (
+                  <>
+                    <Badge
+                      variant={isDirty ? "outline" : "secondary"}
+                      className="text-[10px] uppercase tracking-[0.12em]"
                     >
-                      {isCreating ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Plus className="h-4 w-4" />
-                      )}
-                      <span>Adicionar episódio</span>
-                    </Button>
-                    {activeDraft ? (
-                      <>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => setDeleteDialogOpen(true)}
-                          disabled={isDeleting}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span>Excluir</span>
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => void handleSave()}
-                          disabled={isSaving || isCreating || !isDirty}
-                        >
-                          {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                          <span>Salvar episódio</span>
-                        </Button>
-                      </>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-3 border-t border-border/50 pt-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex flex-wrap items-center gap-2">
+                      {isDirty ? "Alterações pendentes" : "Tudo salvo"}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                      {progressState.currentStage.label}
+                    </Badge>
+                  </>
+                ) : (
+                  <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                    Adicione um episódio ou escolha um item na lista.
+                  </Badge>
+                )
+              }
+              primaryActions={
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => void handleAddEpisode()}
+                    disabled={isCreating || isSaving}
+                  >
+                    {isCreating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                    <span>Adicionar episódio</span>
+                  </Button>
+                  {activeDraft ? (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setDeleteDialogOpen(true)}
+                        disabled={isDeleting}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span>Excluir</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => void handleSave()}
+                        disabled={isSaving || isCreating || !isDirty}
+                      >
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        <span>Salvar episódio</span>
+                      </Button>
+                    </>
+                  ) : null}
+                </>
+              }
+              secondaryActions={
+                <>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to={buildDashboardProjectEditorHref(project.id)}>
+                      <ArrowLeft className="h-4 w-4" />
+                      <span>Voltar ao projeto</span>
+                    </Link>
+                  </Button>
+                  {publicProjectHref ? (
                     <Button variant="outline" size="sm" asChild>
-                      <Link to={buildDashboardProjectEditorHref(project.id)}>
-                        <ArrowLeft className="h-4 w-4" />
-                        <span>Voltar ao projeto</span>
+                      <Link to={publicProjectHref} target="_blank" rel="noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                        <span>Página pública</span>
                       </Link>
                     </Button>
-                    {publicProjectHref ? (
-                      <Button variant="outline" size="sm" asChild>
-                        <Link to={publicProjectHref} target="_blank" rel="noreferrer">
-                          <ExternalLink className="h-4 w-4" />
-                          <span>Página pública</span>
-                        </Link>
-                      </Button>
-                    ) : null}
-                    {activeDraft ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => requestNavigateToHref(neutralHref)}
-                      >
-                        <span>Fechar episódio</span>
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </div>
+                  ) : null}
+                  {activeDraft ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => requestNavigateToHref(neutralHref)}
+                    >
+                      <span>Fechar episódio</span>
+                    </Button>
+                  ) : null}
+                </>
+              }
+            />
 
             <div
               className={
@@ -1309,9 +1294,7 @@ const DashboardProjectEpisodeEditor = () => {
                                             ? "Atual"
                                             : "Pendente"}
                                       </span>
-                                      {isCurrentStage ? (
-                                        <Badge variant="info">Atual</Badge>
-                                      ) : null}
+                                      {isCurrentStage ? <Badge variant="info">Atual</Badge> : null}
                                     </div>
                                   </label>
                                 );
@@ -1551,14 +1534,14 @@ const DashboardProjectEpisodeEditor = () => {
                                 <DownloadSourceSelect
                                   value={source.label}
                                   ariaLabel={`Fonte ${sourceIndex + 1}`}
-                                  legacyLabels={(activeDraft.sources || []).map((item) => item.label)}
+                                  legacyLabels={(activeDraft.sources || []).map(
+                                    (item) => item.label,
+                                  )}
                                   onValueChange={(value) =>
                                     updateDraft((current) => ({
                                       ...current,
                                       sources: (current.sources || []).map((item, index) =>
-                                        index === sourceIndex
-                                          ? { ...item, label: value }
-                                          : item,
+                                        index === sourceIndex ? { ...item, label: value } : item,
                                       ),
                                     }))
                                   }
@@ -1728,4 +1711,3 @@ const DashboardProjectEpisodeEditor = () => {
 };
 
 export default DashboardProjectEpisodeEditor;
-

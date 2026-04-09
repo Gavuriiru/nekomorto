@@ -1,6 +1,6 @@
 import path from "path";
 
-import { HTML_CACHE_CONTROL_PRIVATE_REVALIDATE } from "./html-cache-control.js";
+import { HTML_CACHE_CONTROL_NO_STORE } from "./html-cache-control.js";
 
 export const STATIC_DEFAULT_CACHE_CONTROL = "public, max-age=0, must-revalidate";
 export const STATIC_IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
@@ -83,7 +83,7 @@ export const setStaticCacheHeaders = (res, filePath) => {
   }
 
   if (normalizedPath.endsWith(".html")) {
-    res.setHeader("Cache-Control", HTML_CACHE_CONTROL_PRIVATE_REVALIDATE);
+    res.setHeader("Cache-Control", HTML_CACHE_CONTROL_NO_STORE);
     return;
   }
 

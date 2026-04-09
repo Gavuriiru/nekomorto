@@ -30,6 +30,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import { canManageProjectsAccess } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
@@ -406,8 +407,7 @@ const ProjectPage = () => {
   const isLightNovel = isLightNovelType(projectType);
   const isChapterBased = isChapterBasedType(projectType);
   const canEditProject = useMemo(() => {
-    const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
-    return permissions.includes("*") || permissions.includes("projetos");
+    return canManageProjectsAccess(currentUser);
   }, [currentUser]);
   type EpisodeItem = (typeof sortedDownloadableEpisodes)[number];
 

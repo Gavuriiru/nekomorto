@@ -14,21 +14,20 @@ import {
 } from "@/components/ui/carousel";
 import UploadPicture from "@/components/UploadPicture";
 import { scheduleOnBrowserIdle } from "@/lib/browser-idle";
+import {
+  HOME_HERO_READY_EVENT,
+  PUBLIC_HOME_HERO_VIEWPORT_CLASS,
+} from "@/lib/home-hero";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
-import type { PublicBootstrapProject, PublicBootstrapUpdate } from "@/types/public-bootstrap";
+import type {
+  PublicBootstrapHomeHeroSlide,
+  PublicBootstrapProject,
+  PublicBootstrapUpdate,
+} from "@/types/public-bootstrap";
 
-type HeroSlide = {
-  id: string;
-  title: string;
-  description: string;
-  updatedAt: string;
-  image: string;
-  projectId: string;
-  trailerUrl?: string;
-  format?: string;
-  status?: string;
+type HeroSlide = PublicBootstrapHomeHeroSlide & {
   optimizedImageSet?: {
     avif: string;
     webp: string;
@@ -46,6 +45,8 @@ const heroSlidesSeed: HeroSlide[] = [
     image: heroImageJpg,
     projectId: "aurora-no-horizonte",
     trailerUrl: "",
+    format: "Anime",
+    status: "Em andamento",
     optimizedImageSet: {
       avif: heroImageAvif,
       webp: heroImageWebp,
@@ -61,6 +62,8 @@ const heroSlidesSeed: HeroSlide[] = [
     image: heroImageJpg,
     projectId: "rainbow-pulse",
     trailerUrl: "",
+    format: "Anime",
+    status: "Em andamento",
     optimizedImageSet: {
       avif: heroImageAvif,
       webp: heroImageWebp,
@@ -76,6 +79,8 @@ const heroSlidesSeed: HeroSlide[] = [
     image: heroImageJpg,
     projectId: "iris-black",
     trailerUrl: "",
+    format: "Anime",
+    status: "Em andamento",
     optimizedImageSet: {
       avif: heroImageAvif,
       webp: heroImageWebp,
@@ -91,6 +96,8 @@ const heroSlidesSeed: HeroSlide[] = [
     image: heroImageJpg,
     projectId: "jardim-das-marés",
     trailerUrl: "",
+    format: "Anime",
+    status: "Em andamento",
     optimizedImageSet: {
       avif: heroImageAvif,
       webp: heroImageWebp,
@@ -106,6 +113,8 @@ const heroSlidesSeed: HeroSlide[] = [
     image: heroImageJpg,
     projectId: "nova-primavera",
     trailerUrl: "",
+    format: "Anime",
+    status: "Em andamento",
     optimizedImageSet: {
       avif: heroImageAvif,
       webp: heroImageWebp,
@@ -231,6 +240,14 @@ const heroEntryDelayStyles = {
   actions: { animationDelay: `${heroEntryDelayMs.actions}ms` },
 } as const satisfies Record<keyof typeof heroEntryDelayMs, React.CSSProperties>;
 
+const composeHeroEntryClassName = (baseClassName: string, shouldAnimateEntry: boolean) =>
+  shouldAnimateEntry ? `${baseClassName} animate-slide-up opacity-0` : baseClassName;
+
+const resolveHeroEntryStyle = (
+  key: keyof typeof heroEntryDelayStyles,
+  shouldAnimateEntry: boolean,
+) => (shouldAnimateEntry ? heroEntryDelayStyles[key] : undefined);
+
 type HeroSlideFrameProps = {
   slide: HeroSlide;
   index: number;
@@ -243,6 +260,11 @@ type HeroSlideFrameProps = {
   navbarOverlayClass: string;
   transparentPixel: string;
   clampSynopsis: (text: string, limit?: number) => string;
+  shouldAnimateEntry?: boolean;
+  isReadyCandidate?: boolean;
+  priorityImageRef?: React.Ref<HTMLImageElement>;
+  onPriorityImageLoad?: React.ReactEventHandler<HTMLImageElement>;
+  onPriorityImageError?: React.ReactEventHandler<HTMLImageElement>;
 };
 
 const HeroSlideFrame = ({
@@ -257,6 +279,11 @@ const HeroSlideFrame = ({
   navbarOverlayClass,
   transparentPixel,
   clampSynopsis,
+  shouldAnimateEntry = true,
+  isReadyCandidate = false,
+  priorityImageRef,
+  onPriorityImageLoad,
+  onPriorityImageError,
 }: HeroSlideFrameProps) => {
   const isActive = index === activeIndex;
   const isPrioritySlide = index === 0 || isActive;
@@ -265,6 +292,13 @@ const HeroSlideFrame = ({
   const imagePriorityProps = {
     fetchPriority: isPrioritySlide ? "high" : "auto",
   } as const;
+  const readyImageRef = isReadyCandidate ? priorityImageRef : undefined;
+  const readyImageProps = isReadyCandidate
+    ? {
+        onLoad: onPriorityImageLoad,
+        onError: onPriorityImageError,
+      }
+    : {};
 
   return (
     <div className={`relative flex items-end overflow-hidden ${heroViewportClass}`}>
@@ -280,12 +314,14 @@ const HeroSlideFrame = ({
               srcSet={shouldLoadImage ? slide.optimizedImageSet.webp : undefined}
             />
             <img
+              ref={readyImageRef}
               src={shouldLoadImage ? slide.optimizedImageSet.jpg : transparentPixel}
               alt=""
               aria-hidden="true"
               className="h-full w-full object-cover object-center"
               loading={loading}
               decoding="async"
+              {...readyImageProps}
               {...imagePriorityProps}
             />
           </picture>
@@ -298,9 +334,11 @@ const HeroSlideFrame = ({
             applyFocalObjectPosition
             className="h-full w-full"
             imgClassName="h-full w-full object-cover object-center"
+            imgRef={readyImageRef}
             aria-hidden="true"
             loading={loading}
             decoding="async"
+            {...readyImageProps}
             {...imagePriorityProps}
           />
         )}
@@ -322,8 +360,11 @@ const HeroSlideFrame = ({
             {slide.id === latestSlideId ? (
               <span
                 data-testid={`hero-slide-latest-${slide.id}`}
-                className="inline-block rounded-full border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) px-3 py-1 text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3)) animate-slide-up opacity-0"
-                style={heroEntryDelayStyles.type}
+                className={composeHeroEntryClassName(
+                  "inline-block rounded-full border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) px-3 py-1 text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3))",
+                  shouldAnimateEntry,
+                )}
+                style={resolveHeroEntryStyle("type", shouldAnimateEntry)}
               >
                 Último Lançamento
               </span>
@@ -334,20 +375,29 @@ const HeroSlideFrame = ({
                 className="flex flex-wrap items-center gap-3"
               >
                 {slide.format ? (
-                  <span className="animate-slide-up opacity-0" style={heroEntryDelayStyles.type}>
+                  <span
+                    className={composeHeroEntryClassName("", shouldAnimateEntry).trim()}
+                    style={resolveHeroEntryStyle("type", shouldAnimateEntry)}
+                  >
                     {slide.format}
                   </span>
                 ) : null}
                 {slide.format && slide.status ? (
                   <span
-                    className="animate-slide-up text-muted-foreground/50 opacity-0"
-                    style={heroEntryDelayStyles.separator}
+                    className={composeHeroEntryClassName(
+                      "text-muted-foreground/50",
+                      shouldAnimateEntry,
+                    )}
+                    style={resolveHeroEntryStyle("separator", shouldAnimateEntry)}
                   >
                     •
                   </span>
                 ) : null}
                 {slide.status ? (
-                  <span className="animate-slide-up opacity-0" style={heroEntryDelayStyles.status}>
+                  <span
+                    className={composeHeroEntryClassName("", shouldAnimateEntry).trim()}
+                    style={resolveHeroEntryStyle("status", shouldAnimateEntry)}
+                  >
                     {slide.status}
                   </span>
                 ) : null}
@@ -356,22 +406,28 @@ const HeroSlideFrame = ({
           </div>
 
           <h1
-            className="mb-6 text-2xl font-black leading-tight text-foreground animate-slide-up opacity-0 md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl"
-            style={heroEntryDelayStyles.title}
+            className={composeHeroEntryClassName(
+              "mb-6 text-2xl font-black leading-tight text-foreground md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl",
+              shouldAnimateEntry,
+            )}
+            style={resolveHeroEntryStyle("title", shouldAnimateEntry)}
           >
             {slide.title}
           </h1>
 
           <p
-            className="max-w-2xl text-base leading-relaxed text-muted-foreground animate-slide-up opacity-0 md:text-lg xl:text-xl 2xl:text-2xl"
-            style={heroEntryDelayStyles.synopsis}
+            className={composeHeroEntryClassName(
+              "max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg xl:text-xl 2xl:text-2xl",
+              shouldAnimateEntry,
+            )}
+            style={resolveHeroEntryStyle("synopsis", shouldAnimateEntry)}
           >
             {clampSynopsis(slide.description)}
           </p>
 
           <div
-            className="mt-8 flex flex-wrap gap-4 animate-slide-up opacity-0"
-            style={heroEntryDelayStyles.actions}
+            className={composeHeroEntryClassName("mt-8 flex flex-wrap gap-4", shouldAnimateEntry)}
+            style={resolveHeroEntryStyle("actions", shouldAnimateEntry)}
           >
             <Link
               to={`/projeto/${slide.projectId}`}
@@ -404,8 +460,17 @@ const HeroSection = () => {
   const autoplayRef = React.useRef<number | null>(null);
   const resumeTimeoutRef = React.useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = React.useState(0);
-  const [isCarouselEnhanced, setIsCarouselEnhanced] = React.useState(false);
+  const [isCarouselAutoplayReady, setIsCarouselAutoplayReady] = React.useState(false);
   const [loadedSlideIds, setLoadedSlideIds] = React.useState<Set<string>>(() => new Set());
+  const primaryHeroImageRef = React.useRef<HTMLImageElement | null>(null);
+  const heroReadyDispatchedRef = React.useRef(false);
+  const heroReadyFrameRef = React.useRef<number | null>(null);
+  const initialHomeShellSnapshotRef = React.useRef(
+    typeof document !== "undefined" &&
+      typeof window !== "undefined" &&
+      window.location.pathname === "/" &&
+      document.getElementById("home-hero-shell") !== null,
+  );
   const { data: bootstrapData, isFetched } = usePublicBootstrap();
   const { effectiveMode } = useThemeMode();
   const mediaVariants = bootstrapData?.mediaVariants || {};
@@ -413,6 +478,9 @@ const HeroSection = () => {
   const visibleSlides = React.useMemo(() => {
     if (!bootstrapData && !isFetched) {
       return [];
+    }
+    if (Array.isArray(bootstrapData?.homeHero?.slides) && bootstrapData.homeHero.slides.length > 0) {
+      return bootstrapData.homeHero.slides as HeroSlide[];
     }
     const projects = Array.isArray(bootstrapData?.projects)
       ? (bootstrapData.projects as PublicBootstrapProject[])
@@ -425,21 +493,19 @@ const HeroSection = () => {
 
   React.useEffect(() => {
     if (visibleSlides.length <= 1) {
-      setIsCarouselEnhanced(false);
+      setIsCarouselAutoplayReady(false);
       return;
     }
     const cancelIdle = scheduleOnBrowserIdle(() => {
-      setIsCarouselEnhanced(true);
+      setIsCarouselAutoplayReady(true);
     });
     return cancelIdle;
   }, [visibleSlides.length]);
 
-  const renderedSlides = React.useMemo(
-    () => (isCarouselEnhanced ? visibleSlides : visibleSlides.slice(0, 1)),
-    [isCarouselEnhanced, visibleSlides],
-  );
-
   const latestSlideId = React.useMemo(() => {
+    if (bootstrapData?.homeHero?.latestSlideId) {
+      return bootstrapData.homeHero.latestSlideId;
+    }
     if (!visibleSlides.length) {
       return "";
     }
@@ -451,10 +517,10 @@ const HeroSection = () => {
         ? current
         : latest;
     }, visibleSlides[0])?.id;
-  }, [visibleSlides]);
+  }, [bootstrapData?.homeHero?.latestSlideId, visibleSlides]);
 
   React.useEffect(() => {
-    if (!api || !isCarouselEnhanced) {
+    if (!api || visibleSlides.length <= 1) {
       setActiveIndex(0);
       return;
     }
@@ -468,14 +534,14 @@ const HeroSection = () => {
       api.off("select", syncSelectedIndex);
       api.off("reInit", syncSelectedIndex);
     };
-  }, [api, isCarouselEnhanced]);
+  }, [api, visibleSlides.length]);
 
   React.useEffect(() => {
-    if (!renderedSlides.length) {
+    if (!visibleSlides.length) {
       setLoadedSlideIds(new Set());
       return;
     }
-    const activeSlide = renderedSlides[activeIndex] || renderedSlides[0];
+    const activeSlide = visibleSlides[activeIndex] || visibleSlides[0];
     if (!activeSlide) {
       return;
     }
@@ -487,7 +553,59 @@ const HeroSection = () => {
       next.add(activeSlide.id);
       return next;
     });
-  }, [activeIndex, renderedSlides]);
+  }, [activeIndex, visibleSlides]);
+
+  const clearHeroReadyFrame = React.useCallback(() => {
+    if (heroReadyFrameRef.current === null || typeof window === "undefined") {
+      return;
+    }
+    window.cancelAnimationFrame(heroReadyFrameRef.current);
+    heroReadyFrameRef.current = null;
+  }, []);
+
+  const dispatchHeroReady = React.useCallback(() => {
+    if (heroReadyDispatchedRef.current || typeof window === "undefined") {
+      return;
+    }
+    heroReadyDispatchedRef.current = true;
+    clearHeroReadyFrame();
+    heroReadyFrameRef.current = window.requestAnimationFrame(() => {
+      heroReadyFrameRef.current = window.requestAnimationFrame(() => {
+        heroReadyFrameRef.current = null;
+        window.dispatchEvent(new Event(HOME_HERO_READY_EVENT));
+      });
+    });
+  }, [clearHeroReadyFrame]);
+
+  const handlePrimaryHeroImageRef = React.useCallback((node: HTMLImageElement | null) => {
+    primaryHeroImageRef.current = node;
+  }, []);
+
+  const handlePrimaryHeroImageReady = React.useCallback(() => {
+    dispatchHeroReady();
+  }, [dispatchHeroReady]);
+
+  const primaryHeroCandidateId = visibleSlides[0]?.id || "";
+
+  React.useEffect(() => {
+    if (!primaryHeroCandidateId || heroReadyDispatchedRef.current) {
+      return;
+    }
+    const image = primaryHeroImageRef.current;
+    if (!image) {
+      return;
+    }
+    if (image.complete && image.naturalWidth > 0) {
+      dispatchHeroReady();
+    }
+  }, [dispatchHeroReady, primaryHeroCandidateId]);
+
+  React.useEffect(
+    () => () => {
+      clearHeroReadyFrame();
+    },
+    [clearHeroReadyFrame],
+  );
 
   const stopAutoplay = React.useCallback(() => {
     if (autoplayRef.current !== null) {
@@ -520,7 +638,7 @@ const HeroSection = () => {
   }, [startAutoplay, stopAutoplay]);
 
   React.useEffect(() => {
-    if (!api || !isCarouselEnhanced || renderedSlides.length <= 1) {
+    if (!api || !isCarouselAutoplayReady || visibleSlides.length <= 1) {
       return;
     }
 
@@ -551,11 +669,11 @@ const HeroSection = () => {
     };
   }, [
     api,
-    isCarouselEnhanced,
-    renderedSlides.length,
+    isCarouselAutoplayReady,
     scheduleAutoplayResume,
     startAutoplay,
     stopAutoplay,
+    visibleSlides.length,
   ]);
 
   const clampSynopsis = React.useCallback((text: string, limit = 100) => {
@@ -576,27 +694,37 @@ const HeroSection = () => {
     return `${trimmed}...`;
   }, []);
 
-  const heroViewportClass = "min-h-[78vh] md:min-h-screen";
+  const heroViewportClass = `${PUBLIC_HOME_HERO_VIEWPORT_CLASS} min-h-[78vh] md:min-h-screen`;
   const shouldRenderNavbarOverlay = effectiveMode === "light";
   const navbarOverlayClass =
     "pointer-events-none absolute inset-x-0 top-0 h-28 bg-linear-to-b from-background/95 via-background/70 to-transparent md:h-36";
   const transparentPixel = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
-  const shouldRenderCarousel = renderedSlides.length > 0;
-  const shouldRenderCarouselControls = isCarouselEnhanced && renderedSlides.length > 1;
+  const shouldRenderCarousel = visibleSlides.length > 1;
+  const shouldRenderCarouselControls = visibleSlides.length > 1;
+  const hasInitialHomeShellSnapshot = initialHomeShellSnapshotRef.current;
 
   return (
     <section className={`relative overflow-hidden ${heroViewportClass}`}>
       {shouldRenderCarousel ? (
         <Carousel opts={{ loop: true }} setApi={setApi} className={heroViewportClass}>
           <CarouselContent className="ml-0">
-            {renderedSlides.map((slide, index) => {
+            {visibleSlides.map((slide, index) => {
               const isActive = index === activeIndex;
               const isPrioritySlide = index === 0 || isActive;
+              const isReadyCandidate = index === 0;
+              const shouldAnimateEntry = !(hasInitialHomeShellSnapshot && index === 0);
               const shouldLoadImage = loadedSlideIds.has(slide.id) || isPrioritySlide;
               const loading = isPrioritySlide ? "eager" : "lazy";
               const imagePriorityProps = {
                 fetchPriority: isPrioritySlide ? "high" : "auto",
               } as const;
+              const readyImageRef = isReadyCandidate ? handlePrimaryHeroImageRef : undefined;
+              const readyImageProps = isReadyCandidate
+                ? {
+                    onLoad: handlePrimaryHeroImageReady,
+                    onError: handlePrimaryHeroImageReady,
+                  }
+                : {};
               return (
                 <CarouselItem key={slide.id} className="pl-0">
                   <div className={`relative flex items-end overflow-hidden ${heroViewportClass}`}>
@@ -612,12 +740,14 @@ const HeroSection = () => {
                             srcSet={shouldLoadImage ? slide.optimizedImageSet.webp : undefined}
                           />
                           <img
+                            ref={readyImageRef}
                             src={shouldLoadImage ? slide.optimizedImageSet.jpg : transparentPixel}
                             alt=""
                             aria-hidden="true"
                             className="h-full w-full object-cover object-center"
                             loading={loading}
                             decoding="async"
+                            {...readyImageProps}
                             {...imagePriorityProps}
                           />
                         </picture>
@@ -630,9 +760,11 @@ const HeroSection = () => {
                           applyFocalObjectPosition
                           className="h-full w-full"
                           imgClassName="h-full w-full object-cover object-center"
+                          imgRef={readyImageRef}
                           aria-hidden="true"
                           loading={loading}
                           decoding="async"
+                          {...readyImageProps}
                           {...imagePriorityProps}
                         />
                       )}
@@ -654,8 +786,11 @@ const HeroSection = () => {
                           {slide.id === latestSlideId ? (
                             <span
                               data-testid={`hero-slide-latest-${slide.id}`}
-                              className="inline-block rounded-full border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) px-3 py-1 text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3)) animate-slide-up opacity-0"
-                              style={heroEntryDelayStyles.type}
+                              className={composeHeroEntryClassName(
+                                "inline-block rounded-full border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) px-3 py-1 text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3))",
+                                shouldAnimateEntry,
+                              )}
+                              style={resolveHeroEntryStyle("type", shouldAnimateEntry)}
                             >
                               Último Lançamento
                             </span>
@@ -667,24 +802,33 @@ const HeroSection = () => {
                             >
                               {slide.format ? (
                                 <span
-                                  className="animate-slide-up opacity-0"
-                                  style={heroEntryDelayStyles.type}
+                                  className={composeHeroEntryClassName(
+                                    "",
+                                    shouldAnimateEntry,
+                                  ).trim()}
+                                  style={resolveHeroEntryStyle("type", shouldAnimateEntry)}
                                 >
                                   {slide.format}
                                 </span>
                               ) : null}
                               {slide.format && slide.status ? (
                                 <span
-                                  className="animate-slide-up text-muted-foreground/50 opacity-0"
-                                  style={heroEntryDelayStyles.separator}
+                                  className={composeHeroEntryClassName(
+                                    "text-muted-foreground/50",
+                                    shouldAnimateEntry,
+                                  )}
+                                  style={resolveHeroEntryStyle("separator", shouldAnimateEntry)}
                                 >
                                   •
                                 </span>
                               ) : null}
                               {slide.status ? (
                                 <span
-                                  className="animate-slide-up opacity-0"
-                                  style={heroEntryDelayStyles.status}
+                                  className={composeHeroEntryClassName(
+                                    "",
+                                    shouldAnimateEntry,
+                                  ).trim()}
+                                  style={resolveHeroEntryStyle("status", shouldAnimateEntry)}
                                 >
                                   {slide.status}
                                 </span>
@@ -694,22 +838,31 @@ const HeroSection = () => {
                         </div>
 
                         <h1
-                          className="text-2xl font-black leading-tight text-foreground animate-slide-up opacity-0 md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl mb-6"
-                          style={heroEntryDelayStyles.title}
+                          className={composeHeroEntryClassName(
+                            "text-2xl font-black leading-tight text-foreground md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl mb-6",
+                            shouldAnimateEntry,
+                          )}
+                          style={resolveHeroEntryStyle("title", shouldAnimateEntry)}
                         >
                           {slide.title}
                         </h1>
 
                         <p
-                          className="text-base leading-relaxed text-muted-foreground animate-slide-up opacity-0 md:text-lg xl:text-xl 2xl:text-2xl max-w-2xl"
-                          style={heroEntryDelayStyles.synopsis}
+                          className={composeHeroEntryClassName(
+                            "text-base leading-relaxed text-muted-foreground md:text-lg xl:text-xl 2xl:text-2xl max-w-2xl",
+                            shouldAnimateEntry,
+                          )}
+                          style={resolveHeroEntryStyle("synopsis", shouldAnimateEntry)}
                         >
                           {clampSynopsis(slide.description)}
                         </p>
 
                         <div
-                          className="mt-8 flex flex-wrap gap-4 animate-slide-up opacity-0"
-                          style={heroEntryDelayStyles.actions}
+                          className={composeHeroEntryClassName(
+                            "mt-8 flex flex-wrap gap-4",
+                            shouldAnimateEntry,
+                          )}
+                          style={resolveHeroEntryStyle("actions", shouldAnimateEntry)}
                         >
                           <Link
                             to={`/projeto/${slide.projectId}`}
@@ -751,9 +904,9 @@ const HeroSection = () => {
             />
           ) : null}
         </Carousel>
-      ) : renderedSlides[0] ? (
+      ) : visibleSlides[0] ? (
         <HeroSlideFrame
-          slide={renderedSlides[0]}
+          slide={visibleSlides[0]}
           index={0}
           activeIndex={0}
           latestSlideId={latestSlideId}
@@ -764,6 +917,11 @@ const HeroSection = () => {
           navbarOverlayClass={navbarOverlayClass}
           transparentPixel={transparentPixel}
           clampSynopsis={clampSynopsis}
+          shouldAnimateEntry={!hasInitialHomeShellSnapshot}
+          isReadyCandidate
+          priorityImageRef={handlePrimaryHeroImageRef}
+          onPriorityImageLoad={handlePrimaryHeroImageReady}
+          onPriorityImageError={handlePrimaryHeroImageReady}
         />
       ) : null}
     </section>

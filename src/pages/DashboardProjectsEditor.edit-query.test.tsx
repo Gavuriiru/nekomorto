@@ -182,10 +182,12 @@ const setupApiMock = ({
   canManageProjects,
   projects,
   users = [],
+  currentUserOverrides,
 }: {
   canManageProjects: boolean;
   projects: ProjectRecord[];
   users?: Array<{ name?: string; status?: string }>;
+  currentUserOverrides?: Record<string, unknown>;
 }) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
@@ -197,6 +199,7 @@ const setupApiMock = ({
         name: "Admin",
         username: "admin",
         permissions: canManageProjects ? ["projetos"] : [],
+        ...currentUserOverrides,
       });
     }
     if (path === "/api/projects" && method === "GET") {
@@ -466,7 +469,7 @@ describe("DashboardProjectsEditor edit query", () => {
     fireEvent.dragEnd(staffDraggedCard as HTMLElement, { dataTransfer });
   });
 
-  it("aplica a classe dedicada aos accordions internos de volume", async () => {
+  it("não renderiza os accordions internos de conteúdo no modal de light novel", async () => {
     setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
 
     render(
@@ -485,27 +488,10 @@ describe("DashboardProjectsEditor edit query", () => {
       return node as HTMLElement;
     });
 
-    fireEvent.click(within(editorDialog).getByRole("button", { name: /Conte.do.*cap.tulos/i }));
-
-    const volumeGroup = await waitFor(() => {
-      const node = editorDialog.querySelector(".project-editor-nested-section");
-      expect(node).not.toBeNull();
-      return node as HTMLElement;
-    });
-
-    expect(classTokens(volumeGroup)).toContain("project-editor-nested-section");
-
-    if (volumeGroup.getAttribute("data-state") !== "open") {
-      fireEvent.click(within(volumeGroup).getByRole("button"));
-    }
-
-    await waitFor(() => {
-      expect(volumeGroup).toHaveAttribute("data-state", "open");
-    });
-
-    const volumeMetadataCard = volumeGroup.querySelector("div.rounded-xl");
-    expect(volumeMetadataCard).not.toBeNull();
-    expect(classTokens(volumeMetadataCard as HTMLElement)).toContain("hover:border-primary/40");
+    expect(
+      within(editorDialog).queryByRole("button", { name: /Conte.do.*cap.tulos/i }),
+    ).not.toBeInTheDocument();
+    expect(editorDialog.querySelector(".project-editor-nested-section")).toBeNull();
   });
 
   it("abre criacao automaticamente com ?edit=new e limpa a query", async () => {
@@ -623,6 +609,62 @@ describe("DashboardProjectsEditor edit query", () => {
     );
   });
 
+  it("expõe o CTA do editor dedicado para usuario com grant de projetos sem permissions legadas", async () => {
+    setupApiMock({
+      canManageProjects: false,
+      projects: [projectFixture],
+      currentUserOverrides: {
+        permissions: [],
+        grants: { projetos: true },
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+
+    const dedicatedEditorLink = await screen.findByRole("link", {
+      name: "Abrir editor dedicado de Projeto Teste",
+    });
+    expect(dedicatedEditorLink).toHaveAttribute("href", "/dashboard/projetos/project-1/episodios");
+  });
+
+  it("expõe o CTA do editor dedicado para owner secundario sem permissions legadas", async () => {
+    setupApiMock({
+      canManageProjects: false,
+      projects: [chapterProjectFixture],
+      currentUserOverrides: {
+        id: "owner-2",
+        permissions: [],
+        accessRole: "owner_secondary",
+        ownerIds: ["owner-1", "owner-2"],
+        primaryOwnerId: "owner-1",
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+
+    const dedicatedEditorLink = await screen.findByRole("link", {
+      name: "Abrir editor dedicado de Projeto Light Novel",
+    });
+    expect(dedicatedEditorLink).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/project-ln-1/capitulos",
+    );
+  });
+
   it("redireciona para o editor dedicado ao receber deep link unico com chapter e volume", async () => {
     setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
 
@@ -664,7 +706,7 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(scrollIntoViewMock).not.toHaveBeenCalled();
   });
 
-  it("não renderiza a seção Conteúdo no modal de light novel já aberto", async () => {
+  it("remove a seção Conteúdo do modal de light novel já aberto", async () => {
     setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
 
     render(
@@ -683,8 +725,8 @@ describe("DashboardProjectsEditor edit query", () => {
       return node as HTMLElement;
     });
     expect(
-      within(editorDialog).getByRole("button", { name: /Conte.do.*cap.tulos/i }),
-    ).toBeInTheDocument();
+      within(editorDialog).queryByRole("button", { name: /Conte.do.*cap.tulos/i }),
+    ).not.toBeInTheDocument();
     expect(within(editorDialog).queryByText("Abrir editor dedicado")).not.toBeInTheDocument();
     expect(within(editorDialog).getByRole("link", { name: "Conteúdo" })).toHaveAttribute(
       "href",
@@ -698,7 +740,7 @@ describe("DashboardProjectsEditor edit query", () => {
         .replace(/\s+/g, " ")
         .trim(),
     );
-    expect(sectionTitles).toHaveLength(7);
+    expect(sectionTitles).toHaveLength(6);
     expect(sectionTitles[0]).toContain("Importação");
     expect(sectionTitles[1]).toContain("Informações do projeto");
     expect(sectionTitles[2]).toContain("Mídias");
@@ -709,7 +751,9 @@ describe("DashboardProjectsEditor edit query", () => {
         expect.stringContaining("Staff do anime"),
       ]),
     );
-    expect(sectionTitles).toEqual(expect.arrayContaining([expect.stringContaining("Conteúdo")]));
+    expect(sectionTitles).not.toEqual(
+      expect.arrayContaining([expect.stringContaining("Conteúdo")]),
+    );
     expect(sectionTriggers[1]).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
   });
 

@@ -267,13 +267,13 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expectLinkIconClass(dedicatedEditorLink, "lucide-clapperboard");
   });
 
-  it("mantém a seção de capítulos e o CTA de conteúdo para light novel", async () => {
+  it("remove a seção inline de conteúdo da light novel e mantém o CTA dedicado no rodapé", async () => {
     setupApiMock([lightNovelProjectFixture]);
     renderEditor();
 
     await openProject("Projeto Light Novel");
 
-    expect(screen.getByRole("button", { name: /Conteúdo/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Conteúdo/i })).not.toBeInTheDocument();
 
     const footer = document.querySelector(".project-editor-footer") as HTMLElement | null;
     expect(footer).not.toBeNull();
@@ -286,13 +286,13 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expectLinkIconClass(dedicatedEditorLink, "lucide-file-text");
   });
 
-  it("mantém a seção de capítulos e o CTA de conteúdo para manga", async () => {
+  it("remove a seção inline de conteúdo do manga e mantém o CTA dedicado no rodapé", async () => {
     setupApiMock([mangaProjectFixture]);
     renderEditor();
 
     await openProject("Projeto Manga");
 
-    expect(screen.getByRole("button", { name: /Conteúdo/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Conteúdo/i })).not.toBeInTheDocument();
 
     const footer = document.querySelector(".project-editor-footer") as HTMLElement | null;
     expect(footer).not.toBeNull();

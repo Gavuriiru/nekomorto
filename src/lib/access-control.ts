@@ -85,6 +85,14 @@ const coerceGrants = (grants: AccessUserLike["grants"]): GrantMap => {
   return next;
 };
 
+const mergeGrantMaps = (base: GrantMap, extra: GrantMap): GrantMap => {
+  const next = emptyGrantMap();
+  permissionIds.forEach((permission) => {
+    next[permission] = base[permission] === true || extra[permission] === true;
+  });
+  return next;
+};
+
 const computeLegacyGrants = (user: AccessUserLike | null | undefined): GrantMap => {
   const next = emptyGrantMap();
   if (!user) {
@@ -136,14 +144,43 @@ export const resolveGrants = (user: AccessUserLike | null | undefined): GrantMap
   if (!user) {
     return emptyGrantMap();
   }
+  const explicitGrants = coerceGrants(user.grants);
   if (isFrontendRbacV2Enabled) {
-    return coerceGrants(user.grants);
+    return explicitGrants;
   }
-  return computeLegacyGrants(user);
+  return mergeGrantMaps(computeLegacyGrants(user), explicitGrants);
 };
 
 export const canGrant = (grants: GrantMap | null | undefined, permission: PermissionId): boolean =>
   Boolean(grants && grants[permission] === true);
+
+export const canManagePostsAccess = (user: AccessUserLike | null | undefined): boolean => {
+  const accessRole = resolveAccessRole(user);
+  if (accessRole === "owner_primary" || accessRole === "owner_secondary") {
+    return true;
+  }
+  if (user?.grants?.posts === true) {
+    return true;
+  }
+  if (canGrant(resolveGrants(user), "posts")) {
+    return true;
+  }
+  return canGrant(computeLegacyGrants(user), "posts");
+};
+
+export const canManageProjectsAccess = (user: AccessUserLike | null | undefined): boolean => {
+  const accessRole = resolveAccessRole(user);
+  if (accessRole === "owner_primary" || accessRole === "owner_secondary") {
+    return true;
+  }
+  if (user?.grants?.projetos === true) {
+    return true;
+  }
+  if (canGrant(resolveGrants(user), "projetos")) {
+    return true;
+  }
+  return canGrant(computeLegacyGrants(user), "projetos");
+};
 
 export const canAccessUsersPage = (grants: GrantMap | null | undefined): boolean => {
   if (!grants) {
@@ -193,9 +230,6 @@ export const isDashboardHrefAllowed = (
     allowUsersForSelf?: boolean;
   } = {},
 ): boolean => {
-  if (!isFrontendRbacV2Enabled) {
-    return true;
-  }
   const required = dashboardRouteToPermission[href];
   if (required === undefined) {
     return true;
@@ -251,9 +285,6 @@ export const getFirstAllowedDashboardRoute = (
   grants: GrantMap | null | undefined,
   options?: { allowUsersForSelf?: boolean },
 ): string => {
-  if (!isFrontendRbacV2Enabled) {
-    return "/dashboard";
-  }
   const allowed =
     dashboardRouteOrder.find((href) =>
       isDashboardHrefAllowed(href, grants, {

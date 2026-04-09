@@ -215,6 +215,34 @@ describe("ProjectReading bootstrap-first", () => {
     expect(screen.queryByTestId("comments-section")).not.toBeInTheDocument();
   });
 
+  it("usa grants do bootstrap para exibir editar capítulo sem permissions legadas", () => {
+    (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC_ME__ = {
+      id: "user-1",
+      name: "Admin",
+      username: "admin",
+      permissions: [],
+      grants: { projetos: true },
+    };
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: /Editar capítulo/i })).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
+    );
+    const calledEndpoints = apiFetchMock.mock.calls.map((call) => String(call[1] || ""));
+    expect(calledEndpoints).not.toContain("/api/public/me");
+  });
+
   it("corrige o estado de permissao quando o bootstrap inicial vem anonimo", async () => {
     apiFetchMock.mockImplementation(
       async (_apiBase: string, endpoint: string, options?: RequestInit) => {
@@ -255,7 +283,69 @@ describe("ProjectReading bootstrap-first", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("heading", { name: /Cap.*tulo Bootstrap/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: /Cap.*tulo Bootstrap/i }),
+    ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "",
+        "/api/public/me",
+        expect.objectContaining({ auth: true, cache: "no-store" }),
+      );
+    });
+    expect(await screen.findByRole("link", { name: /Editar cap.tulo/i })).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
+    );
+  });
+
+  it("corrige o estado de permissao via /api/public/me para owner secundario sem permissions legadas", async () => {
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (
+          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+          method === "GET"
+        ) {
+          return await new Promise<Response>(() => undefined);
+        }
+        if (endpoint === "/api/public/me" && method === "GET") {
+          return mockJsonResponse(true, {
+            user: {
+              id: "owner-2",
+              name: "Admin",
+              username: "admin",
+              permissions: [],
+              accessRole: "owner_secondary",
+              ownerIds: ["owner-1", "owner-2"],
+              primaryOwnerId: "owner-1",
+            },
+          });
+        }
+        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && method === "POST") {
+          return mockJsonResponse(true, { ok: true });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
+
+    (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC_ME__ = null;
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: /Cap.*tulo Bootstrap/i }),
+    ).toBeInTheDocument();
 
     await waitFor(() => {
       expect(apiFetchMock).toHaveBeenCalledWith(

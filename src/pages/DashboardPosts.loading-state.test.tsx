@@ -103,7 +103,12 @@ describe("DashboardPosts loading state", () => {
     const postsDeferred = deferredResponse();
     apiFetchMock.mockImplementation(async (_base: string, path: string) => {
       if (path === "/api/me") {
-        return mockJsonResponse(true, { id: "user-1", name: "Admin", username: "admin" });
+        return mockJsonResponse(true, {
+          id: "user-1",
+          name: "Admin",
+          username: "admin",
+          permissions: ["posts"],
+        });
       }
       if (path === "/api/posts") {
         return postsDeferred.promise;
@@ -141,7 +146,12 @@ describe("DashboardPosts loading state", () => {
   it("reaproveita cache quente ao revisitar a pagina", async () => {
     apiFetchMock.mockImplementation(async (_base: string, path: string) => {
       if (path === "/api/me") {
-        return mockJsonResponse(true, { id: "user-1", name: "Admin", username: "admin" });
+        return mockJsonResponse(true, {
+          id: "user-1",
+          name: "Admin",
+          username: "admin",
+          permissions: ["posts"],
+        });
       }
       if (path === "/api/posts") {
         return mockJsonResponse(true, { posts: [createPost(1)], mediaVariants: {} });
@@ -173,7 +183,12 @@ describe("DashboardPosts loading state", () => {
     const refreshDeferred = deferredResponse();
     apiFetchMock.mockImplementation(async (_base: string, path: string) => {
       if (path === "/api/me") {
-        return mockJsonResponse(true, { id: "user-1", name: "Admin", username: "admin" });
+        return mockJsonResponse(true, {
+          id: "user-1",
+          name: "Admin",
+          username: "admin",
+          permissions: ["posts"],
+        });
       }
       if (path === "/api/posts") {
         return refreshDeferred.promise;

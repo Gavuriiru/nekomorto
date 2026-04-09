@@ -65,12 +65,6 @@ const classTokens = (element: Element | null) =>
     .split(/\s+/)
     .filter(Boolean);
 
-const expectLinkIconClass = (link: HTMLElement, iconClassName: string) => {
-  const icon = link.querySelector("svg");
-  expect(icon).not.toBeNull();
-  expect(icon).toHaveClass(iconClassName);
-};
-
 const createProject = (
   overrides: Partial<{
     id: string;
@@ -181,7 +175,7 @@ const renderEditor = () =>
   );
 
 describe("DashboardProjectsEditor card layout", () => {
-  it("ancora a linha de meta no fundo quando o card possui tags e generos", async () => {
+  it("keeps the card stacked until lg and separates actions from the headline", async () => {
     setupApiMock({
       projects: [
         createProject({
@@ -201,41 +195,93 @@ describe("DashboardProjectsEditor card layout", () => {
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
 
     const card = await screen.findByTestId("dashboard-project-card-project-layout");
+    const layout = card.querySelector('[data-slot="project-card-layout"]');
+    const coverShell = card.querySelector('[data-slot="project-card-cover-shell"]');
     const cover = card.querySelector('[data-slot="project-card-cover"]');
     const content = card.querySelector('[data-slot="project-card-content"]');
-    const middle = card.querySelector('[data-slot="project-card-middle"]');
+    const top = card.querySelector('[data-slot="project-card-top"]');
+    const headline = card.querySelector('[data-slot="project-card-headline"]');
+    const actions = card.querySelector('[data-slot="project-card-actions"]');
+    const synopsis = card.querySelector('[data-slot="project-card-synopsis"]');
     const meta = card.querySelector('[data-slot="project-card-meta"]');
 
-    expect(cover).not.toBeNull();
-    expect(classTokens(card)).toContain("bg-card");
+    expect(classTokens(card)).toEqual(
+      expect.arrayContaining(["bg-card", "animate-fade-in", "opacity-0"]),
+    );
     expect(classTokens(card)).not.toContain("lift-hover");
-    expect(classTokens(card)).toContain("animate-fade-in");
-    expect(classTokens(card)).not.toContain("animate-slide-up");
+    expect(layout).not.toBeNull();
+    expect(classTokens(layout)).toEqual(
+      expect.arrayContaining([
+        "grid",
+        "min-h-[360px]",
+        "lg:h-[342px]",
+        "lg:min-h-0",
+        "lg:grid-cols-[220px_1fr]",
+      ]),
+    );
+    expect(coverShell).not.toBeNull();
+    expect(classTokens(coverShell)).toEqual(
+      expect.arrayContaining(["flex", "justify-center", "px-4", "pt-4", "lg:block"]),
+    );
+    expect(cover).not.toBeNull();
+    expect(cover).toHaveStyle({ aspectRatio: "9 / 14" });
+    expect(classTokens(cover)).toEqual(
+      expect.arrayContaining(["w-[180px]", "max-w-full", "overflow-hidden", "lg:h-full", "lg:w-full"]),
+    );
+    expect(classTokens(cover)).not.toContain("h-52");
+    expect(classTokens(cover)).not.toContain("w-full");
     expect(
       within(cover as HTMLElement).getByRole("img", { name: "Oshi no Ko" }),
     ).toBeInTheDocument();
-    expect(within(cover as HTMLElement).queryByText("Atualizacao")).toBeNull();
     expect(content).not.toBeNull();
-    expect(classTokens(content)).toContain("flex");
-    expect(classTokens(content)).toContain("flex-col");
-    expect(middle).not.toBeNull();
-    expect(classTokens(middle)).toContain("flex-1");
+    expect(classTokens(content)).toEqual(
+      expect.arrayContaining([
+        "grid",
+        "min-h-0",
+        "overflow-hidden",
+        "grid-rows-[auto_auto_minmax(0,1fr)_auto]",
+      ]),
+    );
+    expect(top).not.toBeNull();
+    expect(classTokens(top)).toEqual(expect.arrayContaining(["items-start", "justify-between"]));
+    expect(headline).not.toBeNull();
+    expect(within(top as HTMLElement).queryByText("Oshi no Ko")).toBeNull();
+    expect(within(headline as HTMLElement).getByText("Oshi no Ko")).toBeInTheDocument();
+    expect(actions).not.toBeNull();
+    expect(classTokens(actions)).toEqual(expect.arrayContaining(["shrink-0", "flex-wrap"]));
+    expect(
+      within(actions as HTMLElement).getByRole("link", {
+        name: "Abrir editor dedicado de Oshi no Ko",
+      }),
+    ).toBeInTheDocument();
+    expect(synopsis).not.toBeNull();
+    expect(classTokens(synopsis)).toEqual(
+      expect.arrayContaining(["min-h-0", "max-h-[7.5rem]", "overflow-hidden", "leading-5"]),
+    );
+    expect(classTokens(synopsis)).not.toContain("clamp-safe-3");
+    expect((synopsis as HTMLElement).getAttribute("style") || "").toContain(
+      "-webkit-line-clamp: 6",
+    );
     expect(meta).not.toBeNull();
-    expect(classTokens(meta)).toContain("mt-auto");
-    expect(middle?.lastElementChild).toBe(meta);
-    expect(card.querySelector('[data-slot="project-card-tags"]')).not.toBeNull();
-    expect(card.querySelector('[data-slot="project-card-genres"]')).not.toBeNull();
-    expect(within(meta as HTMLElement).getByText("119 visualizações")).toBeInTheDocument();
-    expect(within(meta as HTMLElement).getByText("4 comentários")).toBeInTheDocument();
+    expect(classTokens(meta)).toEqual(
+      expect.arrayContaining(["flex-wrap", "gap-y-1", "lg:flex-nowrap", "lg:gap-y-0"]),
+    );
+    expect(within(meta as HTMLElement).getByText(/119 visualiza/i)).toBeInTheDocument();
+    expect(within(meta as HTMLElement).getByText(/4 coment/i)).toBeInTheDocument();
     expect(within(meta as HTMLElement).getByText("ID project-layout")).toBeInTheDocument();
+    expect(within(card).queryByText("Atualizacao")).toBeNull();
+    expect(within(card).queryByText("Drama")).toBeNull();
+    expect(card.querySelector('[data-slot="project-card-tags"]')).toBeNull();
+    expect(card.querySelector('[data-slot="project-card-genres"]')).toBeNull();
   });
 
-  it("mantem a linha de meta no fundo mesmo sem tags e generos", async () => {
+  it("keeps fallback synopsis and wrapped meta when taxonomy is missing", async () => {
     setupApiMock({
       projects: [
         createProject({
           id: "project-no-taxonomy",
           title: "Projeto Limpo",
+          synopsis: "",
           tags: [],
           genres: [],
           commentsCount: 2,
@@ -246,127 +292,27 @@ describe("DashboardProjectsEditor card layout", () => {
     renderEditor();
 
     const card = await screen.findByTestId("dashboard-project-card-project-no-taxonomy");
-    const middle = card.querySelector('[data-slot="project-card-middle"]');
+    const synopsis = card.querySelector('[data-slot="project-card-synopsis"]');
+    const cover = card.querySelector('[data-slot="project-card-cover"]');
     const meta = card.querySelector('[data-slot="project-card-meta"]');
 
-    expect(middle).not.toBeNull();
-    expect(meta).not.toBeNull();
+    expect(synopsis).not.toBeNull();
+    expect(within(synopsis as HTMLElement).getByText("Sem sinopse cadastrada.")).toBeInTheDocument();
+    expect(classTokens(synopsis)).toEqual(
+      expect.arrayContaining(["max-h-[7.5rem]", "overflow-hidden", "leading-5"]),
+    );
+    expect((synopsis as HTMLElement).getAttribute("style") || "").toContain(
+      "-webkit-line-clamp: 6",
+    );
+    expect(cover).not.toBeNull();
+    expect(cover).toHaveStyle({ aspectRatio: "9 / 14" });
     expect(card.querySelector('[data-slot="project-card-tags"]')).toBeNull();
     expect(card.querySelector('[data-slot="project-card-genres"]')).toBeNull();
-    expect(classTokens(meta)).toContain("mt-auto");
-    expect(middle?.lastElementChild).toBe(meta);
-    expect(within(meta as HTMLElement).getByText("ID project-no-taxonomy")).toBeInTheDocument();
-  });
-
-  it("preserva o clamp da sinopse e as acoes do topo no card reestruturado", async () => {
-    const longTitle =
-      "Rekishi ni Nokoru Akujo ni Naruzo: Akuyaku Reijou ni Naru hodo Ouji no Dekiai wa Kasoku Suru you desu!";
-
-    setupApiMock({
-      projects: [
-        createProject({
-          id: "project-long",
-          title: longTitle,
-          synopsis:
-            "Uma sinopse longa o suficiente para ocupar varias linhas e validar que a estrutura do card continua usando line-clamp-3 enquanto o rodape segue ancorado no fundo da coluna direita.",
-          tags: ["Atualizacao"],
-          genres: [],
-          commentsCount: 7,
-        }),
-      ],
-    });
-
-    renderEditor();
-
-    const card = await screen.findByTestId("dashboard-project-card-project-long");
-    const top = card.querySelector('[data-slot="project-card-top"]');
-    const synopsis = card.querySelector('[data-slot="project-card-synopsis"]');
-    const meta = card.querySelector('[data-slot="project-card-meta"]');
-    const title = within(card).getByRole("heading", {
-      level: 3,
-      name: /Rekishi ni Nokoru Akujo/i,
-    });
-    const titleBlock = title.parentElement;
-    const dedicatedEditorLink = within(card).getByRole("link", {
-      name: /Abrir editor dedicado de Rekishi ni Nokoru Akujo/i,
-    });
-    const actions = dedicatedEditorLink.parentElement;
-
-    expect(top).not.toBeNull();
-    expect(classTokens(top)).toContain("flex-col");
-    expect(classTokens(top)).toContain("md:flex-row");
-    expect(synopsis).not.toBeNull();
-    expect(classTokens(synopsis)).toContain("line-clamp-3");
     expect(meta).not.toBeNull();
-    expect(classTokens(meta)).toContain("mt-auto");
-    expect(titleBlock).not.toBeNull();
-    expect(classTokens(titleBlock)).toContain("min-w-0");
-    expect(classTokens(titleBlock)).toContain("flex-1");
-    expect(classTokens(title)).toContain("clamp-safe-2");
-    expect(classTokens(title)).toContain("break-words");
-    expect(classTokens(title)).toContain("font-semibold");
-    expect(classTokens(title)).toContain("text-muted-foreground");
-    expect(actions).not.toBeNull();
-    expect(classTokens(actions)).toContain("shrink-0");
-    expect(classTokens(actions)).toContain("flex-wrap");
-    expect(classTokens(actions)).toContain("justify-end");
-    expect(dedicatedEditorLink).toHaveAttribute(
-      "href",
-      "/dashboard/projetos/project-long/episodios",
+    expect(classTokens(meta)).toEqual(
+      expect.arrayContaining(["flex-wrap", "gap-y-1", "lg:flex-nowrap", "lg:gap-y-0"]),
     );
-    expect(within(card).getByTitle("Editor dedicado")).toBeInTheDocument();
-    expect(within(card).queryByText("Editor dedicado")).not.toBeInTheDocument();
-    expect(within(card).getByTitle("Visualizar")).toBeInTheDocument();
-    expect(within(card).getByTitle("Copiar link")).toBeInTheDocument();
-    expect(within(card).getByTitle("Excluir")).toBeInTheDocument();
-    expect(within(meta as HTMLElement).getByText("7 comentários")).toBeInTheDocument();
-    expect(within(meta as HTMLElement).getByText("ID project-long")).toBeInTheDocument();
-  });
-
-  it("usa icone do editor dedicado conforme o tipo do projeto", async () => {
-    setupApiMock({
-      projects: [
-        createProject({
-          id: "project-anime",
-          title: "Projeto Anime",
-          type: "Anime",
-        }),
-        createProject({
-          id: "project-ln",
-          title: "Projeto Light Novel",
-          type: "Light Novel",
-        }),
-        createProject({
-          id: "project-manga",
-          title: "Projeto Manga",
-          type: "Manga",
-        }),
-      ],
-    });
-
-    renderEditor();
-
-    const animeCard = await screen.findByTestId("dashboard-project-card-project-anime");
-    const lightNovelCard = await screen.findByTestId("dashboard-project-card-project-ln");
-    const mangaCard = await screen.findByTestId("dashboard-project-card-project-manga");
-
-    const animeLink = within(animeCard).getByRole("link", {
-      name: "Abrir editor dedicado de Projeto Anime",
-    });
-    const lightNovelLink = within(lightNovelCard).getByRole("link", {
-      name: "Abrir editor dedicado de Projeto Light Novel",
-    });
-    const mangaLink = within(mangaCard).getByRole("link", {
-      name: "Abrir editor dedicado de Projeto Manga",
-    });
-
-    expect(animeLink).toHaveAttribute("href", "/dashboard/projetos/project-anime/episodios");
-    expectLinkIconClass(animeLink, "lucide-clapperboard");
-
-    expect(lightNovelLink).toHaveAttribute("href", "/dashboard/projetos/project-ln/capitulos");
-    expectLinkIconClass(lightNovelLink, "lucide-file-text");
-
-    expect(mangaLink).toHaveAttribute("href", "/dashboard/projetos/project-manga/capitulos");
-    expectLinkIconClass(mangaLink, "lucide-file-image");
+    expect(within(meta as HTMLElement).getByText(/2 coment/i)).toBeInTheDocument();
+    expect(within(meta as HTMLElement).getByText("ID project-no-taxonomy")).toBeInTheDocument();
   });
 });

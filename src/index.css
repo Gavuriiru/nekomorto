@@ -389,6 +389,111 @@
     scroll-behavior: smooth;
   }
 
+  :root {
+    --public-home-hero-height: 78vh;
+  }
+
+  @supports (height: 1svh) {
+    :root {
+      --public-home-hero-height: 78svh;
+    }
+  }
+
+  @media (min-width: 768px) {
+    :root {
+      --public-home-hero-height: 100vh;
+    }
+  }
+
+  @media (min-width: 768px) {
+    @supports (height: 1svh) {
+      :root {
+        --public-home-hero-height: 100svh;
+      }
+    }
+  }
+
+  .public-home-hero-viewport {
+    min-height: var(--public-home-hero-height);
+  }
+
+  .public-home-hero-shell {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: var(--public-home-hero-height);
+    min-height: var(--public-home-hero-height);
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 70;
+    background: #05070a;
+    opacity: 1;
+    transition: opacity 180ms ease-out;
+    will-change: opacity;
+  }
+
+  .public-home-hero-shell--exiting {
+    opacity: 0;
+  }
+
+  .public-home-hero-shell__image,
+  .public-home-hero-shell__veil {
+    position: absolute;
+    inset: 0;
+  }
+
+  .public-home-hero-shell__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .public-home-hero-shell__veil--primary {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--background)) 0%,
+      hsl(var(--background) / 0.8) 55%,
+      transparent 100%
+    );
+  }
+
+  .public-home-hero-shell__veil--secondary {
+    background: linear-gradient(
+      0deg,
+      hsl(var(--background)) 0%,
+      hsl(var(--background) / 0.3) 52%,
+      transparent 100%
+    );
+  }
+
+  .public-home-hero-shell__navbar-overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 7rem;
+    background: linear-gradient(
+      180deg,
+      hsl(var(--background) / 0.95) 0%,
+      hsl(var(--background) / 0.7) 55%,
+      transparent 100%
+    );
+    opacity: 0;
+  }
+
+  @media (min-width: 768px) {
+    .public-home-hero-shell__navbar-overlay {
+      height: 9rem;
+    }
+  }
+
+  :root[data-theme-mode="light"] .public-home-hero-shell__navbar-overlay {
+    opacity: 1;
+  }
+
   html.editor-scroll-locked,
   body.editor-scroll-locked {
     overflow: hidden !important;
@@ -399,8 +504,9 @@
   }
 
   @supports (scrollbar-gutter: stable) {
-    html {
-      scrollbar-gutter: stable;
+    html,
+    body {
+      scrollbar-gutter: stable both-edges;
     }
   }
 

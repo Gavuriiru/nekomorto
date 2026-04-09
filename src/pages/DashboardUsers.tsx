@@ -1412,6 +1412,135 @@ const DashboardUsers = () => {
     ? "Atualize as informações e permissões do usuário."
     : "Cadastre um novo usuário autorizado.";
 
+  const renderUserCard = ({
+    user,
+    index,
+    total,
+    group,
+  }: {
+    user: UserRecord;
+    index: number;
+    total: number;
+    group: "active" | "retired";
+  }) => {
+    const canEditUser = canOpenEdit(user);
+    const isRetired = group === "retired";
+    const isLoneLastCard = total % 2 === 1 && index === total - 1;
+    const visibleRoles = ownerIds.includes(user.id)
+      ? user.roles || []
+      : stripOwnerRole(user.roles || []);
+
+    return (
+      <div
+        key={user.id}
+        data-testid={`dashboard-user-card-${user.id}`}
+        className={`relative min-w-0 overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up opacity-0 ${
+          !isRetired
+            ? `transition ${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5`
+            : ""
+        } ${isLoneLastCard ? "lg:col-span-2 lg:mx-auto lg:w-[calc(50%-0.5rem)]" : ""}`}
+        style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
+        draggable={canManageUsers}
+        onDragStart={() => {
+          setDragUsersSnapshot((prev) =>
+            prev ? prev : users.map((userItem) => ({ ...userItem })),
+          );
+          setDragId(user.id);
+          setDragGroup(group);
+        }}
+        onDragOver={(event) =>
+          group === "active"
+            ? handleDragOverActive(event, user.id)
+            : handleDragOverRetired(event, user.id)
+        }
+        onDragEnd={handleDragEnd}
+      >
+        <div
+          data-slot="user-card-shell"
+          className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+        >
+          <div className={`relative min-w-0 flex-1 ${canEditUser ? "cursor-pointer" : ""}`}>
+            {canEditUser ? (
+              <button
+                type="button"
+                className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
+                aria-label={`Abrir usuário ${user.name}`}
+                onClick={() => handleUserCardClick(user)}
+              >
+                <span className="sr-only">{`Abrir usuário ${user.name}`}</span>
+              </button>
+            ) : null}
+            <div
+              data-slot="user-card-main"
+              className="pointer-events-none flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start"
+            >
+              <DashboardAvatar
+                avatarUrl={toAvatarRenderUrl(user.avatarUrl, user.revision)}
+                name={user.name}
+                sizeClassName="h-14 w-14"
+                frameClassName="border border-border/70 bg-background"
+                fallbackClassName="bg-background text-sm text-foreground"
+                fallbackText={user.name.slice(0, 2).toUpperCase()}
+              />
+              <div data-slot="user-card-summary" className="min-w-0 flex-1 space-y-2">
+                <div
+                  data-slot="user-card-title"
+                  className="flex min-w-0 flex-wrap items-center gap-2"
+                >
+                  <h3 className="min-w-0 break-words text-lg font-semibold">{user.name}</h3>
+                  {!isRetired && ownerIds.includes(user.id) ? (
+                    <Badge className="bg-primary/20 text-primary">Dono</Badge>
+                  ) : null}
+                  {!isRetired && !ownerIds.includes(user.id) && isAdminRecord(user) ? (
+                    <Badge className="bg-background text-foreground/70">Administrador</Badge>
+                  ) : null}
+                  {isRetired ? (
+                    <Badge className="bg-background text-foreground/70">Aposentado</Badge>
+                  ) : null}
+                  {isRetired && isAdminRecord(user) ? (
+                    <Badge className="bg-background text-foreground/70">Administrador</Badge>
+                  ) : null}
+                </div>
+                <p className={`break-words text-sm ${dashboardPageLayoutTokens.cardMetaText}`}>
+                  {user.phrase || "-"}
+                </p>
+                <p
+                  data-slot="user-card-bio"
+                  className={`min-h-0 overflow-hidden text-xs ${dashboardPageLayoutTokens.cardMetaText} line-clamp-2 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]`}
+                >
+                  {user.bio || "Sem biografia cadastrada."}
+                </p>
+                {visibleRoles.length > 0 ? (
+                  <div data-slot="user-card-roles" className="flex min-w-0 flex-wrap gap-2">
+                    {visibleRoles.map((role) => (
+                      <Badge key={role} variant="secondary" className="text-[10px] uppercase">
+                        {role}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+          <div
+            data-slot="user-card-controls"
+            className="relative z-10 flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto"
+          >
+            {canManageUsers ? (
+              <ReorderControls
+                label={`usuário ${user.name}`}
+                index={index}
+                total={total}
+                onMove={(targetIndex) => moveUserWithinGroup(group, index, targetIndex)}
+                buttonClassName={subtleReorderButtonClassName}
+              />
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <DashboardShell
@@ -1503,110 +1632,15 @@ const DashboardUsers = () => {
                   className="mt-6"
                 />
               ) : (
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  {activeUsers.map((user, index) => {
-                    const canEditUser = canOpenEdit(user);
-                    const isLoneLastActiveCard =
-                      activeUsers.length % 2 === 1 && index === activeUsers.length - 1;
-                    return (
-                      <div
-                        key={user.id}
-                        className={`relative ${dashboardPageLayoutTokens.surfaceSolid} p-5 transition ${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5 animate-slide-up opacity-0 ${
-                          isLoneLastActiveCard
-                            ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]"
-                            : ""
-                        }`}
-                        style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
-                        draggable={canManageUsers}
-                        onDragStart={() => {
-                          setDragUsersSnapshot((prev) =>
-                            prev ? prev : users.map((userItem) => ({ ...userItem })),
-                          );
-                          setDragId(user.id);
-                          setDragGroup("active");
-                        }}
-                        onDragOver={(event) => handleDragOverActive(event, user.id)}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div
-                            className={`relative min-w-0 flex-1 ${canEditUser ? "cursor-pointer" : ""}`}
-                          >
-                            {canEditUser ? (
-                              <button
-                                type="button"
-                                className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
-                                aria-label={`Abrir usuário ${user.name}`}
-                                onClick={() => handleUserCardClick(user)}
-                              >
-                                <span className="sr-only">{`Abrir usuário ${user.name}`}</span>
-                              </button>
-                            ) : null}
-                            <div className="pointer-events-none flex gap-4">
-                              <DashboardAvatar
-                                avatarUrl={toAvatarRenderUrl(user.avatarUrl, user.revision)}
-                                name={user.name}
-                                sizeClassName="h-14 w-14"
-                                frameClassName="border border-border/70 bg-background"
-                                fallbackClassName="bg-background text-sm text-foreground"
-                                fallbackText={user.name.slice(0, 2).toUpperCase()}
-                              />
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <h3 className="text-lg font-semibold">{user.name}</h3>
-                                  {ownerIds.includes(user.id) && (
-                                    <Badge className="bg-primary/20 text-primary">Dono</Badge>
-                                  )}
-                                  {!ownerIds.includes(user.id) && isAdminRecord(user) && (
-                                    <Badge className="bg-background text-foreground/70">
-                                      Administrador
-                                    </Badge>
-                                  )}
-                                </div>
-                                <p className={`text-sm ${dashboardPageLayoutTokens.cardMetaText}`}>
-                                  {user.phrase || "-"}
-                                </p>
-                                <p
-                                  className={`mt-2 text-xs ${dashboardPageLayoutTokens.cardMetaText} line-clamp-2`}
-                                >
-                                  {user.bio || "Sem biografia cadastrada."}
-                                </p>
-                                {user.roles && user.roles.length > 0 && (
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    {(ownerIds.includes(user.id)
-                                      ? user.roles
-                                      : stripOwnerRole(user.roles)
-                                    ).map((role) => (
-                                      <Badge
-                                        key={role}
-                                        variant="secondary"
-                                        className="text-[10px] uppercase"
-                                      >
-                                        {role}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="relative z-10 flex flex-wrap items-center gap-2">
-                            {canManageUsers ? (
-                              <ReorderControls
-                                label={`usuário ${user.name}`}
-                                index={index}
-                                total={activeUsers.length}
-                                onMove={(targetIndex) =>
-                                  moveUserWithinGroup("active", index, targetIndex)
-                                }
-                                buttonClassName={subtleReorderButtonClassName}
-                              />
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div data-testid="dashboard-users-active-grid" className="mt-6 grid gap-4 lg:grid-cols-2">
+                  {activeUsers.map((user, index) =>
+                    renderUserCard({
+                      user,
+                      index,
+                      total: activeUsers.length,
+                      group: "active",
+                    }),
+                  )}
                 </div>
               )}
 
@@ -1627,112 +1661,15 @@ const DashboardUsers = () => {
                       </Badge>
                     </span>
                   </div>
-                  <div className="mt-6 grid gap-4 md:grid-cols-2">
-                    {retiredUsers.map((user, index) => {
-                      const canEditUser = canOpenEdit(user);
-                      const isLoneLastRetiredCard =
-                        retiredUsers.length % 2 === 1 && index === retiredUsers.length - 1;
-                      return (
-                        <div
-                          key={user.id}
-                          className={`${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up opacity-0 ${
-                            isLoneLastRetiredCard
-                              ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]"
-                              : ""
-                          }`}
-                          style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
-                          draggable={canManageUsers}
-                          onDragStart={() => {
-                            setDragUsersSnapshot((prev) =>
-                              prev ? prev : users.map((userItem) => ({ ...userItem })),
-                            );
-                            setDragId(user.id);
-                            setDragGroup("retired");
-                          }}
-                          onDragOver={(event) => handleDragOverRetired(event, user.id)}
-                          onDragEnd={handleDragEnd}
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div
-                              className={`relative min-w-0 flex-1 ${canEditUser ? "cursor-pointer" : ""}`}
-                            >
-                              {canEditUser ? (
-                                <button
-                                  type="button"
-                                  className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
-                                  aria-label={`Abrir usuário ${user.name}`}
-                                  onClick={() => handleUserCardClick(user)}
-                                >
-                                  <span className="sr-only">{`Abrir usuário ${user.name}`}</span>
-                                </button>
-                              ) : null}
-                              <div className="pointer-events-none flex gap-4">
-                                <DashboardAvatar
-                                  avatarUrl={toAvatarRenderUrl(user.avatarUrl, user.revision)}
-                                  name={user.name}
-                                  sizeClassName="h-14 w-14"
-                                  frameClassName="border border-border/70 bg-background"
-                                  fallbackClassName="bg-background text-sm text-foreground"
-                                  fallbackText={user.name.slice(0, 2).toUpperCase()}
-                                />
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <h3 className="text-lg font-semibold">{user.name}</h3>
-                                    <Badge className="bg-background text-foreground/70">
-                                      Aposentado
-                                    </Badge>
-                                    {isAdminRecord(user) ? (
-                                      <Badge className="bg-background text-foreground/70">
-                                        Administrador
-                                      </Badge>
-                                    ) : null}
-                                  </div>
-                                  <p
-                                    className={`text-sm ${dashboardPageLayoutTokens.cardMetaText}`}
-                                  >
-                                    {user.phrase || "-"}
-                                  </p>
-                                  <p
-                                    className={`mt-2 text-xs ${dashboardPageLayoutTokens.cardMetaText} line-clamp-2`}
-                                  >
-                                    {user.bio || "Sem biografia cadastrada."}
-                                  </p>
-                                  {user.roles && user.roles.length > 0 ? (
-                                    <div className="mt-3 flex flex-wrap gap-2">
-                                      {(ownerIds.includes(user.id)
-                                        ? user.roles
-                                        : stripOwnerRole(user.roles)
-                                      ).map((role) => (
-                                        <Badge
-                                          key={role}
-                                          variant="secondary"
-                                          className="text-[10px] uppercase"
-                                        >
-                                          {role}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="relative z-10 flex flex-wrap items-center gap-2">
-                              {canManageUsers ? (
-                                <ReorderControls
-                                  label={`usuário ${user.name}`}
-                                  index={index}
-                                  total={retiredUsers.length}
-                                  onMove={(targetIndex) =>
-                                    moveUserWithinGroup("retired", index, targetIndex)
-                                  }
-                                  buttonClassName={subtleReorderButtonClassName}
-                                />
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div data-testid="dashboard-users-retired-grid" className="mt-6 grid gap-4 lg:grid-cols-2">
+                    {retiredUsers.map((user, index) =>
+                      renderUserCard({
+                        user,
+                        index,
+                        total: retiredUsers.length,
+                        group: "retired",
+                      }),
+                    )}
                   </div>
                 </div>
               )}

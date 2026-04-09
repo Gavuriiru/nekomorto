@@ -284,9 +284,9 @@ describe("WorkStatusCard accent mode", () => {
     expect(await screen.findByText("Projeto 6")).toBeInTheDocument();
 
     const scrollRegion = screen.getByTestId("work-status-scroll-region");
-    expect(scrollRegion).toHaveClass("no-scrollbar", "overflow-y-auto", "overscroll-contain");
+    expect(scrollRegion).toHaveClass("no-scrollbar", "overflow-y-auto", "overscroll-contain", "pt-1");
     expect(scrollRegion).toHaveStyle({
-      maxHeight: "calc((5.75rem * 5) + (0.75rem * 4) + 0.25rem)",
+      maxHeight: "calc((5.75rem * 5) + (0.75rem * 4) + 0.5rem)",
     });
 
     const progressLinks = scrollRegion.querySelectorAll("a");

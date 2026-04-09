@@ -133,6 +133,37 @@ describe("DashboardShell menu permissions", () => {
     expect(screen.getByText("Sistema")).toBeInTheDocument();
   });
 
+  it("respeita grants explicitos na navegação mesmo com RBAC V2 desligado", async () => {
+    vi.stubEnv("VITE_RBAC_V2_ENABLED", "false");
+    const grants = buildGrants();
+    grants.posts = true;
+    grants.configuracoes = true;
+    const { default: DashboardShell } = await import("@/components/DashboardShell");
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <DashboardShell
+          currentUser={{
+            id: "user-1",
+            name: "User 1",
+            username: "user1",
+            grants,
+            permissions: [],
+          }}
+        >
+          <div>Conteudo</div>
+        </DashboardShell>
+      </MemoryRouter>,
+    );
+
+    const headerText = screen.getByTestId("dashboard-header").textContent || "";
+    expect(headerText).toContain("Início");
+    expect(headerText).toContain("Postagens");
+    expect(headerText).toContain("Configurações");
+    expect(headerText).not.toContain("Usuários");
+    expect(headerText).not.toContain("Integrações");
+  });
+
   it("keeps previous user while loading and clears cache when loading finishes", async () => {
     const grants = buildGrants();
     grants.posts = true;

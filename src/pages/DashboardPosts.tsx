@@ -67,6 +67,7 @@ import type { Project } from "@/data/projects";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { canManagePostsAccess } from "@/lib/access-control";
 import {
   createPostVersion,
   fetchEditorialCalendar,
@@ -217,7 +218,6 @@ const DashboardPosts = () => {
     isRefreshing,
     loadPosts,
     mediaVariants,
-    ownerIds,
     posts,
     projects,
     refreshPosts,
@@ -226,7 +226,6 @@ const DashboardPosts = () => {
     setProjects,
     setTagTranslations,
     tagTranslations,
-    users,
   } = useDashboardPostsResource(apiBase);
   const { currentUser, isLoadingUser } = useDashboardCurrentUser();
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -293,19 +292,9 @@ const DashboardPosts = () => {
     currentPage,
   });
 
-  const currentUserRecord = currentUser
-    ? users.find((user) => user.id === currentUser.id) || null
-    : null;
   const canManagePosts = useMemo(() => {
-    if (!currentUser) {
-      return false;
-    }
-    if (ownerIds.includes(currentUser.id)) {
-      return true;
-    }
-    const permissions = currentUserRecord?.permissions || [];
-    return permissions.includes("*") || permissions.includes("posts");
-  }, [currentUser, currentUserRecord, ownerIds]);
+    return canManagePostsAccess(currentUser);
+  }, [currentUser]);
 
   const isDirty = useMemo(
     () => buildPostEditorSnapshot(formState) !== editorInitialSnapshotRef.current,
@@ -1774,22 +1763,22 @@ const DashboardPosts = () => {
                                 style={postEditorLexicalWrapperStyle}
                               >
                                 <LexicalEditorSurface
-                                    fallbackVariant="post"
-                                    fallbackMinHeightClassName="min-h-[460px] lg:min-h-[680px]"
-                                    ref={editorRef}
-                                    value={formState.contentLexical}
-                                    onChange={(value) =>
-                                      setFormState((prev) => ({
-                                        ...prev,
-                                        contentLexical: value,
-                                      }))
-                                    }
-                                    placeholder="Escreva o conteúdo do post..."
-                                    className="lexical-playground--modal lexical-playground--stretch lexical-playground--post-editor min-w-0 w-full"
-                                    imageLibraryOptions={postImageLibraryOptions}
-                                    autoFocus={false}
-                                    followCaretScroll
-                                  />
+                                  fallbackVariant="post"
+                                  fallbackMinHeightClassName="min-h-[460px] lg:min-h-[680px]"
+                                  ref={editorRef}
+                                  value={formState.contentLexical}
+                                  onChange={(value) =>
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      contentLexical: value,
+                                    }))
+                                  }
+                                  placeholder="Escreva o conteúdo do post..."
+                                  className="lexical-playground--modal lexical-playground--stretch lexical-playground--post-editor min-w-0 w-full"
+                                  imageLibraryOptions={postImageLibraryOptions}
+                                  autoFocus={false}
+                                  followCaretScroll
+                                />
                               </div>
                             </div>
                           </section>
@@ -2254,11 +2243,7 @@ const DashboardPosts = () => {
                 <AlertTitle>Atualização parcial indisponível</AlertTitle>
                 <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
                   <span>Mantendo a última lista de posts carregada.</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={refreshPosts}
-                  >
+                  <Button variant="outline" size="sm" onClick={refreshPosts}>
                     Tentar novamente
                   </Button>
                 </AlertDescription>
@@ -2270,10 +2255,7 @@ const DashboardPosts = () => {
                 description="Confira a conexão e tente atualizar os dados."
                 className={dashboardPageLayoutTokens.surfaceSolid}
                 action={
-                  <Button
-                    variant="outline"
-                    onClick={refreshPosts}
-                  >
+                  <Button variant="outline" onClick={refreshPosts}>
                     Recarregar
                   </Button>
                 }
@@ -2756,25 +2738,25 @@ const DashboardPosts = () => {
       </DashboardShell>
 
       <LazyImageLibraryDialog
-          open={isLibraryOpen}
-          onOpenChange={setIsLibraryOpen}
-          apiBase={apiBase}
-          description="Escolha uma imagem já enviada ou use capas/banners de projetos."
-          uploadFolder={postImageLibraryOptions.uploadFolder}
-          listFolders={postImageLibraryOptions.listFolders}
-          listAll={postImageLibraryOptions.listAll}
-          includeProjectImages={postImageLibraryOptions.includeProjectImages}
-          projectImageProjectIds={postImageLibraryOptions.projectImageProjectIds}
-          projectImagesView={postImageLibraryOptions.projectImagesView}
-          allowDeselect
-          mode="single"
-          currentSelectionUrls={
-            editorResolvedCover.coverImageUrl ? [editorResolvedCover.coverImageUrl] : []
-          }
-          onSave={({ urls, items }) =>
-            handleLibrarySelect(urls[0] || "", items[0]?.altText, items[0])
-          }
-        />
+        open={isLibraryOpen}
+        onOpenChange={setIsLibraryOpen}
+        apiBase={apiBase}
+        description="Escolha uma imagem já enviada ou use capas/banners de projetos."
+        uploadFolder={postImageLibraryOptions.uploadFolder}
+        listFolders={postImageLibraryOptions.listFolders}
+        listAll={postImageLibraryOptions.listAll}
+        includeProjectImages={postImageLibraryOptions.includeProjectImages}
+        projectImageProjectIds={postImageLibraryOptions.projectImageProjectIds}
+        projectImagesView={postImageLibraryOptions.projectImagesView}
+        allowDeselect
+        mode="single"
+        currentSelectionUrls={
+          editorResolvedCover.coverImageUrl ? [editorResolvedCover.coverImageUrl] : []
+        }
+        onSave={({ urls, items }) =>
+          handleLibrarySelect(urls[0] || "", items[0]?.altText, items[0])
+        }
+      />
 
       <Dialog
         open={isVersionHistoryOpen}

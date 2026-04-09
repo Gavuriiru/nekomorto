@@ -58,4 +58,52 @@ describe("public bootstrap global parser", () => {
 
     expect(parsed?.payloadMode).toBe("full");
   });
+
+  it("preserva e normaliza o payload canônico da home hero", () => {
+    const parsed = asPublicBootstrapPayload({
+      settings: {},
+      pages: {},
+      projects: [],
+      inProgressItems: [],
+      posts: [],
+      updates: [],
+      tagTranslations: {
+        tags: {},
+        genres: {},
+        staffRoles: {},
+      },
+      generatedAt: "2026-03-05T00:00:00.000Z",
+      homeHero: {
+        initialSlideId: "project-1",
+        latestSlideId: "project-1",
+        hasMultipleSlides: false,
+        slides: [
+          {
+            id: "project-1",
+            title: "Projeto Hero",
+            description: "Descricao",
+            updatedAt: "2026-03-05T00:00:00.000Z",
+            image: "/uploads/project-1-hero.jpg",
+            projectId: "project-1",
+            trailerUrl: "",
+            format: "Anime",
+            status: "Em andamento",
+          },
+        ],
+      },
+    });
+
+    expect(parsed?.homeHero).toEqual({
+      initialSlideId: "project-1",
+      latestSlideId: "project-1",
+      hasMultipleSlides: false,
+      slides: [
+        expect.objectContaining({
+          id: "project-1",
+          image: "/uploads/project-1-hero.jpg",
+          projectId: "project-1",
+        }),
+      ],
+    });
+  });
 });

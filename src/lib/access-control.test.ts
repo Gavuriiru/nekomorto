@@ -38,11 +38,32 @@ describe("access-control RBAC V2", () => {
     expect(menu.map((item) => item.href)).toEqual(["/dashboard", "/dashboard/posts"]);
   });
 
-  it("keeps legacy permissive behavior when V2 is disabled", async () => {
+  it("merges explicit grants into legacy navigation when V2 is disabled", async () => {
     const access = await loadAccessControl(false);
-    const grants = null;
-    expect(access.isDashboardHrefAllowed("/dashboard/usuarios", grants)).toBe(true);
+    const grants = access.resolveGrants({
+      id: "u-1",
+      permissions: [],
+      grants: {
+        posts: true,
+      },
+    });
+    expect(access.isDashboardHrefAllowed("/dashboard/posts", grants)).toBe(true);
+    expect(access.isDashboardHrefAllowed("/dashboard/usuarios", grants)).toBe(false);
     expect(access.isDashboardPathAllowed("/dashboard/usuarios", grants)).toBe(true);
+    expect(
+      access.buildDashboardMenuFromGrants(
+        [
+          { href: "/dashboard", enabled: true },
+          { href: "/dashboard/posts", enabled: true },
+          { href: "/dashboard/usuarios", enabled: true },
+        ],
+        grants,
+      ),
+    ).toEqual([
+      { href: "/dashboard", enabled: true },
+      { href: "/dashboard/posts", enabled: true },
+    ]);
+    expect(access.getFirstAllowedDashboardRoute(grants)).toBe("/dashboard");
   });
 
   it("resolves owner role from ownerIds regardless of persisted accessRole", async () => {
@@ -54,5 +75,72 @@ describe("access-control RBAC V2", () => {
       primaryOwnerId: "u-1",
     });
     expect(role).toBe("owner_primary");
+  });
+
+  it("allows project access from explicit grants and ownerIds without legacy permissions", async () => {
+    const access = await loadAccessControl(false);
+
+    expect(
+      access.canManageProjectsAccess({
+        id: "grant-user",
+        permissions: [],
+        grants: { projetos: true },
+      }),
+    ).toBe(true);
+
+    expect(
+      access.canManageProjectsAccess({
+        id: "owner-user",
+        permissions: [],
+        ownerIds: ["owner-user"],
+        primaryOwnerId: "other-owner",
+      }),
+    ).toBe(true);
+  });
+
+  it("allows post access from explicit grants and ownerIds without legacy permissions", async () => {
+    const access = await loadAccessControl(false);
+
+    expect(
+      access.canManagePostsAccess({
+        id: "grant-user",
+        permissions: [],
+        grants: { posts: true },
+      }),
+    ).toBe(true);
+
+    expect(
+      access.canManagePostsAccess({
+        id: "owner-user",
+        permissions: [],
+        ownerIds: ["owner-user"],
+        primaryOwnerId: "other-owner",
+      }),
+    ).toBe(true);
+  });
+
+  it("preserves legacy permission access for posts and projects when V2 is enabled", async () => {
+    const access = await loadAccessControl(true);
+
+    expect(
+      access.canManagePostsAccess({
+        id: "legacy-post-user",
+        permissions: ["posts"],
+      }),
+    ).toBe(true);
+
+    expect(
+      access.canManagePostsAccess({
+        id: "legacy-admin-user",
+        permissions: ["*"],
+      }),
+    ).toBe(true);
+
+    expect(
+      access.canManageProjectsAccess({
+        id: "legacy-project-user",
+        permissions: ["projetos"],
+      }),
+    ).toBe(true);
   });
 });

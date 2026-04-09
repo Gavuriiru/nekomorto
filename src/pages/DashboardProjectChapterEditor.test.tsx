@@ -559,7 +559,9 @@ const baseProject: ChapterEditorTestProject = {
   ],
 };
 
-const buildProject = (overrides: Partial<ChapterEditorTestProject> = {}): ChapterEditorTestProject => ({
+const buildProject = (
+  overrides: Partial<ChapterEditorTestProject> = {},
+): ChapterEditorTestProject => ({
   ...baseProject,
   ...overrides,
   volumeEntries: Array.isArray(overrides.volumeEntries)
@@ -718,6 +720,7 @@ const getStructureGroupChapterOrder = (groupKey: string) => {
 
 const setupApiMock = ({
   permissions = ["projetos"],
+  currentUserOverrides,
   project = buildProject(),
   projectStatus = 200,
   contractOk = true,
@@ -730,6 +733,7 @@ const setupApiMock = ({
   epubExportResponse,
 }: {
   permissions?: string[];
+  currentUserOverrides?: Record<string, unknown>;
   project?: ReturnType<typeof buildProject>;
   projectStatus?: number;
   contractOk?: boolean;
@@ -780,6 +784,7 @@ const setupApiMock = ({
           name: "Admin",
           username: "admin",
           permissions,
+          ...currentUserOverrides,
         });
       }
 
@@ -2254,11 +2259,13 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.click(within(sourcesSection).getByRole("button", { name: /^Adicionar$/i }));
 
     const sourceTrigger = await waitFor(() =>
-      within(screen.getByTestId("chapter-sources-section")).getByRole("combobox", { name: "Fonte 1" }),
+      within(screen.getByTestId("chapter-sources-section")).getByRole("combobox", {
+        name: "Fonte 1",
+      }),
     );
-    const sourceUrlInput = within(screen.getByTestId("chapter-sources-section")).getByPlaceholderText(
-      "URL",
-    );
+    const sourceUrlInput = within(
+      screen.getByTestId("chapter-sources-section"),
+    ).getByPlaceholderText("URL");
     expect(sourceUrlInput).toBeDisabled();
 
     fireEvent.click(sourceTrigger);
@@ -2269,9 +2276,12 @@ describe("DashboardProjectChapterEditor", () => {
       ).not.toBeDisabled();
     });
 
-    fireEvent.change(within(screen.getByTestId("chapter-sources-section")).getByPlaceholderText("URL"), {
-      target: { value: "https://example.com/capitulo-2-google-drive" },
-    });
+    fireEvent.change(
+      within(screen.getByTestId("chapter-sources-section")).getByPlaceholderText("URL"),
+      {
+        target: { value: "https://example.com/capitulo-2-google-drive" },
+      },
+    );
     await waitFor(() => {
       expect(getTopActions().getByRole("button", { name: /Salvar como rascunho/i })).toBeEnabled();
     });
@@ -4190,6 +4200,35 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-epub-tools");
     expect(screen.getByText(/Não foi possível confirmar o suporte EPUB/i)).toBeInTheDocument();
+  });
+
+  it("permite acessar o editor com grant de projetos sem permissions legadas", async () => {
+    setupApiMock({
+      permissions: [],
+      currentUserOverrides: {
+        permissions: [],
+        grants: { projetos: true },
+      },
+    });
+    renderEditor();
+    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+    expect(screen.queryByText("Acesso negado")).not.toBeInTheDocument();
+  });
+
+  it("permite acessar o editor para owner secundario sem permissions legadas", async () => {
+    setupApiMock({
+      permissions: [],
+      currentUserOverrides: {
+        id: "owner-2",
+        permissions: [],
+        accessRole: "owner_secondary",
+        ownerIds: ["owner-1", "owner-2"],
+        primaryOwnerId: "owner-1",
+      },
+    });
+    renderEditor();
+    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+    expect(screen.queryByText("Acesso negado")).not.toBeInTheDocument();
   });
 
   it("bloqueia o acesso sem permissão de projetos", async () => {

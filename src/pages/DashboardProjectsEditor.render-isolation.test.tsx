@@ -230,20 +230,6 @@ const waitForTrigger = async (
     return trigger;
   });
 
-const openContentSection = async () => {
-  const trigger = await waitForTrigger(
-    () =>
-      Array.from(
-        document.querySelectorAll<HTMLButtonElement>(
-          ".project-editor-accordion .project-editor-section-trigger",
-        ),
-      ).find((button) => /conte/i.test(button.textContent || "")) || null,
-    "Expected content accordion trigger to be rendered.",
-  );
-
-  openAccordionIfNeeded(trigger);
-};
-
 const openMediaSection = async () => {
   const trigger = await waitForTrigger(
     () =>
@@ -257,35 +243,6 @@ const openMediaSection = async () => {
 
   openAccordionIfNeeded(trigger);
 };
-
-const openVolumeGroup = async () => {
-  const trigger = await waitForTrigger(
-    () =>
-      document.querySelector<HTMLButtonElement>(
-        "[data-testid^='volume-group-'] button[data-state]",
-      ),
-    "Expected volume group accordion trigger to be rendered.",
-  );
-
-  openAccordionIfNeeded(trigger);
-};
-
-const openChapter = async () => {
-  const trigger = await waitForTrigger(
-    () => document.querySelector<HTMLButtonElement>("[data-episode-accordion-trigger]"),
-    "Expected chapter accordion trigger to be rendered.",
-  );
-
-  openAccordionIfNeeded(trigger);
-};
-
-const openChapterContentEditor = async () => {
-  await openContentSection();
-  await openVolumeGroup();
-  await openChapter();
-  await screen.findByTestId("mock-lexical-editor");
-};
-
 describe("DashboardProjectsEditor render isolation", () => {
   beforeEach(() => {
     renderCounters.lexicalEditorSurface = 0;
@@ -317,35 +274,27 @@ describe("DashboardProjectsEditor render isolation", () => {
     );
   });
 
-  it("keeps the lexical editor stable when only project metadata changes", async () => {
+  it("does not mount the inline lexical editor for chapter-based projects", async () => {
     renderEditor();
 
     await openProject();
-    await openChapterContentEditor();
 
-    const lexicalRenderCountBeforeTitleEdit = renderCounters.lexicalEditorSurface;
+    expect(screen.queryByTestId("mock-lexical-editor")).not.toBeInTheDocument();
+    expect(renderCounters.lexicalEditorSurface).toBe(0);
+  });
+
+  it("keeps the media section stable when only project metadata changes", async () => {
+    renderEditor();
+
+    await openProject();
+    const mediaSectionRenderCountBeforeTitleEdit = renderCounters.mediaSection;
 
     fireEvent.change(screen.getByDisplayValue("Projeto Light Novel"), {
       target: { value: "Projeto Light Novel atualizado" },
     });
 
     await waitFor(() => {
-      expect(renderCounters.lexicalEditorSurface).toBe(lexicalRenderCountBeforeTitleEdit);
-    });
-  });
-
-  it("keeps the media section stable when only chapter content changes", async () => {
-    renderEditor();
-
-    await openProject();
-    await openChapterContentEditor();
-
-    const mediaSectionRenderCountBeforeContentEdit = renderCounters.mediaSection;
-
-    fireEvent.click(screen.getByTestId("mock-lexical-editor"));
-
-    await waitFor(() => {
-      expect(renderCounters.mediaSection).toBe(mediaSectionRenderCountBeforeContentEdit);
+      expect(renderCounters.mediaSection).toBe(mediaSectionRenderCountBeforeTitleEdit);
     });
   });
 

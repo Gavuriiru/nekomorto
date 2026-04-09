@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { emptyPublicBootstrapPayload, type PublicBootstrapPayload } from "@/types/public-bootstrap";
+import {
+  emptyPublicBootstrapPayload,
+  type PublicBootstrapHomeHero,
+  type PublicBootstrapPayload,
+  type PublicBootstrapHomeHeroSlide,
+} from "@/types/public-bootstrap";
 import { normalizePublicPagesConfig } from "@/lib/public-pages";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
@@ -18,6 +23,7 @@ type PublicBootstrapSnapshot = {
   isFetched: boolean;
   status: PublicBootstrapStatus;
   isHydratingFullPayload: boolean;
+  lastFetchedAt: number;
 };
 
 const initialWindowBootstrap = readWindowPublicBootstrap();
@@ -39,6 +45,52 @@ const isCriticalHomePayload = (value: PublicBootstrapPayload | null | undefined)
 const toError = (value: unknown) =>
   value instanceof Error ? value : new Error(String(value || "public_bootstrap_error"));
 
+const normalizePublicBootstrapHomeHero = (value: unknown): PublicBootstrapHomeHero | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const candidate = value as Partial<PublicBootstrapHomeHero>;
+  const slides = Array.isArray(candidate.slides)
+    ? candidate.slides
+        .map((slide) => {
+          if (!slide || typeof slide !== "object") {
+            return null;
+          }
+          const safeSlide = slide as Partial<PublicBootstrapHomeHeroSlide>;
+          const id = String(safeSlide.id || "").trim();
+          const image = String(safeSlide.image || "").trim();
+          const projectId = String(safeSlide.projectId || "").trim();
+          if (!id || !image || !projectId) {
+            return null;
+          }
+          return {
+            id,
+            title: String(safeSlide.title || ""),
+            description: String(safeSlide.description || ""),
+            updatedAt: String(safeSlide.updatedAt || ""),
+            image,
+            projectId,
+            trailerUrl: String(safeSlide.trailerUrl || ""),
+            format: String(safeSlide.format || ""),
+            status: String(safeSlide.status || ""),
+          } satisfies PublicBootstrapHomeHeroSlide;
+        })
+        .filter(Boolean)
+    : [];
+  if (slides.length === 0) {
+    return null;
+  }
+  const normalizedSlides = slides as PublicBootstrapHomeHeroSlide[];
+  const fallbackSlideId = normalizedSlides[0]?.id || "";
+  return {
+    initialSlideId: String(candidate.initialSlideId || fallbackSlideId).trim() || fallbackSlideId,
+    latestSlideId: String(candidate.latestSlideId || fallbackSlideId).trim() || fallbackSlideId,
+    hasMultipleSlides:
+      candidate.hasMultipleSlides === true || (Array.isArray(slides) && slides.length > 1),
+    slides: normalizedSlides,
+  };
+};
+
 const emitSnapshot = () => {
   listeners.forEach((listener) => {
     listener();
@@ -52,6 +104,7 @@ const buildSnapshot = (): PublicBootstrapSnapshot => ({
   isFetched: publicBootstrapCache.hasFetched,
   status: publicBootstrapCache.status,
   isHydratingFullPayload: isCriticalHomePayload(publicBootstrapCache.data),
+  lastFetchedAt: publicBootstrapCache.lastFetchedAt,
 });
 
 const subscribeSnapshot = (listener: () => void) => {
@@ -89,6 +142,7 @@ const normalizePublicBootstrapPayload = (value: unknown): PublicBootstrapPayload
       genres: data?.tagTranslations?.genres || {},
       staffRoles: data?.tagTranslations?.staffRoles || {},
     },
+    homeHero: normalizePublicBootstrapHomeHero(data?.homeHero),
     generatedAt: String(data?.generatedAt || ""),
     payloadMode: data?.payloadMode === "critical-home" ? "critical-home" : "full",
   };
@@ -173,6 +227,22 @@ export const primePublicBootstrapCache = (value: unknown) => {
 
 export const refetchPublicBootstrapCache = async (apiBase = getApiBase()) =>
   await requestPublicBootstrap(apiBase, { force: true });
+
+export const getPublicBootstrapLastFetchedAt = () => publicBootstrapCache.lastFetchedAt;
+
+export const refreshPublicBootstrapCacheIfStale = async ({
+  apiBase = getApiBase(),
+  minAgeMs = PUBLIC_BOOTSTRAP_STALE_TIME_MS,
+}: {
+  apiBase?: string;
+  minAgeMs?: number;
+} = {}) => {
+  const lastFetchedAt = getPublicBootstrapLastFetchedAt();
+  if (lastFetchedAt > 0 && Date.now() - lastFetchedAt < minAgeMs) {
+    return publicBootstrapCache.data || emptyPublicBootstrapPayload;
+  }
+  return await requestPublicBootstrap(apiBase, { force: true });
+};
 
 export const usePublicBootstrap = () => {
   const apiBase = getApiBase();

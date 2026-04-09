@@ -287,4 +287,76 @@ describe("usePublicBootstrap store", () => {
       expect(screen.getByTestId("item")).toHaveTextContent("NouKin|3|0");
     });
   });
+
+  it("expõe lastFetchedAt e só revalida quando a idade mínima expira", async () => {
+    const dateNowSpy = vi.spyOn(Date, "now");
+    dateNowSpy.mockReturnValue(10_000);
+    apiFetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse(true, {
+          settings: {},
+          pages: {},
+          projects: [{ id: "project-1", title: "Projeto Inicial" }],
+          posts: [],
+          updates: [],
+          mediaVariants: {},
+          tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+          generatedAt: "2026-03-05T00:00:00.000Z",
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse(true, {
+          settings: {},
+          pages: {},
+          projects: [{ id: "project-2", title: "Projeto Atualizado" }],
+          posts: [],
+          updates: [],
+          mediaVariants: {},
+          tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+          generatedAt: "2026-03-05T00:01:00.000Z",
+        }),
+      );
+
+    const {
+      getPublicBootstrapLastFetchedAt,
+      refreshPublicBootstrapCacheIfStale,
+      usePublicBootstrap,
+    } = await loadHookModule();
+
+    const Harness = () => {
+      const { data, lastFetchedAt } = usePublicBootstrap();
+      return (
+        <div data-testid="hook">
+          {data?.projects?.[0]?.title || "none"}|{String(lastFetchedAt)}
+        </div>
+      );
+    };
+
+    render(<Harness />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("hook")).toHaveTextContent("Projeto Inicial|10000");
+    });
+
+    expect(getPublicBootstrapLastFetchedAt()).toBe(10_000);
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
+
+    dateNowSpy.mockReturnValue(20_000);
+    await refreshPublicBootstrapCacheIfStale({
+      apiBase: "http://api.local",
+      minAgeMs: 15_000,
+    });
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
+
+    dateNowSpy.mockReturnValue(26_000);
+    await refreshPublicBootstrapCacheIfStale({
+      apiBase: "http://api.local",
+      minAgeMs: 15_000,
+    });
+
+    expect(apiFetchMock).toHaveBeenCalledTimes(2);
+    await waitFor(() => {
+      expect(screen.getByTestId("hook")).toHaveTextContent("Projeto Atualizado|26000");
+    });
+  });
 });

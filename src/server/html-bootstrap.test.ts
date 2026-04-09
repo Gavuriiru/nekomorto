@@ -160,12 +160,15 @@ describe("html bootstrap injection", () => {
 
   it("injeta shell estatico da home no marcador dedicado", () => {
     const result = injectHomeHeroShell({
-      html: '<!doctype html><html><body><!-- APP_HOME_HERO_SHELL --><div id="root"></div></body></html>',
+      html: '<!doctype html><html><head></head><body><!-- APP_HOME_HERO_SHELL --><div id="root"></div></body></html>',
       shellMarkup: '<div id="home-hero-shell"></div>',
+      criticalCss: ".public-home-hero-shell{opacity:1;}",
     });
 
     expect(result).toContain("<!-- APP_HOME_HERO_SHELL -->");
     expect(result).toContain('<div id="home-hero-shell"></div>');
+    expect(result).toContain('<style data-home-hero-shell-critical>');
+    expect(result).toContain(".public-home-hero-shell{opacity:1;}");
   });
 
   it("gera preload do LCP da postagem no HTML", () => {

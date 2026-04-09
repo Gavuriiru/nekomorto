@@ -130,9 +130,15 @@ const buildVersion = (id: string, snapshotOverrides: Record<string, unknown> = {
 
 const setupApiMock = ({
   canManagePosts,
+  currentUserOverrides,
+  ownerIds = [],
+  users,
   versionsResponse,
 }: {
   canManagePosts: boolean;
+  currentUserOverrides?: Record<string, unknown>;
+  ownerIds?: string[];
+  users?: Array<Record<string, unknown>>;
   versionsResponse?: { versions?: unknown[]; nextCursor?: string | null } | "error";
 }) => {
   apiFetchMock.mockReset();
@@ -146,8 +152,8 @@ const setupApiMock = ({
     }
     if (path === "/api/users" && method === "GET") {
       return mockJsonResponse(true, {
-        users: [{ id: "user-1", permissions: canManagePosts ? ["posts"] : [] }],
-        ownerIds: [],
+        users: users ?? [{ id: "user-1", permissions: canManagePosts ? ["posts"] : [] }],
+        ownerIds,
       });
     }
     if (path === "/api/me" && method === "GET") {
@@ -155,6 +161,8 @@ const setupApiMock = ({
         id: "user-1",
         name: "Admin",
         username: "admin",
+        permissions: canManagePosts ? ["posts"] : [],
+        ...currentUserOverrides,
       });
     }
     if (path === "/api/projects" && method === "GET") {
@@ -296,6 +304,54 @@ describe("DashboardPosts edit query", () => {
     expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBeNull();
   });
 
+  it("abre editor com grant de posts sem permissions legadas", async () => {
+    setupApiMock({
+      canManagePosts: false,
+      currentUserOverrides: {
+        permissions: [],
+        grants: { posts: true },
+      },
+      users: [{ id: "user-1", permissions: [] }],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts?edit=post-1"]}>
+        <DashboardPosts />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    await screen.findByRole("heading", { name: "Editar postagem" });
+    expect(screen.getByRole("button", { name: /Nova postagem/i })).toBeInTheDocument();
+  });
+
+  it("abre editor para owner sem permissions legadas", async () => {
+    setupApiMock({
+      canManagePosts: false,
+      currentUserOverrides: {
+        id: "owner-2",
+        permissions: [],
+        accessRole: "owner_secondary",
+        ownerIds: ["owner-1", "owner-2"],
+        primaryOwnerId: "owner-1",
+      },
+      ownerIds: ["owner-1", "owner-2"],
+      users: [{ id: "owner-2", permissions: [] }],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts?edit=post-1"]}>
+        <DashboardPosts />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    await screen.findByRole("heading", { name: "Editar postagem" });
+    expect(screen.getByRole("button", { name: /Nova postagem/i })).toBeInTheDocument();
+  });
+
   it("nao abre editor sem permissao e limpa a query", async () => {
     setupApiMock({ canManagePosts: false });
 
@@ -411,17 +467,16 @@ describe("DashboardPosts edit query", () => {
     fireEvent.click(historyButton);
 
     const historyDialog = (await screen.findAllByRole("dialog")).at(-1) as HTMLElement;
-    const historyCard = Array.from(historyDialog.querySelectorAll<HTMLElement>("div")).find((node) =>
-      classTokens(node).includes("rounded-lg") &&
-      classTokens(node).includes("hover:border-primary/40"),
+    const historyCard = Array.from(historyDialog.querySelectorAll<HTMLElement>("div")).find(
+      (node) =>
+        classTokens(node).includes("rounded-lg") &&
+        classTokens(node).includes("hover:border-primary/40"),
     );
     expect(historyCard).toBeDefined();
     expect(classTokens(historyCard as HTMLElement)).toContain("border-border/60");
     expect(classTokens(historyCard as HTMLElement)).toContain("bg-card/60");
 
-    fireEvent.click(
-      within(historyDialog).getByRole("button", { name: /Restaurar esta vers/i }),
-    );
+    fireEvent.click(within(historyDialog).getByRole("button", { name: /Restaurar esta vers/i }));
 
     const rollbackDialog = (await screen.findAllByRole("dialog")).at(-1) as HTMLElement;
     const rollbackCard = Array.from(rollbackDialog.querySelectorAll<HTMLElement>("div")).find(

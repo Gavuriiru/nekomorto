@@ -25,12 +25,10 @@ import {
   dashboardStrongFocusFieldClassName,
   dashboardStrongSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
-import EpisodeContentEditor from "@/components/dashboard/project-editor/EpisodeContentEditor";
 import ProjectEditorDialogShell from "@/components/dashboard/project-editor/ProjectEditorDialogShell";
 import ProjectEditorImageLibraryDialog from "@/components/dashboard/project-editor/ProjectEditorImageLibraryDialog";
 import ProjectEditorImportSection from "@/components/dashboard/project-editor/ProjectEditorImportSection";
 import ProjectEditorInformationSection from "@/components/dashboard/project-editor/ProjectEditorInformationSection";
-import ProjectEditorEpisodesSection from "@/components/dashboard/project-editor/ProjectEditorEpisodesSection";
 import ProjectEditorMediaSection from "@/components/dashboard/project-editor/ProjectEditorMediaSection";
 import ProjectEditorRelationsSection from "@/components/dashboard/project-editor/ProjectEditorRelationsSection";
 import ProjectEditorStaffSection from "@/components/dashboard/project-editor/ProjectEditorStaffSection";
@@ -71,12 +69,7 @@ import type {
 } from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Accordion } from "@/components/ui/accordion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
@@ -102,6 +95,7 @@ import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { parseAniListMediaId } from "@/lib/anilist";
+import { canManageProjectsAccess } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import {
@@ -117,10 +111,7 @@ import {
   normalizeIsoDateFromUnknown,
 } from "@/lib/dashboard-date-time";
 import { clearIndexedRecordValue } from "@/lib/dashboard-indexed-drafts";
-import {
-  matchesAnimeEpisodeQuickFilter,
-  type AnimeEpisodeQuickFilter,
-} from "@/lib/project-anime-episodes";
+import type { AnimeEpisodeQuickFilter } from "@/lib/project-anime-episodes";
 import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
 import {
   buildDashboardProjectChapterEditorHref,
@@ -136,12 +127,8 @@ import {
   resolveNextExtraTechnicalNumber,
   resolveNextMainEpisodeNumber,
 } from "@/lib/project-episode-key";
-import {
-  sortByTranslatedLabel,
-  translateGenre,
-  translateRelation,
-  translateTag,
-} from "@/lib/project-taxonomy";
+import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
+import { translateRelation } from "@/lib/project-taxonomy";
 import {
   getProjectProgressStagesForEditor,
   getProjectProgressStateForEditor,
@@ -296,8 +283,7 @@ const DashboardProjectsEditor = () => {
   const episodeSizeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const hasInitializedListFiltersRef = useRef(false);
   const canManageProjects = useMemo(() => {
-    const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
-    return permissions.includes("*") || permissions.includes("projetos");
+    return canManageProjectsAccess(currentUser);
   }, [currentUser]);
   const {
     activeLibraryOptions,
@@ -1230,7 +1216,6 @@ const DashboardProjectsEditor = () => {
   const editorSectionBlockClassName = "space-y-4";
   const editorSectionBlockTitleClassName = "text-sm font-semibold text-foreground";
   const editorSectionBlockDividerClassName = "border-t border-border/50 pt-5";
-  const chapterOpenContentClassName = "project-editor-open-overflow";
   const editorProjectLabel = editingProject ? "Projeto em edição" : "Novo projeto";
   const editorProjectTitle = formState.title.trim() || "Sem título";
   const editorProjectId = formState.id.trim() || "Será definido ao salvar";
@@ -1245,26 +1230,6 @@ const DashboardProjectsEditor = () => {
     ? buildDashboardProjectEpisodesEditorHref(editingProject.id)
     : "";
   const publicProjectHref = editingProject?.id ? buildProjectPublicHref(editingProject.id) : "";
-  const episodesSectionProps = useMemo(
-    () => ({
-      sectionClassName: editorSectionClassName,
-      triggerClassName: editorSectionTriggerClassName,
-      contentClassName: editorSectionContentClassName,
-      contentPanelClassName: isChapterBased ? chapterOpenContentClassName : undefined,
-      title: isChapterBased ? "Conteúdo" : "Episódios",
-      subtitle: `${formState.episodeDownloads.length} ${
-        isChapterBased ? "capítulos" : "episódios"
-      }`,
-    }),
-    [
-      chapterOpenContentClassName,
-      editorSectionClassName,
-      editorSectionContentClassName,
-      editorSectionTriggerClassName,
-      formState.episodeDownloads.length,
-      isChapterBased,
-    ],
-  );
   const hasBlockingLoadError = !hasLoadedOnce && hasLoadError;
   const hasRetainedLoadError = hasLoadedOnce && hasLoadError;
   const showProjectsSurfaceSkeleton = !hasResolvedProjects && !hasBlockingLoadError;
@@ -1363,9 +1328,14 @@ const DashboardProjectsEditor = () => {
                     lift={false}
                     className={`${dashboardPageLayoutTokens.listCardSolid} overflow-hidden`}
                   >
-                    <CardContent className="grid gap-2 p-0 md:gap-6 md:grid-cols-[220px_1fr]">
-                      <Skeleton className="aspect-2/3 w-full rounded-none md:min-h-[260px]" />
-                      <div className="space-y-4 p-6">
+                    <CardContent className="grid min-h-[360px] gap-0 p-0 lg:h-[342px] lg:min-h-0 lg:grid-cols-[220px_1fr]">
+                      <div className="flex justify-center px-4 pt-4 lg:block lg:px-0 lg:pt-0">
+                        <Skeleton
+                          className="w-[180px] max-w-full rounded-none lg:h-full lg:w-full"
+                          style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+                        />
+                      </div>
+                      <div className="space-y-4 p-4 lg:p-6">
                         <div className="flex gap-2">
                           <Skeleton className="h-5 w-20" />
                           <Skeleton className="h-5 w-24" />
@@ -1425,44 +1395,54 @@ const DashboardProjectsEditor = () => {
                         >
                           <span className="sr-only">{`Abrir projeto ${project.title}`}</span>
                         </button>
-                        <div className="grid gap-2 md:gap-6 md:grid-cols-[220px_1fr]">
+                        <div
+                          data-slot="project-card-layout"
+                          className="grid min-h-[360px] gap-0 lg:h-[342px] lg:min-h-0 lg:grid-cols-[220px_1fr]"
+                        >
                           <div
-                            data-slot="project-card-cover"
-                            className="relative aspect-2/3 w-full"
+                            data-slot="project-card-cover-shell"
+                            className="flex justify-center px-4 pt-4 lg:block lg:px-0 lg:pt-0"
                           >
-                            <img
-                              src={project.cover || "/placeholder.svg"}
-                              alt={project.title}
-                              className="pointer-events-none h-full w-full object-cover object-center"
-                              loading="lazy"
-                            />
+                            <div
+                              data-slot="project-card-cover"
+                              className="relative w-[180px] max-w-full overflow-hidden lg:h-full lg:w-full"
+                              style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+                            >
+                              <img
+                                src={project.cover || "/placeholder.svg"}
+                                alt={project.title}
+                                className="pointer-events-none absolute inset-0 block h-full w-full object-cover object-center"
+                                loading="lazy"
+                              />
+                            </div>
                           </div>
                           <div
                             data-slot="project-card-content"
-                            className="flex h-full min-h-0 flex-1 flex-col p-6"
+                            className="grid h-full min-h-0 overflow-hidden grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-2 p-4 lg:pb-5"
                           >
                             <div
                               data-slot="project-card-top"
-                              className="flex flex-col items-start gap-4 md:flex-row md:items-start md:justify-between"
+                              className="flex items-start justify-between gap-3"
                             >
-                              <div className="min-w-0 flex-1 space-y-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <Badge variant="outline" className="text-[10px] uppercase">
-                                    {project.status}
-                                  </Badge>
-                                  <Badge variant="secondary" className="text-[10px] uppercase">
-                                    {project.type}
-                                  </Badge>
-                                </div>
-                                <h3 className="clamp-safe-2 break-words text-lg font-semibold text-muted-foreground transition-colors duration-300 group-hover:text-primary">
-                                  {project.title}
-                                </h3>
-                                <p className={`text-xs ${dashboardPageLayoutTokens.cardMetaText}`}>
-                                  {project.studio}
-                                </p>
+                              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                <Badge variant="outline" className="text-[10px] uppercase">
+                                  {project.status}
+                                </Badge>
+                                <Badge variant="secondary" className="text-[10px] uppercase">
+                                  {project.type}
+                                </Badge>
                               </div>
-                              <div className="relative z-20 flex shrink-0 flex-wrap items-center justify-end gap-2">
-                                <Button variant="ghost" size="icon" title="Editor dedicado" asChild>
+                              <div
+                                data-slot="project-card-actions"
+                                className="relative z-20 flex shrink-0 flex-wrap items-center gap-1"
+                              >
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Editor dedicado"
+                                  className="h-8 w-8"
+                                  asChild
+                                >
                                   <Link
                                     to={dedicatedEditorHref}
                                     aria-label={`Abrir editor dedicado de ${project.title}`}
@@ -1470,7 +1450,13 @@ const DashboardProjectsEditor = () => {
                                     <DedicatedEditorIcon className="h-4 w-4" aria-hidden="true" />
                                   </Link>
                                 </Button>
-                                <Button variant="ghost" size="icon" title="Visualizar" asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Visualizar"
+                                  className="h-8 w-8"
+                                  asChild
+                                >
                                   <Link to={buildProjectPublicHref(project.id)}>
                                     <Eye className="h-4 w-4" />
                                   </Link>
@@ -1479,6 +1465,7 @@ const DashboardProjectsEditor = () => {
                                   variant="ghost"
                                   size="icon"
                                   title="Copiar link"
+                                  className="h-8 w-8"
                                   onClick={() => {
                                     const url = `${window.location.origin}${buildProjectPublicHref(project.id)}`;
                                     navigator.clipboard.writeText(url).catch(() => {
@@ -1497,6 +1484,7 @@ const DashboardProjectsEditor = () => {
                                   variant="ghost"
                                   size="icon"
                                   title="Excluir"
+                                  className="h-8 w-8"
                                   onClick={() => {
                                     setDeleteTarget(project);
                                   }}
@@ -1506,71 +1494,42 @@ const DashboardProjectsEditor = () => {
                               </div>
                             </div>
 
-                            <div
-                              data-slot="project-card-middle"
-                              className="mt-4 flex min-h-0 flex-1 flex-col gap-4"
-                            >
-                              <p
-                                data-slot="project-card-synopsis"
-                                className={`text-sm ${dashboardPageLayoutTokens.cardMetaText} line-clamp-3`}
-                              >
-                                {project.synopsis}
+                            <div data-slot="project-card-headline" className="min-h-11">
+                              <h3 className="clamp-safe-2 break-words text-lg font-semibold leading-tight text-muted-foreground transition-colors duration-300 group-hover:text-primary lg:clamp-safe-1">
+                                {project.title}
+                              </h3>
+                              <p className={`text-xs ${dashboardPageLayoutTokens.cardMetaText}`}>
+                                {project.studio}
                               </p>
+                            </div>
 
-                              {project.tags.length > 0 ? (
-                                <div data-slot="project-card-tags" className="flex flex-wrap gap-2">
-                                  {sortByTranslatedLabel(project.tags || [], (tag) =>
-                                    translateTag(tag, tagTranslationMap),
-                                  )
-                                    .slice(0, 4)
-                                    .map((tag) => (
-                                      <Badge
-                                        key={tag}
-                                        variant="secondary"
-                                        className="text-[10px] uppercase"
-                                      >
-                                        {translateTag(tag, tagTranslationMap)}
-                                      </Badge>
-                                    ))}
-                                </div>
-                              ) : null}
-                              {project.genres?.length ? (
-                                <div
-                                  data-slot="project-card-genres"
-                                  className="flex flex-wrap gap-2"
-                                >
-                                  {sortByTranslatedLabel(project.genres || [], (genre) =>
-                                    translateGenre(genre, genreTranslationMap),
-                                  )
-                                    .slice(0, 4)
-                                    .map((genre) => (
-                                      <Badge
-                                        key={genre}
-                                        variant="outline"
-                                        className="text-[10px] uppercase"
-                                      >
-                                        {translateGenre(genre, genreTranslationMap)}
-                                      </Badge>
-                                    ))}
-                                </div>
-                              ) : null}
+                            <p
+                              data-slot="project-card-synopsis"
+                              className={`min-h-0 max-h-[7.5rem] overflow-hidden text-sm leading-5 ${dashboardPageLayoutTokens.cardMetaText}`}
+                              style={{
+                                display: "-webkit-box",
+                                WebkitBoxOrient: "vertical",
+                                WebkitLineClamp: 6,
+                              }}
+                            >
+                              {project.synopsis || "Sem sinopse cadastrada."}
+                            </p>
 
-                              <div
-                                data-slot="project-card-meta"
-                                className={`mt-auto flex flex-wrap items-center gap-4 text-xs ${dashboardPageLayoutTokens.cardMetaText}`}
+                            <div
+                              data-slot="project-card-meta"
+                              className={`flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs ${dashboardPageLayoutTokens.cardMetaText} lg:flex-nowrap lg:gap-y-0`}
+                            >
+                              <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
+                                {project.views} visualizações
+                              </span>
+                              <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
+                                {project.commentsCount} comentários
+                              </span>
+                              <span
+                                className={`inline-flex min-w-0 max-w-full truncate text-xs ${dashboardPageLayoutTokens.cardMetaText} lg:ml-auto lg:max-w-44 lg:text-right`}
                               >
-                                <span className="inline-flex items-center gap-2">
-                                  {project.views} visualizações
-                                </span>
-                                <span className="inline-flex items-center gap-2">
-                                  {project.commentsCount} comentários
-                                </span>
-                                <span
-                                  className={`ml-auto text-xs ${dashboardPageLayoutTokens.cardMetaText}`}
-                                >
-                                  ID {project.id}
-                                </span>
-                              </div>
+                                ID {project.id}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -1791,7 +1750,7 @@ const DashboardProjectsEditor = () => {
                 triggerClassName={editorSectionTriggerClassName}
               />
 
-              {isChapterBased ? (
+              {/* {isChapterBased ? (
                 <ProjectEditorEpisodesSection {...episodesSectionProps}>
                   <div ref={contentSectionRef} className="space-y-3">
                     <div className="flex flex-wrap items-center justify-end gap-2">
@@ -3183,7 +3142,7 @@ const DashboardProjectsEditor = () => {
                     </div>
                   </div>
                 </ProjectEditorEpisodesSection>
-              ) : null}
+              ) : null} */}
 
               <ProjectEditorStaffSection
                 cardClassName={editorSubtleSurfaceClassName}

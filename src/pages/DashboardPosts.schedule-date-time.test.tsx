@@ -82,7 +82,12 @@ describe("DashboardPosts schedule date/time", () => {
         });
       }
       if (path === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, { id: "user-1", name: "Admin", username: "admin" });
+        return mockJsonResponse(true, {
+          id: "user-1",
+          name: "Admin",
+          username: "admin",
+          permissions: ["posts"],
+        });
       }
       if (path === "/api/projects" && method === "GET") {
         return mockJsonResponse(true, { projects: [] });

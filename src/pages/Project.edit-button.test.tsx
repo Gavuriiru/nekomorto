@@ -87,7 +87,7 @@ const projectFixture = {
   commentsCount: 0,
 };
 
-const setupApiMock = (permissions: string[] | null) => {
+const setupApiMock = (currentUser: Record<string, unknown> | null) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(
     async (_apiBase: string, endpoint: string, options?: RequestInit) => {
@@ -108,12 +108,13 @@ const setupApiMock = (permissions: string[] | null) => {
       if (endpoint === "/api/public/me" && method === "GET") {
         return mockJsonResponse(
           true,
-          permissions
+          currentUser
             ? {
                 user: {
                   id: "1",
                   name: "Admin",
-                  permissions,
+                  username: "admin",
+                  ...currentUser,
                 },
               }
             : { user: null },
@@ -130,7 +131,7 @@ describe("Project edit button", () => {
   });
 
   it("exibe botao de editar para usuario com permissao de projetos", async () => {
-    setupApiMock(["projetos"]);
+    setupApiMock({ permissions: ["projetos"] });
 
     render(
       <MemoryRouter>
@@ -157,7 +158,7 @@ describe("Project edit button", () => {
   });
 
   it("nao exibe botao de editar sem permissao de projetos", async () => {
-    setupApiMock(["posts"]);
+    setupApiMock({ permissions: ["posts"] });
 
     render(
       <MemoryRouter>
@@ -167,5 +168,42 @@ describe("Project edit button", () => {
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
     expect(screen.queryByRole("link", { name: "Editar projeto" })).not.toBeInTheDocument();
+  });
+
+  it("exibe botao de editar para usuario com grant de projetos sem permissions legadas", async () => {
+    setupApiMock({
+      permissions: [],
+      grants: { projetos: true },
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Teste" });
+    const editLink = await screen.findByRole("link", { name: "Editar projeto" });
+    expect(editLink).toHaveAttribute("href", "/dashboard/projetos?edit=project-1");
+  });
+
+  it("exibe botao de editar para owner secundario sem permissions legadas", async () => {
+    setupApiMock({
+      id: "owner-2",
+      permissions: [],
+      accessRole: "owner_secondary",
+      ownerIds: ["owner-1", "owner-2"],
+      primaryOwnerId: "owner-1",
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Teste" });
+    const editLink = await screen.findByRole("link", { name: "Editar projeto" });
+    expect(editLink).toHaveAttribute("href", "/dashboard/projetos?edit=project-1");
   });
 });

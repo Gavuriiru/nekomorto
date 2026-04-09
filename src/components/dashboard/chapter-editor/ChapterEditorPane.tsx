@@ -1,4 +1,4 @@
-﻿import DashboardShell from "@/components/DashboardShell";
+import DashboardShell from "@/components/DashboardShell";
 import ChapterEditorIdentitySection from "@/components/dashboard/chapter-editor/ChapterEditorIdentitySection";
 import type {
   ChapterEditorPaneHandle,
@@ -18,6 +18,7 @@ import {
   SelectValue,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
+import DashboardDedicatedEditorHeader from "@/components/dashboard/DashboardDedicatedEditorHeader";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardLightSelect from "@/components/dashboard/DashboardLightSelect";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -81,13 +82,8 @@ import {
   type ChapterFilterMode,
   type EditableVolumeOption,
 } from "@/lib/dashboard-project-chapter";
-import {
-  formatBuildMetadataLabel,
-  getFrontendBuildMetadata,
-} from "@/lib/frontend-build";
-import {
-  DEFAULT_PROJECT_COVER_ALT,
-} from "@/lib/image-alt";
+import { formatBuildMetadataLabel, getFrontendBuildMetadata } from "@/lib/frontend-build";
+import { DEFAULT_PROJECT_COVER_ALT } from "@/lib/image-alt";
 import { createSlug } from "@/lib/post-content";
 import { cn } from "@/lib/utils";
 import {
@@ -129,18 +125,9 @@ import {
   syncProjectProgress,
   type ProjectProgressKind,
 } from "@/lib/project-progress";
-import {
-  buildEpisodeKey,
-  resolveCanonicalEpisodeRouteTarget,
-} from "@/lib/project-episode-key";
-import {
-  isChapterBasedType,
-  isLightNovelType,
-  isMangaType,
-} from "@/lib/project-utils";
-import {
-  findDuplicateVolumeCover,
-} from "@/lib/project-volume-cover-key";
+import { buildEpisodeKey, resolveCanonicalEpisodeRouteTarget } from "@/lib/project-episode-key";
+import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
+import { findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import type {
   ApiContractBuildMetadata,
   ApiContractCapabilities,
@@ -246,10 +233,7 @@ type ChapterEditorPaneProps = {
   ) => Promise<ProjectRecord | null>;
   onProjectChange: (nextProject: ProjectRecord) => void;
   onSelectedStageChapterChange?: (chapter: StageChapter | null) => void;
-  onOpenImportedChapter?: (
-    nextProject: ProjectRecord,
-    importedChapters: ProjectEpisode[],
-  ) => void;
+  onOpenImportedChapter?: (nextProject: ProjectRecord, importedChapters: ProjectEpisode[]) => void;
   onChapterSaved: (
     project: ProjectRecord,
     chapter: ProjectEpisode,
@@ -283,19 +267,10 @@ type ChapterEditorPaneProps = {
   onExportEpub: () => void | Promise<void>;
 };
 const editorAccordionHeaderTextClassName = "min-w-0 flex-1 space-y-1 text-left";
-const editorAccordionTitleClassName =
-  "block text-[15px] font-semibold leading-tight md:text-base";
-const editorAccordionSubtitleClassName =
-  "block text-xs leading-5 text-muted-foreground";
-const editorialMastheadClassName =
-  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
-const editorialCommandBarClassName =
-  "sticky top-3 z-20 overflow-hidden rounded-2xl border border-border/60 bg-background/92 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.72)] backdrop-blur supports-backdrop-filter:bg-background/78";
+const editorAccordionTitleClassName = "block text-[15px] font-semibold leading-tight md:text-base";
+const editorAccordionSubtitleClassName = "block text-xs leading-5 text-muted-foreground";
 const WorkspaceSectionCard = ProjectEditorSectionCard;
-const ChapterEditorPane = forwardRef<
-  ChapterEditorPaneHandle,
-  ChapterEditorPaneProps
->(
+const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneProps>(
   (
     {
       project,
@@ -378,30 +353,20 @@ const ChapterEditorPane = forwardRef<
       [],
     );
     const buildEditorChapterSnapshot = useCallback(
-      (chapter: ProjectEpisode | null) =>
-        buildChapterSnapshot(chapter, "manga"),
+      (chapter: ProjectEpisode | null) => buildChapterSnapshot(chapter, "manga"),
       [],
     );
     const draft =
-      activeDraft ||
-      (activeChapter
-        ? normalizeEditorChapter(activeChapter)
-        : EMPTY_CHAPTER_DRAFT);
+      activeDraft || (activeChapter ? normalizeEditorChapter(activeChapter) : EMPTY_CHAPTER_DRAFT);
     const supportsEpubTools = isLightNovelType(project.type || "");
     const isMangaProject = isMangaType(project.type || "");
-    const supportsStructureReordering = supportsStructureChapterReordering(
-      project.type || "",
-    );
+    const supportsStructureReordering = supportsStructureChapterReordering(project.type || "");
     const structureProjectSnapshot = useMemo(() => {
       const nextProjectSnapshot = buildProjectSnapshotWithVolumeEntries(
         project,
         volumeEntriesDraft,
       );
-      return overlayDraftOnProject(
-        nextProjectSnapshot,
-        activeChapterKey,
-        activeDraft,
-      );
+      return overlayDraftOnProject(nextProjectSnapshot, activeChapterKey, activeDraft);
     }, [activeChapterKey, activeDraft, project, volumeEntriesDraft]);
     const normalizedDraftPages = useMemo(
       () => normalizeProjectEpisodePages(draft.pages),
@@ -467,8 +432,7 @@ const ChapterEditorPane = forwardRef<
       requestLeave,
     } = useChapterEditorLeaveGuard({
       hasActiveChapter,
-      hasMangaWorkflowUnsavedChanges: () =>
-        Boolean(mangaWorkflowRef.current?.hasUnsavedChanges()),
+      hasMangaWorkflowUnsavedChanges: () => Boolean(mangaWorkflowRef.current?.hasUnsavedChanges()),
       isDirty,
       isMangaProject,
       isVolumeDirty,
@@ -523,20 +487,15 @@ const ChapterEditorPane = forwardRef<
     });
     const showVolumeEditor = selectedVolumeNumber !== null && !hasActiveChapter;
     const selectedVolumeLabel =
-      selectedVolumeNumber !== null
-        ? buildChapterVolumeLabel(selectedVolumeNumber)
-        : "Volumes";
+      selectedVolumeNumber !== null ? buildChapterVolumeLabel(selectedVolumeNumber) : "Volumes";
     const showVolumeSaveControls = isVolumeDirty || isSavingVolumes;
-    const isChapterDraft =
-      hasActiveChapter && draft.publicationStatus === "draft";
+    const isChapterDraft = hasActiveChapter && draft.publicationStatus === "draft";
     const chapterSaveStatusLabel = isSavingChapter
       ? "Salvando..."
       : isDirty
         ? "Alterações pendentes"
         : "Sem alterações pendentes";
-    const volumeSaveStatusLabel = isSavingVolumes
-      ? "Salvando volumes..."
-      : "Volumes pendentes";
+    const volumeSaveStatusLabel = isSavingVolumes ? "Salvando volumes..." : "Volumes pendentes";
     useImperativeHandle(ref, () => ({ hasUnsavedChanges, requestLeave }), [
       hasUnsavedChanges,
       requestLeave,
@@ -547,9 +506,7 @@ const ChapterEditorPane = forwardRef<
       }
       const handleHotkeys = (event: KeyboardEvent) => {
         const isSaveShortcut =
-          (event.metaKey || event.ctrlKey) &&
-          !event.shiftKey &&
-          event.key.toLowerCase() === "s";
+          (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "s";
         if (isSaveShortcut) {
           if (!hasActiveChapter && !isVolumeDirty) {
             return;
@@ -567,24 +524,14 @@ const ChapterEditorPane = forwardRef<
         if (!hasActiveChapter) {
           return;
         }
-        if (
-          event.altKey &&
-          !event.metaKey &&
-          !event.ctrlKey &&
-          event.key === "ArrowUp"
-        ) {
+        if (event.altKey && !event.metaKey && !event.ctrlKey && event.key === "ArrowUp") {
           if (previousChapterHref) {
             event.preventDefault();
             onNavigateToHref(previousChapterHref);
           }
           return;
         }
-        if (
-          event.altKey &&
-          !event.metaKey &&
-          !event.ctrlKey &&
-          event.key === "ArrowDown"
-        ) {
+        if (event.altKey && !event.metaKey && !event.ctrlKey && event.key === "ArrowDown") {
           if (nextChapterHref) {
             event.preventDefault();
             onNavigateToHref(nextChapterHref);
@@ -606,11 +553,7 @@ const ChapterEditorPane = forwardRef<
     const publicReadingHref = useMemo(
       () =>
         hasActiveChapter
-          ? buildProjectPublicReadingHref(
-              project.id,
-              draft.number,
-              draft.volume,
-            )
+          ? buildProjectPublicReadingHref(project.id, draft.number, draft.volume)
           : "",
       [draft.number, draft.volume, hasActiveChapter, project.id],
     );
@@ -618,16 +561,10 @@ const ChapterEditorPane = forwardRef<
       ? String(draft.title || "").trim() || `Capítulo ${draft.number}`
       : "Nenhum capítulo aberto";
     const chapterSummaryLabel =
-      hasActiveChapter && draft.entryKind === "extra"
-        ? "Extra em edição"
-        : "Capítulo em edição";
+      hasActiveChapter && draft.entryKind === "extra" ? "Extra em edição" : "Capítulo em edição";
     const chapterPositionLabel = `${Math.max(chapterIndex + 1, 1)} de ${Math.max(chapterCount, 1)}`;
-    const primaryChapterActionLabel = isChapterDraft
-      ? "Salvar como rascunho"
-      : "Salvar alterações";
-    const secondaryChapterActionLabel = isChapterDraft
-      ? "Publicar"
-      : "Mover para rascunho";
+    const primaryChapterActionLabel = isChapterDraft ? "Salvar como rascunho" : "Salvar alterações";
+    const secondaryChapterActionLabel = isChapterDraft ? "Publicar" : "Mover para rascunho";
     const editorialScopeDescription = supportsEpubTools
       ? "Espaço editorial para organizar capítulos, volumes e publicação de light novels com foco em leitura e escrita contínua."
       : isMangaProject
@@ -735,11 +672,7 @@ const ChapterEditorPane = forwardRef<
     );
     const identitySection = hasActiveChapter ? (
       <WorkspaceSectionCard
-        title={
-          supportsEpubTools && !isImageChapter
-            ? "Dados"
-            : "Identidade do capítulo"
-        }
+        title={supportsEpubTools && !isImageChapter ? "Dados" : "Identidade do capítulo"}
         subtitle={
           supportsEpubTools && !isImageChapter
             ? "Título, numeração, tipo, release e resumo"
@@ -750,25 +683,17 @@ const ChapterEditorPane = forwardRef<
         actions={
           <>
             {" "}
-            <Badge
-              variant="secondary"
-              className="text-[10px] uppercase tracking-[0.12em]"
-            >
+            <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
               {" "}
               {draft.entryKind === "extra" ? "Extra" : "Capítulo"}{" "}
             </Badge>{" "}
-            <Badge
-              variant="outline"
-              className="text-[10px] uppercase tracking-[0.12em]"
-            >
+            <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
               {" "}
               {buildChapterVolumeLabel(draft.volume)}{" "}
             </Badge>{" "}
             {supportsEpubTools && !isImageChapter ? (
               <Badge
-                variant={
-                  draft.publicationStatus === "draft" ? "outline" : "default"
-                }
+                variant={draft.publicationStatus === "draft" ? "outline" : "default"}
                 className="text-[10px] uppercase tracking-[0.12em]"
                 data-testid="chapter-identity-status-badge"
               >
@@ -780,11 +705,7 @@ const ChapterEditorPane = forwardRef<
         }
       >
         {" "}
-        <div
-          className="space-y-5"
-          data-testid="chapter-identity-section"
-          data-state="open"
-        >
+        <div className="space-y-5" data-testid="chapter-identity-section" data-state="open">
           {" "}
           <button
             type="button"
@@ -818,9 +739,7 @@ const ChapterEditorPane = forwardRef<
           <div
             className={cn(
               "grid gap-3 md:grid-cols-2",
-              supportsEpubTools && !isImageChapter
-                ? "xl:grid-cols-5"
-                : "xl:grid-cols-4",
+              supportsEpubTools && !isImageChapter ? "xl:grid-cols-5" : "xl:grid-cols-4",
             )}
           >
             {" "}
@@ -837,8 +756,7 @@ const ChapterEditorPane = forwardRef<
                   updateDraft((current) => ({
                     ...current,
                     number:
-                      normalizePositiveInteger(Number(event.target.value), 1) ??
-                      current.number,
+                      normalizePositiveInteger(Number(event.target.value), 1) ?? current.number,
                   }))
                 }
               />{" "}
@@ -882,9 +800,7 @@ const ChapterEditorPane = forwardRef<
                       entryKind: nextEntryKind,
                       entrySubtype: resolveChapterEntrySubtype(nextEntryKind),
                       displayLabel:
-                        nextEntryKind === "extra"
-                          ? current.displayLabel || "Extra"
-                          : undefined,
+                        nextEntryKind === "extra" ? current.displayLabel || "Extra" : undefined,
                     };
                   })
                 }
@@ -893,9 +809,7 @@ const ChapterEditorPane = forwardRef<
             {!isImageChapter && !supportsEpubTools ? (
               <DashboardFieldStack>
                 {" "}
-                <Label htmlFor="chapter-reading-order">
-                  Ordem de leitura
-                </Label>{" "}
+                <Label htmlFor="chapter-reading-order">Ordem de leitura</Label>{" "}
                 <Input
                   id="chapter-reading-order"
                   type="number"
@@ -904,9 +818,7 @@ const ChapterEditorPane = forwardRef<
                     updateDraft((current) => ({
                       ...current,
                       readingOrder:
-                        event.target.value.trim() === ""
-                          ? undefined
-                          : Number(event.target.value),
+                        event.target.value.trim() === "" ? undefined : Number(event.target.value),
                     }))
                   }
                 />{" "}
@@ -915,9 +827,7 @@ const ChapterEditorPane = forwardRef<
             {supportsEpubTools && !isImageChapter ? (
               <DashboardFieldStack>
                 {" "}
-                <Label htmlFor="chapter-release-date">
-                  Data de release
-                </Label>{" "}
+                <Label htmlFor="chapter-release-date">Data de release</Label>{" "}
                 <Input
                   id="chapter-release-date"
                   type="date"
@@ -934,9 +844,7 @@ const ChapterEditorPane = forwardRef<
           </div>{" "}
           <div className="hidden">
             {" "}
-            <Label htmlFor="chapter-title">
-              {isImageChapter ? "Título" : "Título"}
-            </Label>{" "}
+            <Label htmlFor="chapter-title">{isImageChapter ? "Título" : "Título"}</Label>{" "}
             <Input
               id="chapter-title"
               value={draft.title || ""}
@@ -953,9 +861,7 @@ const ChapterEditorPane = forwardRef<
               {" "}
               <DashboardFieldStack>
                 {" "}
-                <Label htmlFor="chapter-display-label">
-                  Rótulo do extra
-                </Label>{" "}
+                <Label htmlFor="chapter-display-label">Rótulo do extra</Label>{" "}
                 <Input
                   id="chapter-display-label"
                   value={draft.displayLabel || ""}
@@ -1053,12 +959,7 @@ const ChapterEditorPane = forwardRef<
           eyebrow="Imagem"
           testId="chapter-cover-section"
           actions={
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={openChapterCoverLibrary}
-            >
+            <Button type="button" variant="outline" size="sm" onClick={openChapterCoverLibrary}>
               {" "}
               <ImagePlus className="h-4 w-4" /> <span>Biblioteca</span>{" "}
             </Button>
@@ -1166,9 +1067,7 @@ const ChapterEditorPane = forwardRef<
                     updateDraft((current) => ({
                       ...current,
                       sources: (current.sources || []).map((item, index) =>
-                        index === sourceIndex
-                          ? { ...item, label: value }
-                          : item,
+                        index === sourceIndex ? { ...item, label: value } : item,
                       ),
                     }))
                   }
@@ -1179,9 +1078,7 @@ const ChapterEditorPane = forwardRef<
                     updateDraft((current) => ({
                       ...current,
                       sources: (current.sources || []).map((item, index) =>
-                        index === sourceIndex
-                          ? { ...item, url: event.target.value }
-                          : item,
+                        index === sourceIndex ? { ...item, url: event.target.value } : item,
                       ),
                     }))
                   }
@@ -1210,9 +1107,7 @@ const ChapterEditorPane = forwardRef<
               </div>
             ))}{" "}
             {(draft.sources || []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Nenhuma fonte cadastrada.
-              </p>
+              <p className="text-sm text-muted-foreground">Nenhuma fonte cadastrada.</p>
             ) : null}{" "}
           </div>{" "}
         </div>{" "}
@@ -1220,11 +1115,7 @@ const ChapterEditorPane = forwardRef<
     ) : null;
     const volumeEditorSection = showVolumeEditor ? (
       <WorkspaceSectionCard
-        title={
-          selectedVolumeNumber !== null
-            ? selectedVolumeLabel
-            : "Editor de volume"
-        }
+        title={selectedVolumeNumber !== null ? selectedVolumeLabel : "Editor de volume"}
         subtitle={
           selectedVolumeNumber !== null
             ? "Capa, texto alternativo e sinopse do volume selecionado"
@@ -1240,12 +1131,7 @@ const ChapterEditorPane = forwardRef<
                 {" "}
                 {selectedVolumeChapterCount} capítulo(s){" "}
               </Badge>{" "}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={openVolumeCoverLibrary}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={openVolumeCoverLibrary}>
                 {" "}
                 <ImagePlus className="h-4 w-4" /> <span>Biblioteca</span>{" "}
               </Button>{" "}
@@ -1271,9 +1157,7 @@ const ChapterEditorPane = forwardRef<
               {" "}
               <span className={editorAccordionTitleClassName}>
                 {" "}
-                {selectedVolumeNumber !== null
-                  ? selectedVolumeLabel
-                  : "Editor de volume"}{" "}
+                {selectedVolumeNumber !== null ? selectedVolumeLabel : "Editor de volume"}{" "}
               </span>{" "}
               <span className={editorAccordionSubtitleClassName}>
                 {" "}
@@ -1299,8 +1183,7 @@ const ChapterEditorPane = forwardRef<
                   <Label className="text-sm">Imagem do volume</Label>{" "}
                   <p className="text-xs text-muted-foreground">
                     {" "}
-                    Usa a pasta dedicada de volumes deste projeto na
-                    biblioteca.{" "}
+                    Usa a pasta dedicada de volumes deste projeto na biblioteca.{" "}
                   </p>{" "}
                 </div>{" "}
                 <div className="flex flex-wrap items-center gap-2">
@@ -1312,8 +1195,7 @@ const ChapterEditorPane = forwardRef<
                     onClick={openVolumeCoverLibrary}
                   >
                     {" "}
-                    <ImagePlus className="h-4 w-4" />{" "}
-                    <span>Biblioteca</span>{" "}
+                    <ImagePlus className="h-4 w-4" /> <span>Biblioteca</span>{" "}
                   </Button>{" "}
                 </div>{" "}
               </div>{" "}
@@ -1338,14 +1220,12 @@ const ChapterEditorPane = forwardRef<
                   {" "}
                   <p className="text-xs leading-5 text-muted-foreground">
                     {" "}
-                    Selecione a capa do volume pela biblioteca para manter a
-                    pasta dedicada organizada.{" "}
+                    Selecione a capa do volume pela biblioteca para manter a pasta dedicada
+                    organizada.{" "}
                   </p>{" "}
                   <DashboardFieldStack>
                     {" "}
-                    <Label htmlFor="chapter-volume-cover-alt">
-                      Texto alternativo
-                    </Label>{" "}
+                    <Label htmlFor="chapter-volume-cover-alt">Texto alternativo</Label>{" "}
                     <Input
                       id="chapter-volume-cover-alt"
                       value={selectedVolumeEntry?.coverImageAlt || ""}
@@ -1355,18 +1235,14 @@ const ChapterEditorPane = forwardRef<
                           coverImageAlt: event.target.value,
                         }))
                       }
-                      placeholder={buildVolumeCoverAltFallback(
-                        selectedVolumeNumber,
-                      )}
+                      placeholder={buildVolumeCoverAltFallback(selectedVolumeNumber)}
                     />{" "}
                   </DashboardFieldStack>{" "}
                 </div>{" "}
               </div>{" "}
               <DashboardFieldStack>
                 {" "}
-                <Label htmlFor="chapter-volume-synopsis">
-                  Sinopse do volume
-                </Label>{" "}
+                <Label htmlFor="chapter-volume-synopsis">Sinopse do volume</Label>{" "}
                 <Textarea
                   id="chapter-volume-synopsis"
                   value={selectedVolumeEntry?.synopsis || ""}
@@ -1393,8 +1269,7 @@ const ChapterEditorPane = forwardRef<
                 {" "}
                 <p className="text-xs text-muted-foreground">
                   {" "}
-                  A exclusão remove o volume e todos os capítulos
-                  vinculados.{" "}
+                  A exclusão remove o volume e todos os capítulos vinculados.{" "}
                 </p>{" "}
                 <Button
                   type="button"
@@ -1405,8 +1280,7 @@ const ChapterEditorPane = forwardRef<
                   className="gap-2"
                 >
                   {" "}
-                  <Trash2 className="h-4 w-4" />{" "}
-                  <span>Excluir volume</span>{" "}
+                  <Trash2 className="h-4 w-4" /> <span>Excluir volume</span>{" "}
                 </Button>{" "}
               </div>{" "}
             </div>
@@ -1445,11 +1319,7 @@ const ChapterEditorPane = forwardRef<
         className="chapter-editor-content-shell min-w-0"
       >
         {" "}
-        <div
-          data-testid="chapter-content-section"
-          className="space-y-4"
-          data-state="open"
-        >
+        <div data-testid="chapter-content-section" className="space-y-4" data-state="open">
           {" "}
           <button
             type="button"
@@ -1466,17 +1336,11 @@ const ChapterEditorPane = forwardRef<
               {" "}
               <div className="flex flex-wrap items-center gap-2">
                 {" "}
-                <Badge
-                  variant="secondary"
-                  className="text-[10px] uppercase tracking-[0.12em]"
-                >
+                <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
                   {" "}
                   Espaço editorial{" "}
                 </Badge>{" "}
-                <Badge
-                  variant="outline"
-                  className="text-[10px] uppercase tracking-[0.12em]"
-                >
+                <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
                   {" "}
                   {isImageChapter ? "Imagem" : "Lexical"}{" "}
                 </Badge>{" "}
@@ -1497,12 +1361,8 @@ const ChapterEditorPane = forwardRef<
             </div>{" "}
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground lg:justify-end">
               {" "}
-              <span>
-                {chapterHasContent(draft) ? "Com leitura" : "Sem leitura"}
-              </span>{" "}
-              {draft.sources?.length ? (
-                <span>{draft.sources.length} fonte(s)</span>
-              ) : null}{" "}
+              <span>{chapterHasContent(draft) ? "Com leitura" : "Sem leitura"}</span>{" "}
+              {draft.sources?.length ? <span>{draft.sources.length} fonte(s)</span> : null}{" "}
               <span>{chapterStatusLabel(draft)}</span>{" "}
             </div>{" "}
           </div>{" "}
@@ -1525,9 +1385,7 @@ const ChapterEditorPane = forwardRef<
                   projectSnapshot={projectSnapshotForImageExport}
                   chapter={draft}
                   uploadFolder={chapterFolder}
-                  onChange={(nextChapter) =>
-                    onDraftChange(normalizeEditorChapter(nextChapter))
-                  }
+                  onChange={(nextChapter) => onDraftChange(normalizeEditorChapter(nextChapter))}
                 />
               ) : (
                 <>
@@ -1536,9 +1394,7 @@ const ChapterEditorPane = forwardRef<
                     wrapperClassName={`chapter-editor-lexical-wrapper min-w-0 rounded-[22px] border border-border/50 bg-background/40 p-2 md:p-3 ${chapterEditorLexicalMinHeightClassName}`}
                     wrapperTestId="chapter-lexical-wrapper"
                     fallbackVariant="chapter"
-                    fallbackMinHeightClassName={
-                      chapterEditorLexicalMinHeightClassName
-                    }
+                    fallbackMinHeightClassName={chapterEditorLexicalMinHeightClassName}
                     fallbackClassName="chapter-editor-lexical-fallback"
                     fallbackTestId="chapter-lexical-fallback"
                     ref={editorRef}
@@ -1563,13 +1419,9 @@ const ChapterEditorPane = forwardRef<
                     {" "}
                     <span>
                       {" "}
-                      O conteúdo usa o snapshot atual da página para EPUB e
-                      leitura pública.{" "}
+                      O conteúdo usa o snapshot atual da página para EPUB e leitura pública.{" "}
                     </span>{" "}
-                    <span>
-                      Escrita contínua com layout ampliado para capítulos
-                      longos.
-                    </span>{" "}
+                    <span>Escrita contínua com layout ampliado para capítulos longos.</span>{" "}
                   </div>{" "}
                 </>
               )}{" "}
@@ -1610,11 +1462,7 @@ const ChapterEditorPane = forwardRef<
           className="chapter-editor-content-shell min-w-0"
         >
           {" "}
-          <div
-            data-testid="chapter-content-section"
-            className="space-y-4"
-            data-state="open"
-          >
+          <div data-testid="chapter-content-section" className="space-y-4" data-state="open">
             {" "}
             <button
               type="button"
@@ -1643,9 +1491,7 @@ const ChapterEditorPane = forwardRef<
                   projectSnapshot={projectSnapshotForImageExport}
                   chapter={draft}
                   uploadFolder={chapterFolder}
-                  onChange={(nextChapter) =>
-                    onDraftChange(normalizeEditorChapter(nextChapter))
-                  }
+                  onChange={(nextChapter) => onDraftChange(normalizeEditorChapter(nextChapter))}
                 />{" "}
               </div>{" "}
             </div>{" "}
@@ -1665,396 +1511,272 @@ const ChapterEditorPane = forwardRef<
     return (
       <>
         {" "}
-        <div className="space-y-3" data-testid="chapter-editor-header-shell">
-          {" "}
-          <section
-            className={editorialMastheadClassName}
-            data-testid="chapter-editor-masthead"
-          >
-            {" "}
-            <div className="grid gap-5 px-4 py-5 md:px-6 md:py-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:px-8">
-              {" "}
-              <div className="space-y-3">
-                {" "}
-                <div className="flex flex-wrap items-center gap-2">
-                  {" "}
-                  {hasActiveChapter ? (
-                    <>
-                      {" "}
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] uppercase tracking-[0.12em]"
-                      >
-                        {" "}
-                        {chapterSummaryLabel}{" "}
-                      </Badge>{" "}
-                      <Badge
-                        variant={
-                          draft.publicationStatus === "draft"
-                            ? "outline"
-                            : "default"
-                        }
-                        className="text-[10px] uppercase tracking-[0.12em]"
-                      >
-                        {" "}
-                        {chapterStatusLabel(draft)}{" "}
-                      </Badge>{" "}
-                      {Number.isFinite(Number(draft.volume)) ? (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] uppercase tracking-[0.12em]"
-                        >
-                          {" "}
-                          {buildChapterVolumeLabel(draft.volume)}{" "}
-                        </Badge>
-                      ) : null}{" "}
-                    </>
-                  ) : selectedVolumeNumber !== null ? (
-                    <>
-                      {" "}
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] uppercase tracking-[0.12em]"
-                      >
-                        {" "}
-                        Volume em edição{" "}
-                      </Badge>{" "}
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] uppercase tracking-[0.12em]"
-                      >
-                        {" "}
-                        {selectedVolumeLabel}{" "}
-                      </Badge>{" "}
-                    </>
-                  ) : null}{" "}
-                </div>{" "}
-                <div className="space-y-2">
-                  {" "}
-                  <h1 className="text-2xl font-semibold tracking-tight md:text-[2rem]">
-                    {" "}
-                    Gerenciamento de Conteúdo{" "}
-                  </h1>{" "}
-                  <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                    {" "}
-                    {editorialScopeDescription}{" "}
-                  </p>{" "}
-                </div>{" "}
-              </div>{" "}
-              <div className="rounded-[22px] border border-border/50 bg-background/45 p-4 text-left shadow-[0_16px_50px_-40px_rgba(0,0,0,0.8)] lg:text-right">
-                {" "}
-                <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                  {" "}
-                  Projeto{" "}
-                </p>{" "}
-                <p className="mt-1 text-base font-semibold tracking-tight text-foreground">
-                  {" "}
-                  {project.title}{" "}
-                </p>{" "}
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {" "}
-                  {hasActiveChapter
-                    ? `${chapterTitle} ? ${chapterPositionLabel}`
-                    : selectedVolumeNumber !== null
-                      ? `${selectedVolumeLabel} · ${selectedVolumeChapterCount} capítulo(s)`
-                      : `${chapterCount} capítulo(s) disponível(is)`}{" "}
-                </p>{" "}
-              </div>{" "}
-            </div>{" "}
-          </section>{" "}
-          <div
-            className={editorialCommandBarClassName}
-            data-testid="chapter-editor-command-bar"
-          >
-            {" "}
-            <div className="space-y-3 px-4 py-3 md:px-6 lg:px-8">
-              {" "}
-              <div
-                className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
-                data-testid="chapter-editor-action-rail"
-              >
-                {" "}
-                <div
-                  className="flex flex-wrap items-center gap-2"
-                  data-testid="chapter-editor-top-status-group"
+        <DashboardDedicatedEditorHeader
+          shellTestId="chapter-editor-header-shell"
+          mastheadTestId="chapter-editor-masthead"
+          commandBarTestId="chapter-editor-command-bar"
+          primaryRowTestId="chapter-editor-action-rail"
+          primaryStatusTestId="chapter-editor-top-status-group"
+          primaryActionsTestId="chapter-editor-top-actions"
+          secondaryMetaTestId="chapter-editor-status-bar"
+          secondaryActionsTestId="chapter-editor-secondary-actions"
+          badges={
+            hasActiveChapter ? (
+              <>
+                <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                  {chapterSummaryLabel}
+                </Badge>
+                <Badge
+                  variant={draft.publicationStatus === "draft" ? "outline" : "default"}
+                  className="text-[10px] uppercase tracking-[0.12em]"
                 >
-                  {" "}
-                  {hasActiveChapter ? (
-                    <Badge
-                      variant={isDirty ? "outline" : "secondary"}
-                      className="text-[10px] uppercase tracking-[0.12em]"
-                    >
-                      {" "}
-                      {chapterSaveStatusLabel}{" "}
-                    </Badge>
-                  ) : selectedVolumeNumber !== null ? (
-                    <Badge
-                      variant="secondary"
-                      className="text-[10px] uppercase tracking-[0.12em]"
-                    >
-                      {" "}
-                      {selectedVolumeLabel} selecionado{" "}
-                    </Badge>
-                  ) : (
-                    <Badge
-                      variant="secondary"
-                      className="text-[10px] uppercase tracking-[0.12em]"
-                    >
-                      {" "}
-                      Sem alterações pendentes{" "}
-                    </Badge>
-                  )}{" "}
-                  {showVolumeSaveControls ? (
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] uppercase tracking-[0.12em]"
-                    >
-                      {" "}
-                      {volumeSaveStatusLabel}{" "}
-                    </Badge>
-                  ) : null}{" "}
-                </div>{" "}
-                <div
-                  className="flex flex-wrap items-center gap-2 lg:justify-end"
-                  data-testid="chapter-editor-top-actions"
+                  {chapterStatusLabel(draft)}
+                </Badge>
+                {Number.isFinite(Number(draft.volume)) ? (
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                    {buildChapterVolumeLabel(draft.volume)}
+                  </Badge>
+                ) : null}
+              </>
+            ) : selectedVolumeNumber !== null ? (
+              <>
+                <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                  Volume em edição
+                </Badge>
+                <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                  {selectedVolumeLabel}
+                </Badge>
+              </>
+            ) : null
+          }
+          title="Gerenciamento de Conteúdo"
+          description={editorialScopeDescription}
+          summaryCard={
+            <>
+              <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                Projeto
+              </p>
+              <p className="mt-1 text-base font-semibold tracking-tight text-foreground">
+                {project.title}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {hasActiveChapter
+                  ? `${chapterTitle} · ${chapterPositionLabel}`
+                  : selectedVolumeNumber !== null
+                    ? `${selectedVolumeLabel} · ${selectedVolumeChapterCount} capítulo(s)`
+                    : `${chapterCount} capítulo(s) disponível(is)`}
+              </p>
+            </>
+          }
+          primaryStatus={
+            <>
+              {hasActiveChapter ? (
+                <Badge
+                  variant={isDirty ? "outline" : "secondary"}
+                  className="text-[10px] uppercase tracking-[0.12em]"
                 >
-                  {" "}
-                  {hasActiveChapter ? (
-                    <>
-                      {" "}
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={isChapterDraft ? "outline" : "default"}
-                        onClick={() => {
-                          void handleManualSave();
-                        }}
-                        disabled={isSavingChapter || !isDirty}
-                        className="gap-2"
-                      >
-                        {" "}
-                        {isSavingChapter ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : null}{" "}
-                        {primaryChapterActionLabel}{" "}
-                      </Button>{" "}
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={isChapterDraft ? "default" : "outline"}
-                        onClick={() => {
-                          void handleChapterSave(
-                            isChapterDraft ? "published" : "draft",
-                          );
-                        }}
-                        disabled={isSavingChapter}
-                        className="gap-2"
-                      >
-                        {" "}
-                        {secondaryChapterActionLabel}{" "}
-                      </Button>{" "}
-                    </>
-                  ) : null}{" "}
-                  {showVolumeSaveControls ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        void onSaveVolumes();
-                      }}
-                      disabled={isSavingVolumes || !isVolumeDirty}
-                      className="gap-2"
-                    >
-                      {" "}
-                      {isSavingVolumes ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : null}{" "}
-                      Salvar volumes{" "}
-                    </Button>
-                  ) : null}{" "}
-                  {hasActiveChapter ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      onClick={onRequestDeleteChapter}
-                      disabled={isDeletingEntity}
-                      className="gap-2"
-                    >
-                      {" "}
-                      <Trash2 className="h-4 w-4" /> Excluir capítulo{" "}
-                    </Button>
-                  ) : null}{" "}
-                </div>{" "}
-              </div>{" "}
-              <div className="flex flex-col gap-3 border-t border-border/50 pt-3 lg:flex-row lg:items-center lg:justify-between">
-                {" "}
-                <div
-                  className="project-editor-status-bar flex flex-wrap items-center gap-2"
-                  data-testid="chapter-editor-status-bar"
+                  {chapterSaveStatusLabel}
+                </Badge>
+              ) : selectedVolumeNumber !== null ? (
+                <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                  {selectedVolumeLabel} selecionado
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                  Sem alterações pendentes
+                </Badge>
+              )}
+              {showVolumeSaveControls ? (
+                <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                  {volumeSaveStatusLabel}
+                </Badge>
+              ) : null}
+            </>
+          }
+          primaryActions={
+            <>
+              {hasActiveChapter ? (
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={isChapterDraft ? "outline" : "default"}
+                    onClick={() => {
+                      void handleManualSave();
+                    }}
+                    disabled={isSavingChapter || !isDirty}
+                    className="gap-2"
+                  >
+                    {isSavingChapter ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {primaryChapterActionLabel}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={isChapterDraft ? "default" : "outline"}
+                    onClick={() => {
+                      void handleChapterSave(isChapterDraft ? "published" : "draft");
+                    }}
+                    disabled={isSavingChapter}
+                    className="gap-2"
+                  >
+                    {secondaryChapterActionLabel}
+                  </Button>
+                </>
+              ) : null}
+              {showVolumeSaveControls ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    void onSaveVolumes();
+                  }}
+                  disabled={isSavingVolumes || !isVolumeDirty}
+                  className="gap-2"
                 >
-                  {" "}
-                  {hasActiveChapter ? (
-                    <>
-                      {" "}
-                      <div
-                        className="project-editor-status-bar__meta-group"
-                        data-testid="chapter-editor-status-meta-group"
-                      >
-                        {" "}
-                        <span
-                          className="project-editor-status-bar__pill project-editor-status-bar__pill--position"
-                          data-testid="chapter-editor-status-position-badge"
-                        >
-                          {" "}
-                          {chapterPositionLabel}{" "}
-                        </span>{" "}
-                        <span
-                          className="project-editor-status-bar__pill project-editor-status-bar__pill--chapter"
-                          data-testid="chapter-editor-status-pill-chapter"
-                        >
-                          {" "}
-                          Capítulo {draft.number}{" "}
-                        </span>{" "}
-                        <span
-                          className="project-editor-status-bar__pill project-editor-status-bar__pill--reading"
-                          data-testid="chapter-editor-status-pill-reading"
-                        >
-                          {" "}
-                          {chapterHasContent(draft)
-                            ? "Com leitura"
-                            : "Sem leitura"}{" "}
-                        </span>{" "}
-                      </div>{" "}
-                      {draft.sources?.length ? (
-                        <span className="text-[11px] text-muted-foreground">
-                          {" "}
-                          {draft.sources.length} fonte(s){" "}
-                        </span>
-                      ) : null}{" "}
-                    </>
-                  ) : selectedVolumeNumber !== null ? (
-                    <>
-                      {" "}
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] uppercase tracking-[0.12em]"
-                      >
-                        {" "}
-                        {selectedVolumeLabel}{" "}
-                      </Badge>{" "}
-                      <span className="text-[11px] text-muted-foreground">
-                        {" "}
-                        {selectedVolumeChapterCount > 0
-                          ? `${selectedVolumeChapterCount} capítulo(s) vinculado(s)`
-                          : "Nenhum capítulo vinculado"}{" "}
-                      </span>{" "}
-                    </>
-                  ) : (
-                    <>
-                      {" "}
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] uppercase tracking-[0.12em]"
-                      >
-                        {" "}
-                        Nenhum capítulo aberto{" "}
-                      </Badge>{" "}
-                      <span className="text-[11px] text-muted-foreground">
-                        {" "}
-                        Escolha um capítulo na sidebar, edite um volume na
-                        coluna principal ou use as ferramentas EPUB logo
-                        abaixo.{" "}
-                      </span>{" "}
-                    </>
-                  )}{" "}
-                </div>{" "}
-                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  {" "}
+                  {isSavingVolumes ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Salvar volumes
+                </Button>
+              ) : null}
+              {hasActiveChapter ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  onClick={onRequestDeleteChapter}
+                  disabled={isDeletingEntity}
+                  className="gap-2"
+                >
+                  <Trash2 className="h-4 w-4" /> Excluir capítulo
+                </Button>
+              ) : null}
+            </>
+          }
+          secondaryMeta={
+            <>
+              {hasActiveChapter ? (
+                <>
+                  <div
+                    className="project-editor-status-bar__meta-group"
+                    data-testid="chapter-editor-status-meta-group"
+                  >
+                    <span
+                      className="project-editor-status-bar__pill project-editor-status-bar__pill--position"
+                      data-testid="chapter-editor-status-position-badge"
+                    >
+                      {chapterPositionLabel}
+                    </span>
+                    <span
+                      className="project-editor-status-bar__pill project-editor-status-bar__pill--chapter"
+                      data-testid="chapter-editor-status-pill-chapter"
+                    >
+                      Capítulo {draft.number}
+                    </span>
+                    <span
+                      className="project-editor-status-bar__pill project-editor-status-bar__pill--reading"
+                      data-testid="chapter-editor-status-pill-reading"
+                    >
+                      {chapterHasContent(draft) ? "Com leitura" : "Sem leitura"}
+                    </span>
+                  </div>
+                  {draft.sources?.length ? (
+                    <span className="text-[11px] text-muted-foreground">
+                      {draft.sources.length} fonte(s)
+                    </span>
+                  ) : null}
+                </>
+              ) : selectedVolumeNumber !== null ? (
+                <>
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                    {selectedVolumeLabel}
+                  </Badge>
+                  <span className="text-[11px] text-muted-foreground">
+                    {selectedVolumeChapterCount > 0
+                      ? `${selectedVolumeChapterCount} capítulo(s) vinculado(s)`
+                      : "Nenhum capítulo vinculado"}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                    Nenhum capítulo aberto
+                  </Badge>
+                  <span className="text-[11px] text-muted-foreground">
+                    Escolha um capítulo na sidebar, edite um volume na coluna principal ou use as
+                    ferramentas EPUB logo abaixo.
+                  </span>
+                </>
+              )}
+            </>
+          }
+          secondaryActions={
+            <>
+              <Button variant="outline" size="sm" asChild>
+                <Link to={buildDashboardProjectEditorHref(project.id)}>
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Voltar ao projeto</span>
+                </Link>
+              </Button>
+              {hasActiveChapter ? (
+                <>
                   <Button variant="outline" size="sm" asChild>
-                    <Link to={buildDashboardProjectEditorHref(project.id)}>
-                      <ArrowLeft className="h-4 w-4" />
-                      <span>Voltar ao projeto</span>
+                    <Link to={publicReadingHref} target="_blank" rel="noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                      <span>Abrir leitura</span>
                     </Link>
-                  </Button>{" "}
-                  {hasActiveChapter ? (
-                    <>
-                      {" "}
-                      <Button variant="outline" size="sm" asChild>
-                        <Link
-                          to={publicReadingHref}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          <span>Abrir leitura</span>
-                        </Link>
-                      </Button>{" "}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onNavigateToHref(neutralHref)}
-                      >
-                        {" "}
-                        <span>Fechar capítulo</span>{" "}
-                      </Button>{" "}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (previousChapterHref) {
-                            onNavigateToHref(previousChapterHref);
-                          }
-                        }}
-                        disabled={!previousChapterHref}
-                      >
-                        {" "}
-                        <ChevronLeft className="h-4 w-4" />{" "}
-                        <span>Anterior</span>{" "}
-                      </Button>{" "}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (nextChapterHref) {
-                            onNavigateToHref(nextChapterHref);
-                          }
-                        }}
-                        disabled={!nextChapterHref}
-                      >
-                        {" "}
-                        <span>Próximo</span>{" "}
-                        <ChevronRight className="h-4 w-4" />{" "}
-                      </Button>{" "}
-                    </>
-                  ) : selectedVolumeNumber !== null ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      data-testid="chapter-close-volume-button"
-                      onClick={() => {
-                        void handleCloseSelectedVolume();
-                      }}
-                    >
-                      {" "}
-                      <span>Fechar volume</span>{" "}
-                    </Button>
-                  ) : null}{" "}
-                </div>{" "}
-              </div>{" "}
-            </div>{" "}
-          </div>{" "}
-        </div>{" "}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => onNavigateToHref(neutralHref)}>
+                    <span>Fechar capítulo</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (previousChapterHref) {
+                        onNavigateToHref(previousChapterHref);
+                      }
+                    }}
+                    disabled={!previousChapterHref}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    <span>Anterior</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (nextChapterHref) {
+                        onNavigateToHref(nextChapterHref);
+                      }
+                    }}
+                    disabled={!nextChapterHref}
+                  >
+                    <span>Próximo</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : selectedVolumeNumber !== null ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid="chapter-close-volume-button"
+                  onClick={() => {
+                    void handleCloseSelectedVolume();
+                  }}
+                >
+                  <span>Fechar volume</span>
+                </Button>
+              ) : null}
+            </>
+          }
+        />
         <div
           className="project-editor-layout mx-auto grid w-full gap-5 pb-8 pt-4 md:pb-10 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start"
           data-testid="chapter-editor-upper-layout"
         >
           {" "}
-          <div
-            className="min-w-0 w-full"
-            data-testid="chapter-editor-main-column"
-          >
+          <div className="min-w-0 w-full" data-testid="chapter-editor-main-column">
             {" "}
             <div className="space-y-4" data-testid="chapter-editor-workspace">
               {" "}
@@ -2071,9 +1793,7 @@ const ChapterEditorPane = forwardRef<
                     data-testid="chapter-workspace-top-row"
                   >
                     {" "}
-                    {isImageChapter
-                      ? imageIdentitySection
-                      : standardIdentitySection}{" "}
+                    {isImageChapter ? imageIdentitySection : standardIdentitySection}{" "}
                     {chapterTopAsideSection}{" "}
                   </div>{" "}
                   {isImageChapter ? imageContentSection : contentSection}{" "}
@@ -2106,9 +1826,7 @@ const ChapterEditorPane = forwardRef<
                       setSelectedStageChapterId={setSelectedStageChapterId}
                       onPersistProjectSnapshot={onPersistProjectSnapshot}
                       onProjectChange={onProjectChange}
-                      onSelectedStageChapterChange={
-                        onSelectedStageChapterChange
-                      }
+                      onSelectedStageChapterChange={onSelectedStageChapterChange}
                       onOpenImportedChapter={onOpenImportedChapter}
                       onNavigateToChapter={(chapter) =>
                         onNavigateToHref(
@@ -2126,10 +1844,7 @@ const ChapterEditorPane = forwardRef<
               )}{" "}
             </div>{" "}
           </div>{" "}
-          <aside
-            className="min-w-0 xl:sticky xl:top-24"
-            data-testid="chapter-editor-sidebar"
-          >
+          <aside className="min-w-0 xl:sticky xl:top-24" data-testid="chapter-editor-sidebar">
             {" "}
             {structureAccordion}{" "}
           </aside>{" "}
@@ -2143,9 +1858,7 @@ const ChapterEditorPane = forwardRef<
           onLeaveDialogCancel={handleLeaveDialogCancel}
           onLeaveDialogDiscardAndContinue={handleLeaveDialogDiscardAndContinue}
           onLeaveDialogSaveAndContinue={handleLeaveDialogSaveAndContinue}
-          volumeRequiredSaveDialogDescription={
-            VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION
-          }
+          volumeRequiredSaveDialogDescription={VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION}
           volumeRequiredSaveDialogOpen={isVolumeRequiredSaveDialogOpen}
         />{" "}
       </>
@@ -2154,4 +1867,3 @@ const ChapterEditorPane = forwardRef<
 );
 ChapterEditorPane.displayName = "ChapterEditorPane";
 export default ChapterEditorPane;
-

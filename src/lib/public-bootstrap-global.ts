@@ -2,6 +2,8 @@ import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { normalizePublicPagesConfig } from "@/lib/public-pages";
 import {
   emptyPublicBootstrapPayload,
+  type PublicBootstrapHomeHero,
+  type PublicBootstrapHomeHeroSlide,
   type PublicBootstrapPayloadMode,
   type PublicBootstrapPayload,
 } from "@/types/public-bootstrap";
@@ -23,6 +25,54 @@ export type PublicBootstrapCurrentUser = {
 
 const normalizePublicBootstrapPayloadMode = (value: unknown): PublicBootstrapPayloadMode =>
   String(value || "").trim() === "critical-home" ? "critical-home" : "full";
+
+const normalizePublicBootstrapHomeHero = (value: unknown): PublicBootstrapHomeHero | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const candidate = value as Partial<PublicBootstrapHomeHero>;
+  const slides = Array.isArray(candidate.slides)
+    ? candidate.slides
+        .map((slide) => {
+          if (!slide || typeof slide !== "object") {
+            return null;
+          }
+          const safeSlide = slide as Partial<PublicBootstrapHomeHeroSlide>;
+          const id = String(safeSlide.id || "").trim();
+          const image = String(safeSlide.image || "").trim();
+          const projectId = String(safeSlide.projectId || "").trim();
+          if (!id || !image || !projectId) {
+            return null;
+          }
+          return {
+            id,
+            title: String(safeSlide.title || ""),
+            description: String(safeSlide.description || ""),
+            updatedAt: String(safeSlide.updatedAt || ""),
+            image,
+            projectId,
+            trailerUrl: String(safeSlide.trailerUrl || ""),
+            format: String(safeSlide.format || ""),
+            status: String(safeSlide.status || ""),
+          } satisfies PublicBootstrapHomeHeroSlide;
+        })
+        .filter(Boolean)
+    : [];
+  if (slides.length === 0) {
+    return null;
+  }
+  const normalizedSlides = slides as PublicBootstrapHomeHeroSlide[];
+  const fallbackSlideId = normalizedSlides[0]?.id || "";
+  const initialSlideId = String(candidate.initialSlideId || fallbackSlideId).trim();
+  const latestSlideId = String(candidate.latestSlideId || fallbackSlideId).trim();
+  return {
+    initialSlideId: initialSlideId || fallbackSlideId,
+    latestSlideId: latestSlideId || fallbackSlideId,
+    hasMultipleSlides:
+      candidate.hasMultipleSlides === true || (Array.isArray(slides) && slides.length > 1),
+    slides: normalizedSlides,
+  };
+};
 
 export const asPublicBootstrapPayload = (value: unknown): PublicBootstrapPayload | null => {
   if (!value || typeof value !== "object") {
@@ -56,6 +106,7 @@ export const asPublicBootstrapPayload = (value: unknown): PublicBootstrapPayload
       genres: candidate.tagTranslations?.genres || {},
       staffRoles: candidate.tagTranslations?.staffRoles || {},
     },
+    homeHero: normalizePublicBootstrapHomeHero(candidate.homeHero),
     generatedAt: String(candidate.generatedAt || ""),
     payloadMode: normalizePublicBootstrapPayloadMode(candidate.payloadMode),
   };

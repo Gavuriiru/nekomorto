@@ -5,13 +5,27 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardProjectEpisodeEditor from "@/pages/DashboardProjectEpisodeEditor";
 
-const { apiFetchMock, toastMock, refetchPublicBootstrapCacheMock, imageLibraryPropsSpy } =
-  vi.hoisted(() => ({
-    apiFetchMock: vi.fn(),
-    toastMock: vi.fn(),
-    refetchPublicBootstrapCacheMock: vi.fn(async () => undefined),
-    imageLibraryPropsSpy: vi.fn(),
-  }));
+const {
+  apiFetchMock,
+  toastMock,
+  refetchPublicBootstrapCacheMock,
+  imageLibraryPropsSpy,
+  dashboardCurrentUserState,
+} = vi.hoisted(() => ({
+  apiFetchMock: vi.fn(),
+  toastMock: vi.fn(),
+  refetchPublicBootstrapCacheMock: vi.fn(async () => undefined),
+  imageLibraryPropsSpy: vi.fn(),
+  dashboardCurrentUserState: {
+    currentUser: {
+      id: "user-1",
+      name: "Admin",
+      username: "admin",
+      permissions: ["*"],
+    },
+    isLoadingUser: false,
+  },
+}));
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({
@@ -68,13 +82,8 @@ vi.mock("@/components/ui/async-state", () => ({
 
 vi.mock("@/hooks/use-dashboard-current-user", () => ({
   useDashboardCurrentUser: () => ({
-    currentUser: {
-      id: "user-1",
-      name: "Admin",
-      username: "admin",
-      permissions: ["*"],
-    },
-    isLoadingUser: false,
+    currentUser: dashboardCurrentUserState.currentUser,
+    isLoadingUser: dashboardCurrentUserState.isLoadingUser,
   }),
 }));
 
@@ -201,6 +210,17 @@ const animeProjectFixture: ProjectRecord = {
   ],
 };
 
+const setDashboardCurrentUser = (overrides: Record<string, unknown> = {}) => {
+  dashboardCurrentUserState.currentUser = {
+    id: "user-1",
+    name: "Admin",
+    username: "admin",
+    permissions: ["*"],
+    ...overrides,
+  };
+  dashboardCurrentUserState.isLoadingUser = false;
+};
+
 const setupApiMock = (projectFixture: ProjectRecord = animeProjectFixture) => {
   let currentProject = structuredClone(projectFixture);
   const persistedProjects: ProjectRecord[] = [];
@@ -264,7 +284,45 @@ describe("DashboardProjectEpisodeEditor", () => {
       configurable: true,
       value: vi.fn(),
     });
+    setDashboardCurrentUser();
     setupApiMock();
+  });
+
+  it("permite acessar o editor com grant de projetos sem permissions legadas", async () => {
+    setDashboardCurrentUser({
+      permissions: [],
+      grants: { projetos: true },
+    });
+
+    renderEditor();
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
+    expect(screen.queryByText("Acesso negado")).not.toBeInTheDocument();
+  });
+
+  it("permite acessar o editor para owner secundario sem permissions legadas", async () => {
+    setDashboardCurrentUser({
+      id: "owner-2",
+      permissions: [],
+      accessRole: "owner_secondary",
+      ownerIds: ["owner-1", "owner-2"],
+      primaryOwnerId: "owner-1",
+    });
+
+    renderEditor();
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
+    expect(screen.queryByText("Acesso negado")).not.toBeInTheDocument();
+  });
+
+  it("bloqueia o editor para usuário sem acesso de projetos", async () => {
+    setDashboardCurrentUser({
+      permissions: ["posts"],
+    });
+
+    renderEditor();
+
+    await screen.findByText("Acesso negado");
   });
 
   it("salva o episódio ativo e envia o snapshot completo do projeto", async () => {
@@ -320,6 +378,38 @@ describe("DashboardProjectEpisodeEditor", () => {
     expect(screen.queryByRole("button", { name: /Duplicar/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Anterior/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Pr(?:o|\u00f3)ximo/i })).not.toBeInTheDocument();
+  });
+
+  it("renderiza header shell compartilhado com masthead e command bar em ordem estável", async () => {
+    renderEditor();
+
+    await screen.findByRole("heading", { name: /Gerenciamento de Epis/i });
+
+    const headerShell = screen.getByTestId("anime-episode-editor-header-shell");
+    const masthead = screen.getByTestId("anime-episode-editor-masthead");
+    const commandBar = screen.getByTestId("anime-episode-editor-command-bar");
+    const actionRail = screen.getByTestId("anime-episode-editor-action-rail");
+    const topStatusGroup = screen.getByTestId("anime-episode-editor-top-status-group");
+    const topActions = screen.getByTestId("anime-episode-editor-top-actions");
+    const secondaryActions = screen.getByTestId("anime-episode-editor-secondary-actions");
+
+    expect(headerShell).toContainElement(masthead);
+    expect(headerShell).toContainElement(commandBar);
+    expect(Array.from(headerShell.children)).toEqual([masthead, commandBar]);
+    expect(commandBar).toHaveClass("sticky", "top-3");
+    expect(actionRail).toHaveClass("lg:flex-row", "lg:justify-between");
+    expect(topStatusGroup).toContainElement(screen.getByText(/Tudo salvo/i));
+    expect(topActions).toContainElement(screen.getByRole("button", { name: /Salvar epis/i }));
+    expect(topActions).toContainElement(screen.getByRole("button", { name: /^Excluir$/i }));
+    expect(secondaryActions).toContainElement(
+      within(secondaryActions).getByRole("link", { name: /Voltar ao projeto/i }),
+    );
+    expect(secondaryActions).toContainElement(
+      within(secondaryActions).getByRole("link", { name: /P[aá]gina p[uú]blica/i }),
+    );
+    expect(secondaryActions).toContainElement(
+      within(secondaryActions).getByRole("button", { name: /Fechar epis/i }),
+    );
   });
 
   it("navega pela lista integrada no estado neutro e volta a exibir a sidebar no episódio ativo", async () => {

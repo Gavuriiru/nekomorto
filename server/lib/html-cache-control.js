@@ -44,7 +44,7 @@ export const resolveHtmlCacheControl = ({ pathname, isAuthenticated } = {}) => {
     return HTML_CACHE_CONTROL_NO_STORE;
   }
 
-  return HTML_CACHE_CONTROL_PRIVATE_REVALIDATE;
+  return HTML_CACHE_CONTROL_NO_STORE;
 };
 
 const normalizeVaryTokens = (value) =>

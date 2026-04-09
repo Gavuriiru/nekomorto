@@ -131,6 +131,25 @@ export type PublicBootstrapUpdate = {
   unit: string;
 };
 
+export type PublicBootstrapHomeHeroSlide = {
+  id: string;
+  title: string;
+  description: string;
+  updatedAt: string;
+  image: string;
+  projectId: string;
+  trailerUrl: string;
+  format: string;
+  status: string;
+};
+
+export type PublicBootstrapHomeHero = {
+  initialSlideId: string;
+  latestSlideId: string;
+  hasMultipleSlides: boolean;
+  slides: PublicBootstrapHomeHeroSlide[];
+};
+
 export type PublicBootstrapPayloadMode = "full" | "critical-home";
 
 export type PublicBootstrapPayload = {
@@ -148,6 +167,7 @@ export type PublicBootstrapPayload = {
     genres: Record<string, string>;
     staffRoles: Record<string, string>;
   };
+  homeHero?: PublicBootstrapHomeHero | null;
   generatedAt: string;
   payloadMode?: PublicBootstrapPayloadMode;
 };
@@ -167,6 +187,7 @@ export const emptyPublicBootstrapPayload: PublicBootstrapPayload = {
     genres: {},
     staffRoles: {},
   },
+  homeHero: null,
   generatedAt: "",
   payloadMode: "full",
 };

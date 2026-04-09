@@ -1,4 +1,4 @@
-import type { ImgHTMLAttributes, SyntheticEvent } from "react";
+import type { ImgHTMLAttributes, Ref, SyntheticEvent } from "react";
 import { useEffect, useState } from "react";
 
 import { normalizeAssetUrl } from "@/lib/asset-url";
@@ -17,6 +17,7 @@ type UploadPictureProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> & {
   className?: string;
   imgClassName?: string;
   applyFocalObjectPosition?: boolean;
+  imgRef?: Ref<HTMLImageElement>;
 };
 
 const normalizeSrcSet = (value: string | null | undefined) => {
@@ -48,6 +49,7 @@ const UploadPicture = ({
   className,
   imgClassName,
   applyFocalObjectPosition = false,
+  imgRef,
   loading = "lazy",
   decoding = "async",
   sizes,
@@ -113,6 +115,7 @@ const UploadPicture = ({
       ) : null}
       <img
         {...restImgProps}
+        ref={imgRef}
         src={imgSrc}
         srcSet={imgSrcSet}
         sizes={sizes}

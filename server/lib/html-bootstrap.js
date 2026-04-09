@@ -269,15 +269,23 @@ export const injectPreloadLinks = ({ html, preloads = [] }) => {
   return injectSnippet(String(html || ""), "<!-- APP_PRELOADS -->", tags.join("\n"));
 };
 
-export const injectHomeHeroShell = ({ html, shellMarkup = "" }) => {
+export const injectHomeHeroShell = ({ html, shellMarkup = "", criticalCss = "" }) => {
   const snippet = String(shellMarkup || "").trim();
-  if (!snippet) {
-    return String(html || "");
+  const css = String(criticalCss || "").trim();
+  let nextHtml = String(html || "");
+
+  if (css) {
+    nextHtml = injectSnippet(
+      nextHtml,
+      "<!-- APP_HOME_HERO_CRITICAL -->",
+      `<style data-home-hero-shell-critical>\n${css}\n</style>`,
+      "</head>",
+    );
   }
-  return injectSnippet(
-    String(html || ""),
-    "<!-- APP_HOME_HERO_SHELL -->",
-    snippet,
-    '<div id="root"></div>',
-  );
+
+  if (!snippet) {
+    return nextHtml;
+  }
+
+  return injectSnippet(nextHtml, "<!-- APP_HOME_HERO_SHELL -->", snippet, '<div id="root"></div>');
 };

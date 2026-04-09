@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation, useNavigationType } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,7 +8,7 @@ import PublicProjectReader from "@/components/project-reader/PublicProjectReader
 const useProjectReaderPreferencesMock = vi.hoisted(() => vi.fn());
 const updateConfigMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
-const MENU_TRIGGER_INITIAL_VISIBLE_MS = 5000;
+const MENU_TRIGGER_INITIAL_VISIBLE_MS = 15000;
 const MENU_TRIGGER_HIDE_DELAY_MS = 180;
 const MENU_TRIGGER_EXIT_TRANSITION_MS = 320;
 const MENU_OVERLAY_TRANSITION_MS = 220;
@@ -833,6 +834,7 @@ describe("PublicProjectReader", () => {
   });
 
   it("shows the reader menu toast only after preferences finish loading", async () => {
+    vi.useFakeTimers();
     const nextConfig = { imageFit: "both" };
     const view = renderReader(nextConfig, {}, { readerState: { isLoaded: false } });
 
@@ -847,20 +849,63 @@ describe("PublicProjectReader", () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(toastMock).toHaveBeenCalledWith({
-        title: "O menu está disponível no canto do leitor.",
-        intent: "info",
-      });
+    expect(toastMock).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(READER_MENU_HINT_STORAGE_KEY)).toBeNull();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
+    expect(toastMock).toHaveBeenCalledWith({
+      title: "O menu está disponível no canto do leitor.",
+      intent: "info",
     });
     expect(toastMock).toHaveBeenCalledTimes(1);
     expect(window.localStorage.getItem(READER_MENU_HINT_STORAGE_KEY)).toBe("1");
   });
 
-  it("does not show the reader menu toast again when the local hint sentinel already exists", () => {
+  it("shows the reader menu toast once after a stable StrictMode mount", async () => {
+    vi.useFakeTimers();
+    setReaderConfig({ imageFit: "both" });
+
+    render(
+      <StrictMode>
+        <MemoryRouter>
+          <PublicProjectReader {...baseProps} />
+        </MemoryRouter>
+      </StrictMode>,
+    );
+
+    expect(toastMock).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(READER_MENU_HINT_STORAGE_KEY)).toBeNull();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
+    expect(toastMock).toHaveBeenCalledTimes(1);
+    expect(toastMock).toHaveBeenCalledWith({
+      title: "O menu está disponível no canto do leitor.",
+      intent: "info",
+    });
+    expect(window.localStorage.getItem(READER_MENU_HINT_STORAGE_KEY)).toBe("1");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
+    expect(toastMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not show the reader menu toast again when the local hint sentinel already exists", async () => {
+    vi.useFakeTimers();
     window.localStorage.setItem(READER_MENU_HINT_STORAGE_KEY, "1");
 
     renderReader({ imageFit: "both" });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
 
     expect(toastMock).not.toHaveBeenCalled();
   });
@@ -4499,7 +4544,7 @@ describe("PublicProjectReader", () => {
     rectSpy.mockRestore();
   });
 
-  it("auto-hides the stage menu button after five seconds and reveals it on proximity", async () => {
+  it("auto-hides the stage menu button after fifteen seconds and reveals it on proximity", async () => {
     vi.useFakeTimers();
     renderReader({ imageFit: "both" });
 
@@ -4512,7 +4557,20 @@ describe("PublicProjectReader", () => {
     expect(menuButton).toHaveAttribute("data-state", "visible");
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(MENU_TRIGGER_INITIAL_VISIBLE_MS);
+      await vi.advanceTimersByTimeAsync(MENU_TRIGGER_INITIAL_VISIBLE_MS - 1);
+    });
+
+    expect(screen.getByTestId("project-reader-menu-button-shell")).toHaveAttribute(
+      "data-state",
+      "visible",
+    );
+    expect(screen.getByTestId("project-reader-menu-button")).toHaveAttribute(
+      "data-state",
+      "visible",
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
     });
 
     expect(screen.getByTestId("project-reader-menu-button-shell")).toHaveAttribute(

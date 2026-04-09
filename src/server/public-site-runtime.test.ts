@@ -137,6 +137,12 @@ describe("public-site-runtime", () => {
 
     expect(fullPayload.payloadMode).toBe("full");
     expect(fullPayload.mediaVariants).toEqual({ variants: true });
+    expect(fullPayload.homeHero).toEqual(
+      expect.objectContaining({
+        initialSlideId: "project-1",
+        latestSlideId: "project-1",
+      }),
+    );
     expect(fullPayload.inProgressItems).toEqual([
       expect.objectContaining({
         projectId: "project-ln",
@@ -149,6 +155,11 @@ describe("public-site-runtime", () => {
     expect(criticalPayload.payloadMode).toBe("critical-home");
     expect(Array.isArray(criticalPayload.projects)).toBe(true);
     expect(criticalPayload.inProgressItems).toEqual(fullPayload.inProgressItems);
+    expect(criticalPayload.homeHero).toEqual(
+      expect.objectContaining({
+        slides: [expect.objectContaining({ id: "project-1", title: "Projeto" })],
+      }),
+    );
 
     const publicHtml = runtime.injectPublicBootstrapHtml({
       html: "<html></html>",
@@ -172,11 +183,11 @@ describe("public-site-runtime", () => {
     });
 
     expect(publicHtml).toContain("bootstrap:yes");
-    expect(publicHtml).toContain("pwa:yes");
+    expect(publicHtml).toContain("pwa:no");
     expect(publicHtml).toContain("preloads:2");
     expect(publicHtml).toContain("shell:yes");
     expect(dashboardHtml).toContain("bootstrap:no");
-    expect(dashboardHtml).toContain("pwa:yes");
+    expect(dashboardHtml).toContain("pwa:no");
     expect(dashboardHtml).toContain("skip:yes");
   });
 
@@ -212,7 +223,7 @@ describe("public-site-runtime", () => {
     expect(withoutShell).toContain("preloads:2");
   });
 
-  it("resolves the bootstrap pwa flag per request when a resolver is provided", () => {
+  it("keeps the bootstrap pwa flag disabled even when legacy pwa deps are present", () => {
     const runtime = createPublicSiteRuntime(
       createDeps({
         bootstrapPwaEnabled: undefined,
@@ -238,6 +249,39 @@ describe("public-site-runtime", () => {
     });
 
     expect(publicHtml).toContain("pwa:no");
-    expect(dashboardHtml).toContain("pwa:yes");
+    expect(dashboardHtml).toContain("pwa:no");
+  });
+
+  it("builds the home hero shell with the shared viewport contract and non-fullscreen overlay", () => {
+    let capturedShellMarkup = "";
+    let capturedCriticalCss = "";
+    const runtime = createPublicSiteRuntime(
+      createDeps({
+        injectHomeHeroShell: ({ html, shellMarkup, criticalCss }) => {
+          capturedShellMarkup = shellMarkup;
+          capturedCriticalCss = String(criticalCss || "");
+          return html;
+        },
+      }),
+    );
+
+    runtime.injectPublicBootstrapHtml({
+      html: "<html></html>",
+      req: {
+        path: "/",
+      },
+      settings: {},
+      pages: {},
+      includeHomeHeroShell: true,
+      bootstrapMode: PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
+    });
+
+    expect(capturedShellMarkup).toContain('class="public-home-hero-shell public-home-hero-viewport"');
+    expect(capturedShellMarkup).toContain('class="public-home-hero-shell__image"');
+    expect(capturedShellMarkup).toContain('class="public-home-hero-shell__navbar-overlay"');
+    expect(capturedShellMarkup).toContain('class="public-home-hero-shell__header"');
+    expect(capturedShellMarkup).toContain('class="public-home-hero-shell__title"');
+    expect(capturedCriticalCss).toContain(".public-home-hero-shell");
+    expect(capturedCriticalCss).toContain('@font-face');
   });
 });

@@ -345,75 +345,47 @@ describe("project EPUB import", () => {
     expect(importedHtml.match(/\/uploads\/tmp\/epub-imports\//g) || []).toHaveLength(2);
   });
 
-  it("preserva o subset editorial de CSS do EPUB no HTML enviado ao bridge", async () => {
+  it("normaliza paginas SVG com image xlink:href dentro do intervalo narrativo do TOC", async () => {
     const loadUploads = vi.fn(() => []);
     const writeUploads = vi.fn();
 
     epubState.toc = [
-      { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
+      { id: "c1-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
+      { id: "c2-toc", title: "Chapter 2", href: "OEBPS/Text/chapter002.xhtml#Ref_2" },
     ];
     epubState.flow = [
-      { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      { id: "c1", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      { id: "c1img", href: "OEBPS/Text/chapter001_img.xhtml" },
+      { id: "c1b", href: "OEBPS/Text/chapter001_b.xhtml" },
+      { id: "c2", title: "Chapter 2", href: "OEBPS/Text/chapter002.xhtml" },
     ];
     epubState.manifest = {
-      chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
-      stylesheet: {
-        id: "stylesheet",
-        href: "OEBPS/Styles/stylesheet.css",
-        "media-type": "text/css",
-      },
-      censor: {
-        id: "censor",
-        href: "OEBPS/Images/censor.png",
-        "media-type": "image/png",
-      },
-      inlineGlyph: {
-        id: "inlineGlyph",
-        href: "OEBPS/Images/inline.png",
-        "media-type": "image/png",
-      },
+      c1: { id: "c1", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      c1img: { id: "c1img", href: "OEBPS/Text/chapter001_img.xhtml" },
+      c1b: { id: "c1b", href: "OEBPS/Text/chapter001_b.xhtml" },
+      c2: { id: "c2", title: "Chapter 2", href: "OEBPS/Text/chapter002.xhtml" },
+      art1: { id: "art1", href: "OEBPS/Images/Art_P8.jpg", "media-type": "image/jpeg" },
     };
     epubState.chapters = {
-      chapter001: `<!doctype html>
-        <html>
-          <head>
-            <link rel="stylesheet" href="../Styles/stylesheet.css">
-          </head>
+      c1: "<p>Texto antes da ilustracao.</p>",
+      c1img: `<!doctype html>
+        <html xmlns:xlink="http://www.w3.org/1999/xlink">
           <body>
-            <h1 class="chapter-title">
-              Titulo
-              <img class="bbox1" src="../Images/censor.png" alt="censor">
-            </h1>
-            <p class="txalt">
-              Texto
-              <img class="box" src="../Images/inline.png" alt="ornamento">
-              <span class="tx14">grande</span>
-              <span class="tx14i">italico</span>
+            <p class="fit">
+              <svg width="100%" height="100%" viewBox="0 0 1122 1600" role="img" aria-label="Ilustracao">
+                <image width="1122" height="1600" xlink:href="../Images/Art_P8.jpg"></image>
+              </svg>
             </p>
-            <p class="callout">What in the hell is this?!</p>
-            <p class="space-break1">Quebra editorial</p>
           </body>
         </html>`,
-    };
-    epubState.files = {
-      stylesheet: Buffer.from(`
-        .chapter-title { margin-top: 10%; margin-bottom: 3em; }
-        p { text-indent: 20pt; }
-        .space-break1 { margin-top: 1.5em; text-indent: 0; }
-        .tx14 { font-size: 1.5em; }
-        .tx14i { font-size: 1.5em; font-style: italic; }
-        .txalt { font-family: Arial, sans-serif; }
-        .bbox1 { width: 3em; }
-        .box { height: 0.75em; vertical-align: middle; }
-        .callout { font-size: 2em; margin-top: 1em; margin-bottom: 1em; text-align: center; }
-      `),
+      c1b: "<p>Texto depois da ilustracao.</p>",
+      c2: "<p>Segundo capitulo.</p>",
     };
     epubState.images = {
-      censor: Buffer.from("censor-image"),
-      inlineGlyph: Buffer.from("inline-image"),
+      art1: Buffer.from("fake-image"),
     };
 
-    await importProjectEpub({
+    const result = await importProjectEpub({
       buffer: Buffer.from("fake"),
       targetVolume: 1,
       defaultStatus: "draft",
@@ -424,36 +396,161 @@ describe("project EPUB import", () => {
       uploadUserId: "test-user",
     });
 
-    const importedHtml = String(htmlToLexicalJsonMock.mock.calls.at(-1)?.[0] || "");
-    expect(importedHtml).toContain("<h1");
-    expect(importedHtml).toContain("margin-top:");
-    expect(importedHtml).toContain("margin-bottom:");
-    expect(importedHtml).toContain("/uploads/tmp/epub-imports/");
-    expect(importedHtml).toContain("width:");
-    expect(importedHtml).toContain("height:");
-    expect(importedHtml).toContain("vertical-align:middle");
-    expect(importedHtml).toContain("font-size:");
-    expect(importedHtml).toContain("font-style:italic");
-    expect(importedHtml).toContain("font-family:sans-serif");
-    expect(importedHtml).toContain("text-indent:");
-    expect(importedHtml).toContain('data-epub-heading="h1"');
+    expect(result.chapters).toHaveLength(2);
+    expect(result.summary.imagesImported).toBe(1);
+    expect(result.summary.imageImportFailures).toBe(0);
+    const importedHtml = String(htmlToLexicalJsonMock.mock.calls[0]?.[0] || "");
+    expect(importedHtml).toContain("Texto antes da ilustracao.");
+    expect(importedHtml).toContain("Texto depois da ilustracao.");
+    expect(importedHtml).toContain("/uploads/tmp/epub-imports/test/import-1/Art_P8.jpg");
+    expect(importedHtml).toContain("<img");
+    expect(writeUploads).toHaveBeenCalledTimes(1);
+  });
+
+  it("expande CSS com @import relativo antes de enviar o HTML editorial ao bridge", async () => {
+    const loadUploads = vi.fn(() => []);
+    const writeUploads = vi.fn();
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      epubState.toc = [
+        { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
+      ];
+      epubState.flow = [
+        { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      ];
+      epubState.manifest = {
+        chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
+        bookStyle: {
+          id: "bookStyle",
+          href: "OEBPS/Styles/book-style.css",
+          "media-type": "text/css",
+        },
+        styleReset: {
+          id: "styleReset",
+          href: "OEBPS/Styles/style-reset.css",
+          "media-type": "text/css",
+        },
+        styleStandard: {
+          id: "styleStandard",
+          href: "OEBPS/Styles/style-standard.css",
+          "media-type": "text/css",
+        },
+        styleKadokawa: {
+          id: "styleKadokawa",
+          href: "OEBPS/Styles/style-kadokawa.css",
+          "media-type": "text/css",
+        },
+        censor: {
+          id: "censor",
+          href: "OEBPS/Images/censor.png",
+          "media-type": "image/png",
+        },
+        inlineGlyph: {
+          id: "inlineGlyph",
+          href: "OEBPS/Images/inline.png",
+          "media-type": "image/png",
+        },
+      };
+      epubState.chapters = {
+        chapter001: `<!doctype html>
+          <html>
+            <head>
+              <link rel="stylesheet" href="../Styles/book-style.css">
+            </head>
+            <body>
+              <h1 class="chapter-title">
+                Titulo
+                <img class="bbox1" src="../Images/censor.png" alt="censor">
+              </h1>
+              <p class="txalt">
+                Texto
+                <img class="box" src="../Images/inline.png" alt="ornamento">
+                <span class="tx14">grande</span>
+                <span class="tx14i">italico</span>
+              </p>
+              <p class="callout">What in the hell is this?!</p>
+              <p class="space-break1">Quebra editorial</p>
+            </body>
+          </html>`,
+      };
+      epubState.files = {
+        bookStyle: Buffer.from(`
+          @import "style-reset.css";
+          @import "style-standard.css";
+          @import "style-kadokawa.css";
+          .chapter-title { margin-top: 10%; margin-bottom: 3em; }
+        `),
+        styleReset: Buffer.from(`
+          p { text-indent: 0; }
+        `),
+        styleStandard: Buffer.from(`
+          p { text-indent: 20pt; }
+          .tx14 { font-size: 1.5em; }
+          .tx14i { font-size: 1.5em; font-style: italic; }
+          .bbox1 { width: 3em; }
+          .box { height: 0.75em; vertical-align: middle; }
+        `),
+        styleKadokawa: Buffer.from(`
+          .space-break1 { margin-top: 1.5em; text-indent: 0; }
+          .txalt { font-family: Arial, sans-serif; }
+          .callout { font-size: 2em; margin-top: 1em; margin-bottom: 1em; text-align: center; }
+        `),
+      };
+      epubState.images = {
+        censor: Buffer.from("censor-image"),
+        inlineGlyph: Buffer.from("inline-image"),
+      };
+
+      await importProjectEpub({
+        buffer: Buffer.from("fake"),
+        targetVolume: 1,
+        defaultStatus: "draft",
+        project: { episodeDownloads: [] },
+        uploadsDir: "D:/dev/nekomorto/public/uploads",
+        loadUploads,
+        writeUploads,
+        uploadUserId: "test-user",
+      });
+
+      const importedHtml = String(htmlToLexicalJsonMock.mock.calls.at(-1)?.[0] || "");
+      expect(importedHtml).toContain("<h1");
+      expect(importedHtml).toContain("margin-top:");
+      expect(importedHtml).toContain("margin-bottom:");
+      expect(importedHtml).toContain("/uploads/tmp/epub-imports/");
+      expect(importedHtml).toContain("width:");
+      expect(importedHtml).toContain("height:");
+      expect(importedHtml).toContain("vertical-align:middle");
+      expect(importedHtml).toContain("font-size:");
+      expect(importedHtml).toContain("font-style:italic");
+      expect(importedHtml).toContain("font-family:sans-serif");
+      expect(importedHtml).toContain("text-indent:");
+      expect(importedHtml).toContain('data-epub-heading="h1"');
+      expect(
+        consoleErrorSpy.mock.calls.some(([message]) =>
+          String(message || "").includes("Could not parse CSS @import URL"),
+        ),
+      ).toBe(false);
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
   it("continua a importacao quando a etapa de estilo editorial falha", async () => {
     const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
-    const windowGetterSpy = vi
-      .spyOn(JSDOM.prototype, "window", "get")
-      .mockImplementation(function (this: JSDOM) {
-        const nextWindow = originalWindowDescriptor?.get?.call(this);
-        if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
-          nextWindow.getComputedStyle = () => {
-            throw new Error(
-              "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
-            );
-          };
-        }
-        return nextWindow;
-      });
+    const windowGetterSpy = vi.spyOn(JSDOM.prototype, "window", "get").mockImplementation(function (
+      this: JSDOM,
+    ) {
+      const nextWindow = originalWindowDescriptor?.get?.call(this);
+      if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
+        nextWindow.getComputedStyle = () => {
+          throw new Error(
+            "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
+          );
+        };
+      }
+      return nextWindow;
+    });
 
     try {
       epubState.toc = [
@@ -499,19 +596,19 @@ describe("project EPUB import", () => {
 
   it("deduplica fallback CSS por documentHref durante a mesma importacao", async () => {
     const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
-    const windowGetterSpy = vi
-      .spyOn(JSDOM.prototype, "window", "get")
-      .mockImplementation(function (this: JSDOM) {
-        const nextWindow = originalWindowDescriptor?.get?.call(this);
-        if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
-          nextWindow.getComputedStyle = () => {
-            throw new Error(
-              "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
-            );
-          };
-        }
-        return nextWindow;
-      });
+    const windowGetterSpy = vi.spyOn(JSDOM.prototype, "window", "get").mockImplementation(function (
+      this: JSDOM,
+    ) {
+      const nextWindow = originalWindowDescriptor?.get?.call(this);
+      if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
+        nextWindow.getComputedStyle = () => {
+          throw new Error(
+            "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
+          );
+        };
+      }
+      return nextWindow;
+    });
     const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     try {
@@ -540,9 +637,7 @@ describe("project EPUB import", () => {
 
       expect(
         result.warnings.filter((warning) =>
-          /Estilos CSS .*"Chapter 1"; importacao continuou sem estilos calculados\./.test(
-            warning,
-          ),
+          /Estilos CSS .*"Chapter 1"; importacao continuou sem estilos calculados\./.test(warning),
         ),
       ).toHaveLength(1);
       expect(
@@ -558,19 +653,19 @@ describe("project EPUB import", () => {
 
   it("usa documentHref como contexto quando a etapa de estilo falha sem titulo de capitulo", async () => {
     const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
-    const windowGetterSpy = vi
-      .spyOn(JSDOM.prototype, "window", "get")
-      .mockImplementation(function (this: JSDOM) {
-        const nextWindow = originalWindowDescriptor?.get?.call(this);
-        if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
-          nextWindow.getComputedStyle = () => {
-            throw new Error(
-              "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
-            );
-          };
-        }
-        return nextWindow;
-      });
+    const windowGetterSpy = vi.spyOn(JSDOM.prototype, "window", "get").mockImplementation(function (
+      this: JSDOM,
+    ) {
+      const nextWindow = originalWindowDescriptor?.get?.call(this);
+      if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
+        nextWindow.getComputedStyle = () => {
+          throw new Error(
+            "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
+          );
+        };
+      }
+      return nextWindow;
+    });
     const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     try {
@@ -971,19 +1066,19 @@ describe("project EPUB import", () => {
 
   it("usa documentHref no fallback CSS para item de front matter consolidado sem titulo", async () => {
     const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
-    const windowGetterSpy = vi
-      .spyOn(JSDOM.prototype, "window", "get")
-      .mockImplementation(function (this: JSDOM) {
-        const nextWindow = originalWindowDescriptor?.get?.call(this);
-        if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
-          nextWindow.getComputedStyle = () => {
-            throw new Error(
-              "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
-            );
-          };
-        }
-        return nextWindow;
-      });
+    const windowGetterSpy = vi.spyOn(JSDOM.prototype, "window", "get").mockImplementation(function (
+      this: JSDOM,
+    ) {
+      const nextWindow = originalWindowDescriptor?.get?.call(this);
+      if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
+        nextWindow.getComputedStyle = () => {
+          throw new Error(
+            "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
+          );
+        };
+      }
+      return nextWindow;
+    });
     const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     try {

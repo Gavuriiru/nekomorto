@@ -3,22 +3,21 @@ import { describe, expect, it } from "vitest";
 import {
   applyHtmlCachingHeaders,
   HTML_CACHE_CONTROL_NO_STORE,
-  HTML_CACHE_CONTROL_PRIVATE_REVALIDATE,
   HTML_VARY_COOKIE,
   resolveHtmlCacheControl,
   resolveHtmlVaryHeader,
 } from "../../server/lib/html-cache-control.js";
 
 describe("resolveHtmlCacheControl", () => {
-  it("returns private revalidate for anonymous public home route", () => {
+  it("returns no-store for anonymous public home route", () => {
     expect(resolveHtmlCacheControl({ pathname: "/", isAuthenticated: false })).toBe(
-      HTML_CACHE_CONTROL_PRIVATE_REVALIDATE,
+      HTML_CACHE_CONTROL_NO_STORE,
     );
   });
 
-  it("returns private revalidate for anonymous public route with query", () => {
+  it("returns no-store for anonymous public route with query", () => {
     expect(resolveHtmlCacheControl({ pathname: "/projetos?tag=x", isAuthenticated: false })).toBe(
-      HTML_CACHE_CONTROL_PRIVATE_REVALIDATE,
+      HTML_CACHE_CONTROL_NO_STORE,
     );
   });
 
@@ -74,7 +73,7 @@ describe("resolveHtmlCacheControl", () => {
 
     applyHtmlCachingHeaders(res, { pathname: "/projetos", isAuthenticated: false });
 
-    expect(headers.get("Cache-Control")).toBe(HTML_CACHE_CONTROL_PRIVATE_REVALIDATE);
+    expect(headers.get("Cache-Control")).toBe(HTML_CACHE_CONTROL_NO_STORE);
     expect(headers.get("Vary")).toBe(HTML_VARY_COOKIE);
   });
 });

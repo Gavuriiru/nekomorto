@@ -25,7 +25,7 @@ const themedBadgeClass = "bg-primary text-primary-foreground border-primary/80";
 const themedIndicatorClass = "bg-primary";
 const VISIBLE_PROGRESS_ITEMS = 5;
 const PROGRESS_CARD_ITEM_MIN_HEIGHT = "5.75rem";
-const PROGRESS_CARD_LIST_MAX_HEIGHT = `calc((${PROGRESS_CARD_ITEM_MIN_HEIGHT} * ${VISIBLE_PROGRESS_ITEMS}) + (0.75rem * ${VISIBLE_PROGRESS_ITEMS - 1}) + 0.25rem)`;
+const PROGRESS_CARD_LIST_MAX_HEIGHT = `calc((${PROGRESS_CARD_ITEM_MIN_HEIGHT} * ${VISIBLE_PROGRESS_ITEMS}) + (0.75rem * ${VISIBLE_PROGRESS_ITEMS - 1}) + 0.5rem)`;
 
 const hasNumericVolume = (value: number | undefined) => Number.isFinite(Number(value));
 
@@ -106,7 +106,7 @@ const WorkStatusCard = () => {
         ) : (
           <div
             data-testid="work-status-scroll-region"
-            className="no-scrollbar space-y-3 overflow-y-auto overscroll-contain pr-1 pb-1"
+            className="no-scrollbar space-y-3 overflow-y-auto overscroll-contain pr-1 pt-1 pb-1"
             style={progressListStyle}
           >
             {itemsInProgress.map((item) => {

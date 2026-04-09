@@ -363,6 +363,44 @@ describe("HeroSection cover fit", () => {
     expect(heading).toHaveStyle({ animationDelay: "240ms" });
   });
 
+  it("monta a estrutura completa do carrossel no primeiro render mesmo antes do idle", () => {
+    browserIdleState.autoRun = false;
+    setupBootstrapMock({ includeSecondProject: true });
+
+    render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("hero-slide-meta-project-1")).toBeInTheDocument();
+    expect(screen.getByTestId("hero-slide-meta-project-2")).toBeInTheDocument();
+  });
+
+  it("remove as animacoes de entrada do primeiro slide quando o shell inicial existe", async () => {
+    setupBootstrapMock();
+    const shell = document.createElement("div");
+    shell.id = "home-hero-shell";
+    document.body.appendChild(shell);
+
+    const { unmount } = render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    const heading = await screen.findByRole("heading", { name: "Projeto com Hero" });
+    const latestBadge = screen.getByTestId("hero-slide-latest-project-1");
+    const actions = heading.parentElement?.querySelector(".mt-8");
+
+    expect(heading).not.toHaveClass("animate-slide-up", "opacity-0");
+    expect(latestBadge).not.toHaveClass("animate-slide-up", "opacity-0");
+    expect(actions).not.toHaveClass("animate-slide-up", "opacity-0");
+
+    unmount();
+    shell.remove();
+  });
+
   it("inicia autoplay do carrossel em 6s", async () => {
     vi.useFakeTimers();
     setupBootstrapMock({ includeSecondProject: true });

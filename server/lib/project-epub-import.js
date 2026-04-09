@@ -121,6 +121,11 @@ const BOILERPLATE_HINT_PATTERNS = [
   /\binsert\b/i,
   /\btitle[\s_-]*page\b/i,
   /\bcopyright\b/i,
+  /\bcaution\b/i,
+  /\blegal\b/i,
+  /\bnotice\b/i,
+  /\bterms?\b/i,
+  /\b(?:usage|readme|instructions?)\b/i,
   /\btable of contents\b/i,
   /(?:^|[\s/_-])toc(?:$|[\s/_-])/i,
   /(?:^|[\s/_-])nav(?:$|[\s/_-])/i,
@@ -147,6 +152,10 @@ const RANGE_INTRUDER_HINT_PATTERNS = [
   /\bcover\b/i,
   /\btitle[\s_-]*page\b/i,
   /\bcopyright\b/i,
+  /\bcaution\b/i,
+  /\blegal\b/i,
+  /\bnotice\b/i,
+  /\bterms?\b/i,
   /\btable of contents\b/i,
   /(?:^|[\s/_-])toc(?:$|[\s/_-])/i,
   /(?:^|[\s/_-])nav(?:$|[\s/_-])/i,
@@ -158,6 +167,10 @@ const FRONT_MATTER_CONSOLIDATION_HINT_PATTERNS = [
   /\bcover\b/i,
   /\btitle[\s_-]*page\b/i,
   /\bcopyright(?:s)?\b/i,
+  /\bcaution\b/i,
+  /\blegal\b/i,
+  /\bnotice\b/i,
+  /\bterms?\b/i,
   /\bcredits?\b/i,
   /\btable of contents(?: page)?\b/i,
   /(?:^|[\s/_-])toc(?:$|[\s/_-])/i,
@@ -299,6 +312,50 @@ const normalizeEpubAssetHref = (value, currentDocumentHref) => {
   return resolveRelativeEpubHref(currentDocumentHref, raw);
 };
 
+const CSS_BLOCK_COMMENT_PATTERN = /\/\*[\s\S]*?\*\//g;
+const CSS_IMPORT_DIRECTIVE_PATTERN =
+  /@import\s+(?:url\(\s*)?(?:(["'])(.*?)\1|([^'"\s)]+))\s*\)?[^;]*;/gi;
+const CSS_CHARSET_DIRECTIVE_PATTERN = /@charset\s+(?:(["']).*?\1|[^;]+);/gi;
+const EPUB_RUNTIME_BASE_URL = "https://epub.local/";
+
+const normalizeTextContent = (value) =>
+  String(value || "")
+    .replace(/\u00a0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const extractCssImportHrefs = (cssText) => {
+  const imports = [];
+  const source = String(cssText || "").replace(CSS_BLOCK_COMMENT_PATTERN, "");
+  let match;
+  while ((match = CSS_IMPORT_DIRECTIVE_PATTERN.exec(source))) {
+    const href = String(match[2] || match[3] || "").trim();
+    if (href) {
+      imports.push(href);
+    }
+  }
+  CSS_IMPORT_DIRECTIVE_PATTERN.lastIndex = 0;
+  return imports;
+};
+
+const stripCssImportAndCharsetDirectives = (cssText) =>
+  String(cssText || "")
+    .replace(CSS_CHARSET_DIRECTIVE_PATTERN, "")
+    .replace(CSS_IMPORT_DIRECTIVE_PATTERN, "")
+    .trim();
+
+const buildEpubRuntimeUrl = (href) => {
+  const normalizedHref = normalizeEpubHref(href);
+  try {
+    if (/^https?:\/\//i.test(normalizedHref)) {
+      return normalizedHref;
+    }
+    return new URL(normalizedHref || "/", EPUB_RUNTIME_BASE_URL).href;
+  } catch {
+    return EPUB_RUNTIME_BASE_URL;
+  }
+};
+
 const getPathBasename = (value) => {
   const normalized = normalizeEpubHref(value);
   if (!normalized) {
@@ -328,6 +385,54 @@ const hasFrontMatterNoiseHint = (value) =>
 const hasMainHint = (value) => MAIN_HINT_PATTERNS.some((pattern) => pattern.test(value));
 const hasExtraHint = (value) => EXTRA_HINT_PATTERNS.some((pattern) => pattern.test(value));
 const hasCoverTitleHint = (value) => /\bcover\b|\btitle[\s_-]*page\b/i.test(String(value || ""));
+
+const DOCUMENT_HEADING_TEXT_HINT_PATTERNS = [
+  /^(?:chapter|ch|cap(?:i|\u00ed)tulo)\b/i,
+  /^(?:prologue|preface|epilogue|afterword|interlude|extra)\b/i,
+  /^第\s*(?:\d+|[〇零一二三四五六七八九十百千]+)\s*(?:章|話)/,
+];
+
+const extractHeadingLikeDocumentTitle = (body) => {
+  if (!body) {
+    return "";
+  }
+  const candidates = [...body.querySelectorAll("h1, h2, h3, h4, h5, h6, p, div, blockquote")];
+  for (const element of candidates) {
+    if (!element || element.children.length > 0) {
+      continue;
+    }
+    const text = normalizeTextContent(element.textContent);
+    if (!text || text.length > 120) {
+      continue;
+    }
+    const hint = normalizeHintText(
+      [element.tagName, element.getAttribute?.("class"), element.getAttribute?.("id")]
+        .filter(Boolean)
+        .join(" "),
+    );
+    const isHeadingTag = /^h[1-6]$/i.test(String(element.tagName || ""));
+    const hasHintedIdentity =
+      /\b(?:chapter|title|subtitle|heading|subhead|headline)\b/i.test(hint) ||
+      /^id-[\w-]+$/i.test(String(element.getAttribute?.("id") || "").trim());
+    const hasHintedText = DOCUMENT_HEADING_TEXT_HINT_PATTERNS.some((pattern) => pattern.test(text));
+    if (isHeadingTag || hasHintedIdentity || hasHintedText) {
+      return text;
+    }
+  }
+  return "";
+};
+
+const extractDocumentTitleFallbacks = (rawHtml) => {
+  const dom = new JSDOM(String(rawHtml || ""));
+  try {
+    return {
+      documentTitle: normalizeTextContent(dom.window.document.title),
+      headingTitle: extractHeadingLikeDocumentTitle(dom.window.document.body),
+    };
+  } finally {
+    dom.window.close();
+  }
+};
 
 const getAnchorTextLength = (html) => {
   const source = String(html || "");
@@ -703,9 +808,17 @@ const findResolvableImageInDocument = async ({ epub, manifestItem, manifestByHre
   }
   const dom = new JSDOM(`<body>${String(rawHtml || "")}</body>`);
   try {
-    const imageElements = [...dom.window.document.querySelectorAll("img[src]")];
+    const imageElements = [
+      ...dom.window.document.querySelectorAll("img[src]"),
+      ...dom.window.document.querySelectorAll("image[href], image[xlink\\:href]"),
+    ];
     for (const imageElement of imageElements) {
-      const currentSrc = String(imageElement.getAttribute("src") || "").trim();
+      const currentSrc = String(
+        imageElement.getAttribute("src") ||
+          imageElement.getAttribute("href") ||
+          imageElement.getAttribute("xlink:href") ||
+          "",
+      ).trim();
       if (!currentSrc) {
         continue;
       }
@@ -804,14 +917,13 @@ const resolveEpubVolumeCoverAsset = async (epub) => {
   return null;
 };
 
-const resolveTocReferences = (epub) => {
-  const tocItems = flattenToc(epub?.toc).filter((entry) => entry?.id || entry?.href);
+const resolveTocReferenceItems = (epub, tocItems) => {
   const { flowById, flowByHref, flowIndexById } = buildFlowIndexes(epub);
   const ordered = [];
   const seen = new Set();
   let unresolvedCount = 0;
 
-  tocItems.forEach((item) => {
+  (Array.isArray(tocItems) ? tocItems : []).forEach((item) => {
     const id = String(item?.id || "").trim();
     const href = normalizeEpubHref(item?.href);
     const resolved = (href && flowByHref.get(href)) || (id && flowById.get(id)) || null;
@@ -831,6 +943,100 @@ const resolveTocReferences = (epub) => {
   });
 
   return { items: ordered, unresolvedCount };
+};
+
+const findNavManifestItem = (epub) => {
+  const { manifestById } = buildManifestIndexes(epub);
+  const manifestItems = Object.values(epub?.manifest || {});
+
+  for (const item of manifestItems) {
+    if (isHtmlManifestItem(item) && hasManifestProperty(item, "nav")) {
+      return item;
+    }
+  }
+
+  const idCandidate = manifestById.get("toc") || null;
+  if (idCandidate && isHtmlManifestItem(idCandidate)) {
+    return idCandidate;
+  }
+
+  return (
+    manifestItems.find((item) => {
+      if (!isHtmlManifestItem(item)) {
+        return false;
+      }
+      const basename = getPathBasename(item?.href || item?.id);
+      return /(?:^|[_-])(?:nav|navigation(?:-documents)?)(?:$|[_-])|^navigation-documents\.xhtml$/i.test(
+        basename,
+      );
+    }) || null
+  );
+};
+
+const extractTocItemsFromNavDocument = ({ rawHtml, navHref } = {}) => {
+  const dom = new JSDOM(String(rawHtml || ""));
+  try {
+    const tocNav =
+      [...dom.window.document.querySelectorAll("nav")].find((element) =>
+        /\btoc\b/i.test(
+          String(element.getAttribute("epub:type") || element.getAttribute("type") || "").trim(),
+        ),
+      ) || null;
+    if (!tocNav) {
+      return [];
+    }
+    return [...tocNav.querySelectorAll("a[href]")]
+      .map((link) => ({
+        id: "",
+        href: normalizeEpubAssetHref(link.getAttribute("href"), navHref),
+        title: normalizeTextContent(link.textContent),
+      }))
+      .filter((item) => item.href || item.id);
+  } finally {
+    dom.window.close();
+  }
+};
+
+const loadFallbackNavTocItems = async (epub) => {
+  const navManifestItem = findNavManifestItem(epub);
+  const navId = String(navManifestItem?.id || "").trim();
+  if (!navManifestItem || !navId) {
+    return [];
+  }
+
+  let rawHtml = "";
+  if (typeof epub.getChapterRaw === "function") {
+    rawHtml = await epub.getChapterRaw(navId);
+  }
+  if (!String(rawHtml || "").trim()) {
+    const navBuffer = await loadManifestBinary(epub, navManifestItem);
+    rawHtml = navBuffer.toString("utf8");
+  }
+  if (!String(rawHtml || "").trim()) {
+    return [];
+  }
+  return extractTocItemsFromNavDocument({
+    rawHtml,
+    navHref: navManifestItem?.href,
+  });
+};
+
+const resolveTocReferences = async (epub) => {
+  const explicitTocItems = flattenToc(epub?.toc).filter((entry) => entry?.id || entry?.href);
+  const explicitResolved = resolveTocReferenceItems(epub, explicitTocItems);
+  if (explicitResolved.items.length > 0) {
+    return explicitResolved;
+  }
+
+  const navTocItems = await loadFallbackNavTocItems(epub);
+  if (navTocItems.length > 0) {
+    const navResolved = resolveTocReferenceItems(epub, navTocItems);
+    if (navResolved.items.length > 0 || explicitTocItems.length === 0) {
+      return navResolved;
+    }
+  }
+
+  return explicitResolved;
 };
 
 const buildFallbackFlowReferences = (epub) => {
@@ -934,6 +1140,7 @@ const buildFrontMatterBundleFromFlow = async ({
   discardedCounts,
   imageContext,
   cssFallbackSeenKeys,
+  stylesheetTextCache,
 } = {}) => {
   if (!Number.isFinite(firstNarrativeFlowIndex) || firstNarrativeFlowIndex <= 0) {
     return {
@@ -1018,6 +1225,7 @@ const buildFrontMatterBundleFromFlow = async ({
       manifestByHref,
       imageContext,
       cssFallbackSeenKeys,
+      stylesheetTextCache,
     });
     if (Array.isArray(warnings)) {
       warnings.push(...prepared.warnings);
@@ -1131,6 +1339,27 @@ const resolveChapterRawByReference = async (epub, item, { manifestByHref } = {})
   };
 };
 
+const resolveCandidateTitle = ({ epub, item, rawHtml, resolvedId, requestedId } = {}) => {
+  const manifestTitle = String(epub?.manifest?.[resolvedId || requestedId]?.title || "").trim();
+  const explicitTitle = String(item?.title || manifestTitle).trim();
+  if (explicitTitle) {
+    return explicitTitle;
+  }
+
+  const { documentTitle, headingTitle } = extractDocumentTitleFallbacks(rawHtml);
+  const normalizedEpubTitle = normalizeHintText(epub?.metadata?.title);
+  if (documentTitle && normalizeHintText(documentTitle) !== normalizedEpubTitle) {
+    return documentTitle;
+  }
+  if (headingTitle) {
+    return headingTitle;
+  }
+  if (documentTitle) {
+    return documentTitle;
+  }
+  return "";
+};
+
 const materializeCandidate = async (epub, item, { manifestByHref } = {}) => {
   const { rawHtml, resolvedId, requestedId } = await resolveChapterRawByReference(epub, item, {
     manifestByHref,
@@ -1141,7 +1370,13 @@ const materializeCandidate = async (epub, item, { manifestByHref } = {}) => {
     id: resolvedId || requestedId,
     rawHtml,
     sanitizedHtml,
-    title: String(item?.title || epub.manifest?.[resolvedId || requestedId]?.title || "").trim(),
+    title: resolveCandidateTitle({
+      epub,
+      item,
+      rawHtml,
+      resolvedId,
+      requestedId,
+    }),
   };
 };
 
@@ -1150,6 +1385,7 @@ const getManifestMediaType = (item) =>
     .trim()
     .toLowerCase();
 
+const isStylesheetManifestItem = (item) => getManifestMediaType(item) === "text/css";
 const isImageManifestItem = (item) => getManifestMediaType(item).startsWith("image/");
 
 const getManifestBinaryCacheKey = (manifestItem) => {
@@ -1216,6 +1452,115 @@ const loadManifestBinary = async (epub, manifestItem, { cache } = {}) => {
   }
 
   return Buffer.from([]);
+};
+
+const flattenStylesheetTextImports = async ({
+  epub,
+  cssText,
+  baseHref,
+  manifestByHref,
+  manifestBinaryCache,
+  stylesheetTextCache,
+  seenStylesheetKeys,
+  activeStylesheetKeys,
+} = {}) => {
+  const importedStyles = [];
+  const importHrefs = extractCssImportHrefs(cssText);
+  for (const importHref of importHrefs) {
+    const resolvedHref = normalizeEpubAssetHref(importHref, baseHref);
+    const manifestItem = resolvedHref ? manifestByHref.get(resolvedHref) || null : null;
+    if (!manifestItem || !isStylesheetManifestItem(manifestItem)) {
+      continue;
+    }
+    const importedText = await loadFlattenedStylesheetText({
+      epub,
+      manifestItem,
+      manifestByHref,
+      manifestBinaryCache,
+      stylesheetTextCache,
+      seenStylesheetKeys,
+      activeStylesheetKeys,
+    });
+    if (importedText) {
+      importedStyles.push(importedText);
+    }
+  }
+  const localCss = stripCssImportAndCharsetDirectives(cssText);
+  if (localCss) {
+    importedStyles.push(localCss);
+  }
+  return importedStyles.join("\n").trim();
+};
+
+const loadFlattenedStylesheetText = async ({
+  epub,
+  manifestItem,
+  manifestByHref,
+  manifestBinaryCache,
+  stylesheetTextCache,
+  seenStylesheetKeys,
+  activeStylesheetKeys,
+} = {}) => {
+  if (!manifestItem || !isStylesheetManifestItem(manifestItem)) {
+    return "";
+  }
+
+  const stylesheetKey = getManifestBinaryCacheKey(manifestItem);
+  if (seenStylesheetKeys instanceof Set && stylesheetKey && seenStylesheetKeys.has(stylesheetKey)) {
+    return "";
+  }
+  if (
+    activeStylesheetKeys instanceof Set &&
+    stylesheetKey &&
+    activeStylesheetKeys.has(stylesheetKey)
+  ) {
+    return "";
+  }
+  if (
+    stylesheetTextCache instanceof Map &&
+    stylesheetKey &&
+    stylesheetTextCache.has(stylesheetKey)
+  ) {
+    const cachedText = String(stylesheetTextCache.get(stylesheetKey) || "").trim();
+    if (seenStylesheetKeys instanceof Set && stylesheetKey) {
+      seenStylesheetKeys.add(stylesheetKey);
+    }
+    return cachedText;
+  }
+
+  if (activeStylesheetKeys instanceof Set && stylesheetKey) {
+    activeStylesheetKeys.add(stylesheetKey);
+  }
+
+  try {
+    const stylesheetBuffer = await loadManifestBinary(epub, manifestItem, {
+      cache: manifestBinaryCache,
+    });
+    if (!stylesheetBuffer.length) {
+      return "";
+    }
+    const flattenedText = await flattenStylesheetTextImports({
+      epub,
+      cssText: stylesheetBuffer.toString("utf8"),
+      baseHref: manifestItem?.href,
+      manifestByHref,
+      manifestBinaryCache,
+      stylesheetTextCache,
+      seenStylesheetKeys,
+      activeStylesheetKeys,
+    });
+    if (stylesheetTextCache instanceof Map && stylesheetKey) {
+      stylesheetTextCache.set(stylesheetKey, flattenedText);
+    }
+    if (seenStylesheetKeys instanceof Set && stylesheetKey) {
+      seenStylesheetKeys.add(stylesheetKey);
+    }
+    return flattenedText;
+  } finally {
+    if (activeStylesheetKeys instanceof Set && stylesheetKey) {
+      activeStylesheetKeys.delete(stylesheetKey);
+    }
+  }
 };
 
 const buildStyleDeclaration = (entries) =>
@@ -1411,14 +1756,29 @@ const loadEpubDocumentStylesheets = async ({
   manifestByHref,
   rawHtml,
   manifestBinaryCache,
+  stylesheetTextCache,
 } = {}) => {
   const sourceDom = new JSDOM(String(rawHtml || ""));
   const stylesheets = [];
+  const seenStylesheetKeys = new Set();
+  const activeStylesheetKeys = new Set();
   try {
-    const inlineStyles = [...sourceDom.window.document.querySelectorAll("style")]
-      .map((element) => String(element.textContent || "").trim())
-      .filter(Boolean);
-    stylesheets.push(...inlineStyles);
+    const inlineStyles = [...sourceDom.window.document.querySelectorAll("style")];
+    for (const element of inlineStyles) {
+      const flattenedInlineStyle = await flattenStylesheetTextImports({
+        epub,
+        cssText: String(element.textContent || "").trim(),
+        baseHref: documentHref,
+        manifestByHref,
+        manifestBinaryCache,
+        stylesheetTextCache,
+        seenStylesheetKeys,
+        activeStylesheetKeys,
+      });
+      if (flattenedInlineStyle) {
+        stylesheets.push(flattenedInlineStyle);
+      }
+    }
 
     const stylesheetHrefs = [
       ...sourceDom.window.document.querySelectorAll('link[rel~="stylesheet"][href]'),
@@ -1429,16 +1789,21 @@ const loadEpubDocumentStylesheets = async ({
     for (const stylesheetHref of stylesheetHrefs) {
       const resolvedHref = normalizeEpubAssetHref(stylesheetHref, documentHref);
       const manifestItem = resolvedHref ? manifestByHref.get(resolvedHref) || null : null;
-      if (!manifestItem) {
+      if (!manifestItem || !isStylesheetManifestItem(manifestItem)) {
         continue;
       }
-      const stylesheetBuffer = await loadManifestBinary(epub, manifestItem, {
-        cache: manifestBinaryCache,
+      const flattenedStyle = await loadFlattenedStylesheetText({
+        epub,
+        manifestItem,
+        manifestByHref,
+        manifestBinaryCache,
+        stylesheetTextCache,
+        seenStylesheetKeys,
+        activeStylesheetKeys,
       });
-      if (!stylesheetBuffer.length) {
-        continue;
+      if (flattenedStyle) {
+        stylesheets.push(flattenedStyle);
       }
-      stylesheets.push(stylesheetBuffer.toString("utf8"));
     }
   } finally {
     sourceDom.window.close();
@@ -1446,7 +1811,7 @@ const loadEpubDocumentStylesheets = async ({
   return stylesheets;
 };
 
-const buildStyledEpubDocument = ({ rawHtml, stylesheets } = {}) => {
+const buildStyledEpubDocument = ({ rawHtml, stylesheets, documentHref } = {}) => {
   const sourceDom = new JSDOM(String(rawHtml || ""));
   try {
     const bodyHtml = sourceDom.window.document.body?.innerHTML || String(rawHtml || "");
@@ -1454,6 +1819,9 @@ const buildStyledEpubDocument = ({ rawHtml, stylesheets } = {}) => {
       stylesheets && stylesheets.length > 0 ? `<style>${stylesheets.join("\n")}</style>` : "";
     return new JSDOM(
       `<!doctype html><html><head>${styleTag}</head><body>${bodyHtml}</body></html>`,
+      {
+        url: buildEpubRuntimeUrl(documentHref),
+      },
     );
   } finally {
     sourceDom.window.close();
@@ -1693,6 +2061,137 @@ const normalizeEditorialWrappers = (document) => {
   }
 };
 
+const SVG_RASTER_IMAGE_SELECTOR = "image[href], image[xlink\\:href]";
+
+const getSvgRasterImageHref = (element) =>
+  String(
+    element?.getAttribute?.("href") ||
+      element?.getAttributeNS?.("http://www.w3.org/1999/xlink", "href") ||
+      element?.getAttribute?.("xlink:href") ||
+      "",
+  ).trim();
+
+const parseSvgViewBoxDimensions = (value) => {
+  const parts = String(value || "")
+    .trim()
+    .split(/[\s,]+/)
+    .map((part) => Number(part))
+    .filter((part) => Number.isFinite(part));
+  if (parts.length < 4) {
+    return { width: "", height: "" };
+  }
+  return {
+    width: parts[2] > 0 ? String(parts[2]) : "",
+    height: parts[3] > 0 ? String(parts[3]) : "",
+  };
+};
+
+const getNormalizedImageDimension = (value) => {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "";
+  }
+  return /^-?\d+(?:\.\d+)?$/.test(normalized) && Number(normalized) > 0 ? normalized : "";
+};
+
+const extractSvgReplacementAltText = (svgElement, imageElement) =>
+  normalizeTextContent(
+    imageElement?.getAttribute?.("alt") ||
+      imageElement?.getAttribute?.("aria-label") ||
+      svgElement?.getAttribute?.("aria-label") ||
+      svgElement?.querySelector?.("title")?.textContent ||
+      "",
+  );
+
+const buildSvgRasterReplacementImage = ({ document, svgElement, imageElement } = {}) => {
+  const currentSrc = getSvgRasterImageHref(imageElement);
+  if (!currentSrc) {
+    return null;
+  }
+
+  const replacement = document.createElement("img");
+  replacement.setAttribute("src", currentSrc);
+
+  const altText = extractSvgReplacementAltText(svgElement, imageElement);
+  if (altText) {
+    replacement.setAttribute("alt", altText);
+  }
+
+  const viewBoxDimensions = parseSvgViewBoxDimensions(svgElement?.getAttribute?.("viewBox"));
+  const width =
+    getNormalizedImageDimension(imageElement?.getAttribute?.("width")) ||
+    getNormalizedImageDimension(svgElement?.getAttribute?.("width")) ||
+    viewBoxDimensions.width;
+  const height =
+    getNormalizedImageDimension(imageElement?.getAttribute?.("height")) ||
+    getNormalizedImageDimension(svgElement?.getAttribute?.("height")) ||
+    viewBoxDimensions.height;
+
+  if (width) {
+    replacement.setAttribute("width", width);
+  }
+  if (height) {
+    replacement.setAttribute("height", height);
+  }
+
+  const replacementClassName = [svgElement?.getAttribute?.("class"), imageElement?.getAttribute?.("class")]
+    .flatMap((value) => String(value || "").split(/\s+/))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index)
+    .join(" ");
+  if (replacementClassName) {
+    replacement.setAttribute("class", replacementClassName);
+  }
+
+  const replacementId = String(
+    imageElement?.getAttribute?.("id") || svgElement?.getAttribute?.("id") || "",
+  ).trim();
+  if (replacementId) {
+    replacement.setAttribute("id", replacementId);
+  }
+
+  return replacement;
+};
+
+const normalizeSvgRasterImagesInDocument = (document) => {
+  const svgElements = [...document.querySelectorAll("svg")].reverse();
+  for (const svgElement of svgElements) {
+    const rasterImages = [...svgElement.querySelectorAll(SVG_RASTER_IMAGE_SELECTOR)];
+    if (rasterImages.length === 0) {
+      continue;
+    }
+    const replacements = rasterImages
+      .map((imageElement) =>
+        buildSvgRasterReplacementImage({
+          document,
+          svgElement,
+          imageElement,
+        }),
+      )
+      .filter(Boolean);
+    if (replacements.length === 0) {
+      svgElement.remove();
+      continue;
+    }
+    svgElement.replaceWith(...replacements);
+  }
+
+  const orphanRasterImages = [...document.querySelectorAll(SVG_RASTER_IMAGE_SELECTOR)];
+  for (const imageElement of orphanRasterImages) {
+    const replacement = buildSvgRasterReplacementImage({
+      document,
+      svgElement: imageElement.closest("svg"),
+      imageElement,
+    });
+    if (!replacement) {
+      imageElement.remove();
+      continue;
+    }
+    imageElement.replaceWith(replacement);
+  }
+};
+
 const rewriteInternalImagesInDocument = async ({
   epub,
   document,
@@ -1702,6 +2201,7 @@ const rewriteInternalImagesInDocument = async ({
   imageContext,
 } = {}) => {
   const warnings = [];
+  normalizeSvgRasterImagesInDocument(document);
   const images = [...document.querySelectorAll("img")];
 
   for (const imageElement of images) {
@@ -1789,6 +2289,7 @@ const prepareNarrativeDocumentHtml = async ({
   manifestByHref,
   imageContext,
   cssFallbackSeenKeys,
+  stylesheetTextCache,
 } = {}) => {
   const stylesheets = await loadEpubDocumentStylesheets({
     epub,
@@ -1796,10 +2297,12 @@ const prepareNarrativeDocumentHtml = async ({
     manifestByHref,
     rawHtml,
     manifestBinaryCache: imageContext?.manifestBinaryCache,
+    stylesheetTextCache,
   });
   const dom = buildStyledEpubDocument({
     rawHtml,
     stylesheets,
+    documentHref,
   });
 
   try {
@@ -2047,6 +2550,7 @@ const buildNarrativeChapterCandidatesFromToc = async ({
   warnings,
   imageContext,
   cssFallbackSeenKeys,
+  stylesheetTextCache,
 } = {}) => {
   const { flowItems } = buildFlowIndexes(epub);
   const { manifestByHref } = buildManifestIndexes(epub);
@@ -2100,6 +2604,7 @@ const buildNarrativeChapterCandidatesFromToc = async ({
         manifestByHref,
         imageContext,
         cssFallbackSeenKeys,
+        stylesheetTextCache,
       });
       warnings.push(...prepared.warnings);
       const sanitizedHtml = prepared.html;
@@ -2145,6 +2650,7 @@ const buildFallbackNarrativeChapterCandidates = async ({
   imageContext,
   excludedCandidateKeys,
   cssFallbackSeenKeys,
+  stylesheetTextCache,
 } = {}) => {
   const flowReferences = buildFallbackFlowReferences(epub);
   const materialized = [];
@@ -2246,6 +2752,7 @@ const buildFallbackNarrativeChapterCandidates = async ({
         manifestByHref,
         imageContext,
         cssFallbackSeenKeys,
+        stylesheetTextCache,
       });
       warnings.push(...prepared.warnings);
       const sanitizedHtml = prepared.html;
@@ -2318,6 +2825,7 @@ export const importProjectEpub = async ({
   const assignedImportKeys = new Set();
   const warnings = [];
   const cssFallbackSeenKeys = new Set();
+  const stylesheetTextCache = new Map();
   const chapters = [];
   const discardedCounts = {
     boilerplate: 0,
@@ -2333,7 +2841,7 @@ export const importProjectEpub = async ({
   });
   warnings.push(...(Array.isArray(volumeCoverImport?.warnings) ? volumeCoverImport.warnings : []));
 
-  const { items: tocReferences, unresolvedCount } = resolveTocReferences(epub);
+  const { items: tocReferences, unresolvedCount } = await resolveTocReferences(epub);
   discardedCounts.unresolvedTocEntry = unresolvedCount;
 
   const tocClassifiedCandidates = [];
@@ -2378,6 +2886,7 @@ export const importProjectEpub = async ({
     discardedCounts,
     imageContext,
     cssFallbackSeenKeys,
+    stylesheetTextCache,
   });
   const consumedFrontMatterKeys =
     frontMatterBundle?.consumedKeys instanceof Set ? frontMatterBundle.consumedKeys : new Set();
@@ -2415,6 +2924,7 @@ export const importProjectEpub = async ({
           warnings,
           imageContext,
           cssFallbackSeenKeys,
+          stylesheetTextCache,
         })
       : await buildFallbackNarrativeChapterCandidates({
           epub,
@@ -2423,6 +2933,7 @@ export const importProjectEpub = async ({
           imageContext,
           excludedCandidateKeys: consumedFrontMatterKeys,
           cssFallbackSeenKeys,
+          stylesheetTextCache,
         });
   const orderedChapterCandidates = [
     ...(frontMatterBundle?.chapter ? [frontMatterBundle.chapter] : []),

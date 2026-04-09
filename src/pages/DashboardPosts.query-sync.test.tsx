@@ -146,6 +146,7 @@ const setupApiMock = ({
         id: "user-1",
         name: "Admin",
         username: "admin",
+        permissions: ["posts"],
       });
     }
     if (path === "/api/projects" && method === "GET") {

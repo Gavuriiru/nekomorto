@@ -19,6 +19,7 @@ import { useDeferredVisibility } from "@/hooks/use-deferred-visibility";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
+import { canManageProjectsAccess } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch, apiFetchBestEffort } from "@/lib/api-client";
 import { normalizeAssetUrl } from "@/lib/asset-url";
@@ -599,8 +600,7 @@ const ProjectReading = () => {
       : null;
 
   const canEditChapter = useMemo(() => {
-    const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
-    return permissions.includes("*") || permissions.includes("projetos");
+    return canManageProjectsAccess(currentUser);
   }, [currentUser]);
 
   const editChapterHref = useMemo(() => {
