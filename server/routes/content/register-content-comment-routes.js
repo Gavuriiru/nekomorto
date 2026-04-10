@@ -25,6 +25,7 @@ export const registerContentCommentRoutes = ({
   canManageComments,
   canSubmitComment,
   createGravatarHash,
+  getRequestIp,
   loadComments,
   loadPosts,
   loadProjects,
@@ -97,7 +98,7 @@ export const registerContentCommentRoutes = ({
           : 500,
       ).json({ error: requestError });
     }
-    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+    const ip = typeof getRequestIp === "function" ? getRequestIp(req) : String(req?.ip || "");
     if (!(await canSubmitComment(ip))) {
       return res.status(429).json({ error: "rate_limited" });
     }

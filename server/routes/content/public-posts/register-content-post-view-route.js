@@ -4,12 +4,13 @@ export const registerContentPostViewRoute = ({
   app,
   appendAnalyticsEvent,
   canRegisterView,
+  getRequestIp,
   incrementPostViews,
   loadPosts,
   normalizePosts,
 } = {}) => {
   app.post("/api/public/posts/:slug/view", async (req, res) => {
-    const ip = resolveClientIp(req);
+    const ip = resolveClientIp({ getRequestIp, req });
     if (!(await canRegisterView(ip))) {
       return res.status(429).json({ error: "rate_limited" });
     }

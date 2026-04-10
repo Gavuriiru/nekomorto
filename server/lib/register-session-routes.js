@@ -4,6 +4,14 @@ const setNoStore = (res) => {
   res.setHeader("Cache-Control", "no-store");
 };
 
+const requireUserSessionOrPendingMfa = (req, res, next) => {
+  if (req.session?.user || req.session?.pendingMfaUser?.id) {
+    return next();
+  }
+  setNoStore(res);
+  return res.status(401).json({ error: "unauthorized" });
+};
+
 export const registerSessionRoutes = ({
   app,
   apiContractVersion,
@@ -14,22 +22,19 @@ export const registerSessionRoutes = ({
 }) => {
   const router = Router();
 
-  router.get("/api/me", (req, res) => {
+  router.get("/api/me", requireUserSessionOrPendingMfa, (req, res) => {
     setNoStore(res);
-    if (!req.session?.user) {
-      if (req.session?.pendingMfaUser?.id) {
-        return res.status(401).json({
-          error: "mfa_required",
-          pendingMfa: true,
-          user: {
-            id: req.session.pendingMfaUser.id,
-            name: req.session.pendingMfaUser.name || "",
-            username: req.session.pendingMfaUser.username || "",
-            avatarUrl: req.session.pendingMfaUser.avatarUrl || null,
-          },
-        });
-      }
-      return res.status(401).json({ error: "unauthorized" });
+    if (!req.session?.user && req.session?.pendingMfaUser?.id) {
+      return res.status(401).json({
+        error: "mfa_required",
+        pendingMfa: true,
+        user: {
+          id: req.session.pendingMfaUser.id,
+          name: req.session.pendingMfaUser.name || "",
+          username: req.session.pendingMfaUser.username || "",
+          avatarUrl: req.session.pendingMfaUser.avatarUrl || null,
+        },
+      });
     }
 
     return res.json(buildUserPayload(req.session.user));

@@ -65,6 +65,7 @@ const createDependencies = ({ app, overrides = {} }) => ({
   canRegisterPollVote: vi.fn(async () => true),
   canRegisterView: vi.fn(async () => true),
   deriveChapterSynopsis: vi.fn((chapter) => String(chapter?.synopsis || "")),
+  getRequestIp: vi.fn((req) => String(req?.ip || "").trim()),
   getProjectEpisodePageCount: vi.fn(({ content, pages }) =>
     Array.isArray(pages) && pages.length > 0 ? pages.length : content ? 1 : 0,
   ),
@@ -88,6 +89,31 @@ const createDependencies = ({ app, overrides = {} }) => ({
 });
 
 describe("registerPublicProjectRoutes", () => {
+  it("uses the trusted request ip helper for public project throttling", async () => {
+    const { app, routes } = createAppRecorder();
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        canRegisterView: vi.fn(async () => false),
+        getRequestIp: vi.fn(() => "trusted-ip"),
+      },
+    });
+
+    registerPublicProjectRoutes(dependencies);
+
+    const route = getRoute(routes, "POST", "/api/public/projects/:id/view");
+    const res = await invokeFinalHandler(route, {
+      headers: { "x-forwarded-for": "198.51.100.99" },
+      ip: "127.0.0.1",
+      params: { id: "project-1" },
+    });
+
+    expect(res.statusCode).toBe(429);
+    expect(res.body).toEqual({ error: "rate_limited" });
+    expect(dependencies.getRequestIp).toHaveBeenCalled();
+    expect(dependencies.canRegisterView).toHaveBeenCalledWith("trusted-ip");
+  });
+
   it("returns volume_required for ambiguous published chapters on the public reader route", async () => {
     const { app, routes } = createAppRecorder();
     const dependencies = createDependencies({

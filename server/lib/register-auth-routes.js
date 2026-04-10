@@ -34,6 +34,13 @@ export const registerAuthRoutes = ({
   verifyTotpOrRecoveryCode,
 }) => {
   const router = Router();
+  const requirePendingMfaSession = (req, res, next) => {
+    if (req.session?.pendingMfaUser?.id) {
+      return next();
+    }
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(401).json({ error: "mfa_not_pending" });
+  };
 
   router.get("/auth/discord", async (req, res) => {
     const ip = getRequestIp(req);
@@ -327,12 +334,9 @@ export const registerAuthRoutes = ({
     }
   });
 
-  router.post("/api/auth/mfa/verify", async (req, res) => {
+  router.post("/api/auth/mfa/verify", requirePendingMfaSession, async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     const pendingUser = req.session?.pendingMfaUser || null;
-    if (!pendingUser?.id) {
-      return res.status(401).json({ error: "mfa_not_pending" });
-    }
 
     const codeOrRecoveryCode = String(req.body?.codeOrRecoveryCode || req.body?.code || "").trim();
     if (!codeOrRecoveryCode) {

@@ -97,9 +97,10 @@ const LatestEpisodeCard = () => {
                 style={
                   {
                     "--card-h": `${RECENT_UPDATES_CARD_HEIGHT_PX}px`,
+                    height: `${RECENT_UPDATES_CARD_HEIGHT_PX}px`,
                   } as CSSProperties
                 }
-                className="flex h-(--card-h) overflow-hidden rounded-2xl bg-background/40"
+                className="flex overflow-hidden rounded-2xl bg-background/40"
               >
                 <Skeleton
                   className="h-full shrink-0"
@@ -184,7 +185,7 @@ const LatestEpisodeCard = () => {
                         "--card-h": `${RECENT_UPDATES_CARD_HEIGHT_PX}px`,
                       } as CSSProperties
                     }
-                    className="recent-updates-item group flex h-(--card-h) overflow-hidden rounded-2xl bg-linear-to-br from-background/70 via-background/40 to-background/70 motion-safe:hover:-translate-y-1 motion-safe:focus-visible:-translate-y-1 reveal"
+                    className="recent-updates-item group reveal"
                     data-reveal
                   >
                     <div
@@ -204,7 +205,7 @@ const LatestEpisodeCard = () => {
                         imgClassName="interactive-media-transition h-full w-full object-cover object-center group-hover:scale-105 group-focus-visible:scale-105"
                       />
                     </div>
-                    <div className="flex h-full min-w-0 flex-1 flex-col gap-3 p-[1.125rem]">
+                    <div className="recent-updates-item-body flex h-full min-w-0 flex-1 flex-col gap-3">
                       <div className="no-scrollbar flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
                         <Badge
                           variant="secondary"

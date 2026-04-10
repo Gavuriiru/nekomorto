@@ -189,10 +189,9 @@ export const storeUploadImageBuffer = async ({
   }
 
   const ext = getUploadExtFromMime(normalizedMime);
-  const safeName = sanitizeUploadBaseName(filename || "upload");
   const fileName = exactFileName
     ? sanitizeUploadExactFileName(exactFileName, normalizedMime)
-    : `${safeName || "imagem"}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}.${ext}`;
+    : `${crypto.randomUUID()}.${ext}`;
   const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
   fs.mkdirSync(targetDir, { recursive: true });
   const filePath = path.join(targetDir, fileName);

@@ -3,13 +3,14 @@ import { resolveClientIp } from "./shared.js";
 export const registerContentPostPollVoteRoute = ({
   app,
   canRegisterPollVote,
+  getRequestIp,
   loadPosts,
   normalizePosts,
   updateLexicalPollVotes,
   writePosts,
 } = {}) => {
   app.post("/api/public/posts/:slug/polls/vote", async (req, res) => {
-    const ip = resolveClientIp(req);
+    const ip = resolveClientIp({ getRequestIp, req });
     if (!(await canRegisterPollVote(ip))) {
       return res.status(429).json({ error: "rate_limited" });
     }

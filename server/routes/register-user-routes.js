@@ -61,6 +61,7 @@ const BOOTSTRAP_OWNER_DEPENDENCY_KEYS = [
   "canBootstrap",
   "ensureOwnerUser",
   "enforceUserAccessInvariants",
+  "getRequestIp",
   "loadOwnerIds",
   "loadUsers",
   "normalizeUsers",

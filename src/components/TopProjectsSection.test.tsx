@@ -203,12 +203,7 @@ describe("TopProjectsSection", () => {
     expect(listShell).toHaveClass("overflow-hidden");
     expect(list).toHaveClass(
       "no-scrollbar",
-      "overflow-y-auto",
-      "overscroll-contain",
-      "pt-1",
-      "pb-1",
-      "max-h-[calc((var(--top-card-h)*2)+(var(--top-gap)*1)+0.5rem)]",
-      "md:max-h-[calc((var(--top-card-h)*3)+(var(--top-gap)*2)+0.5rem)]",
+      "top-projects-list",
     );
     expect(list).not.toHaveClass("-my-1");
     expect(String(list.getAttribute("style") || "")).toContain(
@@ -219,10 +214,9 @@ describe("TopProjectsSection", () => {
     );
     const firstItem = screen.getByTestId("top-project-item-1");
     expect(firstItem).toHaveClass(
-      "h-(--top-card-h)",
+      "top-projects-link",
       "rounded-2xl",
-      "flex",
-      "overflow-hidden",
+      "group",
     );
     expect(firstItem).toHaveClass(
       "interactive-lift-md",
@@ -257,7 +251,7 @@ describe("TopProjectsSection", () => {
     const synopsisColumn = titleBlock?.parentElement as HTMLElement | null;
     expect(synopsisColumn).not.toBeNull();
     expect(classTokens(synopsisColumn as HTMLElement)).toContain(
-      "p-[1.125rem]",
+      "top-projects-link-body",
     );
     expect(classTokens(synopsisColumn as HTMLElement)).toContain("flex-1");
     const firstLink = headings[0].closest("a");

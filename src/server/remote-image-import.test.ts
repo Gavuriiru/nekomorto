@@ -56,6 +56,9 @@ describe("importRemoteImageFile", () => {
     if (!result.ok) {
       return;
     }
+    expect(result.entry.fileName).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.png$/,
+    );
     expect(result.entry.url).toMatch(/^\/uploads\/projects\/proj-1\/.+\.png$/);
     expect(result.entry.mime).toBe("image/png");
     expect(result.entry.width).toBe(1);

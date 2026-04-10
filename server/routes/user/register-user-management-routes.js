@@ -244,11 +244,7 @@ export const registerUserManagementRoutes = ({
     return res.json({ ok: true });
   });
 
-  app.put("/api/users/:id", (req, res) => {
-    if (!req.session?.user) {
-      return res.status(401).json({ error: "unauthorized" });
-    }
-
+  app.put("/api/users/:id", requireAuth, (req, res) => {
     const options = parseEditRevisionOptions(req.body);
     const targetId = String(req.params.id);
     let users = normalizeUsers(loadUsers());

@@ -8,7 +8,18 @@ import {
   resolveDiscordRedirectUri as resolveDiscordRedirectUriByConfig,
 } from "../lib/origin-config.js";
 
-export const getRequestIp = (req) => req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "";
+export const normalizeRequestIp = (value) => {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "";
+  }
+  if (normalized.startsWith("::ffff:")) {
+    return normalized.slice("::ffff:".length);
+  }
+  return normalized;
+};
+
+export const getRequestIp = (req) => normalizeRequestIp(req?.ip);
 
 export const createServerPlatformRuntime = async ({
   app,

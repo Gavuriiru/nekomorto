@@ -75,6 +75,7 @@ const createDependencies = ({ app, overrides = {} }) => ({
   canManageComments: vi.fn(() => false),
   canSubmitComment: vi.fn(async () => true),
   createGravatarHash: vi.fn((email) => `hash:${email}`),
+  getRequestIp: vi.fn((req) => String(req?.ip || "").trim()),
   loadComments: vi.fn(() => []),
   loadPosts: vi.fn(() => []),
   loadProjects: vi.fn(() => []),
@@ -90,6 +91,38 @@ const createDependencies = ({ app, overrides = {} }) => ({
 });
 
 describe("registerContentCommentRoutes", () => {
+  it("uses the trusted request ip helper for public comment throttling", async () => {
+    const { app, routes } = createAppRecorder();
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        canSubmitComment: vi.fn(async () => false),
+        getRequestIp: vi.fn(() => "trusted-ip"),
+      },
+    });
+
+    registerContentCommentRoutes(dependencies);
+
+    const route = getRoute(routes, "POST", "/api/public/comments");
+    const res = await invokeFinalHandler(route, {
+      body: {
+        content: "Novo comentario",
+        email: "reader@example.com",
+        name: "Leitor",
+        targetId: "project-1",
+        targetType: "project",
+      },
+      headers: { "x-forwarded-for": "198.51.100.99" },
+      ip: "127.0.0.1",
+      session: {},
+    });
+
+    expect(res.statusCode).toBe(429);
+    expect(res.body).toEqual({ error: "rate_limited" });
+    expect(dependencies.getRequestIp).toHaveBeenCalled();
+    expect(dependencies.canSubmitComment).toHaveBeenCalledWith("trusted-ip");
+  });
+
   it("creates approved staff comments and emits both creation and approval analytics", async () => {
     const { app, routes } = createAppRecorder();
     const comments: Array<Record<string, any>> = [];

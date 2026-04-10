@@ -92,6 +92,7 @@ export const buildServerRouteLocalDependencies = (dependencies = {}) => ({
   getProjectEpisodePageCount: dependencies.getProjectEpisodePageCount,
   getProjectOgCachedRender: dependencies.getProjectOgCachedRender,
   getProjectReadingOgCachedRender: dependencies.getProjectReadingOgCachedRender,
+  getRequestIp: dependencies.getRequestIp,
   getUploadExtFromMime: dependencies.getUploadExtFromMime,
   getUploadFolderFromUrlValue: dependencies.getUploadFolderFromUrlValue,
   getUploadMimeFromExtension: dependencies.getUploadMimeFromExtension,

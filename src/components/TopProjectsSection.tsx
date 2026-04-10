@@ -228,7 +228,7 @@ const TopProjectsSection = () => {
               ref={synopsisRootRef}
               data-testid="top-projects-list"
               style={listLayoutStyle}
-              className={`no-scrollbar space-y-[var(--top-gap)] overflow-y-auto overscroll-contain pr-1 pt-1 pb-1 max-h-[calc((var(--top-card-h)*${TOP_PROJECTS_VISIBLE_MOBILE})+(var(--top-gap)*${TOP_PROJECTS_VISIBLE_MOBILE - 1})+0.5rem)] md:max-h-[calc((var(--top-card-h)*${TOP_PROJECTS_VISIBLE_DESKTOP})+(var(--top-gap)*${TOP_PROJECTS_VISIBLE_DESKTOP - 1})+0.5rem)]`}
+              className="top-projects-list no-scrollbar"
             >
               {topProjects.map((entry, index) => {
                 const metricValue =
@@ -243,7 +243,7 @@ const TopProjectsSection = () => {
                     key={entry.id}
                     data-testid={`top-project-item-${index + 1}`}
                     to={`/projeto/${entry.id}`}
-                    className={`group interactive-lift-md interactive-surface-transition flex h-(--top-card-h) overflow-hidden rounded-2xl border border-border/50 bg-linear-to-br from-background/70 via-background/40 to-background/70 ${publicStrongSurfaceHoverClassName} focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45`}
+                    className={`top-projects-link group interactive-lift-md interactive-surface-transition ${publicStrongSurfaceHoverClassName} focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45`}
                   >
                     <div
                       className="h-full shrink-0 overflow-hidden bg-secondary/60"
@@ -267,7 +267,7 @@ const TopProjectsSection = () => {
                     <div
                       data-synopsis-role="column"
                       data-synopsis-key={entry.id}
-                      className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-[1.125rem]"
+                      className="top-projects-link-body flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
                     >
                       <div data-synopsis-role="title" className="space-y-1.5">
                         <div

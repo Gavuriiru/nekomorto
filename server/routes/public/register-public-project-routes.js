@@ -168,6 +168,7 @@ export const registerPublicProjectRoutes = ({
   canRegisterPollVote,
   canRegisterView,
   deriveChapterSynopsis,
+  getRequestIp,
   getProjectEpisodePageCount,
   getPublicReadableProjects,
   getPublicVisibleProjects,
@@ -241,7 +242,7 @@ export const registerPublicProjectRoutes = ({
   });
 
   app.post("/api/public/projects/:id/view", async (req, res) => {
-    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+    const ip = typeof getRequestIp === "function" ? getRequestIp(req) : String(req?.ip || "");
     if (!(await canRegisterView(ip))) {
       return res.status(429).json({ error: "rate_limited" });
     }
@@ -304,7 +305,7 @@ export const registerPublicProjectRoutes = ({
   });
 
   app.post("/api/public/projects/:id/chapters/:number/polls/vote", async (req, res) => {
-    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+    const ip = typeof getRequestIp === "function" ? getRequestIp(req) : String(req?.ip || "");
     if (!(await canRegisterPollVote(ip))) {
       return res.status(429).json({ error: "rate_limited" });
     }

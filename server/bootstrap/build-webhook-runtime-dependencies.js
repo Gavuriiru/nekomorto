@@ -29,6 +29,7 @@ export const buildWebhookRuntimeDependencies = (dependencies = {}) => ({
   enqueueWebhookDelivery: dependencies.enqueueWebhookDelivery,
   evaluateOperationalMonitoring: dependencies.evaluateOperationalMonitoring,
   getActiveProjectTypes: dependencies.getActiveProjectTypes,
+  getRequestIp: dependencies.getRequestIp,
   loadIntegrationSettings: dependencies.loadIntegrationSettings,
   loadProjects: dependencies.loadProjects,
   loadSiteSettings: dependencies.loadSiteSettings,

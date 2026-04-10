@@ -59,12 +59,13 @@ const createDependencies = ({ app, overrides = {} }) => ({
   PUBLIC_ANALYTICS_RESOURCE_TYPE_SET: new Set(["chapter", "pwa"]),
   appendAnalyticsEvent: vi.fn(() => ({ ok: true })),
   canRegisterView: vi.fn(async () => true),
+  getRequestIp: vi.fn((req) => String(req?.ip || "").trim()),
   ...overrides,
 });
 
 const buildRequest = (body = {}) => ({
   body,
-  headers: {},
+  headers: { "x-forwarded-for": "198.51.100.99" },
   ip: "127.0.0.1",
 });
 
@@ -101,6 +102,7 @@ describe("registerPublicRoutes", () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.body).toEqual({ ok: true, deduped: false });
+      expect(dependencies.canRegisterView).toHaveBeenCalledWith("127.0.0.1");
       expect(dependencies.appendAnalyticsEvent).toHaveBeenCalledWith(
         req,
         expect.objectContaining({

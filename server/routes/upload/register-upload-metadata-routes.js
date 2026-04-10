@@ -28,11 +28,11 @@ export const registerUploadMetadataRoutes = (deps) => {
     readUploadSlot,
     readUploadSlotManaged,
     readUploadStorageProvider,
+    getRequestIp,
     resolveIncomingUploadFocalState,
     resolveRequestUploadAccessScope,
     resolveUploadVariantPresetKeysForArea,
     sanitizeSvg,
-    sanitizeUploadBaseName,
     sanitizeUploadFolder,
     sanitizeUploadSlot,
     shouldIncludeUploadInHashDedupe,
@@ -52,7 +52,7 @@ export const registerUploadMetadataRoutes = (deps) => {
   if (includeImageRoute) {
     app.post("/api/uploads/image", deps.requireAuth, async (req, res) => {
     const sessionUser = req.session.user;
-    const { dataUrl, filename, folder, slot, scopeUserId } = req.body || {};
+    const { dataUrl, folder, slot, scopeUserId } = req.body || {};
     const safeFolder = sanitizeUploadFolder(folder);
     const uploadAccessScope = resolveRequestUploadAccessScope({
       sessionUser,
@@ -62,7 +62,7 @@ export const registerUploadMetadataRoutes = (deps) => {
     if (!uploadAccessScope.allowed) {
       return res.status(403).json({ error: "forbidden" });
     }
-    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+    const ip = typeof getRequestIp === "function" ? getRequestIp(req) : String(req?.ip || "");
     if (!(await canUploadImage(ip))) {
       return res.status(429).json({ error: "rate_limited" });
     }
@@ -141,12 +141,11 @@ export const registerUploadMetadataRoutes = (deps) => {
     }
 
     const ext = getUploadExtFromMime(mime);
-    const safeName = sanitizeUploadBaseName(filename || "upload");
     const safeSlot = sanitizeUploadSlot(slot);
     const useSlotName = Boolean(safeSlot && isPrivateUploadFolder(safeFolder));
     const fileName = useSlotName
       ? `${safeSlot}.${ext}`
-      : `${safeName || "imagem"}-${Date.now()}.${ext}`;
+      : `${crypto.randomUUID()}.${ext}`;
     const relativeUrl = `/uploads/${safeFolder ? `${safeFolder}/` : ""}${fileName}`;
     const existingIndex = uploads.findIndex((item) => item.url === relativeUrl);
     const existingEntry = existingIndex >= 0 ? uploads[existingIndex] : null;

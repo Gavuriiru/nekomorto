@@ -6,9 +6,10 @@ export const registerPublicAnalyticsRoutes = ({
   app,
   appendAnalyticsEvent,
   canRegisterView,
+  getRequestIp,
 } = {}) => {
   const handlePublicAnalyticsIngest = async (req, res) => {
-    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+    const ip = typeof getRequestIp === "function" ? getRequestIp(req) : String(req?.ip || "");
     if (!(await canRegisterView(ip))) {
       return res.status(429).json({ error: "rate_limited" });
     }

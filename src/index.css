@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "./styles/vendor/tw-animate.css";
+@source not "./**/*.test.ts";
+@source not "./**/*.test.tsx";
 
 @theme inline {
   --font-sans: "Inter", sans-serif;
@@ -182,6 +184,97 @@
     ):focus-visible {
     border-color: hsl(var(--primary)) !important;
     box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.45) !important;
+  }
+}
+
+@layer components {
+  .recent-updates-item {
+    display: flex;
+    height: var(--card-h);
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid hsl(var(--border) / 0.6);
+    background-color: hsl(var(--background) / 0.7);
+    background-image: linear-gradient(
+      to bottom right,
+      hsl(var(--background) / 0.7) 0%,
+      hsl(var(--background) / 0.4) 50%,
+      hsl(var(--background) / 0.7) 100%
+    );
+  }
+
+  .recent-updates-item.reveal {
+    transition:
+      opacity 0.6s ease,
+      transform var(--interactive-duration-medium)
+        var(--interactive-ease-standard),
+      border-color var(--interactive-duration-fast)
+        var(--interactive-ease-standard),
+      box-shadow var(--interactive-duration-medium)
+        var(--interactive-ease-standard),
+      color var(--interactive-duration-fast) var(--interactive-ease-standard);
+  }
+
+  .recent-updates-item:hover {
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: 0 18px 34px -26px hsl(var(--primary) / 0.65);
+  }
+
+  .recent-updates-item:focus-visible {
+    border-color: hsl(var(--ring) / 0.55);
+    box-shadow:
+      0 0 0 2px hsl(var(--ring) / 0.3),
+      0 16px 30px -26px hsl(var(--ring) / 0.55);
+    outline: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .recent-updates-item:hover,
+    .recent-updates-item:focus-visible {
+      transform: translateY(-4px);
+    }
+  }
+
+  .recent-updates-item-body {
+    padding: 1.125rem;
+  }
+
+  .top-projects-list {
+    max-height: calc((var(--top-card-h) * 2) + (var(--top-gap) * 1) + 0.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-top: 0.25rem;
+    padding-right: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+
+  .top-projects-list > * + * {
+    margin-top: var(--top-gap);
+  }
+
+  @media (min-width: 768px) {
+    .top-projects-list {
+      max-height: calc((var(--top-card-h) * 3) + (var(--top-gap) * 2) + 0.5rem);
+    }
+  }
+
+  .top-projects-link {
+    display: flex;
+    height: var(--top-card-h);
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid hsl(var(--border) / 0.5);
+    background-color: hsl(var(--background) / 0.7);
+    background-image: linear-gradient(
+      to bottom right,
+      hsl(var(--background) / 0.7) 0%,
+      hsl(var(--background) / 0.4) 50%,
+      hsl(var(--background) / 0.7) 100%
+    );
+  }
+
+  .top-projects-link-body {
+    padding: 1.125rem;
   }
 }
 
@@ -674,37 +767,6 @@
 
   .border-rainbow {
     border-image: var(--gradient-rainbow) 1;
-  }
-}
-
-@layer components {
-  .recent-updates-item {
-    border: 1px solid hsl(var(--border) / 0.6);
-  }
-
-  .recent-updates-item.reveal {
-    transition:
-      opacity 0.6s ease,
-      transform var(--interactive-duration-medium)
-        var(--interactive-ease-standard),
-      border-color var(--interactive-duration-fast)
-        var(--interactive-ease-standard),
-      box-shadow var(--interactive-duration-medium)
-        var(--interactive-ease-standard),
-      color var(--interactive-duration-fast) var(--interactive-ease-standard);
-  }
-
-  .recent-updates-item:hover {
-    border-color: hsl(var(--primary) / 0.5);
-    box-shadow: 0 18px 34px -26px hsl(var(--primary) / 0.65);
-  }
-
-  .recent-updates-item:focus-visible {
-    border-color: hsl(var(--ring) / 0.55);
-    box-shadow:
-      0 0 0 2px hsl(var(--ring) / 0.3),
-      0 16px 30px -26px hsl(var(--ring) / 0.55);
-    outline: none;
   }
 }
 

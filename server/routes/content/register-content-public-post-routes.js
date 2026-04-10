@@ -45,6 +45,7 @@ const VIEW_DEPENDENCY_KEYS = [
   "app",
   "appendAnalyticsEvent",
   "canRegisterView",
+  "getRequestIp",
   "incrementPostViews",
   "loadPosts",
   "normalizePosts",
@@ -53,6 +54,7 @@ const VIEW_DEPENDENCY_KEYS = [
 const POLL_VOTE_DEPENDENCY_KEYS = [
   "app",
   "canRegisterPollVote",
+  "getRequestIp",
   "loadPosts",
   "normalizePosts",
   "updateLexicalPollVotes",

@@ -115,6 +115,7 @@ const createDependencies = ({ app, overrides = {} }) => ({
   deletePrivateUploadByUrl: vi.fn(),
   dispatchEditorialWebhookEvent: vi.fn(),
   ensureNoEditConflict: vi.fn(() => true),
+  getRequestIp: vi.fn((req) => String(req?.ip || "").trim()),
   incrementPostViews: vi.fn(),
   isWithinRestoreWindow: vi.fn(() => true),
   listPostVersions: vi.fn(() => []),
@@ -146,6 +147,31 @@ const createDependencies = ({ app, overrides = {} }) => ({
 });
 
 describe("registerContentRoutes", () => {
+  it("uses the trusted request ip helper for public post view throttling", async () => {
+    const { app, routes } = createAppRecorder();
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        canRegisterView: vi.fn(async () => false),
+        getRequestIp: vi.fn(() => "trusted-ip"),
+      },
+    });
+
+    registerContentRoutes(dependencies);
+
+    const route = getRoute(routes, "POST", "/api/public/posts/:slug/view");
+    const res = await invokeFinalHandler(route, {
+      headers: { "x-forwarded-for": "198.51.100.99" },
+      ip: "127.0.0.1",
+      params: { slug: "post-1" },
+    });
+
+    expect(res.statusCode).toBe(429);
+    expect(res.body).toEqual({ error: "rate_limited" });
+    expect(dependencies.getRequestIp).toHaveBeenCalled();
+    expect(dependencies.canRegisterView).toHaveBeenCalledWith("trusted-ip");
+  });
+
   it("preserves the pending comments payload without status while keeping target metadata", async () => {
     const { app, routes } = createAppRecorder();
     const dependencies = createDependencies({

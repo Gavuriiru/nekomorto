@@ -252,7 +252,7 @@ describe("public-site-runtime", () => {
     expect(dashboardHtml).toContain("pwa:no");
   });
 
-  it("builds the home hero shell with the shared viewport contract and non-fullscreen overlay", () => {
+  it("builds the home hero shell using only the initial hero image", () => {
     let capturedShellMarkup = "";
     let capturedCriticalCss = "";
     const runtime = createPublicSiteRuntime(
@@ -278,10 +278,49 @@ describe("public-site-runtime", () => {
 
     expect(capturedShellMarkup).toContain('class="public-home-hero-shell public-home-hero-viewport"');
     expect(capturedShellMarkup).toContain('class="public-home-hero-shell__image"');
-    expect(capturedShellMarkup).toContain('class="public-home-hero-shell__navbar-overlay"');
-    expect(capturedShellMarkup).toContain('class="public-home-hero-shell__header"');
-    expect(capturedShellMarkup).toContain('class="public-home-hero-shell__title"');
+    expect(capturedShellMarkup).toContain("/uploads/project-hero.jpg");
+    expect(capturedShellMarkup).not.toContain("public-home-hero-shell__header");
+    expect(capturedShellMarkup).not.toContain("public-home-hero-shell__content-wrap");
+    expect(capturedShellMarkup).not.toContain("public-home-hero-shell__controls");
     expect(capturedCriticalCss).toContain(".public-home-hero-shell");
-    expect(capturedCriticalCss).toContain('@font-face');
+    expect(capturedCriticalCss).toContain(".public-home-hero-shell__image");
+    expect(capturedCriticalCss).not.toContain('@font-face');
+    expect(capturedCriticalCss).not.toContain("public-home-hero-shell__header");
+  });
+
+  it("keeps the image-only shell even when a user session exists", () => {
+    let capturedShellMarkup = "";
+    const runtime = createPublicSiteRuntime(
+      createDeps({
+        injectHomeHeroShell: ({ html, shellMarkup }) => {
+          capturedShellMarkup = shellMarkup;
+          return html;
+        },
+      }),
+    );
+
+    runtime.injectPublicBootstrapHtml({
+      html: "<html></html>",
+      req: {
+        path: "/",
+        session: {
+          user: {
+            id: "user-1",
+            name: "José Gabriel",
+            avatarUrl: "/uploads/jose-avatar.png",
+            revision: 7,
+          },
+        },
+      },
+      settings: {},
+      pages: {},
+      includeHomeHeroShell: true,
+      bootstrapMode: PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
+    });
+
+    expect(capturedShellMarkup).toContain('class="public-home-hero-shell__image"');
+    expect(capturedShellMarkup).toContain("/uploads/project-hero.jpg");
+    expect(capturedShellMarkup).not.toContain("José Gabriel");
+    expect(capturedShellMarkup).not.toContain("public-home-hero-shell__user-button");
   });
 });

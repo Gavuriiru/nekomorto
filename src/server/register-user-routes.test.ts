@@ -54,6 +54,21 @@ const invokeFinalHandler = async (route, req) => {
   return res;
 };
 
+const invokeRouteHandlers = async (route, req) => {
+  const res = createMockRes();
+  let index = 0;
+  const next = async () => {
+    const handler = route.handlers[index];
+    index += 1;
+    if (!handler) {
+      return;
+    }
+    await handler(req, res, next);
+  };
+  await next();
+  return res;
+};
+
 const createDependencies = ({ app, overrides = {} }) => {
   const requireAuth = vi.fn((_req, _res, next) => next?.());
   const requirePrimaryOwner = vi.fn((_req, _res, next) => next?.());
@@ -87,6 +102,7 @@ const createDependencies = ({ app, overrides = {} }) => {
     enforceUserAccessInvariants: vi.fn((users) => users),
     ensureNoEditConflict: vi.fn(() => true),
     ensureOwnerUser: vi.fn(),
+    getRequestIp: vi.fn((req) => String(req?.ip || "").trim()),
     getPrimaryOwnerId: vi.fn(() => "owner-1"),
     getUserAccessContextById: vi.fn(() => ({
       accessRole: AccessRole.NORMAL,
@@ -140,6 +156,38 @@ const createDependencies = ({ app, overrides = {} }) => {
 };
 
 describe("registerUserRoutes", () => {
+  it("uses the trusted request ip helper for bootstrap-owner throttling", async () => {
+    const { app, routes } = createAppRecorder();
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        canBootstrap: vi.fn(async () => false),
+        getRequestIp: vi.fn(() => "trusted-ip"),
+      },
+    });
+
+    registerUserRoutes(dependencies);
+
+    const route = getRoute(routes, "POST", "/api/bootstrap-owner");
+    expect(route.handlers[0]).toBe(dependencies.requireAuth);
+
+    const res = await invokeFinalHandler(route, {
+      body: { token: "bootstrap-token" },
+      headers: { "x-forwarded-for": "198.51.100.99" },
+      ip: "127.0.0.1",
+      session: {
+        user: {
+          id: "owner-1",
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(429);
+    expect(res.body).toEqual({ error: "rate_limited" });
+    expect(dependencies.getRequestIp).toHaveBeenCalled();
+    expect(dependencies.canBootstrap).toHaveBeenCalledWith("trusted-ip");
+  });
+
   it("keeps requireAuth on legacy mutation routes and returns the expected create payload", async () => {
     const { app, routes } = createAppRecorder();
     let storedUsers = [];
@@ -272,7 +320,7 @@ describe("registerUserRoutes", () => {
     );
   });
 
-  it("keeps manual auth on PUT /api/users/:id and preserves the RBAC v2 response shape", async () => {
+  it("runs requireAuth before PUT /api/users/:id and preserves the RBAC v2 response shape", async () => {
     const { app, routes } = createAppRecorder();
     let storedUsers = [
       {
@@ -336,6 +384,12 @@ describe("registerUserRoutes", () => {
         pickBasicProfilePatch: vi.fn((update) => ({
           name: update.name,
         })),
+        requireAuth: vi.fn((req, res, next) => {
+          if (!req.session?.user) {
+            return res.status(401).json({ error: "unauthorized" });
+          }
+          return next?.();
+        }),
         withUserProfileRevision: vi.fn((user) => ({
           ...user,
           revision: "rbac-revision",
@@ -346,9 +400,10 @@ describe("registerUserRoutes", () => {
     registerUserRoutes(dependencies);
 
     const route = getRoute(routes, "PUT", "/api/users/:id");
-    expect(route.handlers).toHaveLength(1);
+    expect(route.handlers).toHaveLength(2);
+    expect(route.handlers[0]).toBe(dependencies.requireAuth);
 
-    const unauthorized = await invokeFinalHandler(route, {
+    const unauthorized = await invokeRouteHandlers(route, {
       body: { name: "Ignored" },
       params: { id: "user-2" },
       session: null,
@@ -356,7 +411,7 @@ describe("registerUserRoutes", () => {
     expect(unauthorized.statusCode).toBe(401);
     expect(unauthorized.body).toEqual({ error: "unauthorized" });
 
-    const res = await invokeFinalHandler(route, {
+    const res = await invokeRouteHandlers(route, {
       body: { name: "Updated Name" },
       params: { id: "user-2" },
       session: {

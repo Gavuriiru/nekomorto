@@ -5,6 +5,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import { registerUploadRoutes } from "../../server/routes/register-upload-routes.js";
 
+const ONE_BY_ONE_PNG_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/7J8AAAAASUVORK5CYII=";
+
 const createAppRecorder = () => {
   const routes: Array<{
     method: string;
@@ -83,6 +86,7 @@ const createDependencies = ({ app, overrides = {} }) => ({
   getUploadExtFromMime: vi.fn(() => "png"),
   getUploadMimeFromExtension: vi.fn(() => "image/png"),
   getUploadVariantUrlPrefix: vi.fn(() => "/uploads/_variants/u1/"),
+  getRequestIp: vi.fn((req) => String(req?.ip || "").trim()),
   hasOwnField: vi.fn((value, key) => Object.prototype.hasOwnProperty.call(value || {}, key)),
   importRemoteImageFile: vi.fn(async () => null),
   invalidateUploadsCleanupPreviewCache: vi.fn(),
@@ -146,6 +150,104 @@ const createDependencies = ({ app, overrides = {} }) => ({
 });
 
 describe("registerUploadRoutes", () => {
+  it("uses the trusted request ip helper for upload-from-url throttling", async () => {
+    const { app, routes } = createAppRecorder();
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        canUploadImage: vi.fn(async () => false),
+        getRequestIp: vi.fn(() => "trusted-ip"),
+      },
+    });
+
+    registerUploadRoutes(dependencies);
+
+    const route = getRoute(routes, "POST", "/api/uploads/image-from-url");
+    const res = await invokeFinalHandler(route, {
+      body: {
+        folder: "posts",
+        url: "https://cdn.example.com/image.png",
+      },
+      headers: { "x-forwarded-for": "198.51.100.99" },
+      ip: "127.0.0.1",
+      session: {
+        user: {
+          id: "user-1",
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(429);
+    expect(res.body).toEqual({ error: "rate_limited" });
+    expect(dependencies.getRequestIp).toHaveBeenCalled();
+    expect(dependencies.canUploadImage).toHaveBeenCalledWith("trusted-ip");
+  });
+
+  it("renames direct uploads to UUID-based file names on the server", async () => {
+    const { app, routes } = createAppRecorder();
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        attachUploadMediaMetadata: vi.fn(async ({ entry }) => ({
+          ...entry,
+          hashSha256: "hash",
+          variants: {},
+          variantBytes: 0,
+        })),
+        computeBufferSha256: vi.fn(() => "hash"),
+        createUploadStagingWorkspace: vi.fn(() => ({
+          uploadsDir: "D:/tmp/upload-staging",
+        })),
+        persistUploadEntryFromStaging: vi.fn(async () => undefined),
+        uploadStorageService: {
+          activeProvider: "local",
+        },
+        validateUploadImageBuffer: vi.fn(() => ({
+          valid: true,
+          mime: "image/png",
+          dimensions: {
+            width: 1,
+            height: 1,
+          },
+        })),
+        writeUploadBufferToStaging: vi.fn(() => "D:/tmp/upload-staging/generated.png"),
+      },
+    });
+
+    registerUploadRoutes(dependencies);
+
+    const route = getRoute(routes, "POST", "/api/uploads/image");
+    expect(route).toBeTruthy();
+    expect(route.handlers[0]).toBe(dependencies.requireAuth);
+
+    const res = await invokeFinalHandler(route, {
+      body: {
+        dataUrl: `data:image/png;base64,${ONE_BY_ONE_PNG_BASE64}`,
+        folder: "posts",
+      },
+      session: {
+        user: {
+          id: "user-1",
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.fileName).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.png$/,
+    );
+    expect(res.body.url).toMatch(
+      /^\/uploads\/posts\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.png$/,
+    );
+    expect(dependencies.writeUploads).toHaveBeenCalledWith([
+      expect.objectContaining({
+        fileName: expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.png$/,
+        ),
+      }),
+    ]);
+  });
+
   it("lista metadados e arquivos locais soltos dentro da pasta solicitada", async () => {
     const { app, routes } = createAppRecorder();
     const uploadsDir = fs.mkdtempSync(path.join(os.tmpdir(), "upload-routes-users-"));

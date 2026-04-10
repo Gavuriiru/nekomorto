@@ -5,6 +5,7 @@ export const registerUserBootstrapOwnerRoutes = ({
   canBootstrap,
   ensureOwnerUser,
   enforceUserAccessInvariants,
+  getRequestIp,
   loadOwnerIds,
   loadUsers,
   normalizeUsers,
@@ -14,7 +15,7 @@ export const registerUserBootstrapOwnerRoutes = ({
   writeUsers,
 } = {}) => {
   app.post("/api/bootstrap-owner", requireAuth, async (req, res) => {
-    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+    const ip = typeof getRequestIp === "function" ? getRequestIp(req) : String(req?.ip || "");
     if (!(await canBootstrap(ip))) {
       appendAuditLog(req, "auth.bootstrap.rate_limited", "owners", {});
       return res.status(429).json({ error: "rate_limited" });

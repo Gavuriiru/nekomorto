@@ -51,4 +51,9 @@ export const findPublishedPublicPostBySlug = ({
   return post;
 };
 
-export const resolveClientIp = (req) => req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+export const resolveClientIp = ({ getRequestIp, req } = {}) => {
+  if (typeof getRequestIp === "function") {
+    return getRequestIp(req);
+  }
+  return String(req?.ip || "").trim();
+};

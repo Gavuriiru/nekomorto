@@ -8,6 +8,7 @@ export const createAuditLogStore = ({
   crypto,
   fixMojibakeText,
   getDataRepository,
+  getRequestIp,
   getPrimaryAppOrigin,
   primaryAppOrigin,
 } = {}) => {
@@ -184,7 +185,8 @@ export const createAuditLogStore = ({
         return;
       }
       const now = new Date();
-      const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+      const ip =
+        typeof getRequestIp === "function" ? getRequestIp(req) : String(req?.ip || "").trim();
       const sessionUser = req.session?.user || null;
       const sanitizedMeta = sanitizeAuditMeta(meta, action);
       const resourceId =

@@ -118,12 +118,9 @@ describe("LatestEpisodeCard border styles", () => {
 
     updateLinks.forEach((link) => {
       expect(link).toHaveClass("recent-updates-item");
-      expect(link).toHaveClass("flex");
-      expect(link).toHaveClass("overflow-hidden");
       expect(link).not.toHaveClass("border", "border-transparent");
       expect(link).not.toHaveClass("relative");
       expect(link).not.toHaveClass("block");
-      expect(link).toHaveClass("motion-safe:hover:-translate-y-1");
       expect(link).not.toHaveClass("border-border/60");
       expect(link).not.toHaveClass("hover:border-primary/60");
     });

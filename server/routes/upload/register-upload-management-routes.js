@@ -37,6 +37,7 @@ export const registerUploadManagementRoutes = (deps) => {
     readUploadSlot,
     readUploadSlotManaged,
     readUploadStorageProvider,
+    getRequestIp,
     resolveIncomingUploadFocalState,
     resolveProjectImageImportRequestInput,
     resolveRequestUploadAccessScope,
@@ -268,7 +269,7 @@ export const registerUploadManagementRoutes = (deps) => {
     if (!uploadAccessScope.allowed) {
       return res.status(403).json({ error: "forbidden" });
     }
-    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+    const ip = typeof getRequestIp === "function" ? getRequestIp(req) : String(req?.ip || "");
     if (!(await deps.canUploadImage(ip))) {
       return res.status(429).json({ error: "rate_limited" });
     }

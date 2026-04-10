@@ -59,6 +59,7 @@ const PROJECT_DEPENDENCY_KEYS = [
   "canRegisterPollVote",
   "canRegisterView",
   "deriveChapterSynopsis",
+  "getRequestIp",
   "getProjectEpisodePageCount",
   "getPublicReadableProjects",
   "getPublicVisibleProjects",
@@ -84,6 +85,7 @@ const ANALYTICS_DEPENDENCY_KEYS = [
   "app",
   "appendAnalyticsEvent",
   "canRegisterView",
+  "getRequestIp",
 ];
 
 const UPDATE_DEPENDENCY_KEYS = ["app", "getPublicVisibleUpdates"];

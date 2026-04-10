@@ -254,6 +254,7 @@ export const SERVER_ROUTE_SOURCE_FRAGMENT_KEYS = {
     "getProjectEpisodePageCount",
     "getProjectOgCachedRender",
     "getProjectReadingOgCachedRender",
+    "getRequestIp",
     "getPublicReadableProjects",
     "getPublicVisibleProjects",
     "getPublicVisibleUpdates",

@@ -50,6 +50,7 @@ const createDeps = (overrides = {}) => {
     deriveChapterSynopsis: (chapter) => `synopsis:${String(chapter?.title || "")}`,
     enqueueWebhookDelivery,
     getActiveProjectTypes: () => ["light_novel"],
+    getRequestIp: (req) => String(req?.ip || "").trim(),
     loadIntegrationSettings: () => ({
       editorial: {
         channels: {
@@ -207,6 +208,7 @@ describe("editorial-webhooks-runtime", () => {
           eventLabel: "label:project_release",
           actorId: "user-1",
           actorName: "Editor",
+          actorIp: "127.0.0.1",
         }),
       }),
     );

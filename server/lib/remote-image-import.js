@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import fs from "fs";
 import dns from "dns/promises";
 import net from "net";
@@ -412,7 +413,7 @@ export const importRemoteImageFile = async ({
     }
 
     const ext = getUploadExtFromMime(mime);
-    const fileName = deterministicMode ? `${safeBase}.${ext}` : `${safeBase}-${Date.now()}.${ext}`;
+    const fileName = deterministicMode ? `${safeBase}.${ext}` : `${crypto.randomUUID()}.${ext}`;
     const filePath = path.join(resolvedTarget, fileName);
 
     if (deterministicMode && onExistingPolicy === "reuse" && fs.existsSync(filePath)) {

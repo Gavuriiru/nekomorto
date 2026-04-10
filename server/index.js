@@ -18,7 +18,10 @@ import { buildOperationalMonitoringRuntimeDependencies } from "./bootstrap/build
 import { buildProjectRuntimeDependencies } from "./bootstrap/build-project-runtime-dependencies.js";
 import { buildPublicRuntimeDependencies } from "./bootstrap/build-public-runtime-dependencies.js";
 import { buildServerBootConfig } from "./bootstrap/build-server-boot-config.js";
-import { createServerPlatformRuntime } from "./bootstrap/create-server-platform-runtime.js";
+import {
+  createServerPlatformRuntime,
+  getRequestIp as getTrustedRequestIp,
+} from "./bootstrap/create-server-platform-runtime.js";
 import { buildSiteConfigRuntimeDependencies } from "./bootstrap/build-site-config-runtime-dependencies.js";
 import { buildSiteRenderingRuntimeDependencies } from "./bootstrap/build-site-rendering-runtime-dependencies.js";
 import { createSiteConfigRuntimeBundle } from "./bootstrap/create-site-config-runtime-bundle.js";
@@ -47,6 +50,7 @@ import { createAnalyticsStore } from "./lib/analytics-store.js";
 import { API_CONTRACT_VERSION } from "./lib/api-contract-v1.js";
 import { ANILIST_API, fetchAniListMediaById } from "./lib/anilist-client.js";
 import { createAuditLogStore } from "./lib/audit-log-store.js";
+import { createGlobalErrorHandler } from "./lib/global-error-handler.js";
 import {
   AccessRole,
   BASIC_PROFILE_FIELDS,
@@ -680,6 +684,7 @@ const { appendAuditLog, isAuditActionEnabled, loadAuditLog, parseAuditTs } = cre
   crypto,
   fixMojibakeText,
   getDataRepository: () => dataRepository,
+  getRequestIp: getTrustedRequestIp,
   getPrimaryAppOrigin: () => PRIMARY_APP_ORIGIN,
 });
 
@@ -1591,6 +1596,7 @@ const webhookRuntime = createWebhookRuntimeBundle(
     enqueueWebhookDelivery,
     evaluateOperationalMonitoring,
     getActiveProjectTypes,
+    getRequestIp,
     loadIntegrationSettings,
     loadProjects,
     loadSiteSettings,
@@ -2023,6 +2029,7 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
 });
 
 registerRootServerRoutes(rootRouteRegistrationDependencies);
+app.use(createGlobalErrorHandler());
 
 const listenPort = Number(PORT);
 startServerJobs({

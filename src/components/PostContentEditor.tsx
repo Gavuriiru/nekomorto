@@ -1,4 +1,5 @@
 import * as React from "react";
+import DOMPurify from "dompurify";
 import { Button } from "@/components/ui/button";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -123,8 +124,13 @@ const PostContentEditor = ({
   onPreviewDrop,
   onPreviewDragOver,
   showPreview = true,
-}: PostContentEditorProps) => (
-  <div className="space-y-8">
+}: PostContentEditorProps) => {
+  const sanitizedPreviewHtml = DOMPurify.sanitize(previewHtml, {
+    USE_PROFILES: { html: true },
+  });
+
+  return (
+    <div className="space-y-8">
     <div className="space-y-4">
       <Tabs
         value={format}
@@ -392,12 +398,13 @@ const PostContentEditor = ({
           <div
             className="post-content space-y-4 text-sm text-muted-foreground"
             onClick={onPreviewClick}
-            dangerouslySetInnerHTML={{ __html: previewHtml }}
+            dangerouslySetInnerHTML={{ __html: sanitizedPreviewHtml }}
           />
         </div>
       </div>
     ) : null}
-  </div>
-);
+    </div>
+  );
+};
 
 export default PostContentEditor;
