@@ -1,0 +1,74 @@
+@layer components {
+  .home-post-card-link {
+    box-shadow: none;
+    transition:
+      transform var(--interactive-duration-medium) var(--interactive-ease-standard),
+      box-shadow var(--interactive-duration-medium) var(--interactive-ease-standard),
+      border-color var(--interactive-duration-medium) var(--interactive-ease-standard),
+      background-color var(--interactive-duration-medium) var(--interactive-ease-standard),
+      color var(--interactive-duration-medium) var(--interactive-ease-standard);
+  }
+
+  .home-post-card-link:hover,
+  .home-post-card-link:focus-visible,
+  .home-post-card-link:focus-within {
+    transform: translateY(-4px);
+    box-shadow: 0 34px 112px -56px rgba(0, 0, 0, 0.62);
+  }
+
+  .public-interactive-card-shell {
+    isolation: isolate;
+    position: relative;
+    transition: transform var(--interactive-duration-medium) var(--interactive-ease-standard);
+  }
+
+  .public-interactive-card-shell:hover,
+  .public-interactive-card-shell:focus-visible,
+  .public-interactive-card-shell:focus-within {
+    transform: translateY(-4px);
+  }
+
+  .public-interactive-card-shadow {
+    inset: 0;
+    pointer-events: none;
+    position: absolute;
+    transition:
+      opacity var(--interactive-duration-medium) var(--interactive-ease-standard),
+      transform var(--interactive-duration-medium) var(--interactive-ease-standard);
+  }
+
+  .public-interactive-card-shadow--base {
+    box-shadow: 0 28px 120px -60px rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    transform: none;
+  }
+
+  .public-interactive-card-shadow--hover {
+    box-shadow: 0 34px 112px -56px rgba(0, 0, 0, 0.62);
+    opacity: 0;
+    transform: translateY(4px) scale(0.995);
+  }
+
+  .public-interactive-card-shell--compact > .public-interactive-card-shadow--base {
+    box-shadow: 0 12px 24px -20px rgba(0, 0, 0, 0.16);
+  }
+
+  .public-interactive-card-shell--compact > .public-interactive-card-shadow--hover {
+    box-shadow: 0 12px 22px -16px rgba(0, 0, 0, 0.18);
+    transform: translateY(2px) scale(0.998);
+  }
+
+  .public-interactive-card-shell:hover > .public-interactive-card-shadow--base,
+  .public-interactive-card-shell:focus-visible > .public-interactive-card-shadow--base,
+  .public-interactive-card-shell:focus-within > .public-interactive-card-shadow--base {
+    opacity: 0;
+    transform: none;
+  }
+
+  .public-interactive-card-shell:hover > .public-interactive-card-shadow--hover,
+  .public-interactive-card-shell:focus-visible > .public-interactive-card-shadow--hover,
+  .public-interactive-card-shell:focus-within > .public-interactive-card-shadow--hover {
+    opacity: 1;
+    transform: none;
+  }
+}

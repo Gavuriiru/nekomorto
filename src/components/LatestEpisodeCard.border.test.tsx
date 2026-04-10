@@ -84,7 +84,7 @@ describe("LatestEpisodeCard border styles", () => {
     usePublicBootstrapMock.mockReset();
   });
 
-  it("aplica classe semantica de borda nos cards internos e remove classes antigas", async () => {
+  it("aplica o shell de animacao novo nos cards internos", async () => {
     setupBootstrapMock();
 
     const { container } = render(
@@ -101,13 +101,10 @@ describe("LatestEpisodeCard border styles", () => {
     expect(cardRoot).not.toBeNull();
     expect(cardRoot).not.toHaveClass("hover:-translate-y-1");
     expect(cardRoot).not.toHaveClass("lift-hover");
-    expect(cardRoot).toHaveClass("shadow-none");
+    expect(cardRoot).toHaveClass("shadow-none", "border", "border-border/60");
+    expect(cardRoot).not.toHaveClass("public-interactive-card-shell");
     expect(cardRoot).not.toHaveClass("shadow-xs");
-    expect(cardRoot).not.toHaveClass(
-      "border",
-      "border-border",
-      "hover:border-primary/60",
-    );
+    expect(cardRoot).not.toHaveClass("hover:border-primary/60");
     expect(cardRoot).not.toHaveClass("hover:shadow-lg");
 
     const updateLinks = screen.getAllByRole("link");
@@ -117,12 +114,17 @@ describe("LatestEpisodeCard border styles", () => {
     expect(screen.getByText("Capítulo novo")).toBeInTheDocument();
 
     updateLinks.forEach((link) => {
-      expect(link).toHaveClass("recent-updates-item");
-      expect(link).not.toHaveClass("border", "border-transparent");
-      expect(link).not.toHaveClass("relative");
+      expect(link).toHaveClass("recent-updates-item", "relative", "z-10");
+      expect(link).not.toHaveClass("border-transparent");
       expect(link).not.toHaveClass("block");
       expect(link).not.toHaveClass("border-border/60");
-      expect(link).not.toHaveClass("hover:border-primary/60");
+      expect(link).not.toHaveClass("bg-gradient-card", "shadow-xs", "hover:shadow-lg");
+      expect(link).toHaveClass("hover:border-primary/60");
+      expect(link.parentElement).toHaveClass(
+        "public-interactive-card-shell",
+        "public-interactive-card-shell--no-shadow",
+        "group/recent-update",
+      );
     });
 
     const firstUpdateLink = updateLinks[0];
@@ -152,9 +154,9 @@ describe("LatestEpisodeCard border styles", () => {
     expect(reason).toHaveClass("line-clamp-1");
     expect(reason).toHaveClass("md:line-clamp-2");
 
-    expect(
-      screen.getByRole("heading", { level: 4, name: "Projeto Alpha" }),
-    ).toHaveClass("clamp-safe-2");
+    expect(screen.getByRole("heading", { level: 4, name: "Projeto Alpha" })).toHaveClass(
+      "clamp-safe-2",
+    );
 
     expect(container.querySelector(".soft-divider")).toBeNull();
   });
@@ -191,6 +193,10 @@ describe("LatestEpisodeCard border styles", () => {
     );
     expect(coverWrapper).not.toBeNull();
     expect(updateLink).not.toBeNull();
+    expect(updateLink?.parentElement).toHaveClass(
+      "public-interactive-card-shell",
+      "public-interactive-card-shell--no-shadow",
+    );
     expect(updateLink?.firstElementChild).toBe(coverWrapper);
     expect(updateLink?.querySelector("div.absolute")).toBeNull();
     expect(coverWrapper).toHaveClass("h-full");

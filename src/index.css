@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./styles/home-public-cards.css";
 @import "./styles/vendor/tw-animate.css";
 @source not "./**/*.test.ts";
 @source not "./**/*.test.tsx";
@@ -47,10 +48,8 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
 
-  --animate-fade-in: fade-in var(--dashboard-motion-enter-duration, 0.8s)
-    ease-out forwards;
-  --animate-slide-up: slide-up var(--dashboard-motion-enter-duration, 0.8s)
-    ease-out forwards;
+  --animate-fade-in: fade-in var(--dashboard-motion-enter-duration, 0.8s) ease-out forwards;
+  --animate-slide-up: slide-up var(--dashboard-motion-enter-duration, 0.8s) ease-out forwards;
   --animate-spin-slow: spin-slow 14s linear infinite;
 
   @keyframes fade-in {
@@ -195,57 +194,42 @@
     border-radius: 1rem;
     border: 1px solid hsl(var(--border) / 0.6);
     background-color: hsl(var(--background) / 0.7);
-    background-image: linear-gradient(
-      to bottom right,
-      hsl(var(--background) / 0.7) 0%,
-      hsl(var(--background) / 0.4) 50%,
-      hsl(var(--background) / 0.7) 100%
-    );
-  }
-
-  .recent-updates-item.reveal {
+    background-image: none;
+    box-shadow: none;
     transition:
-      opacity 0.6s ease,
-      transform var(--interactive-duration-medium)
-        var(--interactive-ease-standard),
-      border-color var(--interactive-duration-fast)
-        var(--interactive-ease-standard),
-      box-shadow var(--interactive-duration-medium)
-        var(--interactive-ease-standard),
+      border-color var(--interactive-duration-fast) var(--interactive-ease-standard),
+      background-color var(--interactive-duration-fast) var(--interactive-ease-standard),
       color var(--interactive-duration-fast) var(--interactive-ease-standard);
-  }
-
-  .recent-updates-item:hover {
-    border-color: hsl(var(--primary) / 0.5);
-    box-shadow: 0 18px 34px -26px hsl(var(--primary) / 0.65);
-  }
-
-  .recent-updates-item:focus-visible {
-    border-color: hsl(var(--ring) / 0.55);
-    box-shadow:
-      0 0 0 2px hsl(var(--ring) / 0.3),
-      0 16px 30px -26px hsl(var(--ring) / 0.55);
-    outline: none;
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .recent-updates-item:hover,
-    .recent-updates-item:focus-visible {
-      transform: translateY(-4px);
-    }
   }
 
   .recent-updates-item-body {
     padding: 1.125rem;
   }
 
-  .top-projects-list {
-    max-height: calc((var(--top-card-h) * 2) + (var(--top-gap) * 1) + 0.5rem);
+  .top-projects-viewport {
+    border-radius: 1.375rem;
+    overflow: hidden;
+  }
+
+  .top-projects-scroll-region {
+    max-height: calc((var(--top-card-h) * 2) + (var(--top-gap) * 1) + 1.5rem);
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding-top: 0.25rem;
-    padding-right: 0.25rem;
-    padding-bottom: 0.25rem;
+    padding: 0.75rem;
+    -ms-overflow-style: none;
+    scrollbar-color: transparent transparent;
+    scrollbar-width: none;
+  }
+
+  .top-projects-scroll-region::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .top-projects-list {
+    display: flex;
+    flex-direction: column;
   }
 
   .top-projects-list > * + * {
@@ -253,9 +237,24 @@
   }
 
   @media (min-width: 768px) {
-    .top-projects-list {
-      max-height: calc((var(--top-card-h) * 3) + (var(--top-gap) * 2) + 0.5rem);
+    .top-projects-scroll-region {
+      max-height: calc((var(--top-card-h) * 3) + (var(--top-gap) * 2) + 1.5rem);
     }
+  }
+
+  .work-status-scroll-region {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.5rem;
+    -ms-overflow-style: none;
+    scrollbar-color: transparent transparent;
+    scrollbar-width: none;
+  }
+
+  .work-status-scroll-region::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   .top-projects-link {
@@ -265,16 +264,28 @@
     border-radius: 1rem;
     border: 1px solid hsl(var(--border) / 0.5);
     background-color: hsl(var(--background) / 0.7);
-    background-image: linear-gradient(
-      to bottom right,
-      hsl(var(--background) / 0.7) 0%,
-      hsl(var(--background) / 0.4) 50%,
-      hsl(var(--background) / 0.7) 100%
-    );
+    background-image: none;
+    box-shadow: none;
+    transition:
+      border-color var(--interactive-duration-fast) var(--interactive-ease-standard),
+      background-color var(--interactive-duration-fast) var(--interactive-ease-standard),
+      color var(--interactive-duration-fast) var(--interactive-ease-standard);
   }
 
   .top-projects-link-body {
     padding: 1.125rem;
+  }
+
+  .work-status-item {
+    display: block;
+    border: 1px solid hsl(var(--border) / 0.5);
+    background-color: hsl(var(--secondary) / 0.5);
+    background-image: none;
+    box-shadow: none;
+    transition:
+      border-color var(--interactive-duration-fast) var(--interactive-ease-standard),
+      background-color var(--interactive-duration-fast) var(--interactive-ease-standard),
+      color var(--interactive-duration-fast) var(--interactive-ease-standard);
   }
 }
 
@@ -328,11 +339,7 @@
     --radius: 0.75rem;
 
     /* Custom gradients */
-    --gradient-hero: linear-gradient(
-      180deg,
-      hsl(220 12% 7% / 0.3) 0%,
-      hsl(220 12% 7% / 0.95) 100%
-    );
+    --gradient-hero: linear-gradient(180deg, hsl(220 12% 7% / 0.3) 0%, hsl(220 12% 7% / 0.95) 100%);
     --gradient-rainbow: linear-gradient(
       135deg,
       hsl(0 80% 60%) 0%,
@@ -344,22 +351,10 @@
       hsl(280 80% 60%) 84%,
       hsl(320 80% 60%) 100%
     );
-    --gradient-card: linear-gradient(
-      135deg,
-      hsl(220 10% 12%) 0%,
-      hsl(220 12% 9%) 100%
-    );
+    --gradient-card: linear-gradient(135deg, hsl(220 10% 12%) 0%, hsl(220 12% 9%) 100%);
     --gradient-surface:
-      radial-gradient(
-        140% 88% at 50% 34%,
-        hsl(var(--primary) / 0.22) 0%,
-        transparent 58%
-      ),
-      radial-gradient(
-        110% 72% at 50% 62%,
-        hsl(var(--accent) / 0.16) 0%,
-        transparent 66%
-      ),
+      radial-gradient(140% 88% at 50% 34%, hsl(var(--primary) / 0.22) 0%, transparent 58%),
+      radial-gradient(110% 72% at 50% 62%, hsl(var(--accent) / 0.16) 0%, transparent 66%),
       linear-gradient(
         180deg,
         hsl(var(--background)) 0%,
@@ -367,16 +362,8 @@
         hsl(var(--background)) 100%
       );
     --gradient-public-hero:
-      radial-gradient(
-        92% 110% at -8% 18%,
-        hsl(var(--primary) / 0.24) 0%,
-        transparent 58%
-      ),
-      radial-gradient(
-        82% 100% at 108% 22%,
-        hsl(var(--accent) / 0.18) 0%,
-        transparent 60%
-      ),
+      radial-gradient(92% 110% at -8% 18%, hsl(var(--primary) / 0.24) 0%, transparent 58%),
+      radial-gradient(82% 100% at 108% 22%, hsl(var(--accent) / 0.18) 0%, transparent 60%),
       linear-gradient(
         180deg,
         hsl(var(--primary) / 0.12) 0%,
@@ -462,22 +449,10 @@
       hsl(280 72% 58%) 84%,
       hsl(320 76% 58%) 100%
     );
-    --gradient-card: linear-gradient(
-      135deg,
-      hsl(0 0% 100%) 0%,
-      hsl(212 36% 94%) 100%
-    );
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(212 36% 94%) 100%);
     --gradient-surface:
-      radial-gradient(
-        128% 76% at 50% 32%,
-        hsl(var(--primary) / 0.14) 0%,
-        transparent 56%
-      ),
-      radial-gradient(
-        96% 58% at 50% 60%,
-        hsl(var(--accent) / 0.11) 0%,
-        transparent 64%
-      ),
+      radial-gradient(128% 76% at 50% 32%, hsl(var(--primary) / 0.14) 0%, transparent 56%),
+      radial-gradient(96% 58% at 50% 60%, hsl(var(--accent) / 0.11) 0%, transparent 64%),
       linear-gradient(
         180deg,
         hsl(var(--background)) 0%,
@@ -485,16 +460,8 @@
         hsl(var(--background)) 100%
       );
     --gradient-public-hero:
-      radial-gradient(
-        88% 102% at -8% 18%,
-        hsl(var(--primary) / 0.16) 0%,
-        transparent 58%
-      ),
-      radial-gradient(
-        78% 92% at 108% 22%,
-        hsl(var(--accent) / 0.12) 0%,
-        transparent 60%
-      ),
+      radial-gradient(88% 102% at -8% 18%, hsl(var(--primary) / 0.16) 0%, transparent 58%),
+      radial-gradient(78% 92% at 108% 22%, hsl(var(--accent) / 0.12) 0%, transparent 60%),
       linear-gradient(
         180deg,
         hsl(var(--primary) / 0.07) 0%,
@@ -856,15 +823,11 @@
     animation-fill-mode: both;
   }
 
-  [data-dashboard-motion="true"]
-    [data-reveal]:not(.reveal-visible)
-    .animate-fade-in {
+  [data-dashboard-motion="true"] [data-reveal]:not(.reveal-visible) .animate-fade-in {
     opacity: 0;
   }
 
-  [data-dashboard-motion="true"]
-    [data-reveal]:not(.reveal-visible)
-    .animate-slide-up {
+  [data-dashboard-motion="true"] [data-reveal]:not(.reveal-visible) .animate-slide-up {
     opacity: 0;
     transform: translateY(30px);
   }
@@ -902,10 +865,8 @@
 
   .lift-hover {
     transition:
-      transform var(--interactive-duration-medium)
-        var(--interactive-ease-standard),
-      box-shadow var(--interactive-duration-medium)
-        var(--interactive-ease-standard);
+      transform var(--interactive-duration-medium) var(--interactive-ease-standard),
+      box-shadow var(--interactive-duration-medium) var(--interactive-ease-standard);
     will-change: transform;
   }
 
@@ -919,16 +880,15 @@
 
   .interactive-control-transition {
     transition-property:
-      transform, box-shadow, background-color, border-color, color, opacity,
-      fill, stroke, text-decoration-color;
+      transform, box-shadow, background-color, border-color, color, opacity, fill, stroke,
+      text-decoration-color;
     transition-duration: var(--interactive-duration-fast);
     transition-timing-function: var(--interactive-ease-standard);
     will-change: transform;
   }
 
   .interactive-surface-transition {
-    transition-property:
-      transform, box-shadow, background-color, border-color, color, opacity;
+    transition-property: transform, box-shadow, background-color, border-color, color, opacity;
     transition-duration: var(--interactive-duration-medium);
     transition-timing-function: var(--interactive-ease-standard);
     will-change: transform;
@@ -936,8 +896,7 @@
 
   .interactive-content-transition {
     transition-property:
-      color, background-color, border-color, opacity, fill, stroke,
-      text-decoration-color;
+      color, background-color, border-color, opacity, fill, stroke, text-decoration-color;
     transition-duration: var(--interactive-duration-fast);
     transition-timing-function: var(--interactive-ease-standard);
   }
@@ -945,6 +904,12 @@
   .interactive-media-transition {
     transition-property: transform, opacity;
     transition-duration: var(--interactive-duration-medium);
+    transition-timing-function: var(--interactive-ease-standard);
+  }
+
+  .home-card-media-transition {
+    transition-property: transform, opacity;
+    transition-duration: 300ms;
     transition-timing-function: var(--interactive-ease-standard);
   }
 

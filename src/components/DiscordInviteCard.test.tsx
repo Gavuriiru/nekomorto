@@ -51,7 +51,8 @@ describe("DiscordInviteCard", () => {
     expect(screen.getByText("Entre na comunidade")).toBeInTheDocument();
     expect(cardRoot).not.toBeNull();
     expect(cardRoot).not.toHaveClass("lift-hover");
-    expect(cardRoot).toHaveClass("shadow-none");
+    expect(cardRoot).toHaveClass("shadow-none", "border", "border-border/60");
+    expect(cardRoot).not.toHaveClass("public-interactive-card-shell");
     expect(cardRoot).not.toHaveClass("shadow-xs");
     expect(
       screen.getByText("Fale com a equipe em tempo real."),
@@ -72,7 +73,9 @@ describe("DiscordInviteCard", () => {
     const panel = panelDescription.closest("div.rounded-xl");
     expect(panel).not.toBeNull();
     expect(panel).not.toHaveClass("hover:-translate-y-1");
+    expect(panel).toHaveClass("border", "border-border/60", "bg-background/40");
     expect(panel).not.toHaveClass("hover:border-primary/60");
+    expect(panel?.parentElement).not.toHaveClass("public-interactive-card-shell");
   });
 
   it("usa a ctaUrl configurada quando preenchida", () => {

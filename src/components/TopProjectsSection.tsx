@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
 import type { CSSProperties } from "react";
+import { useMemo, useState } from "react";
 import { Eye, Hash } from "lucide-react";
 import { Link } from "react-router-dom";
+
+import PublicInteractiveCardShell from "@/components/PublicInteractiveCardShell";
 import UploadPicture from "@/components/UploadPicture";
 import {
   Select,
@@ -41,9 +43,7 @@ const toSafeNonNegativeInt = (value: unknown) => {
 
 const buildRecentUtcDayKeys = (days: number, now = new Date()) => {
   const keys: string[] = [];
-  const endDate = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
+  const endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   for (let offset = 0; offset < days; offset += 1) {
     const day = new Date(endDate);
     day.setUTCDate(endDate.getUTCDate() - offset);
@@ -52,10 +52,7 @@ const buildRecentUtcDayKeys = (days: number, now = new Date()) => {
   return keys;
 };
 
-const sumViewsByDayKeys = (
-  viewsDaily: Record<string, number>,
-  dayKeys: string[],
-) => {
+const sumViewsByDayKeys = (viewsDaily: Record<string, number>, dayKeys: string[]) => {
   if (!viewsDaily || typeof viewsDaily !== "object") {
     return 0;
   }
@@ -114,17 +111,9 @@ const TopProjectsSection = () => {
       .filter((item) => item.id && item.title)
       .sort((left, right) => {
         const leftMetric =
-          mode === "30d"
-            ? left.views30d
-            : mode === "7d"
-              ? left.views7d
-              : left.viewsAll;
+          mode === "30d" ? left.views30d : mode === "7d" ? left.views7d : left.viewsAll;
         const rightMetric =
-          mode === "30d"
-            ? right.views30d
-            : mode === "7d"
-              ? right.views7d
-              : right.viewsAll;
+          mode === "30d" ? right.views30d : mode === "7d" ? right.views7d : right.viewsAll;
         if (rightMetric !== leftMetric) {
           return rightMetric - leftMetric;
         }
@@ -136,10 +125,7 @@ const TopProjectsSection = () => {
       .slice(0, TOP_PROJECTS_LIMIT);
   }, [mode, projects]);
 
-  const synopsisKeys = useMemo(
-    () => topProjects.map((item) => item.id),
-    [topProjects],
-  );
+  const synopsisKeys = useMemo(() => topProjects.map((item) => item.id), [topProjects]);
   const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
     enabled: topProjects.length > 0,
     keys: synopsisKeys,
@@ -164,7 +150,7 @@ const TopProjectsSection = () => {
     <Card
       id="top-projetos"
       lift={false}
-      className="bg-card border-border reveal shadow-none"
+      className="bg-card reveal rounded-lg border border-border/60 shadow-none"
       data-reveal
     >
       <CardHeader className="px-4 pb-3 pt-4">
@@ -223,107 +209,117 @@ const TopProjectsSection = () => {
             Ainda sem dados de visualizacao.
           </div>
         ) : (
-          <div className="overflow-hidden">
+          <div className="top-projects-viewport">
             <div
               ref={synopsisRootRef}
-              data-testid="top-projects-list"
+              data-testid="top-projects-scroll-region"
               style={listLayoutStyle}
-              className="top-projects-list no-scrollbar"
+              className="top-projects-scroll-region no-scrollbar"
             >
-              {topProjects.map((entry, index) => {
-                const metricValue =
-                  mode === "30d"
-                    ? entry.views30d
-                    : mode === "7d"
-                      ? entry.views7d
-                      : entry.viewsAll;
+              <div data-testid="top-projects-list" className="top-projects-list">
+                {topProjects.map((entry, index) => {
+                  const metricValue =
+                    mode === "30d"
+                      ? entry.views30d
+                      : mode === "7d"
+                        ? entry.views7d
+                        : entry.viewsAll;
 
-                return (
-                  <Link
-                    key={entry.id}
-                    data-testid={`top-project-item-${index + 1}`}
-                    to={`/projeto/${entry.id}`}
-                    className={`top-projects-link group interactive-lift-md interactive-surface-transition ${publicStrongSurfaceHoverClassName} focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45`}
-                  >
-                    <div
-                      className="h-full shrink-0 overflow-hidden bg-secondary/60"
-                      style={{
-                        aspectRatio: TOP_PROJECTS_THUMB_ASPECT_RATIO,
-                        width: TOP_PROJECTS_THUMB_WIDTH,
-                      }}
+                  return (
+                    <PublicInteractiveCardShell
+                      key={entry.id}
+                      shadowPreset="none"
+                      className="group/top-project-item rounded-2xl"
                     >
-                      <UploadPicture
-                        src={entry.project.cover || "/placeholder.svg"}
-                        alt={entry.title}
-                        preset="posterThumb"
-                        mediaVariants={mediaVariants}
-                        sizes="96px"
-                        className="block h-full w-full"
-                        imgClassName="interactive-media-transition h-full w-full object-cover object-center group-hover:scale-105 group-focus-visible:scale-105"
-                        loading="lazy"
-                      />
-                    </div>
-
-                    <div
-                      data-synopsis-role="column"
-                      data-synopsis-key={entry.id}
-                      className="top-projects-link-body flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
-                    >
-                      <div data-synopsis-role="title" className="space-y-1.5">
-                        <div
-                          data-testid={`top-project-item-${index + 1}-meta-row`}
-                          className="flex min-w-0 items-center justify-between gap-2"
-                        >
-                          <span
-                            data-testid={`top-project-item-${index + 1}-type`}
-                            className="min-w-0 truncate text-[10px] uppercase tracking-[0.16em] text-primary/80"
-                          >
-                            {entry.project.type || "Projeto"}
-                          </span>
-                          <div className="ml-auto inline-flex shrink-0 items-center gap-3 whitespace-nowrap">
-                            <span
-                              data-testid={`top-project-item-${index + 1}-rank`}
-                              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
-                              aria-label={`Posicao: ${index + 1}`}
-                            >
-                              <Hash
-                                className="h-3.5 w-3.5 text-muted-foreground/80"
-                                aria-hidden="true"
-                              />
-                              {index + 1}
-                            </span>
-                            <span
-                              data-testid={`top-project-item-${index + 1}-metric`}
-                              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
-                              aria-label={`Visualizacoes: ${numberFormatter.format(metricValue)}`}
-                            >
-                              <Eye
-                                className="h-3.5 w-3.5 text-muted-foreground/80"
-                                aria-hidden="true"
-                              />
-                              {numberFormatter.format(metricValue)}
-                            </span>
-                          </div>
-                        </div>
-                        <h3 className="clamp-safe-2 interactive-content-transition text-base font-semibold leading-snug text-foreground group-hover:text-primary group-focus-visible:text-primary">
-                          {entry.title}
-                        </h3>
-                      </div>
-                      <p
-                        data-synopsis-role="synopsis"
+                      <Link
+                        data-testid={`top-project-item-${index + 1}`}
+                        to={`/projeto/${entry.id}`}
                         className={cn(
-                          "mt-2 text-xs leading-relaxed text-muted-foreground",
-                          getSynopsisClampClass(entry.id),
+                          "top-projects-link relative z-10 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45",
+                          publicStrongSurfaceHoverClassName,
                         )}
                       >
-                        {entry.project.synopsis ||
-                          entry.project.description ||
-                          "Sem sinopse cadastrada."}
-                      </p>
-                    </div>
-                  </Link>
-                );
-              })}
+                        <div
+                          className="h-full shrink-0 overflow-hidden bg-secondary/60"
+                          style={{
+                            aspectRatio: TOP_PROJECTS_THUMB_ASPECT_RATIO,
+                            width: TOP_PROJECTS_THUMB_WIDTH,
+                          }}
+                        >
+                          <UploadPicture
+                            src={entry.project.cover || "/placeholder.svg"}
+                            alt={entry.title}
+                            preset="posterThumb"
+                            mediaVariants={mediaVariants}
+                            sizes="96px"
+                            className="block h-full w-full"
+                            imgClassName="home-card-media-transition h-full w-full object-cover object-center group-hover/top-project-item:scale-[1.03] group-focus-within/top-project-item:scale-[1.03]"
+                            loading="lazy"
+                          />
+                        </div>
+
+                        <div
+                          data-synopsis-role="column"
+                          data-synopsis-key={entry.id}
+                          className="top-projects-link-body flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+                        >
+                          <div data-synopsis-role="title" className="space-y-1.5">
+                            <div
+                              data-testid={`top-project-item-${index + 1}-meta-row`}
+                              className="flex min-w-0 items-center justify-between gap-2"
+                            >
+                              <span
+                                data-testid={`top-project-item-${index + 1}-type`}
+                                className="min-w-0 truncate text-[10px] uppercase tracking-[0.16em] text-primary/80"
+                              >
+                                {entry.project.type || "Projeto"}
+                              </span>
+                              <div className="ml-auto inline-flex shrink-0 items-center gap-3 whitespace-nowrap">
+                                <span
+                                  data-testid={`top-project-item-${index + 1}-rank`}
+                                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
+                                  aria-label={`Posicao: ${index + 1}`}
+                                >
+                                  <Hash
+                                    className="h-3.5 w-3.5 text-muted-foreground/80"
+                                    aria-hidden="true"
+                                  />
+                                  {index + 1}
+                                </span>
+                                <span
+                                  data-testid={`top-project-item-${index + 1}-metric`}
+                                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
+                                  aria-label={`Visualizacoes: ${numberFormatter.format(metricValue)}`}
+                                >
+                                  <Eye
+                                    className="h-3.5 w-3.5 text-muted-foreground/80"
+                                    aria-hidden="true"
+                                  />
+                                  {numberFormatter.format(metricValue)}
+                                </span>
+                              </div>
+                            </div>
+                            <h3 className="clamp-safe-2 interactive-content-transition text-base font-semibold leading-snug text-foreground group-hover/top-project-item:text-primary group-focus-within/top-project-item:text-primary">
+                              {entry.title}
+                            </h3>
+                          </div>
+                          <p
+                            data-synopsis-role="synopsis"
+                            className={cn(
+                              "mt-2 text-xs leading-relaxed text-muted-foreground",
+                              getSynopsisClampClass(entry.id),
+                            )}
+                          >
+                            {entry.project.synopsis ||
+                              entry.project.description ||
+                              "Sem sinopse cadastrada."}
+                          </p>
+                        </div>
+                      </Link>
+                    </PublicInteractiveCardShell>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

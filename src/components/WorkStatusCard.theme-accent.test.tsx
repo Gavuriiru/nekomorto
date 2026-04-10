@@ -54,30 +54,33 @@ describe("WorkStatusCard accent mode", () => {
       .closest<HTMLElement>("[data-reveal]");
     expect(cardRoot).not.toBeNull();
     expect(cardRoot).not.toHaveClass("lift-hover");
-    expect(cardRoot).toHaveClass("shadow-none");
+    expect(cardRoot).toHaveClass("shadow-none", "border", "border-border/60");
+    expect(cardRoot).not.toHaveClass("public-interactive-card-shell");
     expect(cardRoot).not.toHaveClass("shadow-xs");
 
     const badge = await screen.findByText("Timing");
-    expect(badge).toHaveClass(
-      "bg-pink-500/20",
-      "text-pink-400",
-      "border-pink-500/30",
-    );
+    expect(badge).toHaveClass("bg-pink-500/20", "text-pink-400", "border-pink-500/30");
     expect(badge).not.toHaveClass("bg-primary");
     const progressLink = badge.closest("a");
     expect(progressLink).not.toBeNull();
-    expect(progressLink).toHaveClass(
-      "interactive-lift-md",
-      "hover:border-primary/60",
+    expect(progressLink).toHaveClass("work-status-item", "relative", "z-10");
+    expect(progressLink).not.toHaveClass(
+      "group-hover/progress-item:bg-secondary",
+      "group-focus-within/progress-item:bg-secondary",
+      "shadow-xs",
+      "hover:shadow-lg",
+    );
+    expect(progressLink?.parentElement).toHaveClass(
+      "public-interactive-card-shell",
+      "public-interactive-card-shell--no-shadow",
+      "group/progress-item",
     );
 
     const indicator = container.querySelector(".bg-pink-500");
     expect(indicator).not.toBeNull();
     expect(indicator).not.toHaveClass("bg-primary");
 
-    expect(
-      screen.getByRole("progressbar", { name: /Oshi no Ko.*57% conclu/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: /Oshi no Ko.*57% conclu/ })).toBeInTheDocument();
   });
 
   it("usa cor tematica no badge e na barra quando a flag estiver ativada", async () => {
@@ -96,21 +99,26 @@ describe("WorkStatusCard accent mode", () => {
       .closest<HTMLElement>("[data-reveal]");
     expect(cardRoot).not.toBeNull();
     expect(cardRoot).not.toHaveClass("lift-hover");
-    expect(cardRoot).toHaveClass("shadow-none");
+    expect(cardRoot).toHaveClass("shadow-none", "border", "border-border/60");
+    expect(cardRoot).not.toHaveClass("public-interactive-card-shell");
     expect(cardRoot).not.toHaveClass("shadow-xs");
 
     const badge = await screen.findByText("Timing");
-    expect(badge).toHaveClass(
-      "bg-primary",
-      "text-primary-foreground",
-      "border-primary/80",
-    );
+    expect(badge).toHaveClass("bg-primary", "text-primary-foreground", "border-primary/80");
     expect(badge).not.toHaveClass("bg-pink-500/20");
     const progressLink = badge.closest("a");
     expect(progressLink).not.toBeNull();
-    expect(progressLink).toHaveClass(
-      "interactive-lift-md",
-      "hover:border-primary/60",
+    expect(progressLink).toHaveClass("work-status-item", "relative", "z-10");
+    expect(progressLink).not.toHaveClass(
+      "group-hover/progress-item:bg-secondary",
+      "group-focus-within/progress-item:bg-secondary",
+      "shadow-xs",
+      "hover:shadow-lg",
+    );
+    expect(progressLink?.parentElement).toHaveClass(
+      "public-interactive-card-shell",
+      "public-interactive-card-shell--no-shadow",
+      "group/progress-item",
     );
 
     const indicator = container.querySelector(".bg-primary");
@@ -134,9 +142,7 @@ describe("WorkStatusCard accent mode", () => {
     );
 
     expect(await screen.findByText("Typesetting")).toBeInTheDocument();
-    expect(
-      screen.getByRole("progressbar", { name: /Oshi no Ko.*43% conclu/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: /Oshi no Ko.*43% conclu/ })).toBeInTheDocument();
     expect(container.querySelector(".bg-indigo-500")).not.toBeNull();
   });
 
@@ -162,9 +168,7 @@ describe("WorkStatusCard accent mode", () => {
       </MemoryRouter>,
     );
 
-    expect(
-      screen.getByText(/Nenhum epis.+dio em progresso no momento\./i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Nenhum epis.+dio em progresso no momento\./i)).toBeInTheDocument();
     expect(screen.queryByText("Oshi no Ko")).not.toBeInTheDocument();
   });
 
@@ -203,12 +207,7 @@ describe("WorkStatusCard accent mode", () => {
                 sourceType: "",
                 sources: [],
                 progressStage: "typesetting",
-                completedStages: [
-                  "aguardando-raw",
-                  "traducao",
-                  "limpeza",
-                  "redrawing",
-                ],
+                completedStages: ["aguardando-raw", "traducao", "limpeza", "redrawing"],
                 chapterUpdatedAt: "",
                 hasContent: false,
                 hasPages: true,
@@ -225,9 +224,7 @@ describe("WorkStatusCard accent mode", () => {
       </MemoryRouter>,
     );
 
-    expect(
-      screen.getByText(/Nenhum epis.+dio em progresso no momento\./i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Nenhum epis.+dio em progresso no momento\./i)).toBeInTheDocument();
     expect(screen.queryByText("Blue Box")).not.toBeInTheDocument();
   });
 
@@ -258,12 +255,7 @@ describe("WorkStatusCard accent mode", () => {
             number: 2,
             volume: 1,
             progressStage: "typesetting",
-            completedStages: [
-              "aguardando-raw",
-              "traducao",
-              "limpeza",
-              "redrawing",
-            ],
+            completedStages: ["aguardando-raw", "traducao", "limpeza", "redrawing"],
           },
         ],
       },
@@ -277,9 +269,7 @@ describe("WorkStatusCard accent mode", () => {
 
     expect(await screen.findByText("NouKin")).toBeInTheDocument();
     expect(screen.getByText("Capítulo 3 • Vol. 0")).toBeInTheDocument();
-    expect(
-      screen.getByRole("progressbar", { name: /NouKin.*29% conclu/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: /NouKin.*29% conclu/ })).toBeInTheDocument();
 
     expect(screen.getByText("Gabriel Dropout")).toBeInTheDocument();
     expect(screen.getByText("Capítulo 2 • Vol. 1")).toBeInTheDocument();
@@ -318,14 +308,9 @@ describe("WorkStatusCard accent mode", () => {
     expect(await screen.findByText("Projeto 6")).toBeInTheDocument();
 
     const scrollRegion = screen.getByTestId("work-status-scroll-region");
-    expect(scrollRegion).toHaveClass(
-      "no-scrollbar",
-      "overflow-y-auto",
-      "overscroll-contain",
-      "pt-1",
-    );
+    expect(scrollRegion).toHaveClass("work-status-scroll-region", "space-y-3");
     expect(scrollRegion).toHaveStyle({
-      maxHeight: "calc((5.75rem * 5) + (0.75rem * 4) + 0.5rem)",
+      maxHeight: "calc((5.75rem * 5) + (0.75rem * 4) + 1rem)",
     });
 
     const progressLinks = scrollRegion.querySelectorAll("a");

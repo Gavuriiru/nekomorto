@@ -1,10 +1,4 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -113,7 +107,7 @@ describe("ReleasesSection cover fit", () => {
       name: "Post de Teste",
     });
     const postLink = screen.getByRole("link", { name: /post de teste/i });
-    const postCardRoot = postLink.firstElementChild as HTMLElement | null;
+    const postRevealWrapper = postLink.parentElement as HTMLElement | null;
     expect(coverImage).toHaveClass(
       "absolute",
       "inset-0",
@@ -126,22 +120,23 @@ describe("ReleasesSection cover fit", () => {
 
     const coverContainer = coverImage.parentElement?.parentElement;
     expect(coverContainer).not.toBeNull();
-    expect(coverContainer).toHaveClass(
-      "relative",
-      "w-full",
-      "aspect-3/2",
-      "overflow-hidden",
-    );
-    expect(postCardRoot).not.toBeNull();
-    expect(postLink).toHaveClass("interactive-lift-md");
-    expect(postCardRoot).toHaveClass("shadow-none");
-    expect(postCardRoot).not.toHaveClass("shadow-xs");
-    expect(postCardRoot).not.toHaveClass(
+    expect(coverContainer).toHaveClass("relative", "w-full", "aspect-3/2", "overflow-hidden");
+    expect(postRevealWrapper).not.toBeNull();
+    expect(postRevealWrapper).toHaveClass("reveal", "h-full");
+    expect(postRevealWrapper).toHaveAttribute("data-reveal");
+    expect(postRevealWrapper?.querySelector(".public-interactive-card-shell")).toBeNull();
+    expect(postRevealWrapper?.querySelector(".home-post-card-frame")).toBeNull();
+    expect(postLink).not.toHaveClass("interactive-lift-md");
+    expect(postLink).toHaveClass(
+      "home-post-card-link",
+      "group/home-post-card",
+      "rounded-2xl",
       "border",
-      "border-border",
+      "border-border/60",
+      "bg-gradient-card",
       "hover:border-primary/60",
     );
-    expect(postCardRoot).not.toHaveClass("hover:shadow-lg");
+    expect(postLink).not.toHaveClass("shadow-xs", "hover:shadow-lg");
     expect(coverImage).toHaveAttribute(
       "src",
       expect.stringContaining("/uploads/_variants/post-1/cardHome-v2.jpeg"),
@@ -163,12 +158,8 @@ describe("ReleasesSection cover fit", () => {
     });
     expect(postLink).toHaveAttribute("href", "/postagem/post-teste");
     expect(screen.queryByText("A\u00e7\u00e3o")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /Ler postagem/i }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /Ver projeto/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Ler postagem/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Ver projeto/i })).not.toBeInTheDocument();
   });
 
   it("mantem heading semantico da secao antes dos titulos dos cards", async () => {
@@ -190,8 +181,7 @@ describe("ReleasesSection cover fit", () => {
     });
 
     expect(
-      sectionHeading.compareDocumentPosition(cardHeading) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      sectionHeading.compareDocumentPosition(cardHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
   });
 
@@ -230,25 +220,17 @@ describe("ReleasesSection cover fit", () => {
       </MemoryRouter>,
     );
 
-    expect(
-      await screen.findByRole("heading", { level: 3, name: "Post 1" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 3, name: "Post 1" })).toBeInTheDocument();
 
     const pagination = screen.getByRole("navigation");
-    expect(
-      within(pagination).getByRole("link", { name: "7" }),
-    ).toBeInTheDocument();
+    expect(within(pagination).getByRole("link", { name: "7" })).toBeInTheDocument();
 
     fireEvent.click(within(pagination).getByRole("link", { name: "4" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("heading", { level: 3, name: "Post 31" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 3, name: "Post 31" })).toBeInTheDocument();
     });
-    expect(
-      screen.queryByRole("heading", { level: 3, name: "Post 1" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 3, name: "Post 1" })).not.toBeInTheDocument();
     expect(window.requestAnimationFrame).toHaveBeenCalled();
     expect(window.scrollTo).toHaveBeenCalled();
   });
