@@ -1022,8 +1022,41 @@ describe("Projects query sync", () => {
         enabled: true,
         keys: projects.map((project) => project.id),
         maxLines: 4,
+        resolveMaxLines: expect.any(Function),
       }),
     );
+    const clampCall = useDynamicSynopsisClampMock.mock.lastCall?.[0] as {
+      resolveMaxLines: (context: {
+        key: string;
+        column: HTMLElement;
+        columnWidth: number;
+        defaultMaxLines: number;
+      }) => number;
+    };
+    expect(
+      clampCall.resolveMaxLines({
+        key: "project-1",
+        column: document.createElement("div"),
+        columnWidth: 280,
+        defaultMaxLines: 4,
+      }),
+    ).toBe(2);
+    expect(
+      clampCall.resolveMaxLines({
+        key: "project-2",
+        column: document.createElement("div"),
+        columnWidth: 360,
+        defaultMaxLines: 4,
+      }),
+    ).toBe(3);
+    expect(
+      clampCall.resolveMaxLines({
+        key: "project-3",
+        column: document.createElement("div"),
+        columnWidth: 520,
+        defaultMaxLines: 4,
+      }),
+    ).toBe(4);
     expect(container.querySelector("[data-badge-key]")).toBeNull();
   });
 
@@ -1062,6 +1095,10 @@ describe("Projects query sync", () => {
       projects,
       mediaVariants,
     });
+    useDynamicSynopsisClampMock.mockReturnValue({
+      rootRef: synopsisRootRefMock,
+      lineByKey: Object.fromEntries(projects.map((project) => [project.id, 2])),
+    });
 
     const { container } = render(
       <MemoryRouter initialEntries={["/projetos"]}>
@@ -1084,12 +1121,38 @@ describe("Projects query sync", () => {
       expect.objectContaining({
         enabled: true,
         keys: projects.map((project) => project.id),
-        maxLines: 2,
+        maxLines: 4,
+        resolveMaxLines: expect.any(Function),
       }),
     );
+    const clampCall = useDynamicSynopsisClampMock.mock.lastCall?.[0] as {
+      resolveMaxLines: (context: {
+        key: string;
+        column: HTMLElement;
+        columnWidth: number;
+        defaultMaxLines: number;
+      }) => number;
+    };
+    expect(
+      clampCall.resolveMaxLines({
+        key: "project-1",
+        column: document.createElement("div"),
+        columnWidth: 280,
+        defaultMaxLines: 4,
+      }),
+    ).toBe(2);
+    expect(
+      clampCall.resolveMaxLines({
+        key: "project-2",
+        column: document.createElement("div"),
+        columnWidth: 360,
+        defaultMaxLines: 4,
+      }),
+    ).toBe(3);
     expect(container.querySelector("[data-badge-key]")).toBeNull();
     Array.from(container.querySelectorAll('[data-synopsis-role="synopsis"]')).forEach((node) => {
       expect(node).toHaveClass("projects-public-synopsis", "projects-public-synopsis-clamp-2");
+      expect(node).toHaveAttribute("data-synopsis-lines", "2");
     });
   });
 
@@ -1184,8 +1247,12 @@ describe("Projects query sync", () => {
       "h-6",
       "px-2",
       "py-0",
-      "bg-secondary",
-      "text-secondary-foreground",
+      "border-border/70",
+      "bg-background",
+      "text-foreground/70",
+      "hover:border-accent/60",
+      "hover:bg-accent/15",
+      "hover:text-accent-foreground",
     );
     expect(genreButton).toHaveClass(
       "min-h-6",
@@ -1197,6 +1264,9 @@ describe("Projects query sync", () => {
       "border-border/70",
       "bg-background",
       "text-foreground/70",
+      "hover:border-accent/60",
+      "hover:bg-accent/15",
+      "hover:text-accent-foreground",
     );
   });
 });

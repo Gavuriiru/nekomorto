@@ -254,6 +254,27 @@ const setupBootstrapMock = ({
   });
 };
 
+const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+
+const expectHeroPrimaryButtonTokens = (element: HTMLElement) => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "rounded-xl",
+      "shadow-none",
+      "border-[color:var(--hero-primary-border-rest)]",
+      "bg-[color:var(--hero-primary-bg-rest)]",
+      "text-(--hero-accent-foreground,hsl(var(--primary-foreground)))",
+      "hover:border-[color:var(--hero-primary-border-hover)]",
+      "hover:bg-[color:var(--hero-primary-bg-hover)]",
+    ]),
+  );
+  expect(tokens).not.toContain("hover:brightness-110");
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
 describe("HeroSection cover fit", () => {
   beforeEach(() => {
     usePublicBootstrapMock.mockReset();
@@ -285,6 +306,9 @@ describe("HeroSection cover fit", () => {
     const heroSection = container.querySelector("section");
     expect(heroSection).not.toBeNull();
     expect(heroSection).toHaveClass("min-h-[78vh]", "md:min-h-screen");
+    expectHeroPrimaryButtonTokens(
+      screen.getByRole("link", { name: /Acessar p.gina de Projeto com Hero/i }),
+    );
     expect(
       screen.getByRole("link", { name: "Acessar página de Projeto com Hero" }),
     ).toHaveAttribute("href", "/projeto/project-1");
@@ -328,6 +352,9 @@ describe("HeroSection cover fit", () => {
 
     expect(within(typeStatus).getByText("Anime")).toBeInTheDocument();
     expect(within(typeStatus).getByText("Em andamento")).toBeInTheDocument();
+    expectHeroPrimaryButtonTokens(
+      screen.getByRole("link", { name: /Acessar p.gina de Projeto com Hero/i }),
+    );
     const separator = within(typeStatus).getByText("\u2022");
     expect(separator).toHaveClass("animate-slide-up", "opacity-0", "text-muted-foreground/50");
     expect(separator).not.toHaveClass("opacity-50");
@@ -345,6 +372,9 @@ describe("HeroSection cover fit", () => {
     await screen.findByTestId("hero-slide-meta-project-2");
 
     const typeStatus = await screen.findByTestId("hero-slide-type-status-project-1");
+    expectHeroPrimaryButtonTokens(
+      screen.getByRole("link", { name: /Acessar p.gina de Projeto com Hero/i }),
+    );
     const type = within(typeStatus).getByText("Anime");
     const separator = within(typeStatus).getByText("\u2022");
     const status = within(typeStatus).getByText("Em andamento");

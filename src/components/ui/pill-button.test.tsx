@@ -39,15 +39,24 @@ describe("PillButton", () => {
       "bg-primary/10",
       "text-primary",
     );
-    expect(screen.getByRole("button", { name: "Secundaria" })).toHaveClass(
-      "border-transparent",
-      "bg-secondary",
-      "text-secondary-foreground",
-    );
-    expect(screen.getByRole("button", { name: "Outline" })).toHaveClass(
-      "border-border/70",
-      "bg-background",
-      "text-foreground/70",
-    );
+    const secondaryButton = screen.getByRole("button", { name: "Secundaria" });
+    const outlineButton = screen.getByRole("button", { name: "Outline" });
+
+    [secondaryButton, outlineButton].forEach((button) => {
+      expect(button).toHaveClass(
+        "border-border/70",
+        "bg-background",
+        "text-foreground/70",
+        "hover:border-accent/60",
+        "hover:bg-accent/15",
+        "hover:text-accent-foreground",
+        "focus-visible:border-accent/60",
+        "focus-visible:bg-accent/15",
+        "focus-visible:text-accent-foreground",
+      );
+    });
+
+    expect(secondaryButton).toHaveClass("border-border/70", "bg-background", "text-foreground/70");
+    expect(outlineButton).toHaveClass("border-border/70", "bg-background", "text-foreground/70");
   });
 });

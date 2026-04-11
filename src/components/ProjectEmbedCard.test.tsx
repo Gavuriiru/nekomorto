@@ -104,6 +104,15 @@ describe("ProjectEmbedCard", () => {
     const synopsisTitle = container.querySelector<HTMLElement>('[data-synopsis-role="title"]');
     const synopsisText = container.querySelector<HTMLElement>('[data-synopsis-role="synopsis"]');
     const synopsisBadges = container.querySelector<HTMLElement>('[data-synopsis-role="badges"]');
+    const clampCall = useDynamicSynopsisClampMock.mock.lastCall?.[0] as {
+      resolveMaxLines: (context: {
+        key: string;
+        column: HTMLElement;
+        columnWidth: number;
+        defaultMaxLines: number;
+      }) => number;
+      maxLines: number;
+    };
 
     expect(acao.compareDocumentPosition(comedia) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     expect(comedia.compareDocumentPosition(drama) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
@@ -162,6 +171,31 @@ describe("ProjectEmbedCard", () => {
     expect(synopsisTitle).not.toBeNull();
     expect(synopsisText).not.toBeNull();
     expect(synopsisBadges).not.toBeNull();
+    expect(clampCall.maxLines).toBe(4);
+    expect(
+      clampCall.resolveMaxLines({
+        key: "project-1",
+        column: document.createElement("div"),
+        columnWidth: 300,
+        defaultMaxLines: 4,
+      }),
+    ).toBe(1);
+    expect(
+      clampCall.resolveMaxLines({
+        key: "project-1",
+        column: document.createElement("div"),
+        columnWidth: 420,
+        defaultMaxLines: 4,
+      }),
+    ).toBe(2);
+    expect(
+      clampCall.resolveMaxLines({
+        key: "project-1",
+        column: document.createElement("div"),
+        columnWidth: 520,
+        defaultMaxLines: 4,
+      }),
+    ).toBe(4);
     if (!synopsisTitle || !synopsisText || !synopsisBadges) {
       throw new Error("Estrutura de synopsis/title/badges nao encontrada");
     }

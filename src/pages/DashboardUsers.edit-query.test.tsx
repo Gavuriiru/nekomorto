@@ -65,8 +65,8 @@ const expectPrimaryDashboardActionButtonTokens = (
   expect(tokens).toEqual(
     expect.arrayContaining([
       "rounded-xl",
-      "border-primary/30",
-      "bg-primary/85",
+      "border-primary/35",
+      "bg-primary/90",
       "hover:border-primary/85",
       "hover:bg-primary",
       "text-primary-foreground",

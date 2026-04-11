@@ -146,7 +146,16 @@ const mangaProjectFixture: Project = {
   ],
 };
 
-const setupApiMock = (project: Project = projectFixture) => {
+type TaxonomyTranslationsPayload = {
+  tags?: Record<string, string>;
+  genres?: Record<string, string>;
+  staffRoles?: Record<string, string>;
+};
+
+const setupApiMock = (
+  project: Project = projectFixture,
+  translations: TaxonomyTranslationsPayload = {},
+) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(
     async (_apiBase: string, endpoint: string, options?: RequestInit) => {
@@ -213,7 +222,11 @@ const setupApiMock = (project: Project = projectFixture) => {
         return mockJsonResponse(true, { projects: [project] });
       }
       if (endpoint === "/api/public/tag-translations" && method === "GET") {
-        return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+        return mockJsonResponse(true, {
+          tags: translations.tags || {},
+          genres: translations.genres || {},
+          staffRoles: translations.staffRoles || {},
+        });
       }
       if (endpoint === "/api/public/projects/project-1/view" && method === "POST") {
         return mockJsonResponse(true, { views: 1 });
@@ -340,6 +353,60 @@ describe("Project mobile hero layout", () => {
     expect(actionsRowTokens).toContain("justify-center");
     expect(actionsRowTokens).toContain("md:justify-start");
     expect(actionsRowTokens).toContain("md:mt-auto");
+  });
+
+  it("renderiza tags e generos clicaveis como links com a pill neutra compartilhada", async () => {
+    setupApiMock(
+      {
+        ...projectFixture,
+        tags: ["acao"],
+        genres: ["drama"],
+      },
+      {
+        tags: { acao: "Ação traduzida" },
+        genres: { drama: "Drama traduzido" },
+      },
+    );
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    const tagLink = await screen.findByRole("link", { name: "Ação traduzida" });
+    expect(tagLink).toHaveAttribute("href", "/projetos?tag=acao");
+    expect(classTokens(tagLink)).toContain("rounded-full");
+    expect(classTokens(tagLink)).toContain("border-border/70");
+    expect(classTokens(tagLink)).toContain("bg-background");
+    expect(classTokens(tagLink)).toContain("text-foreground/70");
+    expect(classTokens(tagLink)).toContain("hover:border-accent/60");
+    expect(classTokens(tagLink)).toContain("hover:bg-accent/15");
+    expect(classTokens(tagLink)).toContain("hover:text-accent-foreground");
+    expect(classTokens(tagLink)).toContain("focus-visible:border-accent/60");
+    expect(classTokens(tagLink)).toContain("focus-visible:bg-accent/15");
+    expect(classTokens(tagLink)).toContain("focus-visible:text-accent-foreground");
+
+    const aboutSection = findAncestor(
+      screen.getByText("Sobre o projeto"),
+      (candidate) => classTokens(candidate).includes("bg-card/80"),
+    );
+    expect(aboutSection).not.toBeNull();
+
+    const genreLink = within(aboutSection as HTMLElement).getByRole("link", {
+      name: "Drama traduzido",
+    });
+    expect(genreLink).toHaveAttribute("href", "/projetos?genero=drama");
+    expect(classTokens(genreLink)).toContain("rounded-full");
+    expect(classTokens(genreLink)).toContain("border-border/70");
+    expect(classTokens(genreLink)).toContain("bg-background");
+    expect(classTokens(genreLink)).toContain("text-foreground/70");
+    expect(classTokens(genreLink)).toContain("hover:border-accent/60");
+    expect(classTokens(genreLink)).toContain("hover:bg-accent/15");
+    expect(classTokens(genreLink)).toContain("hover:text-accent-foreground");
+    expect(classTokens(genreLink)).toContain("focus-visible:border-accent/60");
+    expect(classTokens(genreLink)).toContain("focus-visible:bg-accent/15");
+    expect(classTokens(genreLink)).toContain("focus-visible:text-accent-foreground");
   });
 
   it("usa fallback de banner com heroImageUrl e depois cover", async () => {
@@ -469,7 +536,8 @@ describe("Project mobile hero layout", () => {
     );
 
     const relationImage = await screen.findByRole("img", { name: "Projeto Relacionado" });
-    const relationCover = relationImage.parentElement as HTMLElement | null;
+    const relationPicture = relationImage.parentElement as HTMLElement | null;
+    const relationCover = relationPicture?.parentElement as HTMLElement | null;
     const relationLink = relationImage.closest("a") as HTMLElement | null;
     const relationContent = relationCover?.nextElementSibling as HTMLElement | null;
     expect(relationCover).not.toBeNull();

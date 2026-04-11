@@ -125,8 +125,8 @@ describe("Recruitment mobile CTA layout", () => {
     const ctaLinkTokens = classTokens(ctaLink);
     expect(ctaLinkTokens).toContain("rounded-xl");
     expect(ctaLinkTokens).toContain("shadow-none");
-    expect(ctaLinkTokens).toContain("border-primary/30");
-    expect(ctaLinkTokens).toContain("bg-primary/85");
+    expect(ctaLinkTokens).toContain("border-primary/35");
+    expect(ctaLinkTokens).toContain("bg-primary/90");
     expect(ctaLinkTokens).toContain("hover:border-primary/85");
     expect(ctaLinkTokens).toContain("hover:bg-primary");
     expect(ctaLinkTokens).toContain("text-primary-foreground");

@@ -1,18 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import UploadPicture from "@/components/UploadPicture";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import PublicProjectCard, {
+  PUBLIC_PROJECT_CARD_CLAMP_PROFILES,
+  resolvePublicProjectCardClampState,
+  resolvePublicProjectCardResponsiveMaxLines,
+  type PublicProjectCardBadge,
+} from "@/components/project/PublicProjectCard";
 import type { Project } from "@/data/projects";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
-import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
-import { cn } from "@/lib/utils";
 import "@/styles/project-embed-card.css";
 import type { PublicBootstrapPayload } from "@/types/public-bootstrap";
 
@@ -25,9 +25,8 @@ type ProjectEmbedRecord = Pick<
   "id" | "cover" | "episodes" | "status" | "studio" | "synopsis" | "tags" | "title" | "type"
 >;
 
-const COVER_ROW_HEIGHT = "192px";
-const COVER_THUMB_WIDTH = "calc(192px * 9 / 14)";
 const PROJECT_EMBED_IMAGE_SIZES = "124px";
+const embedClampProfile = PUBLIC_PROJECT_CARD_CLAMP_PROFILES.embed;
 
 const resolveBootstrapProject = (
   bootstrapData: PublicBootstrapPayload | null,
@@ -62,25 +61,6 @@ const mergeMediaVariants = (base: UploadMediaVariantsMap, nextValue: unknown) =>
   ...(nextValue && typeof nextValue === "object" ? (nextValue as UploadMediaVariantsMap) : {}),
 });
 
-const getSynopsisClampClass = (lines: number | undefined) => {
-  if (typeof lines !== "number") {
-    return "clamp-safe-2";
-  }
-  if (lines <= 0) {
-    return "hidden";
-  }
-  if (lines === 1) {
-    return "clamp-safe-1";
-  }
-  if (lines === 2) {
-    return "clamp-safe-2";
-  }
-  if (lines === 3) {
-    return "clamp-safe-3";
-  }
-  return "clamp-safe-4";
-};
-
 const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   const apiBase = getApiBase();
   const [bootstrapData] = useState<PublicBootstrapPayload | null>(() =>
@@ -100,23 +80,67 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   );
   const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
   const synopsisKey = project?.id ?? projectId ?? "project-embed";
+  const resolveEmbedSynopsisMaxLines = useCallback(
+    ({
+      columnWidth,
+      defaultMaxLines,
+    }: {
+      columnWidth: number;
+      defaultMaxLines: number;
+    }) =>
+      resolvePublicProjectCardResponsiveMaxLines({
+        profile: embedClampProfile,
+        columnWidth,
+        defaultMaxLines,
+      }),
+    [],
+  );
   const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
     enabled: Boolean(projectId),
     keys: [synopsisKey],
-    maxLines: 4,
+    maxLines: embedClampProfile.defaultMaxLines,
+    resolveMaxLines: resolveEmbedSynopsisMaxLines,
   });
   const sortedTags = useMemo(() => {
     const tags = Array.isArray(project?.tags) ? project.tags : [];
     return sortByTranslatedLabel(tags, (tag) => translateTag(tag, tagTranslationMap));
   }, [project?.tags, tagTranslationMap]);
-  const synopsisMaxLines = (() => {
-    const lines = lineByKey[synopsisKey];
-    if (typeof lines !== "number") {
-      return 2;
-    }
-    return Math.max(0, Math.min(lines, 4));
-  })();
-  const synopsisClampClass = getSynopsisClampClass(lineByKey[synopsisKey]);
+  const primaryBadges = useMemo<PublicProjectCardBadge[]>(
+    () => {
+      const badges: Array<PublicProjectCardBadge | null> = [
+        project?.status
+          ? {
+              key: "status",
+              label: project.status,
+              variant: "outline" as const,
+              className: "max-w-[8.5rem] truncate",
+            }
+          : null,
+        project?.studio
+          ? {
+              key: "studio",
+              label: project.studio,
+              variant: "outline" as const,
+              className: "max-w-[8.5rem] truncate",
+            }
+          : null,
+        project?.episodes
+          ? {
+              key: "episodes",
+              label: project.episodes,
+              variant: "outline" as const,
+              className: "hidden sm:inline-flex",
+            }
+          : null,
+      ];
+      return badges.filter((badge): badge is PublicProjectCardBadge => badge != null);
+    },
+    [project?.episodes, project?.status, project?.studio],
+  );
+  const synopsisClampState = resolvePublicProjectCardClampState({
+    profile: embedClampProfile,
+    lines: lineByKey[synopsisKey],
+  });
 
   useEffect(() => {
     setProject(bootstrapProject);
@@ -201,109 +225,30 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   }
 
   return (
-    <Link
-      to={`/projeto/${project?.id ?? projectId}`}
-      className="project-embed-card group block overflow-hidden rounded-2xl border border-border/60 bg-card focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 hover:border-primary/60 hover:bg-card/90"
-    >
-      <Card className="overflow-hidden bg-transparent shadow-none">
-        <CardContent className="p-0">
-          <div
-            ref={synopsisRootRef}
-            data-testid="project-embed-row"
-            className="group flex items-stretch"
-            style={{ height: COVER_ROW_HEIGHT }}
-          >
-            <div
-              className="h-full shrink-0 self-start overflow-hidden bg-secondary/60"
-              style={{
-                aspectRatio: PROJECT_COVER_ASPECT_RATIO,
-                width: COVER_THUMB_WIDTH,
-              }}
-            >
-              <UploadPicture
-                src={project?.cover || "/placeholder.svg"}
-                alt={project?.title || "Projeto"}
-                preset="posterThumb"
-                mediaVariants={projectMediaVariants}
-                className="block h-full w-full"
-                sizes={PROJECT_EMBED_IMAGE_SIZES}
-                imgClassName="project-embed-card__media h-full w-full object-cover object-center"
-              />
-            </div>
-            <div
-              data-synopsis-role="column"
-              data-synopsis-key={synopsisKey}
-              className="flex min-h-0 min-w-0 flex-1 self-stretch flex-col overflow-hidden p-4"
-            >
-              <div data-synopsis-role="title" className="space-y-1">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-primary/80">
-                  {project?.type || ""}
-                </p>
-                <span className="clamp-safe-2 interactive-content-transition text-lg font-semibold text-foreground group-hover:text-primary group-focus-visible:text-primary">
-                  {project?.title || "Projeto"}
-                </span>
-              </div>
-              <p
-                data-synopsis-role="synopsis"
-                data-synopsis-lines={synopsisMaxLines}
-                className={cn(
-                  "mt-2 min-h-0 text-sm text-muted-foreground break-normal [overflow-wrap:normal] [word-break:normal]",
-                  synopsisClampClass,
-                )}
-              >
-                {project?.synopsis || ""}
-              </p>
-              <div data-synopsis-role="badges" className="mt-auto space-y-2 pt-2">
-                <div
-                  data-testid="project-embed-primary-badges"
-                  className="flex flex-nowrap items-center gap-2 overflow-hidden text-xs sm:flex-wrap"
-                >
-                  {project?.status ? (
-                    <Badge
-                      data-testid="project-embed-status-badge"
-                      variant="outline"
-                      className="max-w-[8.5rem] truncate"
-                    >
-                      {project.status}
-                    </Badge>
-                  ) : null}
-                  {project?.studio ? (
-                    <Badge
-                      data-testid="project-embed-studio-badge"
-                      variant="outline"
-                      className="max-w-[8.5rem] truncate"
-                    >
-                      {project.studio}
-                    </Badge>
-                  ) : null}
-                  {project?.episodes ? (
-                    <Badge
-                      data-testid="project-embed-episodes-badge"
-                      variant="outline"
-                      className="hidden sm:inline-flex"
-                    >
-                      {project.episodes}
-                    </Badge>
-                  ) : null}
-                </div>
-                {project?.tags?.length ? (
-                  <div
-                    data-testid="project-embed-tags"
-                    className="hidden flex-wrap gap-1.5 sm:flex"
-                  >
-                    {sortedTags.slice(0, 4).map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-[9px] uppercase">
-                        {translateTag(tag, tagTranslationMap)}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
+    <PublicProjectCard
+      variant="embed"
+      testIdBase="project-embed"
+      rowRef={synopsisRootRef}
+      model={{
+        href: `/projeto/${project?.id ?? projectId}`,
+        title: project?.title || "Projeto",
+        coverSrc: project?.cover || "/placeholder.svg",
+        coverAlt: project?.title || "Projeto",
+        mediaVariants: projectMediaVariants,
+        eyebrow: project?.type || "",
+        synopsis: project?.synopsis || "",
+        synopsisKey,
+        synopsisLines: synopsisClampState.synopsisLines,
+        synopsisClampClass: synopsisClampState.synopsisClampClass,
+        primaryBadges,
+        secondaryBadges: sortedTags.slice(0, 4).map((tag) => ({
+          key: `tag-${tag}`,
+          label: translateTag(tag, tagTranslationMap),
+          variant: "secondary",
+        })),
+      }}
+      imageSizes={PROJECT_EMBED_IMAGE_SIZES}
+    />
   );
 };
 

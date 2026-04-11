@@ -6,6 +6,12 @@ const cssPath = path.resolve(process.cwd(), "src/index.css");
 const cssSource = readFileSync(cssPath, "utf8");
 
 describe("scrollbar gutter contract", () => {
+  it("reserves a stable gutter only for dashboard-scoped shells", () => {
+    expect(cssSource).toMatch(
+      /html\.dashboard-scrollbar-gutter-stable,\s*body\.dashboard-scrollbar-gutter-stable\s*\{[\s\S]*scrollbar-gutter:\s*stable;/,
+    );
+  });
+
   it("does not reserve symmetric global gutter space on the root document", () => {
     expect(cssSource).not.toContain("scrollbar-gutter: stable both-edges");
   });

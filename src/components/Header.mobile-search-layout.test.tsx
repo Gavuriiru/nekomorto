@@ -720,12 +720,47 @@ describe("Header mobile search layout", () => {
     expect(classTokens(projectCard as HTMLElement)).not.toContain("p-4");
 
     await waitFor(() => {
-      expect(useDynamicSynopsisClampMock).toHaveBeenLastCalledWith({
-        enabled: true,
-        keys: ["/projeto/project-88"],
-        maxLines: 4,
-      });
+      expect(useDynamicSynopsisClampMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          enabled: true,
+          keys: ["/projeto/project-88"],
+          maxLines: 3,
+          resolveMaxLines: expect.any(Function),
+        }),
+      );
     });
+    const clampCall = useDynamicSynopsisClampMock.mock.lastCall?.[0] as {
+      resolveMaxLines: (context: {
+        key: string;
+        column: HTMLElement;
+        columnWidth: number;
+        defaultMaxLines: number;
+      }) => number;
+    };
+    expect(
+      clampCall.resolveMaxLines({
+        key: "/projeto/project-88",
+        column: document.createElement("div"),
+        columnWidth: 210,
+        defaultMaxLines: 3,
+      }),
+    ).toBe(1);
+    expect(
+      clampCall.resolveMaxLines({
+        key: "/projeto/project-88",
+        column: document.createElement("div"),
+        columnWidth: 280,
+        defaultMaxLines: 3,
+      }),
+    ).toBe(2);
+    expect(
+      clampCall.resolveMaxLines({
+        key: "/projeto/project-88",
+        column: document.createElement("div"),
+        columnWidth: 360,
+        defaultMaxLines: 3,
+      }),
+    ).toBe(3);
 
     const coverColumn = projectCard?.querySelector(
       '[data-synopsis-role="column"]',

@@ -3,6 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const DASHBOARD_SCROLLBAR_GUTTER_CLASS = "dashboard-scrollbar-gutter-stable";
+
 vi.mock("@/components/DashboardHeader", () => ({
   default: ({ menuItems }: { menuItems?: Array<{ label: string }> }) => (
     <div data-testid="dashboard-header">
@@ -62,10 +64,14 @@ describe("DashboardShell menu permissions", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.stubEnv("VITE_RBAC_V2_ENABLED", "true");
+    document.documentElement.classList.remove(DASHBOARD_SCROLLBAR_GUTTER_CLASS);
+    document.body.classList.remove(DASHBOARD_SCROLLBAR_GUTTER_CLASS);
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    document.documentElement.classList.remove(DASHBOARD_SCROLLBAR_GUTTER_CLASS);
+    document.body.classList.remove(DASHBOARD_SCROLLBAR_GUTTER_CLASS);
   });
 
   it("renders only allowed dashboard entries from grants", async () => {
@@ -219,5 +225,34 @@ describe("DashboardShell menu permissions", () => {
 
     expect(screen.getByText("Carregando usuário...")).toBeInTheDocument();
     expect(screen.getByText("Aguarde")).toBeInTheDocument();
+  });
+
+  it("adds and removes the dashboard scrollbar gutter class with the shell lifecycle", async () => {
+    const grants = buildGrants();
+    grants.posts = true;
+    const { default: DashboardShell } = await import("@/components/DashboardShell");
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={["/dashboard/posts"]}>
+        <DashboardShell
+          currentUser={{
+            id: "user-1",
+            name: "User 1",
+            username: "user1",
+            grants,
+          }}
+        >
+          <div>Conteudo</div>
+        </DashboardShell>
+      </MemoryRouter>,
+    );
+
+    expect(document.documentElement).toHaveClass(DASHBOARD_SCROLLBAR_GUTTER_CLASS);
+    expect(document.body).toHaveClass(DASHBOARD_SCROLLBAR_GUTTER_CLASS);
+
+    unmount();
+
+    expect(document.documentElement).not.toHaveClass(DASHBOARD_SCROLLBAR_GUTTER_CLASS);
+    expect(document.body).not.toHaveClass(DASHBOARD_SCROLLBAR_GUTTER_CLASS);
   });
 });

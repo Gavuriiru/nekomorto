@@ -17,10 +17,12 @@ import {
 } from "lucide-react";
 
 import CommentsSection from "@/components/CommentsSection";
+import PublicProjectCard from "@/components/project/PublicProjectCard";
 import UploadPicture from "@/components/UploadPicture";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PillButton } from "@/components/ui/pill-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import {
@@ -65,6 +67,31 @@ import { buildProjectPublicReadingHref } from "@/lib/project-editor-routes";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import NotFound from "./NotFound";
 import type { Project } from "@/data/projects";
+
+type ProjectFilterPillTone = "secondary" | "outline";
+
+type ProjectFilterPillLinkProps = {
+  label: string;
+  to: string;
+  tone: ProjectFilterPillTone;
+};
+
+const projectFilterPillClassName =
+  "h-6 min-h-6 min-w-6 gap-0 rounded-full px-2 py-0 text-[10px] uppercase leading-none";
+
+const ProjectFilterPillLink = ({
+  label,
+  to,
+  tone,
+}: ProjectFilterPillLinkProps) => (
+  <PillButton
+    asChild
+    tone={tone}
+    className={projectFilterPillClassName}
+  >
+    <Link to={to}>{label}</Link>
+  </PillButton>
+);
 
 const ProjectPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -1131,18 +1158,12 @@ const ProjectPage = () => {
                     style={{ animationDelay: "0.3s" }}
                   >
                     {sortedTags.map((tag) => (
-                      <Link
+                      <ProjectFilterPillLink
                         key={tag}
+                        tone="secondary"
                         to={`/projetos?tag=${encodeURIComponent(tag)}`}
-                        className="inline-flex"
-                      >
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] uppercase"
-                        >
-                          {translateTag(tag, tagTranslationMap)}
-                        </Badge>
-                      </Link>
+                        label={translateTag(tag, tagTranslationMap)}
+                      />
                     ))}
                   </div>
                 ) : null}
@@ -1220,18 +1241,12 @@ const ProjectPage = () => {
                   {project.genres?.length ? (
                     <div className="flex flex-wrap gap-2">
                       {sortedGenres.map((genre) => (
-                        <Link
+                        <ProjectFilterPillLink
                           key={genre}
+                          tone="outline"
                           to={`/projetos?genero=${encodeURIComponent(genre)}`}
-                          className="inline-flex"
-                        >
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] uppercase"
-                          >
-                            {translateGenre(genre, genreTranslationMap)}
-                          </Badge>
-                        </Link>
+                          label={translateGenre(genre, genreTranslationMap)}
+                        />
                       ))}
                     </div>
                   ) : null}
@@ -1271,36 +1286,25 @@ const ProjectPage = () => {
                             : "");
                         const projectId = relationProjectIds.get(relationId);
                         const targetId = projectId || relationId;
+                        const supportingText = [relation.format, relation.status]
+                          .map((value) => String(value || "").trim())
+                          .filter(Boolean)
+                          .join(" • ");
                         return (
-                          <Link
+                          <PublicProjectCard
                             key={`${relation.relation}-${relation.title}`}
-                            to={targetId ? `/projeto/${targetId}` : "#"}
-                            className="group interactive-lift-md interactive-surface-transition flex overflow-hidden rounded-xl border border-border/50 bg-background/60 hover:border-primary/60 hover:bg-background/80 focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45"
-                          >
-                            <div
-                              className="w-[4.5rem] shrink-0 overflow-hidden bg-secondary sm:w-20"
-                              style={{
-                                aspectRatio: PROJECT_COVER_ASPECT_RATIO,
-                              }}
-                            >
-                              <img
-                                src={relation.image}
-                                alt={relation.title}
-                                className="interactive-media-transition h-full w-full object-cover group-hover:scale-105 group-focus-visible:scale-105"
-                              />
-                            </div>
-                            <div className="min-w-0 space-y-2 p-[1.125rem]">
-                              <p className="text-xs font-semibold uppercase tracking-widest text-primary/80">
-                                {translateRelation(relation.relation)}
-                              </p>
-                              <p className="interactive-content-transition text-sm font-semibold text-foreground group-hover:text-primary group-focus-visible:text-primary">
-                                {relation.title}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {relation.format} • {relation.status}
-                              </p>
-                            </div>
-                          </Link>
+                            variant="related"
+                            model={{
+                              href: targetId ? `/projeto/${targetId}` : "#",
+                              title: relation.title,
+                              coverSrc: relation.image,
+                              coverAlt: relation.title,
+                              mediaVariants,
+                              eyebrow: translateRelation(relation.relation),
+                              synopsisKey: relation.title,
+                              supportingText,
+                            }}
+                          />
                         );
                       })}
                     </div>

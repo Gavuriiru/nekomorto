@@ -6,13 +6,14 @@ import { cn } from "@/lib/utils";
 
 type PillButtonTone = "primary" | "secondary" | "outline";
 
+const pillButtonNeutralToneClassName =
+  "border-border/70 bg-background text-foreground/70 hover:border-accent/60 hover:bg-accent/15 hover:text-accent-foreground focus-visible:border-accent/60 focus-visible:bg-accent/15 focus-visible:text-accent-foreground";
+
 const pillButtonToneClassName: Record<PillButtonTone, string> = {
   primary:
     "border-primary/20 bg-primary/10 text-primary hover:border-primary/60 hover:bg-primary/15 hover:text-primary focus-visible:border-primary/60 focus-visible:bg-primary/15 focus-visible:text-primary",
-  secondary:
-    "border-transparent bg-secondary text-secondary-foreground hover:border-transparent hover:bg-secondary/80 hover:text-secondary-foreground focus-visible:border-transparent focus-visible:bg-secondary/80 focus-visible:text-secondary-foreground",
-  outline:
-    "border-border/70 bg-background text-foreground/70 hover:border-primary/60 hover:bg-primary/5 hover:text-foreground focus-visible:border-primary/60 focus-visible:bg-primary/5 focus-visible:text-foreground",
+  secondary: pillButtonNeutralToneClassName,
+  outline: pillButtonNeutralToneClassName,
 };
 
 export interface PillButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

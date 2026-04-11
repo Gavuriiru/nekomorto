@@ -249,6 +249,21 @@ const resolveHeroEntryStyle = (
   shouldAnimateEntry: boolean,
 ) => (shouldAnimateEntry ? heroEntryDelayStyles[key] : undefined);
 
+const heroPrimaryButtonClassName = buttonVariants({
+  className:
+    "border-[color:var(--hero-primary-border-rest)] bg-[color:var(--hero-primary-bg-rest)] px-6 text-(--hero-accent-foreground,hsl(var(--primary-foreground))) hover:border-[color:var(--hero-primary-border-hover)] hover:bg-[color:var(--hero-primary-bg-hover)] focus-visible:border-[color:var(--hero-primary-border-hover)] focus-visible:bg-[color:var(--hero-primary-bg-hover)]",
+});
+
+const heroPrimaryButtonStyle = {
+  "--hero-primary-bg-rest":
+    "color-mix(in srgb, var(--hero-accent, hsl(var(--primary))) 90%, transparent)",
+  "--hero-primary-border-rest":
+    "color-mix(in srgb, var(--hero-accent, hsl(var(--primary))) 35%, transparent)",
+  "--hero-primary-bg-hover": "var(--hero-accent, hsl(var(--primary)))",
+  "--hero-primary-border-hover":
+    "color-mix(in srgb, var(--hero-accent, hsl(var(--primary))) 85%, transparent)",
+} as React.CSSProperties;
+
 type HeroSlideFrameProps = {
   slide: HeroSlide;
   index: number;
@@ -433,10 +448,8 @@ const HeroSlideFrame = ({
             <Link
               to={`/projeto/${slide.projectId}`}
               aria-label={`Acessar página de ${slide.title}`}
-              className={buttonVariants({
-                className:
-                  "bg-(--hero-accent,hsl(var(--primary))) px-6 text-(--hero-accent-foreground,hsl(var(--primary-foreground))) hover:bg-(--hero-accent,hsl(var(--primary))) hover:brightness-110",
-              })}
+              className={heroPrimaryButtonClassName}
+              style={heroPrimaryButtonStyle}
             >
               <Globe className="h-4 w-4" />
               Acessar Página
@@ -875,10 +888,8 @@ const HeroSection = () => {
                           <Link
                             to={`/projeto/${slide.projectId}`}
                             aria-label={`Acessar página de ${slide.title}`}
-                            className={buttonVariants({
-                              className:
-                                "bg-(--hero-accent,hsl(var(--primary))) px-6 text-(--hero-accent-foreground,hsl(var(--primary-foreground))) hover:bg-(--hero-accent,hsl(var(--primary))) hover:brightness-110",
-                            })}
+                            className={heroPrimaryButtonClassName}
+                            style={heroPrimaryButtonStyle}
                           >
                             <Globe className="h-4 w-4" />
                             Acessar Página

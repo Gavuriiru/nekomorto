@@ -68,6 +68,8 @@ type DashboardShellProps = {
   onMenuItemClick?: (item: DashboardMenuItem, event: MouseEvent<HTMLAnchorElement>) => void;
 };
 
+const DASHBOARD_SCROLLBAR_GUTTER_CLASS = "dashboard-scrollbar-gutter-stable";
+
 let lastResolvedDashboardUser: DashboardUser | null = readWindowPublicBootstrapCurrentUser();
 
 type DashboardSidebarMenuSectionProps = {
@@ -158,6 +160,20 @@ const DashboardShell = ({
       lastResolvedDashboardUser = null;
     }
   }, [currentUser, isLoadingUser]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    document.documentElement.classList.add(DASHBOARD_SCROLLBAR_GUTTER_CLASS);
+    document.body.classList.add(DASHBOARD_SCROLLBAR_GUTTER_CLASS);
+
+    return () => {
+      document.documentElement.classList.remove(DASHBOARD_SCROLLBAR_GUTTER_CLASS);
+      document.body.classList.remove(DASHBOARD_SCROLLBAR_GUTTER_CLASS);
+    };
+  }, []);
 
   const resolvedMenuItems = useMemo(() => {
     const accessRole = resolveAccessRole(effectiveUser || null);

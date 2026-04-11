@@ -41,8 +41,8 @@ describe("buttonVariants", () => {
 
     expect(defaultTokens).toEqual(
       expect.arrayContaining([
-        "border-primary/30",
-        "bg-primary/85",
+        "border-primary/35",
+        "bg-primary/90",
         "text-primary-foreground",
         "hover:border-primary/85",
         "hover:bg-primary",

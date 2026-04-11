@@ -63,6 +63,14 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
+const deferredResponse = () => {
+  let resolve!: (value: Response) => void;
+  const promise = new Promise<Response>((nextResolve) => {
+    resolve = nextResolve;
+  });
+  return { promise, resolve };
+};
+
 type PostFixture = {
   id: string;
   title: string;
@@ -103,10 +111,12 @@ const setupApiMock = ({
   posts = Array.from({ length: 21 }, (_, index) => createPost(index + 1)),
   includeTrashedPost = false,
   calendarItems = [],
+  calendarResponse = null,
 }: {
   posts?: PostFixture[];
   includeTrashedPost?: boolean;
   calendarItems?: Array<Record<string, unknown>>;
+  calendarResponse?: Promise<Response> | Response | null;
 } = {}) => {
   let nextPosts = posts;
   if (includeTrashedPost) {
@@ -156,6 +166,9 @@ const setupApiMock = ({
       return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
     }
     if (path.startsWith("/api/admin/editorial/calendar") && method === "GET") {
+      if (calendarResponse) {
+        return calendarResponse;
+      }
       const url = new URL(`http://test.local${path}`);
       return mockJsonResponse(true, {
         from: url.searchParams.get("from") || "",
@@ -179,7 +192,7 @@ const classTokens = (element: HTMLElement) => String(element.className).split(/\
 const expectSegmentedButtonTokens = (element: HTMLElement) => {
   const tokens = classTokens(element);
 
-  expect(tokens).toEqual(expect.arrayContaining(["h-9", "rounded-lg", "font-semibold"]));
+  expect(tokens).toEqual(expect.arrayContaining(["h-9", "rounded-xl", "font-semibold"]));
   expect(tokens).not.toContain("interactive-lift-sm");
   expect(tokens).not.toContain("pressable");
 };
@@ -389,6 +402,108 @@ describe("DashboardPosts query sync", () => {
     expect(screen.getByText("Post publicado")).toBeInTheDocument();
     expect(screen.getByText("Agendada")).toBeInTheDocument();
     expect(screen.getByText("Publicada")).toBeInTheDocument();
+  });
+
+  it("renderiza o calendario sem animacao de entrada", async () => {
+    setupApiMock({
+      calendarItems: [
+        {
+          id: "post-1",
+          title: "Post agendado",
+          slug: "post-agendado",
+          status: "scheduled",
+          publishedAt: "2026-04-10T14:00:00.000Z",
+          scheduledAt: "2026-04-10T14:00:00.000Z",
+          projectId: "",
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts"]}>
+        <DashboardPosts />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    fireEvent.click(screen.getByRole("button", { name: /Calend/i }));
+
+    const calendarSurface = await screen.findByTestId("dashboard-posts-calendar-surface");
+    expect(classTokens(calendarSurface)).not.toContain("animate-fade-in");
+    expect(classTokens(calendarSurface)).not.toContain("opacity-0");
+
+    const calendarHeader = screen.getByTestId("dashboard-posts-calendar-header");
+    expect(classTokens(calendarHeader)).not.toContain("animate-slide-up");
+    expect(classTokens(calendarHeader)).not.toContain("opacity-0");
+
+    const weekdayRow = screen.getByTestId("dashboard-posts-calendar-weekday-row");
+    expect(classTokens(weekdayRow)).not.toContain("animate-slide-up");
+    expect(classTokens(weekdayRow)).not.toContain("opacity-0");
+
+    const weekRows = screen.getAllByTestId(/dashboard-posts-calendar-week-/);
+    expect(weekRows.length).toBeGreaterThan(0);
+    weekRows.forEach((weekRow) => {
+      expect(classTokens(weekRow)).not.toContain("animate-slide-up");
+      expect(classTokens(weekRow)).not.toContain("opacity-0");
+    });
+  });
+
+  it("mantem a area do calendario reservada com skeleton local durante o loading", async () => {
+    const calendarDeferred = deferredResponse();
+    setupApiMock({
+      calendarResponse: calendarDeferred.promise,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts"]}>
+        <DashboardPosts />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    fireEvent.click(screen.getByRole("button", { name: /Calend/i }));
+
+    const calendarSurface = screen.getByTestId("dashboard-posts-calendar-surface");
+    expect(calendarSurface).toBeInTheDocument();
+    expect(classTokens(calendarSurface)).not.toContain("animate-fade-in");
+    expect(classTokens(calendarSurface)).not.toContain("opacity-0");
+
+    const calendarHeader = screen.getByTestId("dashboard-posts-calendar-header");
+    expect(classTokens(calendarHeader)).not.toContain("animate-slide-up");
+    expect(classTokens(calendarHeader)).not.toContain("opacity-0");
+
+    const weekdayRow = screen.getByTestId("dashboard-posts-calendar-weekday-row");
+    expect(classTokens(weekdayRow)).not.toContain("animate-slide-up");
+    expect(classTokens(weekdayRow)).not.toContain("opacity-0");
+
+    expect(screen.getByTestId("dashboard-posts-calendar-loading-grid")).toBeInTheDocument();
+    const loadingWeeks = screen.getAllByTestId(/dashboard-posts-calendar-loading-week-/);
+    expect(loadingWeeks).toHaveLength(6);
+    loadingWeeks.forEach((weekRow) => {
+      expect(classTokens(weekRow)).not.toContain("animate-slide-up");
+      expect(classTokens(weekRow)).not.toContain("opacity-0");
+    });
+    expect(screen.queryByText(/Carregando calend.rio editorial/i)).not.toBeInTheDocument();
+
+    calendarDeferred.resolve(
+      mockJsonResponse(true, {
+        from: "2026-04-01",
+        to: "2026-04-30",
+        tz: "America/Sao_Paulo",
+        items: [],
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("dashboard-posts-calendar-loading-grid")).not.toBeInTheDocument();
+    });
+
+    const loadedWeekRows = screen.getAllByTestId(/dashboard-posts-calendar-week-/);
+    expect(loadedWeekRows.length).toBeGreaterThan(0);
+    loadedWeekRows.forEach((weekRow) => {
+      expect(classTokens(weekRow)).not.toContain("animate-slide-up");
+      expect(classTokens(weekRow)).not.toContain("opacity-0");
+    });
   });
 
   it("nao reintroduz query ao navegar para URL limpa e nao usa /api/me/preferences", {

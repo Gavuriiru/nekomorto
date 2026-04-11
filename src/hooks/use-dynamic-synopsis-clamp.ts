@@ -1,9 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
+export type DynamicSynopsisClampMaxLinesContext = {
+  key: string;
+  column: HTMLElement;
+  columnWidth: number;
+  defaultMaxLines: number;
+};
+
+type DynamicSynopsisClampMaxLinesResolver = (
+  context: DynamicSynopsisClampMaxLinesContext,
+) => number | null | undefined;
+
 type UseDynamicSynopsisClampParams<T extends HTMLElement = HTMLDivElement> = {
   enabled: boolean;
   keys: string[];
   maxLines?: number;
+  resolveMaxLines?: DynamicSynopsisClampMaxLinesResolver;
   scopeRef?: RefObject<T | null>;
   selectors?: {
     column?: string;
@@ -21,6 +33,14 @@ const toPx = (value: string) => {
 
 const clampLines = (lines: number, maxLines: number) => Math.max(0, Math.min(lines, maxLines));
 
+const resolveColumnWidth = (column: HTMLElement) => {
+  const rectWidth = column.getBoundingClientRect().width;
+  if (rectWidth > 0) {
+    return rectWidth;
+  }
+  return column.clientWidth;
+};
+
 const mapsAreEqual = (a: Record<string, number>, b: Record<string, number>) => {
   const aKeys = Object.keys(a);
   const bKeys = Object.keys(b);
@@ -34,6 +54,7 @@ export const useDynamicSynopsisClamp = <T extends HTMLElement = HTMLDivElement>(
   enabled,
   keys,
   maxLines = 3,
+  resolveMaxLines,
   scopeRef,
   selectors,
   resizeDebounceMs = 80,
@@ -87,6 +108,19 @@ export const useDynamicSynopsisClamp = <T extends HTMLElement = HTMLDivElement>(
       const columnPaddingTop = toPx(columnStyle.paddingTop);
       const columnPaddingBottom = toPx(columnStyle.paddingBottom);
       const synopsisMarginTop = toPx(synopsisStyle.marginTop);
+      const columnWidth = resolveColumnWidth(column);
+      const resolvedMaxLinesValue = resolveMaxLines?.({
+        key,
+        column,
+        columnWidth,
+        defaultMaxLines: maxLines,
+      });
+      const columnMaxLines = clampLines(
+        Number.isFinite(resolvedMaxLinesValue)
+          ? Math.floor(Number(resolvedMaxLinesValue))
+          : maxLines,
+        maxLines,
+      );
       const availableHeight = Math.max(
         0,
         column.clientHeight -
@@ -96,7 +130,7 @@ export const useDynamicSynopsisClamp = <T extends HTMLElement = HTMLDivElement>(
           (badges?.offsetHeight || 0) -
           synopsisMarginTop,
       );
-      const lines = clampLines(Math.floor(availableHeight / lineHeight), maxLines);
+      const lines = clampLines(Math.floor(availableHeight / lineHeight), columnMaxLines);
       next[key] = lines;
     });
 
@@ -104,6 +138,7 @@ export const useDynamicSynopsisClamp = <T extends HTMLElement = HTMLDivElement>(
   }, [
     enabled,
     maxLines,
+    resolveMaxLines,
     resolvedSelectors.badges,
     resolvedSelectors.column,
     resolvedSelectors.synopsis,

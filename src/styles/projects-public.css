@@ -2,8 +2,6 @@
   .projects-public-card {
     box-shadow: none;
     transition:
-      transform var(--interactive-duration-medium)
-        var(--interactive-ease-standard),
       box-shadow var(--interactive-duration-medium)
         var(--interactive-ease-standard),
       border-color var(--interactive-duration-medium)
@@ -17,7 +15,6 @@
   .projects-public-card:hover,
   .projects-public-card:focus-visible,
   .projects-public-card:focus-within {
-    transform: translateY(-4px);
     box-shadow: 0 14px 34px -28px rgba(0, 0, 0, 0.28);
   }
 

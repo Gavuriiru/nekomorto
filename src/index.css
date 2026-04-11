@@ -637,6 +637,11 @@
     right: var(--removed-body-scroll-bar-size, 0px) !important;
   }
 
+  html.dashboard-scrollbar-gutter-stable,
+  body.dashboard-scrollbar-gutter-stable {
+    scrollbar-gutter: stable;
+  }
+
   html,
   body {
     scrollbar-width: thin;

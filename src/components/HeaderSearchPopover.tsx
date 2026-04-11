@@ -1,13 +1,15 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 
-import UploadPicture from "@/components/UploadPicture";
-import { Badge } from "@/components/ui/badge";
+import PublicProjectCard, {
+  PUBLIC_PROJECT_CARD_CLAMP_PROFILES,
+  resolvePublicProjectCardClampState,
+  resolvePublicProjectCardResponsiveMaxLines,
+} from "@/components/project/PublicProjectCard";
 import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { buildPublicSearchIndex } from "@/lib/public-search-index";
-import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import {
   rankPosts,
   rankProjects,
@@ -29,25 +31,6 @@ type HeaderSearchPopoverProps = {
   remoteMediaVariants: UploadMediaVariantsMap;
 };
 
-const getSynopsisClampClass = (lines: number | undefined) => {
-  if (typeof lines !== "number") {
-    return "clamp-safe-2";
-  }
-  if (lines <= 0) {
-    return "hidden";
-  }
-  if (lines === 1) {
-    return "clamp-safe-1";
-  }
-  if (lines === 2) {
-    return "clamp-safe-2";
-  }
-  if (lines === 3) {
-    return "clamp-safe-3";
-  }
-  return "clamp-safe-4";
-};
-
 const HeaderSearchPopover = ({
   queryTrimmed,
   hasMinimumSearchQueryLength,
@@ -56,6 +39,7 @@ const HeaderSearchPopover = ({
   remoteSuggestions,
   remoteMediaVariants,
 }: HeaderSearchPopoverProps) => {
+  const searchClampProfile = PUBLIC_PROJECT_CARD_CLAMP_PROFILES.search;
   const { data: bootstrapData } = usePublicBootstrap();
   const projects = bootstrapData?.projects || [];
   const posts = bootstrapData?.posts || [];
@@ -133,10 +117,26 @@ const HeaderSearchPopover = ({
   const hasResults =
     hasMinimumSearchQueryLength && (activeProjects.length > 0 || activePosts.length > 0);
   const synopsisKeys = useMemo(() => activeProjects.map((item) => item.href), [activeProjects]);
+  const resolveSearchSynopsisMaxLines = useCallback(
+    ({
+      columnWidth,
+      defaultMaxLines,
+    }: {
+      columnWidth: number;
+      defaultMaxLines: number;
+    }) =>
+      resolvePublicProjectCardResponsiveMaxLines({
+        profile: searchClampProfile,
+        columnWidth,
+        defaultMaxLines,
+      }),
+    [searchClampProfile],
+  );
   const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
     enabled: activeProjects.length > 0,
     keys: synopsisKeys,
-    maxLines: 4,
+    maxLines: searchClampProfile.defaultMaxLines,
+    resolveMaxLines: resolveSearchSynopsisMaxLines,
   });
 
   return (
@@ -160,65 +160,36 @@ const HeaderSearchPopover = ({
             Projetos
           </p>
           <ul className="no-scrollbar mt-3 max-h-[44vh] space-y-3 overflow-y-auto overscroll-contain pr-1">
-            {activeProjects.map((item) => (
-              <li key={item.href}>
-                <Link
-                  to={item.href}
-                  className="group flex h-36 items-stretch overflow-hidden rounded-xl border border-border/60 bg-card/60 transition hover:border-primary/60 hover:bg-card/70"
-                >
-                  <div
-                    className="h-full shrink-0 overflow-hidden bg-secondary"
-                    style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
-                  >
-                    <UploadPicture
-                      src={item.image}
-                      alt={item.label}
-                      preset="posterThumb"
-                      mediaVariants={activeProjectMediaVariants}
-                      className="block h-full w-full"
-                      imgClassName="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  </div>
-                  <div
-                    data-synopsis-role="column"
-                    data-synopsis-key={item.href}
-                    className="min-h-0 min-w-0 flex flex-1 self-stretch flex-col p-4"
-                  >
-                    <p
-                      data-synopsis-role="title"
-                      className="line-clamp-1 shrink-0 text-sm font-semibold text-foreground group-hover:text-primary"
-                    >
-                      {item.label}
-                    </p>
-                    <p
-                      data-synopsis-role="synopsis"
-                      className={cn(
-                        "mt-1 min-h-0 flex-1 overflow-hidden text-xs leading-snug text-muted-foreground",
-                        getSynopsisClampClass(lineByKey[item.href]),
-                      )}
-                    >
-                      {item.synopsis || ""}
-                    </p>
-                    {item.tags.length > 0 ? (
-                      <div
-                        data-synopsis-role="badges"
-                        className="flex min-w-0 shrink-0 flex-nowrap gap-1.5 overflow-hidden pb-1 pt-2"
-                      >
-                        {item.tags.map((tag) => (
-                          <Badge
-                            key={tag}
-                            variant="secondary"
-                            className="shrink-0 whitespace-nowrap text-[9px] uppercase"
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                </Link>
-              </li>
-            ))}
+            {activeProjects.map((item) => {
+              const synopsisClampState = resolvePublicProjectCardClampState({
+                profile: searchClampProfile,
+                lines: lineByKey[item.href],
+              });
+
+              return (
+                <li key={item.href}>
+                  <PublicProjectCard
+                    variant="search"
+                    model={{
+                      href: item.href,
+                      title: item.label,
+                      coverSrc: item.image,
+                      coverAlt: item.label,
+                      mediaVariants: activeProjectMediaVariants,
+                      synopsis: item.synopsis || "",
+                      synopsisKey: item.href,
+                      synopsisClampClass: synopsisClampState.synopsisClampClass,
+                      synopsisLines: synopsisClampState.synopsisLines,
+                      secondaryBadges: item.tags.map((tag) => ({
+                        key: `search-tag-${item.href}-${tag}`,
+                        label: tag,
+                        variant: "secondary",
+                      })),
+                    }}
+                  />
+                </li>
+              );
+            })}
           </ul>
         </div>
       ) : null}

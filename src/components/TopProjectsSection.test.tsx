@@ -157,6 +157,57 @@ describe("TopProjectsSection", () => {
     expect(screen.queryByText(/views acumuladas/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/views nos.*30 dias/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Em andamento")).not.toBeInTheDocument();
+    expect(useDynamicSynopsisClampMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        keys: [
+          "project-12",
+          "project-11",
+          "project-10",
+          "project-9",
+          "project-8",
+          "project-7",
+          "project-6",
+          "project-5",
+          "project-4",
+          "project-3",
+        ],
+        maxLines: 3,
+        resolveMaxLines: expect.any(Function),
+      }),
+    );
+    const clampCall = useDynamicSynopsisClampMock.mock.lastCall?.[0] as {
+      resolveMaxLines: (context: {
+        key: string;
+        column: HTMLElement;
+        columnWidth: number;
+        defaultMaxLines: number;
+      }) => number;
+    };
+    expect(
+      clampCall.resolveMaxLines({
+        key: "project-12",
+        column: document.createElement("div"),
+        columnWidth: 210,
+        defaultMaxLines: 3,
+      }),
+    ).toBe(1);
+    expect(
+      clampCall.resolveMaxLines({
+        key: "project-11",
+        column: document.createElement("div"),
+        columnWidth: 280,
+        defaultMaxLines: 3,
+      }),
+    ).toBe(2);
+    expect(
+      clampCall.resolveMaxLines({
+        key: "project-10",
+        column: document.createElement("div"),
+        columnWidth: 360,
+        defaultMaxLines: 3,
+      }),
+    ).toBe(3);
     expect(screen.getByTestId("top-projects-mode-trigger")).toHaveTextContent(/sempre/i);
     expect(screen.getByTestId("top-projects-mode-trigger")).toHaveClass(
       "min-h-8",
@@ -190,9 +241,12 @@ describe("TopProjectsSection", () => {
     const synopsisFirst = screen.getByText("Projeto 12 synopsis");
     const synopsisSecond = screen.getByText("Projeto 11 synopsis");
     const synopsisThird = screen.getByText("Projeto 10 synopsis");
-    expect(synopsisFirst).toHaveClass("line-clamp-1");
-    expect(synopsisSecond).toHaveClass("line-clamp-3");
-    expect(synopsisThird).toHaveClass("line-clamp-2");
+    expect(synopsisFirst).toHaveClass("clamp-safe-1");
+    expect(synopsisSecond).toHaveClass("clamp-safe-3");
+    expect(synopsisThird).toHaveClass("clamp-safe-2");
+    expect(synopsisFirst).toHaveAttribute("data-synopsis-lines", "1");
+    expect(synopsisSecond).toHaveAttribute("data-synopsis-lines", "3");
+    expect(synopsisThird).toHaveAttribute("data-synopsis-lines", "2");
 
     const list = screen.getByTestId("top-projects-list");
     const scrollRegion = screen.getByTestId("top-projects-scroll-region");

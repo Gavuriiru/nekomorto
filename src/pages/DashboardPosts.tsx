@@ -212,6 +212,10 @@ const getCalendarItemDisplayTime = (item: EditorialCalendarItem) =>
 const getCalendarItemStatusLabel = (status: EditorialCalendarItem["status"]) =>
   status === "published" ? "Publicada" : "Agendada";
 
+const calendarWeekdayLabels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const;
+const calendarLoadingWeekIndexes = Array.from({ length: 6 }, (_, index) => index);
+const calendarLoadingDayIndexes = Array.from({ length: 7 }, (_, index) => index);
+
 const DashboardPosts = () => {
   usePageMeta({ title: "Posts", noIndex: true });
   const location = useLocation();
@@ -1068,6 +1072,14 @@ const DashboardPosts = () => {
     }
     void loadEditorialCalendar(calendarMonthCursor);
   }, [calendarMonthCursor, canManagePosts, listViewMode, loadEditorialCalendar, posts]);
+
+  const handleShowListView = () => {
+    setListViewMode("list");
+  };
+
+  const handleShowCalendarView = () => {
+    setListViewMode("calendar");
+  };
 
   const postsPerPage = 10;
   const totalPages = Math.max(1, Math.ceil(sortedPosts.length / postsPerPage));
@@ -2217,7 +2229,7 @@ const DashboardPosts = () => {
                   <DashboardSegmentedActionButton
                     type="button"
                     active={listViewMode === "list"}
-                    onClick={() => setListViewMode("list")}
+                    onClick={handleShowListView}
                   >
                     <ListIcon className="h-4 w-4" />
                     Lista
@@ -2225,7 +2237,7 @@ const DashboardPosts = () => {
                   <DashboardSegmentedActionButton
                     type="button"
                     active={listViewMode === "calendar"}
-                    onClick={() => setListViewMode("calendar")}
+                    onClick={handleShowCalendarView}
                   >
                     <CalendarDays className="h-4 w-4" />
                     Calendário
@@ -2310,9 +2322,16 @@ const DashboardPosts = () => {
                 }
               />
             ) : listViewMode === "calendar" ? (
-              <Card lift={false} className={dashboardPageLayoutTokens.surfaceSolid}>
+              <Card
+                lift={false}
+                data-testid="dashboard-posts-calendar-surface"
+                className={dashboardPageLayoutTokens.surfaceSolid}
+              >
                 <CardContent className="space-y-4 p-4 md:p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div
+                    data-testid="dashboard-posts-calendar-header"
+                    className="flex flex-wrap items-center justify-between gap-3"
+                  >
                     <div>
                       <h3 className="text-base font-semibold capitalize">{calendarMonthLabel}</h3>
                       <p className="text-xs text-muted-foreground">
@@ -2344,14 +2363,7 @@ const DashboardPosts = () => {
                       </DashboardActionButton>
                     </div>
                   </div>
-                  {isCalendarLoading ? (
-                    <AsyncState
-                      kind="loading"
-                      title="Carregando calendário editorial"
-                      description="Buscando postagens do mês."
-                      className="border-0 bg-transparent p-0"
-                    />
-                  ) : hasCalendarError ? (
+                  {hasCalendarError ? (
                     <AsyncState
                       kind="error"
                       title="Não foi possível carregar o calendário"
@@ -2368,101 +2380,138 @@ const DashboardPosts = () => {
                     />
                   ) : (
                     <div className="space-y-3">
-                      <div className="grid grid-cols-7 gap-2 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                        {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((label) => (
+                      <div
+                        data-testid="dashboard-posts-calendar-weekday-row"
+                        className="grid grid-cols-7 gap-2 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+                      >
+                        {calendarWeekdayLabels.map((label) => (
                           <div key={label} className="py-1">
                             {label}
                           </div>
                         ))}
                       </div>
-                      <div className="grid gap-2">
-                        {calendarWeeks.map((week, weekIndex) => (
-                          <div
-                            key={`calendar-week-${weekIndex}`}
-                            className="grid grid-cols-7 gap-2"
-                          >
-                            {week.map((day) => {
-                              const dayKey = toLocalDateKey(day);
-                              const dayItems = calendarDayItemsMap.get(dayKey) || [];
-                              const isCurrentMonth =
-                                day.getMonth() === calendarMonthCursor.getMonth();
-                              const isToday = dayKey === toLocalDateKey(new Date());
-                              return (
+                      {isCalendarLoading ? (
+                        <div data-testid="dashboard-posts-calendar-loading-grid" className="grid gap-2">
+                          {calendarLoadingWeekIndexes.map((weekIndex) => (
+                            <div
+                              key={`calendar-loading-week-${weekIndex}`}
+                              data-testid={`dashboard-posts-calendar-loading-week-${weekIndex}`}
+                              className="grid grid-cols-7 gap-2"
+                            >
+                              {calendarLoadingDayIndexes.map((dayIndex) => (
                                 <div
-                                  key={dayKey}
-                                  className={`min-h-[120px] rounded-lg border p-2 ${
-                                    isCurrentMonth
-                                      ? "border-border/70 bg-background"
-                                      : "border-border/40 bg-muted/15"
-                                  } ${isToday ? "ring-1 ring-primary/50" : ""}`}
+                                  key={`calendar-loading-day-${weekIndex}-${dayIndex}`}
+                                  className="min-h-[120px] rounded-lg border border-border/70 bg-background p-2"
                                 >
                                   <div className="mb-2 flex items-center justify-between gap-2">
-                                    <span
-                                      className={`text-xs font-medium ${
-                                        isCurrentMonth ? "text-foreground" : "text-muted-foreground"
-                                      }`}
-                                    >
-                                      {day.getDate()}
-                                    </span>
-                                    {dayItems.length > 0 ? (
-                                      <Badge variant="secondary" className="text-[10px] uppercase">
-                                        {dayItems.length}
-                                      </Badge>
-                                    ) : null}
+                                    <Skeleton className="h-3 w-4" />
+                                    <Skeleton className="h-4 w-8 rounded-full" />
                                   </div>
-                                  <div className="space-y-1">
-                                    {dayItems.length === 0 ? (
-                                      <span className="text-[11px] text-muted-foreground">
-                                        Sem postagens
-                                      </span>
-                                    ) : (
-                                      dayItems.slice(0, 4).map((item) => (
-                                        <button
-                                          key={item.id}
-                                          type="button"
-                                          className={`block w-full rounded-md border border-border/70 bg-background px-2 py-1 text-left ${dashboardStrongSurfaceHoverClassName}`}
-                                          onClick={() => {
-                                            const target = posts.find(
-                                              (post) => post.id === item.id,
-                                            );
-                                            if (target && canManagePosts) {
-                                              openEdit(target);
-                                            }
-                                          }}
-                                        >
-                                          <div className="flex items-center justify-between gap-1">
-                                            <div className="truncate text-[11px] font-medium text-foreground">
-                                              {item.title}
-                                            </div>
-                                            <Badge
-                                              variant={
-                                                item.status === "published"
-                                                  ? "outline"
-                                                  : "secondary"
-                                              }
-                                              className="shrink-0 text-[9px] uppercase"
-                                            >
-                                              {getCalendarItemStatusLabel(item.status)}
-                                            </Badge>
-                                          </div>
-                                          <div className="truncate text-[10px] text-muted-foreground">
-                                            {formatLocalTimeShort(getCalendarItemDisplayTime(item))}
-                                          </div>
-                                        </button>
-                                      ))
-                                    )}
-                                    {dayItems.length > 4 ? (
-                                      <span className="text-[10px] text-muted-foreground">
-                                        +{dayItems.length - 4} postagens
-                                      </span>
-                                    ) : null}
+                                  <div className="space-y-1.5">
+                                    <Skeleton className="h-4 w-full" />
+                                    <Skeleton className="h-4 w-5/6" />
+                                    <Skeleton className="h-3 w-1/2" />
                                   </div>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        ))}
-                      </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="grid gap-2">
+                          {calendarWeeks.map((week, weekIndex) => (
+                            <div
+                              key={`calendar-week-${weekIndex}`}
+                              data-testid={`dashboard-posts-calendar-week-${weekIndex}`}
+                              className="grid grid-cols-7 gap-2"
+                            >
+                              {week.map((day) => {
+                                const dayKey = toLocalDateKey(day);
+                                const dayItems = calendarDayItemsMap.get(dayKey) || [];
+                                const isCurrentMonth =
+                                  day.getMonth() === calendarMonthCursor.getMonth();
+                                const isToday = dayKey === toLocalDateKey(new Date());
+                                return (
+                                  <div
+                                    key={dayKey}
+                                    className={`min-h-[120px] rounded-lg border p-2 ${
+                                      isCurrentMonth
+                                        ? "border-border/70 bg-background"
+                                        : "border-border/40 bg-muted/15"
+                                    } ${isToday ? "ring-1 ring-primary/50" : ""}`}
+                                  >
+                                    <div className="mb-2 flex items-center justify-between gap-2">
+                                      <span
+                                        className={`text-xs font-medium ${
+                                          isCurrentMonth
+                                            ? "text-foreground"
+                                            : "text-muted-foreground"
+                                        }`}
+                                      >
+                                        {day.getDate()}
+                                      </span>
+                                      {dayItems.length > 0 ? (
+                                        <Badge variant="secondary" className="text-[10px] uppercase">
+                                          {dayItems.length}
+                                        </Badge>
+                                      ) : null}
+                                    </div>
+                                    <div className="space-y-1">
+                                      {dayItems.length === 0 ? (
+                                        <span className="text-[11px] text-muted-foreground">
+                                          Sem postagens
+                                        </span>
+                                      ) : (
+                                        dayItems.slice(0, 4).map((item) => (
+                                          <button
+                                            key={item.id}
+                                            type="button"
+                                            className={`block w-full rounded-md border border-border/70 bg-background px-2 py-1 text-left ${dashboardStrongSurfaceHoverClassName}`}
+                                            onClick={() => {
+                                              const target = posts.find(
+                                                (post) => post.id === item.id,
+                                              );
+                                              if (target && canManagePosts) {
+                                                openEdit(target);
+                                              }
+                                            }}
+                                          >
+                                            <div className="flex items-center justify-between gap-1">
+                                              <div className="truncate text-[11px] font-medium text-foreground">
+                                                {item.title}
+                                              </div>
+                                              <Badge
+                                                variant={
+                                                  item.status === "published"
+                                                    ? "outline"
+                                                    : "secondary"
+                                                }
+                                                className="shrink-0 text-[9px] uppercase"
+                                              >
+                                                {getCalendarItemStatusLabel(item.status)}
+                                              </Badge>
+                                            </div>
+                                            <div className="truncate text-[10px] text-muted-foreground">
+                                              {formatLocalTimeShort(
+                                                getCalendarItemDisplayTime(item),
+                                              )}
+                                            </div>
+                                          </button>
+                                        ))
+                                      )}
+                                      {dayItems.length > 4 ? (
+                                        <span className="text-[10px] text-muted-foreground">
+                                          +{dayItems.length - 4} postagens
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {!isCalendarLoading && !hasCalendarError && calendarItems.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
                           Nenhuma postagem publicada/agendada neste mês.

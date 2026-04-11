@@ -8,18 +8,17 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
+import PublicProjectCard, {
+  PUBLIC_PROJECT_CARD_CLAMP_PROFILES,
+  resolvePublicProjectCardClampState,
+  resolvePublicProjectCardResponsiveMaxLines,
+} from "@/components/project/PublicProjectCard";
 import { Combobox, Input } from "@/components/public-form-controls";
-import {
-  publicPageLayoutTokens,
-  publicStrongSurfaceHoverClassName,
-} from "@/components/public-page-tokens";
-import UploadPicture from "@/components/UploadPicture";
+import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import AsyncState from "@/components/ui/async-state";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PillButton } from "@/components/ui/pill-button";
 import CompactPagination from "@/components/ui/compact-pagination";
 import type { Project } from "@/data/projects";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
@@ -27,11 +26,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import {
-  prepareProjectBadges,
-  PROJECT_COVER_ASPECT_RATIO,
-  type ProjectBadgeItem,
-} from "@/lib/project-card-layout";
+import { prepareProjectBadges, type ProjectBadgeItem } from "@/lib/project-card-layout";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import { comparePtBr, normalizeSearchText } from "@/lib/search-ranking";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
@@ -52,7 +47,6 @@ const PRIORITY_PROJECT_IMAGE_COUNT = 1;
 const MOBILE_FILTERS_PANEL_ID = "projects-mobile-filters-panel";
 const FILTER_COMBOBOX_INITIAL_LIMIT = 24;
 const FILTER_COMBOBOX_STEP = 24;
-const PROJECT_CARD_SYNOPSIS_CLASS = "projects-public-synopsis";
 
 const parseLetterParam = (value: string | null) => {
   const normalized = String(value || "")
@@ -94,22 +88,6 @@ type IndexedPublicProjectsPayload = {
   tagOptions: FilterOption[];
   genreOptions: FilterOption[];
   typeOptions: string[];
-};
-
-type ProjectCardProps = {
-  project: Project;
-  tagTranslations: Record<string, string>;
-  genreTranslations: Record<string, string>;
-  navigate: ReturnType<typeof useNavigate>;
-  mediaVariants: UploadMediaVariantsMap;
-  isPriorityImage: boolean;
-  isMobile: boolean;
-  synopsisClampClass: string;
-};
-
-type ProjectPrimaryBadgeProps = {
-  item: ProjectBadgeItem;
-  navigate?: ReturnType<typeof useNavigate>;
 };
 
 type ProjectsFilterFieldProps = {
@@ -155,10 +133,14 @@ type ProjectsGridProps = {
   mediaVariants: UploadMediaVariantsMap;
   isMobile: boolean;
   rootRef: RefObject<HTMLDivElement | null>;
-  getSynopsisClampClass: (projectId: string) => string;
+  getSynopsisClampState: (projectId: string) => {
+    synopsisLines: number;
+    synopsisClampClass: string;
+  };
 };
 
 const EMPTY_FILTER_OPTIONS: FilterOption[] = [];
+const catalogClampProfile = PUBLIC_PROJECT_CARD_CLAMP_PROFILES.catalog;
 
 const buildFilterOption = (value: string, label: string): FilterOption => ({
   value,
@@ -262,39 +244,84 @@ const getProjectBadgeAriaLabel = (item: ProjectBadgeItem) => {
   return item.label;
 };
 
-const ProjectPrimaryBadge = ({ item, navigate }: ProjectPrimaryBadgeProps) => {
-  if (!item.href) {
-    return (
-      <Badge
-        variant={item.variant}
-        className="inline-flex h-6 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
-        title={item.label}
-      >
-        {item.label}
-      </Badge>
-    );
-  }
+const isPresent = <T,>(value: T | null | undefined): value is T => value != null;
 
-  return (
-    <PillButton
-      tone={item.variant === "secondary" ? "secondary" : "outline"}
-      className="h-6 shrink-0 gap-0 px-2 py-0 text-[9px] uppercase leading-none"
-      title={item.label}
-      aria-label={getProjectBadgeAriaLabel(item)}
-      onClick={
-        navigate
-          ? (event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              navigate(item.href!);
-            }
-          : undefined
+const buildCatalogProjectPrimaryBadges = ({
+  project,
+  tagTranslations,
+  genreTranslations,
+  navigate,
+  isMobile,
+}: {
+  project: Project;
+  tagTranslations: Record<string, string>;
+  genreTranslations: Record<string, string>;
+  navigate: ReturnType<typeof useNavigate>;
+  isMobile: boolean;
+}) => {
+  const { visibleItems, extraCount, showOverflowBadge } = isMobile
+    ? {
+        visibleItems: [] as ProjectBadgeItem[],
+        extraCount: 0,
+        showOverflowBadge: false,
       }
-    >
-      {item.label}
-    </PillButton>
-  );
+    : prepareProjectBadges({
+        tags: project.tags,
+        genres: project.genres || [],
+        producers: project.producers || [],
+        tagTranslations,
+        genreTranslations,
+        maxVisible: 2,
+        maxChars: 18,
+      });
+
+  return [
+    ...visibleItems.map((item) => ({
+      key: item.key,
+      label: item.label,
+      variant: item.variant,
+      href: item.href,
+      ariaLabel: getProjectBadgeAriaLabel(item),
+      title: item.label,
+      onClickHref: (href: string) => navigate(href),
+    })),
+    showOverflowBadge
+      ? {
+          key: `overflow-${project.id}`,
+          label: `+${extraCount}`,
+          variant: "secondary" as const,
+          className: "w-9 justify-center",
+          title: `+${extraCount} tags`,
+        }
+      : null,
+  ].filter(isPresent);
 };
+
+const buildCatalogProjectMetaPills = (project: Project) =>
+  [
+    project.status
+      ? {
+          key: "status",
+          label: project.status,
+          className: "truncate",
+        }
+      : null,
+    project.studio
+      ? {
+          key: "studio",
+          label: project.studio,
+          className: "hidden max-w-36 truncate lg:inline-flex lg:max-w-48",
+          title: project.studio,
+        }
+      : null,
+    project.episodes
+      ? {
+          key: "episodes",
+          label: project.episodes,
+          className: "hidden truncate xl:inline-flex",
+        }
+      : null,
+  ].filter(isPresent);
 
 const ProjectsFilterField = ({ label, className, children }: ProjectsFilterFieldProps) => (
   <div className={cn("flex flex-col gap-2", className)}>
@@ -327,137 +354,6 @@ const ProjectsResultsSummary = ({
     </Button>
   </div>
 );
-
-const ProjectCard = memo(
-  ({
-    project,
-    tagTranslations,
-    genreTranslations,
-    navigate,
-    mediaVariants,
-    isPriorityImage,
-    isMobile,
-    synopsisClampClass,
-  }: ProjectCardProps) => {
-    const { visibleItems, extraCount, showOverflowBadge } = useMemo(
-      () =>
-        isMobile
-          ? {
-              visibleItems: [] as ProjectBadgeItem[],
-              extraCount: 0,
-              showOverflowBadge: false,
-            }
-          : prepareProjectBadges({
-              tags: project.tags,
-              genres: project.genres || [],
-              producers: project.producers || [],
-              tagTranslations,
-              genreTranslations,
-              maxVisible: 2,
-              maxChars: 18,
-            }),
-      [
-        genreTranslations,
-        isMobile,
-        project.genres,
-        project.producers,
-        project.tags,
-        tagTranslations,
-      ],
-    );
-
-    return (
-      <Link
-        to={`/projeto/${project.id}`}
-        className={`projects-public-card group relative flex h-50 w-full items-stretch overflow-hidden rounded-2xl border border-border/60 bg-gradient-card ${publicStrongSurfaceHoverClassName} focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 md:h-60`}
-      >
-        <div
-          className="h-full shrink-0 overflow-hidden bg-secondary"
-          style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
-        >
-          <UploadPicture
-            src={project.cover}
-            alt={project.title}
-            preset="posterThumb"
-            mediaVariants={mediaVariants}
-            className="block h-full w-full"
-            imgClassName="interactive-media-transition h-full w-full object-cover object-center group-hover:scale-105 group-focus-within:scale-105"
-            sizes={PROJECTS_LIST_IMAGE_SIZES}
-            loading={isPriorityImage ? "eager" : "lazy"}
-            fetchPriority={isPriorityImage ? "high" : undefined}
-          />
-        </div>
-        <div
-          data-synopsis-role="column"
-          data-synopsis-key={project.id}
-          className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-5"
-        >
-          <div data-synopsis-role="title" className="shrink-0">
-            <p className="interactive-content-transition text-xs uppercase tracking-[0.2em] text-primary/80 group-hover:text-primary group-focus-within:text-primary">
-              {project.type}
-            </p>
-            <h2 className="interactive-content-transition line-clamp-2 text-xl font-semibold leading-snug text-foreground group-hover:text-primary group-focus-within:text-primary md:text-2xl">
-              {project.title}
-            </h2>
-          </div>
-
-          <p
-            data-synopsis-role="synopsis"
-            className={cn(
-              "interactive-content-transition mt-2 overflow-hidden text-sm leading-snug text-muted-foreground break-normal hyphens-none group-hover:text-foreground/80 group-focus-within:text-foreground/80",
-              PROJECT_CARD_SYNOPSIS_CLASS,
-              synopsisClampClass,
-            )}
-          >
-            {project.synopsis}
-          </p>
-
-          <div data-synopsis-role="badges" className="mt-auto flex shrink-0 flex-col gap-2 pt-3">
-            {!isMobile && (visibleItems.length > 0 || extraCount > 0) ? (
-              <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
-                {visibleItems.map((item) => (
-                  <ProjectPrimaryBadge key={item.key} item={item} navigate={navigate} />
-                ))}
-                {showOverflowBadge ? (
-                  <Badge
-                    variant="secondary"
-                    className="inline-flex h-6 w-9 shrink-0 justify-center whitespace-nowrap px-2 text-[9px] uppercase leading-none"
-                    title={`+${extraCount} tags`}
-                  >
-                    +{extraCount}
-                  </Badge>
-                ) : null}
-              </div>
-            ) : null}
-
-            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-              {project.status ? (
-                <span className="shrink-0 rounded-full bg-background/50 px-3 py-1 truncate">
-                  {project.status}
-                </span>
-              ) : null}
-              {project.studio ? (
-                <span
-                  className="hidden shrink-0 max-w-36 rounded-full bg-background/50 px-3 py-1 truncate lg:inline-flex lg:max-w-48"
-                  title={project.studio}
-                >
-                  {project.studio}
-                </span>
-              ) : null}
-              {project.episodes ? (
-                <span className="hidden shrink-0 rounded-full bg-background/50 px-3 py-1 truncate xl:inline-flex">
-                  {project.episodes}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </Link>
-    );
-  },
-);
-
-ProjectCard.displayName = "ProjectCard";
 
 const ProjectsFiltersPanel = memo(
   ({
@@ -623,11 +519,12 @@ const ProjectsGrid = memo(
     mediaVariants,
     isMobile,
     rootRef,
-    getSynopsisClampClass,
+    getSynopsisClampState,
   }: ProjectsGridProps) => (
     <div ref={rootRef} className="mt-10 grid gap-6 md:grid-cols-2 md:auto-rows-fr">
       {projects.map((project, index) => {
         const isLastSingle = projects.length % 2 === 1 && index === projects.length - 1;
+        const synopsisClampState = getSynopsisClampState(project.id);
         return (
           <div
             key={project.id}
@@ -635,27 +532,59 @@ const ProjectsGrid = memo(
           >
             {isLastSingle ? (
               <div className="w-full md:w-[calc(50%-0.75rem)]">
-                <ProjectCard
-                  project={project}
-                  tagTranslations={tagTranslations}
-                  genreTranslations={genreTranslations}
-                  navigate={navigate}
-                  mediaVariants={mediaVariants}
-                  isPriorityImage={index < PRIORITY_PROJECT_IMAGE_COUNT}
-                  isMobile={isMobile}
-                  synopsisClampClass={getSynopsisClampClass(project.id)}
+                <PublicProjectCard
+                  variant="catalog"
+                  model={{
+                    href: `/projeto/${project.id}`,
+                    title: project.title,
+                    coverSrc: project.cover,
+                    coverAlt: project.title,
+                    mediaVariants,
+                    eyebrow: project.type,
+                    synopsis: project.synopsis,
+                    synopsisKey: project.id,
+                    synopsisLines: synopsisClampState.synopsisLines,
+                    synopsisClampClass: synopsisClampState.synopsisClampClass,
+                    primaryBadges: buildCatalogProjectPrimaryBadges({
+                      project,
+                      tagTranslations,
+                      genreTranslations,
+                      navigate,
+                      isMobile,
+                    }),
+                    metaPills: buildCatalogProjectMetaPills(project),
+                  }}
+                  imageSizes={PROJECTS_LIST_IMAGE_SIZES}
+                  imageLoading={index < PRIORITY_PROJECT_IMAGE_COUNT ? "eager" : "lazy"}
+                  imageFetchPriority={index < PRIORITY_PROJECT_IMAGE_COUNT ? "high" : undefined}
                 />
               </div>
             ) : (
-              <ProjectCard
-                project={project}
-                tagTranslations={tagTranslations}
-                genreTranslations={genreTranslations}
-                navigate={navigate}
-                mediaVariants={mediaVariants}
-                isPriorityImage={index < PRIORITY_PROJECT_IMAGE_COUNT}
-                isMobile={isMobile}
-                synopsisClampClass={getSynopsisClampClass(project.id)}
+              <PublicProjectCard
+                variant="catalog"
+                model={{
+                  href: `/projeto/${project.id}`,
+                  title: project.title,
+                  coverSrc: project.cover,
+                  coverAlt: project.title,
+                  mediaVariants,
+                  eyebrow: project.type,
+                  synopsis: project.synopsis,
+                  synopsisKey: project.id,
+                  synopsisLines: synopsisClampState.synopsisLines,
+                  synopsisClampClass: synopsisClampState.synopsisClampClass,
+                  primaryBadges: buildCatalogProjectPrimaryBadges({
+                    project,
+                    tagTranslations,
+                    genreTranslations,
+                    navigate,
+                    isMobile,
+                  }),
+                  metaPills: buildCatalogProjectMetaPills(project),
+                }}
+                imageSizes={PROJECTS_LIST_IMAGE_SIZES}
+                imageLoading={index < PRIORITY_PROJECT_IMAGE_COUNT ? "eager" : "lazy"}
+                imageFetchPriority={index < PRIORITY_PROJECT_IMAGE_COUNT ? "high" : undefined}
               />
             )}
           </div>
@@ -903,30 +832,34 @@ const Projects = () => {
     () => paginatedProjects.map((project) => project.id),
     [paginatedProjects],
   );
-  const synopsisMaxLines = isMobile ? 2 : 4;
+  const resolveCatalogSynopsisMaxLines = useCallback(
+    ({
+      columnWidth,
+      defaultMaxLines,
+    }: {
+      columnWidth: number;
+      defaultMaxLines: number;
+    }) =>
+      resolvePublicProjectCardResponsiveMaxLines({
+        profile: catalogClampProfile,
+        columnWidth,
+        defaultMaxLines,
+      }),
+    [],
+  );
   const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
     enabled: paginatedProjects.length > 0,
     keys: synopsisKeys,
-    maxLines: synopsisMaxLines,
+    maxLines: catalogClampProfile.defaultMaxLines,
+    resolveMaxLines: resolveCatalogSynopsisMaxLines,
   });
-  const getSynopsisClampClass = useCallback(
-    (projectId: string) => {
-      const lines = lineByKey[projectId] ?? synopsisMaxLines;
-      if (lines <= 0) {
-        return "projects-public-synopsis-clamp-0";
-      }
-      if (lines === 1) {
-        return "projects-public-synopsis-clamp-1";
-      }
-      if (lines === 2) {
-        return "projects-public-synopsis-clamp-2";
-      }
-      if (lines === 3) {
-        return "projects-public-synopsis-clamp-3";
-      }
-      return "projects-public-synopsis-clamp-4";
-    },
-    [lineByKey, synopsisMaxLines],
+  const getSynopsisClampState = useCallback(
+    (projectId: string) =>
+      resolvePublicProjectCardClampState({
+        profile: catalogClampProfile,
+        lines: lineByKey[projectId],
+      }),
+    [lineByKey],
   );
 
   useEffect(() => {
@@ -1164,7 +1097,7 @@ const Projects = () => {
               mediaVariants={projectsMediaVariants}
               isMobile={isMobile}
               rootRef={synopsisRootRef}
-              getSynopsisClampClass={getSynopsisClampClass}
+              getSynopsisClampState={getSynopsisClampState}
             />
           )}
 
