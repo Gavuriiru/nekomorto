@@ -2,12 +2,8 @@ import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPre
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import {
+  Combobox,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
 import {
@@ -18,7 +14,6 @@ import {
 } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardSeoRedirectsPanel from "@/components/dashboard/DashboardSeoRedirectsPanel";
 import ReorderControls from "@/components/ReorderControls";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { ColorPicker } from "@/components/ui/color-picker";
@@ -63,6 +58,24 @@ import {
   seoLogoEditorFields,
   socialIconMap,
 } from "./shared";
+
+const themeModeOptions = [
+  { value: "dark", label: "Escuro" },
+  { value: "light", label: "Claro" },
+];
+
+const navbarBrandModeOptions = [
+  { value: "wordmark", label: "Wordmark" },
+  { value: "symbol-text", label: "Símbolo + texto" },
+  { value: "symbol", label: "Somente símbolo" },
+  { value: "text", label: "Somente texto" },
+];
+
+const footerBrandModeOptions = [
+  { value: "wordmark", label: "Wordmark" },
+  { value: "symbol-text", label: "Símbolo + texto" },
+  { value: "text", label: "Somente texto" },
+];
 
 export const DashboardSettingsGeneralTab = () => {
   const {
@@ -183,7 +196,7 @@ export const DashboardSettingsGeneralTab = () => {
                   <ColorPicker
                     label=""
                     showSwatch
-                    buttonClassName={`inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-background shadow-xs transition ${dashboardStrongSurfaceHoverClassName} focus-visible:outline-hidden ${dashboardStrongFocusFieldClassName} ${dashboardStrongFocusTriggerClassName}`}
+                    buttonClassName={`inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-background shadow-none transition-[border-color,background-color,color,box-shadow] duration-200 hover:shadow-none ${dashboardStrongSurfaceHoverClassName} focus-visible:outline-hidden ${dashboardStrongFocusFieldClassName} ${dashboardStrongFocusTriggerClassName}`}
                     panelClassName={dashboardStrongFocusScopeClassName}
                     value={settings.theme.accent || "#000000"}
                     onChange={(color) =>
@@ -228,7 +241,7 @@ export const DashboardSettingsGeneralTab = () => {
             <DashboardFieldStack>
               <Label>Tema padrão do site</Label>
               <DashboardFieldStack density="compact">
-                <Select
+                <Combobox
                   value={settings.theme.mode || "dark"}
                   onValueChange={(value) =>
                     setSettings((prev) => ({
@@ -239,15 +252,11 @@ export const DashboardSettingsGeneralTab = () => {
                       },
                     }))
                   }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tema padrão" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="dark">Escuro</SelectItem>
-                    <SelectItem value="light">Claro</SelectItem>
-                  </SelectContent>
-                </Select>
+                  ariaLabel="Selecionar tema padrão"
+                  options={themeModeOptions}
+                  placeholder="Selecione o tema padrão"
+                  searchable={false}
+                />
                 <p className="text-xs text-foreground/70">
                   Define o tema padrão global. Cada usuário pode sobrescrever no cabeçalho.
                 </p>
@@ -400,7 +409,7 @@ export const DashboardSettingsGeneralTab = () => {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-border/70 bg-background p-4 space-y-3">
                 <Label>Exibição da marca na navbar</Label>
-                <Select
+                <Combobox
                   value={navbarMode}
                   onValueChange={(value) =>
                     setSettings((prev) => ({
@@ -414,17 +423,12 @@ export const DashboardSettingsGeneralTab = () => {
                       },
                     }))
                   }
-                >
-                  <SelectTrigger className="min-w-0">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="wordmark">Wordmark</SelectItem>
-                    <SelectItem value="symbol-text">Símbolo + texto</SelectItem>
-                    <SelectItem value="symbol">Somente símbolo</SelectItem>
-                    <SelectItem value="text">Somente texto</SelectItem>
-                  </SelectContent>
-                </Select>
+                  ariaLabel="Exibição da marca na navbar"
+                  options={navbarBrandModeOptions}
+                  placeholder="Selecione"
+                  searchable={false}
+                  className="min-w-0"
+                />
                 <p className="text-xs text-foreground/70">
                   Define como a identidade aparece no topo do site.
                 </p>
@@ -432,7 +436,7 @@ export const DashboardSettingsGeneralTab = () => {
 
               <div className="rounded-2xl border border-border/70 bg-background p-4 space-y-3">
                 <Label>Exibição da marca no footer</Label>
-                <Select
+                <Combobox
                   value={footerMode}
                   onValueChange={(value) =>
                     setSettings((prev) => ({
@@ -446,16 +450,12 @@ export const DashboardSettingsGeneralTab = () => {
                       },
                     }))
                   }
-                >
-                  <SelectTrigger className="min-w-0">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="wordmark">Wordmark</SelectItem>
-                    <SelectItem value="symbol-text">Símbolo + texto</SelectItem>
-                    <SelectItem value="text">Somente texto</SelectItem>
-                  </SelectContent>
-                </Select>
+                  ariaLabel="Exibição da marca no footer"
+                  options={footerBrandModeOptions}
+                  placeholder="Selecione"
+                  searchable={false}
+                  className="min-w-0"
+                />
                 <p className="text-xs text-foreground/70">
                   Define como a identidade aparece no rodapé.
                 </p>

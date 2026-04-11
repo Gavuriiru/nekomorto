@@ -47,6 +47,10 @@ const focusContractFiles = [
     expectedTokens: ["focus-visible:ring-1", "focus-visible:ring-primary/45"],
   },
   {
+    path: "src/components/ui/combobox.tsx",
+    expectedTokens: ["role=\"combobox\"", "role=\"listbox\"", "role=\"option\"", "dropdownListClassName"],
+  },
+  {
     path: "src/components/ui/checkbox.tsx",
     expectedTokens: ["focus-visible:ring-2", "focus-visible:ring-ring/45"],
   },
@@ -189,7 +193,7 @@ describe("focus ring contract", () => {
     expect(dashboardFormControlsSource).toContain("dashboardStrongFocusFieldClassName");
     expect(dashboardFormControlsSource).toContain("<BaseInput");
     expect(dashboardFormControlsSource).toContain("<BaseTextarea");
-    expect(dashboardFormControlsSource).toContain("<BaseSelectTrigger");
+    expect(dashboardFormControlsSource).toContain("<BaseCombobox");
     expect(dashboardPageContainerSource).toContain("dashboardStrongFocusScopeClassName");
     expect(dashboardShellSource).toContain("dashboardStrongFocusScopeClassName");
     dashboardWrappedFormFiles.forEach((relativePath) => {
@@ -205,6 +209,9 @@ describe("focus ring contract", () => {
       );
       expect(source, `${relativePath} should not import ui/select directly`).not.toContain(
         "@/components/ui/select",
+      );
+      expect(source, `${relativePath} should not use DashboardLightSelect`).not.toContain(
+        "DashboardLightSelect",
       );
     });
 
@@ -278,7 +285,7 @@ describe("focus ring contract", () => {
     expect(publicFormControlsSource).toContain("publicStrongFocusFieldClassName");
     expect(publicFormControlsSource).toContain("<BaseInput");
     expect(publicFormControlsSource).toContain("<BaseTextarea");
-    expect(publicFormControlsSource).toContain("<BaseSelectTrigger");
+    expect(publicFormControlsSource).toContain("<BaseCombobox");
 
     expect(publicPageContainerSource).toContain("publicStrongFocusScopeClassName");
     expect(indexCssSource).toContain(".public-strong-focus-scope");
@@ -302,16 +309,17 @@ describe("focus ring contract", () => {
         expect(source, `${relativePath} should not import ui/select directly`).not.toContain(
           "@/components/ui/select",
         );
+        expect(source, `${relativePath} should not use DashboardLightSelect`).not.toContain(
+          "DashboardLightSelect",
+        );
       }
     });
 
     expect(loginSource).toContain("<Input");
     expect(loginSource).not.toContain("<input");
     expect(readFileSync(repoFile("src/pages/Projects.tsx"), "utf8")).toContain(
-      "dropdownTriggerClassName",
+      "@/components/public-form-controls",
     );
-    expect(readFileSync(repoFile("src/pages/Projects.tsx"), "utf8")).toContain(
-      "dropdownItemClassName",
-    );
+    expect(readFileSync(repoFile("src/pages/Projects.tsx"), "utf8")).toContain("<Combobox");
   });
 });

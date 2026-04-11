@@ -7,15 +7,15 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import type { LibraryImageItem, UploadFolderGroup } from "@/components/image-library/types";
 import ImageLibraryBrowserCardGrid from "@/components/image-library/ImageLibraryBrowserCardGrid";
+
+const uploadSortModeOptions = [
+  { value: "recent", label: "Mais recentes" },
+  { value: "oldest", label: "Mais antigos" },
+  { value: "name", label: "Nome" },
+];
 
 type ImageLibraryUploadSectionProps = {
   allowUploadManagementActions: boolean;
@@ -85,47 +85,37 @@ const ImageLibraryUploadSection = ({
     >
       <div className="flex flex-1 flex-wrap items-center gap-2">
         {shouldRenderUploadsFolderFilter ? (
-          <Select value={uploadsFolderFilter} onValueChange={setUploadsFolderFilter}>
-            <SelectTrigger
-              aria-label="Filtrar por pasta"
-              className="h-9 min-w-0 w-full flex-1 basis-[11rem] bg-card/70 sm:flex-none sm:w-[220px]"
-            >
-              <SelectValue placeholder="Todas as pastas" />
-            </SelectTrigger>
-            <SelectContent
-              align="start"
-              className="z-[210] origin-[var(--radix-select-content-transform-origin)]"
-            >
-              {shouldShowAllFoldersFilterOption ? (
-                <SelectItem value="__all__">Todas as pastas</SelectItem>
-              ) : null}
-              {uploadFolderFilterOptions.map((folder) => (
-                <SelectItem key={folder} value={folder}>
-                  {uploadFolderFilterOptionLabels[folder] || folder}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            value={uploadsFolderFilter}
+            onValueChange={setUploadsFolderFilter}
+            ariaLabel="Filtrar por pasta"
+            options={[
+              ...(shouldShowAllFoldersFilterOption
+                ? [{ value: "__all__", label: "Todas as pastas" }]
+                : []),
+              ...uploadFolderFilterOptions.map((folder) => ({
+                value: folder,
+                label: uploadFolderFilterOptionLabels[folder] || folder,
+              })),
+            ]}
+            placeholder="Todas as pastas"
+            searchable
+            searchPlaceholder="Buscar pasta"
+            emptyMessage="Nenhuma pasta encontrada."
+            className="h-9 min-w-0 w-full flex-1 basis-[11rem] bg-card/70 sm:flex-none sm:w-[220px]"
+            popoverClassName="z-[210]"
+          />
         ) : null}
-        <Select
+        <Combobox
           value={sortMode}
           onValueChange={(value) => setSortMode(value as "recent" | "oldest" | "name")}
-        >
-          <SelectTrigger
-            aria-label="Ordenar biblioteca"
-            className="h-9 min-w-0 w-full flex-1 basis-[9.5rem] bg-card/70 sm:flex-none sm:w-[180px]"
-          >
-            <SelectValue placeholder="Mais recentes" />
-          </SelectTrigger>
-          <SelectContent
-            align="start"
-            className="z-[210] origin-[var(--radix-select-content-transform-origin)]"
-          >
-            <SelectItem value="recent">Mais recentes</SelectItem>
-            <SelectItem value="oldest">Mais antigos</SelectItem>
-            <SelectItem value="name">Nome</SelectItem>
-          </SelectContent>
-        </Select>
+          ariaLabel="Ordenar biblioteca"
+          options={uploadSortModeOptions}
+          placeholder="Mais recentes"
+          searchable={false}
+          className="h-9 min-w-0 w-full flex-1 basis-[9.5rem] bg-card/70 sm:flex-none sm:w-[180px]"
+          popoverClassName="z-[210]"
+        />
       </div>
       <p
         data-testid="image-library-selection-count"

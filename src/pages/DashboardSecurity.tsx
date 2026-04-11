@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LogOut } from "lucide-react";
 
 import DashboardShell from "@/components/DashboardShell";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import {
   dashboardPageLayoutTokens,
@@ -14,7 +15,6 @@ import {
 } from "@/components/dashboard/dashboard-motion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -354,22 +354,21 @@ const DashboardSecurity = () => {
                   </>
                 ) : (
                   <>
-                    <Badge className="bg-background text-foreground/70">Total ativo: {total}</Badge>
-                    <Badge className="bg-background text-foreground/70">
+                    <Badge variant="static">Total ativo: {total}</Badge>
+                    <Badge variant="static">
                       Página {page} de {pageCount}
                     </Badge>
                   </>
                 )}
               </div>
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-                <Button
+                <DashboardActionButton
                   size="sm"
-                  variant="outline"
                   onClick={() => void load({ background: true })}
                   disabled={isRefreshing}
                 >
                   Atualizar
-                </Button>
+                </DashboardActionButton>
                 <CompactPagination
                   currentPage={page}
                   totalPages={pageCount}
@@ -484,9 +483,9 @@ const DashboardSecurity = () => {
                           </div>
                         </div>
                         {session.sid && session.userId && !session.currentForViewer ? (
-                          <Button
+                          <DashboardActionButton
                             size="sm"
-                            variant="outline"
+                            tone="destructive"
                             className="order-2 h-9 w-9 shrink-0 px-0 md:order-3 md:w-auto md:px-3"
                             onClick={() => requestRevokeSession(session)}
                             disabled={Boolean(revokingSid)}
@@ -497,7 +496,7 @@ const DashboardSecurity = () => {
                             <span className="hidden md:inline">
                               {isRevokingSession ? "Encerrando..." : "Encerrar"}
                             </span>
-                          </Button>
+                          </DashboardActionButton>
                         ) : null}
                         <div className="order-3 flex basis-full flex-wrap gap-2 md:order-2 md:ml-auto md:basis-auto md:justify-end">
                           {session.currentForViewer ? (

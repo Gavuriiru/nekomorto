@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import Button from "@/components/dashboard/DashboardActionButton";
 import { Card, CardContent } from "@/components/ui/card";
 import AsyncState from "@/components/ui/async-state";
 import { toast } from "@/components/ui/use-toast";

@@ -1,12 +1,6 @@
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/dashboard/dashboard-form-controls";
+import { Combobox } from "@/components/dashboard/dashboard-form-controls";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -25,6 +19,57 @@ import {
 } from "../../../shared/project-reader.js";
 
 type ReaderProjectTypeKey = keyof SiteSettings["reader"]["projectTypes"];
+
+const directionOptions = [
+  { value: PROJECT_READER_DIRECTIONS.RTL, label: "Direita para esquerda" },
+  { value: PROJECT_READER_DIRECTIONS.LTR, label: "Esquerda para direita" },
+];
+
+const layoutOptions = [
+  { value: PROJECT_READER_LAYOUTS.SINGLE, label: "Página única" },
+  { value: PROJECT_READER_LAYOUTS.DOUBLE, label: "Página dupla" },
+  { value: PROJECT_READER_LAYOUTS.SCROLL_VERTICAL, label: "Scroll vertical" },
+  { value: PROJECT_READER_LAYOUTS.SCROLL_HORIZONTAL, label: "Scroll horizontal" },
+];
+
+const imageFitOptions = [
+  { value: PROJECT_READER_IMAGE_FITS.BOTH, label: "Largura e altura" },
+  { value: PROJECT_READER_IMAGE_FITS.WIDTH, label: "Ajustar à largura" },
+  { value: PROJECT_READER_IMAGE_FITS.HEIGHT, label: "Ajustar à altura" },
+  { value: PROJECT_READER_IMAGE_FITS.NONE, label: "Tamanho natural" },
+];
+
+const backgroundOptions = [
+  { value: PROJECT_READER_BACKGROUNDS.THEME, label: "Tema do site" },
+  { value: PROJECT_READER_BACKGROUNDS.BLACK, label: "Preto" },
+  { value: PROJECT_READER_BACKGROUNDS.WHITE, label: "Branco" },
+];
+
+const progressStyleOptions = [
+  { value: PROJECT_READER_PROGRESS_STYLES.DEFAULT, label: "Padrão" },
+  { value: PROJECT_READER_PROGRESS_STYLES.HIDDEN, label: "Oculto" },
+];
+
+const progressPositionOptions = [
+  { value: PROJECT_READER_PROGRESS_POSITIONS.BOTTOM, label: "Inferior" },
+  { value: PROJECT_READER_PROGRESS_POSITIONS.LEFT, label: "Esquerda" },
+  { value: PROJECT_READER_PROGRESS_POSITIONS.RIGHT, label: "Direita" },
+];
+
+const chromeModeOptions = [
+  { value: PROJECT_READER_CHROME_MODES.DEFAULT, label: "Padrão" },
+  { value: PROJECT_READER_CHROME_MODES.CINEMA, label: "Cinema" },
+];
+
+const viewportModeOptions = [
+  { value: PROJECT_READER_VIEWPORT_MODES.VIEWPORT, label: "Altura fixa" },
+  { value: PROJECT_READER_VIEWPORT_MODES.NATURAL, label: "Fluxo natural" },
+];
+
+const siteHeaderVariantOptions = [
+  { value: PROJECT_READER_SITE_HEADER_VARIANTS.FIXED, label: "Fixa" },
+  { value: PROJECT_READER_SITE_HEADER_VARIANTS.STATIC, label: "Estática" },
+];
 
 type DashboardReaderPresetCardProps = {
   cardClassName: string;
@@ -69,6 +114,9 @@ const DashboardReaderPresetCard = ({
       }),
       ...nextValue,
     }));
+  const normalizedPreset = normalizeProjectReaderConfig(preset, {
+    projectType: presetMeta.projectType,
+  });
 
   return (
     <Card lift={false} className={cardClassName} data-testid={`reader-preset-${presetMeta.key}`}>
@@ -80,10 +128,10 @@ const DashboardReaderPresetCard = ({
           </div>
           <div className="flex flex-wrap gap-2">
             <DashboardPageBadge reveal={false}>
-              {preset.direction === PROJECT_READER_DIRECTIONS.RTL ? "RTL" : "LTR"}
+              {normalizedPreset.direction === PROJECT_READER_DIRECTIONS.RTL ? "RTL" : "LTR"}
             </DashboardPageBadge>
             <DashboardPageBadge reveal={false}>
-              {resolveLayoutBadgeLabel(String(preset.layout || ""))}
+              {resolveLayoutBadgeLabel(normalizedPreset.layout)}
             </DashboardPageBadge>
           </div>
         </div>
@@ -91,8 +139,8 @@ const DashboardReaderPresetCard = ({
         <div className="grid gap-4 md:grid-cols-2">
           <DashboardFieldStack>
             <Label>Direção</Label>
-            <Select
-              value={preset.direction}
+            <Combobox
+              value={normalizedPreset.direction}
               onValueChange={(value) =>
                 applyUpdate({
                   direction:
@@ -101,21 +149,16 @@ const DashboardReaderPresetCard = ({
                       : PROJECT_READER_DIRECTIONS.RTL,
                 })
               }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={PROJECT_READER_DIRECTIONS.RTL}>Direita para esquerda</SelectItem>
-                <SelectItem value={PROJECT_READER_DIRECTIONS.LTR}>Esquerda para direita</SelectItem>
-              </SelectContent>
-            </Select>
+              ariaLabel="Selecionar direção"
+              options={directionOptions}
+              searchable={false}
+            />
           </DashboardFieldStack>
 
           <DashboardFieldStack>
             <Label>Layout</Label>
-            <Select
-              value={preset.layout}
+            <Combobox
+              value={normalizedPreset.layout}
               onValueChange={(value) =>
                 applyUpdate({
                   layout:
@@ -128,27 +171,16 @@ const DashboardReaderPresetCard = ({
                           : PROJECT_READER_LAYOUTS.SINGLE,
                 })
               }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={PROJECT_READER_LAYOUTS.SINGLE}>Página única</SelectItem>
-                <SelectItem value={PROJECT_READER_LAYOUTS.DOUBLE}>Página dupla</SelectItem>
-                <SelectItem value={PROJECT_READER_LAYOUTS.SCROLL_VERTICAL}>
-                  Scroll vertical
-                </SelectItem>
-                <SelectItem value={PROJECT_READER_LAYOUTS.SCROLL_HORIZONTAL}>
-                  Scroll horizontal
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              ariaLabel="Selecionar layout"
+              options={layoutOptions}
+              searchable={false}
+            />
           </DashboardFieldStack>
 
           <DashboardFieldStack>
             <Label>Ajuste da imagem</Label>
-            <Select
-              value={preset.imageFit}
+            <Combobox
+              value={normalizedPreset.imageFit}
               onValueChange={(value) =>
                 applyUpdate({
                   imageFit:
@@ -161,23 +193,16 @@ const DashboardReaderPresetCard = ({
                           : PROJECT_READER_IMAGE_FITS.BOTH,
                 })
               }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={PROJECT_READER_IMAGE_FITS.BOTH}>Largura e altura</SelectItem>
-                <SelectItem value={PROJECT_READER_IMAGE_FITS.WIDTH}>Ajustar à largura</SelectItem>
-                <SelectItem value={PROJECT_READER_IMAGE_FITS.HEIGHT}>Ajustar à altura</SelectItem>
-                <SelectItem value={PROJECT_READER_IMAGE_FITS.NONE}>Tamanho natural</SelectItem>
-              </SelectContent>
-            </Select>
+              ariaLabel="Selecionar ajuste da imagem"
+              options={imageFitOptions}
+              searchable={false}
+            />
           </DashboardFieldStack>
 
           <DashboardFieldStack>
             <Label>Fundo do palco</Label>
-            <Select
-              value={preset.background}
+            <Combobox
+              value={normalizedPreset.background}
               onValueChange={(value) =>
                 applyUpdate({
                   background:
@@ -188,22 +213,16 @@ const DashboardReaderPresetCard = ({
                         : PROJECT_READER_BACKGROUNDS.THEME,
                 })
               }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={PROJECT_READER_BACKGROUNDS.THEME}>Tema do site</SelectItem>
-                <SelectItem value={PROJECT_READER_BACKGROUNDS.BLACK}>Preto</SelectItem>
-                <SelectItem value={PROJECT_READER_BACKGROUNDS.WHITE}>Branco</SelectItem>
-              </SelectContent>
-            </Select>
+              ariaLabel="Selecionar fundo do palco"
+              options={backgroundOptions}
+              searchable={false}
+            />
           </DashboardFieldStack>
 
           <DashboardFieldStack>
             <Label>Estilo do progresso</Label>
-            <Select
-              value={preset.progressStyle}
+            <Combobox
+              value={normalizedPreset.progressStyle}
               onValueChange={(value) =>
                 applyUpdate({
                   progressStyle:
@@ -212,21 +231,16 @@ const DashboardReaderPresetCard = ({
                       : PROJECT_READER_PROGRESS_STYLES.DEFAULT,
                 })
               }
-            >
-              <SelectTrigger aria-label="Selecionar estilo do progresso">
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={PROJECT_READER_PROGRESS_STYLES.DEFAULT}>Padrão</SelectItem>
-                <SelectItem value={PROJECT_READER_PROGRESS_STYLES.HIDDEN}>Oculto</SelectItem>
-              </SelectContent>
-            </Select>
+              ariaLabel="Selecionar estilo do progresso"
+              options={progressStyleOptions}
+              searchable={false}
+            />
           </DashboardFieldStack>
 
           <DashboardFieldStack>
             <Label>Posição do progresso</Label>
-            <Select
-              value={preset.progressPosition}
+            <Combobox
+              value={normalizedPreset.progressPosition}
               onValueChange={(value) =>
                 applyUpdate({
                   progressPosition:
@@ -237,22 +251,16 @@ const DashboardReaderPresetCard = ({
                         : PROJECT_READER_PROGRESS_POSITIONS.BOTTOM,
                 })
               }
-            >
-              <SelectTrigger aria-label="Selecionar chrome do leitor">
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={PROJECT_READER_PROGRESS_POSITIONS.BOTTOM}>Inferior</SelectItem>
-                <SelectItem value={PROJECT_READER_PROGRESS_POSITIONS.LEFT}>Esquerda</SelectItem>
-                <SelectItem value={PROJECT_READER_PROGRESS_POSITIONS.RIGHT}>Direita</SelectItem>
-              </SelectContent>
-            </Select>
+              ariaLabel="Selecionar posicao do progresso"
+              options={progressPositionOptions}
+              searchable={false}
+            />
           </DashboardFieldStack>
 
           <DashboardFieldStack>
             <Label>Chrome do leitor</Label>
-            <Select
-              value={String(preset.chromeMode || PROJECT_READER_CHROME_MODES.DEFAULT)}
+            <Combobox
+              value={normalizedPreset.chromeMode}
               onValueChange={(value) =>
                 applyUpdate({
                   chromeMode:
@@ -261,21 +269,16 @@ const DashboardReaderPresetCard = ({
                       : PROJECT_READER_CHROME_MODES.DEFAULT,
                 })
               }
-            >
-              <SelectTrigger aria-label="Selecionar fluxo do viewport">
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={PROJECT_READER_CHROME_MODES.DEFAULT}>Padrão</SelectItem>
-                <SelectItem value={PROJECT_READER_CHROME_MODES.CINEMA}>Cinema</SelectItem>
-              </SelectContent>
-            </Select>
+              ariaLabel="Selecionar chrome do leitor"
+              options={chromeModeOptions}
+              searchable={false}
+            />
           </DashboardFieldStack>
 
           <DashboardFieldStack>
             <Label>Fluxo do viewport</Label>
-            <Select
-              value={String(preset.viewportMode || PROJECT_READER_VIEWPORT_MODES.VIEWPORT)}
+            <Combobox
+              value={normalizedPreset.viewportMode}
               onValueChange={(value) =>
                 applyUpdate({
                   viewportMode:
@@ -284,15 +287,10 @@ const DashboardReaderPresetCard = ({
                       : PROJECT_READER_VIEWPORT_MODES.VIEWPORT,
                 })
               }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={PROJECT_READER_VIEWPORT_MODES.VIEWPORT}>Altura fixa</SelectItem>
-                <SelectItem value={PROJECT_READER_VIEWPORT_MODES.NATURAL}>Fluxo natural</SelectItem>
-              </SelectContent>
-            </Select>
+              ariaLabel="Selecionar fluxo do viewport"
+              options={viewportModeOptions}
+              searchable={false}
+            />
           </DashboardFieldStack>
         </div>
 
@@ -305,7 +303,7 @@ const DashboardReaderPresetCard = ({
               </span>
             </span>
             <Switch
-              checked={preset.firstPageSingle !== false}
+              checked={normalizedPreset.firstPageSingle}
               onCheckedChange={(checked) =>
                 applyUpdate({
                   firstPageSingle: checked,
@@ -321,12 +319,8 @@ const DashboardReaderPresetCard = ({
                 Define se a barra do site fica fixa no leitor ou segue o fluxo normal da página.
               </span>
             </div>
-            <Select
-              value={
-                preset.siteHeaderVariant === PROJECT_READER_SITE_HEADER_VARIANTS.STATIC
-                  ? PROJECT_READER_SITE_HEADER_VARIANTS.STATIC
-                  : PROJECT_READER_SITE_HEADER_VARIANTS.FIXED
-              }
+            <Combobox
+              value={normalizedPreset.siteHeaderVariant}
               onValueChange={(value) =>
                 applyUpdate({
                   siteHeaderVariant:
@@ -335,15 +329,10 @@ const DashboardReaderPresetCard = ({
                       : PROJECT_READER_SITE_HEADER_VARIANTS.FIXED,
                 })
               }
-            >
-              <SelectTrigger aria-label="Selecionar comportamento do header do site">
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={PROJECT_READER_SITE_HEADER_VARIANTS.FIXED}>Fixa</SelectItem>
-                <SelectItem value={PROJECT_READER_SITE_HEADER_VARIANTS.STATIC}>Estática</SelectItem>
-              </SelectContent>
-            </Select>
+              ariaLabel="Selecionar comportamento do header do site"
+              options={siteHeaderVariantOptions}
+              searchable={false}
+            />
           </div>
 
           <label className="flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background px-3 py-3 text-sm">
@@ -354,7 +343,7 @@ const DashboardReaderPresetCard = ({
               </span>
             </span>
             <Switch
-              checked={preset.showSiteFooter !== false}
+              checked={normalizedPreset.showSiteFooter}
               onCheckedChange={(checked) =>
                 applyUpdate({
                   showSiteFooter: checked,

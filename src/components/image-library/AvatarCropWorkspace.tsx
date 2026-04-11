@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type Ref } from "react";
 import { ImageRestriction } from "advanced-cropper";
 import { CircleStencil, FixedCropper, type FixedCropperRef } from "react-advanced-cropper";
 
-import { Button } from "@/components/ui/button";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import { toast } from "@/components/ui/use-toast";
 import {
   AVATAR_CROPPER_BOUNDARY_SIZE,
@@ -113,21 +113,40 @@ const AvatarCropWorkspace = ({
         </div>
       </div>
 
-      <div className="mt-2 flex justify-end gap-2">
-        <Button ref={cancelButtonRef} type="button" variant="outline" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button type="button" variant="outline" onClick={handleReset} disabled={!isCropReady}>
-          Resetar
-        </Button>
-        <Button
-          ref={applyButtonRef}
-          type="button"
-          onClick={() => void handleApply()}
-          disabled={isApplyingCrop || !isCropReady}
-        >
-          {isApplyingCrop ? "Aplicando..." : "Aplicar avatar"}
-        </Button>
+      <div className="mt-3 flex flex-col gap-3 border-t border-border/60 pt-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <DashboardActionButton
+            type="button"
+            size="sm"
+            className="w-full sm:w-auto"
+            onClick={handleReset}
+            disabled={!isCropReady}
+          >
+            Resetar
+          </DashboardActionButton>
+        </div>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <DashboardActionButton
+            ref={cancelButtonRef}
+            type="button"
+            size="sm"
+            className="w-full sm:w-auto"
+            onClick={onCancel}
+          >
+            Cancelar
+          </DashboardActionButton>
+          <DashboardActionButton
+            ref={applyButtonRef}
+            type="button"
+            size="sm"
+            tone="primary"
+            className="w-full sm:w-auto"
+            onClick={() => void handleApply()}
+            disabled={isApplyingCrop || !isCropReady}
+          >
+            {isApplyingCrop ? "Aplicando..." : "Aplicar avatar"}
+          </DashboardActionButton>
+        </div>
       </div>
     </>
   );

@@ -1,6 +1,5 @@
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/dashboard/dashboard-form-controls";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -39,6 +38,8 @@ type ChapterEditorEpubToolsSectionProps = {
   isExportingEpub: boolean;
   onExportEpub: () => void | Promise<void>;
 };
+
+const Button = DashboardActionButton;
 
 export const ChapterEditorEpubToolsSection = ({
   supportsEpubTools,

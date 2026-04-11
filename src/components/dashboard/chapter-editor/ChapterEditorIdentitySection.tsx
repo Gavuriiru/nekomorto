@@ -1,12 +1,8 @@
 import type { ProjectEpisode } from "@/data/projects";
 
 import {
+  Combobox,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
@@ -210,7 +206,7 @@ const ChapterEditorIdentitySection = ({
 
           <DashboardFieldStack className="sm:min-w-[180px]">
             <Label>Tipo de entrada</Label>
-            <Select
+            <Combobox
               value={isExtra ? "extra" : "main"}
               onValueChange={(value) =>
                 updateDraft((current) => {
@@ -226,15 +222,15 @@ const ChapterEditorIdentitySection = ({
                   };
                 })
               }
-            >
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="main">Capítulo</SelectItem>
-                <SelectItem value="extra">Extra</SelectItem>
-              </SelectContent>
-            </Select>
+              ariaLabel="Tipo de entrada"
+              options={[
+                { value: "main", label: "Capítulo" },
+                { value: "extra", label: "Extra" },
+              ]}
+              placeholder="Tipo"
+              searchable={false}
+              className="w-full sm:w-[180px]"
+            />
           </DashboardFieldStack>
 
           {!isImageChapter && !supportsEpubTools ? (

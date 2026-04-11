@@ -4,20 +4,17 @@ import ReorderControls from "@/components/ReorderControls";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import ProjectMemberCombobox from "@/components/dashboard/ProjectMemberCombobox";
 import {
+  Combobox,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from "@/components/dashboard/dashboard-form-controls";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { translateAnilistRole } from "@/lib/project-taxonomy";
 
 import type { ProjectForm, ProjectStaff } from "./dashboard-projects-editor-types";
 import ProjectEditorAccordionHeader from "./ProjectEditorAccordionHeader";
+
+const Button = DashboardActionButton;
 
 type StaffFieldKey = "staff" | "animeStaff";
 
@@ -120,7 +117,7 @@ const ProjectEditorStaffSectionComponent = ({
               >
                 <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
                   {variant === "fansub" ? (
-                    <Select
+                    <Combobox
                       value={role.role || ""}
                       onValueChange={(value) =>
                         updateStaffEntries((current) => {
@@ -129,21 +126,17 @@ const ProjectEditorStaffSectionComponent = ({
                           return next;
                         })
                       }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Função" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(role.role && !roleOptions.includes(role.role)
-                          ? [role.role, ...roleOptions]
-                          : roleOptions
-                        ).map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      ariaLabel="Selecionar função"
+                      options={(role.role && !roleOptions.includes(role.role)
+                        ? [role.role, ...roleOptions]
+                        : roleOptions
+                      ).map((option) => ({
+                        value: option,
+                        label: option,
+                      }))}
+                      placeholder="Função"
+                      searchable={false}
+                    />
                   ) : (
                     <div className="space-y-1">
                       <Input

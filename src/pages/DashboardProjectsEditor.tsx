@@ -1,17 +1,10 @@
 import DashboardShell from "@/components/DashboardShell";
-import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import DashboardActionButton, { default as Button } from "@/components/dashboard/DashboardActionButton";
 import ReorderControls from "@/components/ReorderControls";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
-import DashboardLightSelect, {
-  type DashboardLightSelectOption,
-} from "@/components/dashboard/DashboardLightSelect";
 import {
+  Combobox,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -74,9 +67,9 @@ import { Accordion } from "@/components/ui/accordion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import type { ComboboxOption } from "@/components/ui/combobox";
 import {
   Dialog,
   DialogContent,
@@ -197,12 +190,33 @@ const buildProjectSearchIndex = (project: ProjectRecord) =>
 
 const defaultFormatOptions = DEFAULT_PROJECT_FORMAT_OPTIONS;
 const statusOptions = ["Em andamento", "Finalizado", "Pausado", "Cancelado"];
-const projectSortOptions: DashboardLightSelectOption[] = [
+const projectSortOptions: ComboboxOption[] = [
   { value: "recent", label: "Mais recentes" },
   { value: "alpha", label: "Ordem alfabética" },
   { value: "status", label: "Status" },
   { value: "views", label: "Visualizações" },
   { value: "comments", label: "Comentários" },
+];
+const animeEpisodeFilterOptions = [
+  { value: "all", label: "Todos" },
+  { value: "published", label: "Publicados" },
+  { value: "draft", label: "Rascunhos" },
+  { value: "missing-links", label: "Sem links" },
+  { value: "missing-date", label: "Sem data" },
+  { value: "incomplete", label: "Incompletos" },
+];
+const episodeSourceTypeOptions = [
+  { value: "TV", label: "TV" },
+  { value: "Web", label: "Web" },
+  { value: "Blu-ray", label: "Blu-ray" },
+];
+const episodePublicationStatusOptions = [
+  { value: "draft", label: "Rascunho" },
+  { value: "published", label: "Publicado" },
+];
+const episodeEntryKindOptions = [
+  { value: "main", label: "Principal" },
+  { value: "extra", label: "Extra" },
 ];
 const fansubRoleOptions = [
   "Tradução",
@@ -1272,14 +1286,15 @@ const DashboardProjectsEditor = () => {
                     placeholder="Buscar por título, tags, estúdio..."
                   />
                 </div>
-                <DashboardLightSelect
+                <Combobox
                   ariaLabel="Ordenar projetos"
                   value={sortMode}
                   options={projectSortOptions}
                   onValueChange={(value) => setSortMode(value as typeof sortMode)}
+                  searchable={false}
                   className="w-[210px]"
                 />
-                <DashboardLightSelect
+                <Combobox
                   ariaLabel="Filtrar por formato"
                   value={selectedType}
                   options={typeOptions.map((type) => ({
@@ -1288,11 +1303,12 @@ const DashboardProjectsEditor = () => {
                   }))}
                   onValueChange={setSelectedType}
                   disabled={!hasResolvedProjectTypes}
+                  searchable={false}
                   className="w-[210px]"
                   placeholder="Todos os formatos"
                 />
               </div>
-              <Badge variant="secondary" className="text-xs uppercase animate-slide-up opacity-0">
+              <Badge variant="static" className="text-xs uppercase animate-slide-up opacity-0">
                 {sortedProjects.length} projetos
               </Badge>
             </div>
@@ -1302,9 +1318,9 @@ const DashboardProjectsEditor = () => {
                 <AlertTitle>Atualização parcial indisponível</AlertTitle>
                 <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
                   <span>Mantendo a última lista de projetos carregada.</span>
-                  <Button variant="outline" size="sm" onClick={refreshProjects}>
+                  <DashboardActionButton size="sm" onClick={refreshProjects}>
                     Tentar novamente
-                  </Button>
+                  </DashboardActionButton>
                 </AlertDescription>
               </Alert>
             ) : hasBlockingLoadError ? (
@@ -1314,9 +1330,9 @@ const DashboardProjectsEditor = () => {
                 description="Tente recarregar os dados do painel."
                 className={dashboardPageLayoutTokens.surfaceSolid}
                 action={
-                  <Button variant="outline" onClick={refreshProjects}>
+                  <DashboardActionButton onClick={refreshProjects}>
                     Recarregar
-                  </Button>
+                  </DashboardActionButton>
                 }
               />
             ) : showProjectsSurfaceSkeleton ? (
@@ -1435,11 +1451,9 @@ const DashboardProjectsEditor = () => {
                                 data-slot="project-card-actions"
                                 className="relative z-20 flex shrink-0 flex-wrap items-center gap-1"
                               >
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
+                                <DashboardActionButton
+                                  size="icon-sm"
                                   title="Editor dedicado"
-                                  className="h-8 w-8"
                                   asChild
                                 >
                                   <Link
@@ -1448,23 +1462,19 @@ const DashboardProjectsEditor = () => {
                                   >
                                     <DedicatedEditorIcon className="h-4 w-4" aria-hidden="true" />
                                   </Link>
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
+                                </DashboardActionButton>
+                                <DashboardActionButton
+                                  size="icon-sm"
                                   title="Visualizar"
-                                  className="h-8 w-8"
                                   asChild
                                 >
                                   <Link to={buildProjectPublicHref(project.id)}>
                                     <Eye className="h-4 w-4" />
                                   </Link>
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
+                                </DashboardActionButton>
+                                <DashboardActionButton
+                                  size="icon-sm"
                                   title="Copiar link"
-                                  className="h-8 w-8"
                                   onClick={() => {
                                     const url = `${window.location.origin}${buildProjectPublicHref(project.id)}`;
                                     navigator.clipboard.writeText(url).catch(() => {
@@ -1478,18 +1488,17 @@ const DashboardProjectsEditor = () => {
                                   }}
                                 >
                                   <Copy className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
+                                </DashboardActionButton>
+                                <DashboardActionButton
+                                  tone="destructive"
+                                  size="icon-sm"
                                   title="Excluir"
-                                  className="h-8 w-8"
                                   onClick={() => {
                                     setDeleteTarget(project);
                                   }}
                                 >
                                   <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
+                                </DashboardActionButton>
                               </div>
                             </div>
 
@@ -1576,13 +1585,9 @@ const DashboardProjectsEditor = () => {
                           <span className="text-xs text-muted-foreground">
                             Restam {getRestoreRemainingLabel(project)}
                           </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleRestoreProject(project)}
-                          >
+                          <DashboardActionButton size="sm" onClick={() => handleRestoreProject(project)}>
                             Restaurar
-                          </Button>
+                          </DashboardActionButton>
                         </div>
                       </div>
                     ))}
@@ -1618,9 +1623,9 @@ const DashboardProjectsEditor = () => {
             <>
               {isChapterBased ? (
                 lightNovelContentHref ? (
-                  <Button
+                  <DashboardActionButton
                     type="button"
-                    variant="outline"
+                    size="sm"
                     className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
                     asChild
                   >
@@ -1628,22 +1633,22 @@ const DashboardProjectsEditor = () => {
                       <DedicatedEditorFooterIcon className="h-4 w-4" aria-hidden="true" />
                       <span className="sr-only md:not-sr-only">{"Conte\u00FAdo"}</span>
                     </Link>
-                  </Button>
+                  </DashboardActionButton>
                 ) : (
-                  <Button
+                  <DashboardActionButton
                     type="button"
-                    variant="outline"
+                    size="sm"
                     className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
                     disabled
                   >
                     <DedicatedEditorFooterIcon className="h-4 w-4" aria-hidden="true" />
                     <span className="sr-only md:not-sr-only">{"Conte\u00FAdo"}</span>
-                  </Button>
+                  </DashboardActionButton>
                 )
               ) : animeContentHref ? (
-                <Button
+                <DashboardActionButton
                   type="button"
-                  variant="outline"
+                  size="sm"
                   className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
                   asChild
                 >
@@ -1651,12 +1656,12 @@ const DashboardProjectsEditor = () => {
                     <Clapperboard className="h-4 w-4" aria-hidden="true" />
                     <span className="sr-only md:not-sr-only">{"Epis\u00F3dios"}</span>
                   </Link>
-                </Button>
+                </DashboardActionButton>
               ) : null}
               {publicProjectHref ? (
-                <Button
+                <DashboardActionButton
                   type="button"
-                  variant="outline"
+                  size="sm"
                   className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
                   asChild
                 >
@@ -1664,7 +1669,7 @@ const DashboardProjectsEditor = () => {
                     <Eye className="h-4 w-4" aria-hidden="true" />
                     <span className="sr-only md:not-sr-only">{"Visualizar p\u00E1gina"}</span>
                   </Link>
-                </Button>
+                </DashboardActionButton>
               ) : null}
             </>
           }
@@ -1809,24 +1814,17 @@ const DashboardProjectsEditor = () => {
                             </Badge>
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <Select
+                            <Combobox
                               value={animeEpisodeFilter}
                               onValueChange={(value) =>
                                 setAnimeEpisodeFilter(value as AnimeEpisodeQuickFilter)
                               }
-                            >
-                              <SelectTrigger className="w-[220px]">
-                                <SelectValue placeholder="Filtrar episódios" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">Todos</SelectItem>
-                                <SelectItem value="published">Publicados</SelectItem>
-                                <SelectItem value="draft">Rascunhos</SelectItem>
-                                <SelectItem value="missing-links">Sem links</SelectItem>
-                                <SelectItem value="missing-date">Sem data</SelectItem>
-                                <SelectItem value="incomplete">Incompletos</SelectItem>
-                              </SelectContent>
-                            </Select>
+                              ariaLabel="Filtrar episódios"
+                              options={animeEpisodeFilterOptions}
+                              placeholder="Filtrar episódios"
+                              searchable={false}
+                              className="w-[220px]"
+                            />
                             <Button
                               type="button"
                               size="sm"
@@ -1859,23 +1857,19 @@ const DashboardProjectsEditor = () => {
                               <div className="flex flex-wrap items-end gap-2">
                                 <DashboardFieldStack>
                                   <Label className="text-xs">Origem</Label>
-                                  <Select
+                                  <Combobox
                                     value={animeBatchOperationSourceType}
                                     onValueChange={(value) =>
                                       setAnimeBatchOperationSourceType(
                                         value as EditorProjectEpisode["sourceType"],
                                       )
                                     }
-                                  >
-                                    <SelectTrigger className="w-[140px]">
-                                      <SelectValue placeholder="Origem" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="TV">TV</SelectItem>
-                                      <SelectItem value="Web">Web</SelectItem>
-                                      <SelectItem value="Blu-ray">Blu-ray</SelectItem>
-                                    </SelectContent>
-                                  </Select>
+                                    ariaLabel="Origem"
+                                    options={episodeSourceTypeOptions}
+                                    placeholder="Origem"
+                                    searchable={false}
+                                    className="w-[140px]"
+                                  />
                                 </DashboardFieldStack>
                                 <Button
                                   type="button"
@@ -1887,22 +1881,19 @@ const DashboardProjectsEditor = () => {
                                 </Button>
                                 <DashboardFieldStack>
                                   <Label className="text-xs">Status</Label>
-                                  <Select
+                                  <Combobox
                                     value={animeBatchOperationPublicationStatus}
                                     onValueChange={(value) =>
                                       setAnimeBatchOperationPublicationStatus(
                                         value === "draft" ? "draft" : "published",
                                       )
                                     }
-                                  >
-                                    <SelectTrigger className="w-[140px]">
-                                      <SelectValue placeholder="Status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="draft">Rascunho</SelectItem>
-                                      <SelectItem value="published">Publicado</SelectItem>
-                                    </SelectContent>
-                                  </Select>
+                                    ariaLabel="Status"
+                                    options={episodePublicationStatusOptions}
+                                    placeholder="Status"
+                                    searchable={false}
+                                    className="w-[140px]"
+                                  />
                                 </DashboardFieldStack>
                                 <Button
                                   type="button"
@@ -2075,10 +2066,10 @@ const DashboardProjectsEditor = () => {
                                     </div>
                                   </AccordionTrigger>
                                   {group.hasNumericVolume && groupVolumeEntry ? (
-                                    <Button
+                                    <DashboardActionButton
                                       type="button"
-                                      variant="ghost"
-                                      size="icon"
+                                      tone="destructive"
+                                      size="icon-sm"
                                       data-no-toggle
                                       onClick={(event) => {
                                         event.preventDefault();
@@ -2087,7 +2078,7 @@ const DashboardProjectsEditor = () => {
                                       }}
                                     >
                                       <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    </DashboardActionButton>
                                   ) : null}
                                 </div>
                               ) : null}
@@ -2305,28 +2296,26 @@ const DashboardProjectsEditor = () => {
                                                     ))
                                                   : null}
                                                 {!isChapterBased && animeEpisodeEditorHref ? (
-                                                  <Button
+                                                  <DashboardActionButton
                                                     type="button"
-                                                    size="sm"
-                                                    variant="outline"
+                                                    size="compact"
                                                     className="h-7 px-2 text-[11px]"
                                                     data-no-toggle
                                                     asChild
                                                   >
                                                     <Link to={animeEpisodeEditorHref}>Abrir</Link>
-                                                  </Button>
+                                                  </DashboardActionButton>
                                                 ) : null}
                                                 {!isChapterBased ? (
-                                                  <Button
+                                                  <DashboardActionButton
                                                     type="button"
-                                                    size="sm"
-                                                    variant="outline"
+                                                    size="compact"
                                                     className="h-7 px-2 text-[11px]"
                                                     data-no-toggle
                                                     onClick={() => duplicateAnimeEpisode(episode)}
                                                   >
                                                     Duplicar
-                                                  </Button>
+                                                  </DashboardActionButton>
                                                 ) : null}
                                                 <ReorderControls
                                                   label={`item ${isExtraEntry ? "extra" : episode.number || index + 1}`}
@@ -2337,10 +2326,10 @@ const DashboardProjectsEditor = () => {
                                                   }
                                                   buttonClassName="h-7 w-7"
                                                 />
-                                                <Button
+                                                <DashboardActionButton
                                                   type="button"
-                                                  size="sm"
-                                                  variant="ghost"
+                                                  tone="destructive"
+                                                  size="compact"
                                                   className="h-7 px-2 text-[11px] text-destructive hover:text-destructive"
                                                   data-no-toggle
                                                   onClick={() => {
@@ -2378,7 +2367,7 @@ const DashboardProjectsEditor = () => {
                                                   {isChapterBased
                                                     ? "Remover capítulo"
                                                     : "Remover episódio"}
-                                                </Button>
+                                                </DashboardActionButton>
                                               </div>
                                             </div>
                                             <AccordionContent
@@ -2390,7 +2379,7 @@ const DashboardProjectsEditor = () => {
                                               }
                                             >
                                               <div className="project-editor-episode-group project-editor-episode-basics grid gap-3 md:grid-cols-[minmax(120px,0.9fr)_minmax(84px,0.7fr)_minmax(84px,0.7fr)_minmax(180px,1.4fr)_minmax(150px,1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)]">
-                                                <Select
+                                                <Combobox
                                                   value={isExtraEntry ? "extra" : "main"}
                                                   onValueChange={(value) =>
                                                     setEpisodeEntryKind(
@@ -2398,15 +2387,11 @@ const DashboardProjectsEditor = () => {
                                                       value === "extra" ? "extra" : "main",
                                                     )
                                                   }
-                                                >
-                                                  <SelectTrigger aria-label="Tipo da entrada">
-                                                    <SelectValue placeholder="Tipo" />
-                                                  </SelectTrigger>
-                                                  <SelectContent>
-                                                    <SelectItem value="main">Principal</SelectItem>
-                                                    <SelectItem value="extra">Extra</SelectItem>
-                                                  </SelectContent>
-                                                </Select>
+                                                  ariaLabel="Tipo da entrada"
+                                                  options={episodeEntryKindOptions}
+                                                  placeholder="Tipo"
+                                                  searchable={false}
+                                                />
                                                 <Input
                                                   type="number"
                                                   value={episode.number}
@@ -2466,7 +2451,7 @@ const DashboardProjectsEditor = () => {
                                                   placeholder="Título"
                                                 />
                                                 {isLightNovel ? (
-                                                  <Select
+                                                  <Combobox
                                                     value={publicationStatus}
                                                     onValueChange={(value) =>
                                                       setFormState((prev) => {
@@ -2484,19 +2469,11 @@ const DashboardProjectsEditor = () => {
                                                         };
                                                       })
                                                     }
-                                                  >
-                                                    <SelectTrigger>
-                                                      <SelectValue placeholder="Status" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                      <SelectItem value="draft">
-                                                        Rascunho
-                                                      </SelectItem>
-                                                      <SelectItem value="published">
-                                                        Publicado
-                                                      </SelectItem>
-                                                    </SelectContent>
-                                                  </Select>
+                                                    ariaLabel="Status"
+                                                    options={episodePublicationStatusOptions}
+                                                    placeholder="Status"
+                                                    searchable={false}
+                                                  />
                                                 ) : null}
                                                 <Input
                                                   type="text"
@@ -2673,7 +2650,7 @@ const DashboardProjectsEditor = () => {
                                                   />
                                                 ) : null}
                                                 {!isChapterBased ? (
-                                                  <Select
+                                                  <Combobox
                                                     value={episode.sourceType}
                                                     onValueChange={(value) =>
                                                       setFormState((prev) => {
@@ -2689,18 +2666,11 @@ const DashboardProjectsEditor = () => {
                                                         };
                                                       })
                                                     }
-                                                  >
-                                                    <SelectTrigger>
-                                                      <SelectValue placeholder="Origem" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                      <SelectItem value="TV">TV</SelectItem>
-                                                      <SelectItem value="Web">Web</SelectItem>
-                                                      <SelectItem value="Blu-ray">
-                                                        Blu-ray
-                                                      </SelectItem>
-                                                    </SelectContent>
-                                                  </Select>
+                                                    ariaLabel="Origem"
+                                                    options={episodeSourceTypeOptions}
+                                                    placeholder="Origem"
+                                                    searchable={false}
+                                                  />
                                                 ) : null}
                                               </div>
                                               {isProgressOnlyEntry ? (
@@ -2755,15 +2725,15 @@ const DashboardProjectsEditor = () => {
                                                     className={`mt-3 flex flex-wrap items-center gap-2 px-4 py-3 ${editorSubtleCalloutSurfaceClassName}`}
                                                   >
                                                     {chapterEditorHref ? (
-                                                      <Button type="button" size="sm" asChild>
+                                                      <DashboardActionButton type="button" size="sm" asChild>
                                                         <Link to={chapterEditorHref}>
                                                           Abrir editor dedicado
                                                         </Link>
-                                                      </Button>
+                                                      </DashboardActionButton>
                                                     ) : (
-                                                      <Button type="button" size="sm" disabled>
+                                                      <DashboardActionButton type="button" size="sm" disabled>
                                                         Salve o projeto para editar
-                                                      </Button>
+                                                      </DashboardActionButton>
                                                     )}
                                                     <Badge
                                                       variant={
@@ -3064,11 +3034,10 @@ const DashboardProjectsEditor = () => {
                                                               }
                                                               placeholder="URL"
                                                             />
-                                                            <Button
+                                                            <DashboardActionButton
                                                               type="button"
-                                                              variant="ghost"
+                                                              tone="destructive"
                                                               size="icon"
-                                                              className="h-9 w-9"
                                                               onClick={() => {
                                                                 setFormState((prev) => {
                                                                   const next = [
@@ -3091,7 +3060,7 @@ const DashboardProjectsEditor = () => {
                                                               }}
                                                             >
                                                               <Trash2 className="h-4 w-4" />
-                                                            </Button>
+                                                            </DashboardActionButton>
                                                           </div>
                                                         </div>
                                                       ),

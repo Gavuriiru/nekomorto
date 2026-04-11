@@ -2,18 +2,14 @@ import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react
 import { useNavigate, useSearchParams } from "react-router-dom";
 import QRCode from "qrcode";
 import DashboardShell from "@/components/DashboardShell";
-import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import DashboardActionButton, { default as Button } from "@/components/dashboard/DashboardActionButton";
 import DashboardEditorBackdrop from "@/components/dashboard/DashboardEditorBackdrop";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
 import {
+  Combobox,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
 import {
@@ -32,7 +28,6 @@ import AsyncState from "@/components/ui/async-state";
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Accordion,
   AccordionContent,
@@ -47,9 +42,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  dropdownRichContentClassName,
   dropdownRichIconClassName,
-  dropdownRichLabelClassName,
 } from "@/components/ui/dropdown-contract";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -1596,6 +1589,7 @@ const DashboardUsers = () => {
                     style={dashboardAnimationDelay(dashboardMotionDelays.sectionMetaMs)}
                   >
                     <Badge
+                      variant="static"
                       className="min-w-[2.5rem] justify-center bg-background text-foreground/70"
                       data-testid="dashboard-users-active-count-badge"
                     >
@@ -1619,12 +1613,9 @@ const DashboardUsers = () => {
                   description="Tente novamente em alguns instantes."
                   className="mt-6"
                   action={
-                    <Button
-                      variant="outline"
-                      onClick={() => setLoadVersion((previous) => previous + 1)}
-                    >
+                    <DashboardActionButton onClick={() => setLoadVersion((previous) => previous + 1)}>
                       Tentar novamente
-                    </Button>
+                    </DashboardActionButton>
                   }
                 />
               ) : activeUsers.length === 0 ? (
@@ -1657,6 +1648,7 @@ const DashboardUsers = () => {
                       style={dashboardAnimationDelay(dashboardMotionDelays.sectionMetaMs)}
                     >
                       <Badge
+                        variant="static"
                         className="min-w-[2.5rem] justify-center bg-background text-foreground/70"
                         data-testid="dashboard-users-retired-count-badge"
                       >
@@ -1958,13 +1950,6 @@ const DashboardUsers = () => {
                               availableLinkTypes.find((option) => option.id === social.label) ||
                               availableLinkTypes.find((option) => option.label === social.label) ||
                               null;
-                            const isCustomSelectedIcon = Boolean(
-                              selectedOption && isIconUrl(selectedOption.icon),
-                            );
-                            const SelectedIcon =
-                              !isCustomSelectedIcon && selectedOption
-                                ? socialIconMap[selectedOption.icon] || Globe
-                                : Globe;
                             const selectedLabel = selectedOption?.label || "Selecione a rede";
 
                             return (
@@ -1980,17 +1965,18 @@ const DashboardUsers = () => {
                                 onDrop={(event) => handleSocialDrop(event, index)}
                               >
                                 <div className="grid grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] items-center gap-2">
-                                  <button
+                                  <DashboardActionButton
                                     type="button"
+                                    size="icon"
                                     draggable={canEditBasicFields}
-                                    className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground transition hover:border-primary/40 hover:text-primary active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="cursor-grab border-border/60 bg-background/60 text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary active:cursor-grabbing disabled:cursor-not-allowed"
                                     aria-label={`Arrastar rede ${social.label || index + 1}`}
                                     onDragStart={(event) => handleSocialDragStart(event, index)}
                                     onDragEnd={clearSocialDragState}
                                     disabled={!canEditBasicFields}
                                   >
                                     <GripVertical className="h-4 w-4" />
-                                  </button>
+                                  </DashboardActionButton>
                                   <ReorderControls
                                     label={`rede ${social.label || index + 1}`}
                                     index={index}
@@ -1999,7 +1985,7 @@ const DashboardUsers = () => {
                                     disabled={!canEditBasicFields}
                                     buttonClassName={subtleReorderButtonClassName}
                                   />
-                                  <Select
+                                  <Combobox
                                     value={social.label}
                                     onValueChange={(value) =>
                                       setFormState((prev) => {
@@ -2009,60 +1995,30 @@ const DashboardUsers = () => {
                                       })
                                     }
                                     disabled={!canEditBasicFields}
-                                  >
-                                    <SelectTrigger
-                                      className="h-10 w-14 shrink-0 justify-center gap-1 bg-background/60 px-2"
-                                      aria-label={selectedLabel}
-                                      title={selectedLabel}
-                                    >
-                                      <span className="flex items-center justify-center">
-                                        {isCustomSelectedIcon && selectedOption ? (
-                                          <ThemedSvgLogo
-                                            url={selectedOption.icon}
-                                            label={selectedLabel}
-                                            className="h-4 w-4 text-primary"
-                                          />
-                                        ) : (
-                                          <SelectedIcon
-                                            className={`h-4 w-4 ${
-                                              selectedOption
-                                                ? "text-foreground"
-                                                : "text-muted-foreground"
-                                            }`}
-                                          />
-                                        )}
-                                      </span>
-                                      <span className="sr-only">{selectedLabel}</span>
-                                    </SelectTrigger>
-                                    <SelectContent align="start">
-                                      {availableLinkTypes.map((option) => {
+                                    ariaLabel={selectedLabel}
+                                    options={availableLinkTypes.map((option) => {
                                         const isCustomIcon = isIconUrl(option.icon);
                                         const Icon = socialIconMap[option.icon] || Globe;
-                                        return (
-                                          <SelectItem
-                                            key={option.id}
-                                            value={option.id}
-                                            className="pl-2 pr-2 [&>span:first-child]:hidden"
-                                          >
-                                            <div className={dropdownRichContentClassName}>
-                                              {isCustomIcon ? (
-                                                <ThemedSvgLogo
-                                                  url={option.icon}
-                                                  label={option.label}
-                                                  className={`${dropdownRichIconClassName} text-primary`}
-                                                />
-                                              ) : (
-                                                <Icon className={dropdownRichIconClassName} />
-                                              )}
-                                              <span className={dropdownRichLabelClassName}>
-                                                {option.label}
-                                              </span>
-                                            </div>
-                                          </SelectItem>
-                                        );
+                                        return {
+                                          value: option.id,
+                                          label: option.label,
+                                          icon: isCustomIcon ? (
+                                            <ThemedSvgLogo
+                                              url={option.icon}
+                                              label={option.label}
+                                              className={`${dropdownRichIconClassName} text-primary`}
+                                            />
+                                          ) : (
+                                            Icon
+                                          ),
+                                        };
                                       })}
-                                    </SelectContent>
-                                  </Select>
+                                    placeholder="Rede"
+                                    searchable
+                                    searchPlaceholder="Buscar rede"
+                                    emptyMessage="Nenhuma rede encontrada."
+                                    className="h-10 w-14 shrink-0 justify-center gap-1 bg-background/60 px-2"
+                                  />
                                   <Input
                                     className="min-w-0"
                                     value={social.href}
@@ -2076,11 +2032,11 @@ const DashboardUsers = () => {
                                     placeholder="https://"
                                     disabled={!canEditBasicFields}
                                   />
-                                  <Button
+                                  <DashboardActionButton
                                     type="button"
-                                    variant="ghost"
+                                    tone="destructive"
                                     size="icon"
-                                    className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
+                                    className="shrink-0 text-destructive hover:text-destructive"
                                     aria-label={`Remover rede ${social.label || index + 1}`}
                                     onClick={() =>
                                       setFormState((prev) => ({
@@ -2091,7 +2047,7 @@ const DashboardUsers = () => {
                                     disabled={!canEditBasicFields}
                                   >
                                     <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  </DashboardActionButton>
                                 </div>
                               </div>
                             );
@@ -2132,13 +2088,12 @@ const DashboardUsers = () => {
                               Configure 2FA opcional e gerencie suas sessões ativas.
                             </p>
                           </div>
-                          <Button
+                          <DashboardActionButton
                             size="sm"
-                            variant="outline"
                             onClick={() => void refreshSelfSecurity()}
                           >
                             Atualizar
-                          </Button>
+                          </DashboardActionButton>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
@@ -2157,9 +2112,9 @@ const DashboardUsers = () => {
                           <div
                             className={`space-y-3 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}
                           >
-                            <Button size="sm" onClick={startSelfEnrollment}>
+                            <DashboardActionButton size="sm" tone="primary" onClick={startSelfEnrollment}>
                               Ativar 2FA (TOTP)
-                            </Button>
+                            </DashboardActionButton>
                             {securityEnrollment ? (
                               <div className="space-y-3">
                                 <div className="flex flex-wrap items-center gap-3">
@@ -2200,9 +2155,8 @@ const DashboardUsers = () => {
                                       {securityEnrollment.manualSecret}
                                     </code>
                                     <div className="flex flex-wrap gap-2">
-                                      <Button
+                                      <DashboardActionButton
                                         size="sm"
-                                        variant="outline"
                                         onClick={async () => {
                                           try {
                                             await navigator.clipboard.writeText(
@@ -2218,10 +2172,9 @@ const DashboardUsers = () => {
                                         }}
                                       >
                                         Copiar segredo
-                                      </Button>
-                                      <Button
+                                      </DashboardActionButton>
+                                      <DashboardActionButton
                                         size="sm"
-                                        variant="outline"
                                         onClick={async () => {
                                           try {
                                             await navigator.clipboard.writeText(
@@ -2237,14 +2190,13 @@ const DashboardUsers = () => {
                                         }}
                                       >
                                         Copiar URL OTP
-                                      </Button>
-                                      <Button
+                                      </DashboardActionButton>
+                                      <DashboardActionButton
                                         size="sm"
-                                        variant="outline"
                                         onClick={startSelfEnrollment}
                                       >
                                         Reiniciar ativação
-                                      </Button>
+                                      </DashboardActionButton>
                                     </div>
                                     <Input
                                       value={securityEnrollCode}
@@ -2253,8 +2205,9 @@ const DashboardUsers = () => {
                                       }
                                       placeholder="Código de 6 dígitos"
                                     />
-                                    <Button
+                                    <DashboardActionButton
                                       size="sm"
+                                      tone="primary"
                                       onClick={confirmSelfEnrollment}
                                       disabled={
                                         !securityEnrollCode.trim() ||
@@ -2262,7 +2215,7 @@ const DashboardUsers = () => {
                                       }
                                     >
                                       Confirmar ativação
-                                    </Button>
+                                    </DashboardActionButton>
                                   </div>
                                 </div>
                               </div>
@@ -2277,14 +2230,14 @@ const DashboardUsers = () => {
                               onChange={(event) => setSecurityDisableCode(event.target.value)}
                               placeholder="Código TOTP ou código de recuperação"
                             />
-                            <Button
+                            <DashboardActionButton
                               size="sm"
-                              variant="destructive"
+                              tone="destructive"
                               onClick={disableSelfTotp}
                               disabled={!securityDisableCode.trim()}
                             >
                               Desativar 2FA
-                            </Button>
+                            </DashboardActionButton>
                           </div>
                         )}
 
@@ -2304,14 +2257,14 @@ const DashboardUsers = () => {
                         <div className={`space-y-2 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}>
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-sm font-medium">Sessões ativas</p>
-                            <Button
+                            <DashboardActionButton
                               size="sm"
-                              variant="outline"
+                              tone="destructive"
                               onClick={revokeSelfOthers}
                               disabled={isLoadingSecurity}
                             >
                               Encerrar outras
-                            </Button>
+                            </DashboardActionButton>
                           </div>
                           {isLoadingSecurity ? (
                             <div
@@ -2374,13 +2327,13 @@ const DashboardUsers = () => {
                                     </p>
                                   </div>
                                   {!isCurrentSecuritySession(session) ? (
-                                    <Button
+                                    <DashboardActionButton
                                       size="sm"
-                                      variant="outline"
+                                      tone="destructive"
                                       onClick={() => revokeSelfSession(session.sid)}
                                     >
                                       Encerrar
-                                    </Button>
+                                    </DashboardActionButton>
                                   ) : null}
                                 </div>
                               ))}
@@ -2444,7 +2397,7 @@ const DashboardUsers = () => {
                       <DashboardFieldStack>
                         <Label>Papel de acesso</Label>
                         <DashboardFieldStack density="compact">
-                          <Select
+                          <Combobox
                             value={formState.accessRole}
                             onValueChange={(value) =>
                               setFormState((prev) => ({
@@ -2469,18 +2422,14 @@ const DashboardUsers = () => {
                               }))
                             }
                             disabled={!canEditAccessControls || isOwnerRecord}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione um papel" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {accessRoleOptions.map((option) => (
-                                <SelectItem key={option.id} value={option.id}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            ariaLabel="Selecionar papel de acesso"
+                            options={accessRoleOptions.map((option) => ({
+                              value: option.id,
+                              label: option.label,
+                            }))}
+                            placeholder="Selecione um papel"
+                            searchable={false}
+                          />
                           {isOwnerRecord ? (
                             <p className="text-xs text-muted-foreground">
                               O papel de dono é definido pela governança de owners.
@@ -2579,30 +2528,32 @@ const DashboardUsers = () => {
                 </AccordionItem>
               </Accordion>
             </div>
-            <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2.5 lg:px-8">
-              {editingUser ? (
-                <Button
-                  variant="destructive"
-                  onClick={() => setDeleteTarget(editingUser)}
-                  disabled={
-                    !canManageUsers ||
-                    isPrimaryOwnerRecord ||
-                    editingUser.id === currentUser?.id ||
-                    (isOwnerRecord && !canManageOwners)
-                  }
-                >
-                  Excluir
-                </Button>
-              ) : null}
-              <Button variant="outline" onClick={() => handleEditorOpenChange(false)}>
-                Cancelar
-              </Button>
-              <Button
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={handleSave}
-              >
-                Salvar
-              </Button>
+            <div className="project-editor-footer sticky bottom-0 z-20 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex-row md:items-center md:justify-between md:px-6 md:py-2.5 lg:px-8">
+              <div className="flex flex-wrap items-center gap-2">
+                {editingUser ? (
+                  <DashboardActionButton
+                    size="sm"
+                    tone="destructive"
+                    onClick={() => setDeleteTarget(editingUser)}
+                    disabled={
+                      !canManageUsers ||
+                      isPrimaryOwnerRecord ||
+                      editingUser.id === currentUser?.id ||
+                      (isOwnerRecord && !canManageOwners)
+                    }
+                  >
+                    Excluir
+                  </DashboardActionButton>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <DashboardActionButton size="sm" onClick={() => handleEditorOpenChange(false)}>
+                  Cancelar
+                </DashboardActionButton>
+                <DashboardActionButton size="sm" tone="primary" onClick={handleSave}>
+                  Salvar
+                </DashboardActionButton>
+              </div>
             </div>
           </div>
         </DialogContent>
@@ -2625,12 +2576,12 @@ const DashboardUsers = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3">
-            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
+            <DashboardActionButton size="sm" onClick={() => setDeleteTarget(null)}>
               Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteUser}>
+            </DashboardActionButton>
+            <DashboardActionButton size="sm" tone="destructive" onClick={handleDeleteUser}>
               Excluir
-            </Button>
+            </DashboardActionButton>
           </div>
         </DialogContent>
       </Dialog>

@@ -45,7 +45,10 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
-const expectDashboardActionButtonTokens = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+const expectDashboardActionButtonTokens = (
+  element: HTMLElement,
+  sizeToken: "h-9" | "h-10" | "py-3",
+) => {
   const tokens = classTokens(element);
 
   expect(tokens).toEqual(
@@ -117,7 +120,9 @@ describe("DashboardUsers load error", () => {
 
     await screen.findByRole("heading", { name: /Gestão de Usuários/i });
     await screen.findByText(/Não foi possível carregar os usuários/i);
-    fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    const retryButton = screen.getByRole("button", { name: "Tentar novamente" });
+    expectDashboardActionButtonTokens(retryButton, "py-3");
+    fireEvent.click(retryButton);
 
     await waitFor(() => {
       expect(screen.queryByText(/Não foi possível carregar os usuários/i)).not.toBeInTheDocument();

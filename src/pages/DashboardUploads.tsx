@@ -1,6 +1,7 @@
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import DashboardShell from "@/components/DashboardShell";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import { Input } from "@/components/dashboard/dashboard-form-controls";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
@@ -22,7 +23,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
@@ -714,19 +714,18 @@ const DashboardUploads = () => {
           description="Consumo real por área com base nos arquivos presentes em disco."
           actions={
             <div className="flex items-center gap-2">
-              <Badge className="bg-background text-foreground/70">
+              <Badge variant="static">
                 Atualizado: {summaryTimestampLabel}
               </Badge>
-              <Button
+              <DashboardActionButton
                 size="sm"
-                variant="outline"
                 onClick={() =>
                   void load({ background: hasSummaryLoadedOnce || hasCleanupLoadedOnce })
                 }
                 disabled={isAnyRefreshing || isCleanupRunning}
               >
                 Atualizar
-              </Button>
+              </DashboardActionButton>
             </div>
           }
         />
@@ -868,7 +867,7 @@ const DashboardUploads = () => {
                     _quarantine.
                   </p>
                 </div>
-                <Badge className="bg-background text-foreground/70">
+                <Badge variant="static">
                   Análise: {cleanupTimestampLabel}
                 </Badge>
               </div>
@@ -909,9 +908,9 @@ const DashboardUploads = () => {
                         -- em originais soltos e -- em purga pendente da quarentena.
                       </p>
                     </div>
-                    <Button size="sm" variant="destructive" disabled>
+                    <DashboardActionButton size="sm" tone="destructive" disabled>
                       {CLEANUP_ACTION_LABEL}
-                    </Button>
+                    </DashboardActionButton>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[820px] text-sm">
@@ -983,16 +982,16 @@ const DashboardUploads = () => {
                         purga pendente da quarentena.
                       </p>
                     </div>
-                    <Button
+                    <DashboardActionButton
                       size="sm"
-                      variant="destructive"
+                      tone="destructive"
                       disabled={
                         isCleanupRunning || hasCleanupBlockingError || !hasCleanupCandidates
                       }
                       onClick={() => setIsCleanupConfirmOpen(true)}
                     >
                       {isCleanupRunning ? "Limpando..." : CLEANUP_ACTION_LABEL}
-                    </Button>
+                    </DashboardActionButton>
                   </div>
 
                   {cleanupPreview.examples.length > 0 ? (

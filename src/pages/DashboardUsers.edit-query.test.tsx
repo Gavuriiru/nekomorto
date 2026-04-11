@@ -46,6 +46,35 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
 const classTokens = (element: Element | null) =>
   String(element?.className || "").split(/\s+/).filter(Boolean);
 
+const expectDashboardActionButtonTokens = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining(["rounded-xl", "bg-background", "font-semibold", sizeToken]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
+const expectPrimaryDashboardActionButtonTokens = (
+  element: HTMLElement,
+  sizeToken: "h-9" | "h-10",
+) => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "rounded-xl",
+      "bg-primary",
+      "text-primary-foreground",
+      "font-semibold",
+      sizeToken,
+    ]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
 const setupApiMock = ({
   currentUserGrants = {
     usuarios_basico: true,
@@ -263,6 +292,10 @@ describe("DashboardUsers edit query", () => {
     }
 
     expect(editorDialog.contains(editorScrollShell)).toBe(true);
+    const cancelButton = screen.getByRole("button", { name: "Cancelar" });
+    const saveButton = screen.getByRole("button", { name: "Salvar" });
+    expectDashboardActionButtonTokens(cancelButton, "h-9");
+    expectPrimaryDashboardActionButtonTokens(saveButton, "h-9");
 
     editorScrollShell.scrollTop = 24;
     fireEvent.scroll(editorScrollShell);

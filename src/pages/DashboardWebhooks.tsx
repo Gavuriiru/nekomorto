@@ -11,12 +11,8 @@ import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import {
+  Combobox,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -35,7 +31,6 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ColorPicker } from "@/components/ui/color-picker";
 import CompactPagination from "@/components/ui/compact-pagination";
 import { Label } from "@/components/ui/label";
@@ -61,6 +56,28 @@ const SECTION_REVEAL_DELAYS: Record<SaveSectionKey, number> = {
   operational: dashboardMotionDelays.sectionStepMs * 3,
   security: dashboardMotionDelays.sectionStepMs * 4,
 };
+
+const deliveryScopeOptions = [
+  { value: "all", label: "Todos" },
+  { value: "editorial", label: "Editorial" },
+  { value: "ops_alerts", label: "Alertas operacionais" },
+  { value: "security", label: "Segurança" },
+];
+
+const deliveryStatusOptions = [
+  { value: "all", label: "Todos" },
+  { value: "queued", label: "Na fila" },
+  { value: "processing", label: "Processando" },
+  { value: "retrying", label: "Reagendado" },
+  { value: "failed", label: "Falhou" },
+  { value: "sent", label: "Enviado" },
+];
+
+const deliveryChannelOptions = [
+  { value: "all", label: "Todos" },
+  { value: "posts", label: "Posts" },
+  { value: "projects", label: "Projetos" },
+];
 
 type TemplateField = { name: string; value: string; inline: boolean };
 type TemplateEmbed = {
@@ -1635,7 +1652,9 @@ const DashboardWebhooks = () => {
             kind="error"
             title="Acesso negado"
             description="Sua conta não tem permissão para gerenciar integrações."
-            action={<Button onClick={() => navigate("/dashboard")}>Voltar</Button>}
+            action={
+              <DashboardActionButton onClick={() => navigate("/dashboard")}>Voltar</DashboardActionButton>
+            }
           />
         </DashboardPageContainer>
       </DashboardShell>
@@ -1669,13 +1688,12 @@ const DashboardWebhooks = () => {
           <Alert className="mb-4 border-border/70 bg-background text-foreground/70">
             <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
               <span>Mantendo os últimos dados carregados.</span>
-              <Button
+              <DashboardActionButton
                 size="sm"
-                variant="outline"
                 onClick={() => void loadSettings({ background: true })}
               >
                 Tentar novamente
-              </Button>
+              </DashboardActionButton>
             </AlertDescription>
           </Alert>
         ) : null}
@@ -1685,9 +1703,9 @@ const DashboardWebhooks = () => {
             title="Falha ao carregar"
             description="Não foi possível buscar os Webhooks."
             action={
-              <Button onClick={() => void loadSettings({ background: false })}>
+              <DashboardActionButton onClick={() => void loadSettings({ background: false })}>
                 Tentar novamente
-              </Button>
+              </DashboardActionButton>
             }
           />
         ) : (
@@ -1930,17 +1948,15 @@ const DashboardWebhooks = () => {
                                           )
                                         }
                                       />
-                                      <Button
+                                      <DashboardActionButton
                                         type="button"
-                                        variant="outline"
                                         size="sm"
-                                        className="gap-2"
                                         disabled={testingByEvent[eventKey]}
                                         onClick={() => void handleTest(eventKey)}
                                       >
                                         <Send className="h-3.5 w-3.5" />
                                         {testingByEvent[eventKey] ? "Enviando..." : "Enviar teste"}
-                                      </Button>
+                                      </DashboardActionButton>
                                     </div>
 
                                     <DashboardFieldStack>
@@ -2075,11 +2091,9 @@ const DashboardWebhooks = () => {
                                     <DashboardFieldStack>
                                       <div className="flex items-center justify-between">
                                         <Label>Campos da embed</Label>
-                                        <Button
+                                        <DashboardActionButton
                                           type="button"
-                                          variant="outline"
                                           size="sm"
-                                          className="gap-2"
                                           onClick={() =>
                                             setTemplate(channelKey, eventKey, (item) => ({
                                               ...item,
@@ -2095,7 +2109,7 @@ const DashboardWebhooks = () => {
                                         >
                                           <Plus className="h-3.5 w-3.5" />
                                           Adicionar campo
-                                        </Button>
+                                        </DashboardActionButton>
                                       </div>
 
                                       {template.embed.fields.map((field, index) => (
@@ -2158,10 +2172,10 @@ const DashboardWebhooks = () => {
                                               Em linha
                                             </span>
                                           </div>
-                                          <Button
+                                          <DashboardActionButton
                                             type="button"
-                                            variant="ghost"
-                                            size="icon"
+                                            tone="destructive"
+                                            size="icon-sm"
                                             onClick={() =>
                                               setTemplate(channelKey, eventKey, (item) => ({
                                                 ...item,
@@ -2176,7 +2190,7 @@ const DashboardWebhooks = () => {
                                             aria-label={`Remover campo ${index + 1}`}
                                           >
                                             <Trash2 className="h-4 w-4" />
-                                          </Button>
+                                          </DashboardActionButton>
                                         </div>
                                       ))}
                                     </DashboardFieldStack>
@@ -2239,7 +2253,7 @@ const DashboardWebhooks = () => {
                                           aria-label="Selecionar cor da embed"
                                           label=""
                                           showSwatch
-                                          buttonClassName={`inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-background shadow-xs transition ${dashboardStrongSurfaceHoverClassName} focus-visible:outline-hidden ${dashboardStrongFocusFieldClassName} ${dashboardStrongFocusTriggerClassName}`}
+                                          buttonClassName={`inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-background transition ${dashboardStrongSurfaceHoverClassName} focus-visible:outline-hidden ${dashboardStrongFocusFieldClassName} ${dashboardStrongFocusTriggerClassName}`}
                                           panelClassName={dashboardStrongFocusScopeClassName}
                                           value={displayEmbedColor}
                                           onChange={(color) =>
@@ -2410,16 +2424,14 @@ const DashboardWebhooks = () => {
                       />
                       <span className="text-xs text-muted-foreground">Seção ativa</span>
                     </div>
-                    <Button
+                    <DashboardActionButton
                       type="button"
-                      variant="outline"
-                      className="gap-2"
                       disabled={isTestingOperational}
                       onClick={() => void handleOperationalTest()}
                     >
                       <Send className="h-3.5 w-3.5" />
                       {isTestingOperational ? "Enviando..." : "Enviar teste"}
-                    </Button>
+                    </DashboardActionButton>
                   </div>
                 </div>
               </AccordionContent>
@@ -2518,16 +2530,14 @@ const DashboardWebhooks = () => {
                       />
                       <span className="text-xs text-muted-foreground">Seção ativa</span>
                     </div>
-                    <Button
+                    <DashboardActionButton
                       type="button"
-                      variant="outline"
-                      className="gap-2"
                       disabled={isTestingSecurity}
                       onClick={() => void handleSecurityTest()}
                     >
                       <Send className="h-3.5 w-3.5" />
                       {isTestingSecurity ? "Enviando..." : "Enviar teste"}
-                    </Button>
+                    </DashboardActionButton>
                   </div>
                 </div>
               </AccordionContent>
@@ -2570,7 +2580,7 @@ const DashboardWebhooks = () => {
                 >
                   <DashboardFieldStack>
                     <Label>Escopo</Label>
-                    <Select
+                    <Combobox
                       value={deliveryFilters.scope || "all"}
                       onValueChange={(value) =>
                         setDeliveryFilters((previous) => ({
@@ -2579,22 +2589,17 @@ const DashboardWebhooks = () => {
                           page: 1,
                         }))
                       }
-                    >
-                      <SelectTrigger data-testid="dashboard-webhooks-delivery-filter-scope">
-                        <SelectValue placeholder="Todos" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
-                        <SelectItem value="editorial">Editorial</SelectItem>
-                        <SelectItem value="ops_alerts">Alertas operacionais</SelectItem>
-                        <SelectItem value="security">Segurança</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      ariaLabel="Filtrar entregas por escopo"
+                      options={deliveryScopeOptions}
+                      placeholder="Todos"
+                      searchable={false}
+                      dataTestId="dashboard-webhooks-delivery-filter-scope"
+                    />
                   </DashboardFieldStack>
 
                   <DashboardFieldStack>
                     <Label>Status</Label>
-                    <Select
+                    <Combobox
                       value={deliveryFilters.status || "all"}
                       onValueChange={(value) =>
                         setDeliveryFilters((previous) => ({
@@ -2603,24 +2608,17 @@ const DashboardWebhooks = () => {
                           page: 1,
                         }))
                       }
-                    >
-                      <SelectTrigger data-testid="dashboard-webhooks-delivery-filter-status">
-                        <SelectValue placeholder="Todos" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
-                        <SelectItem value="queued">Na fila</SelectItem>
-                        <SelectItem value="processing">Processando</SelectItem>
-                        <SelectItem value="retrying">Reagendado</SelectItem>
-                        <SelectItem value="failed">Falhou</SelectItem>
-                        <SelectItem value="sent">Enviado</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      ariaLabel="Filtrar entregas por status"
+                      options={deliveryStatusOptions}
+                      placeholder="Todos"
+                      searchable={false}
+                      dataTestId="dashboard-webhooks-delivery-filter-status"
+                    />
                   </DashboardFieldStack>
 
                   <DashboardFieldStack>
                     <Label>Canal</Label>
-                    <Select
+                    <Combobox
                       value={deliveryFilters.channel || "all"}
                       onValueChange={(value) =>
                         setDeliveryFilters((previous) => ({
@@ -2629,23 +2627,18 @@ const DashboardWebhooks = () => {
                           page: 1,
                         }))
                       }
-                    >
-                      <SelectTrigger data-testid="dashboard-webhooks-delivery-filter-channel">
-                        <SelectValue placeholder="Todos" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
-                        <SelectItem value="posts">Posts</SelectItem>
-                        <SelectItem value="projects">Projetos</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      ariaLabel="Filtrar entregas por canal"
+                      options={deliveryChannelOptions}
+                      placeholder="Todos"
+                      searchable={false}
+                      dataTestId="dashboard-webhooks-delivery-filter-channel"
+                    />
                   </DashboardFieldStack>
 
                   <div className="flex items-end">
-                    <Button
+                    <DashboardActionButton
                       type="button"
-                      variant="outline"
-                      className="gap-2"
+                      size="sm"
                       onClick={() => void loadDeliveries({ page: deliveryFilters.page })}
                       disabled={isLoadingDeliveries}
                     >
@@ -2655,7 +2648,7 @@ const DashboardWebhooks = () => {
                         <RotateCcw className="h-4 w-4" />
                       )}
                       Atualizar
-                    </Button>
+                    </DashboardActionButton>
                   </div>
                 </div>
 
@@ -2736,11 +2729,9 @@ const DashboardWebhooks = () => {
                             </div>
 
                             <div className="flex items-start gap-2">
-                              <Button
+                              <DashboardActionButton
                                 type="button"
-                                variant="outline"
                                 size="sm"
-                                className="gap-2"
                                 onClick={() => void handleRetryDelivery(delivery.id)}
                                 disabled={!delivery.isRetryable || retryingDeliveryId === delivery.id}
                               >
@@ -2750,7 +2741,7 @@ const DashboardWebhooks = () => {
                                   <RotateCcw className="h-3.5 w-3.5" />
                                 )}
                                 Reenfileirar
-                              </Button>
+                              </DashboardActionButton>
                             </div>
                           </div>
                         </div>

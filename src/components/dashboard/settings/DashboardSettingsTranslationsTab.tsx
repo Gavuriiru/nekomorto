@@ -5,11 +5,6 @@ import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import {
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
 import {
@@ -20,7 +15,6 @@ import {
 } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardSeoRedirectsPanel from "@/components/dashboard/DashboardSeoRedirectsPanel";
 import ReorderControls from "@/components/ReorderControls";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { ColorPicker } from "@/components/ui/color-picker";
@@ -191,8 +185,9 @@ export const DashboardSettingsTranslationsTab = () => {
                 value={newTag}
                 onChange={(event) => setNewTag(event.target.value)}
               />
-              <Button
+              <DashboardActionButton
                 type="button"
+                tone="primary"
                 onClick={() => {
                   const value = newTag.trim();
                   if (!value || tagTranslations[value] !== undefined) {
@@ -203,7 +198,7 @@ export const DashboardSettingsTranslationsTab = () => {
                 }}
               >
                 <Plus className="h-4 w-4" />
-              </Button>
+              </DashboardActionButton>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-foreground/70">
@@ -214,10 +209,9 @@ export const DashboardSettingsTranslationsTab = () => {
                 : ""}
             </span>
             {filteredTags.length > visibleTags.length ? (
-              <Button
+              <DashboardActionButton
                 type="button"
                 size="sm"
-                variant="ghost"
                 onClick={() =>
                   setVisibleCounts((prev) => ({
                     ...prev,
@@ -226,7 +220,7 @@ export const DashboardSettingsTranslationsTab = () => {
                 }
               >
                 Mostrar mais
-              </Button>
+              </DashboardActionButton>
             ) : null}
           </div>
           <div className="overflow-hidden rounded-xl border border-border/70">
@@ -264,8 +258,7 @@ export const DashboardSettingsTranslationsTab = () => {
                           />
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <Button
-                            variant="ghost"
+                          <DashboardActionButton
                             size="icon"
                             onClick={() =>
                               setTagTranslations((prev) => {
@@ -276,7 +269,7 @@ export const DashboardSettingsTranslationsTab = () => {
                             }
                           >
                             <Trash2 className="h-4 w-4" />
-                          </Button>
+                          </DashboardActionButton>
                         </td>
                       </tr>
                     ))}
@@ -334,8 +327,9 @@ export const DashboardSettingsTranslationsTab = () => {
                 value={newGenre}
                 onChange={(event) => setNewGenre(event.target.value)}
               />
-              <Button
+              <DashboardActionButton
                 type="button"
+                tone="primary"
                 onClick={() => {
                   const value = newGenre.trim();
                   if (!value || genreTranslations[value] !== undefined) {
@@ -346,7 +340,7 @@ export const DashboardSettingsTranslationsTab = () => {
                 }}
               >
                 <Plus className="h-4 w-4" />
-              </Button>
+              </DashboardActionButton>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-foreground/70">
@@ -357,10 +351,9 @@ export const DashboardSettingsTranslationsTab = () => {
                 : ""}
             </span>
             {filteredGenres.length > visibleGenres.length ? (
-              <Button
+              <DashboardActionButton
                 type="button"
                 size="sm"
-                variant="ghost"
                 onClick={() =>
                   setVisibleCounts((prev) => ({
                     ...prev,
@@ -369,7 +362,7 @@ export const DashboardSettingsTranslationsTab = () => {
                 }
               >
                 Mostrar mais
-              </Button>
+              </DashboardActionButton>
             ) : null}
           </div>
           <div className="overflow-hidden rounded-xl border border-border/70">
@@ -407,8 +400,7 @@ export const DashboardSettingsTranslationsTab = () => {
                           />
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <Button
-                            variant="ghost"
+                          <DashboardActionButton
                             size="icon"
                             onClick={() =>
                               setGenreTranslations((prev) => {
@@ -419,7 +411,7 @@ export const DashboardSettingsTranslationsTab = () => {
                             }
                           >
                             <Trash2 className="h-4 w-4" />
-                          </Button>
+                          </DashboardActionButton>
                         </td>
                       </tr>
                     ))}
@@ -466,8 +458,9 @@ export const DashboardSettingsTranslationsTab = () => {
                 value={newStaffRole}
                 onChange={(event) => setNewStaffRole(event.target.value)}
               />
-              <Button
+              <DashboardActionButton
                 type="button"
+                tone="primary"
                 onClick={() => {
                   const value = newStaffRole.trim();
                   if (!value || staffRoleTranslations[value] !== undefined) {
@@ -478,7 +471,7 @@ export const DashboardSettingsTranslationsTab = () => {
                 }}
               >
                 <Plus className="h-4 w-4" />
-              </Button>
+              </DashboardActionButton>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-foreground/70">
@@ -489,10 +482,9 @@ export const DashboardSettingsTranslationsTab = () => {
                 : ""}
             </span>
             {filteredStaffRoles.length > visibleStaffRoles.length ? (
-              <Button
+              <DashboardActionButton
                 type="button"
                 size="sm"
-                variant="ghost"
                 onClick={() =>
                   setVisibleCounts((prev) => ({
                     ...prev,
@@ -501,7 +493,7 @@ export const DashboardSettingsTranslationsTab = () => {
                 }
               >
                 Mostrar mais
-              </Button>
+              </DashboardActionButton>
             ) : null}
           </div>
           <div className="overflow-hidden rounded-xl border border-border/70">
@@ -539,8 +531,7 @@ export const DashboardSettingsTranslationsTab = () => {
                           />
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <Button
-                            variant="ghost"
+                          <DashboardActionButton
                             size="icon"
                             onClick={() =>
                               setStaffRoleTranslations((prev) => {
@@ -551,7 +542,7 @@ export const DashboardSettingsTranslationsTab = () => {
                             }
                           >
                             <Trash2 className="h-4 w-4" />
-                          </Button>
+                          </DashboardActionButton>
                         </td>
                       </tr>
                     ))}

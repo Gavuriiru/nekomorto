@@ -4,10 +4,11 @@ import ReorderControls from "@/components/ReorderControls";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import { Input } from "@/components/dashboard/dashboard-form-controls";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
 
 import type { ProjectForm, ProjectRelation } from "./dashboard-projects-editor-types";
 import ProjectEditorAccordionHeader from "./ProjectEditorAccordionHeader";
+
+const Button = DashboardActionButton;
 
 type ProjectEditorRelationsSectionProps = {
   cardClassName: string;

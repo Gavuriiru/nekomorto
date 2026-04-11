@@ -1,14 +1,10 @@
 import type { EditorProjectEpisode } from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import {
+  Combobox,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from "@/components/dashboard/dashboard-form-controls";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -42,12 +38,12 @@ export const ProjectEditorConfirmDialog = ({
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <div className="flex justify-end gap-3">
-        <Button variant="ghost" onClick={onCancel}>
+        <DashboardActionButton size="sm" onClick={onCancel}>
           Continuar editando
-        </Button>
-        <Button variant="destructive" onClick={onConfirm}>
+        </DashboardActionButton>
+        <DashboardActionButton size="sm" tone="destructive" onClick={onConfirm}>
           Sair
-        </Button>
+        </DashboardActionButton>
       </div>
     </DialogContent>
   </Dialog>
@@ -140,40 +136,45 @@ export const ProjectEditorAnimeBatchDialog = ({
         </DashboardFieldStack>
         <DashboardFieldStack>
           <Label htmlFor="anime-batch-source-type">Origem padrão</Label>
-          <Select value={sourceType} onValueChange={(value) => onSourceTypeChange(value as EditorProjectEpisode["sourceType"])}>
-            <SelectTrigger id="anime-batch-source-type">
-              <SelectValue placeholder="Origem" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TV">TV</SelectItem>
-              <SelectItem value="Web">Web</SelectItem>
-              <SelectItem value="Blu-ray">Blu-ray</SelectItem>
-            </SelectContent>
-          </Select>
+          <Combobox
+            id="anime-batch-source-type"
+            value={sourceType}
+            onValueChange={(value) => onSourceTypeChange(value as EditorProjectEpisode["sourceType"])}
+            ariaLabel="Origem padrão"
+            options={[
+              { value: "TV", label: "TV" },
+              { value: "Web", label: "Web" },
+              { value: "Blu-ray", label: "Blu-ray" },
+            ]}
+            placeholder="Origem"
+            searchable={false}
+          />
         </DashboardFieldStack>
         <DashboardFieldStack>
           <Label htmlFor="anime-batch-status">Status inicial</Label>
-          <Select
+          <Combobox
+            id="anime-batch-status"
             value={publicationStatus}
             onValueChange={(value) =>
               onPublicationStatusChange(value === "draft" ? "draft" : "published")
             }
-          >
-            <SelectTrigger id="anime-batch-status">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="draft">Rascunho</SelectItem>
-              <SelectItem value="published">Publicado</SelectItem>
-            </SelectContent>
-          </Select>
+            ariaLabel="Status inicial"
+            options={[
+              { value: "draft", label: "Rascunho" },
+              { value: "published", label: "Publicado" },
+            ]}
+            placeholder="Status"
+            searchable={false}
+          />
         </DashboardFieldStack>
       </div>
       <div className="flex justify-end gap-3">
-        <Button variant="ghost" onClick={() => onOpenChange(false)}>
+        <DashboardActionButton size="sm" onClick={() => onOpenChange(false)}>
           Cancelar
-        </Button>
-        <Button onClick={onCreate}>Criar lote</Button>
+        </DashboardActionButton>
+        <DashboardActionButton size="sm" tone="primary" onClick={onCreate}>
+          Criar lote
+        </DashboardActionButton>
       </div>
     </DialogContent>
   </Dialog>
@@ -203,12 +204,12 @@ export const ProjectEditorDeleteDialog = ({
         </DialogDescription>
       </DialogHeader>
       <div className="flex justify-end gap-3">
-        <Button variant="ghost" onClick={onCancel}>
+        <DashboardActionButton size="sm" onClick={onCancel}>
           Cancelar
-        </Button>
-        <Button variant="destructive" onClick={onConfirm}>
+        </DashboardActionButton>
+        <DashboardActionButton size="sm" tone="destructive" onClick={onConfirm}>
           Excluir
-        </Button>
+        </DashboardActionButton>
       </div>
     </DialogContent>
   </Dialog>

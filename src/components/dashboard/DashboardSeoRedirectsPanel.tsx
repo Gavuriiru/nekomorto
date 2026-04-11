@@ -317,7 +317,7 @@ const DashboardSeoRedirectsPanel = () => {
               disabled={isSaving || !isDirty}
             >
               <Save className="h-4 w-4" />
-              {isSaving ? "Salvando..." : "Salvar SEO"}
+              {isSaving ? "Salvando..." : "Salvar"}
             </DashboardActionButton>
           </div>
         </div>

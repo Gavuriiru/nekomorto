@@ -1,12 +1,12 @@
 import "react-advanced-cropper/dist/style.css";
 import "@/styles/image-library.css";
 
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import ImageLibraryBrowserPane from "@/components/image-library/ImageLibraryBrowserPane";
 import ImageLibraryDialogs from "@/components/image-library/ImageLibraryDialogs";
 import ImageLibraryUploadPanel from "@/components/image-library/ImageLibraryUploadPanel";
 import useImageLibraryDialogController from "@/components/image-library/useImageLibraryDialogController";
 import type { ImageLibraryDialogProps } from "@/components/image-library/types";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -49,39 +49,49 @@ const ImageLibraryDialog = ({
           <ImageLibraryUploadPanel {...uploadPanelProps} />
           <ImageLibraryBrowserPane {...browserProps} />
 
-          <div className="mt-4 flex flex-col-reverse justify-end gap-2 sm:flex-row">
-            {footerProps.allowDeselect ? (
-              <Button
+          <div className="mt-4 flex flex-col gap-3 border-t border-border/60 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              {footerProps.allowDeselect ? (
+                <DashboardActionButton
+                  type="button"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  onClick={footerProps.onClearSelection}
+                >
+                  Limpar seleção
+                </DashboardActionButton>
+              ) : null}
+              {footerProps.onNavigateToUploads ? (
+                <DashboardActionButton
+                  type="button"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  disabled={footerProps.isUploading || footerProps.isNavigatingToUploads}
+                  onClick={() => void footerProps.onNavigateToUploads?.()}
+                >
+                  {footerProps.isNavigatingToUploads ? "Abrindo uploads..." : "Ir para uploads"}
+                </DashboardActionButton>
+              ) : null}
+            </div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <DashboardActionButton
                 type="button"
-                variant="outline"
+                size="sm"
                 className="w-full sm:w-auto"
-                onClick={footerProps.onClearSelection}
+                onClick={footerProps.onClose}
               >
-                Limpar seleção
-              </Button>
-            ) : null}
-            {footerProps.onNavigateToUploads ? (
-              <Button
+                Cancelar
+              </DashboardActionButton>
+              <DashboardActionButton
                 type="button"
-                variant="outline"
+                size="sm"
+                tone="primary"
                 className="w-full sm:w-auto"
-                disabled={footerProps.isUploading || footerProps.isNavigatingToUploads}
-                onClick={() => void footerProps.onNavigateToUploads?.()}
+                onClick={footerProps.onSave}
               >
-                {footerProps.isNavigatingToUploads ? "Abrindo uploads..." : "Ir para uploads"}
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full sm:w-auto"
-              onClick={footerProps.onClose}
-            >
-              Cancelar
-            </Button>
-            <Button type="button" className="w-full sm:w-auto" onClick={footerProps.onSave}>
-              Salvar
-            </Button>
+                Salvar
+              </DashboardActionButton>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

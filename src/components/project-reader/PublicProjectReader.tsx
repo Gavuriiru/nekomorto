@@ -41,11 +41,7 @@ import {
   type ProjectReaderPreferencesState,
 } from "@/components/project-reader/use-project-reader-preferences";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Combobox,
 } from "@/components/public-form-controls";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -137,6 +133,47 @@ const SIDEBAR_SECTION_ICON_CLASS_NAME = "h-[0.95rem] w-[0.95rem] shrink-0 text-p
 const SIDEBAR_SELECT_TRIGGER_CLASS_NAME = "h-10 border-border/55 bg-background/70";
 const PROGRESS_EDGE_OFFSET_PX = 12;
 const HIDDEN_PROGRESS_ZONE_SIZE_PX = 48;
+
+const readerLayoutOptions = [
+  { value: "single", label: "Página única" },
+  { value: "double", label: "Página dupla" },
+  { value: "scroll-vertical", label: "Rolagem vertical" },
+  { value: "scroll-horizontal", label: "Rolagem horizontal" },
+];
+
+const readerImageFitOptions = [
+  { value: "both", label: "Largura e altura" },
+  { value: "none", label: "Sem ajuste" },
+  { value: "width", label: "Ajustar à largura" },
+  { value: "height", label: "Ajustar à altura" },
+];
+
+const readerDirectionOptions = [
+  { value: "rtl", label: "Direita para esquerda" },
+  { value: "ltr", label: "Esquerda para direita" },
+];
+
+const readerBackgroundOptions = [
+  { value: "theme", label: "Tema do site" },
+  { value: "black", label: "Preto" },
+  { value: "white", label: "Branco" },
+];
+
+const readerSiteHeaderVariantOptions = [
+  { value: "fixed", label: "Fixa" },
+  { value: "static", label: "Estática" },
+];
+
+const readerProgressStyleOptions = [
+  { value: "default", label: "Padrão" },
+  { value: "hidden", label: "Oculto" },
+];
+
+const readerProgressPositionOptions = [
+  { value: "bottom", label: "Inferior" },
+  { value: "left", label: "Esquerda" },
+  { value: "right", label: "Direita" },
+];
 const HIDDEN_PROGRESS_HIDE_DELAY_MS = 180;
 const PROGRESS_OVERLAY_TRANSITION_MS = 180;
 const PROGRESS_TOUCH_FEEDBACK_MS = 900;
@@ -5159,7 +5196,7 @@ const PublicProjectReaderContent = ({
           <div className="space-y-2.5">
             <div className={SIDEBAR_FIELD_CLASS_NAME}>
               <Label className={SIDEBAR_LABEL_CLASS_NAME}>Capítulo</Label>
-              <Select
+              <Combobox
                 value={currentChapterValue}
                 onValueChange={(value) => {
                   const nextChapter = chapterOptions.find((option) => option.value === value);
@@ -5169,46 +5206,32 @@ const PublicProjectReaderContent = ({
                   closeMenu();
                   onNavigateChapter(nextChapter.href);
                 }}
-              >
-                <SelectTrigger
-                  className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
-                  aria-label="Selecionar capítulo"
-                >
-                  <SelectValue placeholder="Selecione um capítulo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {chapterOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                ariaLabel="Selecionar capítulo"
+                options={chapterOptions}
+                placeholder="Selecione um capítulo"
+                searchable
+                searchPlaceholder="Buscar capítulo"
+                emptyMessage="Nenhum capítulo encontrado."
+                className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+              />
             </div>
 
             <div className={SIDEBAR_FIELD_CLASS_NAME}>
               <Label className={SIDEBAR_LABEL_CLASS_NAME}>Página</Label>
-              <Select
+              <Combobox
                 value={String(Math.min(activePageIndex, Math.max(originalPages.length - 1, 0)))}
                 onValueChange={(value) => {
                   goToPage(Number(value));
                   closeMenu();
                 }}
-              >
-                <SelectTrigger
-                  className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
-                  aria-label="Selecionar página"
-                >
-                  <SelectValue placeholder="Selecione uma página" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pageItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                ariaLabel="Selecionar página"
+                options={pageItems}
+                placeholder="Selecione uma página"
+                searchable
+                searchPlaceholder="Buscar página"
+                emptyMessage="Nenhuma página encontrada."
+                className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+              />
             </div>
 
             {showChapterNavigationActions ? (
@@ -5239,7 +5262,7 @@ const PublicProjectReaderContent = ({
                     onClick={() => navigateChapterByOption(nextChapterOption)}
                     aria-label="Próximo capítulo"
                   >
-                    <span>Próxima</span>
+                    <span>Próximo</span>
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 ) : null}
@@ -5256,83 +5279,54 @@ const PublicProjectReaderContent = ({
           <div className="space-y-2.5">
             <div className={SIDEBAR_FIELD_CLASS_NAME}>
               <Label className={SIDEBAR_LABEL_CLASS_NAME}>Layout</Label>
-              <Select
+              <Combobox
                 value={String(resolvedConfig.layout || "single")}
                 onValueChange={(value) => updateConfig({ layout: value })}
-              >
-                <SelectTrigger
-                  className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
-                  aria-label="Selecionar layout do leitor"
-                >
-                  <SelectValue placeholder="Selecione um layout" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single">Página única</SelectItem>
-                  <SelectItem value="double">Página dupla</SelectItem>
-                  <SelectItem value="scroll-vertical">Rolagem vertical</SelectItem>
-                  <SelectItem value="scroll-horizontal">Rolagem horizontal</SelectItem>
-                </SelectContent>
-              </Select>
+                ariaLabel="Selecionar layout do leitor"
+                options={readerLayoutOptions}
+                placeholder="Selecione um layout"
+                searchable={false}
+                className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+              />
             </div>
 
             <div className={SIDEBAR_FIELD_CLASS_NAME}>
               <Label className={SIDEBAR_LABEL_CLASS_NAME}>Ajuste da imagem</Label>
-              <Select
+              <Combobox
                 value={String(resolvedConfig.imageFit || "both")}
                 onValueChange={(value) => updateConfig({ imageFit: value })}
-              >
-                <SelectTrigger
-                  className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
-                  aria-label="Selecionar ajuste da imagem"
-                >
-                  <SelectValue placeholder="Selecione o ajuste" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="both">Largura e altura</SelectItem>
-                  <SelectItem value="none">Sem ajuste</SelectItem>
-                  <SelectItem value="width">Ajustar à largura</SelectItem>
-                  <SelectItem value="height">Ajustar à altura</SelectItem>
-                </SelectContent>
-              </Select>
+                ariaLabel="Selecionar ajuste da imagem"
+                options={readerImageFitOptions}
+                placeholder="Selecione o ajuste"
+                searchable={false}
+                className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+              />
             </div>
 
             <div className={SIDEBAR_FIELD_CLASS_NAME}>
               <Label className={SIDEBAR_LABEL_CLASS_NAME}>Sentido de leitura</Label>
-              <Select
+              <Combobox
                 value={String(resolvedConfig.direction || "rtl")}
                 onValueChange={(value) => updateConfig({ direction: value })}
-              >
-                <SelectTrigger
-                  className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
-                  aria-label="Selecionar direção do leitor"
-                >
-                  <SelectValue placeholder="Selecione a direção" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="rtl">Direita para esquerda</SelectItem>
-                  <SelectItem value="ltr">Esquerda para direita</SelectItem>
-                </SelectContent>
-              </Select>
+                ariaLabel="Selecionar direção do leitor"
+                options={readerDirectionOptions}
+                placeholder="Selecione a direção"
+                searchable={false}
+                className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+              />
             </div>
 
             <div className={SIDEBAR_FIELD_CLASS_NAME}>
               <Label className={SIDEBAR_LABEL_CLASS_NAME}>Fundo do palco</Label>
-              <Select
+              <Combobox
                 value={String(resolvedConfig.background || "theme")}
                 onValueChange={(value) => updateConfig({ background: value })}
-              >
-                <SelectTrigger
-                  className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
-                  aria-label="Selecionar fundo do palco"
-                >
-                  <SelectValue placeholder="Selecione o fundo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="theme">Tema do site</SelectItem>
-                  <SelectItem value="black">Preto</SelectItem>
-                  <SelectItem value="white">Branco</SelectItem>
-                </SelectContent>
-              </Select>
+                ariaLabel="Selecionar fundo do palco"
+                options={readerBackgroundOptions}
+                placeholder="Selecione o fundo"
+                searchable={false}
+                className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+              />
             </div>
           </div>
         </div>
@@ -5345,64 +5339,45 @@ const PublicProjectReaderContent = ({
           <div className="space-y-2.5">
             <div className={SIDEBAR_FIELD_CLASS_NAME}>
               <Label className={SIDEBAR_LABEL_CLASS_NAME}>Barra do site</Label>
-              <Select
+              <Combobox
                 value={siteHeaderVariant}
                 onValueChange={(value) =>
                   updateConfig({
                     siteHeaderVariant: value === "static" ? "static" : "fixed",
                   })
                 }
-              >
-                <SelectTrigger
-                  className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
-                  aria-label="Selecionar comportamento do header do site"
-                >
-                  <SelectValue placeholder="Selecione o comportamento do header" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="fixed">Fixa</SelectItem>
-                  <SelectItem value="static">Estática</SelectItem>
-                </SelectContent>
-              </Select>
+                ariaLabel="Selecionar comportamento do header do site"
+                options={readerSiteHeaderVariantOptions}
+                placeholder="Selecione o comportamento do header"
+                searchable={false}
+                className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+              />
             </div>
 
             <div className={SIDEBAR_FIELD_CLASS_NAME}>
               <Label className={SIDEBAR_LABEL_CLASS_NAME}>Indicador de progresso</Label>
-              <Select
+              <Combobox
                 value={String(resolvedConfig.progressStyle || "default")}
                 onValueChange={(value) => updateConfig({ progressStyle: value })}
-              >
-                <SelectTrigger
-                  className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
-                  aria-label="Selecionar estilo do progresso"
-                >
-                  <SelectValue placeholder="Selecione o progresso" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">Padrão</SelectItem>
-                  <SelectItem value="hidden">Oculto</SelectItem>
-                </SelectContent>
-              </Select>
+                ariaLabel="Selecionar estilo do progresso"
+                options={readerProgressStyleOptions}
+                placeholder="Selecione o progresso"
+                searchable={false}
+                className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+              />
             </div>
 
             <div className={SIDEBAR_FIELD_CLASS_NAME}>
               <Label className={SIDEBAR_LABEL_CLASS_NAME}>Posição do indicador</Label>
-              <Select
+              <Combobox
                 value={String(resolvedConfig.progressPosition || "bottom")}
                 onValueChange={(value) => updateConfig({ progressPosition: value })}
-              >
-                <SelectTrigger
-                  className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
-                  aria-label="Selecionar posição do progresso"
-                >
-                  <SelectValue placeholder="Selecione a posição" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bottom">Inferior</SelectItem>
-                  <SelectItem value="left">Esquerda</SelectItem>
-                  <SelectItem value="right">Direita</SelectItem>
-                </SelectContent>
-              </Select>
+                ariaLabel="Selecionar posição do progresso"
+                options={readerProgressPositionOptions}
+                placeholder="Selecione a posição"
+                searchable={false}
+                className={SIDEBAR_SELECT_TRIGGER_CLASS_NAME}
+              />
             </div>
 
             <label className="flex items-center justify-between gap-4 rounded-2xl border border-border/55 bg-background/50 px-3.5 py-3.5 text-sm shadow-sm">

@@ -28,16 +28,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
 import type { Project, ProjectEpisode } from "@/data/projects";
@@ -1339,20 +1333,21 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="manga-stage-status">Status inicial</Label>
-                  <Select
+                  <Combobox
+                    id="manga-stage-status"
                     value={defaultImportStatus}
                     onValueChange={(value) =>
                       setDefaultImportStatus(value === "published" ? "published" : "draft")
                     }
-                  >
-                    <SelectTrigger id="manga-stage-status" className="w-full sm:w-[160px]">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Rascunho</SelectItem>
-                      <SelectItem value="published">Publicado</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    ariaLabel="Status inicial"
+                    options={[
+                      { value: "draft", label: "Rascunho" },
+                      { value: "published", label: "Publicado" },
+                    ]}
+                    placeholder="Status"
+                    searchable={false}
+                    className="w-full sm:w-[160px]"
+                  />
                 </div>
               </div>
             </div>
@@ -1447,7 +1442,8 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="stage-chapter-entry-kind">Tipo de entrada</Label>
-                        <Select
+                        <Combobox
+                          id="stage-chapter-entry-kind"
                           value={selectedStageChapter.entryKind === "extra" ? "extra" : "main"}
                           onValueChange={(value) =>
                             updateStageChapter(selectedStageChapter.id, (chapter) => {
@@ -1463,15 +1459,14 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                               };
                             })
                           }
-                        >
-                          <SelectTrigger id="stage-chapter-entry-kind">
-                            <SelectValue placeholder="Tipo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="main">Capítulo</SelectItem>
-                            <SelectItem value="extra">Extra</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          ariaLabel="Tipo de entrada"
+                          options={[
+                            { value: "main", label: "Capítulo" },
+                            { value: "extra", label: "Extra" },
+                          ]}
+                          placeholder="Tipo"
+                          searchable={false}
+                        />
                       </div>
                     </div>
 

@@ -19,6 +19,36 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
   }) as Response;
 
 const EMPTY_PROJECT_IMAGE_IDS: string[] = [];
+const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+
+const expectDashboardActionButtonTokens = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining(["rounded-xl", "bg-background", "font-semibold", sizeToken]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
+const expectPrimaryDashboardActionButtonTokens = (
+  element: HTMLElement,
+  sizeToken: "h-9" | "h-10",
+) => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "rounded-xl",
+      "bg-primary",
+      "text-primary-foreground",
+      "font-semibold",
+      sizeToken,
+    ]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
 
 describe("ImageLibraryDialog cancel button", () => {
   beforeEach(() => {
@@ -52,12 +82,20 @@ describe("ImageLibraryDialog cancel button", () => {
     const clearButton = screen.getByRole("button", { name: /Limpar sele/i });
     const cancelButton = screen.getByRole("button", { name: "Cancelar" });
     const saveButton = screen.getByRole("button", { name: "Salvar" });
+    const footer = cancelButton.closest("div.mt-4") as HTMLElement | null;
 
     expect(clearButton).toBeInTheDocument();
     expect(cancelButton).toBeInTheDocument();
     expect(saveButton).toBeInTheDocument();
-    expect(clearButton.parentElement).toBe(cancelButton.parentElement);
-    expect(saveButton.parentElement).toBe(cancelButton.parentElement);
+    expect(footer).not.toBeNull();
+    const footerColumns = Array.from((footer as HTMLElement).children) as HTMLElement[];
+    expect(footerColumns).toHaveLength(2);
+    expect(footerColumns[0].contains(clearButton)).toBe(true);
+    expect(footerColumns[1].contains(cancelButton)).toBe(true);
+    expect(footerColumns[1].contains(saveButton)).toBe(true);
+    expectDashboardActionButtonTokens(clearButton, "h-9");
+    expectDashboardActionButtonTokens(cancelButton, "h-9");
+    expectPrimaryDashboardActionButtonTokens(saveButton, "h-9");
   });
 
   it("fecha sem salvar quando clica em Cancelar", async () => {

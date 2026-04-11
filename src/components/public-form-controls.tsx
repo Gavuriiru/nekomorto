@@ -1,20 +1,14 @@
 import * as React from "react";
 
 import { publicStrongFocusFieldClassName } from "@/components/public-page-tokens";
+import { Combobox as BaseCombobox, type ComboboxProps } from "@/components/ui/combobox";
 import { Input as BaseInput } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger as BaseSelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea as BaseTextarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 type PublicInputProps = React.ComponentPropsWithoutRef<typeof BaseInput>;
 type PublicTextareaProps = React.ComponentPropsWithoutRef<typeof BaseTextarea>;
-type PublicSelectTriggerProps = React.ComponentPropsWithoutRef<typeof BaseSelectTrigger>;
+type PublicComboboxProps = ComboboxProps;
 
 const Input = React.forwardRef<HTMLInputElement, PublicInputProps>(
   ({ className, ...props }, ref) => (
@@ -30,12 +24,16 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, PublicTextareaProps>(
 );
 Textarea.displayName = "PublicTextarea";
 
-const SelectTrigger = React.forwardRef<
-  React.ElementRef<typeof BaseSelectTrigger>,
-  PublicSelectTriggerProps
->(({ className, ...props }, ref) => (
-  <BaseSelectTrigger ref={ref} className={className} {...props} />
-));
-SelectTrigger.displayName = "PublicSelectTrigger";
+const Combobox = ({ className, searchInputClassName, ...props }: PublicComboboxProps) => (
+  <BaseCombobox
+    className={cn(publicStrongFocusFieldClassName, className)}
+    searchInputClassName={cn(publicStrongFocusFieldClassName, searchInputClassName)}
+    {...props}
+  />
+);
 
-export { Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea };
+export {
+  Combobox,
+  Input,
+  Textarea,
+};

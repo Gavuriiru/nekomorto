@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import ReorderControls from "@/components/ReorderControls";
 import { AccessibilityAnnouncerProvider } from "@/hooks/accessibility-announcer";
 
+const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+
 describe("ReorderControls keyboard support", () => {
   it("supports click and Alt+Arrow shortcuts while announcing movement", async () => {
     const onMove = vi.fn();
@@ -14,6 +16,15 @@ describe("ReorderControls keyboard support", () => {
     );
 
     const moveUpButton = screen.getByRole("button", { name: /Mover item para cima/i });
+    const moveDownButton = screen.getByRole("button", { name: /Mover item para baixo/i });
+    const moveUpTokens = classTokens(moveUpButton);
+
+    expect(moveUpTokens).toEqual(
+      expect.arrayContaining(["h-8", "w-8", "rounded-xl", "bg-background", "shadow-none"]),
+    );
+    expect(moveUpTokens).not.toContain("interactive-lift-sm");
+    expect(moveUpTokens).not.toContain("pressable");
+
     fireEvent.keyDown(moveUpButton, { key: "ArrowUp", altKey: true });
 
     expect(onMove).toHaveBeenNthCalledWith(1, 0);
@@ -21,7 +32,7 @@ describe("ReorderControls keyboard support", () => {
       expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(/item movido/i);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Mover item para baixo/i }));
+    fireEvent.click(moveDownButton);
     expect(onMove).toHaveBeenNthCalledWith(2, 2);
   });
 });

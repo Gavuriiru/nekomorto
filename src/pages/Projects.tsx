@@ -9,9 +9,8 @@ import {
   useState,
 } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Check, ChevronDown } from "lucide-react";
 
-import { Input } from "@/components/public-form-controls";
+import { Combobox, Input } from "@/components/public-form-controls";
 import {
   publicPageLayoutTokens,
   publicStrongSurfaceHoverClassName,
@@ -21,13 +20,6 @@ import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import CompactPagination from "@/components/ui/compact-pagination";
-import {
-  dropdownChevronClassName,
-  dropdownItemClassName,
-  dropdownItemIndicatorClassName,
-  dropdownPopoverClassName,
-  dropdownTriggerClassName,
-} from "@/components/ui/dropdown-contract";
 import type { Project } from "@/data/projects";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -131,23 +123,6 @@ type ProjectsResultsSummaryProps = {
   className?: string;
 };
 
-type ProjectsSearchableFilterProps = {
-  id: string;
-  label: string;
-  ariaLabel: string;
-  value: string;
-  options: FilterOption[];
-  placeholder: string;
-  searchEnabled?: boolean;
-  searchPlaceholder?: string;
-  emptyMessage?: string;
-  initialVisibleCount?: number;
-  visibleCountStep?: number;
-  isOpen: boolean;
-  onOpenChange: (nextOpen: boolean) => void;
-  onValueChange: (nextValue: string) => void;
-};
-
 type ProjectsFiltersPanelProps = {
   isMobile: boolean;
   isMobileFiltersOpen: boolean;
@@ -164,8 +139,6 @@ type ProjectsFiltersPanelProps = {
   typeOptions: FilterOption[];
   filteredProjectsCount: number;
   activeFiltersSummary: string;
-  openFilterId: string | null;
-  onOpenFilterChange: (nextValue: string | null) => void;
   onLetterChange: (value: string) => void;
   onTagChange: (value: string) => void;
   onGenreChange: (value: string) => void;
@@ -374,194 +347,6 @@ const ProjectsResultsSummary = ({
   </div>
 );
 
-const ProjectsSearchableFilter = memo(
-  ({
-    id,
-    label,
-    ariaLabel,
-    value,
-    options,
-    placeholder,
-    searchEnabled = true,
-    searchPlaceholder,
-    emptyMessage,
-    initialVisibleCount = FILTER_COMBOBOX_INITIAL_LIMIT,
-    visibleCountStep = FILTER_COMBOBOX_STEP,
-    isOpen,
-    onOpenChange,
-    onValueChange,
-  }: ProjectsSearchableFilterProps) => {
-    const rootRef = useRef<HTMLDivElement | null>(null);
-    const inputRef = useRef<HTMLInputElement | null>(null);
-    const [query, setQuery] = useState("");
-    const [visibleCount, setVisibleCount] = useState(initialVisibleCount);
-    const selectedOption = useMemo(
-      () => options.find((option) => option.value === value) || null,
-      [options, value],
-    );
-    const filteredOptions = useMemo(() => {
-      if (!searchEnabled) {
-        return options;
-      }
-      const normalizedQuery = normalizeSearchText(query);
-      if (!normalizedQuery) {
-        return options;
-      }
-      return options.filter((option) =>
-        option.searchText.includes(normalizedQuery),
-      );
-    }, [options, query, searchEnabled]);
-    const visibleOptions = searchEnabled
-      ? filteredOptions.slice(0, visibleCount)
-      : filteredOptions;
-
-    useEffect(() => {
-      if (!isOpen) {
-        setQuery("");
-        setVisibleCount(initialVisibleCount);
-        return;
-      }
-
-      const handlePointerDown = (event: MouseEvent) => {
-        if (rootRef.current?.contains(event.target as Node)) {
-          return;
-        }
-        onOpenChange(false);
-      };
-      const handleKeyDown = (event: KeyboardEvent) => {
-        if (event.key === "Escape") {
-          onOpenChange(false);
-        }
-      };
-
-      document.addEventListener("mousedown", handlePointerDown);
-      document.addEventListener("keydown", handleKeyDown);
-      if (searchEnabled && typeof window !== "undefined") {
-        window.requestAnimationFrame(() => {
-          inputRef.current?.focus();
-        });
-      }
-      return () => {
-        document.removeEventListener("mousedown", handlePointerDown);
-        document.removeEventListener("keydown", handleKeyDown);
-      };
-    }, [initialVisibleCount, isOpen, onOpenChange, searchEnabled]);
-
-    return (
-      <div ref={rootRef} className="relative">
-        <button
-          type="button"
-          role="combobox"
-          aria-label={ariaLabel}
-          aria-expanded={isOpen}
-          aria-controls={`${id}-listbox`}
-          aria-haspopup="listbox"
-          data-placeholder={selectedOption ? undefined : ""}
-          data-state={isOpen ? "open" : "closed"}
-          className={dropdownTriggerClassName}
-          onClick={() => onOpenChange(!isOpen)}
-          onKeyDown={(event) => {
-            if (
-              event.key === "ArrowDown" ||
-              event.key === "Enter" ||
-              event.key === " " ||
-              event.key === "Spacebar"
-            ) {
-              event.preventDefault();
-              onOpenChange(true);
-            }
-            if (event.key === "Escape") {
-              onOpenChange(false);
-            }
-          }}
-        >
-          <span className="truncate">
-            {selectedOption?.label || placeholder}
-          </span>
-          <ChevronDown
-            className={dropdownChevronClassName}
-            aria-hidden="true"
-          />
-        </button>
-        {isOpen ? (
-          <div
-            data-state="open"
-            className={cn(
-              dropdownPopoverClassName,
-              "absolute inset-x-0 top-[calc(100%+0.5rem)] z-30 p-3",
-            )}
-          >
-            {searchEnabled ? (
-              <Input
-                ref={inputRef}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={searchPlaceholder}
-                aria-label={`Buscar em ${label.toLowerCase()}`}
-                className="bg-background/80"
-              />
-            ) : null}
-            <div
-              id={`${id}-listbox`}
-              role="listbox"
-              aria-label={label}
-              className={cn(
-                "no-scrollbar max-h-64 overflow-y-auto overscroll-contain p-1",
-                searchEnabled ? "mt-3" : "mt-0",
-              )}
-            >
-              {visibleOptions.length > 0 ? (
-                visibleOptions.map((option) => {
-                  const isSelected = option.value === value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="option"
-                      aria-selected={isSelected}
-                      data-state={isSelected ? "checked" : "unchecked"}
-                      className={dropdownItemClassName}
-                      onClick={() => {
-                        onValueChange(option.value);
-                        onOpenChange(false);
-                      }}
-                    >
-                      <span className={dropdownItemIndicatorClassName}>
-                        {isSelected ? (
-                          <Check className="h-4 w-4" aria-hidden="true" />
-                        ) : null}
-                      </span>
-                      <span className="truncate">{option.label}</span>
-                    </button>
-                  );
-                })
-              ) : (
-                <p className="rounded-xl bg-background/50 px-3 py-4 text-sm text-muted-foreground">
-                  {emptyMessage}
-                </p>
-              )}
-            </div>
-            {searchEnabled && visibleCount < filteredOptions.length ? (
-              <Button
-                type="button"
-                variant="ghost"
-                className="mt-3 w-full text-xs uppercase"
-                onClick={() =>
-                  setVisibleCount((current) => current + visibleCountStep)
-                }
-              >
-                Mostrar mais
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-    );
-  },
-);
-
-ProjectsSearchableFilter.displayName = "ProjectsSearchableFilter";
-
 const ProjectCard = memo(
   ({
     project,
@@ -713,8 +498,6 @@ const ProjectsFiltersPanel = memo(
     typeOptions,
     filteredProjectsCount,
     activeFiltersSummary,
-    openFilterId,
-    onOpenFilterChange,
     onLetterChange,
     onTagChange,
     onGenreChange,
@@ -724,71 +507,63 @@ const ProjectsFiltersPanel = memo(
     const filterControls = (
       <>
         <ProjectsFilterField label="A-Z">
-          <ProjectsSearchableFilter
+          <Combobox
             id={isMobile ? "projects-letter-mobile" : "projects-letter-desktop"}
-            label="A-Z"
             ariaLabel="Filtrar por letra"
+            listAriaLabel="A-Z"
             value={selectedLetter}
             options={letterOptions}
             placeholder="Todas as letras"
-            searchEnabled={false}
-            isOpen={openFilterId === "letter"}
-            onOpenChange={(nextOpen) =>
-              onOpenFilterChange(nextOpen ? "letter" : null)
-            }
+            searchable={false}
             onValueChange={onLetterChange}
           />
         </ProjectsFilterField>
 
         <ProjectsFilterField label="Tags">
-          <ProjectsSearchableFilter
+          <Combobox
             id={isMobile ? "projects-tag-mobile" : "projects-tag-desktop"}
-            label="Tags"
             ariaLabel="Filtrar por tag"
+            listAriaLabel="Tags"
             value={selectedTag}
             options={tagOptions}
             placeholder="Todas as tags"
+            searchable
             searchPlaceholder="Buscar tag"
+            searchInputAriaLabel="Buscar em tags"
             emptyMessage="Nenhuma tag encontrada."
-            isOpen={openFilterId === "tag"}
-            onOpenChange={(nextOpen) =>
-              onOpenFilterChange(nextOpen ? "tag" : null)
-            }
+            initialVisibleCount={FILTER_COMBOBOX_INITIAL_LIMIT}
+            visibleCountStep={FILTER_COMBOBOX_STEP}
             onValueChange={onTagChange}
           />
         </ProjectsFilterField>
 
         <ProjectsFilterField label="Gêneros">
-          <ProjectsSearchableFilter
+          <Combobox
             id={isMobile ? "projects-genre-mobile" : "projects-genre-desktop"}
-            label="Gêneros"
             ariaLabel="Filtrar por gênero"
+            listAriaLabel="Gêneros"
             value={selectedGenre}
             options={genreOptions}
             placeholder="Todos os gêneros"
+            searchable
             searchPlaceholder="Buscar gênero"
+            searchInputAriaLabel="Buscar em gêneros"
             emptyMessage="Nenhum gênero encontrado."
-            isOpen={openFilterId === "genre"}
-            onOpenChange={(nextOpen) =>
-              onOpenFilterChange(nextOpen ? "genre" : null)
-            }
+            initialVisibleCount={FILTER_COMBOBOX_INITIAL_LIMIT}
+            visibleCountStep={FILTER_COMBOBOX_STEP}
             onValueChange={onGenreChange}
           />
         </ProjectsFilterField>
 
         <ProjectsFilterField label="Formato">
-          <ProjectsSearchableFilter
+          <Combobox
             id={isMobile ? "projects-type-mobile" : "projects-type-desktop"}
-            label="Formato"
             ariaLabel="Filtrar por formato"
+            listAriaLabel="Formato"
             value={selectedType}
             options={typeOptions}
             placeholder="Todos os formatos"
-            searchEnabled={false}
-            isOpen={openFilterId === "type"}
-            onOpenChange={(nextOpen) =>
-              onOpenFilterChange(nextOpen ? "type" : null)
-            }
+            searchable={false}
             onValueChange={onTypeChange}
           />
         </ProjectsFilterField>
@@ -960,7 +735,6 @@ const Projects = () => {
     () => searchParams.get("q") || "",
   );
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
-  const [openFilterId, setOpenFilterId] = useState<string | null>(null);
   const navigate = useNavigate();
   const pageMediaVariants = bootstrap?.mediaVariants || {};
   const projectsPerPage = 16;
@@ -1109,12 +883,6 @@ const Projects = () => {
   useEffect(() => {
     setSearchInputValue(selectedQuery);
   }, [selectedQuery]);
-
-  useEffect(() => {
-    if (!isMobileFiltersOpen) {
-      setOpenFilterId(null);
-    }
-  }, [isMobileFiltersOpen]);
 
   const commitSearchParams = useCallback(
     (
@@ -1455,8 +1223,6 @@ const Projects = () => {
             typeOptions={typeOptions}
             filteredProjectsCount={filteredProjects.length}
             activeFiltersSummary={activeFiltersSummary}
-            openFilterId={openFilterId}
-            onOpenFilterChange={setOpenFilterId}
             onLetterChange={handleLetterChange}
             onTagChange={handleTagChange}
             onGenreChange={handleGenreChange}

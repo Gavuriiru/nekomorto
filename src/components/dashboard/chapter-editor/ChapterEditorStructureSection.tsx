@@ -1,10 +1,7 @@
-﻿import { Input } from "@/components/dashboard/dashboard-form-controls";
-import DashboardLightSelect, {
-  type DashboardLightSelectOption,
-} from "@/components/dashboard/DashboardLightSelect";
+﻿import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
+import type { ComboboxOption } from "@/components/ui/combobox";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Accordion,
   AccordionContent,
@@ -78,7 +75,7 @@ const structureTriggerClassName =
   "project-editor-section-trigger flex w-full items-start gap-4 px-5 py-3.5 text-left hover:no-underline md:py-4 xl:shrink-0";
 const structureContentClassName =
   "project-editor-section-content px-5 pb-5 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col";
-const filterOptions: DashboardLightSelectOption[] = [
+const filterOptions: ComboboxOption[] = [
   { value: "all", label: "Todos" },
   { value: "draft", label: "Rascunhos" },
   { value: "published", label: "Publicados" },
@@ -146,10 +143,11 @@ export const ChapterEditorStructureSection = memo(
                     className="pl-9"
                   />
                 </div>
-                <DashboardLightSelect
+                <Combobox
                   ariaLabel="Filtrar estrutura"
                   value={filterMode}
                   options={filterOptions}
+                  searchable={false}
                   onValueChange={(value) => onFilterModeChange(value as ChapterFilterMode)}
                 />
               </div>
@@ -270,10 +268,9 @@ export const ChapterEditorStructureSection = memo(
                             </p>
                           </button>
                         )}
-                        <Button
+                        <DashboardActionButton
                           type="button"
                           size="icon"
-                          variant="ghost"
                           data-testid={`chapter-structure-group-toggle-${group.key}`}
                           aria-label={`Alternar ${group.label}`}
                           aria-expanded={isOpen}
@@ -283,7 +280,7 @@ export const ChapterEditorStructureSection = memo(
                           <ChevronRight
                             className={`h-4 w-4 transition-transform ${isOpen ? "rotate-90" : ""}`}
                           />
-                        </Button>
+                        </DashboardActionButton>
                       </div>
                       <div
                         className="flex gap-2"
@@ -513,10 +510,10 @@ export const ChapterEditorStructureSection = memo(
                                         >
                                           {supportsStructureReordering ? (
                                             <>
-                                              <Button
+                                              <DashboardActionButton
                                                 type="button"
                                                 size="icon"
-                                                variant="outline"
+                                                tone="neutral"
                                                 data-testid={`chapter-structure-episode-move-up-${episodeKey}`}
                                                 aria-label="Mover item para cima"
                                                 className="h-9 w-9 rounded-xl bg-background/92"
@@ -534,11 +531,11 @@ export const ChapterEditorStructureSection = memo(
                                                 ) : (
                                                   <ArrowUp className="h-4 w-4" />
                                                 )}
-                                              </Button>
-                                              <Button
+                                              </DashboardActionButton>
+                                              <DashboardActionButton
                                                 type="button"
                                                 size="icon"
-                                                variant="outline"
+                                                tone="neutral"
                                                 data-testid={`chapter-structure-episode-move-down-${episodeKey}`}
                                                 aria-label="Mover item para baixo"
                                                 className="h-9 w-9 rounded-xl bg-background/92"
@@ -559,14 +556,14 @@ export const ChapterEditorStructureSection = memo(
                                                 ) : (
                                                   <ArrowDown className="h-4 w-4" />
                                                 )}
-                                              </Button>
+                                              </DashboardActionButton>
                                             </>
                                           ) : null}
                                           {canOpenReadingPage ? (
-                                            <Button
+                                            <DashboardActionButton
                                               type="button"
                                               size="icon"
-                                              variant="outline"
+                                              tone="neutral"
                                               data-testid={`chapter-structure-episode-open-icon-${episodeKey}`}
                                               aria-label={`Abrir leitura do capítulo ${episode.number} em nova aba`}
                                               className="h-9 w-9 rounded-xl bg-background/92"
@@ -576,7 +573,7 @@ export const ChapterEditorStructureSection = memo(
                                               }}
                                             >
                                               <ExternalLink className="h-4 w-4" />
-                                            </Button>
+                                            </DashboardActionButton>
                                           ) : null}
                                         </div>
                                       ) : null}

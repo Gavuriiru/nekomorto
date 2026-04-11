@@ -1,11 +1,9 @@
 import { Plus, Trash2 } from "lucide-react";
 
-import DashboardLightSelect, {
-  type DashboardLightSelectOption,
-} from "@/components/dashboard/DashboardLightSelect";
-import { Input } from "@/components/dashboard/dashboard-form-controls";
-import { Button } from "@/components/ui/button";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
 import { Card, CardContent } from "@/components/ui/card";
+import type { ComboboxOption } from "@/components/ui/combobox";
 import { TabsContent } from "@/components/ui/tabs";
 
 import { useDashboardSettingsContext } from "./dashboard-settings-context";
@@ -17,7 +15,7 @@ import {
   roleIconOptions,
 } from "./shared";
 
-const teamRoleSelectOptions: DashboardLightSelectOption[] = roleIconOptions.map(
+const teamRoleSelectOptions: ComboboxOption[] = roleIconOptions.map(
   (option) => ({
     value: option.id,
     label: option.label,
@@ -43,9 +41,8 @@ export const DashboardSettingsTeamTab = () => {
                 Ajuste os cargos disponíveis para membros.
               </p>
             </div>
-            <Button
+            <DashboardActionButton
               type="button"
-              variant="outline"
               onClick={() =>
                 setSettings((prev) => ({
                   ...prev,
@@ -61,7 +58,7 @@ export const DashboardSettingsTeamTab = () => {
               }
             >
               <Plus className="h-4 w-4" />
-            </Button>
+            </DashboardActionButton>
           </div>
 
           <div className="grid gap-4">
@@ -84,10 +81,11 @@ export const DashboardSettingsTeamTab = () => {
                   }
                   placeholder="Nome"
                 />
-                <DashboardLightSelect
+                <Combobox
                   ariaLabel={`Ícone da função ${role.label || index + 1}`}
                   value={role.icon || "user"}
                   options={teamRoleSelectOptions}
+                  searchable={false}
                   onValueChange={(nextIcon) =>
                     setSettings((prev) => {
                       const next = [...prev.teamRoles];
@@ -97,9 +95,8 @@ export const DashboardSettingsTeamTab = () => {
                   }
                   className="min-w-0 w-full"
                 />
-                <Button
+                <DashboardActionButton
                   type="button"
-                  variant="ghost"
                   size="icon"
                   className={responsiveCompactRowDeleteButtonClass}
                   onClick={() =>
@@ -112,7 +109,7 @@ export const DashboardSettingsTeamTab = () => {
                   }
                 >
                   <Trash2 className="h-4 w-4" />
-                </Button>
+                </DashboardActionButton>
               </div>
             ))}
           </div>

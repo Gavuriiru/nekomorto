@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { KeyboardEvent } from "react";
-import { Button } from "@/components/ui/button";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
 import { cn } from "@/lib/utils";
 
@@ -52,30 +52,28 @@ const ReorderControls = ({
 
   return (
     <div className={cn("flex items-center gap-1", className)}>
-      <Button
+      <DashboardActionButton
         type="button"
-        size="icon"
-        variant="outline"
-        className={cn("h-8 w-8", buttonClassName)}
+        size="icon-sm"
+        className={buttonClassName}
         aria-label={`Mover ${label} para cima`}
         disabled={!canMoveUp}
         onClick={() => moveTo(index - 1)}
         onKeyDown={handleKeyDown}
       >
         <ChevronUp className="h-4 w-4" aria-hidden="true" />
-      </Button>
-      <Button
+      </DashboardActionButton>
+      <DashboardActionButton
         type="button"
-        size="icon"
-        variant="outline"
-        className={cn("h-8 w-8", buttonClassName)}
+        size="icon-sm"
+        className={buttonClassName}
         aria-label={`Mover ${label} para baixo`}
         disabled={!canMoveDown}
         onClick={() => moveTo(index + 1)}
         onKeyDown={handleKeyDown}
       >
         <ChevronDown className="h-4 w-4" aria-hidden="true" />
-      </Button>
+      </DashboardActionButton>
     </div>
   );
 };

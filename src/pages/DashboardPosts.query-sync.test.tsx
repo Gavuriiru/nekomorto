@@ -179,7 +179,7 @@ const classTokens = (element: HTMLElement) => String(element.className).split(/\
 const expectSegmentedButtonTokens = (element: HTMLElement) => {
   const tokens = classTokens(element);
 
-  expect(tokens).toEqual(expect.arrayContaining(["h-8", "rounded-lg", "font-semibold"]));
+  expect(tokens).toEqual(expect.arrayContaining(["h-9", "rounded-lg", "font-semibold"]));
   expect(tokens).not.toContain("interactive-lift-sm");
   expect(tokens).not.toContain("pressable");
 };

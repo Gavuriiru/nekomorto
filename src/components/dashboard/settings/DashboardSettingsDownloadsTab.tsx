@@ -1,13 +1,9 @@
 import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPresetCard";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import {
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
 import {
@@ -18,7 +14,6 @@ import {
 } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardSeoRedirectsPanel from "@/components/dashboard/DashboardSeoRedirectsPanel";
 import ReorderControls from "@/components/ReorderControls";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { ColorPicker } from "@/components/ui/color-picker";
@@ -143,9 +138,8 @@ export const DashboardSettingsDownloadsTab = () => {
                 Ajuste nome, cor e envie o SVG do serviço para exibição nos downloads.
               </p>
             </div>
-            <Button
+            <DashboardActionButton
               type="button"
-              variant="outline"
               onClick={() =>
                 setSettings((prev) => ({
                   ...prev,
@@ -166,7 +160,7 @@ export const DashboardSettingsDownloadsTab = () => {
               }
             >
               <Plus className="h-4 w-4" />
-            </Button>
+            </DashboardActionButton>
           </div>
 
           <div className="grid gap-3">
@@ -196,7 +190,7 @@ export const DashboardSettingsDownloadsTab = () => {
                       <ColorPicker
                         label=""
                         showSwatch
-                        buttonClassName={`inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background shadow-xs transition ${dashboardStrongSurfaceHoverClassName} focus-visible:outline-hidden md:h-9 md:w-9 ${dashboardStrongFocusFieldClassName} ${dashboardStrongFocusTriggerClassName}`}
+                        buttonClassName={`inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border/70 bg-background shadow-none transition-[border-color,background-color,color,box-shadow] duration-200 hover:shadow-none ${dashboardStrongSurfaceHoverClassName} focus-visible:outline-hidden md:h-9 md:w-9 ${dashboardStrongFocusFieldClassName} ${dashboardStrongFocusTriggerClassName}`}
                         panelClassName={dashboardStrongFocusScopeClassName}
                         value={source.color}
                         onChange={(color) =>
@@ -276,9 +270,8 @@ export const DashboardSettingsDownloadsTab = () => {
                       >
                         Escolher SVG
                       </Label>
-                      <Button
+                      <DashboardActionButton
                         type="button"
-                        variant="ghost"
                         size="icon"
                         className={responsiveSvgCardMobileRemoveButtonClass}
                         onClick={() =>
@@ -292,12 +285,11 @@ export const DashboardSettingsDownloadsTab = () => {
                         }
                       >
                         <Trash2 className="h-4 w-4" />
-                      </Button>
+                      </DashboardActionButton>
                     </div>
                   </div>
-                  <Button
+                  <DashboardActionButton
                     type="button"
-                    variant="ghost"
                     size="icon"
                     className={responsiveSvgCardDesktopRemoveButtonClass}
                     onClick={() =>
@@ -311,7 +303,7 @@ export const DashboardSettingsDownloadsTab = () => {
                     }
                   >
                     <Trash2 className="h-4 w-4" />
-                  </Button>
+                  </DashboardActionButton>
                 </div>
               );
             })}

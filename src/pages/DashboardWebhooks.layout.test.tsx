@@ -528,6 +528,16 @@ describe("DashboardWebhooks layout", () => {
       expect(screen.getByText(/Conte.*da mensagem/i)).toBeInTheDocument();
     });
 
+    const postCreateSection = screen.getByTestId("dashboard-webhooks-event-posts-post_create");
+    expectStableDashboardActionButton(
+      within(postCreateSection).getByRole("button", { name: /Enviar teste/i }),
+      "h-9",
+    );
+    expectStableDashboardActionButton(
+      within(postCreateSection).getByRole("button", { name: /Adicionar campo/i }),
+      "h-9",
+    );
+
     expect(screen.getByDisplayValue("{{post.imageUrl}}")).toBeInTheDocument();
     expect(screen.getByDisplayValue("{{project.backdropImageUrl}}")).toBeInTheDocument();
 
@@ -951,7 +961,9 @@ describe("DashboardWebhooks layout", () => {
     expect(screen.getByText("discord.com/api/webhooks/123/...")).toBeInTheDocument();
     expect(screen.getByText(/rate_limited/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Reenfileirar/i }));
+    const retryButton = screen.getByRole("button", { name: /Reenfileirar/i });
+    expectStableDashboardActionButton(retryButton, "h-9");
+    fireEvent.click(retryButton);
 
     await waitFor(() => {
       expect(apiFetchMock).toHaveBeenCalledWith(

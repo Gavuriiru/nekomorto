@@ -2,12 +2,8 @@ import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import {
+  Combobox,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from "@/components/dashboard/dashboard-form-controls";
 import DashboardDedicatedEditorHeader from "@/components/dashboard/DashboardDedicatedEditorHeader";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
@@ -17,7 +13,6 @@ import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSele
 import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -86,6 +81,26 @@ import { isChapterBasedType } from "@/lib/project-utils";
 import { Search, ArrowLeft, ExternalLink, ImagePlus, Loader2, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+
+const animeEpisodeFilterOptions = [
+  { value: "all", label: "Todos" },
+  { value: "published", label: "Publicados" },
+  { value: "draft", label: "Rascunhos" },
+  { value: "missing-links", label: "Sem links" },
+  { value: "missing-date", label: "Sem data" },
+  { value: "incomplete", label: "Incompletos" },
+];
+
+const animeEpisodePublicationStatusOptions = [
+  { value: "draft", label: "Rascunho" },
+  { value: "published", label: "Publicado" },
+];
+
+const animeEpisodeSourceTypeOptions = [
+  { value: "TV", label: "TV" },
+  { value: "Web", label: "Web" },
+  { value: "Blu-ray", label: "Blu-ray" },
+];
 
 import NotFound from "./NotFound";
 
@@ -781,9 +796,9 @@ const DashboardProjectEpisodeEditor = () => {
             title="Não foi possível carregar os episódios"
             description="Tente novamente em alguns instantes."
             action={
-              <Button variant="outline" onClick={() => void loadProject()}>
+              <DashboardActionButton onClick={() => void loadProject()}>
                 Tentar novamente
-              </Button>
+              </DashboardActionButton>
             }
           />
         </DashboardPageContainer>
@@ -834,8 +849,9 @@ const DashboardProjectEpisodeEditor = () => {
               </div>
             </div>
           ) : null}
-          <Button
+          <DashboardActionButton
             type="button"
+            tone="primary"
             className="w-full justify-center"
             onClick={() => void handleAddEpisode()}
             disabled={isCreating || isSaving}
@@ -846,7 +862,7 @@ const DashboardProjectEpisodeEditor = () => {
               <Plus className="h-4 w-4" />
             )}
             <span>Adicionar episódio</span>
-          </Button>
+          </DashboardActionButton>
           <div className="grid gap-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -858,22 +874,15 @@ const DashboardProjectEpisodeEditor = () => {
               />
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <Select
+              <Combobox
                 value={filterMode}
                 onValueChange={(value) => setFilterMode(value as AnimeEpisodeQuickFilter)}
-              >
-                <SelectTrigger className="w-full sm:max-w-[220px]">
-                  <SelectValue placeholder="Filtrar" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="published">Publicados</SelectItem>
-                  <SelectItem value="draft">Rascunhos</SelectItem>
-                  <SelectItem value="missing-links">Sem links</SelectItem>
-                  <SelectItem value="missing-date">Sem data</SelectItem>
-                  <SelectItem value="incomplete">Incompletos</SelectItem>
-                </SelectContent>
-              </Select>
+                ariaLabel="Filtrar episódios"
+                options={animeEpisodeFilterOptions}
+                placeholder="Filtrar"
+                searchable={false}
+                className="w-full sm:max-w-[220px]"
+              />
               <p className="text-[11px] font-medium tracking-[0.02em] text-muted-foreground sm:text-right">
                 {formatCountLabel(filteredEpisodes.length, "episódio", "episódios")} no filtro atual
               </p>
@@ -1020,9 +1029,10 @@ const DashboardProjectEpisodeEditor = () => {
               }
               primaryActions={
                 <>
-                  <Button
+                  <DashboardActionButton
                     type="button"
                     size="sm"
+                    tone="primary"
                     onClick={() => void handleAddEpisode()}
                     disabled={isCreating || isSaving}
                   >
@@ -1032,56 +1042,56 @@ const DashboardProjectEpisodeEditor = () => {
                       <Plus className="h-4 w-4" />
                     )}
                     <span>Adicionar episódio</span>
-                  </Button>
+                  </DashboardActionButton>
                   {activeDraft ? (
                     <>
-                      <Button
+                      <DashboardActionButton
                         type="button"
                         size="sm"
-                        variant="destructive"
+                        tone="destructive"
                         onClick={() => setDeleteDialogOpen(true)}
                         disabled={isDeleting}
                       >
                         <Trash2 className="h-4 w-4" />
                         <span>Excluir</span>
-                      </Button>
-                      <Button
+                      </DashboardActionButton>
+                      <DashboardActionButton
                         type="button"
                         size="sm"
+                        tone="primary"
                         onClick={() => void handleSave()}
                         disabled={isSaving || isCreating || !isDirty}
                       >
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                         <span>Salvar episódio</span>
-                      </Button>
+                      </DashboardActionButton>
                     </>
                   ) : null}
                 </>
               }
               secondaryActions={
                 <>
-                  <Button variant="outline" size="sm" asChild>
+                  <DashboardActionButton size="sm" asChild>
                     <Link to={buildDashboardProjectEditorHref(project.id)}>
                       <ArrowLeft className="h-4 w-4" />
                       <span>Voltar ao projeto</span>
                     </Link>
-                  </Button>
+                  </DashboardActionButton>
                   {publicProjectHref ? (
-                    <Button variant="outline" size="sm" asChild>
+                    <DashboardActionButton size="sm" asChild>
                       <Link to={publicProjectHref} target="_blank" rel="noreferrer">
                         <ExternalLink className="h-4 w-4" />
                         <span>Página pública</span>
                       </Link>
-                    </Button>
+                    </DashboardActionButton>
                   ) : null}
                   {activeDraft ? (
-                    <Button
-                      variant="outline"
+                    <DashboardActionButton
                       size="sm"
                       onClick={() => requestNavigateToHref(neutralHref)}
                     >
                       <span>Fechar episódio</span>
-                    </Button>
+                    </DashboardActionButton>
                   ) : null}
                 </>
               }
@@ -1142,7 +1152,8 @@ const DashboardProjectEpisodeEditor = () => {
                         </DashboardFieldStack>
                         <DashboardFieldStack>
                           <Label htmlFor="anime-episode-publication-status">Status</Label>
-                          <Select
+                          <Combobox
+                            id="anime-episode-publication-status"
                             value={
                               activeDraft.publicationStatus === "draft" ? "draft" : "published"
                             }
@@ -1152,15 +1163,11 @@ const DashboardProjectEpisodeEditor = () => {
                                 publicationStatus: value === "draft" ? "draft" : "published",
                               }))
                             }
-                          >
-                            <SelectTrigger id="anime-episode-publication-status">
-                              <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="draft">Rascunho</SelectItem>
-                              <SelectItem value="published">Publicado</SelectItem>
-                            </SelectContent>
-                          </Select>
+                            ariaLabel="Selecionar status"
+                            options={animeEpisodePublicationStatusOptions}
+                            placeholder="Status"
+                            searchable={false}
+                          />
                         </DashboardFieldStack>
                         <DashboardFieldStack>
                           <Label htmlFor="anime-episode-date">Release</Label>
@@ -1413,7 +1420,8 @@ const DashboardProjectEpisodeEditor = () => {
                         <div className="grid gap-4 md:grid-cols-2">
                           <DashboardFieldStack>
                             <Label htmlFor="anime-episode-source-type">Origem</Label>
-                            <Select
+                            <Combobox
+                              id="anime-episode-source-type"
                               value={activeDraft.sourceType}
                               onValueChange={(value) =>
                                 updateDraft((current) => ({
@@ -1421,16 +1429,11 @@ const DashboardProjectEpisodeEditor = () => {
                                   sourceType: value === "Blu-ray" || value === "Web" ? value : "TV",
                                 }))
                               }
-                            >
-                              <SelectTrigger id="anime-episode-source-type">
-                                <SelectValue placeholder="Origem" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="TV">TV</SelectItem>
-                                <SelectItem value="Web">Web</SelectItem>
-                                <SelectItem value="Blu-ray">Blu-ray</SelectItem>
-                              </SelectContent>
-                            </Select>
+                              ariaLabel="Selecionar origem"
+                              options={animeEpisodeSourceTypeOptions}
+                              placeholder="Origem"
+                              searchable={false}
+                            />
                           </DashboardFieldStack>
                           <DashboardFieldStack>
                             <Label htmlFor="anime-episode-duration">Duração</Label>
@@ -1561,9 +1564,8 @@ const DashboardProjectEpisodeEditor = () => {
                                   disabled={!String(source.label || "").trim()}
                                 />
                                 <div className="flex justify-end">
-                                  <Button
+                                  <DashboardActionButton
                                     type="button"
-                                    variant="ghost"
                                     size="sm"
                                     onClick={() =>
                                       updateDraft((current) => ({
@@ -1575,7 +1577,7 @@ const DashboardProjectEpisodeEditor = () => {
                                     }
                                   >
                                     Remover
-                                  </Button>
+                                  </DashboardActionButton>
                                 </div>
                               </div>
                             ))}
@@ -1624,12 +1626,11 @@ const DashboardProjectEpisodeEditor = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-            <Button type="button" variant="ghost" onClick={() => setPendingAction(null)}>
+            <DashboardActionButton type="button" onClick={() => setPendingAction(null)}>
               Cancelar
-            </Button>
-            <Button
+            </DashboardActionButton>
+            <DashboardActionButton
               type="button"
-              variant="outline"
               onClick={() => {
                 const action = pendingAction;
                 setPendingAction(null);
@@ -1639,15 +1640,16 @@ const DashboardProjectEpisodeEditor = () => {
               }}
             >
               Descartar e continuar
-            </Button>
-            <Button
+            </DashboardActionButton>
+            <DashboardActionButton
               type="button"
+              tone="primary"
               onClick={() => void handleLeaveSaveAndContinue()}
               disabled={isSaving}
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Salvar e continuar
-            </Button>
+            </DashboardActionButton>
           </div>
         </DialogContent>
       </Dialog>
@@ -1661,18 +1663,18 @@ const DashboardProjectEpisodeEditor = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-            <Button type="button" variant="ghost" onClick={() => setDeleteDialogOpen(false)}>
+            <DashboardActionButton type="button" onClick={() => setDeleteDialogOpen(false)}>
               Cancelar
-            </Button>
-            <Button
+            </DashboardActionButton>
+            <DashboardActionButton
               type="button"
-              variant="destructive"
+              tone="destructive"
               onClick={() => void handleDelete()}
               disabled={isDeleting}
             >
               {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Excluir episódio
-            </Button>
+            </DashboardActionButton>
           </div>
         </DialogContent>
       </Dialog>

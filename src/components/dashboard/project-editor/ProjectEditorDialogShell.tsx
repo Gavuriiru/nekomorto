@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardEditorBackdrop from "@/components/dashboard/DashboardEditorBackdrop";
 import {
   dashboardEditorDialogWidthClassName,
   dashboardSubtleSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -146,10 +146,12 @@ export const ProjectEditorDialogShell = ({
         <div className="project-editor-footer flex items-center justify-between gap-3 border-t border-border/60 bg-background/95 px-4 py-1.5 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2 lg:px-8">
           <div className="flex items-center gap-2 md:gap-3">{footerLinks}</div>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={onCancel}>
+            <DashboardActionButton size="sm" onClick={onCancel}>
               Cancelar
-            </Button>
-            <Button onClick={onSave}>Salvar projeto</Button>
+            </DashboardActionButton>
+            <DashboardActionButton size="sm" tone="primary" onClick={onSave}>
+              Salvar projeto
+            </DashboardActionButton>
           </div>
         </div>
       </div>

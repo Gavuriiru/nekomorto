@@ -4,11 +4,6 @@ import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import {
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
 import {
@@ -19,7 +14,6 @@ import {
 } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardSeoRedirectsPanel from "@/components/dashboard/DashboardSeoRedirectsPanel";
 import ReorderControls from "@/components/ReorderControls";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { ColorPicker } from "@/components/ui/color-picker";
@@ -229,9 +223,8 @@ export const DashboardSettingsSocialLinksTab = () => {
                       >
                         Escolher SVG
                       </Label>
-                      <Button
+                      <DashboardActionButton
                         type="button"
-                        variant="ghost"
                         size="icon"
                         className={responsiveSvgCardMobileRemoveButtonClass}
                         onClick={() =>
@@ -239,18 +232,17 @@ export const DashboardSettingsSocialLinksTab = () => {
                         }
                       >
                         <Trash2 className="h-4 w-4" />
-                      </Button>
+                      </DashboardActionButton>
                     </div>
                   </div>
-                  <Button
+                  <DashboardActionButton
                     type="button"
-                    variant="ghost"
                     size="icon"
                     className={responsiveSvgCardDesktopRemoveButtonClass}
                     onClick={() => setLinkTypes((prev) => prev.filter((_, idx) => idx !== index))}
                   >
                     <Trash2 className="h-4 w-4" />
-                  </Button>
+                  </DashboardActionButton>
                 </div>
               );
             })}

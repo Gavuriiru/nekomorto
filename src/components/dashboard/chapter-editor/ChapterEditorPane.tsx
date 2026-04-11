@@ -11,17 +11,12 @@ import { useChapterEditorPersistence } from "@/components/dashboard/chapter-edit
 import { useChapterEditorStructureOrchestration } from "@/components/dashboard/chapter-editor/useChapterEditorStructureOrchestration";
 import { useChapterEditorImageLibrary } from "@/components/dashboard/chapter-editor/useChapterEditorImageLibrary";
 import {
+  Combobox,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
 import DashboardDedicatedEditorHeader from "@/components/dashboard/DashboardDedicatedEditorHeader";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
-import DashboardLightSelect from "@/components/dashboard/DashboardLightSelect";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import { useChapterEditorLeaveGuard } from "@/components/dashboard/chapter-editor/useChapterEditorLeaveGuard";
 import ChapterEditorDialogs from "@/components/dashboard/chapter-editor/ChapterEditorDialogs";
@@ -43,7 +38,6 @@ import MangaWorkflowPanel, {
 } from "@/components/project-reader/MangaWorkflowPanel";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import type { ProjectEpisode, ProjectVolumeEntry } from "@/data/projects";
@@ -786,13 +780,14 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             <DashboardFieldStack>
               {" "}
               <Label>Tipo de entrada</Label>{" "}
-              <DashboardLightSelect
+              <Combobox
                 ariaLabel="Tipo de entrada"
                 value={draft.entryKind === "extra" ? "extra" : "main"}
                 options={[
                   { value: "main", label: "Capítulo" },
                   { value: "extra", label: "Extra" },
                 ]}
+                searchable={false}
                 onValueChange={(value) =>
                   updateDraft((current) => {
                     const nextEntryKind = value === "extra" ? "extra" : "main";
@@ -1087,9 +1082,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 />{" "}
                 <div className="flex justify-end">
                   {" "}
-                  <Button
+                  <DashboardActionButton
                     type="button"
-                    variant="ghost"
                     size="sm"
                     onClick={() =>
                       updateDraft((current) => ({
@@ -1102,7 +1096,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   >
                     {" "}
                     Remover{" "}
-                  </Button>{" "}
+                  </DashboardActionButton>{" "}
                 </div>{" "}
               </div>
             ))}{" "}
@@ -1270,17 +1264,17 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   {" "}
                   A exclusão remove o volume e todos os capítulos vinculados.{" "}
                 </p>{" "}
-                <Button
+                <DashboardActionButton
                   type="button"
                   size="sm"
-                  variant="destructive"
+                  tone="destructive"
                   onClick={() => onRequestDeleteVolume(selectedVolumeNumber)}
                   disabled={isDeletingEntity}
                   className="gap-2"
                 >
                   {" "}
                   <Trash2 className="h-4 w-4" /> <span>Excluir volume</span>{" "}
-                </Button>{" "}
+                </DashboardActionButton>{" "}
               </div>{" "}
             </div>
           ) : (
@@ -1294,10 +1288,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 title="Nenhum volume selecionado"
                 description="Crie um volume na sidebar para configurar capa e sinopse deste projeto."
                 action={
-                  <Button type="button" onClick={onAddVolume}>
+                  <DashboardActionButton type="button" tone="primary" onClick={onAddVolume}>
                     {" "}
                     Adicionar volume{" "}
-                  </Button>
+                  </DashboardActionButton>
                 }
               />{" "}
             </div>
@@ -1596,10 +1590,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
             <>
               {hasActiveChapter ? (
                 <>
-                  <Button
+                  <DashboardActionButton
                     type="button"
                     size="sm"
-                    variant={isChapterDraft ? "outline" : "default"}
+                    tone={isChapterDraft ? "neutral" : "primary"}
                     onClick={() => {
                       void handleManualSave();
                     }}
@@ -1608,11 +1602,11 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   >
                     {isSavingChapter ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                     {primaryChapterActionLabel}
-                  </Button>
-                  <Button
+                  </DashboardActionButton>
+                  <DashboardActionButton
                     type="button"
                     size="sm"
-                    variant={isChapterDraft ? "default" : "outline"}
+                    tone={isChapterDraft ? "primary" : "neutral"}
                     onClick={() => {
                       void handleChapterSave(isChapterDraft ? "published" : "draft");
                     }}
@@ -1620,14 +1614,13 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                     className="gap-2"
                   >
                     {secondaryChapterActionLabel}
-                  </Button>
+                  </DashboardActionButton>
                 </>
               ) : null}
               {showVolumeSaveControls ? (
-                <Button
+                <DashboardActionButton
                   type="button"
                   size="sm"
-                  variant="outline"
                   onClick={() => {
                     void onSaveVolumes();
                   }}
@@ -1636,19 +1629,19 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 >
                   {isSavingVolumes ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   Salvar volumes
-                </Button>
+                </DashboardActionButton>
               ) : null}
               {hasActiveChapter ? (
-                <Button
+                <DashboardActionButton
                   type="button"
                   size="sm"
-                  variant="destructive"
+                  tone="destructive"
                   onClick={onRequestDeleteChapter}
                   disabled={isDeletingEntity}
                   className="gap-2"
                 >
                   <Trash2 className="h-4 w-4" /> Excluir capítulo
-                </Button>
+                </DashboardActionButton>
               ) : null}
             </>
           }
@@ -1711,25 +1704,27 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           }
           secondaryActions={
             <>
-              <Button variant="outline" size="sm" asChild>
+              <DashboardActionButton size="sm" asChild>
                 <Link to={buildDashboardProjectEditorHref(project.id)}>
                   <ArrowLeft className="h-4 w-4" />
                   <span>Voltar ao projeto</span>
                 </Link>
-              </Button>
+              </DashboardActionButton>
               {hasActiveChapter ? (
                 <>
-                  <Button variant="outline" size="sm" asChild>
+                  <DashboardActionButton size="sm" asChild>
                     <Link to={publicReadingHref} target="_blank" rel="noreferrer">
                       <ExternalLink className="h-4 w-4" />
                       <span>Abrir leitura</span>
                     </Link>
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => onNavigateToHref(neutralHref)}>
+                  </DashboardActionButton>
+                  <DashboardActionButton
+                    size="sm"
+                    onClick={() => onNavigateToHref(neutralHref)}
+                  >
                     <span>Fechar capítulo</span>
-                  </Button>
-                  <Button
-                    variant="outline"
+                  </DashboardActionButton>
+                  <DashboardActionButton
                     size="sm"
                     onClick={() => {
                       if (previousChapterHref) {
@@ -1740,9 +1735,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   >
                     <ChevronLeft className="h-4 w-4" />
                     <span>Anterior</span>
-                  </Button>
-                  <Button
-                    variant="outline"
+                  </DashboardActionButton>
+                  <DashboardActionButton
                     size="sm"
                     onClick={() => {
                       if (nextChapterHref) {
@@ -1753,11 +1747,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   >
                     <span>Próximo</span>
                     <ChevronRight className="h-4 w-4" />
-                  </Button>
+                  </DashboardActionButton>
                 </>
               ) : selectedVolumeNumber !== null ? (
-                <Button
-                  variant="outline"
+                <DashboardActionButton
                   size="sm"
                   data-testid="chapter-close-volume-button"
                   onClick={() => {
@@ -1765,7 +1758,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   }}
                 >
                   <span>Fechar volume</span>
-                </Button>
+                </DashboardActionButton>
               ) : null}
             </>
           }

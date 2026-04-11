@@ -3,14 +3,13 @@ import { useMemo } from "react";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPresetCard";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
-import DashboardLightSelect, {
-  type DashboardLightSelectOption,
-} from "@/components/dashboard/DashboardLightSelect";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import {
+  Combobox,
   Input,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
+import type { ComboboxOption } from "@/components/ui/combobox";
 import {
   dashboardStrongFocusFieldClassName,
   dashboardStrongFocusScopeClassName,
@@ -18,7 +17,6 @@ import {
 } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardSeoRedirectsPanel from "@/components/dashboard/DashboardSeoRedirectsPanel";
 import ReorderControls from "@/components/ReorderControls";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { ColorPicker } from "@/components/ui/color-picker";
@@ -70,7 +68,7 @@ import {
   socialIconMap,
 } from "./shared";
 
-const layoutNavbarIconOptions: DashboardLightSelectOption[] =
+const layoutNavbarIconOptions: ComboboxOption[] =
   navbarIconOptions.map((option) => ({
     value: option.id,
     label: option.label,
@@ -142,7 +140,7 @@ export const DashboardSettingsLayoutTab = () => {
     uploadLinkTypeIcon,
     uploadingKey,
   } = useDashboardSettingsContext();
-  const footerSocialOptions = useMemo<DashboardLightSelectOption[]>(
+  const footerSocialOptions = useMemo<ComboboxOption[]>(
     () =>
       linkTypes.map((option) => ({
         value: option.icon || option.id,
@@ -174,9 +172,8 @@ export const DashboardSettingsLayoutTab = () => {
                 Ordem e URLs usados na navbar do site.
               </p>
             </div>
-            <Button
+            <DashboardActionButton
               type="button"
-              variant="outline"
               onClick={() =>
                 setSettings((prev) => ({
                   ...prev,
@@ -191,7 +188,7 @@ export const DashboardSettingsLayoutTab = () => {
               }
             >
               <Plus className="h-4 w-4" />
-            </Button>
+            </DashboardActionButton>
           </div>
 
           <div className="grid gap-3">
@@ -200,10 +197,11 @@ export const DashboardSettingsLayoutTab = () => {
                 key={`${link.label}-${index}`}
                 className={`${responsiveSvgCardRowClass} md:grid-cols-[0.85fr_1fr_1.6fr_auto]`}
               >
-                <DashboardLightSelect
+                <Combobox
                   ariaLabel={`Ícone do link ${link.label || index + 1}`}
                   value={link.icon || "link"}
                   options={layoutNavbarIconOptions}
+                  searchable={false}
                   onValueChange={(nextIcon) =>
                     setSettings((prev) => {
                       const nextLinks = [...prev.navbar.links];
@@ -254,9 +252,8 @@ export const DashboardSettingsLayoutTab = () => {
                     })
                   }
                 />
-                <Button
+                <DashboardActionButton
                   type="button"
-                  variant="ghost"
                   size="icon"
                   className={responsiveCompactRowDeleteButtonClass}
                   onClick={() =>
@@ -272,7 +269,7 @@ export const DashboardSettingsLayoutTab = () => {
                   }
                 >
                   <Trash2 className="h-4 w-4" />
-                </Button>
+                </DashboardActionButton>
               </div>
             ))}
           </div>
@@ -318,9 +315,8 @@ export const DashboardSettingsLayoutTab = () => {
                 Edite as seções do footer.
               </p>
             </div>
-            <Button
+            <DashboardActionButton
               type="button"
-              variant="outline"
               onClick={() =>
                 setSettings((prev) => ({
                   ...prev,
@@ -335,7 +331,7 @@ export const DashboardSettingsLayoutTab = () => {
               }
             >
               <Plus className="h-4 w-4" />
-            </Button>
+            </DashboardActionButton>
           </div>
 
           <div className="grid gap-6">
@@ -362,9 +358,8 @@ export const DashboardSettingsLayoutTab = () => {
                       })
                     }
                   />
-                  <Button
+                  <DashboardActionButton
                     type="button"
-                    variant="ghost"
                     size="icon"
                     className={responsiveCompactSelfEndDeleteButtonClass}
                     onClick={() =>
@@ -380,7 +375,7 @@ export const DashboardSettingsLayoutTab = () => {
                     }
                   >
                     <Trash2 className="h-4 w-4" />
-                  </Button>
+                  </DashboardActionButton>
                 </div>
                 <div className="grid gap-3">
                   {column.links.map((link, linkIndex) => (
@@ -432,9 +427,8 @@ export const DashboardSettingsLayoutTab = () => {
                           })
                         }
                       />
-                      <Button
+                      <DashboardActionButton
                         type="button"
-                        variant="ghost"
                         size="icon"
                         className={responsiveCompactRowDeleteButtonClass}
                         onClick={() =>
@@ -455,7 +449,7 @@ export const DashboardSettingsLayoutTab = () => {
                         }
                       >
                         <Trash2 className="h-4 w-4" />
-                      </Button>
+                      </DashboardActionButton>
                     </div>
                   ))}
                   <DashboardActionButton
@@ -499,9 +493,8 @@ export const DashboardSettingsLayoutTab = () => {
                 Links exibidos no footer.
               </p>
             </div>
-            <Button
+            <DashboardActionButton
               type="button"
-              variant="outline"
               onClick={() =>
                 setSettings((prev) => ({
                   ...prev,
@@ -520,7 +513,7 @@ export const DashboardSettingsLayoutTab = () => {
               }
             >
               <Plus className="h-4 w-4" />
-            </Button>
+            </DashboardActionButton>
           </div>
 
           <div className="grid gap-3">
@@ -560,9 +553,8 @@ export const DashboardSettingsLayoutTab = () => {
                       className="justify-self-center md:justify-self-auto"
                       buttonClassName="h-7 w-7 md:h-8 md:w-8"
                     />
-                    <Button
+                    <DashboardActionButton
                       type="button"
-                      variant="ghost"
                       size="icon"
                       className={responsiveSvgCardMobileRemoveButtonClass}
                       aria-label={`Remover rede ${link.label || index + 1}`}
@@ -579,14 +571,15 @@ export const DashboardSettingsLayoutTab = () => {
                       }
                     >
                       <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </DashboardActionButton>
                   </div>
-                  <DashboardLightSelect
+                  <Combobox
                     ariaLabel={`Ícone da rede ${link.label || index + 1}`}
                     value={link.icon || "link"}
                     options={footerSocialOptions}
                     placeholder="Cadastre redes sociais na aba acima"
                     disabled={linkTypes.length === 0}
+                    searchable={false}
                     onValueChange={(value) =>
                       setSettings((prev) => {
                         const next = [...prev.footer.socialLinks];
@@ -624,9 +617,8 @@ export const DashboardSettingsLayoutTab = () => {
                       })
                     }
                   />
-                  <Button
+                  <DashboardActionButton
                     type="button"
-                    variant="ghost"
                     size="icon"
                     className={responsiveFooterSocialDesktopRemoveButtonClass}
                     aria-label={`Remover rede ${link.label || index + 1}`}
@@ -643,7 +635,7 @@ export const DashboardSettingsLayoutTab = () => {
                     }
                   >
                     <Trash2 className="h-4 w-4" />
-                  </Button>
+                  </DashboardActionButton>
                 </div>
               </div>
             ))}
@@ -682,9 +674,8 @@ export const DashboardSettingsLayoutTab = () => {
                         })
                       }
                     />
-                    <Button
+                    <DashboardActionButton
                       type="button"
-                      variant="ghost"
                       size="icon"
                       className={responsiveCompactRowDeleteButtonClass}
                       onClick={() =>
@@ -700,7 +691,7 @@ export const DashboardSettingsLayoutTab = () => {
                       }
                     >
                       <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </DashboardActionButton>
                   </div>
                 ))}
               </div>

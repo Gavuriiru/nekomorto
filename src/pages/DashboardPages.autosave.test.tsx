@@ -164,6 +164,14 @@ describe("DashboardPages autosave", () => {
     renderDashboardPages();
     await screen.findByRole("heading", { name: /Gerenciar/i });
 
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Sobre" }));
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "Sobre" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+    });
+
     const addBadgeButton = await screen.findByRole("button", { name: /Adicionar badge/i });
     expectDashboardActionButtonTokens(addBadgeButton, "h-9");
   });

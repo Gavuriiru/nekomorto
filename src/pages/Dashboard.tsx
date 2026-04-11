@@ -14,7 +14,6 @@ import {
 } from "@/components/dashboard/dashboard-motion";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -893,9 +892,11 @@ const Dashboard = () => {
             title="Não foi possível carregar o dashboard"
             description="Tente novamente em alguns instantes."
             action={
-              <Button variant="outline" onClick={() => setReloadTick((previous) => previous + 1)}>
+              <DashboardActionButton
+                onClick={() => setReloadTick((previous) => previous + 1)}
+              >
                 Tentar novamente
-              </Button>
+              </DashboardActionButton>
             }
           />
         ) : (
@@ -1178,13 +1179,12 @@ const Dashboard = () => {
                         >
                           {operationalAlertsError}
                         </div>
-                        <Button
-                          variant="outline"
+                        <DashboardActionButton
                           size="sm"
                           onClick={() => setReloadTick((value) => value + 1)}
                         >
                           Tentar novamente
-                        </Button>
+                        </DashboardActionButton>
                       </div>
                     ) : (
                       <div className="mt-4 space-y-4">
@@ -1383,52 +1383,50 @@ const Dashboard = () => {
                 >
                   <p className="text-sm">{DASHBOARD_WIDGET_LABELS[widgetId]}</p>
                   <div className="flex items-center gap-1">
-                    <Button
+                    <DashboardActionButton
                       type="button"
                       size="icon"
-                      variant="ghost"
                       onClick={() => moveDraftWidget(widgetId, -1)}
                       disabled={!isSelected || index <= 0}
                     >
                       <ArrowUp className="h-4 w-4" />
-                    </Button>
-                    <Button
+                    </DashboardActionButton>
+                    <DashboardActionButton
                       type="button"
                       size="icon"
-                      variant="ghost"
                       onClick={() => moveDraftWidget(widgetId, 1)}
                       disabled={!isSelected || index < 0 || index >= customDraftWidgets.length - 1}
                     >
                       <ArrowDown className="h-4 w-4" />
-                    </Button>
-                    <Button
+                    </DashboardActionButton>
+                    <DashboardActionButton
                       type="button"
-                      variant={isSelected ? "default" : "outline"}
+                      tone={isSelected ? "primary" : "neutral"}
                       onClick={() => toggleDraftWidget(widgetId)}
                     >
                       {isSelected ? "Ativo" : "Oculto"}
-                    </Button>
+                    </DashboardActionButton>
                   </div>
                 </div>
               );
             })}
           </div>
           <DialogFooter className="gap-2 sm:justify-between">
-            <Button
+            <DashboardActionButton
               type="button"
-              variant="outline"
               onClick={() => void restoreRolePreset()}
               disabled={isSavingPreferences}
             >
               Restaurar padrão da função
-            </Button>
-            <Button
+            </DashboardActionButton>
+            <DashboardActionButton
               type="button"
+              tone="primary"
               onClick={() => void applyCustomDraft()}
               disabled={isSavingPreferences || customDraftWidgets.length === 0}
             >
               {isSavingPreferences ? "Salvando..." : "Salvar painel"}
-            </Button>
+            </DashboardActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

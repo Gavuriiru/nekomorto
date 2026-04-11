@@ -1,9 +1,9 @@
 import type { Project } from "@/data/projects";
 import type { ContentVersion } from "@/types/editorial";
 
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -76,15 +76,14 @@ export const DashboardPostVersionDialogs = ({
               escolhida.
             </p>
             {editingPost ? (
-              <Button
+              <DashboardActionButton
                 type="button"
                 size="sm"
-                variant="outline"
                 disabled={isCreatingManualVersion}
                 onClick={() => void onCreateManualVersion()}
               >
                 {isCreatingManualVersion ? "Criando..." : "Criar versão agora"}
-              </Button>
+              </DashboardActionButton>
             ) : null}
           </div>
           {isLoadingVersions ? (
@@ -102,13 +101,12 @@ export const DashboardPostVersionDialogs = ({
               className="border-0 bg-transparent p-0"
               action={
                 editingPost ? (
-                  <Button
+                  <DashboardActionButton
                     type="button"
-                    variant="outline"
                     onClick={() => void loadVersionHistory(editingPost.id)}
                   >
                     Recarregar
-                  </Button>
+                  </DashboardActionButton>
                 ) : null
               }
             />
@@ -156,16 +154,15 @@ export const DashboardPostVersionDialogs = ({
                     </div>
                     <div className="shrink-0 self-start">
                       {isRestorable ? (
-                        <Button
+                        <DashboardActionButton
                           type="button"
                           size="sm"
-                          variant="outline"
                           className="gap-2"
                           onClick={() => setRollbackTargetVersion(version)}
                         >
                           <RotateCcw className="h-4 w-4" />
                           {"Restaurar esta versão"}
-                        </Button>
+                        </DashboardActionButton>
                       ) : null}
                     </div>
                   </div>
@@ -179,9 +176,12 @@ export const DashboardPostVersionDialogs = ({
             </div>
           )}
           <div className="flex justify-end">
-            <Button type="button" variant="outline" onClick={() => onVersionHistoryOpenChange(false)}>
+            <DashboardActionButton
+              type="button"
+              onClick={() => onVersionHistoryOpenChange(false)}
+            >
               Fechar
-            </Button>
+            </DashboardActionButton>
           </div>
         </div>
       </DialogContent>
@@ -293,21 +293,21 @@ export const DashboardPostVersionDialogs = ({
           </Card>
         ) : null}
         <div className="flex justify-end gap-3">
-          <Button
+          <DashboardActionButton
             type="button"
-            variant="ghost"
             disabled={isRollingBackVersion}
             onClick={() => setRollbackTargetVersion(null)}
           >
             Cancelar
-          </Button>
-          <Button
+          </DashboardActionButton>
+          <DashboardActionButton
             type="button"
+            tone="primary"
             disabled={isRollingBackVersion}
             onClick={() => void onConfirmRollbackVersion()}
           >
             {isRollingBackVersion ? "Restaurando..." : "Confirmar rollback"}
-          </Button>
+          </DashboardActionButton>
         </div>
       </DialogContent>
     </Dialog>

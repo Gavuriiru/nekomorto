@@ -265,6 +265,27 @@ describe("Dashboard overview async states", () => {
     });
   });
 
+  it("usa o padrao estavel no fallback de login do header", async () => {
+    installDashboardApiMock({
+      userResponse: mockJsonResponse(false, { error: "unauthorized" }, 401),
+      overviewResponse: mockJsonResponse(true, buildOverviewPayload()),
+      preferencesResponse: mockJsonResponse(true, { preferences: {} }),
+      operationalAlertsResponse: mockJsonResponse(true, buildOperationalAlertsPayload()),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+
+    const loginLink = await screen.findByRole("link", { name: "Fazer login" });
+    expectOverviewActionLinkClasses(loginLink);
+    expect(classTokens(loginLink)).toContain("h-10");
+    expect(loginLink).toHaveAttribute("href", "/login");
+    expect(screen.queryByRole("button", { name: /Exportar relat/i })).not.toBeInTheDocument();
+  });
+
   it("revalida o bootstrap uma vez no fallback e nao recoloca o skeleton apos rerender", async () => {
     installDashboardApiMock({
       userResponse: mockJsonResponse(true, dashboardUser),

@@ -1,10 +1,10 @@
 import { useRef, type Dispatch, type SetStateAction } from "react";
 
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import AvatarCropWorkspace from "@/components/image-library/AvatarCropWorkspace";
 import FocalPointWorkspace from "@/components/image-library/FocalPointWorkspace";
 import type { LibraryImageItem } from "@/components/image-library/types";
 import { toEffectiveName, toLibraryItemRenderUrl } from "@/components/image-library/utils";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -161,22 +161,24 @@ export const ImageLibraryFocalPointDialog = ({
               />
             </div>
             <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button
+              <DashboardActionButton
                 type="button"
-                variant="outline"
+                size="sm"
                 disabled={isSavingFocal}
                 onClick={() => setFocalTarget(null)}
               >
                 Cancelar
-              </Button>
-              <Button
+              </DashboardActionButton>
+              <DashboardActionButton
                 ref={saveButtonRef}
                 type="button"
+                size="sm"
+                tone="primary"
                 disabled={isSavingFocal}
                 onClick={() => void saveFocalPoint()}
               >
                 {isSavingFocal ? "Salvando..." : "Salvar ponto focal"}
-              </Button>
+              </DashboardActionButton>
             </div>
           </>
         ) : null}
@@ -220,18 +222,19 @@ export const ImageLibraryDeleteDialog = ({
           </DialogDescription>
         </DialogHeader>
         <div className="flex justify-end gap-2">
-          <Button
+          <DashboardActionButton
             ref={cancelButtonRef}
             type="button"
-            variant="outline"
+            size="sm"
             onClick={() => setDeleteTarget(null)}
             disabled={isDeleting}
           >
             Cancelar
-          </Button>
-          <Button
+          </DashboardActionButton>
+          <DashboardActionButton
             type="button"
-            variant="destructive"
+            size="sm"
+            tone="destructive"
             disabled={isDeleting}
             onClick={() => {
               if (!deleteTarget) {
@@ -244,7 +247,7 @@ export const ImageLibraryDeleteDialog = ({
             }}
           >
             {isDeleting ? "Excluindo..." : "Excluir"}
-          </Button>
+          </DashboardActionButton>
         </div>
       </DialogContent>
     </Dialog>
@@ -305,9 +308,9 @@ export const ImageLibraryAltTextDialog = ({
             placeholder="Descreva a imagem, se quiser"
           />
           <div className="flex justify-end gap-2">
-            <Button
+            <DashboardActionButton
               type="button"
-              variant="outline"
+              size="sm"
               onClick={() => {
                 setAltTextTarget(null);
                 setAltTextValue("");
@@ -315,14 +318,16 @@ export const ImageLibraryAltTextDialog = ({
               disabled={isSavingAltText}
             >
               Cancelar
-            </Button>
-            <Button
+            </DashboardActionButton>
+            <DashboardActionButton
               type="button"
+              size="sm"
+              tone="primary"
               disabled={isSavingAltText}
               onClick={() => void handleAltTextConfirm()}
             >
               {isSavingAltText ? "Salvando..." : "Salvar"}
-            </Button>
+            </DashboardActionButton>
           </div>
         </div>
       </DialogContent>
@@ -375,16 +380,18 @@ export const ImageLibraryRenameDialog = ({
             onChange={(event) => setRenameValue(event.target.value)}
           />
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setRenameTarget(null)}>
+            <DashboardActionButton type="button" size="sm" onClick={() => setRenameTarget(null)}>
               Cancelar
-            </Button>
-            <Button
+            </DashboardActionButton>
+            <DashboardActionButton
               type="button"
+              size="sm"
+              tone="primary"
               disabled={isRenaming || !renameValue.trim()}
               onClick={() => void handleRenameConfirm()}
             >
               {isRenaming ? "Renomeando..." : "Renomear"}
-            </Button>
+            </DashboardActionButton>
           </div>
         </div>
       </DialogContent>

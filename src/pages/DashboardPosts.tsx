@@ -10,17 +10,13 @@ import {
 } from "react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
-import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import DashboardActionButton, { default as Button } from "@/components/dashboard/DashboardActionButton";
 import DashboardSegmentedActionButton from "@/components/dashboard/DashboardSegmentedActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardEditorBackdrop from "@/components/dashboard/DashboardEditorBackdrop";
 import {
+  Combobox,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from "@/components/dashboard/dashboard-form-controls";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
@@ -40,7 +36,6 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -136,6 +131,22 @@ const postStatusLabels = {
   scheduled: "Agendado",
   published: "Publicado",
 } as const;
+
+const postStatusOptions = [
+  { value: "draft", label: postStatusLabels.draft },
+  { value: "scheduled", label: postStatusLabels.scheduled },
+  { value: "published", label: postStatusLabels.published },
+];
+
+const postSortOptions = [
+  { value: "recent", label: "Mais recentes" },
+  { value: "alpha", label: "Ordem alfabética" },
+  { value: "tags", label: "Tags" },
+  { value: "projects", label: "Projetos" },
+  { value: "status", label: "Status" },
+  { value: "views", label: "Visualizações" },
+  { value: "comments", label: "Comentários" },
+];
 
 const postEditorSectionHeaderTextClassName = "min-w-0 flex-1 space-y-1 text-left";
 const postEditorSectionTitleClassName =
@@ -256,7 +267,6 @@ const DashboardPosts = () => {
   const [projectFilterId, setProjectFilterId] = useState<string>(
     () => searchParams.get("project") || "all",
   );
-  const [projectFilterQuery, setProjectFilterQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<PostRecord | null>(null);
   const [tagInput, setTagInput] = useState("");
   const tagInputRef = useRef<HTMLInputElement | null>(null);
@@ -1807,14 +1817,13 @@ const DashboardPosts = () => {
                                 <DashboardFieldStack>
                                   <div className="flex items-center justify-between gap-2">
                                     <Label htmlFor="post-slug">Link</Label>
-                                    <Button
+                                    <DashboardActionButton
                                       type="button"
-                                      variant="ghost"
-                                      size="sm"
+                                      size="compact"
                                       onClick={() => setIsSlugCustom((prev) => !prev)}
                                     >
                                       {isSlugCustom ? "Automático" : "Personalizar"}
-                                    </Button>
+                                    </DashboardActionButton>
                                   </div>
                                   <Input
                                     id="post-slug"
@@ -1844,7 +1853,8 @@ const DashboardPosts = () => {
                                 </DashboardFieldStack>
                                 <DashboardFieldStack>
                                   <Label htmlFor="post-status">Status</Label>
-                                  <Select
+                                  <Combobox
+                                    id="post-status"
                                     value={formState.status}
                                     onValueChange={(value) =>
                                       setFormState((prev) => ({
@@ -1852,16 +1862,11 @@ const DashboardPosts = () => {
                                         status: value as "draft" | "scheduled" | "published",
                                       }))
                                     }
-                                  >
-                                    <SelectTrigger id="post-status">
-                                      <SelectValue placeholder="Selecione" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="draft">Rascunho</SelectItem>
-                                      <SelectItem value="scheduled">Agendado</SelectItem>
-                                      <SelectItem value="published">Publicado</SelectItem>
-                                    </SelectContent>
-                                  </Select>
+                                    ariaLabel="Selecionar status"
+                                    options={postStatusOptions}
+                                    placeholder="Selecione"
+                                    searchable={false}
+                                  />
                                 </DashboardFieldStack>
                                 <DashboardFieldStack>
                                   <Label htmlFor="post-date">Publicação</Label>
@@ -1879,15 +1884,14 @@ const DashboardPosts = () => {
                                           onChange={handlePublishTimeChange}
                                           className="flex-1"
                                         />
-                                        <Button
+                                        <DashboardActionButton
                                           type="button"
-                                          size="sm"
-                                          variant="ghost"
+                                          size="compact"
                                           className="h-8 px-2 text-xs"
                                           onClick={handleSetNow}
                                         >
                                           Agora
-                                        </Button>
+                                        </DashboardActionButton>
                                       </div>
                                     </div>
                                   </MuiDateTimeFieldsProvider>
@@ -1962,7 +1966,7 @@ const DashboardPosts = () => {
                               </div>
                               <DashboardFieldStack className={editorSectionContentClassName}>
                                 <Label>Projeto associado</Label>
-                                <Select
+                                <Combobox
                                   value={formState.projectId || "none"}
                                   onValueChange={(value) =>
                                     setFormState((prev) => ({
@@ -1970,19 +1974,19 @@ const DashboardPosts = () => {
                                       projectId: value === "none" ? "" : value,
                                     }))
                                   }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Selecione" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="none">Nenhum</SelectItem>
-                                    {projects.map((project) => (
-                                      <SelectItem key={project.id} value={project.id}>
-                                        {project.title}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                  ariaLabel="Selecionar projeto associado"
+                                  options={[
+                                    { value: "none", label: "Nenhum" },
+                                    ...projects.map((project) => ({
+                                      value: project.id,
+                                      label: project.title,
+                                    })),
+                                  ]}
+                                  placeholder="Selecione"
+                                  searchable
+                                  searchPlaceholder="Buscar projeto"
+                                  emptyMessage="Nenhum projeto encontrado."
+                                />
                               </DashboardFieldStack>
                             </section>
 
@@ -2085,21 +2089,21 @@ const DashboardPosts = () => {
                       <div className="project-editor-footer sticky bottom-0 z-20 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex-row md:items-center md:justify-between md:px-6 md:py-2.5 lg:px-8">
                         <div className="flex flex-wrap items-center gap-2">
                           {editingPostHasRestorableHistory ? (
-                            <Button variant="outline" onClick={() => void openVersionHistory()}>
+                            <DashboardActionButton size="sm" onClick={() => void openVersionHistory()}>
                               Histórico
-                            </Button>
+                            </DashboardActionButton>
                           ) : null}
                           {editingPost ? (
-                            <Button variant="outline" onClick={handleDelete}>
+                            <DashboardActionButton size="sm" tone="destructive" onClick={handleDelete}>
                               Excluir
-                            </Button>
+                            </DashboardActionButton>
                           ) : null}
                         </div>
                         <div className="flex flex-wrap items-center justify-end gap-2">
                           {editorPublicHref ? (
-                            <Button
+                            <DashboardActionButton
                               type="button"
-                              variant="outline"
+                              size="sm"
                               className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
                               asChild
                             >
@@ -2107,31 +2111,45 @@ const DashboardPosts = () => {
                                 <Eye className="h-4 w-4" aria-hidden="true" />
                                 <span className="sr-only md:not-sr-only">Visualizar página</span>
                               </Link>
-                            </Button>
+                            </DashboardActionButton>
                           ) : null}
-                          <Button variant="ghost" onClick={requestCloseEditor}>
+                          <DashboardActionButton size="sm" onClick={requestCloseEditor}>
                             Cancelar
-                          </Button>
+                          </DashboardActionButton>
                           {editingPost ? (
                             <>
-                              <Button onClick={() => handleSave()}>Salvar</Button>
+                              <DashboardActionButton size="sm" tone="primary" onClick={() => handleSave()}>
+                                Salvar
+                              </DashboardActionButton>
                               {formState.status === "draft" ? (
-                                <Button onClick={() => handleSave("published")}>
+                                <DashboardActionButton
+                                  size="sm"
+                                  tone="primary"
+                                  onClick={() => handleSave("published")}
+                                >
                                   Publicar agora
-                                </Button>
+                                </DashboardActionButton>
                               ) : null}
                             </>
                           ) : (
                             <>
-                              <Button variant="ghost" onClick={() => handleSave("draft")}>
+                              <DashboardActionButton size="sm" onClick={() => handleSave("draft")}>
                                 Salvar rascunho
-                              </Button>
-                              <Button variant="secondary" onClick={() => handleSave("scheduled")}>
+                              </DashboardActionButton>
+                              <DashboardActionButton
+                                size="sm"
+                                tone="primary"
+                                onClick={() => handleSave("scheduled")}
+                              >
                                 Agendar
-                              </Button>
-                              <Button onClick={() => handleSave("published")}>
+                              </DashboardActionButton>
+                              <DashboardActionButton
+                                size="sm"
+                                tone="primary"
+                                onClick={() => handleSave("published")}
+                              >
                                 Publicar agora
-                              </Button>
+                              </DashboardActionButton>
                             </>
                           )}
                         </div>
@@ -2156,58 +2174,40 @@ const DashboardPosts = () => {
                     placeholder="Buscar por título, slug, autor, tags..."
                   />
                 </div>
-                <Select
+                <Combobox
                   value={sortMode}
                   onValueChange={(value) => {
                     setCurrentPage(1);
                     setSortMode(value as typeof sortMode);
                   }}
-                >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Ordenar por" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="recent">Mais recentes</SelectItem>
-                    <SelectItem value="alpha">Ordem alfabética</SelectItem>
-                    <SelectItem value="tags">Tags</SelectItem>
-                    <SelectItem value="projects">Projetos</SelectItem>
-                    <SelectItem value="status">Status</SelectItem>
-                    <SelectItem value="views">Visualizações</SelectItem>
-                    <SelectItem value="comments">Comentários</SelectItem>
-                  </SelectContent>
-                </Select>
+                  ariaLabel="Ordenar posts"
+                  options={postSortOptions}
+                  placeholder="Ordenar por"
+                  searchable={false}
+                  className="w-[200px]"
+                />
                 {sortMode === "projects" ? (
-                  <Select
+                  <Combobox
                     value={projectFilterId}
                     disabled={!hasResolvedProjects}
                     onValueChange={(value) => {
                       setCurrentPage(1);
                       setProjectFilterId(value);
                     }}
-                  >
-                    <SelectTrigger className="w-[240px]">
-                      <SelectValue placeholder="Selecionar projeto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="p-2">
-                        <Input
-                          value={projectFilterQuery}
-                          onChange={(event) => setProjectFilterQuery(event.target.value)}
-                          placeholder="Buscar projeto..."
-                        />
-                      </div>
-                      <SelectItem value="all">Todos os projetos</SelectItem>
-                      {projects
-                        .filter((project) =>
-                          project.title.toLowerCase().includes(projectFilterQuery.toLowerCase()),
-                        )
-                        .map((project) => (
-                          <SelectItem key={project.id} value={project.id}>
-                            {project.title}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                    ariaLabel="Selecionar projeto"
+                    options={[
+                      { value: "all", label: "Todos os projetos" },
+                      ...projects.map((project) => ({
+                        value: project.id,
+                        label: project.title,
+                      })),
+                    ]}
+                    placeholder="Selecionar projeto"
+                    searchable
+                    searchPlaceholder="Buscar projeto"
+                    emptyMessage="Nenhum projeto encontrado."
+                    className="w-[240px]"
+                  />
                 ) : null}
               </div>
               <div className="flex items-center gap-2">
@@ -2231,7 +2231,7 @@ const DashboardPosts = () => {
                     Calendário
                   </DashboardSegmentedActionButton>
                 </div>
-                <Badge variant="secondary" className="text-xs uppercase animate-slide-up opacity-0">
+                <Badge variant="static" className="text-xs uppercase animate-slide-up opacity-0">
                   {sortedPosts.length} posts
                 </Badge>
               </div>
@@ -2241,9 +2241,9 @@ const DashboardPosts = () => {
                 <AlertTitle>Atualização parcial indisponível</AlertTitle>
                 <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
                   <span>Mantendo a última lista de posts carregada.</span>
-                  <Button variant="outline" size="sm" onClick={refreshPosts}>
+                  <DashboardActionButton size="sm" onClick={refreshPosts}>
                     Tentar novamente
-                  </Button>
+                  </DashboardActionButton>
                 </AlertDescription>
               </Alert>
             ) : hasBlockingLoadError ? (
@@ -2253,9 +2253,9 @@ const DashboardPosts = () => {
                 description="Confira a conexão e tente atualizar os dados."
                 className={dashboardPageLayoutTokens.surfaceSolid}
                 action={
-                  <Button variant="outline" onClick={refreshPosts}>
+                  <DashboardActionButton onClick={refreshPosts}>
                     Recarregar
-                  </Button>
+                  </DashboardActionButton>
                 }
               />
             ) : showPostsSurfaceSkeleton ? (
@@ -2323,9 +2323,8 @@ const DashboardPosts = () => {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button
+                      <DashboardActionButton
                         type="button"
-                        variant="outline"
                         size="sm"
                         onClick={() =>
                           setCalendarMonthCursor(
@@ -2334,10 +2333,9 @@ const DashboardPosts = () => {
                         }
                       >
                         Mês anterior
-                      </Button>
-                      <Button
+                      </DashboardActionButton>
+                      <DashboardActionButton
                         type="button"
-                        variant="outline"
                         size="sm"
                         onClick={() =>
                           setCalendarMonthCursor(
@@ -2346,7 +2344,7 @@ const DashboardPosts = () => {
                         }
                       >
                         Próximo mês
-                      </Button>
+                      </DashboardActionButton>
                     </div>
                   </div>
                   {isCalendarLoading ? (
@@ -2363,13 +2361,12 @@ const DashboardPosts = () => {
                       description="Tente novamente em alguns instantes."
                       className="border-0 bg-transparent p-0"
                       action={
-                        <Button
+                        <DashboardActionButton
                           type="button"
-                          variant="outline"
                           onClick={() => void loadEditorialCalendar(calendarMonthCursor)}
                         >
                           Recarregar
-                        </Button>
+                        </DashboardActionButton>
                       }
                     />
                   ) : (
@@ -2561,43 +2558,38 @@ const DashboardPosts = () => {
                                 ) : null}
                               </div>
                               <div className="flex shrink-0 items-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
+                                <DashboardActionButton
+                                  size="icon-sm"
                                   title="Visualizar"
-                                  className="h-8 w-8"
                                   onClick={(event) => event.stopPropagation()}
                                   asChild
                                 >
                                   <Link to={`/postagem/${post.slug}`}>
                                     <Eye className="h-3.5 w-3.5" />
                                   </Link>
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
+                                </DashboardActionButton>
+                                <DashboardActionButton
+                                  size="icon-sm"
                                   title="Copiar link"
-                                  className="h-8 w-8"
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     handleCopyLink(post.slug);
                                   }}
                                 >
                                   <Copy className="h-3.5 w-3.5" />
-                                </Button>
+                                </DashboardActionButton>
                                 {canManagePosts ? (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
+                                  <DashboardActionButton
+                                    tone="destructive"
+                                    size="icon-sm"
                                     title="Excluir"
-                                    className="h-8 w-8"
                                     onClick={(event) => {
                                       event.stopPropagation();
                                       handleDeletePost(post);
                                     }}
                                   >
                                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                  </Button>
+                                  </DashboardActionButton>
                                 ) : null}
                               </div>
                             </div>
@@ -2717,13 +2709,9 @@ const DashboardPosts = () => {
                           <span className="text-xs text-muted-foreground">
                             Restam {getRestoreRemainingLabel(post)}
                           </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleRestorePost(post)}
-                          >
+                          <DashboardActionButton size="sm" onClick={() => handleRestorePost(post)}>
                             Restaurar
-                          </Button>
+                          </DashboardActionButton>
                         </div>
                       </div>
                     ))}
@@ -2781,15 +2769,15 @@ const DashboardPosts = () => {
                 escolhida.
               </p>
               {editingPost ? (
-                <Button
+                <DashboardActionButton
                   type="button"
                   size="sm"
-                  variant="outline"
+                  tone="primary"
                   disabled={isCreatingManualVersion}
                   onClick={() => void handleCreateManualVersion()}
                 >
                   {isCreatingManualVersion ? "Criando..." : "Criar versão agora"}
-                </Button>
+                </DashboardActionButton>
               ) : null}
             </div>
             {isLoadingVersions ? (
@@ -2807,13 +2795,12 @@ const DashboardPosts = () => {
                 className="border-0 bg-transparent p-0"
                 action={
                   editingPost ? (
-                    <Button
+                    <DashboardActionButton
                       type="button"
-                      variant="outline"
                       onClick={() => void loadVersionHistory(editingPost.id)}
                     >
                       Recarregar
-                    </Button>
+                    </DashboardActionButton>
                   ) : null
                 }
               />
@@ -2864,16 +2851,14 @@ const DashboardPosts = () => {
                       </div>
                       <div className="shrink-0 self-start">
                         {isRestorable ? (
-                          <Button
+                          <DashboardActionButton
                             type="button"
                             size="sm"
-                            variant="outline"
-                            className="gap-2"
                             onClick={() => setRollbackTargetVersion(version)}
                           >
                             <RotateCcw className="h-4 w-4" />
                             {"Restaurar esta versão"}
-                          </Button>
+                          </DashboardActionButton>
                         ) : null}
                       </div>
                     </div>
@@ -2887,13 +2872,12 @@ const DashboardPosts = () => {
               </div>
             )}
             <div className="flex justify-end">
-              <Button
+              <DashboardActionButton
                 type="button"
-                variant="outline"
                 onClick={() => setIsVersionHistoryOpen(false)}
               >
                 Fechar
-              </Button>
+              </DashboardActionButton>
             </div>
           </div>
         </DialogContent>
@@ -3005,21 +2989,23 @@ const DashboardPosts = () => {
             </Card>
           ) : null}
           <div className="flex justify-end gap-3">
-            <Button
+            <DashboardActionButton
               type="button"
-              variant="ghost"
+              size="sm"
               disabled={isRollingBackVersion}
               onClick={() => setRollbackTargetVersion(null)}
             >
               Cancelar
-            </Button>
-            <Button
+            </DashboardActionButton>
+            <DashboardActionButton
               type="button"
+              tone="primary"
+              size="sm"
               disabled={isRollingBackVersion}
               onClick={() => void handleConfirmRollbackVersion()}
             >
               {isRollingBackVersion ? "Restaurando..." : "Confirmar rollback"}
-            </Button>
+            </DashboardActionButton>
           </div>
         </DialogContent>
       </Dialog>
@@ -3031,23 +3017,25 @@ const DashboardPosts = () => {
             <DialogDescription>{confirmDescription}</DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3">
-            <Button
-              variant="ghost"
+            <DashboardActionButton
+              size="sm"
               onClick={() => {
                 confirmCancelRef.current?.();
                 setConfirmOpen(false);
               }}
             >
               Cancelar
-            </Button>
-            <Button
+            </DashboardActionButton>
+            <DashboardActionButton
+              size="sm"
+              tone="primary"
               onClick={() => {
                 confirmActionRef.current?.();
                 setConfirmOpen(false);
               }}
             >
               Confirmar
-            </Button>
+            </DashboardActionButton>
           </div>
         </DialogContent>
       </Dialog>
@@ -3070,12 +3058,12 @@ const DashboardPosts = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3">
-            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
+            <DashboardActionButton size="sm" onClick={() => setDeleteTarget(null)}>
               Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete}>
+            </DashboardActionButton>
+            <DashboardActionButton size="sm" tone="destructive" onClick={handleConfirmDelete}>
               Excluir
-            </Button>
+            </DashboardActionButton>
           </div>
         </DialogContent>
       </Dialog>

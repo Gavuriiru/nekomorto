@@ -286,6 +286,25 @@ const expectDashboardActionButtonTokens = (element: HTMLElement, sizeToken: "h-9
   expect(tokens).not.toContain("pressable");
 };
 
+const expectPrimaryDashboardActionButtonTokens = (
+  element: HTMLElement,
+  sizeToken: "h-9" | "h-10",
+) => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "rounded-xl",
+      "bg-primary",
+      "text-primary-foreground",
+      "font-semibold",
+      sizeToken,
+    ]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
 describe("DashboardProjectsEditor edit query", () => {
   beforeEach(() => {
     scrollIntoViewMock.mockReset();
@@ -915,16 +934,18 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(footerLinks[0].className).toContain("md:w-auto");
     expect(footerLinks[1].className).toContain("w-10");
     expect(footerLinks[1].className).toContain("md:w-auto");
+    expectDashboardActionButtonTokens(footerLinks[0], "h-9");
+    expectDashboardActionButtonTokens(footerLinks[1], "h-9");
     expect(within(footerLinks[0]).getByText("Conteúdo").className).toContain("sr-only");
     expect(within(footerLinks[0]).getByText("Conteúdo").className).toContain("md:not-sr-only");
     expect(within(footerLinks[1]).getByText("Visualizar página").className).toContain("sr-only");
     expect(within(footerLinks[1]).getByText("Visualizar página").className).toContain(
       "md:not-sr-only",
     );
-    expect(within(footerColumns[1]).getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
-    expect(
-      within(footerColumns[1]).getByRole("button", { name: "Salvar projeto" }),
-    ).toBeInTheDocument();
+    const cancelButton = within(footerColumns[1]).getByRole("button", { name: "Cancelar" });
+    const saveButton = within(footerColumns[1]).getByRole("button", { name: "Salvar projeto" });
+    expectDashboardActionButtonTokens(cancelButton, "h-9");
+    expectPrimaryDashboardActionButtonTokens(saveButton, "h-9");
   });
 
   it("exibe o link da página pública em nova aba só para projeto salvo com os textos corrigidos no bloco novo", async () => {

@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -64,39 +64,39 @@ const ChapterEditorDialogs = ({
           </div>
         </DialogHeader>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-          <Button type="button" variant="ghost" onClick={onLeaveDialogCancel}>
+          <DashboardActionButton type="button" onClick={onLeaveDialogCancel}>
             Cancelar
-          </Button>
-          <Button type="button" variant="outline" onClick={onLeaveDialogDiscardAndContinue}>
+          </DashboardActionButton>
+          <DashboardActionButton type="button" onClick={onLeaveDialogDiscardAndContinue}>
             Descartar e continuar
-          </Button>
+          </DashboardActionButton>
           {leaveDialogState?.chapterDirty && !leaveDialogState?.mangaWorkflowDirty ? (
             <>
-              <Button
+              <DashboardActionButton
                 type="button"
-                variant="outline"
                 onClick={() => {
                   void onLeaveDialogSaveAndContinue("draft");
                 }}
               >
                 Salvar como rascunho e continuar
-              </Button>
-              <Button
+              </DashboardActionButton>
+              <DashboardActionButton
                 type="button"
+                tone="primary"
                 onClick={() => {
                   void onLeaveDialogSaveAndContinue("published");
                 }}
               >
                 Publicar e continuar
-              </Button>
+              </DashboardActionButton>
             </>
           ) : (
-            <Button
+            <DashboardActionButton
               type="button"
-              variant={
+              tone={
                 leaveDialogState?.mangaWorkflowDirty || leaveDialogState?.chapterDirty
-                  ? "outline"
-                  : "default"
+                  ? "neutral"
+                  : "primary"
               }
               onClick={() => {
                 void onLeaveDialogSaveAndContinue("draft");
@@ -105,7 +105,7 @@ const ChapterEditorDialogs = ({
               {leaveDialogState?.mangaWorkflowDirty || leaveDialogState?.chapterDirty
                 ? "Salvar como rascunho e continuar"
                 : "Salvar volume e continuar"}
-            </Button>
+            </DashboardActionButton>
           )}
         </div>
       </DialogContent>
@@ -125,9 +125,13 @@ const ChapterEditorDialogs = ({
           <DialogDescription>{volumeRequiredSaveDialogDescription}</DialogDescription>
         </DialogHeader>
         <div className="flex justify-end">
-          <Button type="button" onClick={onCloseVolumeRequiredSaveDialog}>
+          <DashboardActionButton
+            type="button"
+            tone="primary"
+            onClick={onCloseVolumeRequiredSaveDialog}
+          >
             Entendi
-          </Button>
+          </DashboardActionButton>
         </div>
       </DialogContent>
     </Dialog>

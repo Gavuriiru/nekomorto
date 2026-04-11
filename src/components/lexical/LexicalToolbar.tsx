@@ -22,13 +22,7 @@ import {
 } from "@lexical/rich-text";
 import { $createCodeNode, $isCodeNode } from "@lexical/code";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { toast } from "@/components/ui/use-toast";
 import {
   AlignCenter,
@@ -54,6 +48,15 @@ import {
 } from "lucide-react";
 
 type BlockType = "paragraph" | "h1" | "h2" | "h3" | "quote" | "code";
+
+const blockTypeOptions = [
+  { value: "paragraph", label: "Parágrafo" },
+  { value: "h1", label: "H1", icon: Heading1 },
+  { value: "h2", label: "H2", icon: Heading2 },
+  { value: "h3", label: "H3", icon: Heading3 },
+  { value: "quote", label: "Citação", icon: Quote },
+  { value: "code", label: "Código", icon: Code },
+];
 
 type LexicalToolbarProps = {
   onRequestImage?: () => void;
@@ -113,22 +116,6 @@ const LexicalToolbar = ({
 }: LexicalToolbarProps) => {
   const [editor] = useLexicalComposerContext();
   const [blockType, setBlockType] = React.useState<BlockType>("paragraph");
-  const blockLabel = React.useMemo(() => {
-    switch (blockType) {
-      case "h1":
-        return "H1";
-      case "h2":
-        return "H2";
-      case "h3":
-        return "H3";
-      case "quote":
-        return "Citação";
-      case "code":
-        return "Código";
-      default:
-        return "Parágrafo";
-    }
-  }, [blockType]);
   const requireSelection = React.useCallback(
     (command: Parameters<typeof editor.dispatchCommand>[0]) => {
       let hasRange = false;
@@ -220,51 +207,19 @@ const LexicalToolbar = ({
 
   return (
     <div className="lexical-toolbar">
-      <Select
+      <Combobox
         value={blockType}
         onValueChange={(value) => {
           const next = value as BlockType;
           setBlockType(next);
           applyBlockType(editor, next);
         }}
-      >
-        <SelectTrigger className="h-9 w-[160px]">
-          <SelectValue placeholder="Bloco">{blockLabel}</SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="paragraph">Parágrafo</SelectItem>
-          <SelectItem value="h1">
-            <div className="flex items-center gap-2">
-              <Heading1 className="h-4 w-4" />
-              H1
-            </div>
-          </SelectItem>
-          <SelectItem value="h2">
-            <div className="flex items-center gap-2">
-              <Heading2 className="h-4 w-4" />
-              H2
-            </div>
-          </SelectItem>
-          <SelectItem value="h3">
-            <div className="flex items-center gap-2">
-              <Heading3 className="h-4 w-4" />
-              H3
-            </div>
-          </SelectItem>
-          <SelectItem value="quote">
-            <div className="flex items-center gap-2">
-              <Quote className="h-4 w-4" />
-              Citação
-            </div>
-          </SelectItem>
-          <SelectItem value="code">
-            <div className="flex items-center gap-2">
-              <Code className="h-4 w-4" />
-              Código
-            </div>
-          </SelectItem>
-        </SelectContent>
-      </Select>
+        ariaLabel="Bloco"
+        options={blockTypeOptions}
+        placeholder="Bloco"
+        searchable={false}
+        className="h-9 w-[160px]"
+      />
 
       <div className="flex flex-wrap items-center gap-1">
         <Button

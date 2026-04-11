@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import { Switch } from "@/components/ui/switch";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import type { AutosaveStatus } from "@/hooks/use-autosave";
@@ -95,15 +95,6 @@ const DashboardAutosaveStatus = ({
 
   const showErrorState = enabled && status === "error";
   const errorFeedbackText = errorMessage?.trim() || uiCopy.feedback.saveFailedTitle;
-  const isManualActionCritical = !enabled || status === "pending" || status === "error";
-
-  const manualButtonToneClass = useMemo(() => {
-    if (isManualActionCritical) {
-      return "shadow-md shadow-primary/20 hover:shadow-primary/30";
-    }
-    return "bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-none hover:shadow-none sm:bg-primary sm:text-primary-foreground sm:hover:bg-primary/90 sm:shadow-md sm:shadow-primary/20 sm:hover:shadow-primary/30";
-  }, [isManualActionCritical]);
-
   void lastSavedAt;
 
   return (
@@ -151,13 +142,11 @@ const DashboardAutosaveStatus = ({
 
       {onManualSave ? (
         <div className="w-full sm:w-auto">
-          <Button
+          <DashboardActionButton
             type="button"
-            variant="default"
-            className={cn(
-              "relative h-9 w-full justify-center overflow-hidden whitespace-nowrap rounded-lg px-3 text-sm font-semibold sm:w-42",
-              manualButtonToneClass,
-            )}
+            tone="primary"
+            size="sm"
+            className="relative w-full justify-center overflow-hidden whitespace-nowrap sm:w-42"
             onClick={onManualSave}
             disabled={manualActionDisabled || (enabled && status === "saving")}
           >
@@ -214,7 +203,7 @@ const DashboardAutosaveStatus = ({
                 {uiCopy.actions.saved}
               </span>
             </span>
-          </Button>
+          </DashboardActionButton>
         </div>
       ) : null}
     </div>

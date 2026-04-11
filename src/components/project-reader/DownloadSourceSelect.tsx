@@ -2,18 +2,8 @@ import { Cloud, Download, HardDrive, Link2, Send } from "lucide-react";
 import { useMemo } from "react";
 
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
-import {
-  dropdownRichContentClassName,
-  dropdownRichIconClassName,
-  dropdownRichLabelClassName,
-} from "@/components/ui/dropdown-contract";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { dropdownRichIconClassName } from "@/components/ui/dropdown-contract";
+import { Combobox } from "@/components/ui/combobox";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import {
   getDownloadSourceOptions,
@@ -107,28 +97,30 @@ const DownloadSourceSelect = ({
     () => getDownloadSourceOptions(settings.downloads.sources, [currentLabel, ...legacyLabels]),
     [currentLabel, legacyLabels, settings.downloads.sources],
   );
+  const comboboxOptions = useMemo(
+    () =>
+      options.map((option: DownloadSourceOption) => ({
+        value: option.label,
+        label: option.label,
+        icon: renderDownloadSourceIcon(option.icon, option.color, option.label, option.tintIcon),
+      })),
+    [options],
+  );
 
   return (
-    <Select value={currentLabel} onValueChange={onValueChange}>
-      <SelectTrigger
-        id={id}
-        aria-label={ariaLabel}
-        disabled={disabled}
-        className={triggerClassName}
-      >
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((option: DownloadSourceOption) => (
-          <SelectItem key={option.label} value={option.label}>
-            <span className={dropdownRichContentClassName}>
-              {renderDownloadSourceIcon(option.icon, option.color, option.label, option.tintIcon)}
-              <span className={dropdownRichLabelClassName}>{option.label}</span>
-            </span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <Combobox
+      id={id}
+      ariaLabel={ariaLabel}
+      value={currentLabel}
+      onValueChange={onValueChange}
+      options={comboboxOptions}
+      placeholder={placeholder}
+      disabled={disabled}
+      searchable
+      searchPlaceholder="Buscar fonte"
+      emptyMessage="Nenhuma fonte encontrada."
+      className={triggerClassName}
+    />
   );
 };
 

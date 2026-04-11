@@ -11,11 +11,7 @@ import {
 } from "@/components/dashboard/dashboard-motion";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Combobox,
 } from "@/components/dashboard/dashboard-form-controls";
 import DashboardShell from "@/components/DashboardShell";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
@@ -27,7 +23,6 @@ import { uiCopy } from "@/lib/ui-copy";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import {
@@ -42,6 +37,25 @@ import {
 type RangeValue = "7d" | "30d" | "90d";
 type TypeValue = "all" | "post" | "project";
 type MetricValue = "views" | "unique_views" | "chapter_views" | "download_clicks";
+
+const rangeOptions = [
+  { value: "7d", label: "7 dias" },
+  { value: "30d", label: "30 dias" },
+  { value: "90d", label: "90 dias" },
+];
+
+const typeOptions = [
+  { value: "all", label: "Todos" },
+  { value: "post", label: "Posts" },
+  { value: "project", label: "Projetos" },
+];
+
+const metricOptions = [
+  { value: "views", label: "Views" },
+  { value: "unique_views", label: "Views únicas" },
+  { value: "chapter_views", label: "Leituras de capítulos" },
+  { value: "download_clicks", label: "Cliques em downloads" },
+];
 
 type OverviewResponse = {
   metrics?: {
@@ -474,43 +488,30 @@ const DashboardAnalytics = () => {
           actions={
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
               <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
-                <Select
+                <Combobox
                   value={range}
                   onValueChange={(value) => setRangeFilter(value as RangeValue)}
-                >
-                  <SelectTrigger className="w-[130px]">
-                    <SelectValue placeholder="Período" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="7d">7 dias</SelectItem>
-                    <SelectItem value="30d">30 dias</SelectItem>
-                    <SelectItem value="90d">90 dias</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={type} onValueChange={(value) => setTypeFilter(value as TypeValue)}>
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue placeholder="Tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="post">Posts</SelectItem>
-                    <SelectItem value="project">Projetos</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select
+                  ariaLabel="Selecionar período"
+                  options={rangeOptions}
+                  searchable={false}
+                  className="w-[130px]"
+                />
+                <Combobox
+                  value={type}
+                  onValueChange={(value) => setTypeFilter(value as TypeValue)}
+                  ariaLabel="Selecionar tipo"
+                  options={typeOptions}
+                  searchable={false}
+                  className="w-[150px]"
+                />
+                <Combobox
                   value={metric}
                   onValueChange={(value) => setMetricFilter(value as MetricValue)}
-                >
-                  <SelectTrigger className="w-[210px]">
-                    <SelectValue placeholder="Métrica do gráfico" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="views">Views</SelectItem>
-                    <SelectItem value="unique_views">Views únicas</SelectItem>
-                    <SelectItem value="chapter_views">Leituras de capítulos</SelectItem>
-                    <SelectItem value="download_clicks">Cliques em downloads</SelectItem>
-                  </SelectContent>
-                </Select>
+                  ariaLabel="Selecionar métrica do gráfico"
+                  options={metricOptions}
+                  searchable={false}
+                  className="w-[210px]"
+                />
               </div>
               <div className="flex items-center self-start lg:self-auto">
                 <Badge
@@ -548,9 +549,11 @@ const DashboardAnalytics = () => {
                 <p>{loadError}</p>
                 <p>Mantendo os últimos resultados carregados.</p>
               </div>
-              <Button variant="outline" onClick={() => setReloadTick((previous) => previous + 1)}>
+              <DashboardActionButton
+                onClick={() => setReloadTick((previous) => previous + 1)}
+              >
                 Tentar novamente
-              </Button>
+              </DashboardActionButton>
             </AlertDescription>
           </Alert>
         ) : null}
@@ -567,9 +570,11 @@ const DashboardAnalytics = () => {
             title="Não foi possível carregar as análises"
             description={loadError}
             action={
-              <Button variant="outline" onClick={() => setReloadTick((previous) => previous + 1)}>
+              <DashboardActionButton
+                onClick={() => setReloadTick((previous) => previous + 1)}
+              >
                 Tentar novamente
-              </Button>
+              </DashboardActionButton>
             }
           />
         ) : displayedSnapshot ? (

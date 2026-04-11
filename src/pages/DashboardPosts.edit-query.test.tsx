@@ -215,6 +215,41 @@ const expectStableDashboardActionButton = (element: HTMLElement, sizeToken: "h-9
   expect(tokens).not.toContain("pressable");
 };
 
+const expectPrimaryDashboardActionButton = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "rounded-xl",
+      "bg-primary",
+      "text-primary-foreground",
+      "font-semibold",
+      sizeToken,
+    ]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
+const expectDestructiveDashboardActionButton = (
+  element: HTMLElement,
+  sizeToken: "h-9" | "h-10",
+) => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "rounded-xl",
+      "bg-destructive/10",
+      "text-destructive",
+      "font-semibold",
+      sizeToken,
+    ]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
 const createDomRect = (height: number): DOMRect =>
   ({
     bottom: height,
@@ -607,12 +642,14 @@ describe("DashboardPosts edit query", () => {
     expect(editorPostSummaryCard).not.toBeNull();
     expect(classTokens(editorPostSummaryCard as HTMLElement)).toContain("hover:border-primary/40");
     expect(editorDialog.contains(editorScrollShell)).toBe(true);
-    expect(within(editorDialog).getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
-    expect(within(editorDialog).getByRole("button", { name: "Excluir" })).toBeInTheDocument();
-    expect(within(editorDialog).getByRole("button", { name: "Salvar" })).toBeInTheDocument();
-    expect(
-      within(editorDialog).getByRole("button", { name: "Publicar agora" }),
-    ).toBeInTheDocument();
+    const cancelButton = within(editorDialog).getByRole("button", { name: "Cancelar" });
+    const deleteButton = within(editorDialog).getByRole("button", { name: "Excluir" });
+    const saveButton = within(editorDialog).getByRole("button", { name: "Salvar" });
+    const publishButton = within(editorDialog).getByRole("button", { name: "Publicar agora" });
+    expectStableDashboardActionButton(cancelButton, "h-9");
+    expectDestructiveDashboardActionButton(deleteButton, "h-9");
+    expectPrimaryDashboardActionButton(saveButton, "h-9");
+    expectPrimaryDashboardActionButton(publishButton, "h-9");
     expectEditorSectionHeader(editorDialog, "Conteúdo", "Texto principal do post");
     expectEditorSectionHeader(editorDialog, "Publicação", "Rascunho");
     expectEditorSectionHeader(editorDialog, "Mídia", "Sem capa");

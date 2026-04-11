@@ -1,18 +1,14 @@
 import { memo, type Dispatch, type SetStateAction } from "react";
 
+import Button from "@/components/dashboard/DashboardActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import {
+  Combobox,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { translateGenre, translateTag } from "@/lib/project-taxonomy";
@@ -307,39 +303,31 @@ const ProjectEditorInformationSectionComponent = ({
           <div className="grid gap-4 md:grid-cols-2">
             <DashboardFieldStack>
               <Label>Formato</Label>
-              <Select
+              <Combobox
                 value={formState.type}
                 onValueChange={(value) => setFormState((prev) => ({ ...prev, type: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Formato" />
-                </SelectTrigger>
-                <SelectContent>
-                  {formatSelectOptions.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                ariaLabel="Selecionar formato"
+                options={formatSelectOptions.map((option) => ({
+                  value: option,
+                  label: option,
+                }))}
+                placeholder="Formato"
+                searchable={false}
+              />
             </DashboardFieldStack>
             <DashboardFieldStack>
               <Label>Status</Label>
-              <Select
+              <Combobox
                 value={formState.status}
                 onValueChange={(value) => setFormState((prev) => ({ ...prev, status: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                ariaLabel="Selecionar status"
+                options={statusOptions.map((option) => ({
+                  value: option,
+                  label: option,
+                }))}
+                placeholder="Status"
+                searchable={false}
+              />
             </DashboardFieldStack>
             <DashboardFieldStack>
               <Label>Ano</Label>

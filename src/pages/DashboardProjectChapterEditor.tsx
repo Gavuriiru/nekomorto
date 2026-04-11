@@ -1,4 +1,5 @@
 import DashboardShell from "@/components/DashboardShell";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import { Input } from "@/components/dashboard/dashboard-form-controls";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import { useChapterEditorLeaveGuard } from "@/components/dashboard/chapter-editor/useChapterEditorLeaveGuard";
@@ -18,7 +19,6 @@ import {
   type StageChapter,
 } from "@/components/project-reader/MangaWorkflowPanel";
 import AsyncState from "@/components/ui/async-state";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -1194,9 +1194,9 @@ const DashboardProjectChapterEditor = () => {
             title="Não foi possível carregar o capítulo"
             description="Tente novamente em alguns instantes."
             action={
-              <Button variant="outline" onClick={reloadProject}>
+              <DashboardActionButton onClick={reloadProject}>
                 Tentar novamente
-              </Button>
+              </DashboardActionButton>
             }
           />
         </DashboardPageContainer>
@@ -1240,9 +1240,9 @@ const DashboardProjectChapterEditor = () => {
               title="Volume obrigatório"
               description="Esse número de capítulo existe em mais de um volume. Abra o editor pela leitura pública ou informe o volume na URL."
               action={
-                <Button asChild variant="outline">
+                <DashboardActionButton asChild>
                   <Link to={buildDashboardProjectEditorHref(projectId)}>Voltar ao projeto</Link>
-                </Button>
+                </DashboardActionButton>
               }
             />
           </DashboardPageContainer>
@@ -1349,8 +1349,7 @@ const DashboardProjectChapterEditor = () => {
               <DialogDescription>{deleteDialogState?.description || ""}</DialogDescription>
             </DialogHeader>
             <div className="flex justify-end gap-3">
-              <Button
-                variant="ghost"
+              <DashboardActionButton
                 disabled={isDeletingEntity}
                 onClick={() => {
                   if (!isDeletingEntity) {
@@ -1359,9 +1358,9 @@ const DashboardProjectChapterEditor = () => {
                 }}
               >
                 Cancelar
-              </Button>
-              <Button
-                variant="destructive"
+              </DashboardActionButton>
+              <DashboardActionButton
+                tone="destructive"
                 disabled={isDeletingEntity}
                 onClick={() => {
                   void handleConfirmDelete();
@@ -1369,7 +1368,7 @@ const DashboardProjectChapterEditor = () => {
               >
                 {isDeletingEntity ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Excluir
-              </Button>
+              </DashboardActionButton>
             </div>
           </DialogContent>
         </Dialog>

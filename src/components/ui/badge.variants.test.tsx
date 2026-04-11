@@ -42,4 +42,13 @@ describe("Badge semantic variants", () => {
     );
     expect(String(screen.getByText("Sucesso").className)).not.toContain("dark:");
   });
+
+  it("provides a static dashboard pill without hover classes", () => {
+    render(<Badge variant="static">Total ativo</Badge>);
+
+    const badge = screen.getByText("Total ativo");
+
+    expect(badge).toHaveClass("border-border/70", "bg-background", "text-foreground/70");
+    expect(String(badge.className)).not.toContain("hover:");
+  });
 });

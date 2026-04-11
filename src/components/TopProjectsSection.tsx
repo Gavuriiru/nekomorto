@@ -5,13 +5,7 @@ import { Link } from "react-router-dom";
 
 import PublicInteractiveCardShell from "@/components/PublicInteractiveCardShell";
 import UploadPicture from "@/components/UploadPicture";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/public-form-controls";
+import { Combobox } from "@/components/public-form-controls";
 import { publicStrongSurfaceHoverClassName } from "@/components/public-page-tokens";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,6 +24,12 @@ const TOP_PROJECTS_THUMB_ASPECT_RATIO = "9 / 14";
 const TOP_PROJECTS_THUMB_WIDTH = "calc(var(--top-card-h) * 9 / 14)";
 
 type TopProjectsMode = "all" | "7d" | "30d";
+
+const topProjectsModeOptions = [
+  { value: "all", label: "Sempre" },
+  { value: "7d", label: "7d" },
+  { value: "30d", label: "30d" },
+];
 
 const DAY_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -158,25 +158,17 @@ const TopProjectsSection = () => {
           <CardTitle className="text-lg font-semibold text-foreground">
             Projetos Populares
           </CardTitle>
-          <Select
+          <Combobox
             value={mode}
             onValueChange={(value) =>
               setMode(value === "30d" ? "30d" : value === "7d" ? "7d" : "all")
             }
-          >
-            <SelectTrigger
-              aria-label="Ordenar Top 10 por visualizacoes"
-              data-testid="top-projects-mode-trigger"
-              className="h-7 w-[92px] bg-background/70 px-2 text-[11px] uppercase tracking-[0.08em] text-muted-foreground"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Sempre</SelectItem>
-              <SelectItem value="7d">7d</SelectItem>
-              <SelectItem value="30d">30d</SelectItem>
-            </SelectContent>
-          </Select>
+            ariaLabel="Ordenar Top 10 por visualizacoes"
+            options={topProjectsModeOptions}
+            searchable={false}
+            dataTestId="top-projects-mode-trigger"
+            className="h-7 w-[92px] bg-background/70 px-2 text-[11px] uppercase tracking-[0.08em] text-muted-foreground"
+          />
         </div>
       </CardHeader>
 

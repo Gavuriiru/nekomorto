@@ -96,7 +96,7 @@ describe("DashboardSeoRedirectsPanel", () => {
       await screen.findByRole("heading", { name: /SEO e redirecionamentos/i }),
     ).toBeInTheDocument();
     const newRuleButton = screen.getByRole("button", { name: /Nova regra/i });
-    const saveSeoButton = screen.getByRole("button", { name: /Salvar SEO/i });
+    const saveSeoButton = screen.getByRole("button", { name: /Salvar/i });
 
     expectStableDashboardActionButton(newRuleButton, "h-10");
     expectStableDashboardActionButton(saveSeoButton, "h-10");
@@ -120,7 +120,7 @@ describe("DashboardSeoRedirectsPanel", () => {
     });
     expect(getPutCalls()).toHaveLength(0);
 
-    fireEvent.click(screen.getByRole("button", { name: /Salvar SEO/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Salvar/i }));
     await waitFor(() => {
       expect(getPutCalls()).toHaveLength(1);
     });
@@ -147,7 +147,7 @@ describe("DashboardSeoRedirectsPanel", () => {
     fireEvent.change(fromInput, { target: { value: "url-invalida" } });
     fireEvent.change(toInput, { target: { value: "mailto:test@example.com" } });
 
-    fireEvent.click(screen.getByRole("button", { name: /Salvar SEO/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Salvar/i }));
     await waitFor(() => {
       expect(
         screen.getByText(/A origem precisa ser um caminho interno iniciado por/i),
@@ -165,7 +165,7 @@ describe("DashboardSeoRedirectsPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /Nova regra/i }));
     const fromInput = await screen.findByPlaceholderText("/url-antiga");
     fireEvent.change(fromInput, { target: { value: "url-invalida" } });
-    fireEvent.click(screen.getByRole("button", { name: /Salvar SEO/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Salvar/i }));
 
     const errorMessage = await screen.findByText(
       /A origem precisa ser um caminho interno iniciado por/i,

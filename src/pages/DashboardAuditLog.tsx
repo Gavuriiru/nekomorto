@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import {
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Combobox,
 } from "@/components/dashboard/dashboard-form-controls";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
@@ -19,7 +16,6 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -57,6 +53,20 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { toast } from "@/components/ui/use-toast";
 
 type AuditStatus = "success" | "failed" | "denied";
+
+const auditStatusOptions = [
+  { value: "all", label: "Todos" },
+  { value: "success", label: "Sucesso" },
+  { value: "failed", label: "Falha" },
+  { value: "denied", label: "Negado" },
+];
+
+const auditLimitOptions = [
+  { value: "10", label: "10" },
+  { value: "20", label: "20" },
+  { value: "50", label: "50" },
+  { value: "100", label: "100" },
+];
 
 type AuditEntry = {
   id: string;
@@ -616,21 +626,21 @@ const DashboardAuditLog = () => {
                 className="flex items-center gap-3 animate-slide-up opacity-0"
                 style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               >
-                <Badge className="bg-background text-foreground/70">{formattedTotal} eventos</Badge>
-                <Button
-                  variant="outline"
+                <Badge variant="static">{formattedTotal} eventos</Badge>
+                <DashboardActionButton
+                  size="toolbar"
                   onClick={() => void handleExportCsv()}
                   disabled={isExporting || forbidden}
                 >
                   {isExporting ? "Exportando..." : "Exportar CSV"}
-                </Button>
-                <Button
-                  variant="outline"
+                </DashboardActionButton>
+                <DashboardActionButton
+                  size="toolbar"
                   onClick={() => setRefreshTick((value) => value + 1)}
                   disabled={isRefreshing}
                 >
                   Atualizar
-                </Button>
+                </DashboardActionButton>
               </div>
             </header>
 
@@ -683,20 +693,13 @@ const DashboardAuditLog = () => {
                 </DashboardFieldStack>
                 <DashboardFieldStack>
                   <Label>Status</Label>
-                  <Select
+                  <Combobox
                     value={form.status}
                     onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="success">Sucesso</SelectItem>
-                      <SelectItem value="failed">Falha</SelectItem>
-                      <SelectItem value="denied">Negado</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    ariaLabel="Selecionar status"
+                    options={auditStatusOptions}
+                    searchable={false}
+                  />
                 </DashboardFieldStack>
                 <DashboardFieldStack>
                   <Label htmlFor="audit-date-from">Data inicial</Label>
@@ -736,27 +739,22 @@ const DashboardAuditLog = () => {
                 </DashboardFieldStack>
                 <DashboardFieldStack>
                   <Label>Itens por página</Label>
-                  <Select
+                  <Combobox
                     value={form.limit}
                     onValueChange={(value) => setForm((prev) => ({ ...prev, limit: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="50" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="20">20</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    ariaLabel="Selecionar itens por pagina"
+                    options={auditLimitOptions}
+                    searchable={false}
+                  />
                 </DashboardFieldStack>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <Button onClick={applyFilters}>Aplicar filtros</Button>
-                <Button variant="outline" onClick={clearFilters}>
+                <DashboardActionButton tone="primary" onClick={applyFilters}>
+                  Aplicar filtros
+                </DashboardActionButton>
+                <DashboardActionButton onClick={clearFilters}>
                   Limpar
-                </Button>
+                </DashboardActionButton>
               </div>
             </div>
 
@@ -789,9 +787,9 @@ const DashboardAuditLog = () => {
                   title="Não foi possível carregar o audit log"
                   description={error}
                   action={
-                    <Button variant="outline" onClick={() => setRefreshTick((value) => value + 1)}>
+                    <DashboardActionButton onClick={() => setRefreshTick((value) => value + 1)}>
                       Tentar novamente
-                    </Button>
+                    </DashboardActionButton>
                   }
                 />
               ) : entries.length === 0 ? (
@@ -844,13 +842,12 @@ const DashboardAuditLog = () => {
                         </TableCell>
                         <TableCell className="font-mono text-xs">{entry.ip || "-"}</TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
+                          <DashboardActionButton
+                            size="compact"
                             onClick={() => setSelectedEntry(entry)}
                           >
                             Ver
-                          </Button>
+                          </DashboardActionButton>
                         </TableCell>
                       </TableRow>
                     ))}

@@ -4865,7 +4865,14 @@ describe("PublicProjectReader", () => {
     fireEvent.click(chapterTrigger);
     const firstChapterOption = await screen.findByRole("option", { name: /Cap.tulo 1/i });
     expect(firstChapterOption).toHaveClass("rounded-xl", "py-2", "pl-9", "pr-3");
-    expect(screen.getByRole("listbox")).toHaveClass(
+    const chapterListbox = screen.getByRole("listbox");
+    expect(chapterListbox).toHaveClass(
+      "no-scrollbar",
+      "max-h-64",
+      "overflow-y-auto",
+      "overscroll-contain",
+    );
+    expect(chapterListbox.parentElement).toHaveClass(
       "rounded-2xl",
       "border-border/70",
       "bg-popover/95",

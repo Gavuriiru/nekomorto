@@ -9,13 +9,11 @@ import {
 } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
-import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
-import DashboardLightSelect, {
-  type DashboardLightSelectOption,
-} from "@/components/dashboard/DashboardLightSelect";
+import DashboardActionButton, { default as Button } from "@/components/dashboard/DashboardActionButton";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import {
+  Combobox,
   Input,
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
@@ -32,11 +30,11 @@ import {
 } from "@/components/dashboard/dashboard-motion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { ComboboxOption } from "@/components/ui/combobox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Shield,
@@ -608,7 +606,7 @@ type DashboardPagesContentProps = {
   currentUser: ReturnType<typeof useDashboardCurrentUser>["currentUser"];
 };
 
-const dashboardPageIconOptions: DashboardLightSelectOption[] = iconOptions.map(
+const dashboardPageIconOptions: ComboboxOption[] = iconOptions.map(
   (icon) => ({
     value: icon,
     label: icon,
@@ -626,11 +624,12 @@ const IconSelect = ({
   ariaLabel?: string;
 }) => {
   return (
-    <DashboardLightSelect
+    <Combobox
       ariaLabel={ariaLabel}
       value={value}
       options={dashboardPageIconOptions}
       onValueChange={onChange}
+      searchable={false}
       className="h-9 border-border/70 bg-background"
     />
   );

@@ -1,20 +1,14 @@
 import * as React from "react";
 
 import { dashboardStrongFocusFieldClassName } from "@/components/dashboard/dashboard-page-tokens";
+import { Combobox as BaseCombobox, type ComboboxProps } from "@/components/ui/combobox";
 import { Input as BaseInput } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger as BaseSelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea as BaseTextarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 type DashboardInputProps = React.ComponentPropsWithoutRef<typeof BaseInput>;
 type DashboardTextareaProps = React.ComponentPropsWithoutRef<typeof BaseTextarea>;
-type DashboardSelectTriggerProps = React.ComponentPropsWithoutRef<typeof BaseSelectTrigger>;
+type DashboardComboboxProps = ComboboxProps;
 
 const Input = React.forwardRef<HTMLInputElement, DashboardInputProps>(
   ({ className, ...props }, ref) => (
@@ -34,12 +28,16 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, DashboardTextareaProps>(
 );
 Textarea.displayName = "DashboardTextarea";
 
-const SelectTrigger = React.forwardRef<
-  React.ElementRef<typeof BaseSelectTrigger>,
-  DashboardSelectTriggerProps
->(({ className, ...props }, ref) => (
-  <BaseSelectTrigger ref={ref} className={className} {...props} />
-));
-SelectTrigger.displayName = "DashboardSelectTrigger";
+const Combobox = ({ className, searchInputClassName, ...props }: DashboardComboboxProps) => (
+  <BaseCombobox
+    className={cn(dashboardStrongFocusFieldClassName, className)}
+    searchInputClassName={cn(dashboardStrongFocusFieldClassName, searchInputClassName)}
+    {...props}
+  />
+);
 
-export { Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea };
+export {
+  Combobox,
+  Input,
+  Textarea,
+};

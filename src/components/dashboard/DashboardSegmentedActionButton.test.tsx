@@ -22,14 +22,22 @@ describe("DashboardSegmentedActionButton", () => {
     expect(listButton).toHaveAttribute("aria-pressed", "true");
     expect(calendarButton).toHaveAttribute("aria-pressed", "false");
     expect(listTokens).toEqual(
-      expect.arrayContaining(["h-8", "rounded-lg", "bg-background", "font-semibold"]),
+      expect.arrayContaining([
+        "h-9",
+        "rounded-lg",
+        "border-border/70",
+        "bg-background",
+        "font-semibold",
+      ]),
     );
     expect(calendarTokens).toEqual(
       expect.arrayContaining([
-        "h-8",
+        "h-9",
         "rounded-lg",
+        "border-transparent",
         "font-semibold",
-        "hover:bg-background/70",
+        "hover:border-primary/40",
+        "hover:bg-primary/5",
         "hover:text-foreground",
       ]),
     );
