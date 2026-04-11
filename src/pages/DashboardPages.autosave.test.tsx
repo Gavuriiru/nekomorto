@@ -99,6 +99,15 @@ const waitMs = (delayMs: number) =>
   });
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
+const expectDashboardActionButtonTokens = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining(["rounded-xl", "bg-background", "font-semibold", sizeToken]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
 const renderDashboardPages = () =>
   render(
     <MemoryRouter initialEntries={["/dashboard/paginas"]}>
@@ -149,6 +158,14 @@ describe("DashboardPages autosave", () => {
       }
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
+  });
+
+  it("usa o botao estavel nos adders compactos da pagina sobre", async () => {
+    renderDashboardPages();
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+
+    const addBadgeButton = await screen.findByRole("button", { name: /Adicionar badge/i });
+    expectDashboardActionButtonTokens(addBadgeButton, "h-9");
   });
 
   it("usa tablist com scroll horizontal invisivel no mobile e triggers sem compressao", async () => {
@@ -627,9 +644,20 @@ describe("DashboardPages autosave", () => {
     expect(costsEditor).not.toBeNull();
     expect(donorsEditor).not.toBeNull();
 
-    fireEvent.click(within(costsEditor as HTMLElement).getByRole("button", { name: /Adicionar/i }));
-    fireEvent.click(within(cryptoEditor).getByRole("button", { name: /Adicionar/i }));
-    fireEvent.click(within(donorsEditor as HTMLElement).getByRole("button", { name: /Adicionar/i }));
+    const addCostButton = within(costsEditor as HTMLElement).getByRole("button", {
+      name: /Adicionar/i,
+    });
+    const addCryptoButton = within(cryptoEditor).getByRole("button", { name: /Adicionar/i });
+    const addDonorButton = within(donorsEditor as HTMLElement).getByRole("button", {
+      name: /Adicionar/i,
+    });
+    expectDashboardActionButtonTokens(addCostButton, "h-9");
+    expectDashboardActionButtonTokens(addCryptoButton, "h-9");
+    expectDashboardActionButtonTokens(addDonorButton, "h-9");
+
+    fireEvent.click(addCostButton);
+    fireEvent.click(addCryptoButton);
+    fireEvent.click(addDonorButton);
 
     const costInput = within(screen.getByTestId("donations-cost-item-0")).getByDisplayValue(
       "Novo custo",

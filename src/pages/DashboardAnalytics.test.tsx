@@ -233,7 +233,13 @@ describe("DashboardAnalytics", () => {
     await screen.findByText(/Performance e aquisi/i);
     expect(screen.getByRole("heading", { name: "Ranking" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Top conteúdos" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Exportar" })).toBeInTheDocument();
+    const exportButton = screen.getByRole("button", { name: "Exportar" });
+    const exportButtonTokens = classTokens(exportButton);
+    expect(exportButtonTokens).toEqual(
+      expect.arrayContaining(["h-10", "rounded-xl", "bg-background", "font-semibold"]),
+    );
+    expect(exportButtonTokens).not.toContain("interactive-lift-sm");
+    expect(exportButtonTokens).not.toContain("pressable");
     expect(screen.queryByRole("button", { name: "Exportar CSV" })).not.toBeInTheDocument();
     expect(screen.getAllByText("Views").length).toBeGreaterThan(0);
     expect(screen.getByText(/Views .*nicas/i)).toBeInTheDocument();

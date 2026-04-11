@@ -28,6 +28,15 @@ const {
 }));
 
 const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const expectDashboardActionButtonTokens = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining(["rounded-xl", "bg-background", "font-semibold", sizeToken]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({
@@ -680,7 +689,9 @@ describe("DashboardProjectEpisodeEditor", () => {
     await screen.findByRole("heading", { name: /Gerenciamento de Episódios/i });
 
     const fileSection = screen.getByTestId("anime-episode-file-section");
-    fireEvent.click(within(fileSection).getByRole("button", { name: /Adicionar fonte/i }));
+    const addSourceButton = within(fileSection).getByRole("button", { name: /Adicionar fonte/i });
+    expectDashboardActionButtonTokens(addSourceButton, "h-9");
+    fireEvent.click(addSourceButton);
 
     const sourceTrigger = within(fileSection).getByRole("combobox", { name: "Fonte 1" });
     const sourceUrlInput = within(fileSection).getByPlaceholderText("URL");

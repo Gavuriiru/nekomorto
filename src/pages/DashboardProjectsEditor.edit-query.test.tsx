@@ -276,6 +276,15 @@ const LocationProbe = () => {
 };
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
+const expectDashboardActionButtonTokens = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining(["rounded-xl", "bg-background", "font-semibold", sizeToken]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
 
 describe("DashboardProjectsEditor edit query", () => {
   beforeEach(() => {
@@ -333,6 +342,10 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(document.querySelector("datalist#staff-directory")).toBeNull();
 
     fireEvent.click(within(editorDialog).getByRole("button", { name: /Equipe da fansub/i }));
+    expectDashboardActionButtonTokens(
+      within(editorDialog).getByRole("button", { name: /Adicionar fun/i }),
+      "h-9",
+    );
 
     const fansubMemberInput = within(editorDialog).getByPlaceholderText(
       "Adicionar membro",
@@ -347,6 +360,10 @@ describe("DashboardProjectsEditor edit query", () => {
 
     expect(fansubMemberInput.value).toBe("");
     expect(within(editorDialog).getByText("Jose Gabriel")).toBeInTheDocument();
+    expectDashboardActionButtonTokens(
+      within(editorDialog).getAllByRole("button", { name: /^Adicionar$/i })[0],
+      "h-9",
+    );
 
     fireEvent.click(within(editorDialog).getByRole("button", { name: /Staff do anime/i }));
 
@@ -426,6 +443,10 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(classTokens(mediaCard as HTMLElement)).toContain("hover:border-primary/40");
 
     fireEvent.click(within(editorDialog).getByRole("button", { name: /Rela/i }));
+    expectDashboardActionButtonTokens(
+      within(editorDialog).getByRole("button", { name: /Adicionar rela/i }),
+      "h-9",
+    );
     const relationTargetCard = within(editorDialog)
       .getByRole("button", { name: /Mover rela.*1 para baixo/i })
       .closest('[draggable="true"]') as HTMLElement | null;

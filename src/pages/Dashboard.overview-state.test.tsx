@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -248,9 +248,16 @@ describe("Dashboard overview async states", () => {
     expect(screen.getByTestId("dashboard-loading-skeleton")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-header-user-action-skeleton")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Fazer login" })).not.toBeInTheDocument();
+    expectOverviewActionLinkClasses(screen.getByRole("button", { name: "Personalizar painel" }));
+    expect(classTokens(screen.getByRole("button", { name: "Personalizar painel" }))).toContain(
+      "h-10",
+    );
     expect(screen.queryByRole("button", { name: "Exportar relatório" })).not.toBeInTheDocument();
 
     userDeferred.resolve(mockJsonResponse(true, dashboardUser));
+    const exportButton = await screen.findByRole("button", { name: /Exportar relat/i });
+    expectOverviewActionLinkClasses(exportButton);
+    expect(classTokens(exportButton)).toContain("h-10");
 
     expect(await screen.findByRole("button", { name: "Exportar relatório" })).toBeInTheDocument();
     await waitFor(() => {
@@ -581,6 +588,45 @@ describe("Dashboard overview async states", () => {
     expectOverviewBadgeClasses(last7DaysBadge);
     expect(projectStatusBadge).toBeInTheDocument();
     expectOverviewBadgeClasses(projectStatusBadge);
+  });
+
+  it("abre personalizacao com preferencias salvas sem reentrar em atualizacao", async () => {
+    installDashboardApiMock({
+      preferencesResponse: mockJsonResponse(true, {
+        preferences: {
+          dashboard: {
+            homeByRole: {
+              admin: {
+                widgets: ["analytics_summary", "recent_posts"],
+              },
+            },
+          },
+        },
+      }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <DashboardSessionProvider>
+          <DashboardPreferencesProvider>
+            <Dashboard />
+          </DashboardPreferencesProvider>
+        </DashboardSessionProvider>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Painel de controle da comunidade/i });
+    await waitFor(() => {
+      expect(screen.queryByTestId("dashboard-loading-skeleton")).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Personalizar painel" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Personalizar painel" });
+    const dialogQueries = within(dialog);
+
+    expect(dialogQueries.getAllByRole("button", { name: "Ativo" })).toHaveLength(2);
+    expect(dialogQueries.getAllByRole("button", { name: "Oculto" })).toHaveLength(5);
   });
 
   it("uniformiza os CTAs principais da home sem herdar classes de button", async () => {

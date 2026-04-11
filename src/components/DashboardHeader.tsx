@@ -342,7 +342,10 @@ const DashboardHeader = ({
       style={{
         left: "var(--sidebar-header-left)",
       }}
-      className={cn("fixed left-0 right-0 top-0 z-40 bg-sidebar", className)}
+      className={cn(
+        "dashboard-scroll-lock-fixed-right fixed left-0 right-0 top-0 z-40 bg-sidebar",
+        className,
+      )}
     >
       <div className="relative flex h-19 items-center justify-between gap-2 px-3 sm:px-4 lg:px-6 2xl:px-8">
         <div

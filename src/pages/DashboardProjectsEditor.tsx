@@ -3096,10 +3096,9 @@ const DashboardProjectsEditor = () => {
                                                         </div>
                                                       ),
                                                     )}
-                                                    <Button
+                                                    <DashboardActionButton
                                                       type="button"
                                                       size="sm"
-                                                      variant="outline"
                                                       onClick={() =>
                                                         setFormState((prev) => {
                                                           const next = [...prev.episodeDownloads];
@@ -3120,7 +3119,7 @@ const DashboardProjectsEditor = () => {
                                                       }
                                                     >
                                                       Adicionar fonte
-                                                    </Button>
+                                                    </DashboardActionButton>
                                                   </div>
                                                 </div>
                                               </div>

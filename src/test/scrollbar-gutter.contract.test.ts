@@ -15,4 +15,15 @@ describe("scrollbar gutter contract", () => {
       /@supports not \(scrollbar-gutter: stable\)[\s\S]*overflow-y: scroll;/,
     );
   });
+
+  it("keeps react-remove-scroll body margin compensation intact", () => {
+    expect(cssSource).not.toMatch(
+      /body\[data-scroll-locked\]\s*\{[^}]*margin-right\s*:\s*0\s*!important/i,
+    );
+  });
+
+  it("compensates dashboard fixed-right elements while body scroll is locked", () => {
+    expect(cssSource).toContain("body[data-scroll-locked] .dashboard-scroll-lock-fixed-right");
+    expect(cssSource).toContain("right: var(--removed-body-scroll-bar-size, 0px) !important;");
+  });
 });

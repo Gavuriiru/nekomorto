@@ -1567,13 +1567,15 @@ const DashboardUsers = () => {
                 </p>
               </div>
               {canManageUsers && (
-                <Button
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 animate-slide-up opacity-0"
+                <DashboardActionButton
+                  type="button"
+                  size="toolbar"
+                  className="animate-slide-up opacity-0"
                   style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
                   onClick={openNewDialog}
                 >
                   Adicionar usuário
-                </Button>
+                </DashboardActionButton>
               )}
             </header>
 
@@ -2094,9 +2096,9 @@ const DashboardUsers = () => {
                               </div>
                             );
                           })}
-                          <Button
+                          <DashboardActionButton
                             type="button"
-                            variant="outline"
+                            size="sm"
                             onClick={() =>
                               setFormState((prev) => ({
                                 ...prev,
@@ -2106,7 +2108,7 @@ const DashboardUsers = () => {
                             disabled={!canEditBasicFields}
                           >
                             Adicionar link
-                          </Button>
+                          </DashboardActionButton>
                         </div>
                       </DashboardFieldStack>
                     </div>

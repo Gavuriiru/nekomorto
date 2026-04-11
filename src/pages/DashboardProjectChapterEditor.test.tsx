@@ -1090,6 +1090,10 @@ describe("DashboardProjectChapterEditor", () => {
       within(epubTools).getByRole("button", { name: /Exportar volume em EPUB/i }),
       "h-10",
     );
+    expectStableDashboardActionButton(
+      screen.getByRole("button", { name: /Adicionar volume/i }),
+      "h-9",
+    );
     const headerShell = screen.getByTestId("chapter-editor-header-shell");
     const mainColumn = screen.getByTestId("chapter-editor-main-column");
     const workspace = screen.getByTestId("chapter-editor-workspace");
@@ -2014,6 +2018,7 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.getByTestId("chapter-structure-group-actions-2")).toContainElement(
       screen.getByTestId("chapter-structure-add-chapter-2"),
     );
+    expectStableDashboardActionButton(screen.getByTestId("chapter-structure-add-chapter-2"), "h-9");
     expectStructureGroupSelected("2");
     expectStructureGroupNotSelected("none");
     expect(screen.queryByTestId("chapter-epub-tools")).not.toBeInTheDocument();
@@ -2282,7 +2287,9 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByTestId("mock-lexical");
 
     const sourcesSection = screen.getByTestId("chapter-sources-section");
-    fireEvent.click(within(sourcesSection).getByRole("button", { name: /^Adicionar$/i }));
+    const addSourceButton = within(sourcesSection).getByRole("button", { name: /^Adicionar$/i });
+    expectStableDashboardActionButton(addSourceButton, "h-9");
+    fireEvent.click(addSourceButton);
 
     const sourceTrigger = await waitFor(() =>
       within(screen.getByTestId("chapter-sources-section")).getByRole("combobox", {

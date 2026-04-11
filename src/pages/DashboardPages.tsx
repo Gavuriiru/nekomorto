@@ -1430,8 +1430,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     </Button>
                                   </div>
                                 ))}
-                                <Button
-                                  variant="outline"
+                                <DashboardActionButton
+                                  type="button"
                                   size="sm"
                                   onClick={() =>
                                     updateAbout({
@@ -1442,9 +1442,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     })
                                   }
                                 >
-                                  <Plus className="mr-2 h-4 w-4" />
+                                  <Plus className="h-4 w-4" />
                                   Adicionar badge
-                                </Button>
+                                </DashboardActionButton>
                               </div>
                             </DashboardFieldStack>
                           </CardContent>
@@ -1461,8 +1461,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               >
                                 Destaques
                               </h2>
-                              <Button
-                                variant="outline"
+                              <DashboardActionButton
+                                type="button"
                                 size="sm"
                                 onClick={() =>
                                   updateAbout({
@@ -1477,9 +1477,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   })
                                 }
                               >
-                                <Plus className="mr-2 h-4 w-4" />
+                                <Plus className="h-4 w-4" />
                                 Adicionar
-                              </Button>
+                              </DashboardActionButton>
                             </div>
                             <div className="grid gap-4">
                               {pages.about.highlights.map((item, index) => (
@@ -1650,8 +1650,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   </div>
                                 ),
                               )}
-                              <Button
-                                variant="outline"
+                              <DashboardActionButton
+                                type="button"
                                 size="sm"
                                 onClick={() =>
                                   updateAbout({
@@ -1662,9 +1662,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   })
                                 }
                               >
-                                <Plus className="mr-2 h-4 w-4" />
+                                <Plus className="h-4 w-4" />
                                 Adicionar parágrafo
-                              </Button>
+                              </DashboardActionButton>
                             </div>
                           </CardContent>
                         </Card>
@@ -1680,8 +1680,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               >
                                 Pilares
                               </h2>
-                              <Button
-                                variant="outline"
+                              <DashboardActionButton
+                                type="button"
                                 size="sm"
                                 onClick={() =>
                                   updateAbout({
@@ -1696,9 +1696,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   })
                                 }
                               >
-                                <Plus className="mr-2 h-4 w-4" />
+                                <Plus className="h-4 w-4" />
                                 Adicionar
-                              </Button>
+                              </DashboardActionButton>
                             </div>
                             <div className="grid gap-4 md:grid-cols-2">
                               {pages.about.pillars.map((item, index) => (
@@ -1811,8 +1811,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               >
                                 Valores
                               </h2>
-                              <Button
-                                variant="outline"
+                              <DashboardActionButton
+                                type="button"
                                 size="sm"
                                 onClick={() =>
                                   updateAbout({
@@ -1827,9 +1827,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   })
                                 }
                               >
-                                <Plus className="mr-2 h-4 w-4" />
+                                <Plus className="h-4 w-4" />
                                 Adicionar
-                              </Button>
+                              </DashboardActionButton>
                             </div>
                             <div className="grid gap-4 md:grid-cols-2">
                               {pages.about.values.map((item, index) => (
@@ -1978,8 +1978,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               >
                                 Custos
                               </h2>
-                              <Button
-                                variant="outline"
+                              <DashboardActionButton
+                                type="button"
                                 size="sm"
                                 onClick={() =>
                                   updateDonations({
@@ -1995,9 +1995,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   })
                                 }
                               >
-                                <Plus className="mr-2 h-4 w-4" />
+                                <Plus className="h-4 w-4" />
                                 Adicionar
-                              </Button>
+                              </DashboardActionButton>
                             </div>
                             <div className="grid gap-4 md:grid-cols-2">
                               {pages.donations.costs.map((item, index) => (
@@ -2341,8 +2341,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   serviço tiver nome e endereço.
                                 </p>
                               </div>
-                              <Button
-                                variant="outline"
+                              <DashboardActionButton
+                                type="button"
                                 size="sm"
                                 onClick={() =>
                                   updateDonations({
@@ -2357,9 +2357,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   })
                                 }
                               >
-                                <Plus className="mr-2 h-4 w-4" />
+                                <Plus className="h-4 w-4" />
                                 Adicionar
-                              </Button>
+                              </DashboardActionButton>
                             </div>
 
                             <div className="grid gap-4">
@@ -2706,8 +2706,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   }
                                 />
                               </div>
-                              <Button
-                                variant="outline"
+                              <DashboardActionButton
+                                type="button"
                                 size="sm"
                                 onClick={() =>
                                   updateDonations({
@@ -2724,9 +2724,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   })
                                 }
                               >
-                                <Plus className="mr-2 h-4 w-4" />
+                                <Plus className="h-4 w-4" />
                                 Adicionar
-                              </Button>
+                              </DashboardActionButton>
                             </div>
                             <div className="grid gap-4">
                               {pages.donations.donors.map((donor, index) => (
@@ -2895,8 +2895,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               >
                                 Cards introdutórios
                               </h2>
-                              <Button
-                                variant="outline"
+                              <DashboardActionButton
+                                type="button"
                                 size="sm"
                                 onClick={() =>
                                   updateFaq({
@@ -2912,9 +2912,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   })
                                 }
                               >
-                                <Plus className="mr-2 h-4 w-4" />
+                                <Plus className="h-4 w-4" />
                                 Adicionar
-                              </Button>
+                              </DashboardActionButton>
                             </div>
                             <div className="grid gap-4 md:grid-cols-2">
                               {pages.faq.introCards.map((card, index) => (
@@ -3034,8 +3034,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               >
                                 Grupos de FAQ
                               </h2>
-                              <Button
-                                variant="outline"
+                              <DashboardActionButton
+                                type="button"
                                 size="sm"
                                 onClick={() =>
                                   updateFaq({
@@ -3050,9 +3050,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   })
                                 }
                               >
-                                <Plus className="mr-2 h-4 w-4" />
+                                <Plus className="h-4 w-4" />
                                 Adicionar grupo
-                              </Button>
+                              </DashboardActionButton>
                             </div>
                             <div className="grid gap-4">
                               {pages.faq.groups.map((group, groupIndex) => (
@@ -3141,8 +3141,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                       >
                                         Perguntas
                                       </span>
-                                      <Button
-                                        variant="outline"
+                                      <DashboardActionButton
+                                        type="button"
                                         size="sm"
                                         onClick={() => {
                                           const next = [...pages.faq.groups];
@@ -3159,9 +3159,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                           updateFaq({ groups: next });
                                         }}
                                       >
-                                        <Plus className="mr-2 h-4 w-4" />
+                                        <Plus className="h-4 w-4" />
                                         Adicionar
-                                      </Button>
+                                      </DashboardActionButton>
                                     </div>
                                     <div className="grid gap-3">
                                       {group.items.map((item, itemIndex) => (
@@ -3413,8 +3413,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               >
                                 Funções
                               </h2>
-                              <Button
-                                variant="outline"
+                              <DashboardActionButton
+                                type="button"
                                 size="sm"
                                 onClick={() =>
                                   updateRecruitment({
@@ -3429,9 +3429,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   })
                                 }
                               >
-                                <Plus className="mr-2 h-4 w-4" />
+                                <Plus className="h-4 w-4" />
                                 Adicionar
-                              </Button>
+                              </DashboardActionButton>
                             </div>
                             <div className="grid gap-4">
                               {pages.recruitment.roles.map((role, index) => (

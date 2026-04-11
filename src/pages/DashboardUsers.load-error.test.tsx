@@ -45,6 +45,16 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
+const expectDashboardActionButtonTokens = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining(["rounded-xl", "bg-background", "font-semibold", sizeToken]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
 describe("DashboardUsers load error", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
@@ -114,6 +124,7 @@ describe("DashboardUsers load error", () => {
     });
     await screen.findByText("Admin");
     const addUserButton = screen.getByRole("button", { name: "Adicionar usuário" });
+    expectDashboardActionButtonTokens(addUserButton, "h-10");
     expect(classTokens(addUserButton)).toContain("animate-slide-up");
     expect(classTokens(addUserButton)).toContain("opacity-0");
     const activeUsersHeader = screen.getByText("Usuários ativos").parentElement;

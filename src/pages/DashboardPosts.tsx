@@ -11,6 +11,7 @@ import {
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import DashboardSegmentedActionButton from "@/components/dashboard/DashboardSegmentedActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardEditorBackdrop from "@/components/dashboard/DashboardEditorBackdrop";
 import {
@@ -2064,9 +2065,13 @@ const DashboardPosts = () => {
                                       <option key={tag} value={tag} />
                                     ))}
                                   </datalist>
-                                  <Button type="button" variant="secondary" onClick={handleAddTag}>
+                                  <DashboardActionButton
+                                    type="button"
+                                    size="sm"
+                                    onClick={handleAddTag}
+                                  >
                                     Adicionar
-                                  </Button>
+                                  </DashboardActionButton>
                                 </div>
                               </div>
                             </section>
@@ -2209,26 +2214,22 @@ const DashboardPosts = () => {
                 <div
                   className={`inline-flex items-center ${dashboardPageLayoutTokens.cardActionSurface} p-1`}
                 >
-                  <Button
+                  <DashboardSegmentedActionButton
                     type="button"
-                    size="sm"
-                    variant={listViewMode === "list" ? "secondary" : "ghost"}
-                    className="h-8 gap-2 px-3"
+                    active={listViewMode === "list"}
                     onClick={() => setListViewMode("list")}
                   >
                     <ListIcon className="h-4 w-4" />
                     Lista
-                  </Button>
-                  <Button
+                  </DashboardSegmentedActionButton>
+                  <DashboardSegmentedActionButton
                     type="button"
-                    size="sm"
-                    variant={listViewMode === "calendar" ? "secondary" : "ghost"}
-                    className="h-8 gap-2 px-3"
+                    active={listViewMode === "calendar"}
                     onClick={() => setListViewMode("calendar")}
                   >
                     <CalendarDays className="h-4 w-4" />
                     Calendário
-                  </Button>
+                  </DashboardSegmentedActionButton>
                 </div>
                 <Badge variant="secondary" className="text-xs uppercase animate-slide-up opacity-0">
                   {sortedPosts.length} posts

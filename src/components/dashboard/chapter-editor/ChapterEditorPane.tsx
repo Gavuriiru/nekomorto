@@ -1025,9 +1025,8 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         eyebrow="Distribuição"
         testId="chapter-sources-section"
         actions={
-          <Button
+          <DashboardActionButton
             type="button"
-            variant="outline"
             size="sm"
             onClick={() =>
               updateDraft((current) => ({
@@ -1036,9 +1035,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               }))
             }
           >
-            {" "}
-            <Plus className="h-4 w-4" /> <span>Adicionar</span>{" "}
-          </Button>
+            <Plus className="h-4 w-4" />
+            <span>Adicionar</span>
+          </DashboardActionButton>
         }
       >
         {" "}

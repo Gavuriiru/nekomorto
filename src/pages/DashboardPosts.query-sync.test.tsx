@@ -174,6 +174,16 @@ const getPreferenceCalls = () =>
     return path === "/api/me/preferences";
   });
 
+const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+
+const expectSegmentedButtonTokens = (element: HTMLElement) => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(expect.arrayContaining(["h-8", "rounded-lg", "font-semibold"]));
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
 const LocationProbe = () => {
   const location = useLocation();
   const [history, setHistory] = useState<string[]>([]);
@@ -312,11 +322,20 @@ describe("DashboardPosts query sync", () => {
     });
     expect(screen.getByText("Lixeira")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Calend/i }));
+    const listButton = screen.getByRole("button", { name: /Lista/i });
+    const calendarButton = screen.getByRole("button", { name: /Calend/i });
+    expectSegmentedButtonTokens(listButton);
+    expectSegmentedButtonTokens(calendarButton);
+    expect(listButton).toHaveAttribute("aria-pressed", "true");
+    expect(calendarButton).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(calendarButton);
 
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("?page=2");
     });
+    expect(screen.getByRole("button", { name: /Lista/i })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: /Calend/i })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
     expect(screen.queryByText("Lixeira")).not.toBeInTheDocument();
 

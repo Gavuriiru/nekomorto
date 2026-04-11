@@ -1,6 +1,7 @@
 import { memo, type Dispatch, type SetStateAction } from "react";
 
 import ReorderControls from "@/components/ReorderControls";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import { Input } from "@/components/dashboard/dashboard-form-controls";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
@@ -44,10 +45,9 @@ const ProjectEditorRelationsSectionComponent = ({
     <AccordionContent className={contentClassName}>
       <div className="space-y-3">
         <div className="flex items-center justify-end">
-          <Button
+          <DashboardActionButton
             type="button"
             size="sm"
-            variant="outline"
             onClick={() =>
               setFormState((prev) => ({
                 ...prev,
@@ -59,7 +59,7 @@ const ProjectEditorRelationsSectionComponent = ({
             }
           >
             Adicionar relação
-          </Button>
+          </DashboardActionButton>
         </div>
         <div className="grid gap-3">
           {relations.map((relation, index) => (

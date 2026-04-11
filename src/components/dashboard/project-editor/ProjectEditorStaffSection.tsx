@@ -1,6 +1,7 @@
 import { memo, type Dispatch, type SetStateAction } from "react";
 
 import ReorderControls from "@/components/ReorderControls";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import ProjectMemberCombobox from "@/components/dashboard/ProjectMemberCombobox";
 import {
   Input,
@@ -91,16 +92,15 @@ const ProjectEditorStaffSectionComponent = ({
       <AccordionContent className={contentClassName}>
         <div className="space-y-3">
           <div className="flex items-center justify-end">
-            <Button
+            <DashboardActionButton
               type="button"
               size="sm"
-              variant="outline"
               onClick={() =>
                 updateStaffEntries((current) => [...current, { role: "", members: [] }])
               }
             >
               Adicionar função
-            </Button>
+            </DashboardActionButton>
           </div>
           <div className="grid gap-3">
             {staffEntries.map((role, index) => (
@@ -198,9 +198,9 @@ const ProjectEditorStaffSectionComponent = ({
                     onCommit={(member) => onCommitMember(index, member)}
                     placeholder="Adicionar membro"
                   />
-                  <Button type="button" variant="outline" onClick={() => onCommitMember(index)}>
+                  <DashboardActionButton type="button" size="sm" onClick={() => onCommitMember(index)}>
                     Adicionar
-                  </Button>
+                  </DashboardActionButton>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {(role.members || []).map((member) =>

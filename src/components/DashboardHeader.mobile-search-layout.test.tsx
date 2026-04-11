@@ -132,6 +132,32 @@ describe("DashboardHeader mobile search layout", () => {
     });
   });
 
+  it("mantem o header fixo preparado para compensar scroll lock", () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <DashboardHeader
+          currentUser={{
+            name: "Admin",
+            username: "admin",
+            avatarUrl: null,
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    const header = container.querySelector("header");
+
+    expect(header).not.toBeNull();
+    expect(classTokens(header as HTMLElement)).toEqual(
+      expect.arrayContaining([
+        "dashboard-scroll-lock-fixed-right",
+        "fixed",
+        "right-0",
+        "top-0",
+      ]),
+    );
+  });
+
   it("habilita busca mobile, nao faz fetch eager e renderiza sugestoes remotas", async () => {
     setupApiMock({
       searchSuggestions: [

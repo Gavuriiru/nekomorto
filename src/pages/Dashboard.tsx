@@ -167,6 +167,11 @@ const normalizeDashboardWidgets = (value: unknown): DashboardWidgetId[] => {
   return Array.from(dedupe);
 };
 
+const areDashboardWidgetListsEqual = (
+  left: DashboardWidgetId[],
+  right: DashboardWidgetId[],
+) => left.length === right.length && left.every((item, index) => item === right[index]);
+
 const EMPTY_DASHBOARD_OVERVIEW: Readonly<DashboardOverview> = Object.freeze({
   metrics: {
     totalProjects: 0,
@@ -522,18 +527,21 @@ const Dashboard = () => {
   const rankedProjects = overview.rankedProjects;
   const hasProjectViewData = rankedProjects.length > 0;
   const hasAnalyticsData = totalViewsLast7 > 0;
-  const homeByRole = dashboardPreferences.dashboardPreferences.homeByRole || {};
-  const homePreferences: Partial<Record<DashboardHomeRole, DashboardWidgetId[]>> = {
-    editor: normalizeDashboardWidgets(
-      (homeByRole.editor as { widgets?: unknown } | undefined)?.widgets,
-    ),
-    moderador: normalizeDashboardWidgets(
-      (homeByRole.moderador as { widgets?: unknown } | undefined)?.widgets,
-    ),
-    admin: normalizeDashboardWidgets(
-      (homeByRole.admin as { widgets?: unknown } | undefined)?.widgets,
-    ),
-  };
+  const dashboardHomeByRole = dashboardPreferences.dashboardPreferences.homeByRole;
+  const homePreferences = useMemo<Partial<Record<DashboardHomeRole, DashboardWidgetId[]>>>(() => {
+    const homeByRole = dashboardHomeByRole || {};
+    return {
+      editor: normalizeDashboardWidgets(
+        (homeByRole.editor as { widgets?: unknown } | undefined)?.widgets,
+      ),
+      moderador: normalizeDashboardWidgets(
+        (homeByRole.moderador as { widgets?: unknown } | undefined)?.widgets,
+      ),
+      admin: normalizeDashboardWidgets(
+        (homeByRole.admin as { widgets?: unknown } | undefined)?.widgets,
+      ),
+    };
+  }, [dashboardHomeByRole]);
   const isLoadingPreferences =
     dashboardPreferences.hasProvider &&
     (!dashboardPreferences.hasResolved || dashboardPreferences.isLoading);
@@ -616,7 +624,11 @@ const Dashboard = () => {
     if (!isCustomizeOpen) {
       return;
     }
-    setCustomDraftWidgets(selectedWidgetsByRole);
+    setCustomDraftWidgets((previous) =>
+      areDashboardWidgetListsEqual(previous, selectedWidgetsByRole)
+        ? previous
+        : [...selectedWidgetsByRole],
+    );
   }, [isCustomizeOpen, selectedWidgetsByRole]);
 
   const persistHomeWidgetsByRole = useCallback(
@@ -843,37 +855,32 @@ const Dashboard = () => {
             className="flex items-center gap-3 overflow-x-auto whitespace-nowrap pb-1 animate-slide-up opacity-0"
             style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
           >
-            <Button
-              variant="outline"
-              className="border-border/70 bg-background px-4 text-foreground/70 hover:bg-background hover:text-foreground"
+            <DashboardActionButton
+              type="button"
+              size="toolbar"
               onClick={() => setIsCustomizeOpen(true)}
             >
-              <SlidersHorizontal className="mr-2 h-4 w-4" />
+              <SlidersHorizontal className="h-4 w-4" />
               Personalizar painel
-            </Button>
+            </DashboardActionButton>
             {isLoadingUser ? (
               <Skeleton
                 className="h-10 w-40 shrink-0 rounded-md border border-border/70"
                 data-testid="dashboard-header-user-action-skeleton"
               />
             ) : currentUser ? (
-              <Button
-                variant="outline"
-                className="border-border/70 bg-background px-4 text-foreground/70 hover:bg-background hover:text-foreground"
+              <DashboardActionButton
+                type="button"
+                size="toolbar"
                 onClick={() => void handleExportReport()}
                 disabled={isExportingReport}
               >
                 {isExportingReport ? "Exportando..." : "Exportar relatório"}
-              </Button>
+              </DashboardActionButton>
             ) : (
-              <Link to="/login">
-                <Button
-                  variant="outline"
-                  className="border-border/70 bg-background px-4 text-foreground/70 hover:bg-background hover:text-foreground"
-                >
-                  Fazer login
-                </Button>
-              </Link>
+              <DashboardActionButton asChild size="toolbar">
+                <Link to="/login">Fazer login</Link>
+              </DashboardActionButton>
             )}
           </div>
         </header>

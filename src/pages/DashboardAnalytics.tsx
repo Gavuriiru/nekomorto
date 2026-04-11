@@ -4,6 +4,7 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import {
   dashboardAnimationDelay,
   dashboardMotionDelays,
@@ -524,14 +525,15 @@ const DashboardAnalytics = () => {
                   Atualizando dados...
                 </Badge>
               </div>
-              <Button
+              <DashboardActionButton
+                type="button"
+                size="toolbar"
                 className="self-start lg:ml-auto lg:self-auto"
-                variant="outline"
                 onClick={exportCsv}
                 disabled={!displayedSnapshot || isRefreshing || !isSnapshotAlignedWithRequestedFilters}
               >
                 Exportar
-              </Button>
+              </DashboardActionButton>
             </div>
           }
         />

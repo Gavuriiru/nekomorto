@@ -2,6 +2,7 @@
 import DashboardLightSelect, {
   type DashboardLightSelectOption,
 } from "@/components/dashboard/DashboardLightSelect";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -160,16 +161,15 @@ export const ChapterEditorStructureSection = memo(
                   Selecione volumes, navegue por capítulos e organize a estrutura editorial do
                   projeto.
                 </p>
-                <Button
+                <DashboardActionButton
                   type="button"
                   size="sm"
-                  variant="outline"
                   onClick={onAddVolume}
                   className="w-full justify-center"
                 >
                   <Plus className="h-4 w-4" />
                   <span>Adicionar volume</span>
-                </Button>
+                </DashboardActionButton>
               </div>
             </div>
 
@@ -289,10 +289,9 @@ export const ChapterEditorStructureSection = memo(
                         className="flex gap-2"
                         data-testid={`chapter-structure-group-actions-${group.key}`}
                       >
-                        <Button
+                        <DashboardActionButton
                           type="button"
                           size="sm"
-                          variant="outline"
                           data-testid={`chapter-structure-add-chapter-${group.key}`}
                           onClick={() => {
                             void onAddChapter(group.volume);
@@ -301,12 +300,11 @@ export const ChapterEditorStructureSection = memo(
                         >
                           <Plus className="h-4 w-4" />
                           <span>Adicionar capítulo</span>
-                        </Button>
+                        </DashboardActionButton>
                         {hasExportablePublishedVolumeChapter && group.volume !== null ? (
-                          <Button
+                          <DashboardActionButton
                             type="button"
                             size="sm"
-                            variant="outline"
                             data-testid={`chapter-structure-export-volume-${group.key}`}
                             onClick={() => {
                               void onStructureVolumeExport(group.volume as number, group.key);
@@ -320,7 +318,7 @@ export const ChapterEditorStructureSection = memo(
                               <FileArchive className="h-4 w-4" />
                             )}
                             <span>ZIP</span>
-                          </Button>
+                          </DashboardActionButton>
                         ) : null}
                       </div>
                     </div>

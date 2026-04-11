@@ -1395,10 +1395,9 @@ const DashboardProjectEpisodeEditor = () => {
                         eyebrow="Entrega"
                         testId="anime-episode-file-section"
                         actions={
-                          <Button
+                          <DashboardActionButton
                             type="button"
                             size="sm"
-                            variant="outline"
                             onClick={() =>
                               updateDraft((current) => ({
                                 ...current,
@@ -1408,7 +1407,7 @@ const DashboardProjectEpisodeEditor = () => {
                           >
                             <Plus className="h-4 w-4" />
                             <span>Adicionar fonte</span>
-                          </Button>
+                          </DashboardActionButton>
                         }
                       >
                         <div className="grid gap-4 md:grid-cols-2">
