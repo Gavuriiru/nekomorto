@@ -24,6 +24,7 @@ import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
 import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { PillButton } from "@/components/ui/pill-button";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { resolveDiscordAvatarRenderUrl } from "@/lib/discord-avatar";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
@@ -400,15 +401,15 @@ const PublicUserProfileCard = ({
             </div>
 
             {hasFavoriteWorks ? (
-              <button
-                type="button"
-                className="team-member-favorites-toggle inline-flex w-fit items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary transition hover:border-primary/60 hover:bg-primary/15 md:hidden"
+              <PillButton
+                tone="primary"
+                className="team-member-favorites-toggle w-fit gap-0 px-3 py-1 text-[11px] uppercase tracking-[0.12em] md:hidden"
                 aria-pressed={isFavoritesOpen}
                 aria-label={isFavoritesOpen ? "Ver bio" : "Ver obras favoritas"}
                 onClick={toggleFavoritePanel}
               >
                 {isFavoritesOpen ? "Ver bio" : "Ver obras favoritas"}
-              </button>
+              </PillButton>
             ) : null}
 
             <div className="team-member-panel-shell flex flex-col gap-4">

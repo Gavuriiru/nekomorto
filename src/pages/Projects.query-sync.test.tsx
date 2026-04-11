@@ -1177,7 +1177,26 @@ describe("Projects query sync", () => {
     const tagButton = await screen.findByRole("button", { name: /Filtrar por tag A.*o/i });
     const genreButton = await screen.findByRole("button", { name: /Filtrar por g.*nero Drama/i });
 
-    expect(tagButton).toHaveClass("min-h-6", "min-w-6", "rounded-md", "p-0.5");
-    expect(genreButton).toHaveClass("min-h-6", "min-w-6", "rounded-md", "p-0.5");
+    expect(tagButton).toHaveClass(
+      "min-h-6",
+      "min-w-6",
+      "rounded-full",
+      "h-6",
+      "px-2",
+      "py-0",
+      "bg-secondary",
+      "text-secondary-foreground",
+    );
+    expect(genreButton).toHaveClass(
+      "min-h-6",
+      "min-w-6",
+      "rounded-full",
+      "h-6",
+      "px-2",
+      "py-0",
+      "border-border/70",
+      "bg-background",
+      "text-foreground/70",
+    );
   });
 });

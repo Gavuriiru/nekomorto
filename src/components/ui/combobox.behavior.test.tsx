@@ -11,6 +11,11 @@ const baseOptions: ComboboxOption[] = [
   { value: "users", label: "Users", icon: Users },
 ];
 
+const manyOptions: ComboboxOption[] = Array.from({ length: 24 }, (_, index) => ({
+  value: `option-${index + 1}`,
+  label: `Option ${index + 1}`,
+}));
+
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
@@ -92,15 +97,28 @@ describe("Combobox", () => {
     fireEvent.click(trigger);
 
     const listbox = await screen.findByRole("listbox");
+    const popover = listbox.parentElement as HTMLElement;
     expect(classTokens(listbox)).toEqual(
       expect.arrayContaining(["no-scrollbar", "max-h-64", "overflow-y-auto", "overscroll-contain"]),
     );
-    expect(classTokens(listbox.parentElement as HTMLElement)).toEqual(
+    expect(classTokens(popover)).toEqual(
       expect.arrayContaining(["rounded-2xl", "border-border/70", "bg-popover/95"]),
     );
 
+    fireEvent.pointerDown(trigger);
+    fireEvent.click(trigger);
+
+    await waitFor(() => {
+      expect(trigger).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(trigger);
+
     const heartOption = screen.getByRole("option", { name: "Heart" });
     expect(heartOption).toHaveClass("rounded-xl", "py-2", "pl-9", "pr-3");
+    expect(classTokens(heartOption)).toContain("combobox-item-interaction-surface");
+    expect(classTokens(heartOption)).not.toContain("hover:bg-accent/60");
     fireEvent.click(heartOption);
 
     await waitFor(() => {
@@ -108,6 +126,44 @@ describe("Combobox", () => {
       expect(screen.queryByRole("option", { name: "Heart" })).not.toBeInTheDocument();
     });
     expect(trigger).toHaveTextContent("Heart");
+  });
+
+  it("uses compact width and spacing when variant is compact", async () => {
+    render(
+      <Combobox
+        ariaLabel="Compacto"
+        value="sparkles"
+        options={baseOptions}
+        onValueChange={vi.fn()}
+        searchable={false}
+        variant="compact"
+        className="w-[108px]"
+      />,
+    );
+
+    const trigger = screen.getByRole("combobox", { name: "Compacto" });
+    expect(classTokens(trigger)).toEqual(
+      expect.arrayContaining(["min-h-8", "gap-2", "px-2.5", "py-1.5", "w-[108px]"]),
+    );
+
+    fireEvent.click(trigger);
+
+    const listbox = await screen.findByRole("listbox");
+    const popover = listbox.parentElement as HTMLElement;
+    const sparklesOption = await screen.findByRole("option", { name: "Sparkles" });
+
+    expect(classTokens(popover)).toEqual(
+      expect.arrayContaining([
+        "w-[var(--radix-popover-trigger-width)]",
+        "min-w-[var(--radix-popover-trigger-width)]",
+        "max-w-[calc(100vw-2rem)]",
+        "p-2",
+      ]),
+    );
+    expect(classTokens(popover)).not.toContain("min-w-[min(16rem,calc(100vw-2rem))]");
+    expect(classTokens(sparklesOption)).toEqual(
+      expect.arrayContaining(["py-1.5", "pl-8", "pr-2", "text-xs", "data-[state=checked]:bg-accent"]),
+    );
   });
 
   it("supports keyboard navigation, selection, Escape, Home and End", async () => {
@@ -222,6 +278,29 @@ describe("Combobox", () => {
     expect(await screen.findByRole("option", { name: "Users" })).toBeInTheDocument();
   });
 
+  it("clears pointer highlight when the mouse leaves an option", async () => {
+    render(
+      <Combobox
+        ariaLabel="Hover"
+        value="sparkles"
+        options={baseOptions}
+        onValueChange={vi.fn()}
+        searchable={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Hover" }));
+
+    const heartOption = await screen.findByRole("option", { name: "Heart" });
+    fireEvent.mouseEnter(heartOption);
+    expect(heartOption).toHaveAttribute("data-highlighted");
+
+    fireEvent.mouseLeave(heartOption);
+    await waitFor(() => {
+      expect(heartOption).not.toHaveAttribute("data-highlighted");
+    });
+  });
+
   it("renders rich icons in the trigger and listbox", async () => {
     render(
       <Combobox
@@ -245,6 +324,7 @@ describe("Combobox", () => {
 
     const richOption = await screen.findByRole("option", { name: "Heart" });
     expect(richOption).toHaveAttribute("data-state", "checked");
+    expect(classTokens(richOption)).toContain("data-[state=checked]:bg-accent");
     expect(within(richOption).getByText("Heart").parentElement).toHaveClass(
       "flex",
       "items-center",
@@ -253,36 +333,66 @@ describe("Combobox", () => {
     );
   });
 
-  it("filters only when searchable is enabled", async () => {
+  it("renders the search field only for searchable lists with more than 15 options", async () => {
     render(
       <div>
         <Combobox
-          ariaLabel="Com busca"
-          value="sparkles"
-          options={baseOptions}
+          ariaLabel="Busca curta"
+          value="option-1"
+          options={manyOptions.slice(0, 15)}
           onValueChange={vi.fn()}
           searchable
           searchPlaceholder="Buscar opção"
         />
         <Combobox
-          ariaLabel="Sem busca"
-          value="sparkles"
-          options={baseOptions}
+          ariaLabel="Busca longa"
+          value="option-1"
+          options={manyOptions}
           onValueChange={vi.fn()}
-          searchable={false}
+          searchable
+          searchPlaceholder="Buscar opcao"
         />
       </div>,
     );
 
-    fireEvent.click(screen.getByRole("combobox", { name: "Com busca" }));
-    const searchInput = await screen.findByPlaceholderText("Buscar opção");
-    fireEvent.change(searchInput, { target: { value: "heart" } });
+    fireEvent.click(screen.getByRole("combobox", { name: "Busca curta" }));
+    expect(await screen.findByRole("option", { name: "Option 15" })).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Buscar opcao")).not.toBeInTheDocument();
 
-    expect(await screen.findByRole("option", { name: "Heart" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Sparkles" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("combobox", { name: "Busca longa" }));
+    const searchInput = await screen.findByPlaceholderText("Buscar opcao");
+    fireEvent.change(searchInput, { target: { value: "24" } });
 
-    fireEvent.click(screen.getByRole("combobox", { name: "Sem busca" }));
-    expect(screen.queryByPlaceholderText("Buscar opção")).not.toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Option 24" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Option 1" })).not.toBeInTheDocument();
+  });
+
+  it("loads more options on scroll instead of rendering a show more button", async () => {
+    render(
+      <Combobox
+        ariaLabel="Rolagem"
+        value="option-1"
+        options={manyOptions}
+        onValueChange={vi.fn()}
+        searchable={false}
+        initialVisibleCount={8}
+        visibleCountStep={8}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Rolagem" }));
+
+    const listbox = await screen.findByRole("listbox");
+    expect(screen.getByRole("option", { name: "Option 8" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Option 16" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Mostrar mais/i })).not.toBeInTheDocument();
+
+    Object.defineProperty(listbox, "scrollTop", { configurable: true, value: 180 });
+    Object.defineProperty(listbox, "clientHeight", { configurable: true, value: 120 });
+    Object.defineProperty(listbox, "scrollHeight", { configurable: true, value: 320 });
+    fireEvent.scroll(listbox);
+
+    expect(await screen.findByRole("option", { name: "Option 16" })).toBeInTheDocument();
   });
 
   it("supports editable custom values with allowCreate", async () => {

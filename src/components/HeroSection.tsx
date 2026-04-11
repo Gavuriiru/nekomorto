@@ -12,6 +12,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
+import { buttonVariants } from "@/components/ui/button-variants";
 import UploadPicture from "@/components/UploadPicture";
 import { scheduleOnBrowserIdle } from "@/lib/browser-idle";
 import {
@@ -432,7 +433,10 @@ const HeroSlideFrame = ({
             <Link
               to={`/projeto/${slide.projectId}`}
               aria-label={`Acessar página de ${slide.title}`}
-              className="inline-flex items-center gap-2 rounded-lg bg-(--hero-accent,hsl(var(--primary))) px-6 py-3 font-semibold text-(--hero-accent-foreground,hsl(var(--primary-foreground))) transition-all hover:scale-105 hover:brightness-110"
+              className={buttonVariants({
+                className:
+                  "bg-(--hero-accent,hsl(var(--primary))) px-6 text-(--hero-accent-foreground,hsl(var(--primary-foreground))) hover:bg-(--hero-accent,hsl(var(--primary))) hover:brightness-110",
+              })}
             >
               <Globe className="h-4 w-4" />
               Acessar Página
@@ -442,7 +446,11 @@ const HeroSlideFrame = ({
                 href={slide.trailerUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg border border-border/40 bg-background/70 px-6 py-3 font-semibold text-foreground transition-all hover:scale-105 hover:bg-background/90"
+                className={buttonVariants({
+                  variant: "outline",
+                  className:
+                    "border-border/40 bg-background/70 px-6 text-foreground hover:bg-background/90",
+                })}
               >
                 <Play className="h-4 w-4" />
                 Assistir Trailer
@@ -867,7 +875,10 @@ const HeroSection = () => {
                           <Link
                             to={`/projeto/${slide.projectId}`}
                             aria-label={`Acessar página de ${slide.title}`}
-                            className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 hover:brightness-110 bg-(--hero-accent,hsl(var(--primary))) text-(--hero-accent-foreground,hsl(var(--primary-foreground)))"
+                            className={buttonVariants({
+                              className:
+                                "bg-(--hero-accent,hsl(var(--primary))) px-6 text-(--hero-accent-foreground,hsl(var(--primary-foreground))) hover:bg-(--hero-accent,hsl(var(--primary))) hover:brightness-110",
+                            })}
                           >
                             <Globe className="h-4 w-4" />
                             Acessar Página
@@ -877,7 +888,11 @@ const HeroSection = () => {
                               href={slide.trailerUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 border border-border/40 bg-background/70 text-foreground hover:bg-background/90"
+                              className={buttonVariants({
+                                variant: "outline",
+                                className:
+                                  "border-border/40 bg-background/70 px-6 text-foreground hover:bg-background/90",
+                              })}
                             >
                               <Play className="h-4 w-4" />
                               Assistir Trailer

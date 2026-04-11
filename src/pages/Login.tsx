@@ -186,7 +186,7 @@ const Login = () => {
                   />
                   {mfaError ? <p className="text-xs text-red-300">{mfaError}</p> : null}
                   <Button
-                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                    className="w-full"
                     disabled={isVerifyingMfa || !mfaCode.trim()}
                     onClick={handleMfaVerify}
                   >
@@ -207,7 +207,7 @@ const Login = () => {
               <div className={`login-actions ${showMfaForm ? "justify-end" : ""}`}>
                 {!showMfaForm ? (
                   <Button
-                    className="w-full bg-primary text-primary-foreground shadow-[0_16px_34px_-24px_hsl(var(--primary)/0.85)] hover:bg-primary/90 sm:w-auto"
+                    className="w-full sm:w-auto"
                     onClick={() => {
                       const target = next
                         ? `${apiBase}/auth/discord?next=${encodeURIComponent(next)}`

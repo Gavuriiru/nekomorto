@@ -2302,10 +2302,7 @@ const DashboardPosts = () => {
                 className={dashboardPageLayoutTokens.surfaceInset}
                 action={
                   canManagePosts ? (
-                    <Button
-                      onClick={openCreate}
-                      className="bg-primary text-primary-foreground hover:bg-primary/90"
-                    >
+                    <Button onClick={openCreate}>
                       <Plus className="mr-2 h-4 w-4" />
                       Criar primeira postagem
                     </Button>

@@ -123,9 +123,16 @@ describe("Recruitment mobile CTA layout", () => {
 
     const ctaLink = screen.getByRole("link", { name: "Entrar no Discord" });
     const ctaLinkTokens = classTokens(ctaLink);
-    expect(ctaLinkTokens).toContain("interactive-lift-sm");
-    expect(ctaLinkTokens).toContain("interactive-control-transition");
-    expect(ctaLinkTokens).toContain("hover:bg-primary/90");
+    expect(ctaLinkTokens).toContain("rounded-xl");
+    expect(ctaLinkTokens).toContain("shadow-none");
+    expect(ctaLinkTokens).toContain("border-primary/30");
+    expect(ctaLinkTokens).toContain("bg-primary/85");
+    expect(ctaLinkTokens).toContain("hover:border-primary/85");
+    expect(ctaLinkTokens).toContain("hover:bg-primary");
+    expect(ctaLinkTokens).toContain("text-primary-foreground");
+    expect(ctaLinkTokens).not.toContain("interactive-lift-sm");
+    expect(ctaLinkTokens).not.toContain("interactive-control-transition");
+    expect(ctaLinkTokens).not.toContain("hover:bg-primary/90");
   });
 
   it("mantem defaults com bootstrap critical-home e troca para o conteudo completo", async () => {

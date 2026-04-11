@@ -10,13 +10,10 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
-import {
-  buildTranslationMap,
-  sortByTranslatedLabel,
-  translateTag,
-} from "@/lib/project-taxonomy";
+import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { cn } from "@/lib/utils";
+import "@/styles/project-embed-card.css";
 import type { PublicBootstrapPayload } from "@/types/public-bootstrap";
 
 type ProjectEmbedCardProps = {
@@ -25,15 +22,7 @@ type ProjectEmbedCardProps = {
 
 type ProjectEmbedRecord = Pick<
   Project,
-  | "id"
-  | "cover"
-  | "episodes"
-  | "status"
-  | "studio"
-  | "synopsis"
-  | "tags"
-  | "title"
-  | "type"
+  "id" | "cover" | "episodes" | "status" | "studio" | "synopsis" | "tags" | "title" | "type"
 >;
 
 const COVER_ROW_HEIGHT = "192px";
@@ -68,14 +57,9 @@ const resolveBootstrapProject = (
   };
 };
 
-const mergeMediaVariants = (
-  base: UploadMediaVariantsMap,
-  nextValue: unknown,
-) => ({
+const mergeMediaVariants = (base: UploadMediaVariantsMap, nextValue: unknown) => ({
   ...base,
-  ...(nextValue && typeof nextValue === "object"
-    ? (nextValue as UploadMediaVariantsMap)
-    : {}),
+  ...(nextValue && typeof nextValue === "object" ? (nextValue as UploadMediaVariantsMap) : {}),
 });
 
 const getSynopsisClampClass = (lines: number | undefined) => {
@@ -106,19 +90,15 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
     () => resolveBootstrapProject(bootstrapData, projectId),
     [bootstrapData, projectId],
   );
-  const [project, setProject] = useState<ProjectEmbedRecord | null>(
-    bootstrapProject,
+  const [project, setProject] = useState<ProjectEmbedRecord | null>(bootstrapProject);
+  const [projectMediaVariants, setProjectMediaVariants] = useState<UploadMediaVariantsMap>(
+    () => bootstrapData?.mediaVariants || {},
   );
-  const [projectMediaVariants, setProjectMediaVariants] =
-    useState<UploadMediaVariantsMap>(() => bootstrapData?.mediaVariants || {});
   const [hasLoaded, setHasLoaded] = useState(Boolean(bootstrapProject));
-  const [tagTranslations, setTagTranslations] = useState<
-    Record<string, string>
-  >(() => bootstrapData?.tagTranslations?.tags || {});
-  const tagTranslationMap = useMemo(
-    () => buildTranslationMap(tagTranslations),
-    [tagTranslations],
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
+    () => bootstrapData?.tagTranslations?.tags || {},
   );
+  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
   const synopsisKey = project?.id ?? projectId ?? "project-embed";
   const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
     enabled: Boolean(projectId),
@@ -127,9 +107,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   });
   const sortedTags = useMemo(() => {
     const tags = Array.isArray(project?.tags) ? project.tags : [];
-    return sortByTranslatedLabel(tags, (tag) =>
-      translateTag(tag, tagTranslationMap),
-    );
+    return sortByTranslatedLabel(tags, (tag) => translateTag(tag, tagTranslationMap));
   }, [project?.tags, tagTranslationMap]);
   const synopsisMaxLines = (() => {
     const lines = lineByKey[synopsisKey];
@@ -154,10 +132,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await apiFetch(
-          apiBase,
-          `/api/public/projects/${projectId}`,
-        );
+        const response = await apiFetch(apiBase, `/api/public/projects/${projectId}`);
         if (!response.ok) {
           if (isActive) {
             setProject(null);
@@ -168,10 +143,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
         if (isActive) {
           setProject(data.project || null);
           setProjectMediaVariants((current) =>
-            mergeMediaVariants(
-              bootstrapData?.mediaVariants || current,
-              data?.mediaVariants,
-            ),
+            mergeMediaVariants(bootstrapData?.mediaVariants || current, data?.mediaVariants),
           );
         }
       } catch {
@@ -197,13 +169,9 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
     let isActive = true;
     const loadTranslations = async () => {
       try {
-        const response = await apiFetch(
-          apiBase,
-          "/api/public/tag-translations",
-          {
-            cache: "no-store",
-          },
-        );
+        const response = await apiFetch(apiBase, "/api/public/tag-translations", {
+          cache: "no-store",
+        });
         if (!response.ok || !isActive) {
           return;
         }
@@ -235,7 +203,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   return (
     <Link
       to={`/projeto/${project?.id ?? projectId}`}
-      className="group block overflow-hidden rounded-2xl border border-border/60 bg-card focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 interactive-lift-md interactive-surface-transition hover:border-primary/60 hover:bg-card/90"
+      className="project-embed-card group block overflow-hidden rounded-2xl border border-border/60 bg-card focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 hover:border-primary/60 hover:bg-card/90"
     >
       <Card className="overflow-hidden bg-transparent shadow-none">
         <CardContent className="p-0">
@@ -259,7 +227,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
                 mediaVariants={projectMediaVariants}
                 className="block h-full w-full"
                 sizes={PROJECT_EMBED_IMAGE_SIZES}
-                imgClassName="interactive-media-transition h-full w-full object-cover object-center group-hover:scale-105 group-focus-visible:scale-105"
+                imgClassName="project-embed-card__media h-full w-full object-cover object-center"
               />
             </div>
             <div
@@ -285,10 +253,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
               >
                 {project?.synopsis || ""}
               </p>
-              <div
-                data-synopsis-role="badges"
-                className="mt-auto space-y-2 pt-2"
-              >
+              <div data-synopsis-role="badges" className="mt-auto space-y-2 pt-2">
                 <div
                   data-testid="project-embed-primary-badges"
                   className="flex flex-nowrap items-center gap-2 overflow-hidden text-xs sm:flex-wrap"
@@ -327,11 +292,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
                     className="hidden flex-wrap gap-1.5 sm:flex"
                   >
                     {sortedTags.slice(0, 4).map((tag) => (
-                      <Badge
-                        key={tag}
-                        variant="secondary"
-                        className="text-[9px] uppercase"
-                      >
+                      <Badge key={tag} variant="secondary" className="text-[9px] uppercase">
                         {translateTag(tag, tagTranslationMap)}
                       </Badge>
                     ))}

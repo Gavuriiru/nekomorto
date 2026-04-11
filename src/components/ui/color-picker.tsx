@@ -16,6 +16,7 @@ import {
   SliderTrack,
 } from "react-aria-components";
 import { parseColor } from "@react-stately/color";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
 import "./color-picker.css";
 
@@ -169,7 +170,7 @@ export const ColorPicker = ({
           <ColorThumb className="absolute top-1/2 h-4 w-4 rounded-full border-2 border-white shadow-md data-dragging:scale-110 data-focus-visible:ring-2 data-focus-visible:ring-ring/45" />
         </SliderTrack>
       </ColorSlider>
-      <HexField className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm text-foreground shadow-xs outline-hidden transition focus-visible:ring-2 focus-visible:ring-ring/45" />
+      <HexField className="h-9 rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground shadow-none outline-hidden transition focus-visible:ring-2 focus-visible:ring-ring/45" />
     </>
   );
 
@@ -182,7 +183,11 @@ export const ColorPicker = ({
           <Button
             className={
               buttonClassName ??
-              "inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card/70 px-3 py-2 text-sm text-foreground shadow-xs transition hover:border-primary/40 hover:bg-card focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/45"
+              buttonVariants({
+                variant: "outline",
+                size: "sm",
+                className: "border-border/60 bg-card/70 text-foreground hover:bg-card",
+              })
             }
           >
             {trigger ? (

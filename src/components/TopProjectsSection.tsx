@@ -166,8 +166,9 @@ const TopProjectsSection = () => {
             ariaLabel="Ordenar Top 10 por visualizacoes"
             options={topProjectsModeOptions}
             searchable={false}
+            variant="compact"
             dataTestId="top-projects-mode-trigger"
-            className="h-7 w-[92px] bg-background/70 px-2 text-[11px] uppercase tracking-[0.08em] text-muted-foreground"
+            className="h-8 w-[108px] bg-background/70 px-2.5 text-[11px] uppercase tracking-[0.08em] text-muted-foreground sm:w-[112px]"
           />
         </div>
       </CardHeader>

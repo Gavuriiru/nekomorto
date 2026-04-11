@@ -19,6 +19,7 @@ import UploadPicture from "@/components/UploadPicture";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PillButton } from "@/components/ui/pill-button";
 import CompactPagination from "@/components/ui/compact-pagination";
 import type { Project } from "@/data/projects";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
@@ -184,12 +185,8 @@ const buildIndexedPublicProjects = ({
 
   const items = [...projects]
     .map((project) => {
-      const tags = Array.isArray(project.tags)
-        ? project.tags.filter(Boolean)
-        : [];
-      const genres = Array.isArray(project.genres)
-        ? project.genres.filter(Boolean)
-        : [];
+      const tags = Array.isArray(project.tags) ? project.tags.filter(Boolean) : [];
+      const genres = Array.isArray(project.genres) ? project.genres.filter(Boolean) : [];
       const translatedTags = tags.map((tag) => {
         const translated = String(tagTranslations[tag] || tag).trim();
         tagEntries.set(tag, translated || tag);
@@ -220,9 +217,7 @@ const buildIndexedPublicProjects = ({
             project.type,
             project.status,
             project.studio,
-            ...(Array.isArray(project.animationStudios)
-              ? project.animationStudios
-              : []),
+            ...(Array.isArray(project.animationStudios) ? project.animationStudios : []),
             ...(Array.isArray(project.producers) ? project.producers : []),
             ...tags,
             ...genres,
@@ -237,9 +232,7 @@ const buildIndexedPublicProjects = ({
         type,
       } satisfies IndexedPublicProject;
     })
-    .sort((left, right) =>
-      comparePtBr(left.project.title, right.project.title),
-    );
+    .sort((left, right) => comparePtBr(left.project.title, right.project.title));
 
   return {
     items,
@@ -270,24 +263,22 @@ const getProjectBadgeAriaLabel = (item: ProjectBadgeItem) => {
 };
 
 const ProjectPrimaryBadge = ({ item, navigate }: ProjectPrimaryBadgeProps) => {
-  const badge = (
-    <Badge
-      variant={item.variant}
-      className="inline-flex h-6 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
-      title={item.label}
-    >
-      {item.label}
-    </Badge>
-  );
-
   if (!item.href) {
-    return badge;
+    return (
+      <Badge
+        variant={item.variant}
+        className="inline-flex h-6 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
+        title={item.label}
+      >
+        {item.label}
+      </Badge>
+    );
   }
 
   return (
-    <button
-      type="button"
-      className="inline-flex min-h-6 min-w-6 shrink-0 items-center justify-center rounded-md p-0.5"
+    <PillButton
+      tone={item.variant === "secondary" ? "secondary" : "outline"}
+      className="h-6 shrink-0 gap-0 px-2 py-0 text-[9px] uppercase leading-none"
       title={item.label}
       aria-label={getProjectBadgeAriaLabel(item)}
       onClick={
@@ -300,16 +291,12 @@ const ProjectPrimaryBadge = ({ item, navigate }: ProjectPrimaryBadgeProps) => {
           : undefined
       }
     >
-      {badge}
-    </button>
+      {item.label}
+    </PillButton>
   );
 };
 
-const ProjectsFilterField = ({
-  label,
-  className,
-  children,
-}: ProjectsFilterFieldProps) => (
+const ProjectsFilterField = ({ label, className, children }: ProjectsFilterFieldProps) => (
   <div className={cn("flex flex-col gap-2", className)}>
     <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
       {label}
@@ -330,18 +317,12 @@ const ProjectsResultsSummary = ({
     )}
   >
     <div className="flex flex-wrap gap-2">
-      <span className="font-semibold text-foreground">
-        {filteredProjectsCount}
-      </span>
+      <span className="font-semibold text-foreground">{filteredProjectsCount}</span>
       <span>projetos encontrados</span>
       <span className="text-muted-foreground">&bull;</span>
       <span>Atualizado semanalmente</span>
     </div>
-    <Button
-      variant="ghost"
-      onClick={onResetFilters}
-      className="w-full text-xs uppercase sm:w-auto"
-    >
+    <Button variant="ghost" onClick={onResetFilters} className="w-full text-xs uppercase sm:w-auto">
       Limpar filtros
     </Button>
   </div>
@@ -431,10 +412,7 @@ const ProjectCard = memo(
             {project.synopsis}
           </p>
 
-          <div
-            data-synopsis-role="badges"
-            className="mt-auto flex shrink-0 flex-col gap-2 pt-3"
-          >
+          <div data-synopsis-role="badges" className="mt-auto flex shrink-0 flex-col gap-2 pt-3">
             {!isMobile && (visibleItems.length > 0 || extraCount > 0) ? (
               <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
                 {visibleItems.map((item) => (
@@ -578,9 +556,7 @@ const ProjectsFiltersPanel = memo(
           </span>
           <Input
             value={searchInputValue}
-            onChange={(event) =>
-              onSearchInputChange(event.target.value.slice(0, MAX_QUERY_LENGTH))
-            }
+            onChange={(event) => onSearchInputChange(event.target.value.slice(0, MAX_QUERY_LENGTH))}
             placeholder="Buscar por título, sinopse, tag ou gênero"
             className="bg-background/60"
             aria-label="Buscar projetos"
@@ -602,9 +578,7 @@ const ProjectsFiltersPanel = memo(
                     Filtros
                   </span>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                    <span className="font-semibold text-foreground">
-                      {filteredProjectsCount}
-                    </span>
+                    <span className="font-semibold text-foreground">{filteredProjectsCount}</span>
                     <span>projetos encontrados</span>
                   </div>
                 </div>
@@ -651,19 +625,13 @@ const ProjectsGrid = memo(
     rootRef,
     getSynopsisClampClass,
   }: ProjectsGridProps) => (
-    <div
-      ref={rootRef}
-      className="mt-10 grid gap-6 md:grid-cols-2 md:auto-rows-fr"
-    >
+    <div ref={rootRef} className="mt-10 grid gap-6 md:grid-cols-2 md:auto-rows-fr">
       {projects.map((project, index) => {
-        const isLastSingle =
-          projects.length % 2 === 1 && index === projects.length - 1;
+        const isLastSingle = projects.length % 2 === 1 && index === projects.length - 1;
         return (
           <div
             key={project.id}
-            className={
-              isLastSingle ? "md:col-span-2 flex justify-center" : undefined
-            }
+            className={isLastSingle ? "md:col-span-2 flex justify-center" : undefined}
           >
             {isLastSingle ? (
               <div className="w-full md:w-[calc(50%-0.75rem)]">
@@ -703,37 +671,26 @@ const Projects = () => {
   const apiBase = getApiBase();
   const isMobile = useIsMobile();
   const bootstrap = readWindowPublicBootstrap();
-  const hasFullBootstrap = Boolean(
-    bootstrap && bootstrap.payloadMode !== "critical-home",
-  );
-  const bootstrapProjects = hasFullBootstrap
-    ? ((bootstrap?.projects || []) as Project[])
-    : [];
-  const bootstrapTagTranslations = hasFullBootstrap
-    ? bootstrap?.tagTranslations
-    : null;
-  const bootstrapMediaVariants = hasFullBootstrap
-    ? bootstrap?.mediaVariants || {}
-    : {};
+  const hasFullBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");
+  const bootstrapProjects = hasFullBootstrap ? ((bootstrap?.projects || []) as Project[]) : [];
+  const bootstrapTagTranslations = hasFullBootstrap ? bootstrap?.tagTranslations : null;
+  const bootstrapMediaVariants = hasFullBootstrap ? bootstrap?.mediaVariants || {} : {};
   const [projects, setProjects] = useState<Project[]>(() => bootstrapProjects);
-  const [isLoadingProjects, setIsLoadingProjects] = useState(
-    () => !hasFullBootstrap,
-  );
+  const [isLoadingProjects, setIsLoadingProjects] = useState(() => !hasFullBootstrap);
   const [hasProjectsLoadError, setHasProjectsLoadError] = useState(false);
   const [projectsLoadVersion, setProjectsLoadVersion] = useState(0);
-  const [projectsMediaVariants, setProjectsMediaVariants] =
-    useState<UploadMediaVariantsMap>(() => bootstrapMediaVariants);
-  const [tagTranslations, setTagTranslations] = useState<
-    Record<string, string>
-  >(() => bootstrapTagTranslations?.tags || {});
-  const [genreTranslations, setGenreTranslations] = useState<
-    Record<string, string>
-  >(() => bootstrapTagTranslations?.genres || {});
+  const [projectsMediaVariants, setProjectsMediaVariants] = useState<UploadMediaVariantsMap>(
+    () => bootstrapMediaVariants,
+  );
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
+    () => bootstrapTagTranslations?.tags || {},
+  );
+  const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>(
+    () => bootstrapTagTranslations?.genres || {},
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   const searchParamsRef = useRef(searchParams);
-  const [searchInputValue, setSearchInputValue] = useState(
-    () => searchParams.get("q") || "",
-  );
+  const [searchInputValue, setSearchInputValue] = useState(() => searchParams.get("q") || "");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const navigate = useNavigate();
   const pageMediaVariants = bootstrap?.mediaVariants || {};
@@ -746,8 +703,7 @@ const Projects = () => {
   const selectedLetter = parseLetterParam(searchParams.get("letter"));
   const selectedType = parseTypeParam(searchParams.get("type"));
   const selectedTag = searchParams.get("tag") || "Todas";
-  const selectedGenre =
-    searchParams.get("genero") || searchParams.get("genre") || "Todos";
+  const selectedGenre = searchParams.get("genero") || searchParams.get("genre") || "Todos";
   const selectedQuery = searchParams.get("q") || "";
   const currentPage = parseProjectsPageParam(searchParams.get("page"));
 
@@ -803,9 +759,7 @@ const Projects = () => {
         }
         setProjects(Array.isArray(data.projects) ? data.projects : []);
         setProjectsMediaVariants(
-          data?.mediaVariants && typeof data.mediaVariants === "object"
-            ? data.mediaVariants
-            : {},
+          data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
         );
         setHasProjectsLoadError(false);
       } catch {
@@ -835,13 +789,9 @@ const Projects = () => {
 
     const loadTranslations = async () => {
       try {
-        const response = await apiFetch(
-          apiBase,
-          "/api/public/tag-translations",
-          {
-            cache: "no-store",
-          },
-        );
+        const response = await apiFetch(apiBase, "/api/public/tag-translations", {
+          cache: "no-store",
+        });
         if (!response.ok) {
           return;
         }
@@ -885,10 +835,7 @@ const Projects = () => {
   }, [selectedQuery]);
 
   const commitSearchParams = useCallback(
-    (
-      mutate: (params: URLSearchParams) => void,
-      options?: { replace?: boolean },
-    ) => {
+    (mutate: (params: URLSearchParams) => void, options?: { replace?: boolean }) => {
       const current = new URLSearchParams(searchParamsRef.current);
       const next = new URLSearchParams(current);
       mutate(next);
@@ -929,26 +876,14 @@ const Projects = () => {
     () =>
       indexedProjects.items
         .filter((item) => {
-          const matchesTag =
-            selectedTag === "Todas" || item.tagSet.has(selectedTag);
-          const matchesGenre =
-            selectedGenre === "Todos" || item.genreSet.has(selectedGenre);
-          const matchesType =
-            selectedType === "Todos" || item.type === selectedType;
-          const matchesLetter =
-            selectedLetter === "Todas" || item.firstLetter === selectedLetter;
+          const matchesTag = selectedTag === "Todas" || item.tagSet.has(selectedTag);
+          const matchesGenre = selectedGenre === "Todos" || item.genreSet.has(selectedGenre);
+          const matchesType = selectedType === "Todos" || item.type === selectedType;
+          const matchesLetter = selectedLetter === "Todas" || item.firstLetter === selectedLetter;
           const matchesQuery =
             normalizedQueryTokens.length === 0 ||
-            normalizedQueryTokens.every((token) =>
-              item.normalizedHaystack.includes(token),
-            );
-          return (
-            matchesTag &&
-            matchesGenre &&
-            matchesType &&
-            matchesLetter &&
-            matchesQuery
-          );
+            normalizedQueryTokens.every((token) => item.normalizedHaystack.includes(token));
+          return matchesTag && matchesGenre && matchesType && matchesLetter && matchesQuery;
         })
         .map((item) => item.project),
     [
@@ -961,15 +896,9 @@ const Projects = () => {
     ],
   );
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredProjects.length / projectsPerPage),
-  );
+  const totalPages = Math.max(1, Math.ceil(filteredProjects.length / projectsPerPage));
   const pageStart = (currentPage - 1) * projectsPerPage;
-  const paginatedProjects = filteredProjects.slice(
-    pageStart,
-    pageStart + projectsPerPage,
-  );
+  const paginatedProjects = filteredProjects.slice(pageStart, pageStart + projectsPerPage);
   const synopsisKeys = useMemo(
     () => paginatedProjects.map((project) => project.id),
     [paginatedProjects],
@@ -1033,22 +962,13 @@ const Projects = () => {
       },
       { replace: true },
     );
-  }, [
-    commitSearchParams,
-    hasProjectsLoadError,
-    isLoadingProjects,
-    selectedType,
-    typeOptionValues,
-  ]);
+  }, [commitSearchParams, hasProjectsLoadError, isLoadingProjects, selectedType, typeOptionValues]);
 
   useEffect(() => {
     if (isLoadingProjects || hasProjectsLoadError) {
       return;
     }
-    if (
-      selectedTag === "Todas" ||
-      tagOptions.some((option) => option.value === selectedTag)
-    ) {
+    if (selectedTag === "Todas" || tagOptions.some((option) => option.value === selectedTag)) {
       return;
     }
     commitSearchParams(
@@ -1057,13 +977,7 @@ const Projects = () => {
       },
       { replace: true },
     );
-  }, [
-    commitSearchParams,
-    hasProjectsLoadError,
-    isLoadingProjects,
-    selectedTag,
-    tagOptions,
-  ]);
+  }, [commitSearchParams, hasProjectsLoadError, isLoadingProjects, selectedTag, tagOptions]);
 
   useEffect(() => {
     if (isLoadingProjects || hasProjectsLoadError) {
@@ -1082,13 +996,7 @@ const Projects = () => {
       },
       { replace: true },
     );
-  }, [
-    commitSearchParams,
-    genreOptions,
-    hasProjectsLoadError,
-    isLoadingProjects,
-    selectedGenre,
-  ]);
+  }, [commitSearchParams, genreOptions, hasProjectsLoadError, isLoadingProjects, selectedGenre]);
 
   useEffect(() => {
     if (isLoadingProjects || hasProjectsLoadError) {
@@ -1107,20 +1015,10 @@ const Projects = () => {
       },
       { replace: true },
     );
-  }, [
-    commitSearchParams,
-    currentPage,
-    hasProjectsLoadError,
-    isLoadingProjects,
-    totalPages,
-  ]);
+  }, [commitSearchParams, currentPage, hasProjectsLoadError, isLoadingProjects, totalPages]);
 
   const handleFilterChange = useCallback(
-    (
-      key: "letter" | "tag" | "genero" | "type",
-      value: string,
-      emptyValue: "Todas" | "Todos",
-    ) => {
+    (key: "letter" | "tag" | "genero" | "type", value: string, emptyValue: "Todas" | "Todos") => {
       commitSearchParams((params) => {
         if (value === emptyValue) {
           params.delete(key);
@@ -1137,8 +1035,7 @@ const Projects = () => {
   );
 
   const handleLetterChange = useCallback(
-    (value: string) =>
-      handleFilterChange("letter", parseLetterParam(value), "Todas"),
+    (value: string) => handleFilterChange("letter", parseLetterParam(value), "Todas"),
     [handleFilterChange],
   );
   const handleTagChange = useCallback(
@@ -1204,9 +1101,7 @@ const Projects = () => {
           <ProjectsFiltersPanel
             isMobile={isMobile}
             isMobileFiltersOpen={isMobileFiltersOpen}
-            onToggleMobileFilters={() =>
-              setIsMobileFiltersOpen((current) => !current)
-            }
+            onToggleMobileFilters={() => setIsMobileFiltersOpen((current) => !current)}
             searchInputValue={searchInputValue}
             onSearchInputChange={setSearchInputValue}
             letterOptions={letterOptions}
@@ -1214,12 +1109,8 @@ const Projects = () => {
             selectedTag={selectedTag}
             selectedGenre={selectedGenre}
             selectedType={selectedType}
-            tagOptions={
-              tagOptions.length > 0 ? tagOptions : EMPTY_FILTER_OPTIONS
-            }
-            genreOptions={
-              genreOptions.length > 0 ? genreOptions : EMPTY_FILTER_OPTIONS
-            }
+            tagOptions={tagOptions.length > 0 ? tagOptions : EMPTY_FILTER_OPTIONS}
+            genreOptions={genreOptions.length > 0 ? genreOptions : EMPTY_FILTER_OPTIONS}
             typeOptions={typeOptions}
             filteredProjectsCount={filteredProjects.length}
             activeFiltersSummary={activeFiltersSummary}
@@ -1246,9 +1137,7 @@ const Projects = () => {
               action={
                 <Button
                   variant="outline"
-                  onClick={() =>
-                    setProjectsLoadVersion((current) => current + 1)
-                  }
+                  onClick={() => setProjectsLoadVersion((current) => current + 1)}
                 >
                   Tentar novamente
                 </Button>
@@ -1261,11 +1150,7 @@ const Projects = () => {
               description="Ajuste os filtros para ampliar os resultados."
               className="mt-10"
               action={
-                <Button
-                  variant="ghost"
-                  onClick={resetFilters}
-                  className="text-xs uppercase"
-                >
+                <Button variant="ghost" onClick={resetFilters} className="text-xs uppercase">
                   Limpar filtros
                 </Button>
               }

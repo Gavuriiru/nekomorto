@@ -451,6 +451,8 @@ const DashboardUsers = () => {
   const [formState, setFormState] = useState(createEmptyForm);
   const [ownerToggle, setOwnerToggle] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null);
+  const [resetMfaTarget, setResetMfaTarget] = useState<UserRecord | null>(null);
+  const [isResettingMfa, setIsResettingMfa] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [editorAvatarPreviewRevision, setEditorAvatarPreviewRevision] = useState<string | null>(
     null,
@@ -600,6 +602,8 @@ const DashboardUsers = () => {
       });
       setEditorAvatarPreviewRevision(user.revision || null);
       setOwnerToggle(isOwnerUser(user));
+      setResetMfaTarget(null);
+      setIsResettingMfa(false);
       setEditorAccordionValue(
         getDefaultUserEditorAccordionValue(Boolean(currentUser && user.id === currentUser.id)),
       );
@@ -614,12 +618,15 @@ const DashboardUsers = () => {
       if (!nextOpen && isLibraryOpen) {
         return;
       }
+      if (!nextOpen && resetMfaTarget) {
+        return;
+      }
       setIsDialogOpen(nextOpen);
       if (!nextOpen) {
         setIsEditorDialogScrolled(false);
       }
     },
-    [isLibraryOpen],
+    [isLibraryOpen, resetMfaTarget],
   );
 
   const activeUsers = useMemo(
@@ -669,6 +676,12 @@ const DashboardUsers = () => {
         (isAdminActor && !isOwnerRecord));
   const canEditStatus = canEditAccessControls && !isEditingSelf && !isPrimaryOwnerRecord;
   const basicProfileOnlyEdit = Boolean(editingUser && canEditBasicFields && !canEditAccessControls);
+  const canResetManagedUserTotp = Boolean(
+    editingUser &&
+      isDialogOpen &&
+      !isEditingSelf &&
+      (isPrimaryOwnerActor || isSecondaryOwnerActor),
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -1191,6 +1204,33 @@ const DashboardUsers = () => {
     }
     setDeleteTarget(null);
     toast({ title: "Usuário excluído" });
+  };
+
+  const handleResetUserTotp = async () => {
+    if (!resetMfaTarget || isResettingMfa) {
+      return;
+    }
+    setIsResettingMfa(true);
+    const targetName = resetMfaTarget.name;
+    const response = await apiFetch(
+      apiBase,
+      `/api/admin/users/${encodeURIComponent(resetMfaTarget.id)}/security/totp/reset`,
+      {
+        method: "POST",
+        auth: true,
+      },
+    );
+    if (!response.ok) {
+      setIsResettingMfa(false);
+      toast({ title: "Nao foi possivel resetar o 2FA", variant: "destructive" });
+      return;
+    }
+    setResetMfaTarget(null);
+    setIsResettingMfa(false);
+    toast({
+      title: "2FA resetado",
+      description: `${targetName} pode entrar novamente sem o dispositivo anterior.`,
+    });
   };
 
   const toggleRole = (role: string) => {
@@ -2374,11 +2414,6 @@ const DashboardUsers = () => {
                                 key={role}
                                 type="button"
                                 variant={isSelected ? "default" : "outline"}
-                                className={
-                                  isSelected
-                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                    : ""
-                                }
                                 onClick={() => toggleRole(role)}
                                 disabled={!canEditRoles}
                               >
@@ -2455,11 +2490,6 @@ const DashboardUsers = () => {
                                 key={permission.id}
                                 type="button"
                                 variant={isSelected ? "default" : "outline"}
-                                className={
-                                  isSelected
-                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                    : ""
-                                }
                                 onClick={() => togglePermission(permission.id)}
                                 disabled={!canEditAccessControls || isOwnerRecord}
                               >
@@ -2530,6 +2560,16 @@ const DashboardUsers = () => {
             </div>
             <div className="project-editor-footer sticky bottom-0 z-20 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex-row md:items-center md:justify-between md:px-6 md:py-2.5 lg:px-8">
               <div className="flex flex-wrap items-center gap-2">
+                {editingUser && canResetManagedUserTotp ? (
+                  <DashboardActionButton
+                    size="sm"
+                    tone="destructive"
+                    onClick={() => setResetMfaTarget(editingUser)}
+                    disabled={isResettingMfa}
+                  >
+                    Resetar 2FA
+                  </DashboardActionButton>
+                ) : null}
                 {editingUser ? (
                   <DashboardActionButton
                     size="sm"
@@ -2555,6 +2595,46 @@ const DashboardUsers = () => {
                 </DashboardActionButton>
               </div>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(resetMfaTarget)}
+        onOpenChange={(open) => {
+          if (!open && !isResettingMfa) {
+            setResetMfaTarget(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Resetar 2FA?</DialogTitle>
+            <DialogDescription>
+              {resetMfaTarget
+                ? `Resetar o 2FA de "${resetMfaTarget.name}" para ajudar na recuperacao de acesso?`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Essa acao remove o TOTP atual. Se a pessoa estiver presa na etapa de MFA, ela precisara
+            cancelar o login atual e entrar novamente.
+          </p>
+          <div className="flex justify-end gap-3">
+            <DashboardActionButton
+              size="sm"
+              onClick={() => setResetMfaTarget(null)}
+              disabled={isResettingMfa}
+            >
+              Cancelar
+            </DashboardActionButton>
+            <DashboardActionButton
+              size="sm"
+              tone="destructive"
+              onClick={handleResetUserTotp}
+              disabled={isResettingMfa}
+            >
+              {isResettingMfa ? "Resetando..." : "Resetar 2FA"}
+            </DashboardActionButton>
           </div>
         </DialogContent>
       </Dialog>

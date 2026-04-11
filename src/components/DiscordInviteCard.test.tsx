@@ -64,9 +64,15 @@ describe("DiscordInviteCard", () => {
     const ctaLink = screen.getByRole("link", { name: "Entrar agora" });
     expect(ctaLink).toBeInTheDocument();
     expect(ctaLink).toHaveClass(
-      "interactive-control-transition",
-      "interactive-lift-sm",
+      "rounded-xl",
+      "shadow-none",
+      "border-primary/30",
+      "bg-primary/85",
+      "hover:border-primary/85",
+      "hover:bg-primary",
+      "text-primary-foreground",
     );
+    expect(ctaLink).not.toHaveClass("interactive-control-transition", "interactive-lift-sm");
     const panelDescription = screen.getByText(
       "Atualizacoes, avisos e bate-papo com os membros.",
     );

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
 import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
+import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { buildPublicSearchIndex } from "@/lib/public-search-index";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
@@ -26,6 +27,25 @@ type HeaderSearchPopoverProps = {
   hasSearchRequestFailed: boolean;
   remoteSuggestions: SearchSuggestion[];
   remoteMediaVariants: UploadMediaVariantsMap;
+};
+
+const getSynopsisClampClass = (lines: number | undefined) => {
+  if (typeof lines !== "number") {
+    return "clamp-safe-2";
+  }
+  if (lines <= 0) {
+    return "hidden";
+  }
+  if (lines === 1) {
+    return "clamp-safe-1";
+  }
+  if (lines === 2) {
+    return "clamp-safe-2";
+  }
+  if (lines === 3) {
+    return "clamp-safe-3";
+  }
+  return "clamp-safe-4";
 };
 
 const HeaderSearchPopover = ({
@@ -112,9 +132,16 @@ const HeaderSearchPopover = ({
   );
   const hasResults =
     hasMinimumSearchQueryLength && (activeProjects.length > 0 || activePosts.length > 0);
+  const synopsisKeys = useMemo(() => activeProjects.map((item) => item.href), [activeProjects]);
+  const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
+    enabled: activeProjects.length > 0,
+    keys: synopsisKeys,
+    maxLines: 4,
+  });
 
   return (
     <div
+      ref={synopsisRootRef}
       data-testid="public-header-results"
       className={cn(
         "search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 backdrop-blur-sm md:left-auto md:right-0 md:mx-0 md:w-80",
@@ -137,10 +164,10 @@ const HeaderSearchPopover = ({
               <li key={item.href}>
                 <Link
                   to={item.href}
-                  className="group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/60 hover:bg-primary/5"
+                  className="group flex h-36 items-stretch overflow-hidden rounded-xl border border-border/60 bg-card/60 transition hover:border-primary/60 hover:bg-card/70"
                 >
                   <div
-                    className="h-28 shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
+                    className="h-full shrink-0 overflow-hidden bg-secondary"
                     style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
                   >
                     <UploadPicture
@@ -154,7 +181,8 @@ const HeaderSearchPopover = ({
                   </div>
                   <div
                     data-synopsis-role="column"
-                    className="min-h-0 min-w-0 flex flex-1 self-stretch flex-col"
+                    data-synopsis-key={item.href}
+                    className="min-h-0 min-w-0 flex flex-1 self-stretch flex-col p-4"
                   >
                     <p
                       data-synopsis-role="title"
@@ -164,9 +192,12 @@ const HeaderSearchPopover = ({
                     </p>
                     <p
                       data-synopsis-role="synopsis"
-                      className="mt-1 line-clamp-4 min-h-0 flex-1 overflow-hidden text-xs leading-snug text-muted-foreground"
+                      className={cn(
+                        "mt-1 min-h-0 flex-1 overflow-hidden text-xs leading-snug text-muted-foreground",
+                        getSynopsisClampClass(lineByKey[item.href]),
+                      )}
                     >
-                      {item.synopsis}
+                      {item.synopsis || ""}
                     </p>
                     {item.tags.length > 0 ? (
                       <div

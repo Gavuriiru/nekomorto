@@ -76,7 +76,10 @@ describe("DashboardActionButton", () => {
     expect(primaryTokens).toEqual(
       expect.arrayContaining([
         "rounded-xl",
-        "bg-primary",
+        "border-primary/30",
+        "bg-primary/85",
+        "hover:border-primary/85",
+        "hover:bg-primary",
         "text-primary-foreground",
         "shadow-none",
       ]),
@@ -129,7 +132,15 @@ describe("DashboardActionButton", () => {
     const outlineTokens = classTokens(screen.getByRole("button", { name: "Cancelar" }));
     const destructiveTokens = classTokens(screen.getByRole("button", { name: "Excluir" }));
 
-    expect(defaultTokens).toEqual(expect.arrayContaining(["bg-primary", "text-primary-foreground"]));
+    expect(defaultTokens).toEqual(
+      expect.arrayContaining([
+        "border-primary/30",
+        "bg-primary/85",
+        "hover:border-primary/85",
+        "hover:bg-primary",
+        "text-primary-foreground",
+      ]),
+    );
     expect(outlineTokens).toEqual(expect.arrayContaining(["bg-background", "text-foreground/70"]));
     expect(destructiveTokens).toEqual(
       expect.arrayContaining(["bg-destructive/10", "text-destructive"]),

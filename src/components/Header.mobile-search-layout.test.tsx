@@ -16,6 +16,7 @@ const toastMock = vi.hoisted(() => vi.fn());
 const setThemePreferenceMock = vi.hoisted(() => vi.fn());
 const scheduleOnBrowserLoadIdleMock = vi.hoisted(() => vi.fn());
 const useIsMobileMock = vi.hoisted(() => vi.fn());
+const useDynamicSynopsisClampMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "http://api.local",
@@ -48,10 +49,7 @@ vi.mock("@/hooks/use-theme-mode", () => ({
 }));
 
 vi.mock("@/hooks/use-dynamic-synopsis-clamp", () => ({
-  useDynamicSynopsisClamp: () => ({
-    rootRef: { current: null },
-    lineByKey: {},
-  }),
+  useDynamicSynopsisClamp: (...args: unknown[]) => useDynamicSynopsisClampMock(...args),
 }));
 
 vi.mock("@/hooks/use-mobile", () => ({
@@ -160,6 +158,11 @@ describe("Header mobile search layout", () => {
         return () => undefined;
       },
     );
+    useDynamicSynopsisClampMock.mockReset();
+    useDynamicSynopsisClampMock.mockReturnValue({
+      rootRef: { current: null },
+      lineByKey: {},
+    });
     useIsMobileMock.mockReset();
     useIsMobileMock.mockReturnValue(false);
     (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown }).__BOOTSTRAP_PUBLIC__ = undefined;
@@ -710,6 +713,19 @@ describe("Header mobile search layout", () => {
     const projectCard = projectLink.closest("a");
     expect(projectCard).not.toBeNull();
     expect(classTokens(projectCard as HTMLElement)).toContain("h-36");
+    expect(classTokens(projectCard as HTMLElement)).toContain("items-stretch");
+    expect(classTokens(projectCard as HTMLElement)).toContain("bg-card/60");
+    expect(classTokens(projectCard as HTMLElement)).not.toContain("bg-gradient-card");
+    expect(classTokens(projectCard as HTMLElement)).not.toContain("gap-4");
+    expect(classTokens(projectCard as HTMLElement)).not.toContain("p-4");
+
+    await waitFor(() => {
+      expect(useDynamicSynopsisClampMock).toHaveBeenLastCalledWith({
+        enabled: true,
+        keys: ["/projeto/project-88"],
+        maxLines: 4,
+      });
+    });
 
     const coverColumn = projectCard?.querySelector(
       '[data-synopsis-role="column"]',
@@ -718,6 +734,7 @@ describe("Header mobile search layout", () => {
     expect(classTokens(coverColumn as HTMLElement)).toContain("flex-1");
     expect(classTokens(coverColumn as HTMLElement)).toContain("self-stretch");
     expect(classTokens(coverColumn as HTMLElement)).toContain("min-h-0");
+    expect(classTokens(coverColumn as HTMLElement)).toContain("p-4");
     expect(classTokens(coverColumn as HTMLElement)).not.toContain("h-28");
     expect(classTokens(coverColumn as HTMLElement)).not.toContain("overflow-hidden");
 
@@ -727,12 +744,18 @@ describe("Header mobile search layout", () => {
     expect(synopsis).not.toBeNull();
     expect(classTokens(synopsis as HTMLElement)).toContain("flex-1");
     expect(classTokens(synopsis as HTMLElement)).toContain("min-h-0");
+    expect(classTokens(synopsis as HTMLElement)).toContain("clamp-safe-2");
+    expect(classTokens(synopsis as HTMLElement)).not.toContain("line-clamp-4");
+    expect(coverColumn).toHaveAttribute("data-synopsis-key", "/projeto/project-88");
 
     const coverImage = screen.getByRole("img", { name: "Projeto Remoto Badges" });
     const coverPicture = coverImage.parentElement;
     const coverWrapper = coverPicture?.parentElement as HTMLElement | null;
     expect(coverWrapper).not.toBeNull();
-    expect(classTokens(coverWrapper as HTMLElement)).toContain("h-28");
+    expect(classTokens(coverWrapper as HTMLElement)).toContain("h-full");
+    expect(classTokens(coverWrapper as HTMLElement)).not.toContain("h-28");
+    expect(classTokens(coverWrapper as HTMLElement)).not.toContain("rounded-lg");
+    expect(classTokens(coverWrapper as HTMLElement)).not.toContain("self-start");
     expect(classTokens(coverWrapper as HTMLElement)).not.toContain("w-20");
     expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
 
@@ -751,6 +774,49 @@ describe("Header mobile search layout", () => {
     expect(screen.queryByText("acao")).not.toBeInTheDocument();
     expect(screen.queryByText("TagBeta")).not.toBeInTheDocument();
     expect(screen.queryByText("TagGamma")).not.toBeInTheDocument();
+  });
+
+  it("aplica o clamp seguro calculado quando o hook retorna menos linhas para a sinopse", async () => {
+    const user = userEvent.setup();
+    useDynamicSynopsisClampMock.mockReturnValue({
+      rootRef: { current: null },
+      lineByKey: {
+        "/projeto/project-55": 1,
+      },
+    });
+    setupApiMock({
+      searchSuggestOk: true,
+      searchSuggestions: [
+        {
+          kind: "project",
+          id: "project-55",
+          label: "Projeto Clamp Curto",
+          href: "/projeto/project-55",
+          description: "Uma sinopse longa o bastante para precisar de corte visual",
+          tags: ["acao", "drama"],
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    await user.click(screen.getByRole("button", { name: "Abrir busca" }));
+    const searchInput = await screen.findByPlaceholderText("Buscar projetos e posts");
+    await user.type(searchInput, "cl");
+
+    const synopsis = await screen.findByText(
+      "Uma sinopse longa o bastante para precisar de corte visual",
+    );
+    expect(synopsis).toHaveClass("clamp-safe-1");
+    expect(synopsis).not.toHaveClass("clamp-safe-2", "line-clamp-4");
   });
 
   it("usa fallback local quando a busca remota falha", async () => {

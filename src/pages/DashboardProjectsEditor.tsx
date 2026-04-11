@@ -1376,10 +1376,7 @@ const DashboardProjectsEditor = () => {
                 description="Ajuste os filtros ou crie um novo projeto."
                 className={dashboardPageLayoutTokens.surfaceInset}
                 action={
-                  <Button
-                    onClick={openCreate}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90"
-                  >
+                  <Button onClick={openCreate}>
                     <Plus className="mr-2 h-4 w-4" />
                     Criar primeiro projeto
                   </Button>

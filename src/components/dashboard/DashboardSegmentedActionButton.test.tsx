@@ -24,7 +24,7 @@ describe("DashboardSegmentedActionButton", () => {
     expect(listTokens).toEqual(
       expect.arrayContaining([
         "h-9",
-        "rounded-lg",
+        "rounded-xl",
         "border-border/70",
         "bg-background",
         "font-semibold",
@@ -33,7 +33,7 @@ describe("DashboardSegmentedActionButton", () => {
     expect(calendarTokens).toEqual(
       expect.arrayContaining([
         "h-9",
-        "rounded-lg",
+        "rounded-xl",
         "border-transparent",
         "font-semibold",
         "hover:border-primary/40",

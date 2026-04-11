@@ -97,4 +97,18 @@ describe("buildApiContractV1", () => {
       project_manga_export: true,
     });
   });
+
+  it("marks the admin TOTP reset endpoint as owner_only", () => {
+    const contract = buildApiContractV1();
+
+    expect(contract.endpoints).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          method: "POST",
+          path: "/api/admin/users/:id/security/totp/reset",
+          auth: "owner_only",
+        }),
+      ]),
+    );
+  });
 });

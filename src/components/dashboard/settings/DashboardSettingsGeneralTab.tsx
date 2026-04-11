@@ -196,7 +196,7 @@ export const DashboardSettingsGeneralTab = () => {
                   <ColorPicker
                     label=""
                     showSwatch
-                    buttonClassName={`inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-background shadow-none transition-[border-color,background-color,color,box-shadow] duration-200 hover:shadow-none ${dashboardStrongSurfaceHoverClassName} focus-visible:outline-hidden ${dashboardStrongFocusFieldClassName} ${dashboardStrongFocusTriggerClassName}`}
+                    buttonClassName={`inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-background shadow-none transition-[border-color,background-color,color] duration-200 ${dashboardStrongSurfaceHoverClassName} focus-visible:outline-hidden ${dashboardStrongFocusFieldClassName} ${dashboardStrongFocusTriggerClassName}`}
                     panelClassName={dashboardStrongFocusScopeClassName}
                     value={settings.theme.accent || "#000000"}
                     onChange={(color) =>

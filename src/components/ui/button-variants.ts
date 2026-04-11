@@ -1,28 +1,39 @@
 import { cva } from "class-variance-authority";
 
 export const buttonVariants = cva(
-  "pressable interactive-control-transition inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/45 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-center text-sm font-semibold shadow-none transition-[background-color,border-color,color] duration-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/45 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "interactive-lift-sm bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:bg-primary/90",
+          "border border-primary/30 bg-primary/85 text-primary-foreground hover:border-primary/85 hover:bg-primary hover:text-primary-foreground focus-visible:border-primary/85 focus-visible:bg-primary focus-visible:text-primary-foreground",
         destructive:
-          "interactive-lift-sm bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:bg-destructive/90",
+          "border border-destructive/40 bg-destructive/10 text-destructive hover:border-destructive/55 hover:bg-destructive/16 hover:text-destructive focus-visible:border-destructive/55 focus-visible:bg-destructive/16 focus-visible:text-destructive",
         outline:
-          "interactive-lift-sm border border-input bg-background hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
+          "border border-border/70 bg-background text-foreground/70 hover:border-primary/60 hover:bg-primary/5 hover:text-foreground focus-visible:border-primary/60 focus-visible:bg-primary/5 focus-visible:text-foreground",
         secondary:
-          "interactive-lift-sm bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+          "border border-border/70 bg-background text-foreground/70 hover:border-primary/60 hover:bg-primary/5 hover:text-foreground focus-visible:border-primary/60 focus-visible:bg-primary/5 focus-visible:text-foreground",
+        ghost:
+          "border border-border/70 bg-background text-foreground/70 hover:border-primary/60 hover:bg-primary/5 hover:text-foreground focus-visible:border-primary/60 focus-visible:bg-primary/5 focus-visible:text-foreground",
+        link: "rounded-none border border-transparent bg-transparent p-0 text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
+        default: "px-4 py-3 text-sm",
+        sm: "h-9 px-3 text-sm",
+        lg: "h-11 px-8 text-sm",
+        toolbar: "h-10 px-4 text-sm",
+        compact: "h-8 px-2.5 text-sm",
+        pill: "min-h-6 min-w-6 rounded-full px-2.5 py-0.5 text-sm",
+        icon: "h-9 w-9 p-0",
+        "icon-sm": "h-8 w-8 p-0",
       },
     },
+    compoundVariants: [
+      {
+        variant: "link",
+        class: "h-auto px-0 py-0",
+      },
+    ],
     defaultVariants: {
       variant: "default",
       size: "default",

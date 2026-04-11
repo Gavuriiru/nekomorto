@@ -221,7 +221,10 @@ const expectPrimaryDashboardActionButton = (element: HTMLElement, sizeToken: "h-
   expect(tokens).toEqual(
     expect.arrayContaining([
       "rounded-xl",
-      "bg-primary",
+      "border-primary/30",
+      "bg-primary/85",
+      "hover:border-primary/85",
+      "hover:bg-primary",
       "text-primary-foreground",
       "font-semibold",
       sizeToken,

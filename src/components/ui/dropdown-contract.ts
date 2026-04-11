@@ -24,8 +24,10 @@ export const dropdownViewportClassName = "p-1";
 
 export const dropdownListClassName = "no-scrollbar max-h-64 overflow-y-auto overscroll-contain p-1";
 
+export const dropdownItemInteractionSurfaceClassName = "combobox-item-interaction-surface";
+
 export const dropdownItemClassName =
-  "interactive-content-transition relative flex min-w-0 w-full flex-nowrap cursor-default select-none items-center rounded-xl py-2 pl-9 pr-3 text-left text-sm text-foreground outline-hidden hover:bg-accent/60 hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-accent/60 data-[highlighted]:text-accent-foreground data-[state=checked]:bg-accent data-[state=checked]:font-medium data-[state=checked]:text-accent-foreground";
+  `interactive-content-transition ${dropdownItemInteractionSurfaceClassName} relative flex min-w-0 w-full flex-nowrap cursor-default select-none items-center rounded-xl py-2 pl-9 pr-3 text-left text-sm text-foreground outline-hidden data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[state=checked]:bg-accent data-[state=checked]:font-medium data-[state=checked]:text-accent-foreground`;
 
 export const dropdownItemTextClassName =
   "min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis";

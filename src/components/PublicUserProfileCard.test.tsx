@@ -133,6 +133,15 @@ describe("PublicUserProfileCard", () => {
       name: "Ver obras favoritas",
     });
     expect(toggleButton).toHaveAttribute("aria-pressed", "false");
+    expect(toggleButton).toHaveClass(
+      "team-member-favorites-toggle",
+      "rounded-full",
+      "border-primary/20",
+      "bg-primary/10",
+      "text-primary",
+      "min-h-6",
+      "min-w-6",
+    );
 
     fireEvent.mouseEnter(cardRoot as HTMLElement);
     expect(favoriteFrame).toHaveAttribute("data-favorites-open", "false");

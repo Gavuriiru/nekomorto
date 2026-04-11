@@ -2,7 +2,6 @@ import * as PopoverPrimitive from "@radix-ui/react-popover";
 import * as React from "react";
 import { Check, ChevronDown, Plus } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import {
   dropdownChevronClassName,
   dropdownItemClassName,
@@ -51,6 +50,11 @@ type ComboboxItem =
 
 type ComboboxOptionItem = Extract<ComboboxItem, { kind: "option" }>;
 
+const SEARCH_FIELD_MIN_OPTION_COUNT = 16;
+const INFINITE_SCROLL_LOAD_OFFSET = 56;
+
+export type ComboboxVariant = "default" | "compact";
+
 export type ComboboxProps = {
   value: string;
   onValueChange: (value: string) => void;
@@ -68,6 +72,7 @@ export type ComboboxProps = {
   onInputValueChange?: (value: string) => void;
   allowCreate?: boolean;
   createLabel?: CreateLabelResolver;
+  variant?: ComboboxVariant;
   className?: string;
   popoverClassName?: string;
   listClassName?: string;
@@ -76,7 +81,6 @@ export type ComboboxProps = {
   onOpenChange?: (nextOpen: boolean) => void;
   initialVisibleCount?: number;
   visibleCountStep?: number;
-  showMoreLabel?: string;
   id?: string;
   dataTestId?: string;
 };
@@ -190,6 +194,7 @@ const Combobox = ({
   onInputValueChange,
   allowCreate = false,
   createLabel,
+  variant = "default",
   className,
   popoverClassName,
   listClassName,
@@ -198,7 +203,6 @@ const Combobox = ({
   onOpenChange,
   initialVisibleCount = Number.POSITIVE_INFINITY,
   visibleCountStep = Number.POSITIVE_INFINITY,
-  showMoreLabel = "Mostrar mais",
   id,
   dataTestId,
 }: ComboboxProps) => {
@@ -217,7 +221,9 @@ const Combobox = ({
   const buttonTriggerRef = React.useRef<HTMLButtonElement | null>(null);
   const inputTriggerRef = React.useRef<HTMLInputElement | null>(null);
   const searchInputRef = React.useRef<HTMLInputElement | null>(null);
+  const anchorRef = React.useRef<HTMLDivElement | null>(null);
   const optionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
+  const highlightedByPointerRef = React.useRef(false);
   const openRef = React.useRef(open);
   const triggerRef = isEditable ? inputTriggerRef : buttonTriggerRef;
 
@@ -225,8 +231,12 @@ const Combobox = ({
     () => options.find((option) => option.value === value) || null,
     [options, value],
   );
+  const isCompactVariant = variant === "compact" && !isEditable;
 
-  const activeQuery = isEditable ? String(inputValue || "") : searchQuery;
+  const shouldRenderSearchInput =
+    resolvedSearchable && !isEditable && options.length >= SEARCH_FIELD_MIN_OPTION_COUNT;
+  const shouldFilterOptions = isEditable || shouldRenderSearchInput;
+  const activeQuery = isEditable ? String(inputValue || "") : shouldRenderSearchInput ? searchQuery : "";
   const normalizedQuery = normalizeSearchText(activeQuery);
 
   const baseItems = React.useMemo<ComboboxOptionItem[]>(
@@ -243,7 +253,7 @@ const Combobox = ({
 
   const filteredState = React.useMemo(() => {
     const matches =
-      resolvedSearchable || isEditable
+      shouldFilterOptions
         ? baseItems.filter((item) =>
             normalizedQuery ? item.searchText.includes(normalizedQuery) : true,
           )
@@ -255,7 +265,11 @@ const Combobox = ({
 
     const items: ComboboxItem[] = [...visibleMatches];
     const trimmedInputValue = String(inputValue || value || "").trim();
-    const hasExactMatch = baseItems.some((item) => item.searchText === normalizedQuery);
+    const hasExactMatch = baseItems.some(
+      (item) =>
+        normalizeSearchText(item.option.label) === normalizedQuery ||
+        normalizeSearchText(item.option.value) === normalizedQuery,
+    );
 
     if (allowCreate && trimmedInputValue && normalizedQuery && !hasExactMatch) {
       items.push({
@@ -279,7 +293,7 @@ const Combobox = ({
     inputValue,
     isEditable,
     normalizedQuery,
-    resolvedSearchable,
+    shouldFilterOptions,
     value,
     visibleCount,
   ]);
@@ -377,7 +391,11 @@ const Combobox = ({
       return;
     }
 
-    if (resolvedSearchable) {
+    if (highlightedByPointerRef.current) {
+      return;
+    }
+
+    if (shouldRenderSearchInput) {
       window.requestAnimationFrame(() => {
         searchInputRef.current?.focus();
       });
@@ -399,7 +417,7 @@ const Combobox = ({
     focusHighlightedOption();
     const animationFrame = window.requestAnimationFrame(focusHighlightedOption);
     return () => window.cancelAnimationFrame(animationFrame);
-  }, [highlightedIndex, isEditable, open, resolvedSearchable]);
+  }, [highlightedIndex, isEditable, open, shouldRenderSearchInput]);
 
   const openMenu = React.useCallback(
     (targetIndex?: number) => {
@@ -417,6 +435,7 @@ const Combobox = ({
             ? selectedIndex
             : findNavigableIndex(items, 0, 1);
 
+      highlightedByPointerRef.current = false;
       setHighlightedIndex(preferredIndex);
       activateComboboxInstance(instanceId);
       emitOpenChange(true);
@@ -458,6 +477,7 @@ const Combobox = ({
 
   const moveHighlight = React.useCallback(
     (direction: 1 | -1) => {
+      highlightedByPointerRef.current = false;
       setHighlightedIndex((current) => {
         if (!items.length) {
           return -1;
@@ -475,13 +495,63 @@ const Combobox = ({
     setVisibleCount(initialVisibleCount);
   };
 
+  const revealMoreItems = React.useCallback(() => {
+    if (!filteredState.hasHiddenItems) {
+      return;
+    }
+
+    setVisibleCount((current) => {
+      if (!Number.isFinite(current)) {
+        return current;
+      }
+
+      if (!Number.isFinite(visibleCountStep) || visibleCountStep <= 0) {
+        return Number.POSITIVE_INFINITY;
+      }
+
+      return current + visibleCountStep;
+    });
+  }, [filteredState.hasHiddenItems, visibleCountStep]);
+
+  const handleListScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    if (!filteredState.hasHiddenItems) {
+      return;
+    }
+
+    const listElement = event.currentTarget;
+    const remainingScroll =
+      listElement.scrollHeight - listElement.scrollTop - listElement.clientHeight;
+
+    if (remainingScroll <= INFINITE_SCROLL_LOAD_OFFSET) {
+      revealMoreItems();
+    }
+  };
+
+  React.useEffect(() => {
+    if (!open || !filteredState.hasHiddenItems || highlightedIndex < items.length - 3) {
+      return;
+    }
+
+    revealMoreItems();
+  }, [filteredState.hasHiddenItems, highlightedIndex, items.length, open, revealMoreItems]);
+
   const selectedDescendantId =
     highlightedIndex >= 0 && highlightedIndex < items.length ? items[highlightedIndex]?.id : undefined;
+  const compactTriggerClassName = isCompactVariant ? "min-h-8 gap-2 px-2.5 py-1.5" : "";
+  const compactPopoverClassName = isCompactVariant
+    ? "w-[var(--radix-popover-trigger-width)] min-w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-2"
+    : "w-[var(--radix-popover-trigger-width)] min-w-[min(16rem,calc(100vw-2rem))] p-3";
+  const compactItemClassName = isCompactVariant ? "py-1.5 pl-8 pr-2 text-xs" : "";
+  const compactIndicatorClassName = isCompactVariant ? "left-2.5" : "";
+  const compactRichContentClassName = isCompactVariant ? "gap-1.5" : "";
+  const compactTriggerLabelClassName = isCompactVariant ? "text-[11px]" : "text-sm";
+  const compactOptionLabelClassName = isCompactVariant ? "text-xs" : "";
+  const compactChevronClassName = isCompactVariant ? "h-3.5 w-3.5" : "";
 
   return (
     <Popover open={open} onOpenChange={(nextOpen) => (nextOpen ? openMenu() : closeMenu(false))}>
       <PopoverPrimitive.Anchor asChild>
-        <div className="relative min-w-0">
+        <div ref={anchorRef} className="relative min-w-0">
           {isEditable ? (
             <div className="group relative" data-state={open ? "open" : "closed"}>
               <Input
@@ -586,6 +656,7 @@ const Combobox = ({
               <ChevronDown
                 className={cn(
                   dropdownChevronClassName,
+                  compactChevronClassName,
                   "pointer-events-none absolute right-3 top-1/2 -translate-y-1/2",
                 )}
                 aria-hidden="true"
@@ -607,7 +678,7 @@ const Combobox = ({
               data-testid={dataTestId}
               data-placeholder={selectedOption ? undefined : ""}
               data-state={open ? "open" : "closed"}
-              className={cn(dropdownTriggerClassName, className)}
+              className={cn(dropdownTriggerClassName, compactTriggerClassName, className)}
               onClick={() => {
                 if (disabled) {
                   return;
@@ -677,13 +748,22 @@ const Combobox = ({
                 }
               }}
             >
-              <span className={dropdownRichContentClassName}>
+              <span className={cn(dropdownRichContentClassName, compactRichContentClassName)}>
                 {selectedOption ? renderComboboxIcon(selectedOption.icon) : null}
-                <span className={cn(dropdownRichLabelClassName, "text-sm text-foreground")}>
+                <span
+                  className={cn(
+                    dropdownRichLabelClassName,
+                    compactTriggerLabelClassName,
+                    "text-foreground",
+                  )}
+                >
                   {selectedOption?.label || placeholder}
                 </span>
               </span>
-              <ChevronDown className={dropdownChevronClassName} aria-hidden="true" />
+              <ChevronDown
+                className={cn(dropdownChevronClassName, compactChevronClassName)}
+                aria-hidden="true"
+              />
             </button>
           )}
         </div>
@@ -694,13 +774,19 @@ const Combobox = ({
         sideOffset={8}
         onOpenAutoFocus={(event) => event.preventDefault()}
         onCloseAutoFocus={(event) => event.preventDefault()}
+        onInteractOutside={(event) => {
+          const target = event.target;
+          if (target instanceof Node && anchorRef.current?.contains(target)) {
+            event.preventDefault();
+          }
+        }}
         className={cn(
           dropdownPopoverClassName,
-          "w-[var(--radix-popover-trigger-width)] min-w-[min(16rem,calc(100vw-2rem))] p-3",
+          compactPopoverClassName,
           popoverClassName,
         )}
       >
-        {resolvedSearchable && !isEditable ? (
+        {shouldRenderSearchInput ? (
           <Input
             ref={searchInputRef}
             value={searchQuery}
@@ -780,9 +866,10 @@ const Combobox = ({
           id={listboxId}
           role="listbox"
           aria-label={listAriaLabel || label || ariaLabel || placeholder}
+          onScroll={handleListScroll}
           className={cn(
             dropdownListClassName,
-            resolvedSearchable && !isEditable ? "mt-3" : "mt-0",
+            shouldRenderSearchInput ? "mt-3" : "mt-0",
             listClassName,
           )}
         >
@@ -808,6 +895,7 @@ const Combobox = ({
                   disabled={isItemDisabled(item)}
                   className={cn(
                     dropdownItemClassName,
+                    compactItemClassName,
                     item.kind === "option" && !isSelected ? "text-foreground/80" : "",
                   )}
                   onClick={() => {
@@ -821,7 +909,14 @@ const Combobox = ({
                     commitSelection(item.value, false);
                   }}
                   onFocus={() => setHighlightedIndex(index)}
-                  onMouseEnter={() => setHighlightedIndex(index)}
+                  onMouseEnter={() => {
+                    highlightedByPointerRef.current = true;
+                    setHighlightedIndex(index);
+                  }}
+                  onMouseLeave={() => {
+                    highlightedByPointerRef.current = false;
+                    setHighlightedIndex((current) => (current === index ? -1 : current));
+                  }}
                   onKeyDown={(event) => {
                     switch (event.key) {
                       case "ArrowDown":
@@ -864,12 +959,12 @@ const Combobox = ({
                     }
                   }}
                 >
-                  <span className={dropdownItemIndicatorClassName}>
+                  <span className={cn(dropdownItemIndicatorClassName, compactIndicatorClassName)}>
                     {isSelected ? <Check className="h-4 w-4" aria-hidden="true" /> : null}
                   </span>
-                  <span className={dropdownRichContentClassName}>
+                  <span className={cn(dropdownRichContentClassName, compactRichContentClassName)}>
                     {renderComboboxIcon(itemIcon)}
-                    <span className={dropdownRichLabelClassName}>
+                    <span className={cn(dropdownRichLabelClassName, compactOptionLabelClassName)}>
                       {item.kind === "option" ? item.option.label : item.label}
                     </span>
                   </span>
@@ -882,17 +977,6 @@ const Combobox = ({
             </p>
           )}
         </div>
-
-        {filteredState.hasHiddenItems ? (
-          <Button
-            type="button"
-            variant="ghost"
-            className="mt-3 w-full text-xs uppercase"
-            onClick={() => setVisibleCount((current) => current + visibleCountStep)}
-          >
-            {showMoreLabel}
-          </Button>
-        ) : null}
       </PopoverContent>
     </Popover>
   );

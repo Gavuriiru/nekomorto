@@ -1,0 +1,52 @@
+@layer components {
+  .project-embed-card {
+    --project-embed-card-motion-duration: 280ms;
+    --project-embed-card-lift-distance: -2px;
+    --project-embed-card-lift-shadow: 0 10px 24px -22px rgba(0, 0, 0, 0.24);
+    --project-embed-card-media-scale: 1.025;
+    transition:
+      transform var(--project-embed-card-motion-duration) var(--interactive-ease-standard),
+      box-shadow var(--project-embed-card-motion-duration) var(--interactive-ease-standard),
+      border-color var(--project-embed-card-motion-duration) var(--interactive-ease-standard),
+      background-color var(--project-embed-card-motion-duration) var(--interactive-ease-standard),
+      color var(--project-embed-card-motion-duration) var(--interactive-ease-standard);
+    will-change: transform;
+  }
+
+  .project-embed-card__media {
+    transform: scale(1);
+    transform-origin: center center;
+    transition:
+      transform var(--project-embed-card-motion-duration) var(--interactive-ease-standard),
+      opacity var(--project-embed-card-motion-duration) var(--interactive-ease-standard);
+    will-change: transform;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .project-embed-card:hover,
+    .project-embed-card:focus-visible {
+      transform: translateY(var(--project-embed-card-lift-distance));
+      box-shadow: var(--project-embed-card-lift-shadow);
+    }
+
+    .project-embed-card:hover .project-embed-card__media,
+    .project-embed-card:focus-visible .project-embed-card__media {
+      transform: scale(var(--project-embed-card-media-scale));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .project-embed-card,
+    .project-embed-card__media {
+      transition: none;
+    }
+
+    .project-embed-card:hover,
+    .project-embed-card:focus-visible,
+    .project-embed-card:hover .project-embed-card__media,
+    .project-embed-card:focus-visible .project-embed-card__media {
+      box-shadow: none;
+      transform: none;
+    }
+  }
+}

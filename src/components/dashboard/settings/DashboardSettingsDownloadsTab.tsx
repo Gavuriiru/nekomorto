@@ -190,7 +190,7 @@ export const DashboardSettingsDownloadsTab = () => {
                       <ColorPicker
                         label=""
                         showSwatch
-                        buttonClassName={`inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border/70 bg-background shadow-none transition-[border-color,background-color,color,box-shadow] duration-200 hover:shadow-none ${dashboardStrongSurfaceHoverClassName} focus-visible:outline-hidden md:h-9 md:w-9 ${dashboardStrongFocusFieldClassName} ${dashboardStrongFocusTriggerClassName}`}
+                        buttonClassName={`inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border/70 bg-background shadow-none transition-[border-color,background-color,color] duration-200 ${dashboardStrongSurfaceHoverClassName} focus-visible:outline-hidden md:h-9 md:w-9 ${dashboardStrongFocusFieldClassName} ${dashboardStrongFocusTriggerClassName}`}
                         panelClassName={dashboardStrongFocusScopeClassName}
                         value={source.color}
                         onChange={(color) =>

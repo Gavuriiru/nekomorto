@@ -159,6 +159,10 @@ describe("TopProjectsSection", () => {
     expect(screen.queryByText("Em andamento")).not.toBeInTheDocument();
     expect(screen.getByTestId("top-projects-mode-trigger")).toHaveTextContent(/sempre/i);
     expect(screen.getByTestId("top-projects-mode-trigger")).toHaveClass(
+      "min-h-8",
+      "w-[108px]",
+      "sm:w-[112px]",
+      "px-2.5",
       "focus-visible:border-primary",
       "focus-visible:ring-1",
       "focus-visible:ring-primary/45",
@@ -170,6 +174,15 @@ describe("TopProjectsSection", () => {
         name: /ordenar top 10 por visualiza/i,
       }),
     );
+    const topProjectsListbox = await screen.findByRole("listbox");
+    const topProjectsPopover = topProjectsListbox.parentElement as HTMLElement;
+    expect(topProjectsPopover).toHaveClass(
+      "w-[var(--radix-popover-trigger-width)]",
+      "min-w-[var(--radix-popover-trigger-width)]",
+      "max-w-[calc(100vw-2rem)]",
+      "p-2",
+    );
+    expect(classTokens(topProjectsPopover)).not.toContain("min-w-[min(16rem,calc(100vw-2rem))]");
     expect(await screen.findByRole("option", { name: /^sempre$/i })).toBeInTheDocument();
     expect(await screen.findByRole("option", { name: /^7d$/i })).toBeInTheDocument();
     expect(await screen.findByRole("option", { name: /^30d$/i })).toBeInTheDocument();
