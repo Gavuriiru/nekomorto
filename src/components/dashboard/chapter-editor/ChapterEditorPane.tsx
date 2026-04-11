@@ -1,4 +1,5 @@
 import DashboardShell from "@/components/DashboardShell";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import ChapterEditorIdentitySection from "@/components/dashboard/chapter-editor/ChapterEditorIdentitySection";
 import type {
   ChapterEditorPaneHandle,
@@ -959,10 +960,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           eyebrow="Imagem"
           testId="chapter-cover-section"
           actions={
-            <Button type="button" variant="outline" size="sm" onClick={openChapterCoverLibrary}>
+            <DashboardActionButton type="button" size="sm" onClick={openChapterCoverLibrary}>
               {" "}
               <ImagePlus className="h-4 w-4" /> <span>Biblioteca</span>{" "}
-            </Button>
+            </DashboardActionButton>
           }
         >
           {" "}
@@ -1131,10 +1132,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 {" "}
                 {selectedVolumeChapterCount} capítulo(s){" "}
               </Badge>{" "}
-              <Button type="button" variant="outline" size="sm" onClick={openVolumeCoverLibrary}>
+              <DashboardActionButton type="button" size="sm" onClick={openVolumeCoverLibrary}>
                 {" "}
                 <ImagePlus className="h-4 w-4" /> <span>Biblioteca</span>{" "}
-              </Button>{" "}
+              </DashboardActionButton>{" "}
             </>
           ) : null
         }
@@ -1188,15 +1189,14 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 </div>{" "}
                 <div className="flex flex-wrap items-center gap-2">
                   {" "}
-                  <Button
+                  <DashboardActionButton
                     type="button"
-                    variant="outline"
                     size="sm"
                     onClick={openVolumeCoverLibrary}
                   >
                     {" "}
                     <ImagePlus className="h-4 w-4" /> <span>Biblioteca</span>{" "}
-                  </Button>{" "}
+                  </DashboardActionButton>{" "}
                 </div>{" "}
               </div>{" "}
               <div className="grid gap-5 rounded-[22px] border border-border/50 bg-background/35 p-4 sm:grid-cols-[128px_minmax(0,1fr)]">

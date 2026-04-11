@@ -51,7 +51,8 @@ export const ScrollToTop = () => {
       if (!target) {
         return false;
       }
-      target.scrollIntoView({ behavior: "auto", block: "start" });
+      const scrollBlock = target.getAttribute("data-scroll-block") === "center" ? "center" : "start";
+      target.scrollIntoView({ behavior: "auto", block: scrollBlock });
       return true;
     };
 

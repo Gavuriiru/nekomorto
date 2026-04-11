@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -117,6 +117,31 @@ const bootstrapPayload = {
       shareImage: "/uploads/about-og.jpg",
       shareImageAlt: "Capa da pagina sobre",
       heroSubtitle: "Conheca melhor a equipe e a proposta editorial da Nekomata.",
+      heroBadges: [],
+      highlights: [
+        {
+          label: "Somos movidos por historias",
+          icon: "Sparkles",
+          text: "Trabalhamos em equipe para traduzir, adaptar e manter a identidade de cada obra.",
+        },
+      ],
+      manifestoTitle: "Manifesto",
+      manifestoIcon: "Flame",
+      manifestoParagraphs: ["Fazemos tudo por paixao, sem fins lucrativos, priorizando qualidade."],
+      pillars: [
+        {
+          title: "Pipeline",
+          description: "Traducao, revisao e qualidade.",
+          icon: "Zap",
+        },
+      ],
+      values: [
+        {
+          title: "Qualidade em cada etapa",
+          description: "Mantemos um fluxo cuidadoso para entregar consistencia.",
+          icon: "Sparkles",
+        },
+      ],
     },
     donations: {
       shareImage: "/uploads/donations-og.jpg",
@@ -127,6 +152,26 @@ const bootstrapPayload = {
       shareImage: "/uploads/faq-og.jpg",
       shareImageAlt: "Capa da pagina FAQ",
       heroSubtitle: "Respostas para as duvidas mais comuns.",
+      introCards: [
+        {
+          title: "Antes de perguntar",
+          icon: "HelpCircle",
+          text: "Se sua duvida nao estiver aqui, fale com a equipe.",
+          note: "Obrigado pela compreensao.",
+        },
+      ],
+      groups: [
+        {
+          title: "Detalhes gerais",
+          icon: "Info",
+          items: [
+            {
+              question: "O que e a Nekomata Fansub?",
+              answer: "Somos um grupo de fas que traduz e adapta conteudos.",
+            },
+          ],
+        },
+      ],
     },
     team: {
       shareImage: "/uploads/team-og.jpg",
@@ -167,16 +212,20 @@ const getInstitutionalImage = (pageKey: string) =>
 const hasMetaCall = (matcher: (arg: Record<string, unknown>) => boolean) =>
   usePageMetaMock.mock.calls.some(([arg]) => matcher(arg as Record<string, unknown>));
 
+const setWindowBootstrap = (payload: unknown) => {
+  (
+    window as Window &
+      typeof globalThis & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+      }
+  ).__BOOTSTRAP_PUBLIC__ = payload;
+};
+
 describe("Public pages share image meta", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
     usePageMetaMock.mockReset();
-    (
-      window as Window &
-        typeof globalThis & {
-          __BOOTSTRAP_PUBLIC__?: unknown;
-        }
-    ).__BOOTSTRAP_PUBLIC__ = bootstrapPayload;
+    setWindowBootstrap(bootstrapPayload);
     apiFetchMock.mockImplementation(async (_base: string, path: string) => {
       if (path === "/api/public/projects") {
         return mockJsonResponse(true, { projects: [] });
@@ -260,6 +309,44 @@ describe("Public pages share image meta", () => {
     });
   });
 
+  it("About restaura hover visual nos cards publicos", () => {
+    render(
+      <MemoryRouter initialEntries={["/sobre"]}>
+        <About />
+      </MemoryRouter>,
+    );
+
+    const highlightCard = screen.getByText(/Somos movidos/).closest(".group");
+    expect(highlightCard).toHaveClass(
+      "group",
+      "hover:-translate-y-1",
+      "hover:border-primary/60",
+      "hover:bg-background/80",
+      "hover:shadow-lg",
+    );
+    expect(screen.getByText(/Trabalhamos em equipe/)).toHaveClass(
+      "transition-colors",
+      "duration-300",
+      "group-hover:text-foreground/80",
+    );
+
+    for (const label of ["Manifesto", "Pipeline", "Qualidade em cada etapa"]) {
+      expect(screen.getByText(label).closest(".group")).toHaveClass(
+        "group",
+        "hover:-translate-y-1",
+        "hover:border-primary/60",
+        "hover:bg-card/90",
+        "hover:shadow-lg",
+      );
+    }
+
+    expect(screen.getByText(/Fazemos tudo por/)).toHaveClass(
+      "transition-colors",
+      "duration-300",
+      "group-hover:text-foreground/80",
+    );
+  });
+
   it("Donations publica o card OG institucional versionado", async () => {
     render(
       <MemoryRouter initialEntries={["/doacoes"]}>
@@ -276,6 +363,104 @@ describe("Public pages share image meta", () => {
         ),
       ).toBe(true);
     });
+  });
+
+  it("Donations restaura hover visual nos cards sem botoes", () => {
+    setWindowBootstrap({
+      ...bootstrapPayload,
+      pages: {
+        ...bootstrapPayload.pages,
+        donations: {
+          ...bootstrapPayload.pages.donations,
+          heroTitle: "Doacoes",
+          costs: [
+            {
+              title: "Hospedagem",
+              icon: "Server",
+              description: "Mantem servidor, storage e trafego das leituras.",
+            },
+          ],
+          reasonTitle: "Por que apoiar",
+          reasonIcon: "HeartHandshake",
+          reasonText: "Sua ajuda mantem a operacao sem anuncios invasivos.",
+          reasonNote: "Toda ajuda vira infraestrutura para as obras.",
+          pixKey: "pix-chave-teste",
+          pixIcon: "QrCode",
+          donorsIcon: "PiggyBank",
+          donors: [
+            {
+              name: "Apoiador",
+              amount: "R$ 25,00",
+              goal: "Servidor",
+              date: "04/2026",
+            },
+          ],
+        },
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/doacoes"]}>
+        <Donations />
+      </MemoryRouter>,
+    );
+
+    const costTitle = screen.getByText("Hospedagem");
+    expect(costTitle.closest(".group")).toHaveClass(
+      "group",
+      "hover:-translate-y-1",
+      "hover:border-primary/60",
+      "hover:bg-card/90",
+      "hover:shadow-lg",
+    );
+    expect(costTitle).toHaveClass("transition-colors", "duration-300", "group-hover:text-primary");
+    expect(screen.getByText(/Mantem servidor/)).toHaveClass(
+      "transition-colors",
+      "duration-300",
+      "group-hover:text-foreground/80",
+    );
+
+    const reasonTitle = screen.getByText("Por que apoiar");
+    expect(reasonTitle.closest(".group\\/reason")).toHaveClass(
+      "group/reason",
+      "hover:-translate-y-1",
+      "hover:border-primary/60",
+    );
+    expect(reasonTitle).toHaveClass(
+      "transition-colors",
+      "duration-300",
+      "group-hover/reason:text-primary",
+    );
+    expect(screen.getByText(/sem anuncios/)).toHaveClass(
+      "transition-colors",
+      "duration-300",
+      "group-hover/reason:text-foreground/80",
+    );
+    expect(screen.getByText(/Toda ajuda/)).toHaveClass(
+      "transition-colors",
+      "duration-300",
+      "group-hover/reason:border-primary/30",
+      "group-hover/reason:bg-background/80",
+      "group-hover/reason:text-foreground/80",
+    );
+
+    const donorsTitle = screen.getByText("Lista de doadores");
+    expect(donorsTitle.closest(".group")).toHaveClass(
+      "group",
+      "hover:-translate-y-1",
+      "hover:border-primary/60",
+      "hover:bg-card/90",
+      "hover:shadow-lg",
+    );
+    expect(donorsTitle).toHaveClass(
+      "transition-colors",
+      "duration-300",
+      "group-hover:text-primary",
+    );
+
+    expect(screen.getByText(/^Pix$/).closest("#pix-doacoes")).not.toHaveClass(
+      "hover:-translate-y-1",
+    );
   });
 
   it("FAQ publica o card OG institucional versionado", async () => {
@@ -295,6 +480,49 @@ describe("Public pages share image meta", () => {
         ),
       ).toBe(true);
     });
+  });
+
+  it("FAQ restaura hover visual nos cards publicos", () => {
+    render(
+      <MemoryRouter initialEntries={["/faq"]}>
+        <FAQ />
+      </MemoryRouter>,
+    );
+
+    const introTitle = screen.getByText("Antes de perguntar");
+    expect(introTitle.closest(".group")).toHaveClass(
+      "group",
+      "hover:-translate-y-1",
+      "hover:border-primary/60",
+      "hover:bg-card/90",
+      "hover:shadow-lg",
+    );
+    expect(introTitle).toHaveClass("transition-colors", "duration-300", "group-hover:text-primary");
+    expect(screen.getByText(/Se sua/)).toHaveClass(
+      "transition-colors",
+      "duration-300",
+      "group-hover:text-foreground/80",
+    );
+
+    const question = screen.getByText(/Nekomata Fansub/);
+    const questionCard = question.closest(".group\\/item");
+    expect(questionCard).toHaveClass(
+      "group/item",
+      "hover:-translate-y-1",
+      "hover:border-primary/60",
+      "hover:bg-background/70",
+    );
+    expect(questionCard).not.toHaveClass("hover:shadow-lg");
+    expect(question).toHaveClass(
+      "transition-colors",
+      "duration-300",
+      "group-hover/item:text-primary",
+    );
+    expect(screen.getByText(/Somos um grupo/)).toHaveClass(
+      "transition-colors",
+      "duration-300",
+      "group-hover/item:text-foreground/80",
+    );
   });
 
   it("Team publica o card OG institucional versionado", async () => {

@@ -67,6 +67,25 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
+const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+
+const expectStableDashboardActionButton = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "rounded-xl",
+      "bg-background",
+      "font-semibold",
+      "hover:bg-primary/5",
+      "hover:text-foreground",
+      sizeToken,
+    ]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
 const anilistMediaFixture = {
   id: 21878,
   title: {
@@ -202,7 +221,9 @@ describe("DashboardProjectsEditor AniList import", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
-    fireEvent.click(screen.getByRole("button", { name: "Novo projeto" }));
+    const newProjectButton = screen.getByRole("button", { name: "Novo projeto" });
+    expectStableDashboardActionButton(newProjectButton, "h-10");
+    fireEvent.click(newProjectButton);
 
     await screen.findByRole("heading", { name: "Novo projeto" });
     expect(screen.getByLabelText(/ID ou URL do AniList/i).parentElement?.className).toContain(
@@ -211,7 +232,9 @@ describe("DashboardProjectsEditor AniList import", () => {
     fireEvent.change(screen.getByLabelText(/ID ou URL do AniList/i), {
       target: { value: "21878" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^Importar do AniList$/i }));
+    const importAniListButton = screen.getByRole("button", { name: /^Importar do AniList$/i });
+    expectStableDashboardActionButton(importAniListButton, "h-10");
+    fireEvent.click(importAniListButton);
 
     await waitFor(() => {
       expect(apiFetchMock).toHaveBeenCalledWith(

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPresetCard";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
@@ -154,31 +155,28 @@ export const DashboardSettingsTranslationsTab = () => {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button
+              <DashboardActionButton
+                type="button"
                 size="sm"
-                variant="outline"
                 onClick={() => syncAniListTerms()}
                 disabled={isSyncingAniList}
-                className="gap-2"
               >
                 <Download className="h-4 w-4" />
                 {isSyncingAniList ? "Importando..." : "Importar AniList"}
-              </Button>
-              <Button
+              </DashboardActionButton>
+              <DashboardActionButton
                 type="button"
                 size="sm"
-                variant="outline"
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
                   void handleSaveTranslations();
                 }}
                 disabled={isSavingTranslations}
-                className="gap-2"
               >
                 <Save className="h-4 w-4" />
                 {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
-              </Button>
+              </DashboardActionButton>
             </div>
           </div>
           <div className="grid gap-3 md:grid-cols-[1fr_auto]">
@@ -300,31 +298,28 @@ export const DashboardSettingsTranslationsTab = () => {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button
+              <DashboardActionButton
+                type="button"
                 size="sm"
-                variant="outline"
                 onClick={() => syncAniListTerms()}
                 disabled={isSyncingAniList}
-                className="gap-2"
               >
                 <Download className="h-4 w-4" />
                 {isSyncingAniList ? "Importando..." : "Importar AniList"}
-              </Button>
-              <Button
+              </DashboardActionButton>
+              <DashboardActionButton
                 type="button"
                 size="sm"
-                variant="outline"
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
                   void handleSaveTranslations();
                 }}
                 disabled={isSavingTranslations}
-                className="gap-2"
               >
                 <Save className="h-4 w-4" />
                 {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
-              </Button>
+              </DashboardActionButton>
             </div>
           </div>
           <div className="grid gap-3 md:grid-cols-[1fr_auto]">
@@ -445,21 +440,19 @@ export const DashboardSettingsTranslationsTab = () => {
                 Traduza funções da equipe do anime exibidas no projeto.
               </p>
             </div>
-            <Button
+            <DashboardActionButton
               type="button"
               size="sm"
-              variant="outline"
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
                 void handleSaveTranslations();
               }}
               disabled={isSavingTranslations}
-              className="gap-2"
             >
               <Save className="h-4 w-4" />
               {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
-            </Button>
+            </DashboardActionButton>
           </div>
           <div className="grid gap-3 md:grid-cols-[1fr_auto]">
             <Input

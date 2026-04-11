@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react
 import { useNavigate, useSearchParams } from "react-router-dom";
 import QRCode from "qrcode";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import DashboardEditorBackdrop from "@/components/dashboard/DashboardEditorBackdrop";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
@@ -15,6 +17,7 @@ import {
   Textarea,
 } from "@/components/dashboard/dashboard-form-controls";
 import {
+  dashboardEditorDialogWidthClassName,
   dashboardPageLayoutTokens,
   dashboardSubtleSurfaceHoverClassName,
   dashboardStrongSurfaceHoverClassName,
@@ -78,7 +81,6 @@ import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
-import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { toast } from "@/components/ui/use-toast";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
@@ -452,7 +454,6 @@ const DashboardUsers = () => {
     getDefaultUserEditorAccordionValue(false),
   );
   useEditorScrollLock(isDialogOpen);
-  useEditorScrollStability(isDialogOpen);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [formState, setFormState] = useState(createEmptyForm);
   const [ownerToggle, setOwnerToggle] = useState(false);
@@ -1696,16 +1697,10 @@ const DashboardUsers = () => {
         onSave={({ urls, items }) => handleLibrarySave({ urls, items })}
       />
 
-      {isDialogOpen ? (
-        <div
-          className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-xs"
-          aria-hidden="true"
-        />
-      ) : null}
-
       <Dialog open={isDialogOpen} onOpenChange={handleEditorOpenChange} modal={false}>
+        {isDialogOpen ? <DashboardEditorBackdrop /> : null}
         <DialogContent
-          className={`project-editor-dialog max-w-[min(1520px,calc(100vw-1rem))] gap-0 p-0 ${
+          className={`project-editor-dialog ${dashboardEditorDialogWidthClassName} gap-0 p-0 ${
             isEditorDialogScrolled ? "editor-modal-scrolled" : ""
           }`}
           onPointerDownOutside={(event) => {
@@ -1938,15 +1933,14 @@ const DashboardUsers = () => {
                               Sem imagem
                             </div>
                           )}
-                          <Button
+                          <DashboardActionButton
                             type="button"
                             size="sm"
-                            variant="outline"
                             onClick={openLibrary}
                             disabled={!canEditBasicFields}
                           >
                             Biblioteca
-                          </Button>
+                          </DashboardActionButton>
                         </div>
                       </DashboardFieldStack>
                       <DashboardFieldStack>

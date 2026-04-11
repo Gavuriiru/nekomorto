@@ -1,3 +1,4 @@
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/dashboard/dashboard-form-controls";
@@ -183,15 +184,15 @@ export const ChapterEditorEpubToolsSection = ({
                   </span>
                 </span>
               </label>
-              <Button
+              <DashboardActionButton
                 type="button"
+                size="toolbar"
                 onClick={onImportEpub}
                 disabled={isImportingEpub || !backendSupportsEpubImport}
-                className="gap-2"
               >
                 {isImportingEpub ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Importar EPUB
-              </Button>
+              </DashboardActionButton>
             </div>
 
             <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
@@ -224,16 +225,15 @@ export const ChapterEditorEpubToolsSection = ({
                   </span>
                 </span>
               </label>
-              <Button
+              <DashboardActionButton
                 type="button"
-                variant="outline"
+                size="toolbar"
                 onClick={onExportEpub}
                 disabled={isExportingEpub || !backendSupportsEpubExport}
-                className="gap-2"
               >
                 {isExportingEpub ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Exportar volume em EPUB
-              </Button>
+              </DashboardActionButton>
             </div>
           </div>
         </AccordionContent>

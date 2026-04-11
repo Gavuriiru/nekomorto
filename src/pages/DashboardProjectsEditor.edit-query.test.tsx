@@ -8,6 +8,7 @@ import type {
   ProjectRecord,
 } from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import DashboardProjectsEditor from "@/pages/DashboardProjectsEditor";
+import { dashboardEditorDialogWidthClassName } from "@/components/dashboard/dashboard-page-tokens";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 
@@ -531,18 +532,12 @@ describe("DashboardProjectsEditor edit query", () => {
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
-    expect(document.documentElement).toHaveClass("editor-scroll-stable");
-    expect(document.body).toHaveClass("editor-scroll-stable");
-    expect(document.body.getAttribute("data-editor-scroll-stable-count")).toBe("1");
     expect(document.documentElement).toHaveClass("editor-scroll-locked");
     expect(document.body).toHaveClass("editor-scroll-locked");
     expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBe("1");
 
     unmount();
 
-    expect(document.documentElement).not.toHaveClass("editor-scroll-stable");
-    expect(document.body).not.toHaveClass("editor-scroll-stable");
-    expect(document.body.getAttribute("data-editor-scroll-stable-count")).toBeNull();
     expect(document.documentElement).not.toHaveClass("editor-scroll-locked");
     expect(document.body).not.toHaveClass("editor-scroll-locked");
     expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBeNull();
@@ -789,6 +784,18 @@ describe("DashboardProjectsEditor edit query", () => {
     const editorAccordion = document.querySelector(
       ".project-editor-accordion",
     ) as HTMLElement | null;
+    const editorBackdrop = screen.getByTestId("dashboard-editor-backdrop");
+    const legacyBackdrop = Array.from(document.body.querySelectorAll("div")).find((node) => {
+      const tokens = classTokens(node as HTMLElement);
+      return (
+        tokens.includes("pointer-events-auto") &&
+        tokens.includes("fixed") &&
+        tokens.includes("inset-0") &&
+        tokens.includes("z-40") &&
+        tokens.includes("bg-black/80") &&
+        tokens.includes("backdrop-blur-xs")
+      );
+    });
     expect(editorDialog).not.toBeNull();
     expect(editorFrame).not.toBeNull();
     expect(editorScrollShell).not.toBeNull();
@@ -800,9 +807,18 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(editorTop?.className).toContain("sticky");
     expect(editorFooter?.className).not.toContain("sticky");
     expect(document.querySelector(".project-editor-dialog-surface")).toBeNull();
+    expect(classTokens(editorDialog as HTMLElement)).toContain(dashboardEditorDialogWidthClassName);
+    expect(classTokens(editorDialog as HTMLElement)).not.toContain(
+      "max-w-[min(1520px,calc(100vw-1rem))]",
+    );
     expect(editorFrame?.className).toContain("flex");
     expect(editorFrame?.className).toContain("flex-col");
     expect(editorFrame?.className).toContain("min-h-0");
+    expect(classTokens(editorBackdrop)).toEqual(
+      expect.arrayContaining(["fixed", "inset-0", "z-[45]", "bg-black/80", "backdrop-blur-xs"]),
+    );
+    expect(editorBackdrop.parentElement).toBe(document.body);
+    expect(legacyBackdrop).toBeUndefined();
     expect(editorScrollShell?.className).toContain("overflow-y-auto");
     expect(editorScrollShell?.className).toContain("flex-1");
     expect(editorScrollShell?.className).not.toContain("max-h-[94vh]");

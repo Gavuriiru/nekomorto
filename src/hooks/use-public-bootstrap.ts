@@ -10,7 +10,7 @@ import {
 import { normalizePublicPagesConfig } from "@/lib/public-pages";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
-import { asPublicBootstrapPayload, readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
 
 const PUBLIC_BOOTSTRAP_STALE_TIME_MS = 60_000;
 
@@ -26,7 +26,28 @@ type PublicBootstrapSnapshot = {
   lastFetchedAt: number;
 };
 
-const initialWindowBootstrap = readWindowPublicBootstrap();
+type PublicBootstrapWindow = Window &
+  typeof globalThis & {
+    __BOOTSTRAP_PUBLIC__?: unknown;
+  };
+
+const readWindowPublicBootstrapSource = () => {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+  return (window as PublicBootstrapWindow).__BOOTSTRAP_PUBLIC__;
+};
+
+const publishWindowPublicBootstrap = (payload: PublicBootstrapPayload) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  (window as PublicBootstrapWindow).__BOOTSTRAP_PUBLIC__ = payload;
+};
+
+const initialWindowBootstrapSource = readWindowPublicBootstrapSource();
+const initialWindowBootstrap = asPublicBootstrapPayload(initialWindowBootstrapSource);
+let syncedWindowBootstrapSource = initialWindowBootstrapSource;
 
 const publicBootstrapCache = {
   data: initialWindowBootstrap,
@@ -44,6 +65,28 @@ const isCriticalHomePayload = (value: PublicBootstrapPayload | null | undefined)
 
 const toError = (value: unknown) =>
   value instanceof Error ? value : new Error(String(value || "public_bootstrap_error"));
+
+const syncPublicBootstrapCacheFromWindow = (options: { emit?: boolean } = {}) => {
+  const source = readWindowPublicBootstrapSource();
+  if (source === syncedWindowBootstrapSource && publicBootstrapCache.data) {
+    return false;
+  }
+  const payload = asPublicBootstrapPayload(source);
+  if (!payload) {
+    return false;
+  }
+
+  syncedWindowBootstrapSource = source;
+  publicBootstrapCache.data = payload;
+  publicBootstrapCache.error = null;
+  publicBootstrapCache.status = "success";
+  publicBootstrapCache.hasFetched = true;
+  publicBootstrapCache.lastFetchedAt = Date.now();
+  if (options.emit ?? true) {
+    emitSnapshot();
+  }
+  return true;
+};
 
 const normalizePublicBootstrapHomeHero = (value: unknown): PublicBootstrapHomeHero | null => {
   if (!value || typeof value !== "object") {
@@ -192,6 +235,8 @@ const requestPublicBootstrap = async (apiBase: string, options: { force?: boolea
       publicBootstrapCache.status = "success";
       publicBootstrapCache.hasFetched = true;
       publicBootstrapCache.lastFetchedAt = Date.now();
+      publishWindowPublicBootstrap(data);
+      syncedWindowBootstrapSource = data;
       emitSnapshot();
       return data;
     })
@@ -221,6 +266,8 @@ export const primePublicBootstrapCache = (value: unknown) => {
   publicBootstrapCache.status = "success";
   publicBootstrapCache.hasFetched = true;
   publicBootstrapCache.lastFetchedAt = Date.now();
+  publishWindowPublicBootstrap(payload);
+  syncedWindowBootstrapSource = payload;
   emitSnapshot();
   return true;
 };
@@ -246,11 +293,15 @@ export const refreshPublicBootstrapCacheIfStale = async ({
 
 export const usePublicBootstrap = () => {
   const apiBase = getApiBase();
-  const [snapshot, setSnapshot] = useState<PublicBootstrapSnapshot>(() => buildSnapshot());
+  const [snapshot, setSnapshot] = useState<PublicBootstrapSnapshot>(() => {
+    syncPublicBootstrapCacheFromWindow({ emit: false });
+    return buildSnapshot();
+  });
 
   useEffect(() => subscribeSnapshot(() => setSnapshot(buildSnapshot())), []);
 
   useEffect(() => {
+    syncPublicBootstrapCacheFromWindow();
     if (!shouldFetchPublicBootstrap()) {
       return;
     }

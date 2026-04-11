@@ -8,6 +8,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import {
   Input,
@@ -1653,15 +1654,15 @@ const DashboardWebhooks = () => {
           title="Webhooks"
           description="Configure webhooks editoriais, alertas operacionais e segurança em um só lugar."
           actions={
-            <Button
+            <DashboardActionButton
               type="button"
-              className="gap-2"
+              size="toolbar"
               onClick={() => void handleSaveAll()}
               disabled={isSavingAll || showStableShell || hasBlockingLoadError}
             >
               <Save className="h-4 w-4" />
               {isSavingAll ? "Salvando..." : "Salvar"}
-            </Button>
+            </DashboardActionButton>
           }
         />
         {loadError && !hasBlockingLoadError ? (
@@ -1705,18 +1706,17 @@ const DashboardWebhooks = () => {
               <div className="relative">
                 <AccordionTrigger className="hover:no-underline">Tipos e menções</AccordionTrigger>
                 {isSectionOpen("types") ? (
-                  <Button
+                  <DashboardActionButton
                     type="button"
                     size="sm"
-                    variant="outline"
-                    className="absolute right-10 top-1/2 -translate-y-1/2 gap-2"
+                    className="absolute right-10 top-1/2 -translate-y-1/2"
                     aria-label="Salvar tipos e menções"
                     onClick={() => void handleSaveSection("types")}
                     disabled={savingBySection.types || showStableShell}
                   >
                     <Save className="h-4 w-4" />
                     {savingBySection.types ? "Salvando..." : "Salvar"}
-                  </Button>
+                  </DashboardActionButton>
                 ) : null}
               </div>
               <AccordionContent className={WEBHOOK_ACCORDION_CONTENT_CLASSNAME}>
@@ -1797,18 +1797,17 @@ const DashboardWebhooks = () => {
                       {CHANNEL_LABELS[channelKey]}
                     </AccordionTrigger>
                     {isSectionOpen(sectionKey) ? (
-                      <Button
+                      <DashboardActionButton
                         type="button"
                         size="sm"
-                        variant="outline"
-                        className="absolute right-10 top-1/2 -translate-y-1/2 gap-2"
+                        className="absolute right-10 top-1/2 -translate-y-1/2"
                         aria-label={sectionKey === "posts" ? "Salvar posts" : "Salvar projetos"}
                         onClick={() => void handleSaveSection(sectionKey)}
                         disabled={savingBySection[sectionKey] || showStableShell}
                       >
                         <Save className="h-4 w-4" />
                         {savingBySection[sectionKey] ? "Salvando..." : "Salvar"}
-                      </Button>
+                      </DashboardActionButton>
                     ) : null}
                   </div>
                   <AccordionContent className={WEBHOOK_ACCORDION_CONTENT_CLASSNAME}>
@@ -2304,18 +2303,17 @@ const DashboardWebhooks = () => {
                   Alertas Operacionais
                 </AccordionTrigger>
                 {isSectionOpen("operational") ? (
-                  <Button
+                  <DashboardActionButton
                     type="button"
                     size="sm"
-                    variant="outline"
-                    className="absolute right-10 top-1/2 -translate-y-1/2 gap-2"
+                    className="absolute right-10 top-1/2 -translate-y-1/2"
                     aria-label="Salvar alertas operacionais"
                     onClick={() => void handleSaveSection("operational")}
                     disabled={savingBySection.operational || showStableShell}
                   >
                     <Save className="h-4 w-4" />
                     {savingBySection.operational ? "Salvando..." : "Salvar"}
-                  </Button>
+                  </DashboardActionButton>
                 ) : null}
               </div>
               <AccordionContent className={WEBHOOK_ACCORDION_CONTENT_CLASSNAME}>
@@ -2436,18 +2434,17 @@ const DashboardWebhooks = () => {
               <div className="relative">
                 <AccordionTrigger className="hover:no-underline">Segurança</AccordionTrigger>
                 {isSectionOpen("security") ? (
-                  <Button
+                  <DashboardActionButton
                     type="button"
                     size="sm"
-                    variant="outline"
-                    className="absolute right-10 top-1/2 -translate-y-1/2 gap-2"
+                    className="absolute right-10 top-1/2 -translate-y-1/2"
                     aria-label="Salvar segurança"
                     onClick={() => void handleSaveSection("security")}
                     disabled={savingBySection.security || showStableShell}
                   >
                     <Save className="h-4 w-4" />
                     {savingBySection.security ? "Salvando..." : "Salvar"}
-                  </Button>
+                  </DashboardActionButton>
                 ) : null}
               </div>
               <AccordionContent className={WEBHOOK_ACCORDION_CONTENT_CLASSNAME}>

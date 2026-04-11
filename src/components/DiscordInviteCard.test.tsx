@@ -74,7 +74,8 @@ describe("DiscordInviteCard", () => {
     expect(panel).not.toBeNull();
     expect(panel).not.toHaveClass("hover:-translate-y-1");
     expect(panel).toHaveClass("border", "border-border/60", "bg-background/40");
-    expect(panel).not.toHaveClass("hover:border-primary/60");
+    expect(panel).toHaveClass("hover:border-primary/60", "focus-within:border-primary/60");
+    expect(panel).not.toHaveClass("interactive-lift-md", "interactive-lift-sm", "shadow-xs");
     expect(panel?.parentElement).not.toHaveClass("public-interactive-card-shell");
   });
 

@@ -239,6 +239,8 @@ describe("Post author card", () => {
     ).toBeInTheDocument();
     expect(within(authorCard).getByText('"Frase do admin"')).toBeInTheDocument();
     expect(within(authorCard).getByText("Bio do admin")).toBeInTheDocument();
+    expect(authorCard.querySelector(".team-member-avatar-shell")).not.toBeNull();
+    expect(authorCard.querySelector(".team-member-avatar-frame")).not.toBeNull();
 
     const embedCard = screen.getByTestId("project-embed-card");
     const comments = screen.getByTestId("comments-section");

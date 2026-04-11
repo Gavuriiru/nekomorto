@@ -2,6 +2,7 @@ import { useCallback, useMemo, type FocusEvent } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import {
   Input,
   Select,
@@ -225,15 +226,14 @@ const DashboardSettingsContent = () => {
               <p className="text-[11px] text-foreground/70">{state.status}</p>
 
               <div className="flex gap-2">
-                <Button
+                <DashboardActionButton
                   type="button"
-                  variant="outline"
                   size="sm"
                   className="flex-1"
                   onClick={() => media.openLibrary(field.target)}
                 >
                   Biblioteca
-                </Button>
+                </DashboardActionButton>
                 <Button
                   type="button"
                   variant="ghost"

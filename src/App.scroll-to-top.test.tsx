@@ -101,4 +101,36 @@ describe("ScrollToTop", () => {
     });
     expect(scrollToMock).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
   });
+
+  it("centraliza alvos que pedem scroll no meio da tela ao navegar por hash", async () => {
+    const scrollIntoViewMock = vi.fn();
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoViewMock,
+    });
+
+    try {
+      render(
+        <MemoryRouter initialEntries={["/doacoes#pix-doacoes"]}>
+          <ScrollToTop />
+          <Routes>
+            <Route
+              path="*"
+              element={<div id="pix-doacoes" data-scroll-block="center" />}
+            />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      await waitFor(() => {
+        expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: "auto", block: "center" });
+      });
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+        configurable: true,
+        value: originalScrollIntoView,
+      });
+    }
+  });
 });

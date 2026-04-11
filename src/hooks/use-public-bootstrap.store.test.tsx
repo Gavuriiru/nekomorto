@@ -241,6 +241,11 @@ describe("usePublicBootstrap store", () => {
       expect(screen.getByTestId("hook")).toHaveTextContent("Projeto Completo|full");
     });
 
+    const windowBootstrap = (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown })
+      .__BOOTSTRAP_PUBLIC__ as { projects?: Array<{ title?: string }>; payloadMode?: string };
+
+    expect(windowBootstrap?.payloadMode).toBe("full");
+    expect(windowBootstrap?.projects?.[0]?.title).toBe("Projeto Completo");
     expect(apiFetchMock).toHaveBeenCalledTimes(1);
   });
 

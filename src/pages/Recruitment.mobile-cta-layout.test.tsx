@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Recruitment from "@/pages/Recruitment";
@@ -30,23 +30,27 @@ const createSettings = (override: Partial<SiteSettings> = {}) =>
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
-const mockJsonResponse = (
-  ok: boolean,
-  payload: unknown,
-  status = ok ? 200 : 500,
-) =>
+const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({
     ok,
     status,
     json: async () => payload,
   }) as Response;
 
+const setWindowBootstrap = (payload: unknown) => {
+  (
+    window as Window &
+      typeof globalThis & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+      }
+  ).__BOOTSTRAP_PUBLIC__ = payload;
+};
+
 describe("Recruitment mobile CTA layout", () => {
   beforeEach(() => {
+    setWindowBootstrap(undefined);
     apiFetchMock.mockReset();
-    apiFetchMock.mockResolvedValue(
-      mockJsonResponse(false, { error: "not_found" }, 404),
-    );
+    apiFetchMock.mockResolvedValue(mockJsonResponse(false, { error: "not_found" }, 404));
 
     useSiteSettingsMock.mockReset();
     useSiteSettingsMock.mockReturnValue({
@@ -82,10 +86,7 @@ describe("Recruitment mobile CTA layout", () => {
 
     expect(ctaLinkTokens).toContain("w-full");
     expect(ctaLinkTokens).toContain("md:w-auto");
-    expect(ctaLink).toHaveAttribute(
-      "href",
-      "https://discord.gg/recruitment-test",
-    );
+    expect(ctaLink).toHaveAttribute("href", "https://discord.gg/recruitment-test");
   });
 
   it("usa container de CTA com alinhamento stretch no mobile", async () => {
@@ -125,5 +126,76 @@ describe("Recruitment mobile CTA layout", () => {
     expect(ctaLinkTokens).toContain("interactive-lift-sm");
     expect(ctaLinkTokens).toContain("interactive-control-transition");
     expect(ctaLinkTokens).toContain("hover:bg-primary/90");
+  });
+
+  it("mantem defaults com bootstrap critical-home e troca para o conteudo completo", async () => {
+    setWindowBootstrap({
+      settings: {},
+      pages: { home: {} },
+      projects: [],
+      posts: [],
+      updates: [],
+      tagTranslations: {
+        tags: {},
+        genres: {},
+        staffRoles: {},
+      },
+      generatedAt: "2026-04-10T19:00:00.000Z",
+      mediaVariants: {},
+      payloadMode: "critical-home",
+    });
+    apiFetchMock.mockImplementation(async (_base: string, endpoint: string) => {
+      if (endpoint === "/api/public/bootstrap") {
+        return mockJsonResponse(true, {
+          settings: {},
+          pages: {
+            recruitment: {
+              heroBadge: "Chamadas abertas",
+              heroTitle: "Recrutamento configurado",
+              heroSubtitle: "Texto configurado pela dashboard.",
+              roles: [
+                {
+                  title: "Editor configurado",
+                  description: "Cuida do material configurado.",
+                  icon: "PenTool",
+                },
+              ],
+              ctaTitle: "CTA configurado",
+              ctaSubtitle: "Subtitulo configurado.",
+              ctaButtonLabel: "Falar com recrutamento",
+            },
+          },
+          projects: [],
+          posts: [],
+          updates: [],
+          tagTranslations: {
+            tags: {},
+            genres: {},
+            staffRoles: {},
+          },
+          generatedAt: "2026-04-10T19:01:00.000Z",
+          mediaVariants: {},
+          payloadMode: "full",
+        });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(<Recruitment />);
+
+    expect(
+      screen.getByRole("heading", { name: "Venha fazer parte da equipe" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Entrar no Discord" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Recrutamento configurado" }),
+    ).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Recrutamento configurado" })).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("heading", { name: "Editor configurado" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Falar com recrutamento" })).toBeInTheDocument();
   });
 });

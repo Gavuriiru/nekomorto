@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import AsyncState from "@/components/ui/async-state";
 import { Button } from "@/components/ui/button";
@@ -301,26 +302,23 @@ const DashboardSeoRedirectsPanel = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button
+            <DashboardActionButton
               type="button"
-              size="sm"
-              variant="outline"
-              className="gap-2"
+              size="toolbar"
               onClick={addSeoRedirectRule}
             >
               <Plus className="h-4 w-4" />
               Nova regra
-            </Button>
-            <Button
+            </DashboardActionButton>
+            <DashboardActionButton
               type="button"
-              size="sm"
-              className="gap-2"
+              size="toolbar"
               onClick={() => void handleSave()}
               disabled={isSaving || !isDirty}
             >
               <Save className="h-4 w-4" />
               {isSaving ? "Salvando..." : "Salvar SEO"}
-            </Button>
+            </DashboardActionButton>
           </div>
         </div>
 

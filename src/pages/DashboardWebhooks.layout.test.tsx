@@ -54,6 +54,23 @@ const createDeferredResponse = () => {
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
+const expectStableDashboardActionButton = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "rounded-xl",
+      "bg-background",
+      "font-semibold",
+      "hover:bg-primary/5",
+      "hover:text-foreground",
+      sizeToken,
+    ]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
 const getRoundedBadgesByText = (label: string) =>
   screen
     .getAllByText(label)
@@ -487,10 +504,19 @@ describe("DashboardWebhooks layout", () => {
     await screen.findByRole("heading", { name: /Webhooks/i });
     await screen.findByText(/Role geral de lan/i);
 
-    expect(screen.getByRole("button", { name: /^Salvar$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Salvar tipos e men/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Salvar posts/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Salvar projetos/i })).toBeInTheDocument();
+    const saveAllButton = screen.getByRole("button", { name: /^Salvar$/i });
+    const saveTypesButton = screen.getByRole("button", { name: /Salvar tipos e men/i });
+    const savePostsButton = screen.getByRole("button", { name: /Salvar posts/i });
+    const saveProjectsButton = screen.getByRole("button", { name: /Salvar projetos/i });
+    const saveOperationalButton = screen.getByRole("button", { name: /Salvar alertas operacionais/i });
+    const saveSecurityButton = screen.getByRole("button", { name: /Salvar seguran/i });
+
+    expectStableDashboardActionButton(saveAllButton, "h-10");
+    expectStableDashboardActionButton(saveTypesButton, "h-9");
+    expectStableDashboardActionButton(savePostsButton, "h-9");
+    expectStableDashboardActionButton(saveProjectsButton, "h-9");
+    expectStableDashboardActionButton(saveOperationalButton, "h-9");
+    expectStableDashboardActionButton(saveSecurityButton, "h-9");
 
     expect(screen.queryByText(/^Ativa$/i)).not.toBeInTheDocument();
     expect(screen.getAllByPlaceholderText("ID do cargo do Discord").length).toBeGreaterThan(0);

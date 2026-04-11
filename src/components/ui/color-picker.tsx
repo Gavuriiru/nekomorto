@@ -196,7 +196,7 @@ export const ColorPicker = ({
               </>
             )}
           </Button>
-          <Popover placement="bottom start" className={popoverClasses}>
+          <Popover isNonModal placement="bottom start" className={popoverClasses}>
             <Dialog className={panelClasses}>{panelContent}</Dialog>
           </Popover>
         </DialogTrigger>

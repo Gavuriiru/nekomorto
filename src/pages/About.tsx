@@ -184,7 +184,7 @@ const About = () => {
                 return (
                   <div
                     key={item.label}
-                    className="rounded-2xl border border-border/60 bg-background/60 p-5"
+                    className="group rounded-2xl border border-border/60 bg-background/60 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-background/80 hover:shadow-lg"
                   >
                     <div
                       className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelXs}`}
@@ -192,12 +192,14 @@ const About = () => {
                       <HighlightIcon className={publicPageLayoutTokens.sectionLabelIcon} />
                       {item.label}
                     </div>
-                    <p className="mt-2 text-sm text-muted-foreground">{item.text}</p>
+                    <p className="mt-2 text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                      {item.text}
+                    </p>
                   </div>
                 );
               })}
             </div>
-            <Card className="bg-card/80 shadow-lg">
+            <Card className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg">
               <CardContent className="space-y-5 p-6 md:p-8">
                 <div
                   className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelSm}`}
@@ -209,7 +211,10 @@ const About = () => {
                   {about.manifestoTitle}
                 </div>
                 {about.manifestoParagraphs.map((paragraph) => (
-                  <p key={paragraph} className="text-sm text-muted-foreground md:text-base">
+                  <p
+                    key={paragraph}
+                    className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80 md:text-base"
+                  >
                     {paragraph}
                   </p>
                 ))}
@@ -226,7 +231,10 @@ const About = () => {
             {about.pillars.map((pillar) => {
               const Icon = resolveAboutIcon(pillar.icon, Sparkles);
               return (
-                <Card key={pillar.title} className="bg-card/80 shadow-lg">
+                <Card
+                  key={pillar.title}
+                  className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg"
+                >
                   <CardContent className="space-y-3 p-6">
                     <div
                       className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelSm}`}
@@ -234,7 +242,9 @@ const About = () => {
                       <Icon className={publicPageLayoutTokens.sectionLabelIcon} />
                       {pillar.title}
                     </div>
-                    <p className="text-sm text-muted-foreground">{pillar.description}</p>
+                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                      {pillar.description}
+                    </p>
                   </CardContent>
                 </Card>
               );
@@ -250,7 +260,10 @@ const About = () => {
             {about.values.map((value) => {
               const Icon = resolveAboutIcon(value.icon, Sparkles);
               return (
-                <Card key={value.title} className="bg-card/80 shadow-lg">
+                <Card
+                  key={value.title}
+                  className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg"
+                >
                   <CardContent className="space-y-3 p-6">
                     <div
                       className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelSm}`}
@@ -258,7 +271,9 @@ const About = () => {
                       <Icon className={publicPageLayoutTokens.sectionLabelIcon} />
                       {value.title}
                     </div>
-                    <p className="text-sm text-muted-foreground">{value.description}</p>
+                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                      {value.description}
+                    </p>
                   </CardContent>
                 </Card>
               );

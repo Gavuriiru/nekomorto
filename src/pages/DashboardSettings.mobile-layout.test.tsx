@@ -14,6 +14,10 @@ const { apiFetchMock, navigateMock, refreshMock } = vi.hoisted(() => ({
 
 const settingsWithUploadIcons = {
   ...defaultSettings,
+  site: {
+    ...defaultSettings.site,
+    faviconUrl: "/uploads/branding/favicon.svg",
+  },
   downloads: {
     ...defaultSettings.downloads,
     sources: defaultSettings.downloads.sources.map((source, index) =>
@@ -89,6 +93,21 @@ const mockJsonResponse = (
 
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
+
+const expectDashboardActionButtonTokens = (element: HTMLElement) => {
+  const tokens = classTokens(element);
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "rounded-xl",
+      "bg-background",
+      "font-semibold",
+      "hover:bg-primary/5",
+      "hover:text-foreground",
+    ]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
 
 const findAncestor = (
   element: HTMLElement,
@@ -367,6 +386,123 @@ describe("DashboardSettings mobile layout", () => {
     );
     expect(desktopRemoveButtonTokens).toContain("hidden");
     expect(desktopRemoveButtonTokens).toContain("md:inline-flex");
+  });
+
+  it("reuses the stable dashboard home surface for biblioteca launchers", async () => {
+    renderDashboardSettings();
+    await screen.findByRole("heading", { name: /Painel/i });
+
+    const libraryButton = screen.getAllByRole("button", { name: "Biblioteca" })[0];
+
+    expect(libraryButton).toBeTruthy();
+    expectDashboardActionButtonTokens(libraryButton as HTMLElement);
+    expect(classTokens(libraryButton as HTMLElement)).toContain("flex-1");
+    expect(classTokens(libraryButton as HTMLElement)).toContain("h-9");
+  });
+
+  it("uses the stable dashboard action button pattern across compact settings actions", async () => {
+    renderDashboardSettings();
+    await screen.findByRole("heading", { name: /Painel/i });
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Tradu/i }));
+    await screen.findByRole("heading", { name: /Tags/i });
+
+    screen.getAllByRole("button", { name: "Importar AniList" }).forEach((button) => {
+      expectDashboardActionButtonTokens(button as HTMLElement);
+      expect(classTokens(button as HTMLElement)).toContain("h-9");
+    });
+    screen.getAllByRole("button", { name: /Salvar tradu/i }).forEach((button) => {
+      expectDashboardActionButtonTokens(button as HTMLElement);
+      expect(classTokens(button as HTMLElement)).toContain("h-9");
+    });
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Redes/i }));
+    await screen.findByRole("heading", { name: /Redes sociais \(Usu/i });
+
+    const addSocialButton = screen.getByRole("button", { name: "Adicionar" });
+    expectDashboardActionButtonTokens(addSocialButton as HTMLElement);
+    expect(classTokens(addSocialButton as HTMLElement)).toContain("h-9");
+
+    const saveSocialButton = screen.getByRole("button", { name: /^Salvar$/i });
+    expectDashboardActionButtonTokens(saveSocialButton as HTMLElement);
+    expect(classTokens(saveSocialButton as HTMLElement)).toContain("h-9");
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Layout/i }));
+    await screen.findByRole("heading", { name: /Textos legais/i });
+
+    screen.getAllByRole("button", { name: /Adicionar link/i }).forEach((button) => {
+      expectDashboardActionButtonTokens(button as HTMLElement);
+      expect(classTokens(button as HTMLElement)).toContain("h-9");
+      expect(classTokens(button as HTMLElement)).toContain("w-full");
+      expect(classTokens(button as HTMLElement)).toContain("md:w-auto");
+    });
+
+    const addParagraphButton = screen.getByRole("button", { name: /Adicionar par/i });
+    expectDashboardActionButtonTokens(addParagraphButton as HTMLElement);
+    expect(classTokens(addParagraphButton as HTMLElement)).toContain("h-9");
+    expect(classTokens(addParagraphButton as HTMLElement)).toContain("w-full");
+    expect(classTokens(addParagraphButton as HTMLElement)).toContain("md:w-auto");
+  });
+
+  it("harmonizes seo preview cards while keeping favicon compact", async () => {
+    renderDashboardSettings();
+    await screen.findByRole("heading", { name: /Painel/i });
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /SEO/i }));
+    await screen.findByRole("heading", { name: /Metadados visuais/i });
+
+    const faviconLabel = screen.getByText("Favicon");
+    const faviconCard = findAncestor(
+      faviconLabel,
+      (candidate) =>
+        classTokens(candidate).includes("rounded-2xl") &&
+        classTokens(candidate).includes("space-y-3"),
+    );
+    expect(faviconCard).not.toBeNull();
+
+    const shareLabel = screen.getByText("Imagem de compartilhamento");
+    const shareCard = findAncestor(
+      shareLabel,
+      (candidate) =>
+        classTokens(candidate).includes("rounded-2xl") &&
+        classTokens(candidate).includes("space-y-3"),
+    );
+    expect(shareCard).not.toBeNull();
+
+    const faviconImage = within(faviconCard as HTMLElement).getByAltText("Favicon");
+    const faviconPreview = findAncestor(
+      faviconImage,
+      (candidate) =>
+        classTokens(candidate).includes("rounded-xl") &&
+        classTokens(candidate).includes("p-3"),
+    );
+    expect(faviconPreview).not.toBeNull();
+    expect(classTokens(faviconPreview as HTMLElement)).toContain("h-20");
+
+    const shareImage = within(shareCard as HTMLElement).getByAltText("Imagem de compartilhamento");
+    const sharePreview = findAncestor(
+      shareImage,
+      (candidate) =>
+        classTokens(candidate).includes("rounded-xl") &&
+        classTokens(candidate).includes("p-3"),
+    );
+    expect(sharePreview).not.toBeNull();
+    expect(classTokens(sharePreview as HTMLElement)).toContain("h-20");
+
+    expect(classTokens(faviconImage as HTMLElement)).toEqual(
+      expect.arrayContaining(["h-10", "w-10", "object-contain"]),
+    );
+    expect(classTokens(shareImage as HTMLElement)).toEqual(
+      expect.arrayContaining(["h-full", "w-full", "object-cover"]),
+    );
+
+    const faviconLibraryButton = within(faviconCard as HTMLElement).getByRole("button", {
+      name: "Biblioteca",
+    });
+    expectDashboardActionButtonTokens(faviconLibraryButton as HTMLElement);
+    expect(within(faviconCard as HTMLElement).getByRole("button", { name: "Limpar" })).toBeTruthy();
+    expect(within(shareCard as HTMLElement).getByRole("button", { name: "Biblioteca" })).toBeTruthy();
+    expect(within(shareCard as HTMLElement).getByRole("button", { name: "Limpar" })).toBeTruthy();
   });
 
   it("uses compact mobile cards for team roles and navbar links", async () => {

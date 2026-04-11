@@ -1,8 +1,8 @@
 import { memo } from "react";
 
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
 type ProjectEditorMediaTarget = "cover" | "banner" | "hero";
@@ -45,15 +45,14 @@ const ProjectEditorMediaCard = ({
         ) : (
           <div className={emptyPreviewClassName}>Sem imagem</div>
         )}
-        <Button
+        <DashboardActionButton
           type="button"
-          variant="outline"
           size="sm"
           className="ml-auto"
           onClick={onOpenLibrary}
         >
           Biblioteca
-        </Button>
+        </DashboardActionButton>
       </div>
     </div>
   </div>

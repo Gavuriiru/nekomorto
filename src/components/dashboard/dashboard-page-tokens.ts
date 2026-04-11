@@ -5,6 +5,7 @@ export const dashboardSubtleSurfaceHoverClassName =
   "transition-[border-color,background-color] duration-200 hover:border-primary/40";
 export const dashboardStrongFocusScopeClassName = "dashboard-strong-focus-scope";
 export const dashboardStrongFocusTriggerClassName = "dashboard-strong-focus-trigger";
+export const dashboardEditorDialogWidthClassName = "max-w-[min(1760px,calc(100vw-1rem))]";
 
 export const dashboardPageLayoutTokens = {
   main: "pt-24",

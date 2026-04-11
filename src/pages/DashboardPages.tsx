@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardLightSelect, {
   type DashboardLightSelectOption,
 } from "@/components/dashboard/DashboardLightSelect";
@@ -1328,16 +1329,15 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     </div>
 
                                     <div className="flex flex-wrap gap-2">
-                                      <Button
+                                      <DashboardActionButton
                                         type="button"
-                                        variant="outline"
                                         size="sm"
                                         onClick={() =>
                                           openPreviewLibrary(pageKey)
                                         }
                                       >
                                         Biblioteca
-                                      </Button>
+                                      </DashboardActionButton>
                                       <Button
                                         type="button"
                                         variant="ghost"

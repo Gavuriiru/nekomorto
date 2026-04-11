@@ -285,8 +285,8 @@ export const logoEditorFields: LogoEditorField[] = [
     target: "site.faviconUrl",
     label: "Favicon",
     description: "Ícone mostrado na aba do navegador.",
-    frameClassName: "h-16",
-    imageClassName: "h-8 w-8 rounded bg-background object-contain",
+    frameClassName: "h-20",
+    imageClassName: "h-10 w-10 rounded bg-background object-contain",
   },
   {
     target: "site.defaultShareImage",

@@ -4,6 +4,7 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import DashboardPosts from "@/pages/DashboardPosts";
+import { dashboardEditorDialogWidthClassName } from "@/components/dashboard/dashboard-page-tokens";
 
 const { apiFetchMock, resizeObserverInstances, lexicalEditorPropsSpy } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
@@ -196,6 +197,24 @@ const LocationProbe = () => {
 
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
+
+const expectStableDashboardActionButton = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "rounded-xl",
+      "bg-background",
+      "font-semibold",
+      "hover:bg-primary/5",
+      "hover:text-foreground",
+      sizeToken,
+    ]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
 const createDomRect = (height: number): DOMRect =>
   ({
     bottom: height,
@@ -255,6 +274,22 @@ const expectEditorSectionHeader = (dialog: HTMLElement, title: string, subtitle:
 };
 
 describe("DashboardPosts edit query", () => {
+  it("usa o dashboard action button estavel para nova postagem", async () => {
+    setupApiMock({ canManagePosts: true });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts"]}>
+        <DashboardPosts />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    expectStableDashboardActionButton(
+      screen.getByRole("button", { name: /Nova postagem/i }),
+      "h-10",
+    );
+  });
+
   it("abre criacao automaticamente com ?edit=new e limpa a query", async () => {
     setupApiMock({ canManagePosts: true });
 
@@ -287,18 +322,12 @@ describe("DashboardPosts edit query", () => {
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
-    expect(document.documentElement).toHaveClass("editor-scroll-stable");
-    expect(document.body).toHaveClass("editor-scroll-stable");
-    expect(document.body.getAttribute("data-editor-scroll-stable-count")).toBe("1");
     expect(document.documentElement).toHaveClass("editor-scroll-locked");
     expect(document.body).toHaveClass("editor-scroll-locked");
     expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBe("1");
 
     unmount();
 
-    expect(document.documentElement).not.toHaveClass("editor-scroll-stable");
-    expect(document.body).not.toHaveClass("editor-scroll-stable");
-    expect(document.body.getAttribute("data-editor-scroll-stable-count")).toBeNull();
     expect(document.documentElement).not.toHaveClass("editor-scroll-locked");
     expect(document.body).not.toHaveClass("editor-scroll-locked");
     expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBeNull();
@@ -516,6 +545,18 @@ describe("DashboardPosts edit query", () => {
     const editorSectionContent = document.querySelector(
       ".project-editor-section-content",
     ) as HTMLElement | null;
+    const editorBackdrop = screen.getByTestId("dashboard-editor-backdrop");
+    const legacyBackdrop = Array.from(document.body.querySelectorAll("div")).find((node) => {
+      const tokens = classTokens(node as HTMLElement);
+      return (
+        tokens.includes("pointer-events-auto") &&
+        tokens.includes("fixed") &&
+        tokens.includes("inset-0") &&
+        tokens.includes("z-40") &&
+        tokens.includes("bg-black/80") &&
+        tokens.includes("backdrop-blur-xs")
+      );
+    });
 
     expect(editorDialog).not.toBeNull();
     expect(editorScrollShell).not.toBeNull();
@@ -530,9 +571,18 @@ describe("DashboardPosts edit query", () => {
     expect(classTokens(editorScrollShell as HTMLElement)).not.toContain("max-h-[94vh]");
     expect(classTokens(editorTop as HTMLElement)).toContain("sticky");
     expect(classTokens(editorFooter as HTMLElement)).toContain("sticky");
+    expect(classTokens(editorDialog as HTMLElement)).toContain(dashboardEditorDialogWidthClassName);
+    expect(classTokens(editorDialog as HTMLElement)).not.toContain(
+      "max-w-[min(1520px,calc(100vw-1rem))]",
+    );
     expect(classTokens(editorHeader as HTMLElement)).toContain("pt-3.5");
     expect(classTokens(editorHeader as HTMLElement)).toContain("pb-2.5");
     expect(classTokens(editorStatusBar as HTMLElement)).toContain("py-1.5");
+    expect(classTokens(editorBackdrop)).toEqual(
+      expect.arrayContaining(["fixed", "inset-0", "z-[45]", "bg-black/80", "backdrop-blur-xs"]),
+    );
+    expect(editorBackdrop.parentElement).toBe(document.body);
+    expect(legacyBackdrop).toBeUndefined();
     expect(classTokens(editorLayout as HTMLElement)).toContain("space-y-4");
     expect(classTokens(editorLayout as HTMLElement)).toContain("pt-2.5");
     expect(classTokens(editorLayout as HTMLElement)).toContain("pb-4");

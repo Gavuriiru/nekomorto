@@ -235,9 +235,9 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   return (
     <Link
       to={`/projeto/${project?.id ?? projectId}`}
-      className="group block rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 interactive-lift-md"
+      className="group block overflow-hidden rounded-2xl border border-border/60 bg-card focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 interactive-lift-md interactive-surface-transition hover:border-primary/60 hover:bg-card/90"
     >
-      <Card className="interactive-surface-transition overflow-hidden bg-card shadow-xs group-hover:border-primary/60 group-hover:bg-card/90 group-focus-visible:border-primary/60 group-focus-visible:bg-card/90">
+      <Card className="overflow-hidden bg-transparent shadow-none">
         <CardContent className="p-0">
           <div
             ref={synopsisRootRef}

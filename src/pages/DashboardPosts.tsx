@@ -10,7 +10,9 @@ import {
 } from "react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
+import DashboardEditorBackdrop from "@/components/dashboard/DashboardEditorBackdrop";
 import {
   Input,
   Select,
@@ -29,6 +31,7 @@ import UploadPicture from "@/components/UploadPicture";
 import LexicalEditorSurface from "@/components/lexical/LexicalEditorSurface";
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
 import {
+  dashboardEditorDialogWidthClassName,
   dashboardPageLayoutTokens,
   dashboardSubtleSurfaceHoverClassName,
   dashboardStrongSurfaceHoverClassName,
@@ -84,7 +87,6 @@ import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
-import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
 import { normalizeUploadVariantUrlKey, type UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { ContentVersion, EditorialCalendarItem } from "@/types/editorial";
 import {
@@ -230,7 +232,6 @@ const DashboardPosts = () => {
   const { currentUser, isLoadingUser } = useDashboardCurrentUser();
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   useEditorScrollLock(isEditorOpen);
-  useEditorScrollStability(isEditorOpen);
   const [isEditorDialogScrolled, setIsEditorDialogScrolled] = useState(false);
   const [postEditorToolbarStickyTop, setPostEditorToolbarStickyTop] = useState(0);
   const [editorTopElement, setEditorTopElement] = useState<HTMLDivElement | null>(null);
@@ -1617,23 +1618,20 @@ const DashboardPosts = () => {
             description="Visualize, edite e publique os posts mais recentes do site."
             actions={
               canManagePosts ? (
-                <Button className="gap-2" onClick={openCreate}>
+                <DashboardActionButton type="button" size="toolbar" onClick={openCreate}>
                   <Plus className="h-4 w-4" />
                   Nova postagem
-                </Button>
+                </DashboardActionButton>
               ) : undefined
             }
           />
 
           {isEditorOpen && canManagePosts ? (
             <>
-              <div
-                className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-xs"
-                aria-hidden="true"
-              />
               <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
+                <DashboardEditorBackdrop />
                 <DialogContent
-                  className={`project-editor-dialog max-w-[min(1520px,calc(100vw-1rem))] gap-0 p-0 ${
+                  className={`project-editor-dialog ${dashboardEditorDialogWidthClassName} gap-0 p-0 ${
                     isEditorDialogScrolled ? "editor-modal-scrolled" : ""
                   }`}
                   onPointerDownOutside={(event) => {
@@ -1944,14 +1942,13 @@ const DashboardPosts = () => {
                                     </p>
                                   )}
                                 </DashboardFieldStack>
-                                <Button
+                                <DashboardActionButton
                                   type="button"
-                                  variant="outline"
                                   size="sm"
                                   onClick={openLibrary}
                                 >
                                   Biblioteca
-                                </Button>
+                                </DashboardActionButton>
                               </div>
                             </section>
 

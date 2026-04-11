@@ -408,6 +408,25 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
+const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+
+const expectStableDashboardActionButton = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "rounded-xl",
+      "bg-background",
+      "font-semibold",
+      "hover:bg-primary/5",
+      "hover:text-foreground",
+      sizeToken,
+    ]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
 const mockBinaryResponse = (ok = true) =>
   ({
     ok,
@@ -1062,7 +1081,15 @@ describe("DashboardProjectChapterEditor", () => {
   it("renderiza a rota neutra com card único de estrutura e sem volume selecionado", async () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
-    await screen.findByTestId("chapter-epub-tools");
+    const epubTools = await screen.findByTestId("chapter-epub-tools");
+    expectStableDashboardActionButton(
+      within(epubTools).getByRole("button", { name: "Importar EPUB" }),
+      "h-10",
+    );
+    expectStableDashboardActionButton(
+      within(epubTools).getByRole("button", { name: /Exportar volume em EPUB/i }),
+      "h-10",
+    );
     const headerShell = screen.getByTestId("chapter-editor-header-shell");
     const mainColumn = screen.getByTestId("chapter-editor-main-column");
     const workspace = screen.getByTestId("chapter-editor-workspace");
@@ -1070,7 +1097,6 @@ describe("DashboardProjectChapterEditor", () => {
     const upperLayout = screen.getByTestId("chapter-editor-upper-layout");
     const structureSection = screen.getByTestId("chapter-structure-section");
     const structureAccordion = structureSection.parentElement;
-    const epubTools = screen.getByTestId("chapter-epub-tools");
     const epubTrigger = within(epubTools).getByRole("button", { name: /Ferramentas EPUB/i });
     expect(structureAccordion).not.toBeNull();
     expect(headerShell).toContainElement(screen.getByTestId("chapter-editor-masthead"));
@@ -4004,7 +4030,15 @@ describe("DashboardProjectChapterEditor", () => {
   it("importa EPUB, persiste o projeto e navega para o primeiro capítulo importado", async () => {
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
-    await screen.findByTestId("chapter-epub-tools");
+    const epubTools = await screen.findByTestId("chapter-epub-tools");
+    expectStableDashboardActionButton(
+      within(epubTools).getByRole("button", { name: "Importar EPUB" }),
+      "h-10",
+    );
+    expectStableDashboardActionButton(
+      within(epubTools).getByRole("button", { name: /Exportar volume em EPUB/i }),
+      "h-10",
+    );
     const fileInput = document.getElementById(
       "chapter-editor-epub-import-file",
     ) as HTMLInputElement;
@@ -4161,7 +4195,11 @@ describe("DashboardProjectChapterEditor", () => {
 
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
-    await screen.findByTestId("chapter-epub-tools");
+    const epubTools = await screen.findByTestId("chapter-epub-tools");
+    expectStableDashboardActionButton(
+      within(epubTools).getByRole("button", { name: /Exportar volume em EPUB/i }),
+      "h-10",
+    );
     fireEvent.click(screen.getByTestId("chapter-structure-select-2"));
     await screen.findByTestId("chapter-volume-editor");
     openVolumeAccordion();

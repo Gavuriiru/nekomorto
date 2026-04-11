@@ -150,26 +150,28 @@ const PublicUserProfileAvatar = ({
   }, [normalizedImageSrc]);
 
   return (
-    <div className="relative z-10 h-56 w-56 overflow-hidden rounded-full border border-white/10 ring-4 ring-background/70 shadow-[0_20px_46px_-24px_rgba(0,0,0,0.82)] sm:h-60 sm:w-60 md:h-64 md:w-64 lg:h-64 lg:w-64">
-      <UploadPicture
-        src={resolvedSrc}
-        alt={name}
-        preset="square"
-        mediaVariants={mediaVariants}
-        referrerPolicy="no-referrer"
-        crossOrigin="anonymous"
-        className="block h-full w-full"
-        imgClassName="h-full w-full object-cover"
-        loading={loading}
-        fetchPriority={fetchPriority}
-        sizes={sizes}
-        onError={() => {
-          if (resolvedSrc === "/placeholder.svg") {
-            return;
-          }
-          setResolvedSrc("/placeholder.svg");
-        }}
-      />
+    <div className="team-member-avatar-shell relative z-10 h-56 w-56 rounded-full shadow-[0_20px_46px_-24px_rgba(0,0,0,0.82)] transition-transform duration-500 group-hover:scale-105 sm:h-60 sm:w-60 md:h-64 md:w-64 lg:h-64 lg:w-64">
+      <div className="team-member-avatar-frame h-full w-full overflow-hidden rounded-full border border-white/10 bg-background ring-4 ring-background/70">
+        <UploadPicture
+          src={resolvedSrc}
+          alt={name}
+          preset="square"
+          mediaVariants={mediaVariants}
+          referrerPolicy="no-referrer"
+          crossOrigin="anonymous"
+          className="block h-full w-full"
+          imgClassName="h-full w-full object-cover"
+          loading={loading}
+          fetchPriority={fetchPriority}
+          sizes={sizes}
+          onError={() => {
+            if (resolvedSrc === "/placeholder.svg") {
+              return;
+            }
+            setResolvedSrc("/placeholder.svg");
+          }}
+        />
+      </div>
     </div>
   );
 };
@@ -284,10 +286,10 @@ const PublicUserProfileCard = ({
         key={key}
         variant="secondary"
         className={cn(
-          "gap-1 border px-2.5 py-1 text-[10px] uppercase tracking-[0.14em]",
+          "team-member-role-badge gap-1 border px-2.5 py-1 text-[10px] uppercase tracking-[0.14em]",
           tone === "retired"
-            ? "border-primary/20 bg-primary/10 text-primary/90"
-            : "border-white/5 bg-white/[0.04] text-foreground/80",
+            ? "team-member-role-badge--retired border-primary/25 bg-primary/10 text-primary/90"
+            : "border-border/60 bg-secondary/85 text-secondary-foreground",
         )}
       >
         {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
@@ -325,9 +327,11 @@ const PublicUserProfileCard = ({
     <Card
       data-testid={testId}
       className={cn(
-        "group overflow-hidden rounded-[28px] border shadow-[0_24px_70px_-36px_rgba(0,0,0,0.75)]",
+        "group overflow-hidden rounded-[28px] border shadow-[0_24px_70px_-36px_rgba(0,0,0,0.75)] transition-colors duration-300",
         hasFavoriteWorks && "team-member-card--interactive",
-        retired ? "border-border/35 bg-card/80" : "border-border/50 bg-card/85",
+        retired
+          ? "border-border/35 bg-card/80 hover:border-primary/60 hover:bg-card/85"
+          : "border-border/50 bg-card/85 hover:border-primary/60 hover:bg-card/90",
       )}
       tabIndex={hasFavoriteWorks ? 0 : undefined}
       onClick={hasFavoriteWorks ? handleFavoriteCardClick : undefined}

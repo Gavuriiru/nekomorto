@@ -601,109 +601,95 @@ const ProjectCard = memo(
     );
 
     return (
-      <div className="projects-public-card-shell group relative h-50 w-full overflow-visible rounded-2xl md:h-60">
+      <Link
+        to={`/projeto/${project.id}`}
+        className={`projects-public-card group relative flex h-50 w-full items-stretch overflow-hidden rounded-2xl border border-border/60 bg-gradient-card ${publicStrongSurfaceHoverClassName} focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 md:h-60`}
+      >
         <div
-          aria-hidden="true"
-          className="projects-public-card-shadow projects-public-card-shadow--base rounded-[inherit]"
-        />
-        <div
-          aria-hidden="true"
-          className="projects-public-card-shadow projects-public-card-shadow--hover rounded-[inherit]"
-        />
-        <Link
-          to={`/projeto/${project.id}`}
-          className={`projects-public-card relative z-10 flex h-full w-full items-stretch overflow-hidden rounded-2xl border border-border/60 bg-gradient-card transition-[border-color,background-color,color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${publicStrongSurfaceHoverClassName} focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45`}
+          className="h-full shrink-0 overflow-hidden bg-secondary"
+          style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
         >
-          <div
-            className="h-full shrink-0 overflow-hidden bg-secondary"
-            style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
-          >
-            <UploadPicture
-              src={project.cover}
-              alt={project.title}
-              preset="posterThumb"
-              mediaVariants={mediaVariants}
-              className="block h-full w-full"
-              imgClassName="interactive-media-transition h-full w-full object-cover object-center group-hover:scale-105 group-focus-within:scale-105"
-              sizes={PROJECTS_LIST_IMAGE_SIZES}
-              loading={isPriorityImage ? "eager" : "lazy"}
-              fetchPriority={isPriorityImage ? "high" : undefined}
-            />
-          </div>
-          <div
-            data-synopsis-role="column"
-            data-synopsis-key={project.id}
-            className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-5"
-          >
-            <div data-synopsis-role="title" className="shrink-0">
-              <p className="interactive-content-transition text-xs uppercase tracking-[0.2em] text-primary/80 group-hover:text-primary group-focus-within:text-primary">
-                {project.type}
-              </p>
-              <h2 className="interactive-content-transition line-clamp-2 text-xl font-semibold leading-snug text-foreground group-hover:text-primary group-focus-within:text-primary md:text-2xl">
-                {project.title}
-              </h2>
-            </div>
-
-            <p
-              data-synopsis-role="synopsis"
-              className={cn(
-                "interactive-content-transition mt-2 overflow-hidden text-sm leading-snug text-muted-foreground break-normal hyphens-none group-hover:text-foreground/80 group-focus-within:text-foreground/80",
-                PROJECT_CARD_SYNOPSIS_CLASS,
-                synopsisClampClass,
-              )}
-            >
-              {project.synopsis}
+          <UploadPicture
+            src={project.cover}
+            alt={project.title}
+            preset="posterThumb"
+            mediaVariants={mediaVariants}
+            className="block h-full w-full"
+            imgClassName="interactive-media-transition h-full w-full object-cover object-center group-hover:scale-105 group-focus-within:scale-105"
+            sizes={PROJECTS_LIST_IMAGE_SIZES}
+            loading={isPriorityImage ? "eager" : "lazy"}
+            fetchPriority={isPriorityImage ? "high" : undefined}
+          />
+        </div>
+        <div
+          data-synopsis-role="column"
+          data-synopsis-key={project.id}
+          className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-5"
+        >
+          <div data-synopsis-role="title" className="shrink-0">
+            <p className="interactive-content-transition text-xs uppercase tracking-[0.2em] text-primary/80 group-hover:text-primary group-focus-within:text-primary">
+              {project.type}
             </p>
+            <h2 className="interactive-content-transition line-clamp-2 text-xl font-semibold leading-snug text-foreground group-hover:text-primary group-focus-within:text-primary md:text-2xl">
+              {project.title}
+            </h2>
+          </div>
 
-            <div
-              data-synopsis-role="badges"
-              className="mt-auto flex shrink-0 flex-col gap-2 pt-3"
-            >
-              {!isMobile && (visibleItems.length > 0 || extraCount > 0) ? (
-                <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
-                  {visibleItems.map((item) => (
-                    <ProjectPrimaryBadge
-                      key={item.key}
-                      item={item}
-                      navigate={navigate}
-                    />
-                  ))}
-                  {showOverflowBadge ? (
-                    <Badge
-                      variant="secondary"
-                      className="inline-flex h-6 w-9 shrink-0 justify-center whitespace-nowrap px-2 text-[9px] uppercase leading-none"
-                      title={`+${extraCount} tags`}
-                    >
-                      +{extraCount}
-                    </Badge>
-                  ) : null}
-                </div>
-              ) : null}
+          <p
+            data-synopsis-role="synopsis"
+            className={cn(
+              "interactive-content-transition mt-2 overflow-hidden text-sm leading-snug text-muted-foreground break-normal hyphens-none group-hover:text-foreground/80 group-focus-within:text-foreground/80",
+              PROJECT_CARD_SYNOPSIS_CLASS,
+              synopsisClampClass,
+            )}
+          >
+            {project.synopsis}
+          </p>
 
-              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                {project.status ? (
-                  <span className="shrink-0 rounded-full bg-background/50 px-3 py-1 truncate">
-                    {project.status}
-                  </span>
-                ) : null}
-                {project.studio ? (
-                  <span
-                    className="hidden shrink-0 max-w-36 rounded-full bg-background/50 px-3 py-1 truncate lg:inline-flex lg:max-w-48"
-                    title={project.studio}
+          <div
+            data-synopsis-role="badges"
+            className="mt-auto flex shrink-0 flex-col gap-2 pt-3"
+          >
+            {!isMobile && (visibleItems.length > 0 || extraCount > 0) ? (
+              <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
+                {visibleItems.map((item) => (
+                  <ProjectPrimaryBadge key={item.key} item={item} navigate={navigate} />
+                ))}
+                {showOverflowBadge ? (
+                  <Badge
+                    variant="secondary"
+                    className="inline-flex h-6 w-9 shrink-0 justify-center whitespace-nowrap px-2 text-[9px] uppercase leading-none"
+                    title={`+${extraCount} tags`}
                   >
-                    {project.studio}
-                  </span>
-                ) : null}
-                {project.episodes ? (
-                  <span className="hidden shrink-0 rounded-full bg-background/50 px-3 py-1 truncate xl:inline-flex">
-                    {project.episodes}
-                  </span>
+                    +{extraCount}
+                  </Badge>
                 ) : null}
               </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              {project.status ? (
+                <span className="shrink-0 rounded-full bg-background/50 px-3 py-1 truncate">
+                  {project.status}
+                </span>
+              ) : null}
+              {project.studio ? (
+                <span
+                  className="hidden shrink-0 max-w-36 rounded-full bg-background/50 px-3 py-1 truncate lg:inline-flex lg:max-w-48"
+                  title={project.studio}
+                >
+                  {project.studio}
+                </span>
+              ) : null}
+              {project.episodes ? (
+                <span className="hidden shrink-0 rounded-full bg-background/50 px-3 py-1 truncate xl:inline-flex">
+                  {project.episodes}
+                </span>
+              ) : null}
             </div>
           </div>
-        </Link>
-      </div>
+        </div>
+      </Link>
     );
   },
 );

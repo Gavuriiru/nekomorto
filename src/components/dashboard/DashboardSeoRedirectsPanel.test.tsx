@@ -35,6 +35,25 @@ const waitMs = (delayMs: number) =>
     setTimeout(resolve, delayMs);
   });
 
+const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+
+const expectStableDashboardActionButton = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "rounded-xl",
+      "bg-background",
+      "font-semibold",
+      "hover:bg-primary/5",
+      "hover:text-foreground",
+      sizeToken,
+    ]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
 const getPutCalls = () =>
   apiFetchMock.mock.calls.filter((call) => {
     const options = (call[2] || {}) as RequestInit;
@@ -76,8 +95,12 @@ describe("DashboardSeoRedirectsPanel", () => {
     expect(
       await screen.findByRole("heading", { name: /SEO e redirecionamentos/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Nova regra/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Salvar SEO/i })).toBeDisabled();
+    const newRuleButton = screen.getByRole("button", { name: /Nova regra/i });
+    const saveSeoButton = screen.getByRole("button", { name: /Salvar SEO/i });
+
+    expectStableDashboardActionButton(newRuleButton, "h-10");
+    expectStableDashboardActionButton(saveSeoButton, "h-10");
+    expect(saveSeoButton).toBeDisabled();
   });
 
   it("nao salva automaticamente durante edicao e salva apenas no clique manual", async () => {

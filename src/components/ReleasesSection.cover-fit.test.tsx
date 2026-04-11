@@ -133,10 +133,21 @@ describe("ReleasesSection cover fit", () => {
       "rounded-2xl",
       "border",
       "border-border/60",
-      "bg-gradient-card",
+      "bg-card",
       "hover:border-primary/60",
     );
+    expect(postLink).not.toHaveClass("bg-gradient-card");
     expect(postLink).not.toHaveClass("shadow-xs", "hover:shadow-lg");
+    expect(coverImage).toHaveClass(
+      "home-post-media-transition",
+      "group-hover/home-post-card:scale-[1.02]",
+      "group-focus-within/home-post-card:scale-[1.02]",
+    );
+    expect(coverImage).not.toHaveClass(
+      "home-card-media-transition",
+      "group-hover/home-post-card:scale-[1.03]",
+      "group-focus-within/home-post-card:scale-[1.03]",
+    );
     expect(coverImage).toHaveAttribute(
       "src",
       expect.stringContaining("/uploads/_variants/post-1/cardHome-v2.jpeg"),
@@ -223,7 +234,17 @@ describe("ReleasesSection cover fit", () => {
     expect(await screen.findByRole("heading", { level: 3, name: "Post 1" })).toBeInTheDocument();
 
     const pagination = screen.getByRole("navigation");
-    expect(within(pagination).getByRole("link", { name: "7" })).toBeInTheDocument();
+    const pageSevenLink = within(pagination).getByRole("link", { name: "7" });
+    const previousLink = within(pagination).getByRole("link", {
+      name: "Ir para a p\u00E1gina anterior",
+    });
+    const nextLink = within(pagination).getByRole("link", {
+      name: "Ir para a pr\u00F3xima p\u00E1gina",
+    });
+    expect(pageSevenLink).toBeInTheDocument();
+    expect(pageSevenLink).toHaveClass("home-post-pagination-link", "text-xs");
+    expect(previousLink).toHaveClass("home-post-pagination-link", "text-xs");
+    expect(nextLink).toHaveClass("home-post-pagination-link", "text-xs");
 
     fireEvent.click(within(pagination).getByRole("link", { name: "4" }));
 

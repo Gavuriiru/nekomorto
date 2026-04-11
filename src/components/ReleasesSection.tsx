@@ -98,7 +98,7 @@ const ReleasesSection = () => {
                       <Link
                         to={`/postagem/${release.slug}`}
                         className={cn(
-                          "home-post-card-link group/home-post-card relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-gradient-card hover:border-primary/60 focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45",
+                          "home-post-card-link group/home-post-card relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card hover:border-primary/60 focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45",
                           isOrphan && "sm:w-[calc(50%-1rem)]",
                         )}
                       >
@@ -110,7 +110,7 @@ const ReleasesSection = () => {
                             mediaVariants={mediaVariants}
                             sizes="(min-width: 1024px) 406px, (min-width: 640px) calc((100vw - 8rem) / 2), calc(100vw - 3rem)"
                             className="absolute inset-0 block h-full w-full"
-                            imgClassName="home-card-media-transition absolute inset-0 block h-full w-full object-cover object-center group-hover/home-post-card:scale-[1.03] group-focus-within/home-post-card:scale-[1.03]"
+                            imgClassName="home-post-media-transition absolute inset-0 block h-full w-full object-cover object-center group-hover/home-post-card:scale-[1.02] group-focus-within/home-post-card:scale-[1.02]"
                             loading="lazy"
                           />
                         </div>
@@ -145,9 +145,10 @@ const ReleasesSection = () => {
                 currentPage={currentPage}
                 totalPages={totalPages}
                 className="justify-center pt-4"
-                linkClassName="text-xs"
-                previousClassName="text-xs"
-                nextClassName="text-xs"
+                contentClassName="gap-1.5"
+                linkClassName="home-post-pagination-link text-xs"
+                previousClassName="home-post-pagination-link text-xs"
+                nextClassName="home-post-pagination-link text-xs"
                 onPageChange={changePage}
               />
             ) : null}

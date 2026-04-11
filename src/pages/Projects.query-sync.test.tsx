@@ -356,7 +356,13 @@ describe("Projects query sync", () => {
     expect(pageShell).not.toHaveClass("bg-background", "bg-gradient-surface");
 
     const firstProjectCard = getRenderedProjectCards(container)[0];
-    expect(firstProjectCard).toHaveClass("hover:border-primary/60");
+    expect(firstProjectCard).toHaveClass(
+      "projects-public-card",
+      "group",
+      "border",
+      "border-border/60",
+      "hover:border-primary/60",
+    );
   });
 
   it("mantem o combobox de Projects alinhado ao contrato visual global", async () => {
@@ -922,29 +928,31 @@ describe("Projects query sync", () => {
     expect(coverWrapper).not.toHaveClass("h-39", "md:h-50", "rounded-xl");
     expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
     const cardRoot = coverWrapper?.closest("a.projects-public-card");
-    const cardShell = cardRoot?.parentElement;
     expect(cardRoot).not.toBeNull();
     expect(cardRoot).toHaveClass(
+      "projects-public-card",
+      "group",
       "relative",
-      "z-10",
+      "h-50",
+      "w-full",
       "items-stretch",
       "overflow-hidden",
       "rounded-2xl",
+      "border",
+      "border-border/60",
       "hover:border-primary/60",
+      "md:h-60",
     );
-    expect(cardRoot).not.toHaveClass("gap-5", "p-5", "hover:-translate-y-1", "hover:shadow-lg");
-    expect(cardShell).not.toBeNull();
-    expect(cardShell).toHaveClass(
+    expect(cardRoot).not.toHaveClass(
       "projects-public-card-shell",
-      "group",
-      "relative",
-      "overflow-visible",
-      "rounded-2xl",
+      "z-10",
+      "gap-5",
+      "p-5",
+      "hover:-translate-y-1",
+      "hover:shadow-lg",
     );
-    const shadowLayers = cardShell?.querySelectorAll(".projects-public-card-shadow");
-    expect(shadowLayers).toHaveLength(2);
-    expect(shadowLayers?.[0]).toHaveClass("projects-public-card-shadow--base");
-    expect(shadowLayers?.[1]).toHaveClass("projects-public-card-shadow--hover");
+    expect(cardRoot?.parentElement).not.toHaveClass("projects-public-card-shell");
+    expect(cardRoot?.querySelectorAll(".projects-public-card-shadow")).toHaveLength(0);
   });
 
   it("prioriza apenas a primeira capa no desktop sem medicao auxiliar de badges", async () => {

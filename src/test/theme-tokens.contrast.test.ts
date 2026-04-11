@@ -26,7 +26,7 @@ const parseTokens = (block: string): ThemeTokens => {
   return tokens;
 };
 
-const rootTokens = parseTokens(extractBlock(/:root\s*\{([\s\S]*?)\n  \}/));
+const rootTokens = parseTokens(extractBlock(/:root\s*\{\s*\n\s*color-scheme:\s*dark;([\s\S]*?)\n  \}/));
 const lightTokens = parseTokens(
   extractBlock(/:root\[data-theme-mode="light"\]\s*\{([\s\S]*?)\n  \}/),
 );

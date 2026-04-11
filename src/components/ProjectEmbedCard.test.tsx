@@ -137,10 +137,24 @@ describe("ProjectEmbedCard", () => {
     expect(statusBadge).toHaveClass("max-w-[8.5rem]", "truncate");
     expect(studioBadge).toHaveClass("max-w-[8.5rem]", "truncate");
     expect(cardRoot).not.toBeNull();
-    expect(cardLink).toHaveClass("interactive-lift-md");
-    expect(cardRoot).toHaveClass("overflow-hidden");
+    expect(cardLink).toHaveClass(
+      "interactive-lift-md",
+      "interactive-surface-transition",
+      "overflow-hidden",
+      "border",
+      "border-border/60",
+      "bg-card",
+      "hover:border-primary/60",
+      "focus-visible:border-primary/60",
+    );
+    expect(cardRoot).toHaveClass("overflow-hidden", "bg-transparent", "shadow-none");
     expect(cardRoot).not.toHaveClass("border", "border-border");
-    expect(cardRoot).toHaveClass("group-hover:border-primary/60");
+    expect(cardRoot).not.toHaveClass(
+      "group-hover:border-primary/60",
+      "group-focus-visible:border-primary/60",
+      "group-hover:bg-card/90",
+      "group-focus-visible:bg-card/90",
+    );
     expect(title).toHaveClass("clamp-safe-2");
     expect(title).not.toHaveClass("sm:line-clamp-none");
     expect(row).toHaveClass("group", "flex", "items-stretch");

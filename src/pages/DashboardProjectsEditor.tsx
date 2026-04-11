@@ -1,4 +1,5 @@
 import DashboardShell from "@/components/DashboardShell";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import ReorderControls from "@/components/ReorderControls";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardLightSelect, {
@@ -89,7 +90,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import type { ProjectEpisode } from "@/data/projects";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
-import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
@@ -369,7 +369,6 @@ const DashboardProjectsEditor = () => {
     },
   });
   useEditorScrollLock(isEditorOpen);
-  useEditorScrollStability(isEditorOpen);
 
   useEffect(() => {
     const maxEpisodeIndex = formState.episodeDownloads.length - 1;
@@ -1253,10 +1252,10 @@ const DashboardProjectsEditor = () => {
             title="Gerenciar projetos"
             description="Crie, edite e organize os projetos visíveis no site."
             actions={
-              <Button className="gap-2" onClick={openCreate}>
+              <DashboardActionButton type="button" size="toolbar" onClick={openCreate}>
                 <Plus className="h-4 w-4" />
                 Novo projeto
-              </Button>
+              </DashboardActionButton>
             }
           />
 
@@ -2114,14 +2113,13 @@ const DashboardProjectsEditor = () => {
                                           Sem capa
                                         </div>
                                       )}
-                                      <Button
+                                      <DashboardActionButton
                                         type="button"
-                                        variant="outline"
                                         size="sm"
                                         onClick={() => openLibraryForVolumeCover(group.volume)}
                                       >
                                         Biblioteca
-                                      </Button>
+                                      </DashboardActionButton>
                                     </div>
                                     <DashboardFieldStack>
                                       <Label className="text-xs">Alt</Label>
@@ -2737,16 +2735,15 @@ const DashboardProjectsEditor = () => {
                                                       Sem imagem
                                                     </div>
                                                   )}
-                                                  <Button
+                                                  <DashboardActionButton
                                                     type="button"
                                                     size="sm"
-                                                    variant="outline"
                                                     onClick={() =>
                                                       openLibraryForEpisodeCover(index)
                                                     }
                                                   >
                                                     Biblioteca
-                                                  </Button>
+                                                  </DashboardActionButton>
                                                 </div>
                                               </div>
                                               {isLightNovel ? (

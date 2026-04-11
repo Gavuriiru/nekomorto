@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import {
   dashboardPageLayoutTokens,
   dashboardStrongSurfaceHoverClassName,
@@ -307,8 +308,6 @@ const dashboardOverviewInsetClassName = dashboardPageLayoutTokens.surfaceInset;
 const dashboardOverviewInsetDashedClassName =
   "rounded-2xl border border-dashed border-border/70 bg-background";
 const dashboardOverviewInteractiveSurfaceClassName = `${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5`;
-const dashboardOverviewActionButtonClassName =
-  "border-border/70 bg-background text-foreground/70 hover:bg-background hover:text-foreground";
 const dashboardOverviewBadgeClassName =
   "border-primary/35 bg-primary/10 text-foreground hover:bg-primary/15";
 const dashboardOverviewMetaTextClassName = dashboardPageLayoutTokens.cardMetaText;
@@ -978,13 +977,9 @@ const Dashboard = () => {
                           </p>
                         ) : null}
                         <div className="mt-4">
-                          <Button
-                            variant="outline"
-                            className={dashboardOverviewActionButtonClassName}
-                            asChild
-                          >
+                          <DashboardActionButton asChild>
                             <Link to={analyticsAllHref}>Ver analytics completos</Link>
-                          </Button>
+                          </DashboardActionButton>
                         </div>
                       </div>
                       <div className="w-full max-w-xs">
@@ -1041,13 +1036,9 @@ const Dashboard = () => {
                           Ranking por projetos individuais
                         </p>
                       </div>
-                      <Button
-                        variant="outline"
-                        className={dashboardOverviewActionButtonClassName}
-                        asChild
-                      >
+                      <DashboardActionButton asChild>
                         <Link to={analyticsProjectHref}>Ver analytics de projetos</Link>
-                      </Button>
+                      </DashboardActionButton>
                     </div>
                     {hasProjectViewData ? (
                       <div className="mt-6 space-y-4">
@@ -1095,13 +1086,9 @@ const Dashboard = () => {
                           Publicações e visualizações
                         </p>
                       </div>
-                      <Button
-                        variant="outline"
-                        className={dashboardOverviewActionButtonClassName}
-                        asChild
-                      >
+                      <DashboardActionButton asChild>
                         <Link to={analyticsPostHref}>Ver analytics de posts</Link>
-                      </Button>
+                      </DashboardActionButton>
                     </div>
                     {recentPosts.length === 0 ? (
                       <div
@@ -1276,13 +1263,9 @@ const Dashboard = () => {
                           </div>
                         )}
                         <div className="pt-1">
-                          <Button
-                            variant="outline"
-                            className={`w-full ${dashboardOverviewActionButtonClassName}`}
-                            asChild
-                          >
+                          <DashboardActionButton asChild className="w-full">
                             <Link to="/dashboard/audit-log">Ver audit log</Link>
-                          </Button>
+                          </DashboardActionButton>
                         </div>
                       </div>
                     )}
@@ -1362,12 +1345,9 @@ const Dashboard = () => {
                         </Link>
                       ))}
                       {totalProjects > 3 && (
-                        <Link
-                          to="/projetos"
-                          className={`block w-full ${dashboardPageLayoutTokens.cardActionSurface} px-4 py-3 text-center text-sm ${dashboardOverviewMetaTextClassName} transition ${dashboardOverviewInteractiveSurfaceClassName} hover:text-foreground`}
-                        >
-                          Ver todos os projetos
-                        </Link>
+                        <DashboardActionButton asChild className="w-full">
+                          <Link to="/projetos">Ver todos os projetos</Link>
+                        </DashboardActionButton>
                       )}
                     </div>
                   </div>

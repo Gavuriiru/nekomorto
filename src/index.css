@@ -615,19 +615,6 @@
     margin-right: 0 !important;
   }
 
-  @supports (scrollbar-gutter: stable) {
-    html,
-    body {
-      scrollbar-gutter: stable both-edges;
-    }
-  }
-
-  @supports not (scrollbar-gutter: stable) {
-    html {
-      overflow-y: scroll;
-    }
-  }
-
   html,
   body {
     scrollbar-width: thin;
@@ -920,12 +907,12 @@
 
   .interactive-lift-sm {
     --interactive-lift-distance: -2px;
-    --interactive-lift-shadow: 0 14px 30px -24px rgba(0, 0, 0, 0.58);
+    --interactive-lift-shadow: 0 8px 18px -16px rgba(0, 0, 0, 0.24);
   }
 
   .interactive-lift-md {
     --interactive-lift-distance: -4px;
-    --interactive-lift-shadow: 0 18px 38px -26px rgba(0, 0, 0, 0.62);
+    --interactive-lift-shadow: 0 12px 28px -24px rgba(0, 0, 0, 0.28);
   }
 
   @media (prefers-reduced-motion: no-preference) {

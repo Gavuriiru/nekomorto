@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPresetCard";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardLightSelect, {
@@ -457,9 +458,9 @@ export const DashboardSettingsLayoutTab = () => {
                       </Button>
                     </div>
                   ))}
-                  <Button
+                  <DashboardActionButton
                     type="button"
-                    variant="outline"
+                    size="sm"
                     className="w-full md:w-auto"
                     onClick={() =>
                       setSettings((prev) => {
@@ -481,7 +482,7 @@ export const DashboardSettingsLayoutTab = () => {
                   >
                     <Plus className="h-4 w-4" />
                     Adicionar link
-                  </Button>
+                  </DashboardActionButton>
                 </div>
               </div>
             ))}
@@ -703,9 +704,9 @@ export const DashboardSettingsLayoutTab = () => {
                   </div>
                 ))}
               </div>
-              <Button
+              <DashboardActionButton
                 type="button"
-                variant="outline"
+                size="sm"
                 className="w-full md:w-auto"
                 onClick={() =>
                   setSettings((prev) => ({
@@ -719,7 +720,7 @@ export const DashboardSettingsLayoutTab = () => {
               >
                 <Plus className="h-4 w-4" />
                 Adicionar parágrafo
-              </Button>
+              </DashboardActionButton>
             </div>
             <div className="grid gap-3 md:grid-cols-2 md:gap-4">
               <DashboardFieldStack>

@@ -1,8 +1,8 @@
 import { memo } from "react";
 
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import { Input } from "@/components/dashboard/dashboard-form-controls";
-import { Button } from "@/components/ui/button";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
 
@@ -41,9 +41,14 @@ const ProjectEditorImportSectionComponent = ({
               placeholder="Ex.: 21366 ou https://anilist.co/manga/97894/..."
             />
           </DashboardFieldStack>
-          <Button className="self-end" onClick={() => void onImportAniList()}>
+          <DashboardActionButton
+            type="button"
+            size="toolbar"
+            className="self-end"
+            onClick={() => void onImportAniList()}
+          >
             Importar do AniList
-          </Button>
+          </DashboardActionButton>
         </div>
       </div>
     </AccordionContent>

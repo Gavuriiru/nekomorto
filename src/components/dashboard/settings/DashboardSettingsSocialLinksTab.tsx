@@ -1,4 +1,5 @@
 import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPresetCard";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import {
@@ -142,9 +143,9 @@ export const DashboardSettingsSocialLinksTab = () => {
               <p className="text-xs text-foreground/70">Opções exibidas no editor de usuários.</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button
+              <DashboardActionButton
                 type="button"
-                variant="outline"
+                size="sm"
                 onClick={() =>
                   setLinkTypes((prev) => [
                     ...prev,
@@ -154,22 +155,20 @@ export const DashboardSettingsSocialLinksTab = () => {
               >
                 <Plus className="h-4 w-4" />
                 Adicionar
-              </Button>
-              <Button
+              </DashboardActionButton>
+              <DashboardActionButton
                 type="button"
                 size="sm"
-                variant="outline"
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
                   void handleSaveLinkTypes();
                 }}
                 disabled={isSavingLinkTypes}
-                className="gap-2"
               >
                 <Save className="h-4 w-4" />
                 {isSavingLinkTypes ? "Salvando..." : "Salvar"}
-              </Button>
+              </DashboardActionButton>
             </div>
           </div>
 

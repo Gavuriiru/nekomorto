@@ -1,4 +1,5 @@
 import DashboardShell from "@/components/DashboardShell";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import {
   Input,
@@ -1374,15 +1375,14 @@ const DashboardProjectEpisodeEditor = () => {
                                   }
                                   placeholder="Texto alternativo da capa"
                                 />
-                                <Button
+                                <DashboardActionButton
                                   type="button"
-                                  variant="outline"
                                   onClick={() => setIsLibraryOpen(true)}
                                   className="w-full"
                                 >
                                   <ImagePlus className="h-4 w-4" />
                                   <span>Biblioteca</span>
-                                </Button>
+                                </DashboardActionButton>
                               </DashboardFieldStack>
                             </div>
                           </div>

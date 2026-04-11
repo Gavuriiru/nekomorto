@@ -200,6 +200,20 @@ const expectOverviewBadgeClasses = (element: Element | null) => {
   expect(tokens).not.toContain("bg-background");
 };
 
+const expectOverviewActionLinkClasses = (element: Element | null) => {
+  const tokens = classTokens(element);
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "rounded-xl",
+      "bg-background",
+      "font-semibold",
+      "hover:text-foreground",
+    ]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
 describe("Dashboard overview async states", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
@@ -567,5 +581,80 @@ describe("Dashboard overview async states", () => {
     expectOverviewBadgeClasses(last7DaysBadge);
     expect(projectStatusBadge).toBeInTheDocument();
     expectOverviewBadgeClasses(projectStatusBadge);
+  });
+
+  it("uniformiza os CTAs principais da home sem herdar classes de button", async () => {
+    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = {
+      ...dashboardUser,
+      grants: { usuarios_acesso: true },
+    };
+    installDashboardApiMock({
+      preferencesResponse: mockJsonResponse(true, {
+        preferences: {
+          dashboard: {
+            homeByRole: {
+              admin: {
+                widgets: [
+                  "analytics_summary",
+                  "projects_rank",
+                  "recent_posts",
+                  "ops_status",
+                  "projects_quick",
+                ],
+              },
+            },
+          },
+        },
+      }),
+      overviewResponse: mockJsonResponse(
+        true,
+        buildOverviewPayload({
+          metrics: {
+            totalProjects: 4,
+            totalMedia: 2,
+            activeProjects: 1,
+            finishedProjects: 0,
+            totalViewsLast7: 20,
+            totalProjectViewsLast7: 12,
+            totalPostViewsLast7: 8,
+          },
+          quickProjects: [
+            {
+              id: "project-1",
+              title: "Projeto Teste",
+              status: "Em andamento",
+            },
+            {
+              id: "project-2",
+              title: "Projeto Dois",
+              status: "Pausado",
+            },
+            {
+              id: "project-3",
+              title: "Projeto Tres",
+              status: "Concluido",
+            },
+          ],
+        }),
+      ),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <DashboardSessionProvider>
+          <DashboardPreferencesProvider>
+            <Dashboard />
+          </DashboardPreferencesProvider>
+        </DashboardSessionProvider>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Painel de controle da comunidade/i });
+
+    expectOverviewActionLinkClasses(screen.getByRole("link", { name: "Ver analytics completos" }));
+    expectOverviewActionLinkClasses(screen.getByRole("link", { name: "Ver analytics de projetos" }));
+    expectOverviewActionLinkClasses(screen.getByRole("link", { name: "Ver analytics de posts" }));
+    expectOverviewActionLinkClasses(screen.getByRole("link", { name: "Ver audit log" }));
+    expectOverviewActionLinkClasses(screen.getByRole("link", { name: "Ver todos os projetos" }));
   });
 });

@@ -27,6 +27,8 @@ const {
   },
 }));
 
+const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+
 vi.mock("@/components/DashboardShell", () => ({
   default: ({
     children,
@@ -597,6 +599,11 @@ describe("DashboardProjectEpisodeEditor", () => {
     expect(
       (altInput.compareDocumentPosition(libraryButton) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
     ).toBe(true);
+    expect(classTokens(libraryButton as HTMLElement)).toEqual(
+      expect.arrayContaining(["w-full", "rounded-xl", "bg-background", "font-semibold"]),
+    );
+    expect(classTokens(libraryButton as HTMLElement)).not.toContain("interactive-lift-sm");
+    expect(classTokens(libraryButton as HTMLElement)).not.toContain("pressable");
     expect(within(primaryColumn).getByTestId("anime-episode-progress-section")).toBe(
       progressSection,
     );
