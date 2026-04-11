@@ -339,6 +339,7 @@ describe("DashboardPosts query sync", () => {
     const calendarButton = screen.getByRole("button", { name: /Calend/i });
     expectSegmentedButtonTokens(listButton);
     expectSegmentedButtonTokens(calendarButton);
+    expect(classTokens(screen.getByTestId("dashboard-posts-view-toggle"))).toContain("gap-1.5");
     expect(listButton).toHaveAttribute("aria-pressed", "true");
     expect(calendarButton).toHaveAttribute("aria-pressed", "false");
 
@@ -404,7 +405,7 @@ describe("DashboardPosts query sync", () => {
     expect(screen.getByText("Publicada")).toBeInTheDocument();
   });
 
-  it("renderiza o calendario sem animacao de entrada", async () => {
+  it("renderiza o conteudo pronto do calendario com fade-in suave", async () => {
     setupApiMock({
       calendarItems: [
         {
@@ -432,6 +433,12 @@ describe("DashboardPosts query sync", () => {
     expect(classTokens(calendarSurface)).not.toContain("animate-fade-in");
     expect(classTokens(calendarSurface)).not.toContain("opacity-0");
 
+    const calendarContent = await screen.findByTestId("dashboard-posts-calendar-content");
+    expect(classTokens(calendarContent)).not.toContain("animate-fade-in");
+    expect(classTokens(calendarContent)).not.toContain("opacity-0");
+    expect(calendarContent.style.animationDuration).toBe("");
+    expect(calendarContent.style.animationTimingFunction).toBe("");
+
     const calendarHeader = screen.getByTestId("dashboard-posts-calendar-header");
     expect(classTokens(calendarHeader)).not.toContain("animate-slide-up");
     expect(classTokens(calendarHeader)).not.toContain("opacity-0");
@@ -439,6 +446,12 @@ describe("DashboardPosts query sync", () => {
     const weekdayRow = screen.getByTestId("dashboard-posts-calendar-weekday-row");
     expect(classTokens(weekdayRow)).not.toContain("animate-slide-up");
     expect(classTokens(weekdayRow)).not.toContain("opacity-0");
+
+    const readyContent = await screen.findByTestId("dashboard-posts-calendar-ready-content");
+    expect(classTokens(readyContent)).toContain("animate-fade-in");
+    expect(classTokens(readyContent)).not.toContain("opacity-0");
+    expect(readyContent.style.animationDuration).toBe("220ms");
+    expect(readyContent.style.animationTimingFunction).toBe("ease-out");
 
     const weekRows = screen.getAllByTestId(/dashboard-posts-calendar-week-/);
     expect(weekRows.length).toBeGreaterThan(0);
@@ -448,7 +461,7 @@ describe("DashboardPosts query sync", () => {
     });
   });
 
-  it("mantem a area do calendario reservada com skeleton local durante o loading", async () => {
+  it("mantem a area do calendario reservada com placeholder estavel durante o loading", async () => {
     const calendarDeferred = deferredResponse();
     setupApiMock({
       calendarResponse: calendarDeferred.promise,
@@ -468,6 +481,12 @@ describe("DashboardPosts query sync", () => {
     expect(classTokens(calendarSurface)).not.toContain("animate-fade-in");
     expect(classTokens(calendarSurface)).not.toContain("opacity-0");
 
+    const loadingCalendarContent = screen.getByTestId("dashboard-posts-calendar-content");
+    expect(classTokens(loadingCalendarContent)).not.toContain("animate-fade-in");
+    expect(classTokens(loadingCalendarContent)).not.toContain("opacity-0");
+    expect(loadingCalendarContent.style.animationDuration).toBe("");
+    expect(loadingCalendarContent.style.animationTimingFunction).toBe("");
+
     const calendarHeader = screen.getByTestId("dashboard-posts-calendar-header");
     expect(classTokens(calendarHeader)).not.toContain("animate-slide-up");
     expect(classTokens(calendarHeader)).not.toContain("opacity-0");
@@ -476,13 +495,9 @@ describe("DashboardPosts query sync", () => {
     expect(classTokens(weekdayRow)).not.toContain("animate-slide-up");
     expect(classTokens(weekdayRow)).not.toContain("opacity-0");
 
-    expect(screen.getByTestId("dashboard-posts-calendar-loading-grid")).toBeInTheDocument();
-    const loadingWeeks = screen.getAllByTestId(/dashboard-posts-calendar-loading-week-/);
-    expect(loadingWeeks).toHaveLength(6);
-    loadingWeeks.forEach((weekRow) => {
-      expect(classTokens(weekRow)).not.toContain("animate-slide-up");
-      expect(classTokens(weekRow)).not.toContain("opacity-0");
-    });
+    expect(screen.getByTestId("dashboard-posts-calendar-loading-space")).toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-posts-calendar-loading-grid")).not.toBeInTheDocument();
+    expect(screen.queryByTestId(/dashboard-posts-calendar-loading-week-/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Carregando calend.rio editorial/i)).not.toBeInTheDocument();
 
     calendarDeferred.resolve(
@@ -495,8 +510,20 @@ describe("DashboardPosts query sync", () => {
     );
 
     await waitFor(() => {
-      expect(screen.queryByTestId("dashboard-posts-calendar-loading-grid")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("dashboard-posts-calendar-loading-space")).not.toBeInTheDocument();
     });
+
+    const readyContent = screen.getByTestId("dashboard-posts-calendar-ready-content");
+    expect(classTokens(readyContent)).toContain("animate-fade-in");
+    expect(classTokens(readyContent)).not.toContain("opacity-0");
+    expect(readyContent.style.animationDuration).toBe("220ms");
+    expect(readyContent.style.animationTimingFunction).toBe("ease-out");
+
+    const readyCalendarContent = screen.getByTestId("dashboard-posts-calendar-content");
+    expect(classTokens(readyCalendarContent)).not.toContain("animate-fade-in");
+    expect(classTokens(readyCalendarContent)).not.toContain("opacity-0");
+    expect(readyCalendarContent.style.animationDuration).toBe("");
+    expect(readyCalendarContent.style.animationTimingFunction).toBe("");
 
     const loadedWeekRows = screen.getAllByTestId(/dashboard-posts-calendar-week-/);
     expect(loadedWeekRows.length).toBeGreaterThan(0);

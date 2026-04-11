@@ -16,6 +16,9 @@ describe("PublicProjectCard", () => {
     expect(normalizePublicProjectCardClampLines({ lines: 9, fallbackLines: 2, maxLines: 4 })).toBe(4);
     expect(getPublicProjectCardClampClass({ lines: 0, family: "safe" })).toBe("hidden");
     expect(getPublicProjectCardClampClass({ lines: 3, family: "safe" })).toBe("clamp-safe-3");
+    expect(getPublicProjectCardClampClass({ lines: 2, family: "search" })).toBe(
+      "projects-public-search-synopsis-clamp-2",
+    );
     expect(getPublicProjectCardClampClass({ lines: 1, family: "projects" })).toBe(
       "projects-public-synopsis-clamp-1",
     );
@@ -41,11 +44,20 @@ describe("PublicProjectCard", () => {
     expect(
       resolvePublicProjectCardClampState({
         profile: PUBLIC_PROJECT_CARD_CLAMP_PROFILES.search,
+        lines: undefined,
+      }),
+    ).toEqual({
+      synopsisLines: 3,
+      synopsisClampClass: "projects-public-search-synopsis-clamp-3",
+    });
+    expect(
+      resolvePublicProjectCardClampState({
+        profile: PUBLIC_PROJECT_CARD_CLAMP_PROFILES.search,
         lines: 0,
       }),
     ).toEqual({
       synopsisLines: 0,
-      synopsisClampClass: "hidden",
+      synopsisClampClass: "projects-public-search-synopsis-clamp-0",
     });
   });
 
@@ -110,7 +122,7 @@ describe("PublicProjectCard", () => {
             synopsis: "Sinopse da busca",
             synopsisKey: "project-search",
             synopsisLines: 1,
-            synopsisClampClass: "clamp-safe-1",
+            synopsisClampClass: "projects-public-search-synopsis-clamp-1",
             secondaryBadges: [
               {
                 key: "tag-busca",
@@ -124,11 +136,20 @@ describe("PublicProjectCard", () => {
     );
 
     const synopsis = screen.getByText("Sinopse da busca");
+    const cardLink = screen.getByRole("link", { name: /Projeto Busca/i });
+    const shell = cardLink.parentElement;
+    const column = cardLink.querySelector('[data-synopsis-role="column"]');
+    const badges = screen.getByText("Acao").closest('[data-synopsis-role="badges"]');
+
+    expect(shell).toHaveClass("public-interactive-card-shell--no-lift");
     expect(screen.getByText("Projeto Busca")).toHaveAttribute("data-synopsis-role", "title");
+    expect(column).toHaveClass("overflow-hidden");
     expect(synopsis).toHaveAttribute("data-synopsis-role", "synopsis");
     expect(synopsis).toHaveAttribute("data-synopsis-lines", "1");
-    expect(synopsis).toHaveClass("clamp-safe-1");
-    expect(screen.getByText("Acao").closest('[data-synopsis-role="badges"]')).toBeInTheDocument();
+    expect(synopsis).toHaveClass("projects-public-search-synopsis-clamp-1", "shrink-0");
+    expect(synopsis).not.toHaveClass("flex-1", "clamp-safe-1", "line-clamp-1");
+    expect(badges).toBeInTheDocument();
+    expect(badges).toHaveClass("mt-auto");
   });
 
   it("mapeia test ids e estatisticas na variante sidebar", () => {

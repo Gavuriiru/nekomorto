@@ -27,4 +27,17 @@ describe("PublicInteractiveCardShell", () => {
     expect(html).not.toContain("public-interactive-card-shadow--base");
     expect(html).not.toContain("public-interactive-card-shadow--hover");
   });
+
+  it("permite desativar lift sem remover shadows do preset padrao", () => {
+    const html = renderToStaticMarkup(
+      <PublicInteractiveCardShell lift={false} className="group/example">
+        <div>conteudo</div>
+      </PublicInteractiveCardShell>,
+    );
+
+    expect(html).toContain("public-interactive-card-shell--no-lift");
+    expect(html).toContain("public-interactive-card-shadow--base");
+    expect(html).toContain("public-interactive-card-shadow--hover");
+    expect(html).not.toContain("public-interactive-card-shell--no-shadow");
+  });
 });

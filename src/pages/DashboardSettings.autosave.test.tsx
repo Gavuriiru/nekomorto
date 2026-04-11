@@ -4,15 +4,19 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dashboardMotionDelays } from "@/components/dashboard/dashboard-motion";
-import DashboardSettings from "@/pages/DashboardSettings";
+import DashboardSettings, { __testing } from "@/pages/DashboardSettings";
 import { defaultSettings } from "@/hooks/site-settings-context";
 import type { SiteSettings } from "@/types/site-settings";
 
-const { apiFetchMock, navigateMock, refreshMock } = vi.hoisted(() => ({
-  apiFetchMock: vi.fn(),
-  navigateMock: vi.fn(),
-  refreshMock: vi.fn(async () => undefined),
-}));
+const { apiFetchMock, dismissToastMock, navigateMock, refreshMock, toastMock } = vi.hoisted(
+  () => ({
+    apiFetchMock: vi.fn(),
+    dismissToastMock: vi.fn(),
+    navigateMock: vi.fn(),
+    refreshMock: vi.fn(async () => undefined),
+    toastMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -45,6 +49,16 @@ vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
+vi.mock("@/components/ui/use-toast", () => ({
+  dismissToast: (...args: unknown[]) => dismissToastMock(...args),
+  toast: (...args: unknown[]) => toastMock(...args),
+  useToast: () => ({
+    dismiss: dismissToastMock,
+    toast: toastMock,
+    toasts: [],
+  }),
+}));
+
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
   return {
@@ -60,8 +74,24 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
+const deferredResponse = () => {
+  let resolve!: (value: Response) => void;
+  const promise = new Promise<Response>((nextResolve) => {
+    resolve = nextResolve;
+  });
+  return { promise, resolve };
+};
+
 const cloneSettings = (value: SiteSettings): SiteSettings =>
   JSON.parse(JSON.stringify(value)) as SiteSettings;
+
+const createDeferred = <T,>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolver) => {
+    resolve = resolver;
+  });
+  return { promise, resolve };
+};
 
 const getPutCalls = () =>
   apiFetchMock.mock.calls.filter((call) => {
@@ -95,6 +125,8 @@ describe("DashboardSettings autosave", () => {
     apiFetchMock.mockReset();
     navigateMock.mockReset();
     refreshMock.mockClear();
+    dismissToastMock.mockReset();
+    toastMock.mockReset();
     settingsResponse = cloneSettings(defaultSettings);
 
     apiFetchMock.mockImplementation(async (_base, path, options) => {
@@ -182,6 +214,88 @@ describe("DashboardSettings autosave", () => {
     });
   });
 
+  it("mantem o botao manual desabilitado enquanto as configuracoes carregam", async () => {
+    __testing.clearDashboardSettingsCache();
+    const settingsLoad = createDeferred<Response>();
+    const fallbackApiFetch = apiFetchMock.getMockImplementation();
+    apiFetchMock.mockImplementation((...args: unknown[]) => {
+      const path = String(args[1] || "");
+      const options = args[2] as RequestInit | undefined;
+      const method = String(options?.method || "GET").toUpperCase();
+      if (path === "/api/settings" && method === "GET") {
+        return settingsLoad.promise;
+      }
+      return fallbackApiFetch?.(...args);
+    });
+
+    renderDashboardSettings();
+    const manualButton = await screen.findByRole("button", { name: /Salvar ajustes/i });
+    expect(manualButton).toBeDisabled();
+
+    await act(async () => {
+      settingsLoad.resolve(mockJsonResponse(true, { settings: settingsResponse }));
+      await flushMicrotasks();
+      await flushMicrotasks();
+    });
+
+    await waitFor(() => {
+      expect(manualButton).not.toBeDisabled();
+    });
+  });
+
+  it("nao mostra falha ao salvar quando o autosave em andamento conclui com sucesso", async () => {
+    const settingsSave = createDeferred<void>();
+    let startedSettingsSave = false;
+    const fallbackApiFetch = apiFetchMock.getMockImplementation();
+    apiFetchMock.mockImplementation((...args: unknown[]) => {
+      const path = String(args[1] || "");
+      const options = args[2] as RequestInit | undefined;
+      const method = String(options?.method || "GET").toUpperCase();
+      if (path === "/api/settings" && method === "PUT") {
+        startedSettingsSave = true;
+        const body = JSON.parse(String(options?.body || "{}"));
+        return settingsSave.promise.then(() =>
+          mockJsonResponse(true, { settings: body.settings || settingsResponse }),
+        );
+      }
+      return fallbackApiFetch?.(...args);
+    });
+
+    renderDashboardSettings();
+    await screen.findByRole("heading", { name: /Painel/i });
+    const manualButton = screen.getByRole("button", { name: /Salvar ajustes/i });
+
+    toastMock.mockClear();
+    const communityCardTitleInput = await screen.findByLabelText(/Título do card/i);
+    fireEvent.change(communityCardTitleInput, {
+      target: { value: "Autosave em andamento" },
+    });
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    expect(startedSettingsSave).toBe(true);
+    fireEvent.click(manualButton);
+    expect(toastMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Falha ao salvar" }),
+    );
+
+    await act(async () => {
+      settingsSave.resolve();
+      await flushMicrotasks();
+      await flushMicrotasks();
+    });
+
+    await waitFor(() => {
+      expect(manualButton).not.toBeDisabled();
+    });
+    expect(toastMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Falha ao salvar" }),
+    );
+  });
+
   it("editar ajustes gerais dispara apenas PUT /api/settings", async () => {
     renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
@@ -200,6 +314,73 @@ describe("DashboardSettings autosave", () => {
     const putCalls = getPutCalls();
     expect(putCalls).toHaveLength(1);
     expect(putCalls[0][1]).toBe("/api/settings");
+  }, 10000);
+
+  it("bloqueia save manual antes de resolver settings e salva após o carregamento", async () => {
+    __testing.clearDashboardSettingsCache();
+    const settingsDeferred = deferredResponse();
+    apiFetchMock.mockImplementation(async (_base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === "/api/me") {
+        return mockJsonResponse(true, {
+          id: "1",
+          name: "Admin",
+          username: "admin",
+        });
+      }
+      if (path === "/api/settings" && method === "GET") {
+        return settingsDeferred.promise;
+      }
+      if (path === "/api/public/tag-translations" && method === "GET") {
+        return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+      }
+      if (path === "/api/projects" && method === "GET") {
+        return mockJsonResponse(true, { projects: [] });
+      }
+      if (path === "/api/link-types" && method === "GET") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      if (path === "/api/tag-translations/anilist-sync" && method === "POST") {
+        return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+      }
+      if (path === "/api/settings" && method === "PUT") {
+        const body = JSON.parse(String((options as RequestInit).body || "{}"));
+        return mockJsonResponse(true, {
+          settings: body.settings || settingsResponse,
+        });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderDashboardSettings();
+    await screen.findByRole("heading", { name: /Painel/i });
+
+    const loadingSaveButton = screen.getByRole("button", { name: /Salvar ajustes/i });
+    expect(loadingSaveButton).toBeDisabled();
+    fireEvent.click(loadingSaveButton);
+    expect(toastMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Falha ao salvar" }),
+    );
+
+    await act(async () => {
+      settingsDeferred.resolve(mockJsonResponse(true, { settings: settingsResponse }));
+      await flushMicrotasks();
+    });
+    await screen.findByText("Nome do site");
+
+    apiFetchMock.mockClear();
+    toastMock.mockClear();
+    const siteNameInput = await screen.findByDisplayValue(defaultSettings.site.name);
+    fireEvent.change(siteNameInput, { target: { value: "Salvar depois do load" } });
+    fireEvent.click(screen.getByRole("button", { name: /Salvar ajustes/i }));
+
+    await waitFor(() => {
+      expect(getPutCalls().filter((call) => call[1] === "/api/settings")).toHaveLength(1);
+    });
+    expect(toastMock).toHaveBeenCalledWith({ title: "Configurações salvas" });
+    expect(toastMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Falha ao salvar" }),
+    );
   }, 10000);
 
   it("troca de aba nao força save imediato durante blur interno", async () => {

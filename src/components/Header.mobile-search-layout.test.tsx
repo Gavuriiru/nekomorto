@@ -744,7 +744,7 @@ describe("Header mobile search layout", () => {
         columnWidth: 210,
         defaultMaxLines: 3,
       }),
-    ).toBe(1);
+    ).toBe(3);
     expect(
       clampCall.resolveMaxLines({
         key: "/projeto/project-88",
@@ -752,7 +752,7 @@ describe("Header mobile search layout", () => {
         columnWidth: 280,
         defaultMaxLines: 3,
       }),
-    ).toBe(2);
+    ).toBe(3);
     expect(
       clampCall.resolveMaxLines({
         key: "/projeto/project-88",
@@ -770,18 +770,28 @@ describe("Header mobile search layout", () => {
     expect(classTokens(coverColumn as HTMLElement)).toContain("self-stretch");
     expect(classTokens(coverColumn as HTMLElement)).toContain("min-h-0");
     expect(classTokens(coverColumn as HTMLElement)).toContain("p-4");
+    expect(classTokens(coverColumn as HTMLElement)).toContain("overflow-hidden");
     expect(classTokens(coverColumn as HTMLElement)).not.toContain("h-28");
-    expect(classTokens(coverColumn as HTMLElement)).not.toContain("overflow-hidden");
 
     const synopsis = projectCard?.querySelector(
       '[data-synopsis-role="synopsis"]',
     ) as HTMLElement | null;
     expect(synopsis).not.toBeNull();
-    expect(classTokens(synopsis as HTMLElement)).toContain("flex-1");
+    expect(classTokens(synopsis as HTMLElement)).toContain("shrink-0");
     expect(classTokens(synopsis as HTMLElement)).toContain("min-h-0");
-    expect(classTokens(synopsis as HTMLElement)).toContain("clamp-safe-2");
+    expect(classTokens(synopsis as HTMLElement)).toContain(
+      "projects-public-search-synopsis-clamp-3",
+    );
+    expect(classTokens(synopsis as HTMLElement)).not.toContain("flex-1");
+    expect(classTokens(synopsis as HTMLElement)).not.toContain("clamp-safe-2");
     expect(classTokens(synopsis as HTMLElement)).not.toContain("line-clamp-4");
     expect(coverColumn).toHaveAttribute("data-synopsis-key", "/projeto/project-88");
+
+    const searchCardShell = projectCard?.parentElement as HTMLElement | null;
+    expect(searchCardShell).not.toBeNull();
+    expect(classTokens(searchCardShell as HTMLElement)).toContain(
+      "public-interactive-card-shell--no-lift",
+    );
 
     const coverImage = screen.getByRole("img", { name: "Projeto Remoto Badges" });
     const coverPicture = coverImage.parentElement;
@@ -801,6 +811,7 @@ describe("Header mobile search layout", () => {
     expect(classTokens(badgesRow as HTMLElement)).toContain("flex-nowrap");
     expect(classTokens(badgesRow as HTMLElement)).toContain("overflow-hidden");
     expect(classTokens(badgesRow as HTMLElement)).toContain("shrink-0");
+    expect(classTokens(badgesRow as HTMLElement)).toContain("mt-auto");
     expect(classTokens(badgesRow as HTMLElement)).toContain("pb-1");
     expect(classTokens(badgesRow as HTMLElement)).not.toContain("flex-wrap");
 
@@ -850,8 +861,8 @@ describe("Header mobile search layout", () => {
     const synopsis = await screen.findByText(
       "Uma sinopse longa o bastante para precisar de corte visual",
     );
-    expect(synopsis).toHaveClass("clamp-safe-1");
-    expect(synopsis).not.toHaveClass("clamp-safe-2", "line-clamp-4");
+    expect(synopsis).toHaveClass("projects-public-search-synopsis-clamp-1");
+    expect(synopsis).not.toHaveClass("clamp-safe-1", "clamp-safe-2", "line-clamp-4");
   });
 
   it("usa fallback local quando a busca remota falha", async () => {

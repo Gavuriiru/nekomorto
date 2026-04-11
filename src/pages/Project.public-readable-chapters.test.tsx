@@ -47,6 +47,50 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
+const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+
+const expectSharedPrimaryButtonTokens = (element: HTMLElement) => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "rounded-xl",
+      "border-primary/70",
+      "bg-primary/10",
+      "text-foreground",
+      "hover:border-primary",
+      "hover:bg-primary",
+      "hover:text-primary-foreground",
+      "focus-visible:border-primary",
+      "focus-visible:bg-primary",
+      "focus-visible:text-primary-foreground",
+      "shadow-none",
+    ]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+  expect(tokens.some((token) => token.startsWith("hover:shadow"))).toBe(false);
+};
+
+const expectOutlineActionTokens = (element: HTMLElement) => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "border-border/70",
+      "bg-background",
+      "text-foreground/70",
+      "hover:border-primary/60",
+      "hover:bg-primary/5",
+      "shadow-none",
+    ]),
+  );
+  expect(tokens).not.toContain("border-primary/70");
+  expect(tokens).not.toContain("bg-primary/10");
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
 const baseProject = {
   id: "projeto-teste",
   title: "Projeto Teste",
@@ -149,7 +193,7 @@ describe("Project public readable chapters", () => {
           releaseDate: "2026-03-10",
           duration: "",
           sourceType: "Web",
-          sources: [],
+          sources: [{ label: "Proton Drive", url: "https://example.com/proton" }],
           publicationStatus: "published",
           hasContent: true,
         },
@@ -165,14 +209,26 @@ describe("Project public readable chapters", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
+    const downloadsLink = screen.getByRole("link", { name: /Ver cap.tulos/i });
+    expect(downloadsLink).toHaveAttribute("href", "#downloads");
+    expectSharedPrimaryButtonTokens(downloadsLink);
     const heroReadLink = screen.getByRole("link", { name: /Come.ar leitura/i });
     expect(heroReadLink).toHaveAttribute("href", "/projeto/projeto-teste/leitura/1?volume=2");
+    expect(heroReadLink).toHaveClass("order-last");
+    expectOutlineActionTokens(heroReadLink);
 
     const volumeTrigger = screen.getByRole("button", { name: /Volume 2/i });
     fireEvent.click(volumeTrigger);
 
+    const sourceLink = await screen.findByRole("link", { name: "Proton Drive" });
+    expect(sourceLink).toHaveAttribute("href", "https://example.com/proton");
+    expect(classTokens(sourceLink)).toEqual(
+      expect.arrayContaining(["rounded-full", "bg-card/70", "hover:bg-primary/10"]),
+    );
+    expect(classTokens(sourceLink)).not.toContain("bg-primary/10");
     const readLink = await screen.findByRole("link", { name: /Ler cap.tulo/i });
     expect(readLink).toHaveAttribute("href", "/projeto/projeto-teste/leitura/1?volume=2");
+    expectSharedPrimaryButtonTokens(readLink);
     expect(screen.queryByText(/Nenhum cap.tulo publicado ainda/i)).not.toBeInTheDocument();
   });
 
@@ -213,14 +269,20 @@ describe("Project public readable chapters", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
+    const downloadsLink = screen.getByRole("link", { name: /Ver cap.tulos/i });
+    expect(downloadsLink).toHaveAttribute("href", "#downloads");
+    expectSharedPrimaryButtonTokens(downloadsLink);
     const heroReadLink = screen.getByRole("link", { name: /Come.ar leitura/i });
     expect(heroReadLink).toHaveAttribute("href", "/projeto/projeto-teste/leitura/3?volume=1");
+    expect(heroReadLink).toHaveClass("order-last");
+    expectOutlineActionTokens(heroReadLink);
 
     const volumeTrigger = screen.getByRole("button", { name: /Volume 1/i });
     fireEvent.click(volumeTrigger);
 
     const readLink = await screen.findByRole("link", { name: /Abrir leitor/i });
     expect(readLink).toHaveAttribute("href", "/projeto/projeto-teste/leitura/3?volume=1");
+    expectSharedPrimaryButtonTokens(readLink);
     expect(screen.queryByText(/Nenhum cap.tulo publicado ainda/i)).not.toBeInTheDocument();
   });
 });

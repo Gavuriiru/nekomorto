@@ -41,13 +41,15 @@ describe("buttonVariants", () => {
 
     expect(defaultTokens).toEqual(
       expect.arrayContaining([
-        "border-primary/35",
-        "bg-primary/90",
-        "text-primary-foreground",
-        "hover:border-primary/85",
+        "border-primary/70",
+        "bg-primary/10",
+        "text-foreground",
+        "hover:border-primary",
         "hover:bg-primary",
-        "focus-visible:border-primary/85",
+        "hover:text-primary-foreground",
+        "focus-visible:border-primary",
         "focus-visible:bg-primary",
+        "focus-visible:text-primary-foreground",
       ]),
     );
     expect(destructiveTokens).toEqual(

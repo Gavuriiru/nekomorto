@@ -396,18 +396,28 @@ export const useDashboardSettingsAutosave = ({
   }, [hasPendingChanges, hasResolvedSettings]);
 
   const flushAllAutosave = useCallback(() => {
-    if (settingsAutosave.enabled) {
+    if (hasResolvedSettings && settingsAutosave.enabled) {
       void settingsAutosave.flushNow();
     }
-    if (translationsAutosave.enabled) {
+    if (hasResolvedTranslations && translationsAutosave.enabled) {
       void translationsAutosave.flushNow();
     }
-    if (linkTypesAutosave.enabled) {
+    if (hasResolvedLinkTypes && linkTypesAutosave.enabled) {
       void linkTypesAutosave.flushNow();
     }
-  }, [linkTypesAutosave, settingsAutosave, translationsAutosave]);
+  }, [
+    hasResolvedLinkTypes,
+    hasResolvedSettings,
+    hasResolvedTranslations,
+    linkTypesAutosave,
+    settingsAutosave,
+    translationsAutosave,
+  ]);
 
   const handleSaveSettings = useCallback(async () => {
+    if (!hasResolvedSettings) {
+      return;
+    }
     const ok = await settingsAutosave.flushNow();
     if (!ok) {
       toast({
@@ -419,9 +429,12 @@ export const useDashboardSettingsAutosave = ({
     }
     await refresh().catch(() => undefined);
     toast({ title: "Configurações salvas" });
-  }, [refresh, settingsAutosave]);
+  }, [hasResolvedSettings, refresh, settingsAutosave]);
 
   const handleSaveTranslations = useCallback(async () => {
+    if (!hasResolvedTranslations) {
+      return;
+    }
     const ok = await translationsAutosave.flushNow();
     if (!ok) {
       toast({
@@ -432,9 +445,12 @@ export const useDashboardSettingsAutosave = ({
       return;
     }
     toast({ title: "Traduções salvas" });
-  }, [translationsAutosave]);
+  }, [hasResolvedTranslations, translationsAutosave]);
 
   const handleSaveLinkTypes = useCallback(async () => {
+    if (!hasResolvedLinkTypes) {
+      return;
+    }
     const ok = await linkTypesAutosave.flushNow();
     if (!ok) {
       toast({
@@ -445,7 +461,7 @@ export const useDashboardSettingsAutosave = ({
       return;
     }
     toast({ title: "Redes sociais salvas" });
-  }, [linkTypesAutosave]);
+  }, [hasResolvedLinkTypes, linkTypesAutosave]);
 
   const isSaving = settingsAutosave.status === "saving";
   const isSavingTranslations = translationsAutosave.status === "saving";

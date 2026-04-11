@@ -251,17 +251,17 @@ const resolveHeroEntryStyle = (
 
 const heroPrimaryButtonClassName = buttonVariants({
   className:
-    "border-[color:var(--hero-primary-border-rest)] bg-[color:var(--hero-primary-bg-rest)] px-6 text-(--hero-accent-foreground,hsl(var(--primary-foreground))) hover:border-[color:var(--hero-primary-border-hover)] hover:bg-[color:var(--hero-primary-bg-hover)] focus-visible:border-[color:var(--hero-primary-border-hover)] focus-visible:bg-[color:var(--hero-primary-bg-hover)]",
+    "border-[color:var(--hero-primary-border-rest)] bg-[color:var(--hero-primary-bg-rest)] px-6 text-foreground hover:border-[color:var(--hero-primary-border-hover)] hover:bg-[color:var(--hero-primary-bg-hover)] hover:text-(--hero-accent-foreground,hsl(var(--primary-foreground))) focus-visible:border-[color:var(--hero-primary-border-hover)] focus-visible:bg-[color:var(--hero-primary-bg-hover)] focus-visible:text-(--hero-accent-foreground,hsl(var(--primary-foreground)))",
 });
 
 const heroPrimaryButtonStyle = {
   "--hero-primary-bg-rest":
-    "color-mix(in srgb, var(--hero-accent, hsl(var(--primary))) 90%, transparent)",
+    "color-mix(in srgb, var(--hero-accent, hsl(var(--primary))) 10%, transparent)",
   "--hero-primary-border-rest":
-    "color-mix(in srgb, var(--hero-accent, hsl(var(--primary))) 35%, transparent)",
+    "color-mix(in srgb, var(--hero-accent, hsl(var(--primary))) 70%, transparent)",
   "--hero-primary-bg-hover": "var(--hero-accent, hsl(var(--primary)))",
   "--hero-primary-border-hover":
-    "color-mix(in srgb, var(--hero-accent, hsl(var(--primary))) 85%, transparent)",
+    "color-mix(in srgb, var(--hero-accent, hsl(var(--primary))) 100%, transparent)",
 } as React.CSSProperties;
 
 type HeroSlideFrameProps = {

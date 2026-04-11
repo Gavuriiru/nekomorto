@@ -77,6 +77,7 @@ export const DashboardSettingsTranslationsTab = () => {
     handleFooterSocialDrop,
     handleSaveLinkTypes,
     handleSaveTranslations,
+    hasResolvedTranslations,
     isIconUrl,
     isSavingLinkTypes,
     isSavingTranslations,
@@ -166,7 +167,7 @@ export const DashboardSettingsTranslationsTab = () => {
                   event.stopPropagation();
                   void handleSaveTranslations();
                 }}
-                disabled={isSavingTranslations}
+                disabled={!hasResolvedTranslations || isSavingTranslations}
               >
                 <Save className="h-4 w-4" />
                 {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
@@ -308,7 +309,7 @@ export const DashboardSettingsTranslationsTab = () => {
                   event.stopPropagation();
                   void handleSaveTranslations();
                 }}
-                disabled={isSavingTranslations}
+                disabled={!hasResolvedTranslations || isSavingTranslations}
               >
                 <Save className="h-4 w-4" />
                 {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
@@ -440,7 +441,7 @@ export const DashboardSettingsTranslationsTab = () => {
                 event.stopPropagation();
                 void handleSaveTranslations();
               }}
-              disabled={isSavingTranslations}
+              disabled={!hasResolvedTranslations || isSavingTranslations}
             >
               <Save className="h-4 w-4" />
               {isSavingTranslations ? "Salvando..." : "Salvar traduções"}

@@ -80,7 +80,8 @@ export const useAutosave = <T>({
   const baselineSerializedRef = useRef<string | null>(null);
   const timerRef = useRef<number | null>(null);
   const inFlightRef = useRef(false);
-  const queuedDuringSaveRef = useRef(false);
+  const inFlightPromiseRef = useRef<Promise<boolean> | null>(null);
+  const queuedDuringSaveRef = useRef<AutosaveSource | null>(null);
   const enabledRef = useRef(Boolean(enabled));
   const mountedRef = useRef(true);
   const consecutiveErrorsRef = useRef(0);
@@ -116,13 +117,19 @@ export const useAutosave = <T>({
     [onSave, retryBaseMs, retryMax],
   );
 
+  const queueSaveDuringFlight = useCallback((source: AutosaveSource) => {
+    if (source === "manual" || queuedDuringSaveRef.current === null) {
+      queuedDuringSaveRef.current = source;
+    }
+  }, []);
+
   const performSave = useCallback(
     async (source: AutosaveSource): Promise<boolean> => {
       if (!isReady) {
-        return false;
+        return true;
       }
       if (source === "auto" && !enabledRef.current) {
-        return false;
+        return true;
       }
       clearTimer();
 
@@ -132,7 +139,8 @@ export const useAutosave = <T>({
           setStatus("idle");
           setError(null);
         }
-        return false;
+        consecutiveErrorsRef.current = 0;
+        return true;
       }
 
       if (latestSerializedRef.current === baselineSerializedRef.current) {
@@ -144,59 +152,88 @@ export const useAutosave = <T>({
       }
 
       if (inFlightRef.current) {
-        queuedDuringSaveRef.current = true;
+        queueSaveDuringFlight(source);
         if (mountedRef.current) {
           setStatus("pending");
         }
-        return false;
+        return inFlightPromiseRef.current ?? true;
       }
 
       inFlightRef.current = true;
-      queuedDuringSaveRef.current = false;
+      queuedDuringSaveRef.current = null;
       if (mountedRef.current) {
         setStatus("saving");
         setError(null);
       }
 
-      const snapshot = latestValueRef.current;
-      try {
-        const savedValue = await saveWithRetry(snapshot);
-        const normalizedValue = (savedValue ?? snapshot) as T;
-        baselineSerializedRef.current = serializeValue(normalizedValue);
-        consecutiveErrorsRef.current = 0;
-        const savedAt = Date.now();
-        if (mountedRef.current) {
-          setLastSavedAt(savedAt);
-          setStatus("saved");
-          setError(null);
+      const runSave = async (): Promise<boolean> => {
+        const snapshot = latestValueRef.current;
+        try {
+          const savedValue = await saveWithRetry(snapshot);
+          const normalizedValue = (savedValue ?? snapshot) as T;
+          baselineSerializedRef.current = serializeValue(normalizedValue);
+          consecutiveErrorsRef.current = 0;
+          const savedAt = Date.now();
+          if (mountedRef.current) {
+            setLastSavedAt(savedAt);
+            setStatus("saved");
+            setError(null);
+          }
+          onSaved?.({ source, savedAt });
+        } catch (caught) {
+          queuedDuringSaveRef.current = null;
+          consecutiveErrorsRef.current += 1;
+          if (mountedRef.current) {
+            setStatus("error");
+            setError(caught);
+          }
+          onError?.(caught, {
+            source,
+            consecutiveErrors: consecutiveErrorsRef.current,
+          });
+          return false;
+        } finally {
+          inFlightRef.current = false;
         }
-        onSaved?.({ source, savedAt });
-      } catch (caught) {
-        consecutiveErrorsRef.current += 1;
-        if (mountedRef.current) {
-          setStatus("error");
-          setError(caught);
+
+        const queuedSource = queuedDuringSaveRef.current;
+        queuedDuringSaveRef.current = null;
+        const hasPendingSnapshot =
+          latestSerializedRef.current !== baselineSerializedRef.current;
+        const shouldFlushQueue =
+          hasPendingSnapshot &&
+          queuedSource !== null &&
+          (queuedSource === "manual" || enabledRef.current);
+
+        if (shouldFlushQueue) {
+          return performSave(queuedSource);
         }
-        onError?.(caught, {
-          source,
-          consecutiveErrors: consecutiveErrorsRef.current,
-        });
-      } finally {
-        inFlightRef.current = false;
-      }
 
-      const shouldFlushQueue =
-        queuedDuringSaveRef.current &&
-        enabledRef.current &&
-        latestSerializedRef.current !== baselineSerializedRef.current;
-      queuedDuringSaveRef.current = false;
-      if (shouldFlushQueue) {
-        void performSave("auto");
-      }
+        if (hasPendingSnapshot && mountedRef.current) {
+          setStatus("pending");
+        }
 
-      return latestSerializedRef.current === baselineSerializedRef.current;
+        return true;
+      };
+
+      let savePromise: Promise<boolean>;
+      savePromise = runSave().finally(() => {
+        if (inFlightPromiseRef.current === savePromise) {
+          inFlightPromiseRef.current = null;
+        }
+      });
+      inFlightPromiseRef.current = savePromise;
+      return savePromise;
     },
-    [clearTimer, isReady, onError, onSaved, saveWithRetry, serializeValue],
+    [
+      clearTimer,
+      isReady,
+      onError,
+      onSaved,
+      queueSaveDuringFlight,
+      saveWithRetry,
+      serializeValue,
+    ],
   );
 
   useEffect(() => {
@@ -228,7 +265,7 @@ export const useAutosave = <T>({
     }
 
     if (inFlightRef.current) {
-      queuedDuringSaveRef.current = true;
+      queueSaveDuringFlight("auto");
       setStatus("pending");
       return;
     }
@@ -244,7 +281,15 @@ export const useAutosave = <T>({
     return () => {
       clearTimer();
     };
-  }, [clearTimer, debounceMs, isEnabled, isReady, performSave, serializedValue]);
+  }, [
+    clearTimer,
+    debounceMs,
+    isEnabled,
+    isReady,
+    performSave,
+    queueSaveDuringFlight,
+    serializedValue,
+  ]);
 
   useEffect(() => {
     mountedRef.current = true;

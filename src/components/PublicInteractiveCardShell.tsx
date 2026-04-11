@@ -6,11 +6,13 @@ type PublicInteractiveCardShadowPreset = "default" | "compact" | "none";
 
 type PublicInteractiveCardShellProps = HTMLAttributes<HTMLDivElement> & {
   shadowPreset?: PublicInteractiveCardShadowPreset;
+  lift?: boolean;
 };
 
 const PublicInteractiveCardShell = ({
   className,
   children,
+  lift = true,
   shadowPreset = "default",
   ...props
 }: PublicInteractiveCardShellProps) => {
@@ -22,6 +24,7 @@ const PublicInteractiveCardShell = ({
         "public-interactive-card-shell",
         shadowPreset === "compact" && "public-interactive-card-shell--compact",
         shadowPreset === "none" && "public-interactive-card-shell--no-shadow",
+        !lift && "public-interactive-card-shell--no-lift",
         className,
       )}
       {...props}

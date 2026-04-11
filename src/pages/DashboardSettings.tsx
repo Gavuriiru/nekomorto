@@ -333,7 +333,7 @@ const DashboardSettingsContent = () => {
                   void resource.handleSaveSettings();
                 }}
                 manualActionLabel={resource.isSaving ? "Salvando..." : "Salvar ajustes"}
-                manualActionDisabled={resource.isSaving}
+                manualActionDisabled={resource.isSettingsManualSaveDisabled}
               />
             </div>
           </div>

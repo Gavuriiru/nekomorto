@@ -243,6 +243,11 @@ export const useDashboardSettingsResource = ({
     isSavingLinkTypes,
     isSavingTranslations,
   } = autosave;
+  const isSettingsManualSaveDisabled =
+    isSaving ||
+    loading.isInitialLoading ||
+    !loading.hasResolvedSettings ||
+    hasBlockingLoadError;
 
   return {
     activeTab: query.activeTab,
@@ -277,6 +282,7 @@ export const useDashboardSettingsResource = ({
     isSaving,
     isSavingLinkTypes,
     isSavingTranslations,
+    isSettingsManualSaveDisabled,
     isSyncingAniList: loading.isSyncingAniList,
     knownGenres: loading.knownGenres,
     knownStaffRoles: loading.knownStaffRoles,

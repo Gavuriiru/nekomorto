@@ -881,6 +881,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
   }, [hasPendingChanges, hasResolvedPages]);
 
   const handleSave = useCallback(async () => {
+    if (!hasResolvedPages) {
+      return;
+    }
     const ok = await pagesAutosave.flushNow();
     if (!ok) {
       toast({
@@ -895,7 +898,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
       description: "As alterações foram aplicadas com sucesso.",
       intent: "success",
     });
-  }, [pagesAutosave]);
+  }, [hasResolvedPages, pagesAutosave]);
 
   const updateAbout = (patch: Partial<PagesConfig["about"]>) =>
     setPages((prev) => ({ ...prev, about: { ...prev.about, ...patch } }));
@@ -1151,7 +1154,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                     ? "Salvando..."
                     : "Salvar alterações"
                 }
-                manualActionDisabled={pagesAutosave.status === "saving"}
+                manualActionDisabled={!hasResolvedPages || pagesAutosave.status === "saving"}
               />
             </div>
           </div>

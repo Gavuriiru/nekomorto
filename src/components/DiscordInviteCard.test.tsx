@@ -66,11 +66,13 @@ describe("DiscordInviteCard", () => {
     expect(ctaLink).toHaveClass(
       "rounded-xl",
       "shadow-none",
-      "border-primary/35",
-      "bg-primary/90",
-      "hover:border-primary/85",
+      "border-primary/70",
+      "bg-primary/10",
+      "hover:border-primary",
       "hover:bg-primary",
-      "text-primary-foreground",
+      "hover:text-primary-foreground",
+      "focus-visible:text-primary-foreground",
+      "text-foreground",
     );
     expect(ctaLink).not.toHaveClass("interactive-control-transition", "interactive-lift-sm");
     const panelDescription = screen.getByText(

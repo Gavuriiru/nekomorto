@@ -59,6 +59,13 @@
     transform: translateY(-4px);
   }
 
+  .public-interactive-card-shell--no-lift,
+  .public-interactive-card-shell--no-lift:hover,
+  .public-interactive-card-shell--no-lift:focus-visible,
+  .public-interactive-card-shell--no-lift:focus-within {
+    transform: none;
+  }
+
   .public-interactive-card-shadow {
     inset: 0;
     pointer-events: none;

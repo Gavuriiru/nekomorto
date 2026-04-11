@@ -76,6 +76,7 @@ export const DashboardSettingsSocialLinksTab = () => {
     handleFooterSocialDrop,
     handleSaveLinkTypes,
     handleSaveTranslations,
+    hasResolvedLinkTypes,
     isIconUrl,
     isSavingLinkTypes,
     isSavingTranslations,
@@ -158,7 +159,7 @@ export const DashboardSettingsSocialLinksTab = () => {
                   event.stopPropagation();
                   void handleSaveLinkTypes();
                 }}
-                disabled={isSavingLinkTypes}
+                disabled={!hasResolvedLinkTypes || isSavingLinkTypes}
               >
                 <Save className="h-4 w-4" />
                 {isSavingLinkTypes ? "Salvando..." : "Salvar"}

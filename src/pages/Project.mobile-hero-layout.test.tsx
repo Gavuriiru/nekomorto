@@ -55,6 +55,58 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
+const expectSharedPrimaryButtonTokens = (element: HTMLElement) => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "rounded-xl",
+      "border-primary/70",
+      "bg-primary/10",
+      "text-foreground",
+      "hover:border-primary",
+      "hover:bg-primary",
+      "hover:text-primary-foreground",
+      "focus-visible:border-primary",
+      "focus-visible:bg-primary",
+      "focus-visible:text-primary-foreground",
+      "shadow-none",
+    ]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+  expect(tokens.some((token) => token.startsWith("hover:shadow"))).toBe(false);
+};
+
+const expectOutlineActionTokens = (element: HTMLElement) => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining([
+      "border-border/70",
+      "bg-background",
+      "text-foreground/70",
+      "hover:border-primary/60",
+      "hover:bg-primary/5",
+      "shadow-none",
+    ]),
+  );
+  expect(tokens).not.toContain("border-primary/70");
+  expect(tokens).not.toContain("bg-primary/10");
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
+const expectContextualSourceButtonTokens = (element: HTMLElement) => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining(["rounded-full", "bg-card/70", "hover:bg-primary/10"]),
+  );
+  expect(tokens).not.toContain("border-primary/70");
+  expect(tokens).not.toContain("bg-primary/10");
+};
+
 const findAncestor = (
   element: HTMLElement,
   predicate: (candidate: HTMLElement) => boolean,
@@ -353,6 +405,9 @@ describe("Project mobile hero layout", () => {
     expect(actionsRowTokens).toContain("justify-center");
     expect(actionsRowTokens).toContain("md:justify-start");
     expect(actionsRowTokens).toContain("md:mt-auto");
+    expectSharedPrimaryButtonTokens(
+      within(actionsRow).getByRole("link", { name: /Ver epis.dios/i }),
+    );
   });
 
   it("renderiza tags e generos clicaveis como links com a pill neutra compartilhada", async () => {
@@ -690,6 +745,10 @@ describe("Project mobile hero layout", () => {
     const readLink = screen.getByRole("link", { name: /Come.* leitura/i });
     expect(readLink).toHaveAttribute("href", "/projeto/project-1/leitura/1?volume=2");
     const actionsRow = screen.getByTestId("project-hero-actions-row");
+    expectSharedPrimaryButtonTokens(
+      within(actionsRow).getByRole("link", { name: /Ver cap.tulos/i }),
+    );
+    expectOutlineActionTokens(readLink);
     const actionLinks = within(actionsRow).getAllByRole("link");
     expect(actionLinks.at(-1)).toBe(readLink);
     expect(classTokens(readLink)).toContain("order-last");
@@ -738,6 +797,8 @@ describe("Project mobile hero layout", () => {
     expect(within(readCard as HTMLElement).queryByText(/Vol\.\s*2/i)).not.toBeInTheDocument();
     const sourceLink = within(readCard as HTMLElement).getByRole("link", { name: "Drive" });
     expect(sourceLink).toHaveAttribute("href", "https://example.com/drive");
+    expectContextualSourceButtonTokens(sourceLink);
+    expectSharedPrimaryButtonTokens(readLink);
     const actionsRow = findAncestor(sourceLink, (candidate) =>
       classTokens(candidate).includes("chapter-download-card__actions"),
     );
@@ -777,6 +838,10 @@ describe("Project mobile hero layout", () => {
     await screen.findByRole("heading", { name: "Projeto Teste" });
     const actionsRow = screen.getByTestId("project-hero-actions-row");
     const readLink = within(actionsRow).getByRole("link", { name: /Come.* leitura/i });
+    expectSharedPrimaryButtonTokens(
+      within(actionsRow).getByRole("link", { name: /Ver cap.tulos/i }),
+    );
+    expectOutlineActionTokens(readLink);
     const actionLinks = within(actionsRow).getAllByRole("link");
     expect(actionLinks.at(-1)).toBe(readLink);
     expect(classTokens(readLink)).toContain("order-last");

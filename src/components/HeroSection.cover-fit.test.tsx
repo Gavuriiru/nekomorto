@@ -265,10 +265,26 @@ const expectHeroPrimaryButtonTokens = (element: HTMLElement) => {
       "shadow-none",
       "border-[color:var(--hero-primary-border-rest)]",
       "bg-[color:var(--hero-primary-bg-rest)]",
-      "text-(--hero-accent-foreground,hsl(var(--primary-foreground)))",
+      "text-foreground",
       "hover:border-[color:var(--hero-primary-border-hover)]",
       "hover:bg-[color:var(--hero-primary-bg-hover)]",
+      "hover:text-(--hero-accent-foreground,hsl(var(--primary-foreground)))",
+      "focus-visible:border-[color:var(--hero-primary-border-hover)]",
+      "focus-visible:bg-[color:var(--hero-primary-bg-hover)]",
+      "focus-visible:text-(--hero-accent-foreground,hsl(var(--primary-foreground)))",
     ]),
+  );
+  expect(element.style.getPropertyValue("--hero-primary-bg-rest")).toBe(
+    "color-mix(in srgb, var(--hero-accent, hsl(var(--primary))) 10%, transparent)",
+  );
+  expect(element.style.getPropertyValue("--hero-primary-border-rest")).toBe(
+    "color-mix(in srgb, var(--hero-accent, hsl(var(--primary))) 70%, transparent)",
+  );
+  expect(element.style.getPropertyValue("--hero-primary-bg-hover")).toBe(
+    "var(--hero-accent, hsl(var(--primary)))",
+  );
+  expect(element.style.getPropertyValue("--hero-primary-border-hover")).toBe(
+    "color-mix(in srgb, var(--hero-accent, hsl(var(--primary))) 100%, transparent)",
   );
   expect(tokens).not.toContain("hover:brightness-110");
   expect(tokens).not.toContain("interactive-lift-sm");

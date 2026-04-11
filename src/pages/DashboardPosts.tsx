@@ -213,8 +213,10 @@ const getCalendarItemStatusLabel = (status: EditorialCalendarItem["status"]) =>
   status === "published" ? "Publicada" : "Agendada";
 
 const calendarWeekdayLabels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const;
-const calendarLoadingWeekIndexes = Array.from({ length: 6 }, (_, index) => index);
-const calendarLoadingDayIndexes = Array.from({ length: 7 }, (_, index) => index);
+const calendarReadyContentFadeStyle: CSSProperties = {
+  animationDuration: "220ms",
+  animationTimingFunction: "ease-out",
+};
 
 const DashboardPosts = () => {
   usePageMeta({ title: "Posts", noIndex: true });
@@ -2224,7 +2226,8 @@ const DashboardPosts = () => {
               </div>
               <div className="flex items-center gap-2">
                 <div
-                  className={`inline-flex items-center ${dashboardPageLayoutTokens.cardActionSurface} p-1`}
+                  data-testid="dashboard-posts-view-toggle"
+                  className={`inline-flex items-center gap-1.5 ${dashboardPageLayoutTokens.cardActionSurface} p-1`}
                 >
                   <DashboardSegmentedActionButton
                     type="button"
@@ -2327,7 +2330,10 @@ const DashboardPosts = () => {
                 data-testid="dashboard-posts-calendar-surface"
                 className={dashboardPageLayoutTokens.surfaceSolid}
               >
-                <CardContent className="space-y-4 p-4 md:p-6">
+                <CardContent
+                  data-testid="dashboard-posts-calendar-content"
+                  className="space-y-4 p-4 md:p-6"
+                >
                   <div
                     data-testid="dashboard-posts-calendar-header"
                     className="flex flex-wrap items-center justify-between gap-3"
@@ -2391,35 +2397,19 @@ const DashboardPosts = () => {
                         ))}
                       </div>
                       {isCalendarLoading ? (
-                        <div data-testid="dashboard-posts-calendar-loading-grid" className="grid gap-2">
-                          {calendarLoadingWeekIndexes.map((weekIndex) => (
-                            <div
-                              key={`calendar-loading-week-${weekIndex}`}
-                              data-testid={`dashboard-posts-calendar-loading-week-${weekIndex}`}
-                              className="grid grid-cols-7 gap-2"
-                            >
-                              {calendarLoadingDayIndexes.map((dayIndex) => (
-                                <div
-                                  key={`calendar-loading-day-${weekIndex}-${dayIndex}`}
-                                  className="min-h-[120px] rounded-lg border border-border/70 bg-background p-2"
-                                >
-                                  <div className="mb-2 flex items-center justify-between gap-2">
-                                    <Skeleton className="h-3 w-4" />
-                                    <Skeleton className="h-4 w-8 rounded-full" />
-                                  </div>
-                                  <div className="space-y-1.5">
-                                    <Skeleton className="h-4 w-full" />
-                                    <Skeleton className="h-4 w-5/6" />
-                                    <Skeleton className="h-3 w-1/2" />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ))}
-                        </div>
+                        <div
+                          aria-hidden="true"
+                          data-testid="dashboard-posts-calendar-loading-space"
+                          className="min-h-[760px]"
+                        />
                       ) : (
-                        <div className="grid gap-2">
-                          {calendarWeeks.map((week, weekIndex) => (
+                        <div
+                          data-testid="dashboard-posts-calendar-ready-content"
+                          className="space-y-3 animate-fade-in"
+                          style={calendarReadyContentFadeStyle}
+                        >
+                          <div className="grid gap-2">
+                            {calendarWeeks.map((week, weekIndex) => (
                             <div
                               key={`calendar-week-${weekIndex}`}
                               data-testid={`dashboard-posts-calendar-week-${weekIndex}`}
@@ -2509,14 +2499,15 @@ const DashboardPosts = () => {
                                 );
                               })}
                             </div>
-                          ))}
+                            ))}
+                          </div>
+                          {calendarItems.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                              Nenhuma postagem publicada/agendada neste mês.
+                            </p>
+                          ) : null}
                         </div>
                       )}
-                      {!isCalendarLoading && !hasCalendarError && calendarItems.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          Nenhuma postagem publicada/agendada neste mês.
-                        </p>
-                      ) : null}
                     </div>
                   )}
                 </CardContent>

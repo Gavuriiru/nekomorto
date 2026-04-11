@@ -76,11 +76,13 @@ describe("DashboardActionButton", () => {
     expect(primaryTokens).toEqual(
       expect.arrayContaining([
         "rounded-xl",
-        "border-primary/35",
-        "bg-primary/90",
-        "hover:border-primary/85",
+        "border-primary/70",
+        "bg-primary/10",
+        "hover:border-primary",
         "hover:bg-primary",
-        "text-primary-foreground",
+        "hover:text-primary-foreground",
+        "focus-visible:text-primary-foreground",
+        "text-foreground",
         "shadow-none",
       ]),
     );
@@ -134,11 +136,13 @@ describe("DashboardActionButton", () => {
 
     expect(defaultTokens).toEqual(
       expect.arrayContaining([
-        "border-primary/35",
-        "bg-primary/90",
-        "hover:border-primary/85",
+        "border-primary/70",
+        "bg-primary/10",
+        "hover:border-primary",
         "hover:bg-primary",
-        "text-primary-foreground",
+        "hover:text-primary-foreground",
+        "focus-visible:text-primary-foreground",
+        "text-foreground",
       ]),
     );
     expect(outlineTokens).toEqual(expect.arrayContaining(["bg-background", "text-foreground/70"]));

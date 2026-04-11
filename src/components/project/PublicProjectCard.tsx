@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import "@/styles/projects-public.css";
 
 export type PublicProjectCardVariant = "catalog" | "search" | "sidebar" | "related" | "embed";
-type PublicProjectCardClampFamily = "projects" | "safe";
+type PublicProjectCardClampFamily = "projects" | "safe" | "search";
 type PublicProjectCardShellPreset = "default" | "compact" | "none";
 type PublicProjectCardStatIcon = "eye" | "hash";
 export type PublicProjectCardClampProfileKey = Exclude<PublicProjectCardVariant, "related">;
@@ -109,13 +109,10 @@ export const PUBLIC_PROJECT_CARD_CLAMP_PROFILES: Record<
   },
   search: {
     variant: "search",
-    family: "safe",
+    family: "search",
     defaultMaxLines: 3,
-    fallbackLines: 2,
-    widthCaps: [
-      { maxWidth: 220, maxLines: 1 },
-      { maxWidth: 320, maxLines: 2 },
-    ],
+    fallbackLines: 3,
+    widthCaps: [],
   },
   sidebar: {
     variant: "sidebar",
@@ -213,6 +210,10 @@ export const getPublicProjectCardClampClass = ({
 
   if (family === "projects") {
     return `projects-public-synopsis-clamp-${normalizedLines}`;
+  }
+
+  if (family === "search") {
+    return `projects-public-search-synopsis-clamp-${normalizedLines}`;
   }
 
   if (normalizedLines <= 0) {
@@ -417,6 +418,7 @@ const PublicProjectCard = ({
   if (variant === "search") {
     return (
       <PublicInteractiveCardShell
+        lift={false}
         shadowPreset={shellPreset}
         className={cn("rounded-xl", shellClassName)}
       >
@@ -450,7 +452,7 @@ const PublicProjectCard = ({
             data-synopsis-role="column"
             data-synopsis-key={synopsisKey}
             className={cn(
-              "min-h-0 min-w-0 flex flex-1 self-stretch flex-col p-4",
+              "min-h-0 min-w-0 flex flex-1 self-stretch flex-col overflow-hidden p-4",
               bodyClassName,
             )}
           >
@@ -465,7 +467,7 @@ const PublicProjectCard = ({
                 data-synopsis-role="synopsis"
                 data-synopsis-lines={model.synopsisLines}
                 className={cn(
-                  "mt-1 min-h-0 flex-1 overflow-hidden text-xs leading-snug text-muted-foreground",
+                  "mt-1 min-h-0 shrink-0 overflow-hidden text-xs leading-snug text-muted-foreground",
                   model.synopsisClampClass,
                 )}
               >
@@ -475,7 +477,7 @@ const PublicProjectCard = ({
             {secondaryBadges.length > 0 ? (
               <div
                 data-synopsis-role="badges"
-                className="flex min-w-0 shrink-0 flex-nowrap gap-1.5 overflow-hidden pb-1 pt-2"
+                className="mt-auto flex min-w-0 shrink-0 flex-nowrap gap-1.5 overflow-hidden pb-1 pt-2"
               >
                 {secondaryBadges.map(renderSecondaryBadge)}
               </div>
