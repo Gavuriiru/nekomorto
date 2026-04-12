@@ -637,6 +637,11 @@ describe("DashboardProjectEpisodeEditor", () => {
     expect(within(secondaryGrid).getByTestId("anime-episode-file-section")).toBe(fileSection);
     expect(within(progressSection).getByText(/Etapas editoriais/i)).toBeInTheDocument();
     expect(within(progressSection).getByText(/Etapa atual/i)).toBeInTheDocument();
+    expect(screen.getByTestId("anime-episode-current-stage-badge")).toHaveClass(
+      "border-accent/60",
+      "bg-accent/10",
+      "text-accent",
+    );
     expect(
       within(progressSection).getByRole("list", { name: /Etapas editoriais/i }),
     ).toBeInTheDocument();
@@ -644,10 +649,11 @@ describe("DashboardProjectEpisodeEditor", () => {
     const currentStageBadge = within(progressSection)
       .getAllByText("Atual")
       .find((element) => String((element as HTMLElement).className || "").includes("rounded-full"));
+    expect(within(stageList).getAllByText("Atual")).toHaveLength(1);
     expect(currentStageBadge).toHaveClass(
-      "border-[hsl(var(--badge-info-border))]",
-      "bg-[hsl(var(--badge-info-bg))]",
-      "text-[hsl(var(--badge-info-fg))]",
+      "border-accent/60",
+      "bg-accent/10",
+      "text-accent",
     );
   });
 

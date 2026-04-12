@@ -2169,10 +2169,11 @@ describe("DashboardProjectChapterEditor", () => {
     const currentStageBadge = within(progressCard)
       .getAllByText("Atual")
       .find((element) => String((element as HTMLElement).className || "").includes("rounded-full"));
+    expect(within(progressCard).getAllByText("Atual")).toHaveLength(1);
     expect(currentStageBadge).toHaveClass(
-      "border-[hsl(var(--badge-info-border))]",
-      "bg-[hsl(var(--badge-info-bg))]",
-      "text-[hsl(var(--badge-info-fg))]",
+      "border-accent/60",
+      "bg-accent/10",
+      "text-accent",
     );
     expect(within(contentCard).getByRole("heading", { name: /Páginas/i })).toBeInTheDocument();
     expect(document.getElementById("chapter-volume-image") as HTMLInputElement).toHaveClass(

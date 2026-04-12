@@ -19,6 +19,8 @@ export const badgeVariants = cva(
         info: "border-[hsl(var(--badge-info-border))] bg-[hsl(var(--badge-info-bg))] text-[hsl(var(--badge-info-fg))]",
         neutral:
           "border-[hsl(var(--badge-neutral-border))] bg-[hsl(var(--badge-neutral-bg))] text-[hsl(var(--badge-neutral-fg))]",
+        accent: "border-accent/60 bg-accent text-accent-foreground",
+        accentSoft: "border-accent/60 bg-accent/10 text-accent",
         static: "border-border/70 bg-background text-foreground/70",
         outline: "text-foreground",
       },

@@ -1220,7 +1220,12 @@ const DashboardProjectEpisodeEditor = () => {
                           <div className="space-y-3">
                             <div className="flex items-center justify-between gap-2">
                               <p className="text-sm font-medium text-foreground">Etapa atual</p>
-                              <Badge variant="outline">{progressState.currentStage.label}</Badge>
+                              <Badge
+                                variant="accentSoft"
+                                data-testid="anime-episode-current-stage-badge"
+                              >
+                                {progressState.currentStage.label}
+                              </Badge>
                             </div>
                             <div
                               className="flex flex-wrap items-center gap-1.5"
@@ -1292,14 +1297,13 @@ const DashboardProjectEpisodeEditor = () => {
                                       </span>
                                     </div>
                                     <div className="flex shrink-0 items-center gap-2">
-                                      <span className="text-xs text-muted-foreground">
-                                        {isCompleted
-                                          ? "Concluída"
-                                          : isCurrentStage
-                                            ? "Atual"
-                                            : "Pendente"}
-                                      </span>
-                                      {isCurrentStage ? <Badge variant="info">Atual</Badge> : null}
+                                      {isCurrentStage ? (
+                                        <Badge variant="accentSoft">Atual</Badge>
+                                      ) : (
+                                        <span className="text-xs text-muted-foreground">
+                                          {isCompleted ? "Concluída" : "Pendente"}
+                                        </span>
+                                      )}
                                     </div>
                                   </label>
                                 );

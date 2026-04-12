@@ -129,6 +129,27 @@ const setupApiMock = ({
         primaryOwnerId: null,
       });
     }
+    if (path === "/api/me/security" && method === "GET") {
+      return mockJsonResponse(true, {
+        totpEnabled: false,
+        recoveryCodesRemaining: 0,
+        activeSessionsCount: 1,
+      });
+    }
+    if (path === "/api/me/sessions" && method === "GET") {
+      return mockJsonResponse(true, {
+        sessions: [
+          {
+            sid: "session-current",
+            createdAt: "2026-04-12T21:44:00.000Z",
+            lastSeenAt: "2026-04-12T21:45:09.000Z",
+            lastIp: "203.0.113.42",
+            userAgent: "Mozilla/5.0",
+            current: true,
+          },
+        ],
+      });
+    }
     if (path === "/api/link-types" && method === "GET") {
       return mockJsonResponse(true, { items: [] });
     }
@@ -186,6 +207,12 @@ describe("DashboardUsers edit query", () => {
     const favoriteWorksCategoryCard = screen.getByText(/Mang/i).closest("div");
     expect(favoriteWorksCategoryCard).not.toBeNull();
     expect(String(favoriteWorksCategoryCard?.className || "")).toContain("hover:border-primary/40");
+    const currentSessionBadge = await screen.findByText("Atual");
+    expect(currentSessionBadge).toHaveClass(
+      "border-accent/60",
+      "bg-accent/10",
+      "text-accent",
+    );
 
     unmount();
 

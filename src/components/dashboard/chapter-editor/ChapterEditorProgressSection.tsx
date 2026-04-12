@@ -82,14 +82,15 @@ const ChapterEditorProgressSection = ({
                 <span className="truncate text-sm font-medium text-foreground">{stage.label}</span>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {isCompleted ? "Concluida" : isCurrentStage ? "Atual" : "Pendente"}
-                </span>
                 {isCurrentStage ? (
-                  <Badge variant="info" className="shrink-0">
+                  <Badge variant="accentSoft" className="shrink-0">
                     Atual
                   </Badge>
-                ) : null}
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    {isCompleted ? "Concluida" : "Pendente"}
+                  </span>
+                )}
               </div>
             </label>
           );

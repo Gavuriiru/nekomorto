@@ -2350,7 +2350,7 @@ const DashboardUsers = () => {
                                           : "Sessão remota"}
                                       </p>
                                       {isCurrentSecuritySession(session) ? (
-                                        <Badge variant="info">Atual</Badge>
+                                        <Badge variant="accentSoft">Atual</Badge>
                                       ) : null}
                                       {session.isPendingMfa ? (
                                         <Badge variant="warning">Pendente MFA</Badge>
