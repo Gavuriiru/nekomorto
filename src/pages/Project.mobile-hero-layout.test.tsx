@@ -437,10 +437,10 @@ describe("Project mobile hero layout", () => {
     expect(classTokens(tagLink)).toContain("text-foreground/70");
     expect(classTokens(tagLink)).toContain("hover:border-accent/60");
     expect(classTokens(tagLink)).toContain("hover:bg-accent/15");
-    expect(classTokens(tagLink)).toContain("hover:text-accent-foreground");
+    expect(classTokens(tagLink)).toContain("hover:text-foreground");
     expect(classTokens(tagLink)).toContain("focus-visible:border-accent/60");
     expect(classTokens(tagLink)).toContain("focus-visible:bg-accent/15");
-    expect(classTokens(tagLink)).toContain("focus-visible:text-accent-foreground");
+    expect(classTokens(tagLink)).toContain("focus-visible:text-foreground");
 
     const aboutSection = findAncestor(
       screen.getByText("Sobre o projeto"),
@@ -458,10 +458,10 @@ describe("Project mobile hero layout", () => {
     expect(classTokens(genreLink)).toContain("text-foreground/70");
     expect(classTokens(genreLink)).toContain("hover:border-accent/60");
     expect(classTokens(genreLink)).toContain("hover:bg-accent/15");
-    expect(classTokens(genreLink)).toContain("hover:text-accent-foreground");
+    expect(classTokens(genreLink)).toContain("hover:text-foreground");
     expect(classTokens(genreLink)).toContain("focus-visible:border-accent/60");
     expect(classTokens(genreLink)).toContain("focus-visible:bg-accent/15");
-    expect(classTokens(genreLink)).toContain("focus-visible:text-accent-foreground");
+    expect(classTokens(genreLink)).toContain("focus-visible:text-foreground");
   });
 
   it("usa fallback de banner com heroImageUrl e depois cover", async () => {

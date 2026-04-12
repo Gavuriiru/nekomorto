@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { PillButton } from "@/components/ui/pill-button";
+import { deriveThemeAccentTokens } from "@/lib/theme-accent";
 
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
@@ -49,14 +50,38 @@ describe("PillButton", () => {
         "text-foreground/70",
         "hover:border-accent/60",
         "hover:bg-accent/15",
-        "hover:text-accent-foreground",
+        "hover:text-foreground",
         "focus-visible:border-accent/60",
         "focus-visible:bg-accent/15",
-        "focus-visible:text-accent-foreground",
+        "focus-visible:text-foreground",
       );
     });
 
     expect(secondaryButton).toHaveClass("border-border/70", "bg-background", "text-foreground/70");
     expect(outlineButton).toHaveClass("border-border/70", "bg-background", "text-foreground/70");
+  });
+
+  it("mantem a pill neutra independente de accent customizado claro", () => {
+    const tokens = deriveThemeAccentTokens("#4adffc");
+
+    expect(tokens?.accentForeground).toBe("224 41% 12%");
+
+    if (tokens) {
+      document.documentElement.style.setProperty("--accent", tokens.accent);
+      document.documentElement.style.setProperty("--accent-foreground", tokens.accentForeground);
+    }
+
+    render(<PillButton tone="secondary">Filtro claro</PillButton>);
+
+    const button = screen.getByRole("button", { name: "Filtro claro" });
+
+    expect(button).toHaveClass("hover:text-foreground", "focus-visible:text-foreground");
+    expect(button).not.toHaveClass(
+      "hover:text-accent-foreground",
+      "focus-visible:text-accent-foreground",
+    );
+
+    document.documentElement.style.removeProperty("--accent");
+    document.documentElement.style.removeProperty("--accent-foreground");
   });
 });

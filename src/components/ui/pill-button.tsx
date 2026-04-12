@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 type PillButtonTone = "primary" | "secondary" | "outline";
 
 const pillButtonNeutralToneClassName =
-  "border-border/70 bg-background text-foreground/70 hover:border-accent/60 hover:bg-accent/15 hover:text-accent-foreground focus-visible:border-accent/60 focus-visible:bg-accent/15 focus-visible:text-accent-foreground";
+  "border-border/70 bg-background text-foreground/70 hover:border-accent/60 hover:bg-accent/15 hover:text-foreground focus-visible:border-accent/60 focus-visible:bg-accent/15 focus-visible:text-foreground";
 
 const pillButtonToneClassName: Record<PillButtonTone, string> = {
   primary:
