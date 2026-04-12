@@ -54,9 +54,7 @@ describe("DiscordInviteCard", () => {
     expect(cardRoot).toHaveClass("shadow-none", "border", "border-border/60");
     expect(cardRoot).not.toHaveClass("public-interactive-card-shell");
     expect(cardRoot).not.toHaveClass("shadow-xs");
-    expect(
-      screen.getByText("Fale com a equipe em tempo real."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Fale com a equipe em tempo real.")).toBeInTheDocument();
     expect(screen.getByText("Servidor oficial")).toBeInTheDocument();
     expect(
       screen.getByText("Atualizacoes, avisos e bate-papo com os membros."),
@@ -75,9 +73,7 @@ describe("DiscordInviteCard", () => {
       "text-foreground",
     );
     expect(ctaLink).not.toHaveClass("interactive-control-transition", "interactive-lift-sm");
-    const panelDescription = screen.getByText(
-      "Atualizacoes, avisos e bate-papo com os membros.",
-    );
+    const panelDescription = screen.getByText("Atualizacoes, avisos e bate-papo com os membros.");
     const panel = panelDescription.closest("div.rounded-xl");
     expect(panel).not.toBeNull();
     expect(panel).not.toHaveClass("hover:-translate-y-1");
@@ -127,9 +123,10 @@ describe("DiscordInviteCard", () => {
 
     render(<DiscordInviteCard />);
 
-    expect(
-      screen.getByRole("link", { name: "Entrar no servidor" }),
-    ).toHaveAttribute("href", "https://discord.com/invite/fallback-card");
+    expect(screen.getByRole("link", { name: "Entrar no servidor" })).toHaveAttribute(
+      "href",
+      "https://discord.com/invite/fallback-card",
+    );
   });
 
   it("nao exibe redes sociais do footer", () => {
@@ -178,20 +175,10 @@ describe("DiscordInviteCard", () => {
 
     render(<DiscordInviteCard />);
 
-    expect(
-      screen.queryByRole("link", { name: "Instagram" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: "Facebook" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: "Twitter" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: "YouTube" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: "Discord" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Instagram" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Facebook" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Twitter" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "YouTube" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Discord" })).not.toBeInTheDocument();
   });
 });

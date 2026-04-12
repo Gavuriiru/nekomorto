@@ -833,13 +833,7 @@ const Projects = () => {
     [paginatedProjects],
   );
   const resolveCatalogSynopsisMaxLines = useCallback(
-    ({
-      columnWidth,
-      defaultMaxLines,
-    }: {
-      columnWidth: number;
-      defaultMaxLines: number;
-    }) =>
+    ({ columnWidth, defaultMaxLines }: { columnWidth: number; defaultMaxLines: number }) =>
       resolvePublicProjectCardResponsiveMaxLines({
         profile: catalogClampProfile,
         columnWidth,

@@ -192,10 +192,7 @@ export const createOperationalWebhooksRuntime = (dependencies = {}) => {
       return persisted || updatedBase;
     }
 
-    if (
-      result.retryable &&
-      attemptedCount < clampWebhookInteger(delivery?.maxAttempts, 1, 10, 1)
-    ) {
+    if (result.retryable && attemptedCount < clampWebhookInteger(delivery?.maxAttempts, 1, 10, 1)) {
       const delayMs = computeWebhookRetryDelayMs({
         attemptCount: attemptedCount,
         retryAfterMs: result?.retryAfterMs,

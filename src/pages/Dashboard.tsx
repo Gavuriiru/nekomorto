@@ -166,10 +166,8 @@ const normalizeDashboardWidgets = (value: unknown): DashboardWidgetId[] => {
   return Array.from(dedupe);
 };
 
-const areDashboardWidgetListsEqual = (
-  left: DashboardWidgetId[],
-  right: DashboardWidgetId[],
-) => left.length === right.length && left.every((item, index) => item === right[index]);
+const areDashboardWidgetListsEqual = (left: DashboardWidgetId[], right: DashboardWidgetId[]) =>
+  left.length === right.length && left.every((item, index) => item === right[index]);
 
 const EMPTY_DASHBOARD_OVERVIEW: Readonly<DashboardOverview> = Object.freeze({
   metrics: {
@@ -892,9 +890,7 @@ const Dashboard = () => {
             title="Não foi possível carregar o dashboard"
             description="Tente novamente em alguns instantes."
             action={
-              <DashboardActionButton
-                onClick={() => setReloadTick((previous) => previous + 1)}
-              >
+              <DashboardActionButton onClick={() => setReloadTick((previous) => previous + 1)}>
                 Tentar novamente
               </DashboardActionButton>
             }

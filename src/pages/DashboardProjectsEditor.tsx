@@ -1,12 +1,10 @@
 import DashboardShell from "@/components/DashboardShell";
-import DashboardActionButton, { default as Button } from "@/components/dashboard/DashboardActionButton";
+import DashboardActionButton, {
+  default as Button,
+} from "@/components/dashboard/DashboardActionButton";
 import ReorderControls from "@/components/ReorderControls";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
-import {
-  Combobox,
-  Input,
-  Textarea,
-} from "@/components/dashboard/dashboard-form-controls";
+import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import {
@@ -295,7 +293,7 @@ const DashboardProjectsEditor = () => {
   const [editorAccordionValue, setEditorAccordionValue] = useState<string[]>(["informacoes"]);
   const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
   const episodeSizeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
-  const hasInitializedListFiltersRef = useRef(false);
+  const listFiltersRef = useRef({ searchQuery, selectedType, sortMode });
   const canManageProjects = useMemo(() => {
     return canManageProjectsAccess(currentUser);
   }, [currentUser]);
@@ -441,12 +439,17 @@ const DashboardProjectsEditor = () => {
   });
 
   useEffect(() => {
-    if (!hasInitializedListFiltersRef.current) {
-      hasInitializedListFiltersRef.current = true;
+    const previousFilters = listFiltersRef.current;
+    const didFiltersChange =
+      previousFilters.searchQuery !== searchQuery ||
+      previousFilters.selectedType !== selectedType ||
+      previousFilters.sortMode !== sortMode;
+    listFiltersRef.current = { searchQuery, selectedType, sortMode };
+    if (!didFiltersChange) {
       return;
     }
     setCurrentPage(1);
-  }, [searchQuery, selectedType, sortMode]);
+  }, [searchQuery, selectedType, setCurrentPage, sortMode]);
 
   const hasAniListReference =
     Boolean(formState.anilistId) || parseAniListMediaId(anilistIdInput) !== null;
@@ -641,7 +644,9 @@ const DashboardProjectsEditor = () => {
     if (!hasResolvedProjects) {
       return;
     }
-    setCurrentPage(Math.min(currentPage, totalPages));
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
   }, [currentPage, hasResolvedProjects, setCurrentPage, totalPages]);
 
   const openCreate = () => {
@@ -1460,11 +1465,7 @@ const DashboardProjectsEditor = () => {
                                     <DedicatedEditorIcon className="h-4 w-4" aria-hidden="true" />
                                   </Link>
                                 </DashboardActionButton>
-                                <DashboardActionButton
-                                  size="icon-sm"
-                                  title="Visualizar"
-                                  asChild
-                                >
+                                <DashboardActionButton size="icon-sm" title="Visualizar" asChild>
                                   <Link to={buildProjectPublicHref(project.id)}>
                                     <Eye className="h-4 w-4" />
                                   </Link>
@@ -1582,7 +1583,10 @@ const DashboardProjectsEditor = () => {
                           <span className="text-xs text-muted-foreground">
                             Restam {getRestoreRemainingLabel(project)}
                           </span>
-                          <DashboardActionButton size="sm" onClick={() => handleRestoreProject(project)}>
+                          <DashboardActionButton
+                            size="sm"
+                            onClick={() => handleRestoreProject(project)}
+                          >
                             Restaurar
                           </DashboardActionButton>
                         </div>

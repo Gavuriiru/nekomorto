@@ -230,7 +230,16 @@ export const useFocalPointWorkspace = ({
         }),
       );
     },
-    [activePresetDimensions.height, activePresetDimensions.width, fitRect.height, fitRect.left, fitRect.top, fitRect.width, interaction, updateActivePresetCrop],
+    [
+      activePresetDimensions.height,
+      activePresetDimensions.width,
+      fitRect.height,
+      fitRect.left,
+      fitRect.top,
+      fitRect.width,
+      interaction,
+      updateActivePresetCrop,
+    ],
   );
 
   const handleStagePointerMove = useCallback(

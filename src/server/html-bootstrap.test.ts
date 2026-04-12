@@ -167,7 +167,7 @@ describe("html bootstrap injection", () => {
 
     expect(result).toContain("<!-- APP_HOME_HERO_SHELL -->");
     expect(result).toContain('<div id="home-hero-shell"></div>');
-    expect(result).toContain('<style data-home-hero-shell-critical>');
+    expect(result).toContain("<style data-home-hero-shell-critical>");
     expect(result).toContain(".public-home-hero-shell{opacity:1;}");
   });
 

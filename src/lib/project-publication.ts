@@ -49,10 +49,7 @@ export const resolveProjectEpisodePublicationState = (
   projectType: string,
   episode: Partial<ProjectEpisode> | null | undefined,
 ): ProjectEpisodePublicationState =>
-  resolveProjectEpisodePublicationStateBase(
-    projectType,
-    episode,
-  ) as ProjectEpisodePublicationState;
+  resolveProjectEpisodePublicationStateBase(projectType, episode) as ProjectEpisodePublicationState;
 
 export const resolveProjectEpisodePublicationErrorState = (
   projectType: string,

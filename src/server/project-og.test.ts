@@ -811,24 +811,20 @@ describe("project og helper", () => {
       resolveVariantUrl: (value: string) => value,
     });
     const scene = buildProjectOgScene(model);
-    const titleNode = findElement(
-      scene,
-      (candidate) =>
-        Boolean(
-          candidate.props?.style &&
-            (candidate.props.style as Record<string, unknown>).fontWeight === 700 &&
-            (candidate.props.style as Record<string, unknown>).left === model.layout.titleLeft &&
-            (candidate.props.style as Record<string, unknown>).top === model.layout.titleTop,
-        ),
+    const titleNode = findElement(scene, (candidate) =>
+      Boolean(
+        candidate.props?.style &&
+          (candidate.props.style as Record<string, unknown>).fontWeight === 700 &&
+          (candidate.props.style as Record<string, unknown>).left === model.layout.titleLeft &&
+          (candidate.props.style as Record<string, unknown>).top === model.layout.titleTop,
+      ),
     );
-    const tagsNode = findElement(
-      scene,
-      (candidate) =>
-        Boolean(
-          candidate.props?.style &&
-            (candidate.props.style as Record<string, unknown>).left === model.layout.tagsLeft &&
-            (candidate.props.style as Record<string, unknown>).top === model.layout.tagsTop,
-        ),
+    const tagsNode = findElement(scene, (candidate) =>
+      Boolean(
+        candidate.props?.style &&
+          (candidate.props.style as Record<string, unknown>).left === model.layout.tagsLeft &&
+          (candidate.props.style as Record<string, unknown>).top === model.layout.tagsTop,
+      ),
     );
 
     expect(titleNode).not.toBeNull();
@@ -1001,9 +997,7 @@ describe("project og helper", () => {
     );
     expect(
       String(artworkFallbackNode?.props?.style?.["background"] || "").toLowerCase(),
-    ).not.toContain(
-      "#fff",
-    );
+    ).not.toContain("#fff");
     expect(
       String(artworkFallbackNode?.props?.style?.["backgroundColor"] || "").toLowerCase(),
     ).not.toBe("#ffffff");

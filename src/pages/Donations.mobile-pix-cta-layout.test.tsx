@@ -161,7 +161,13 @@ describe("Donations mobile PIX CTA layout", () => {
     );
 
     expect(classTokens(pixKey)).toEqual(
-      expect.arrayContaining(["font-mono", "text-sm", "leading-relaxed", "text-primary", "break-all"]),
+      expect.arrayContaining([
+        "font-mono",
+        "text-sm",
+        "leading-relaxed",
+        "text-primary",
+        "break-all",
+      ]),
     );
     expect(classTokens(pixKey)).not.toContain("rounded-2xl");
     expect(classTokens(pixKey)).not.toContain("border");

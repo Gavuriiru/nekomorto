@@ -91,9 +91,7 @@ import {
   injectHomeHeroShell,
   injectPreloadLinks,
 } from "./lib/html-bootstrap.js";
-import {
-  applyHtmlCachingHeaders,
-} from "./lib/html-cache-control.js";
+import { applyHtmlCachingHeaders } from "./lib/html-cache-control.js";
 import { createIdempotencyStore } from "./lib/idempotency-store.js";
 import { createJobQueue } from "./lib/job-queue.js";
 import { truncateMetaDescription } from "./lib/meta-description.js";
@@ -151,9 +149,7 @@ import {
   isChapterBasedType,
   normalizeTypeLookupKey,
 } from "./lib/project-type-utils.js";
-import {
-  resolveAuthAppOrigin,
-} from "./lib/origin-config.js";
+import { resolveAuthAppOrigin } from "./lib/origin-config.js";
 import {
   buildPostOgImageAlt,
   buildPostOgRevision,
@@ -256,7 +252,10 @@ import { resolvePublicProjectsListPreloads } from "./lib/public-projects-preload
 import { buildPublicReadableProjects, buildPublicVisibleProjects } from "./lib/public-projects.js";
 import { resolvePublicRedirect } from "./lib/public-redirects.js";
 import { PUBLIC_STATIC_PATHS as SITEMAP_STATIC_PUBLIC_PATHS } from "./lib/public-visibility-runtime.js";
-import { PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME, PUBLIC_BOOTSTRAP_MODE_FULL } from "./lib/public-site-runtime.js";
+import {
+  PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
+  PUBLIC_BOOTSTRAP_MODE_FULL,
+} from "./lib/public-site-runtime.js";
 import {
   buildPublicSearchSuggestions,
   normalizeSearchQuery,
@@ -273,10 +272,7 @@ import { resolveThemeColor } from "./lib/theme-color.js";
 import { buildRssXml } from "./lib/rss-xml.js";
 import { registerRuntimeMiddleware } from "./lib/register-runtime-middleware.js";
 import { buildSchemaOrgPayload, serializeSchemaOrgEntry } from "./lib/schema-org.js";
-import {
-  decryptStringWithKeyring,
-  encryptStringWithKeyring,
-} from "./lib/security-crypto.js";
+import { decryptStringWithKeyring, encryptStringWithKeyring } from "./lib/security-crypto.js";
 import {
   SecurityEventSeverity,
   SecurityEventStatus,
@@ -397,7 +393,10 @@ import {
 } from "./lib/webhooks/settings.js";
 import { buildOperationalAlertsWebhookNotification } from "./lib/webhooks/templates/operational-alerts.js";
 import { diffOperationalAlertSets } from "./lib/webhooks/transitions.js";
-import { buildWebhookTargetLabel, validateWebhookUrlForProvider } from "./lib/webhooks/validation.js";
+import {
+  buildWebhookTargetLabel,
+  validateWebhookUrlForProvider,
+} from "./lib/webhooks/validation.js";
 import { deriveAniListMediaOrganization } from "../src/lib/anilist-media.js";
 import {
   buildInstitutionalOgImageAlt,
@@ -561,7 +560,16 @@ const AUDIT_META_ALLOWLIST = {
     "linkTypeIconsDropped",
     "siteLinksDropped",
   ],
-  "editorial_webhook.queued": ["deliveryId", "scope", "channel", "eventKey", "eventLabel", "postId", "projectId", "attempt"],
+  "editorial_webhook.queued": [
+    "deliveryId",
+    "scope",
+    "channel",
+    "eventKey",
+    "eventLabel",
+    "postId",
+    "projectId",
+    "attempt",
+  ],
   "editorial_webhook.sent": [
     "deliveryId",
     "scope",
@@ -832,13 +840,10 @@ const publicReadCache = createResponseCache({
   defaultTtlMs: PUBLIC_READ_CACHE_TTL_MS,
   maxEntries: PUBLIC_READ_CACHE_MAX_ENTRIES,
 });
-const {
-  invalidatePublicReadCacheTags,
-  readPublicCachedJson,
-  writePublicCachedJson,
-} = createPublicReadCacheRuntime({
-  publicReadCache,
-});
+const { invalidatePublicReadCacheTags, readPublicCachedJson, writePublicCachedJson } =
+  createPublicReadCacheRuntime({
+    publicReadCache,
+  });
 const ogRenderCache = createOgRenderCache({
   ttlMs: 5 * 60 * 1000,
   maxEntries: 256,
@@ -1299,21 +1304,18 @@ const getActiveProjectTypes = createGetActiveProjectTypes({
   loadProjects,
   normalizeProjects,
 });
-const {
-  createWebhookAuditReqFromContext,
-  enqueueWebhookDelivery,
-  resolveWebhookAuditActions,
-} = createWebhookDeliveryRuntime({
-  buildWebhookTargetLabel,
-  clampWebhookInteger,
-  createRequestId: () => crypto.randomUUID(),
-  createWebhookAuditReqFromContextBase,
-  resolveWebhookAuditActionsBase,
-  upsertWebhookDelivery,
-  validateWebhookUrlForProvider,
-  webhookDeliveryScope: WEBHOOK_DELIVERY_SCOPE,
-  webhookDeliveryStatus: WEBHOOK_DELIVERY_STATUS,
-});
+const { createWebhookAuditReqFromContext, enqueueWebhookDelivery, resolveWebhookAuditActions } =
+  createWebhookDeliveryRuntime({
+    buildWebhookTargetLabel,
+    clampWebhookInteger,
+    createRequestId: () => crypto.randomUUID(),
+    createWebhookAuditReqFromContextBase,
+    resolveWebhookAuditActionsBase,
+    upsertWebhookDelivery,
+    validateWebhookUrlForProvider,
+    webhookDeliveryScope: WEBHOOK_DELIVERY_SCOPE,
+    webhookDeliveryStatus: WEBHOOK_DELIVERY_STATUS,
+  });
 
 const userRuntime = createUserRuntimeBundle(
   buildUserRuntimeDependencies({
@@ -1667,10 +1669,7 @@ const adminExportRuntime = createAdminExportRuntime(
   }),
 );
 
-const {
-  enqueueAdminExportJob,
-  toAdminExportJobApiResponse,
-} = adminExportRuntime;
+const { enqueueAdminExportJob, toAdminExportJobApiResponse } = adminExportRuntime;
 
 recoverEpubImportJobsAfterRestart();
 recoverProjectImageJobsAfterRestart();

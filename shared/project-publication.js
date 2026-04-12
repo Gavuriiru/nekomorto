@@ -1,7 +1,4 @@
-import {
-  hasProjectEpisodeLexicalContent,
-  hasProjectEpisodePages,
-} from "./project-reader.js";
+import { hasProjectEpisodeLexicalContent, hasProjectEpisodePages } from "./project-reader.js";
 
 const normalizeText = (value) => String(value || "").trim();
 
@@ -97,7 +94,5 @@ export const resolveProjectEpisodePublicationState = (projectType, episode) => {
 
 export const isProjectEpisodePublic = (projectType, episode) => {
   const publicationState = resolveProjectEpisodePublicationState(projectType, episode);
-  return (
-    publicationState.publicationStatus === "published" && publicationState.isPublicationReady
-  );
+  return publicationState.publicationStatus === "published" && publicationState.isPublicationReady;
 };

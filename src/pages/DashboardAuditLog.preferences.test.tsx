@@ -98,7 +98,9 @@ const LocationProbe = () => {
 };
 
 const getLocationParams = () =>
-  new URLSearchParams(String(screen.getByTestId("location-search").textContent || "").replace(/^\?/, ""));
+  new URLSearchParams(
+    String(screen.getByTestId("location-search").textContent || "").replace(/^\?/, ""),
+  );
 
 const NavigateCleanQuery = () => {
   const navigate = useNavigate();

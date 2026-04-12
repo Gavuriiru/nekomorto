@@ -1,10 +1,6 @@
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
-import type {
-  LegendPayload,
-  TooltipContentProps,
-  TooltipPayloadEntry,
-} from "recharts";
+import type { LegendPayload, TooltipContentProps, TooltipPayloadEntry } from "recharts";
 
 import { cn } from "@/lib/utils";
 
@@ -56,9 +52,10 @@ const ChartContainer = React.forwardRef<
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const pointerFocusRef = React.useRef(false);
   const blurFrameRef = React.useRef<number | null>(null);
-  const [containerSize, setContainerSize] = React.useState<{ width: number; height: number } | null>(
-    null,
-  );
+  const [containerSize, setContainerSize] = React.useState<{
+    width: number;
+    height: number;
+  } | null>(null);
 
   const handleContainerRef = React.useCallback(
     (node: HTMLDivElement | null) => {
@@ -128,9 +125,7 @@ const ChartContainer = React.forwardRef<
     };
   }, []);
 
-  const handlePointerDownCapture = React.useCallback<
-    React.PointerEventHandler<HTMLDivElement>
-  >(
+  const handlePointerDownCapture = React.useCallback<React.PointerEventHandler<HTMLDivElement>>(
     (event) => {
       pointerFocusRef.current = true;
       onPointerDownCapture?.(event);
@@ -196,10 +191,7 @@ const ChartContainer = React.forwardRef<
       >
         <ChartStyle id={chartId} config={config} />
         {containerSize ? (
-          <RechartsPrimitive.ResponsiveContainer
-            minWidth={0}
-            initialDimension={containerSize}
-          >
+          <RechartsPrimitive.ResponsiveContainer minWidth={0} initialDimension={containerSize}>
             {children}
           </RechartsPrimitive.ResponsiveContainer>
         ) : (
@@ -252,10 +244,7 @@ type ChartTooltipContentProps = Partial<TooltipContentProps<number, string>> &
     labelKey?: string;
   };
 
-const ChartTooltipContent = React.forwardRef<
-  HTMLDivElement,
-  ChartTooltipContentProps
->(
+const ChartTooltipContent = React.forwardRef<HTMLDivElement, ChartTooltipContentProps>(
   (
     {
       active,
@@ -275,16 +264,15 @@ const ChartTooltipContent = React.forwardRef<
     ref,
   ) => {
     const { config } = useChart();
-    const formatterFn =
-      formatter as
-        | ((
-            value: unknown,
-            name: unknown,
-            item: TooltipPayloadEntry,
-            index: number,
-            payload: unknown,
-          ) => React.ReactNode | [React.ReactNode, React.ReactNode])
-        | undefined;
+    const formatterFn = formatter as
+      | ((
+          value: unknown,
+          name: unknown,
+          item: TooltipPayloadEntry,
+          index: number,
+          payload: unknown,
+        ) => React.ReactNode | [React.ReactNode, React.ReactNode])
+      | undefined;
 
     const tooltipLabel = React.useMemo(() => {
       if (hideLabel || !payload?.length) {

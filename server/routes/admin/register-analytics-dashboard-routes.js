@@ -65,9 +65,13 @@ export const registerAnalyticsDashboardRoutes = ({
     const metricRaw = String(req.query.metric || "")
       .trim()
       .toLowerCase();
-    const metric = ["views", "unique_views", "comments", "chapter_views", "download_clicks"].includes(
-      metricRaw,
-    )
+    const metric = [
+      "views",
+      "unique_views",
+      "comments",
+      "chapter_views",
+      "download_clicks",
+    ].includes(metricRaw)
       ? metricRaw
       : "views";
     const range = buildAnalyticsRange(rangeDays);
@@ -334,9 +338,13 @@ export const registerAnalyticsDashboardRoutes = ({
       const webhookFailures = loadWebhookDeliveries()
         .filter(
           (entry) =>
-            String(entry?.status || "").trim().toLowerCase() === WEBHOOK_DELIVERY_STATUS.FAILED,
+            String(entry?.status || "")
+              .trim()
+              .toLowerCase() === WEBHOOK_DELIVERY_STATUS.FAILED,
         )
-        .sort((a, b) => new Date(b?.updatedAt || 0).getTime() - new Date(a?.updatedAt || 0).getTime())
+        .sort(
+          (a, b) => new Date(b?.updatedAt || 0).getTime() - new Date(a?.updatedAt || 0).getTime(),
+        )
         .slice(0, 10);
       webhookFailures.forEach((entry) => {
         items.push({

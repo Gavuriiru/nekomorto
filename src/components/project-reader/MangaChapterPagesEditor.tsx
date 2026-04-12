@@ -1,12 +1,6 @@
 ﻿import { unzipSync } from "fflate";
 import { LayoutGroup, useReducedMotion } from "framer-motion";
-import {
-  FileArchive,
-  FolderOpen,
-  ImagePlus,
-  Loader2,
-  Plus,
-} from "lucide-react";
+import { FileArchive, FolderOpen, ImagePlus, Loader2, Plus } from "lucide-react";
 import {
   useMemo,
   useRef,
@@ -389,7 +383,9 @@ const MangaChapterPagesEditor = ({
     setChapterState(
       {
         coverImageUrl:
-          chapter.coverImageUrl === pages[index]?.imageUrl ? nextPages[0]?.imageUrl || "" : undefined,
+          chapter.coverImageUrl === pages[index]?.imageUrl
+            ? nextPages[0]?.imageUrl || ""
+            : undefined,
       },
       normalizedNextPages,
     );
@@ -470,10 +466,7 @@ const MangaChapterPagesEditor = ({
         className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
         data-testid="manga-pages-actions"
       >
-        <div
-          className="flex flex-wrap items-center gap-2"
-          data-testid="manga-pages-upload-actions"
-        >
+        <div className="flex flex-wrap items-center gap-2" data-testid="manga-pages-upload-actions">
           <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
             {pages.length} página(s)
           </Badge>
@@ -661,9 +654,7 @@ const MangaChapterPagesEditor = ({
                       ? (event) => unsetSpreadPair(event, page.spreadPairId || "")
                       : undefined
                   }
-                  onSetCover={
-                    isCover ? undefined : (event) => setPageAsCover(event, page.imageUrl)
-                  }
+                  onSetCover={isCover ? undefined : (event) => setPageAsCover(event, page.imageUrl)}
                   onRemove={(event) => removePage(event, index)}
                 />
               );
@@ -762,5 +753,3 @@ const MangaChapterPagesEditor = ({
 };
 
 export default MangaChapterPagesEditor;
-
-

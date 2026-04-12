@@ -145,7 +145,9 @@ export const collectEpisodeUpdates = (prevProject, nextProject, now) => {
     if (!wasPublic) {
       updates.push({
         kind: "Lan\u00e7amento",
-        reason: isExtra ? `${safeTitle} dispon\u00edvel` : `${unitLabel} ${episode.number} dispon\u00edvel`,
+        reason: isExtra
+          ? `${safeTitle} dispon\u00edvel`
+          : `${unitLabel} ${episode.number} dispon\u00edvel`,
         episodeNumber: Number(episode.number),
         volume: Number.isFinite(Number(episode?.volume)) ? Number(episode.volume) : undefined,
         unit: unitLabel,

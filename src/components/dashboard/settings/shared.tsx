@@ -22,10 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
-import {
-  DEFAULT_SITE_SHARE_IMAGE_ALT,
-  resolveAssetAltText,
-} from "@/lib/image-alt";
+import { DEFAULT_SITE_SHARE_IMAGE_ALT, resolveAssetAltText } from "@/lib/image-alt";
 import { type DashboardSettingsLinkTypeItem } from "@/lib/dashboard-settings-cache";
 import type { SiteSettings } from "@/types/site-settings";
 import {
@@ -75,14 +72,10 @@ export const socialIconMap: Record<string, typeof Link2> = {
   discord: MessageCircle,
 };
 
-export const dashboardSettingsCardClassName =
-  dashboardPageLayoutTokens.surfaceSolid;
-export const dashboardSettingsInsetSurfaceClassName =
-  dashboardPageLayoutTokens.groupedFieldSurface;
-export const dashboardSettingsControlSurfaceClassName =
-  dashboardPageLayoutTokens.controlSurface;
-export const dashboardSettingsMetaTextClassName =
-  dashboardPageLayoutTokens.cardMetaText;
+export const dashboardSettingsCardClassName = dashboardPageLayoutTokens.surfaceSolid;
+export const dashboardSettingsInsetSurfaceClassName = dashboardPageLayoutTokens.groupedFieldSurface;
+export const dashboardSettingsControlSurfaceClassName = dashboardPageLayoutTokens.controlSurface;
+export const dashboardSettingsMetaTextClassName = dashboardPageLayoutTokens.cardMetaText;
 
 export const responsiveSvgCardRowClass = `grid gap-3 ${dashboardSettingsInsetSurfaceClassName} p-3 shadow-sm md:items-center md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none`;
 export const responsiveSvgCardPickerClusterClass =
@@ -126,10 +119,7 @@ export const normalizeLinkTypeId = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
-export const addIconCacheBust = (
-  iconUrl: string | null | undefined,
-  cacheVersion: number,
-) => {
+export const addIconCacheBust = (iconUrl: string | null | undefined, cacheVersion: number) => {
   const trimmed = String(iconUrl || "").trim();
   if (!trimmed) {
     return "";
@@ -204,13 +194,9 @@ export const dashboardSettingsTabSet = new Set<SettingsTabKey>([
   "traducoes",
 ]);
 
-export const isDashboardSettingsTab = (
-  value: string,
-): value is SettingsTabKey =>
+export const isDashboardSettingsTab = (value: string): value is SettingsTabKey =>
   dashboardSettingsTabSet.has(value as SettingsTabKey);
-export const parseDashboardSettingsTabParam = (
-  value: string | null,
-): SettingsTabKey => {
+export const parseDashboardSettingsTabParam = (value: string | null): SettingsTabKey => {
   const normalized = String(value || "").trim();
   if (normalized === "navbar" || normalized === "footer") {
     return "layout";
@@ -276,8 +262,7 @@ export const logoEditorFields: LogoEditorField[] = [
   {
     target: "branding.assets.wordmarkUrl",
     label: "Logotipo (wordmark)",
-    description:
-      "Tipografia principal da marca usada como base para header e footer.",
+    description: "Tipografia principal da marca usada como base para header e footer.",
     frameClassName: "h-16",
     imageClassName: "h-10 w-full object-contain",
   },
@@ -291,8 +276,7 @@ export const logoEditorFields: LogoEditorField[] = [
   {
     target: "site.defaultShareImage",
     label: "Imagem de compartilhamento",
-    description:
-      "Imagem padrão de cards sociais quando a página não define uma própria.",
+    description: "Imagem padrão de cards sociais quando a página não define uma própria.",
     frameClassName: "h-20",
     imageClassName: "h-full w-full rounded bg-background object-cover",
   },
@@ -338,10 +322,7 @@ export const seoLogoEditorFields = logoEditorFields.filter((field) =>
   seoLogoFieldTargets.has(field.target),
 );
 
-export const readLogoField = (
-  nextSettings: SiteSettings,
-  target: LogoLibraryTarget,
-) => {
+export const readLogoField = (nextSettings: SiteSettings, target: LogoLibraryTarget) => {
   if (target === "branding.assets.symbolUrl") {
     return nextSettings.branding.assets.symbolUrl || "";
   }
@@ -446,9 +427,7 @@ export const writeLogoField = (
   return nextSettings;
 };
 
-export const normalizeDefaultShareImageSettings = (
-  value: SiteSettings,
-): SiteSettings => {
+export const normalizeDefaultShareImageSettings = (value: SiteSettings): SiteSettings => {
   const defaultShareImage = String(value.site.defaultShareImage || "").trim();
   return {
     ...value,
@@ -456,10 +435,7 @@ export const normalizeDefaultShareImageSettings = (
       ...value.site,
       defaultShareImage,
       defaultShareImageAlt: defaultShareImage
-        ? resolveAssetAltText(
-            value.site.defaultShareImageAlt,
-            DEFAULT_SITE_SHARE_IMAGE_ALT,
-          )
+        ? resolveAssetAltText(value.site.defaultShareImageAlt, DEFAULT_SITE_SHARE_IMAGE_ALT)
         : "",
     },
   };
@@ -469,13 +445,9 @@ export const sanitizeReaderPresetForDashboardSave = (
   preset: SiteSettings["reader"]["projectTypes"][ReaderProjectTypeKey],
   projectType: ReaderProjectTypeKey,
 ) => ({
-  ...mergeProjectReaderConfig(
-    getProjectReaderPresetByType(projectType),
-    preset,
-    {
-      projectType,
-    },
-  ),
+  ...mergeProjectReaderConfig(getProjectReaderPresetByType(projectType), preset, {
+    projectType,
+  }),
   previewLimit: null,
   purchaseUrl: "",
   purchasePrice: "",
@@ -485,8 +457,5 @@ export const sanitizeReaderProjectTypesForDashboardSave = (
   projectTypes: SiteSettings["reader"]["projectTypes"],
 ): SiteSettings["reader"]["projectTypes"] => ({
   manga: sanitizeReaderPresetForDashboardSave(projectTypes.manga, "manga"),
-  webtoon: sanitizeReaderPresetForDashboardSave(
-    projectTypes.webtoon,
-    "webtoon",
-  ),
+  webtoon: sanitizeReaderPresetForDashboardSave(projectTypes.webtoon, "webtoon"),
 });

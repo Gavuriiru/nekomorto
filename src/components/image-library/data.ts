@@ -48,8 +48,7 @@ type ProjectImageResponseItem = {
   url?: unknown;
 };
 
-const normalizeUnknownString = (value: unknown) =>
-  typeof value === "string" ? value : undefined;
+const normalizeUnknownString = (value: unknown) => (typeof value === "string" ? value : undefined);
 
 export const buildUploadsListPath = (
   folder: string,
@@ -131,11 +130,9 @@ export const mapUploadsListFilesToLibraryItems = (files: unknown): LibraryImageI
         area: typeof candidate.area === "string" ? candidate.area : "",
         altText: typeof candidate.altText === "string" ? candidate.altText : "",
         slot: typeof candidate.slot === "string" ? candidate.slot : undefined,
-        slotManaged:
-          typeof candidate.slotManaged === "boolean" ? candidate.slotManaged : undefined,
+        slotManaged: typeof candidate.slotManaged === "boolean" ? candidate.slotManaged : undefined,
         projectId: typeof candidate.projectId === "string" ? candidate.projectId : "",
-        projectTitle:
-          typeof candidate.projectTitle === "string" ? candidate.projectTitle : "",
+        projectTitle: typeof candidate.projectTitle === "string" ? candidate.projectTitle : "",
       },
     ];
   });

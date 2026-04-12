@@ -714,9 +714,7 @@ const DashboardUploads = () => {
           description="Consumo real por área com base nos arquivos presentes em disco."
           actions={
             <div className="flex items-center gap-2">
-              <Badge variant="static">
-                Atualizado: {summaryTimestampLabel}
-              </Badge>
+              <Badge variant="static">Atualizado: {summaryTimestampLabel}</Badge>
               <DashboardActionButton
                 size="sm"
                 onClick={() =>
@@ -867,9 +865,7 @@ const DashboardUploads = () => {
                     _quarantine.
                   </p>
                 </div>
-                <Badge variant="static">
-                  Análise: {cleanupTimestampLabel}
-                </Badge>
+                <Badge variant="static">Análise: {cleanupTimestampLabel}</Badge>
               </div>
 
               {cleanupError ? (

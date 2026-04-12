@@ -124,7 +124,9 @@ export const buildProjectVolumeCoversFromEntries = (
 
 export const buildProjectFormFromRecord = (project: ProjectRecord): ProjectForm => {
   const normalizedEpisodes = Array.isArray(project.episodeDownloads)
-    ? project.episodeDownloads.map((episode) => normalizeProjectRecordEpisode(episode, project.type))
+    ? project.episodeDownloads.map((episode) =>
+        normalizeProjectRecordEpisode(episode, project.type),
+      )
     : [];
   const mergedSynopsis = project.synopsis || project.description || "";
   const normalizedVolumeEntries = normalizeProjectVolumeEntries(
@@ -182,9 +184,7 @@ export const buildProjectFormFromRecord = (project: ProjectRecord): ProjectForm 
   };
 };
 
-export const normalizeProjectEpisodesForSave = (
-  formState: ProjectForm,
-): EditorProjectEpisode[] =>
+export const normalizeProjectEpisodesForSave = (formState: ProjectForm): EditorProjectEpisode[] =>
   formState.episodeDownloads.map((episode) => {
     const parsedNumber = Number(episode.number);
     const parsedVolume = Number(episode.volume);
@@ -197,14 +197,16 @@ export const normalizeProjectEpisodesForSave = (
       entryKind,
       entrySubtype:
         String(episode.entrySubtype || "").trim() || (entryKind === "extra" ? "extra" : "chapter"),
-      readingOrder: Number.isFinite(parsedReadingOrder) ? Math.round(parsedReadingOrder) : undefined,
+      readingOrder: Number.isFinite(parsedReadingOrder)
+        ? Math.round(parsedReadingOrder)
+        : undefined,
       displayLabel:
-        entryKind === "extra"
-          ? String(episode.displayLabel || "").trim() || undefined
-          : undefined,
+        entryKind === "extra" ? String(episode.displayLabel || "").trim() || undefined : undefined,
       contentFormat: "lexical" as const,
       publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
-      sources: Array.isArray(episode.sources) ? episode.sources.map((source) => ({ ...source })) : [],
+      sources: Array.isArray(episode.sources)
+        ? episode.sources.map((source) => ({ ...source }))
+        : [],
     };
   });
 
@@ -617,8 +619,9 @@ export const buildProjectSavePayload = ({
   }
 
   const staffWithPending = appendPendingStaffMembers(formState.staff, staffMemberInput);
-  const normalizedVolumeCoversForSave =
-    buildProjectVolumeCoversFromEntries(normalizedVolumeEntriesForSave);
+  const normalizedVolumeCoversForSave = buildProjectVolumeCoversFromEntries(
+    normalizedVolumeEntriesForSave,
+  );
   const normalizedAniListInput = String(anilistIdInput || "").trim();
   const parsedAniListId = normalizedAniListInput ? Number(normalizedAniListInput) : NaN;
   const resolvedAniListId =
@@ -654,7 +657,9 @@ export const buildProjectSavePayload = ({
     tags: formState.tags.filter(Boolean),
     genres: formState.genres.filter(Boolean),
     cover: formState.cover?.trim() || "",
-    coverAlt: formState.cover?.trim() ? resolveProjectAssetAltText("cover", formState.coverAlt) : "",
+    coverAlt: formState.cover?.trim()
+      ? resolveProjectAssetAltText("cover", formState.coverAlt)
+      : "",
     banner: formState.banner?.trim() || "",
     bannerAlt: formState.banner?.trim()
       ? resolveProjectAssetAltText("banner", formState.bannerAlt)
@@ -681,7 +686,9 @@ export const buildProjectSavePayload = ({
         if (!key) {
           return true;
         }
-        return arr.findIndex((rel) => (rel.projectId || rel.anilistId || rel.title) === key) === index;
+        return (
+          arr.findIndex((rel) => (rel.projectId || rel.anilistId || rel.title) === key) === index
+        );
       }),
     staff: staffWithPending.filter((item) => item.role || item.members.length > 0),
     animeStaff: formState.animeStaff.filter((item) => item.role || item.members.length > 0),

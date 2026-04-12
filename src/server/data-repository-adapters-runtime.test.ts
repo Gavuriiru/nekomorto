@@ -28,9 +28,7 @@ const createRepository = () => ({
 
 describe("data-repository-adapters-runtime", () => {
   it("fails early when required dependencies are missing", () => {
-    expect(() => createDataRepositoryAdaptersRuntime()).toThrow(
-      /missing required dependencies/i,
-    );
+    expect(() => createDataRepositoryAdaptersRuntime()).toThrow(/missing required dependencies/i);
   });
 
   it("delegates all supported repository methods", async () => {

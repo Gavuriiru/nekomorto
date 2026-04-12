@@ -79,6 +79,28 @@ export const clearProjectsPageCache = () => {
   projectsPageCache = null;
 };
 
+const normalizeMemberDirectory = (users: unknown): string[] => {
+  if (!Array.isArray(users)) {
+    return [];
+  }
+
+  const activeMemberNames = users.flatMap((user): string[] => {
+    if (!user || typeof user !== "object") {
+      return [];
+    }
+    const record = user as { name?: unknown; status?: unknown };
+    if (record.status !== "active") {
+      return [];
+    }
+    const name = String(record.name || "").trim();
+    return name ? [name] : [];
+  });
+
+  return Array.from(new Set(activeMemberNames)).sort((left, right) =>
+    left.localeCompare(right, "pt-BR"),
+  );
+};
+
 const parseTypeParam = (value: string | null) => {
   const normalized = String(value || "").trim();
   if (!normalized) {
@@ -160,6 +182,7 @@ export function useDashboardProjectsEditorResource(
     parseDashboardPageParam(searchParams.get("page")),
   );
   const [selectedType, setSelectedType] = useState(() => parseTypeParam(searchParams.get("type")));
+  const searchParamsSnapshot = searchParams.toString();
   const hasLoadedOnceRef = useRef(resourceState.hasLoadedOnce);
   const isApplyingSearchParamsRef = useRef(false);
   const queryStateRef = useRef({
@@ -233,9 +256,10 @@ export function useDashboardProjectsEditorResource(
   }, [currentPage, selectedType, sortMode]);
 
   useEffect(() => {
-    const nextSort = parseDashboardEnumParam(searchParams.get("sort"), SORT_MODES, "alpha");
-    const nextPage = parseDashboardPageParam(searchParams.get("page"));
-    const nextType = parseTypeParam(searchParams.get("type"));
+    const nextSearchParams = new URLSearchParams(searchParamsSnapshot);
+    const nextSort = parseDashboardEnumParam(nextSearchParams.get("sort"), SORT_MODES, "alpha");
+    const nextPage = parseDashboardPageParam(nextSearchParams.get("page"));
+    const nextType = parseTypeParam(nextSearchParams.get("type"));
     const {
       sortMode: currentSortMode,
       currentPage: currentCurrentPage,
@@ -252,24 +276,25 @@ export function useDashboardProjectsEditorResource(
     setSortMode((prev) => (prev === nextSort ? prev : nextSort));
     setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
     setSelectedType((prev) => (prev === nextType ? prev : nextType));
-  }, [searchParams]);
+  }, [searchParamsSnapshot]);
 
   useEffect(() => {
-    const nextParams = buildDashboardSearchParams(searchParams, [
+    const currentSearchParams = new URLSearchParams(searchParamsSnapshot);
+    const nextParams = buildDashboardSearchParams(currentSearchParams, [
       { key: "sort", value: sortMode, fallbackValue: "alpha" },
       { key: "page", value: currentPage, fallbackValue: 1 },
       { key: "type", value: selectedType, fallbackValue: "Todos" },
     ]);
     if (isApplyingSearchParamsRef.current) {
-      if (areDashboardSearchParamsEqual(nextParams, searchParams)) {
+      if (areDashboardSearchParamsEqual(nextParams, currentSearchParams)) {
         isApplyingSearchParamsRef.current = false;
       }
       return;
     }
-    if (!areDashboardSearchParamsEqual(nextParams, searchParams)) {
+    if (!areDashboardSearchParamsEqual(nextParams, currentSearchParams)) {
       setSearchParams(nextParams, { replace: true });
     }
-  }, [currentPage, searchParams, selectedType, setSearchParams, sortMode]);
+  }, [currentPage, searchParamsSnapshot, selectedType, setSearchParams, sortMode]);
 
   const refreshProjects = useCallback(() => {
     setLoadVersion((previous) => previous + 1);
@@ -334,23 +359,16 @@ export function useDashboardProjectsEditorResource(
           return;
         }
 
-        const nextProjects = Array.isArray(projectsData?.projects) ? projectsData.projects : [];
+        const nextProjects: ProjectRecord[] = Array.isArray(projectsData?.projects)
+          ? (projectsData.projects as ProjectRecord[])
+          : [];
         const remoteTypes = Array.isArray(projectTypesData?.types)
           ? projectTypesData.types.map((item: unknown) => String(item || "").trim()).filter(Boolean)
           : [];
         const nextProjectTypeOptions = Array.from(
           new Set([...remoteTypes, ...defaultFormatOptions]),
         );
-        const nextMemberDirectory = Array.isArray(usersData?.users)
-          ? Array.from(
-              new Set(
-                usersData.users
-                  .filter((user: { name?: string; status?: string }) => user.status === "active")
-                  .map((user: { name?: string }) => user.name)
-                  .filter((name: string | undefined): name is string => Boolean(name)),
-              ),
-            ).sort((left, right) => left.localeCompare(right, "pt-BR"))
-          : [];
+        const nextMemberDirectory = normalizeMemberDirectory(usersData?.users);
         const nextTagTranslations =
           translationsData && typeof translationsData.tags === "object" && translationsData.tags
             ? (translationsData.tags as Record<string, string>)

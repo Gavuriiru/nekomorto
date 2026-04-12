@@ -508,7 +508,9 @@ describe("DashboardWebhooks layout", () => {
     const saveTypesButton = screen.getByRole("button", { name: /Salvar tipos e men/i });
     const savePostsButton = screen.getByRole("button", { name: /Salvar posts/i });
     const saveProjectsButton = screen.getByRole("button", { name: /Salvar projetos/i });
-    const saveOperationalButton = screen.getByRole("button", { name: /Salvar alertas operacionais/i });
+    const saveOperationalButton = screen.getByRole("button", {
+      name: /Salvar alertas operacionais/i,
+    });
     const saveSecurityButton = screen.getByRole("button", { name: /Salvar seguran/i });
 
     expectStableDashboardActionButton(saveAllButton, "h-10");
@@ -715,9 +717,13 @@ describe("DashboardWebhooks layout", () => {
     });
 
     const requestPayload =
-      ((putCall?.[2] as {
-        json?: { settings?: typeof baseSettings; ifRevision?: string };
-      } | undefined)?.json || {});
+      (
+        putCall?.[2] as
+          | {
+              json?: { settings?: typeof baseSettings; ifRevision?: string };
+            }
+          | undefined
+      )?.json || {};
     const payload = requestPayload.settings;
 
     expect(payload?.editorial?.channels?.posts?.webhookUrl).toBe(
@@ -790,10 +796,9 @@ describe("DashboardWebhooks layout", () => {
       target: { value: "rascunho local" },
     });
     fireEvent.click(
-      within(screen.getByTestId("dashboard-webhooks-event-posts-post_create")).getByRole(
-        "button",
-        { name: /Enviar teste/i },
-      ),
+      within(screen.getByTestId("dashboard-webhooks-event-posts-post_create")).getByRole("button", {
+        name: /Enviar teste/i,
+      }),
     );
 
     await waitFor(() => {
@@ -811,7 +816,7 @@ describe("DashboardWebhooks layout", () => {
       return path === "/api/integrations/webhooks/editorial/test" && method === "POST";
     });
     const requestPayload =
-      ((testCall?.[2] as { json?: { settings?: typeof baseSettings } } | undefined)?.json || {});
+      (testCall?.[2] as { json?: { settings?: typeof baseSettings } } | undefined)?.json || {};
 
     expect(requestPayload.settings?.editorial.channels.posts.webhookUrl).toBe(
       "https://discord.com/api/webhooks/posts/draft-token",
@@ -862,9 +867,9 @@ describe("DashboardWebhooks layout", () => {
       );
     });
 
-    expect((screen.getAllByPlaceholderText("ID do cargo do Discord")[0] as HTMLInputElement).value).toBe(
-      "123456",
-    );
+    expect(
+      (screen.getAllByPlaceholderText("ID do cargo do Discord")[0] as HTMLInputElement).value,
+    ).toBe("123456");
   });
 
   it("envia os testes de alertas operacionais e segurança com o rascunho atual", async () => {
@@ -894,9 +899,7 @@ describe("DashboardWebhooks layout", () => {
       target: { value: "https://discord.com/api/webhooks/security/draft-token" },
     });
 
-    fireEvent.click(
-      within(operationalSection).getByRole("button", { name: /Enviar teste/i }),
-    );
+    fireEvent.click(within(operationalSection).getByRole("button", { name: /Enviar teste/i }));
     fireEvent.click(within(securitySection).getByRole("button", { name: /Enviar teste/i }));
 
     await waitFor(() => {
@@ -910,12 +913,12 @@ describe("DashboardWebhooks layout", () => {
       expect(operationalCall).toBeDefined();
       expect(securityCall).toBeDefined();
       expect(
-        ((operationalCall?.[2] as { json?: { settings?: typeof baseSettings } } | undefined)?.json
-          ?.settings?.operational?.webhookUrl || ""),
+        (operationalCall?.[2] as { json?: { settings?: typeof baseSettings } } | undefined)?.json
+          ?.settings?.operational?.webhookUrl || "",
       ).toBe("https://discord.com/api/webhooks/ops/draft-token");
       expect(
-        ((securityCall?.[2] as { json?: { settings?: typeof baseSettings } } | undefined)?.json
-          ?.settings?.security?.webhookUrl || ""),
+        (securityCall?.[2] as { json?: { settings?: typeof baseSettings } } | undefined)?.json
+          ?.settings?.security?.webhookUrl || "",
       ).toBe("https://discord.com/api/webhooks/security/draft-token");
     });
   });

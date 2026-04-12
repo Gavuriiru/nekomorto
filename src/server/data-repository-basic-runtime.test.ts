@@ -34,7 +34,10 @@ describe("data-repository-basic-runtime", () => {
       getNormalizeUploadsDeep: () => normalizeUploadsDeepImpl,
       getNormalizeUsers: () => normalizeUsersImpl,
       ownerIds: ["owner-1"],
-      sanitizeIconSource: (value) => String(value || "").trim().toLowerCase(),
+      sanitizeIconSource: (value) =>
+        String(value || "")
+          .trim()
+          .toLowerCase(),
     });
 
     normalizeUsersImpl = vi.fn((users) =>

@@ -19,7 +19,8 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
   }) as Response;
 
 const EMPTY_PROJECT_IMAGE_IDS: string[] = [];
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const expectDashboardActionButtonTokens = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
   const tokens = classTokens(element);

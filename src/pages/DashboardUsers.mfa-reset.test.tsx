@@ -167,7 +167,9 @@ describe("DashboardUsers admin MFA reset", () => {
       );
     });
 
-    expect(screen.queryByText(/cancelar o login atual e entrar novamente/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/cancelar o login atual e entrar novamente/i),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: /Editar usu.*rio/i })).toBeInTheDocument();
   });
 

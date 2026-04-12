@@ -162,7 +162,13 @@ describe("Combobox", () => {
     );
     expect(classTokens(popover)).not.toContain("min-w-[min(16rem,calc(100vw-2rem))]");
     expect(classTokens(sparklesOption)).toEqual(
-      expect.arrayContaining(["py-1.5", "pl-8", "pr-2", "text-xs", "data-[state=checked]:bg-accent"]),
+      expect.arrayContaining([
+        "py-1.5",
+        "pl-8",
+        "pr-2",
+        "text-xs",
+        "data-[state=checked]:bg-accent",
+      ]),
     );
   });
 

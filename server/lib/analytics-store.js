@@ -296,7 +296,8 @@ export const createAnalyticsStore = ({
         incrementCounter(bucket.acquisition.referrerHost, event.referrerHost || "(direct)");
         if (event.utm?.source) incrementCounter(bucket.acquisition.utmSource, event.utm.source);
         if (event.utm?.medium) incrementCounter(bucket.acquisition.utmMedium, event.utm.medium);
-        if (event.utm?.campaign) incrementCounter(bucket.acquisition.utmCampaign, event.utm.campaign);
+        if (event.utm?.campaign)
+          incrementCounter(bucket.acquisition.utmCampaign, event.utm.campaign);
       }
       if (event.eventType === "chapter_view") {
         bucket.totals.chapterViews += 1;
@@ -341,7 +342,12 @@ export const createAnalyticsStore = ({
       run: async () => compactAnalyticsData(),
     });
 
-  const shouldRegisterAnalyticsView = (visitorHash, resourceType, resourceId, nowTs = Date.now()) => {
+  const shouldRegisterAnalyticsView = (
+    visitorHash,
+    resourceType,
+    resourceId,
+    nowTs = Date.now(),
+  ) => {
     const key = `${visitorHash}|${resourceType}|${resourceId}`;
     const previous = analyticsViewCooldown.get(key);
     if (Number.isFinite(previous) && nowTs - previous < analyticsViewCooldownMs) {
@@ -457,4 +463,3 @@ export const createAnalyticsStore = ({
     parseAnalyticsTs,
   };
 };
-

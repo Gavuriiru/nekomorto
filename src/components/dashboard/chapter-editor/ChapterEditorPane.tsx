@@ -10,11 +10,7 @@ import type {
 import { useChapterEditorPersistence } from "@/components/dashboard/chapter-editor/useChapterEditorPersistence";
 import { useChapterEditorStructureOrchestration } from "@/components/dashboard/chapter-editor/useChapterEditorStructureOrchestration";
 import { useChapterEditorImageLibrary } from "@/components/dashboard/chapter-editor/useChapterEditorImageLibrary";
-import {
-  Combobox,
-  Input,
-  Textarea,
-} from "@/components/dashboard/dashboard-form-controls";
+import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
 import DashboardDedicatedEditorHeader from "@/components/dashboard/DashboardDedicatedEditorHeader";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -1182,11 +1178,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 </div>{" "}
                 <div className="flex flex-wrap items-center gap-2">
                   {" "}
-                  <DashboardActionButton
-                    type="button"
-                    size="sm"
-                    onClick={openVolumeCoverLibrary}
-                  >
+                  <DashboardActionButton type="button" size="sm" onClick={openVolumeCoverLibrary}>
                     {" "}
                     <ImagePlus className="h-4 w-4" /> <span>Biblioteca</span>{" "}
                   </DashboardActionButton>{" "}
@@ -1718,10 +1710,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                       <span>Abrir leitura</span>
                     </Link>
                   </DashboardActionButton>
-                  <DashboardActionButton
-                    size="sm"
-                    onClick={() => onNavigateToHref(neutralHref)}
-                  >
+                  <DashboardActionButton size="sm" onClick={() => onNavigateToHref(neutralHref)}>
                     <span>Fechar capítulo</span>
                   </DashboardActionButton>
                   <DashboardActionButton

@@ -101,21 +101,19 @@ export const resolveProjectStyleTranslationArgs = (translations = {}) => ({
   genreTranslations: translations?.genres,
 });
 
-export const buildProjectStyleBaseModel = ({
-  buildCardModel,
-  translations,
-  ...rest
-} = {}) =>
+export const buildProjectStyleBaseModel = ({ buildCardModel, translations, ...rest } = {}) =>
   buildCardModel?.({
     ...rest,
     ...resolveProjectStyleTranslationArgs(translations),
   }) || null;
 
-export const createProjectStyleBaseModelBuilder = (buildCardModel) => (options = {}) =>
-  buildProjectStyleBaseModel({
-    buildCardModel,
-    ...options,
-  });
+export const createProjectStyleBaseModelBuilder =
+  (buildCardModel) =>
+  (options = {}) =>
+    buildProjectStyleBaseModel({
+      buildCardModel,
+      ...options,
+    });
 
 export const buildProjectStyleRevisionFromModel = ({
   buildBaseModel,
@@ -192,10 +190,7 @@ export const getProjectStyleOgCachedRender = async ({
       }),
   });
 
-export const prewarmProjectStyleOgCache = async ({
-  items,
-  renderItem,
-} = {}) => {
+export const prewarmProjectStyleOgCache = async ({ items, renderItem } = {}) => {
   const safeItems = Array.isArray(items) ? items.filter(Boolean) : [];
   let warmed = 0;
   let cacheHits = 0;
@@ -283,13 +278,7 @@ export const getCachedOgRender = async ({
 };
 
 export const createProjectStyleOgCachedRenderResolver =
-  ({
-    buildBaseModel,
-    buildImageResponse,
-    kind,
-    loadAdditionalAssets,
-    resolveId,
-  } = {}) =>
+  ({ buildBaseModel, buildImageResponse, kind, loadAdditionalAssets, resolveId } = {}) =>
   async (options = {}) =>
     getProjectStyleOgCachedRender({
       kind,

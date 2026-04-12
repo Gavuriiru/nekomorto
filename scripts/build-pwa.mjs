@@ -38,7 +38,11 @@ const cleanupWorkerSource = cleanupWorkerTemplate.replace(
 );
 
 for (const entry of fs.readdirSync(distDir)) {
-  if (entry === "sw.js" || entry === "sw.js.map" || /^workbox-[A-Za-z0-9_-]+\.js(?:\.map)?$/.test(entry)) {
+  if (
+    entry === "sw.js" ||
+    entry === "sw.js.map" ||
+    /^workbox-[A-Za-z0-9_-]+\.js(?:\.map)?$/.test(entry)
+  ) {
     fs.rmSync(path.join(distDir, entry), { force: true });
   }
 }

@@ -287,9 +287,7 @@ export const createSiteSettingsRuntimeHelpers = ({ primaryAppOrigin } = {}) => {
   };
 
   const normalizeSiteSettings = (payload) => {
-    const merged = fixMojibakeDeep(
-      mergeSettings(defaultSiteSettings, payload || {}),
-    );
+    const merged = fixMojibakeDeep(mergeSettings(defaultSiteSettings, payload || {}));
     const normalizeThemeMode = (value) => {
       const normalized = String(value || "")
         .trim()
@@ -297,9 +295,8 @@ export const createSiteSettingsRuntimeHelpers = ({ primaryAppOrigin } = {}) => {
       return normalized === "light" ? "light" : "dark";
     };
     const accentValue =
-      String(
-        merged?.theme?.accent || defaultSiteSettings.theme.accent || "",
-      ).trim() || defaultSiteSettings.theme.accent;
+      String(merged?.theme?.accent || defaultSiteSettings.theme.accent || "").trim() ||
+      defaultSiteSettings.theme.accent;
     merged.theme = {
       ...(merged.theme || {}),
       accent: accentValue,
@@ -350,43 +347,26 @@ export const createSiteSettingsRuntimeHelpers = ({ primaryAppOrigin } = {}) => {
       links: normalizedNavbarLinks,
     };
     const allowedPlacements = new Set(["navbar", "footer", "both"]);
-    const allowedNavbarModes = new Set([
-      "wordmark",
-      "symbol-text",
-      "symbol",
-      "text",
-    ]);
+    const allowedNavbarModes = new Set(["wordmark", "symbol-text", "symbol", "text"]);
     const allowedFooterModes = new Set(["wordmark", "symbol-text", "text"]);
-    const legacyPlacement = String(
-      merged?.branding?.wordmarkPlacement || "both",
-    );
+    const legacyPlacement = String(merged?.branding?.wordmarkPlacement || "both");
     const normalizedLegacyPlacement = allowedPlacements.has(legacyPlacement)
       ? legacyPlacement
       : "both";
     const legacyWordmarkEnabled = Boolean(merged?.branding?.wordmarkEnabled);
-    const legacyWordmarkUrl = String(
-      merged?.branding?.wordmarkUrl || "",
-    ).trim();
-    const legacyWordmarkUrlNavbar = String(
-      merged?.branding?.wordmarkUrlNavbar || "",
-    ).trim();
-    const legacyWordmarkUrlFooter = String(
-      merged?.branding?.wordmarkUrlFooter || "",
-    ).trim();
+    const legacyWordmarkUrl = String(merged?.branding?.wordmarkUrl || "").trim();
+    const legacyWordmarkUrlNavbar = String(merged?.branding?.wordmarkUrlNavbar || "").trim();
+    const legacyWordmarkUrlFooter = String(merged?.branding?.wordmarkUrlFooter || "").trim();
     const legacySiteSymbol = String(merged?.site?.logoUrl || "").trim();
-    const legacyFooterSymbol = String(
-      merged?.footer?.brandLogoUrl || "",
-    ).trim();
+    const legacyFooterSymbol = String(merged?.footer?.brandLogoUrl || "").trim();
 
     const payloadBranding =
-      payload?.branding && typeof payload.branding === "object"
-        ? payload.branding
-        : null;
+      payload?.branding && typeof payload.branding === "object" ? payload.branding : null;
     const hasAnyNewBrandingInput = Boolean(
       payloadBranding &&
-      (typeof payloadBranding.assets === "object" ||
-        typeof payloadBranding.overrides === "object" ||
-        typeof payloadBranding.display === "object"),
+        (typeof payloadBranding.assets === "object" ||
+          typeof payloadBranding.overrides === "object" ||
+          typeof payloadBranding.display === "object"),
     );
 
     const rawBrandAssets =
@@ -394,8 +374,7 @@ export const createSiteSettingsRuntimeHelpers = ({ primaryAppOrigin } = {}) => {
         ? merged.branding.assets
         : {};
     const rawBrandOverrides =
-      merged?.branding?.overrides &&
-      typeof merged.branding.overrides === "object"
+      merged?.branding?.overrides && typeof merged.branding.overrides === "object"
         ? merged.branding.overrides
         : {};
     const rawBrandDisplay =
@@ -405,23 +384,18 @@ export const createSiteSettingsRuntimeHelpers = ({ primaryAppOrigin } = {}) => {
 
     const symbolAssetUrl =
       sanitizeAssetUrl(
-        rawBrandAssets.symbolUrl ||
-          (!hasAnyNewBrandingInput ? legacySiteSymbol : "") ||
-          "",
+        rawBrandAssets.symbolUrl || (!hasAnyNewBrandingInput ? legacySiteSymbol : "") || "",
       ) || "";
     const wordmarkAssetUrl =
       sanitizeAssetUrl(
         rawBrandAssets.wordmarkUrl ||
           (!hasAnyNewBrandingInput
-            ? legacyWordmarkUrl ||
-              legacyWordmarkUrlNavbar ||
-              legacyWordmarkUrlFooter
+            ? legacyWordmarkUrl || legacyWordmarkUrlNavbar || legacyWordmarkUrlFooter
             : "") ||
           "",
       ) || "";
 
-    const navbarSymbolOverride =
-      sanitizeAssetUrl(rawBrandOverrides.navbarSymbolUrl || "") || "";
+    const navbarSymbolOverride = sanitizeAssetUrl(rawBrandOverrides.navbarSymbolUrl || "") || "";
     const footerSymbolOverride =
       sanitizeAssetUrl(
         rawBrandOverrides.footerSymbolUrl ||
@@ -443,14 +417,12 @@ export const createSiteSettingsRuntimeHelpers = ({ primaryAppOrigin } = {}) => {
 
     const legacyNavbarMode =
       legacyWordmarkEnabled &&
-      (normalizedLegacyPlacement === "navbar" ||
-        normalizedLegacyPlacement === "both")
+      (normalizedLegacyPlacement === "navbar" || normalizedLegacyPlacement === "both")
         ? "wordmark"
         : "symbol-text";
     const legacyFooterMode =
       legacyWordmarkEnabled &&
-      (normalizedLegacyPlacement === "footer" ||
-        normalizedLegacyPlacement === "both")
+      (normalizedLegacyPlacement === "footer" || normalizedLegacyPlacement === "both")
         ? "wordmark"
         : "symbol-text";
 
@@ -502,26 +474,18 @@ export const createSiteSettingsRuntimeHelpers = ({ primaryAppOrigin } = {}) => {
       wordmarkEnabled: compatWordmarkEnabled,
     };
     const normalizedSiteName =
-      String(
-        merged?.site?.name || defaultSiteSettings.site.name || "Nekomata",
-      ).trim() ||
+      String(merged?.site?.name || defaultSiteSettings.site.name || "Nekomata").trim() ||
       String(defaultSiteSettings.site.name || "Nekomata").trim() ||
       "Nekomata";
     const siteFaviconUrl =
-      sanitizeAssetUrl(
-        merged?.site?.faviconUrl || defaultSiteSettings.site.faviconUrl || "",
-      ) || "";
+      sanitizeAssetUrl(merged?.site?.faviconUrl || defaultSiteSettings.site.faviconUrl || "") || "";
     const siteDefaultShareImage =
       sanitizeAssetUrl(
-        merged?.site?.defaultShareImage ||
-          defaultSiteSettings.site.defaultShareImage ||
-          "",
+        merged?.site?.defaultShareImage || defaultSiteSettings.site.defaultShareImage || "",
       ) || defaultSiteSettings.site.defaultShareImage;
     const siteDefaultShareImageAlt =
       String(
-        merged?.site?.defaultShareImageAlt ||
-          defaultSiteSettings.site.defaultShareImageAlt ||
-          "",
+        merged?.site?.defaultShareImageAlt || defaultSiteSettings.site.defaultShareImageAlt || "",
       ).trim() || defaultSiteSettings.site.defaultShareImageAlt;
     merged.site = {
       ...(merged.site || {}),
@@ -539,45 +503,32 @@ export const createSiteSettingsRuntimeHelpers = ({ primaryAppOrigin } = {}) => {
     const discordUrl =
       sanitizePublicHref(
         String(
-          merged?.community?.discordUrl ||
-            defaultSiteSettings.community.discordUrl ||
-            "",
+          merged?.community?.discordUrl || defaultSiteSettings.community.discordUrl || "",
         ).trim(),
       ) ||
-      sanitizePublicHref(
-        String(defaultSiteSettings.community.discordUrl || "").trim(),
-      ) ||
+      sanitizePublicHref(String(defaultSiteSettings.community.discordUrl || "").trim()) ||
       "";
     const inviteCardPayload =
-      merged?.community?.inviteCard &&
-      typeof merged.community.inviteCard === "object"
+      merged?.community?.inviteCard && typeof merged.community.inviteCard === "object"
         ? merged.community.inviteCard
         : {};
     const inviteCardDefaults = defaultSiteSettings.community?.inviteCard || {};
     const inviteCardTitle =
-      String(
-        inviteCardPayload.title || inviteCardDefaults.title || "",
-      ).trim() || String(inviteCardDefaults.title || "").trim();
+      String(inviteCardPayload.title || inviteCardDefaults.title || "").trim() ||
+      String(inviteCardDefaults.title || "").trim();
     const inviteCardSubtitle =
-      String(
-        inviteCardPayload.subtitle || inviteCardDefaults.subtitle || "",
-      ).trim() || String(inviteCardDefaults.subtitle || "").trim();
+      String(inviteCardPayload.subtitle || inviteCardDefaults.subtitle || "").trim() ||
+      String(inviteCardDefaults.subtitle || "").trim();
     const inviteCardPanelTitle =
-      String(
-        inviteCardPayload.panelTitle || inviteCardDefaults.panelTitle || "",
-      ).trim() || String(inviteCardDefaults.panelTitle || "").trim();
+      String(inviteCardPayload.panelTitle || inviteCardDefaults.panelTitle || "").trim() ||
+      String(inviteCardDefaults.panelTitle || "").trim();
     const inviteCardPanelDescription =
       normalizeLegacyInviteCardText(
-        String(
-          inviteCardPayload.panelDescription ||
-            inviteCardDefaults.panelDescription ||
-            "",
-        ),
+        String(inviteCardPayload.panelDescription || inviteCardDefaults.panelDescription || ""),
       ).trim() || String(inviteCardDefaults.panelDescription || "").trim();
     const inviteCardCtaLabel =
-      String(
-        inviteCardPayload.ctaLabel || inviteCardDefaults.ctaLabel || "",
-      ).trim() || String(inviteCardDefaults.ctaLabel || "").trim();
+      String(inviteCardPayload.ctaLabel || inviteCardDefaults.ctaLabel || "").trim() ||
+      String(inviteCardDefaults.ctaLabel || "").trim();
     const inviteCardCtaUrlRaw =
       sanitizePublicHref(String(inviteCardPayload.ctaUrl || "").trim()) || "";
     const inviteCardCtaUrl = inviteCardCtaUrlRaw || discordUrl;
@@ -597,10 +548,7 @@ export const createSiteSettingsRuntimeHelpers = ({ primaryAppOrigin } = {}) => {
 
     if (discordUrl && Array.isArray(merged.footer?.socialLinks)) {
       merged.footer.socialLinks = merged.footer.socialLinks.map((link) => {
-        if (
-          String(link.label || "").toLowerCase() === "discord" &&
-          !link.href
-        ) {
+        if (String(link.label || "").toLowerCase() === "discord" && !link.href) {
           return { ...link, href: discordUrl };
         }
         return link;
@@ -626,8 +574,7 @@ export const createSiteSettingsRuntimeHelpers = ({ primaryAppOrigin } = {}) => {
       redirects: normalizePublicRedirects(merged?.seo?.redirects),
     };
     const rawReaderProjectTypes =
-      merged?.reader?.projectTypes &&
-      typeof merged.reader.projectTypes === "object"
+      merged?.reader?.projectTypes && typeof merged.reader.projectTypes === "object"
         ? merged.reader.projectTypes
         : {};
     merged.reader = {

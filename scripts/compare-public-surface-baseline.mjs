@@ -31,10 +31,7 @@ const parseArgs = (argv) => {
       continue;
     }
     if (arg.startsWith("--json-output=")) {
-      args.jsonOutputPath = path.resolve(
-        WORKSPACE_ROOT,
-        arg.slice("--json-output=".length).trim(),
-      );
+      args.jsonOutputPath = path.resolve(WORKSPACE_ROOT, arg.slice("--json-output=".length).trim());
       continue;
     }
     if (arg.startsWith("--markdown-output=")) {

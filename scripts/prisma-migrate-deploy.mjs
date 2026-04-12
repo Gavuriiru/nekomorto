@@ -43,8 +43,7 @@ const main = async () => {
     }
 
     const combinedOutput = [result.stdout || "", result.stderr || ""].join("\n");
-    const canRetry =
-      attempt < maxAttempts && isRetryableDatabaseStartupError(combinedOutput);
+    const canRetry = attempt < maxAttempts && isRetryableDatabaseStartupError(combinedOutput);
 
     if (!canRetry) {
       process.exit(result.status || 1);

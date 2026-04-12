@@ -176,10 +176,7 @@ export const DashboardPostVersionDialogs = ({
             </div>
           )}
           <div className="flex justify-end">
-            <DashboardActionButton
-              type="button"
-              onClick={() => onVersionHistoryOpenChange(false)}
-            >
+            <DashboardActionButton type="button" onClick={() => onVersionHistoryOpenChange(false)}>
               Fechar
             </DashboardActionButton>
           </div>
@@ -231,9 +228,7 @@ export const DashboardPostVersionDialogs = ({
                   </p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    Slug
-                  </p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Slug</p>
                   <p className="font-medium text-foreground">
                     /{rollbackTargetVersion.snapshot?.slug || "-"}
                   </p>
@@ -262,9 +257,7 @@ export const DashboardPostVersionDialogs = ({
                   </p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    Autor
-                  </p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Autor</p>
                   <p className="text-foreground">
                     {rollbackTargetVersion.snapshot?.author || "Não definido"}
                   </p>
@@ -282,9 +275,7 @@ export const DashboardPostVersionDialogs = ({
                 </div>
               </div>
               <div className="space-y-1">
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Resumo
-                </p>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Resumo</p>
                 <p className="line-clamp-3 text-sm text-foreground/90">
                   {String(rollbackTargetVersion.snapshot?.excerpt || "").trim() || "Sem resumo"}
                 </p>

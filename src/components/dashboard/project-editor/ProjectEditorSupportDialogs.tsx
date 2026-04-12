@@ -1,10 +1,7 @@
 import type { EditorProjectEpisode } from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
-import {
-  Combobox,
-  Input,
-} from "@/components/dashboard/dashboard-form-controls";
+import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
 import {
   Dialog,
   DialogContent,
@@ -139,7 +136,9 @@ export const ProjectEditorAnimeBatchDialog = ({
           <Combobox
             id="anime-batch-source-type"
             value={sourceType}
-            onValueChange={(value) => onSourceTypeChange(value as EditorProjectEpisode["sourceType"])}
+            onValueChange={(value) =>
+              onSourceTypeChange(value as EditorProjectEpisode["sourceType"])
+            }
             ariaLabel="Origem padrão"
             options={[
               { value: "TV", label: "TV" },

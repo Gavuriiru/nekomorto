@@ -35,7 +35,8 @@ const waitMs = (delayMs: number) =>
     setTimeout(resolve, delayMs);
   });
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const expectStableDashboardActionButton = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
   const tokens = classTokens(element);

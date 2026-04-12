@@ -79,7 +79,11 @@ const createDependencies = ({ app, overrides = {} }) => ({
   loadComments: vi.fn(() => []),
   loadPosts: vi.fn(() => []),
   loadProjects: vi.fn(() => []),
-  normalizeEmail: vi.fn((value) => String(value || "").trim().toLowerCase()),
+  normalizeEmail: vi.fn((value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase(),
+  ),
   normalizePosts: vi.fn((posts) => posts),
   normalizeProjects: vi.fn((projects) => projects),
   requireAuth: vi.fn((_req, _res, next) => next?.()),

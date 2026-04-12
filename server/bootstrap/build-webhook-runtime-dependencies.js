@@ -1,6 +1,5 @@
 export const buildWebhookRuntimeDependencies = (dependencies = {}) => ({
-  OPERATIONAL_WEBHOOK_INTERVAL_DEFAULT_MS:
-    dependencies.OPERATIONAL_WEBHOOK_INTERVAL_DEFAULT_MS,
+  OPERATIONAL_WEBHOOK_INTERVAL_DEFAULT_MS: dependencies.OPERATIONAL_WEBHOOK_INTERVAL_DEFAULT_MS,
   OPERATIONAL_WEBHOOK_INTERVAL_MAX_MS: dependencies.OPERATIONAL_WEBHOOK_INTERVAL_MAX_MS,
   OPERATIONAL_WEBHOOK_INTERVAL_MIN_MS: dependencies.OPERATIONAL_WEBHOOK_INTERVAL_MIN_MS,
   PRIMARY_APP_ORIGIN: dependencies.PRIMARY_APP_ORIGIN,
@@ -10,8 +9,7 @@ export const buildWebhookRuntimeDependencies = (dependencies = {}) => ({
   buildEditorialEventContext: dependencies.buildEditorialEventContext,
   buildEditorialMentions: dependencies.buildEditorialMentions,
   buildEditorialWebhookImageContext: dependencies.buildEditorialWebhookImageContext,
-  buildOperationalAlertsWebhookNotification:
-    dependencies.buildOperationalAlertsWebhookNotification,
+  buildOperationalAlertsWebhookNotification: dependencies.buildOperationalAlertsWebhookNotification,
   buildWebhookAuditMeta: dependencies.buildWebhookAuditMeta,
   buildWebhookTargetLabel: dependencies.buildWebhookTargetLabel,
   claimWebhookDelivery: dependencies.claimWebhookDelivery,

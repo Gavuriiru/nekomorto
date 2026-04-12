@@ -44,7 +44,9 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
   }) as Response;
 
 const classTokens = (element: Element | null) =>
-  String(element?.className || "").split(/\s+/).filter(Boolean);
+  String(element?.className || "")
+    .split(/\s+/)
+    .filter(Boolean);
 
 const expectDashboardActionButtonTokens = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
   const tokens = classTokens(element);

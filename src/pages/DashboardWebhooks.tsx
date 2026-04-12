@@ -10,11 +10,7 @@ import {
 import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
-import {
-  Combobox,
-  Input,
-  Textarea,
-} from "@/components/dashboard/dashboard-form-controls";
+import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import {
@@ -661,7 +657,9 @@ const asWebhookDeliveryItems = (value: unknown): WebhookDeliveryItem[] =>
           createdAt: candidate.createdAt ? String(candidate.createdAt) : null,
           nextAttemptAt: candidate.nextAttemptAt ? String(candidate.nextAttemptAt) : null,
           lastAttemptAt: candidate.lastAttemptAt ? String(candidate.lastAttemptAt) : null,
-          statusCode: Number.isFinite(Number(candidate.statusCode)) ? Number(candidate.statusCode) : null,
+          statusCode: Number.isFinite(Number(candidate.statusCode))
+            ? Number(candidate.statusCode)
+            : null,
           error: candidate.error ? String(candidate.error) : null,
           targetLabel: String(candidate.targetLabel || ""),
           resourceIds:
@@ -711,7 +709,7 @@ const describeInvalidWebhookChannelsLegacy = (value: unknown) => {
         ? "Alertas operacionais"
         : channel === "security"
           ? "Segurança"
-      : channel || "canal";
+          : channel || "canal";
   return `${label}: ${String(first.reason || first.code || "url inválida")}`;
 };
 
@@ -1050,7 +1048,13 @@ const DashboardWebhooks = () => {
         setIsLoadingDeliveries(false);
       }
     },
-    [apiBase, deliveryFilters.channel, deliveryFilters.page, deliveryFilters.scope, deliveryFilters.status],
+    [
+      apiBase,
+      deliveryFilters.channel,
+      deliveryFilters.page,
+      deliveryFilters.scope,
+      deliveryFilters.status,
+    ],
   );
 
   useEffect(() => {
@@ -1117,54 +1121,57 @@ const DashboardWebhooks = () => {
     [setTemplate],
   );
 
-  const validateSection = useCallback((sectionKey: SaveSectionKey, value: UnifiedWebhookSettings) => {
-    const errors: string[] = [];
-    if (sectionKey === "types") {
-      if (
-        value.editorial.generalReleaseRoleId &&
-        !ROLE_ID_PATTERN.test(value.editorial.generalReleaseRoleId)
-      ) {
-        errors.push("Role geral inválida.");
-      }
-      value.editorial.typeRoles.forEach((item) => {
-        if (item.roleId && !ROLE_ID_PATTERN.test(item.roleId)) {
-          errors.push(`ID de cargo inválido em ${item.type}.`);
+  const validateSection = useCallback(
+    (sectionKey: SaveSectionKey, value: UnifiedWebhookSettings) => {
+      const errors: string[] = [];
+      if (sectionKey === "types") {
+        if (
+          value.editorial.generalReleaseRoleId &&
+          !ROLE_ID_PATTERN.test(value.editorial.generalReleaseRoleId)
+        ) {
+          errors.push("Role geral inválida.");
         }
-      });
-      return errors;
-    }
+        value.editorial.typeRoles.forEach((item) => {
+          if (item.roleId && !ROLE_ID_PATTERN.test(item.roleId)) {
+            errors.push(`ID de cargo inválido em ${item.type}.`);
+          }
+        });
+        return errors;
+      }
 
-    if (sectionKey === "operational") {
-      if (value.operational.enabled && !String(value.operational.webhookUrl || "").trim()) {
-        errors.push("Webhook URL obrigatória em Alertas operacionais.");
+      if (sectionKey === "operational") {
+        if (value.operational.enabled && !String(value.operational.webhookUrl || "").trim()) {
+          errors.push("Webhook URL obrigatória em Alertas operacionais.");
+        }
+        if (!isValidWebhookUrl(value.operational.webhookUrl || "")) {
+          errors.push("Webhook URL inválida em Alertas operacionais.");
+        }
+        return errors;
       }
-      if (!isValidWebhookUrl(value.operational.webhookUrl || "")) {
-        errors.push("Webhook URL inválida em Alertas operacionais.");
+
+      if (sectionKey === "security") {
+        if (value.security.enabled && !String(value.security.webhookUrl || "").trim()) {
+          errors.push("Webhook URL obrigatória em Segurança.");
+        }
+        if (!isValidWebhookUrl(value.security.webhookUrl || "")) {
+          errors.push("Webhook URL inválida em Segurança.");
+        }
+        return errors;
+      }
+
+      const channelKey = sectionKey as ChannelKey;
+      const channel = value.editorial.channels[channelKey];
+      const channelLabel = CHANNEL_LABELS[channelKey];
+      if (channel.enabled && !String(channel.webhookUrl || "").trim()) {
+        errors.push(`Webhook URL obrigatória em ${channelLabel}.`);
+      }
+      if (!isValidWebhookUrl(channel.webhookUrl || "")) {
+        errors.push(`Webhook URL inválida em ${channelLabel}.`);
       }
       return errors;
-    }
-
-    if (sectionKey === "security") {
-      if (value.security.enabled && !String(value.security.webhookUrl || "").trim()) {
-        errors.push("Webhook URL obrigatória em Segurança.");
-      }
-      if (!isValidWebhookUrl(value.security.webhookUrl || "")) {
-        errors.push("Webhook URL inválida em Segurança.");
-      }
-      return errors;
-    }
-
-    const channelKey = sectionKey as ChannelKey;
-    const channel = value.editorial.channels[channelKey];
-    const channelLabel = CHANNEL_LABELS[channelKey];
-    if (channel.enabled && !String(channel.webhookUrl || "").trim()) {
-      errors.push(`Webhook URL obrigatória em ${channelLabel}.`);
-    }
-    if (!isValidWebhookUrl(channel.webhookUrl || "")) {
-      errors.push(`Webhook URL inválida em ${channelLabel}.`);
-    }
-    return errors;
-  }, []);
+    },
+    [],
+  );
 
   const buildSettingsPayloadForSection = useCallback(
     (
@@ -1211,7 +1218,9 @@ const DashboardWebhooks = () => {
         next.editorial.channels.posts = cloneSettings(draftBeforeSave.editorial).channels.posts;
       }
       if (sectionKey !== "projects") {
-        next.editorial.channels.projects = cloneSettings(draftBeforeSave.editorial).channels.projects;
+        next.editorial.channels.projects = cloneSettings(
+          draftBeforeSave.editorial,
+        ).channels.projects;
       }
       if (sectionKey !== "operational") {
         next.operational = { ...draftBeforeSave.operational };
@@ -1257,7 +1266,9 @@ const DashboardWebhooks = () => {
         if (!response.ok) {
           if (payload?.error === "edit_conflict") {
             const remoteTypes = Array.isArray(payload?.projectTypes)
-              ? payload.projectTypes.map((item: unknown) => String(item || "").trim()).filter(Boolean)
+              ? payload.projectTypes
+                  .map((item: unknown) => String(item || "").trim())
+                  .filter(Boolean)
               : projectTypes;
             const serverSettings = asUnifiedSettings(payload?.settings, remoteTypes);
             const preservedDraft = asUnifiedSettings(draftBeforeSave, remoteTypes);
@@ -1653,7 +1664,9 @@ const DashboardWebhooks = () => {
             title="Acesso negado"
             description="Sua conta não tem permissão para gerenciar integrações."
             action={
-              <DashboardActionButton onClick={() => navigate("/dashboard")}>Voltar</DashboardActionButton>
+              <DashboardActionButton onClick={() => navigate("/dashboard")}>
+                Voltar
+              </DashboardActionButton>
             }
           />
         </DashboardPageContainer>
@@ -2460,7 +2473,10 @@ const DashboardWebhooks = () => {
                 ) : null}
               </div>
               <AccordionContent className={WEBHOOK_ACCORDION_CONTENT_CLASSNAME}>
-                <div className="space-y-4" data-testid="dashboard-webhooks-section-content-security">
+                <div
+                  className="space-y-4"
+                  data-testid="dashboard-webhooks-section-content-security"
+                >
                   {sources.security === "env" ? (
                     <div
                       className={`${dashboardPageLayoutTokens.surfaceInset} rounded-xl border-dashed p-3 text-sm text-muted-foreground`}
@@ -2560,7 +2576,11 @@ const DashboardWebhooks = () => {
                     { id: "processing", label: "Processando", value: deliveriesSummary.processing },
                     { id: "retrying", label: "Reagendado", value: deliveriesSummary.retrying },
                     { id: "failed", label: "Falhas", value: deliveriesSummary.failed },
-                    { id: "sent_last_24h", label: "Enviados 24h", value: deliveriesSummary.sentLast24h },
+                    {
+                      id: "sent_last_24h",
+                      label: "Enviados 24h",
+                      value: deliveriesSummary.sentLast24h,
+                    },
                   ].map((item) => (
                     <div
                       key={item.id}
@@ -2691,7 +2711,8 @@ const DashboardWebhooks = () => {
                                     WEBHOOK_DELIVERY_STATUS_VARIANTS[delivery.status] || "outline"
                                   }
                                 >
-                                  {WEBHOOK_DELIVERY_STATUS_LABELS[delivery.status] || delivery.status}
+                                  {WEBHOOK_DELIVERY_STATUS_LABELS[delivery.status] ||
+                                    delivery.status}
                                 </Badge>
                                 <Badge variant="outline">
                                   {WEBHOOK_DELIVERY_SCOPE_LABELS[delivery.scope] || delivery.scope}
@@ -2733,7 +2754,9 @@ const DashboardWebhooks = () => {
                                 type="button"
                                 size="sm"
                                 onClick={() => void handleRetryDelivery(delivery.id)}
-                                disabled={!delivery.isRetryable || retryingDeliveryId === delivery.id}
+                                disabled={
+                                  !delivery.isRetryable || retryingDeliveryId === delivery.id
+                                }
                               >
                                 {retryingDeliveryId === delivery.id ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />

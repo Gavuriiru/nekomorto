@@ -83,7 +83,9 @@ describe("data-repository-content-runtime", () => {
       writeJsonFileToCache,
     });
 
-    expect(runtime.loadProjects()).toEqual([{ id: "project-1", title: "Project 1", normalized: true }]);
+    expect(runtime.loadProjects()).toEqual([
+      { id: "project-1", title: "Project 1", normalized: true },
+    ]);
     expect(dataRepository.writeProjects).toHaveBeenCalledWith([
       { id: "project-1", title: "Project 1" },
     ]);

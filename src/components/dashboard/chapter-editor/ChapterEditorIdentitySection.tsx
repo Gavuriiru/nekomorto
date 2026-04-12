@@ -1,10 +1,6 @@
 import type { ProjectEpisode } from "@/data/projects";
 
-import {
-  Combobox,
-  Input,
-  Textarea,
-} from "@/components/dashboard/dashboard-form-controls";
+import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -47,26 +43,16 @@ const ChapterEditorIdentitySection = ({
       testId="chapter-identity-accordion"
       actions={
         <>
-          <Badge
-            variant="secondary"
-            className="text-[10px] uppercase tracking-[0.12em]"
-          >
+          <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
             {chapterLabel}
           </Badge>
-          <Badge
-            variant="outline"
-            className="text-[10px] uppercase tracking-[0.12em]"
-          >
+          <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
             {buildChapterVolumeLabel(draft.volume)}
           </Badge>
         </>
       }
     >
-      <div
-        className="space-y-5"
-        data-testid="chapter-identity-section"
-        data-state="open"
-      >
+      <div className="space-y-5" data-testid="chapter-identity-section" data-state="open">
         <button
           type="button"
           className="sr-only"
@@ -82,17 +68,11 @@ const ChapterEditorIdentitySection = ({
         ) : null}
 
         <DashboardFieldStack>
-          <Label
-            htmlFor={
-              isImageChapter ? "chapter-title-image" : "chapter-title-standard"
-            }
-          >
+          <Label htmlFor={isImageChapter ? "chapter-title-image" : "chapter-title-standard"}>
             Título
           </Label>
           <Input
-            id={
-              isImageChapter ? "chapter-title-image" : "chapter-title-standard"
-            }
+            id={isImageChapter ? "chapter-title-image" : "chapter-title-standard"}
             value={draft.title || ""}
             onChange={(event) =>
               updateDraft((current) => ({
@@ -107,9 +87,7 @@ const ChapterEditorIdentitySection = ({
         <div
           className="flex flex-wrap gap-3"
           data-testid={
-            isImageChapter
-              ? "chapter-image-compact-fields"
-              : "chapter-standard-compact-fields"
+            isImageChapter ? "chapter-image-compact-fields" : "chapter-standard-compact-fields"
           }
         >
           {isImageChapter ? (
@@ -149,8 +127,7 @@ const ChapterEditorIdentitySection = ({
                   updateDraft((current) => ({
                     ...current,
                     number:
-                      normalizePositiveInteger(Number(event.target.value), 1) ??
-                      current.number,
+                      normalizePositiveInteger(Number(event.target.value), 1) ?? current.number,
                   }));
                 }}
                 className="w-full sm:w-[132px]"
@@ -172,8 +149,7 @@ const ChapterEditorIdentitySection = ({
                   updateDraft((current) => ({
                     ...current,
                     number:
-                      normalizePositiveInteger(Number(event.target.value), 1) ??
-                      current.number,
+                      normalizePositiveInteger(Number(event.target.value), 1) ?? current.number,
                   }));
                 }}
                 className="w-full sm:w-[132px]"
@@ -216,9 +192,7 @@ const ChapterEditorIdentitySection = ({
                     entryKind: nextEntryKind,
                     entrySubtype: resolveChapterEntrySubtype(nextEntryKind),
                     displayLabel:
-                      nextEntryKind === "extra"
-                        ? current.displayLabel || "Extra"
-                        : undefined,
+                      nextEntryKind === "extra" ? current.displayLabel || "Extra" : undefined,
                   };
                 })
               }
@@ -235,9 +209,7 @@ const ChapterEditorIdentitySection = ({
 
           {!isImageChapter && !supportsEpubTools ? (
             <DashboardFieldStack>
-              <Label htmlFor="chapter-reading-order-standard">
-                Ordem de leitura
-              </Label>
+              <Label htmlFor="chapter-reading-order-standard">Ordem de leitura</Label>
               <Input
                 id="chapter-reading-order-standard"
                 type="number"
@@ -246,9 +218,7 @@ const ChapterEditorIdentitySection = ({
                   updateDraft((current) => ({
                     ...current,
                     readingOrder:
-                      event.target.value.trim() === ""
-                        ? undefined
-                        : Number(event.target.value),
+                      event.target.value.trim() === "" ? undefined : Number(event.target.value),
                   }))
                 }
                 className="w-full sm:w-[148px]"
@@ -262,18 +232,14 @@ const ChapterEditorIdentitySection = ({
             <DashboardFieldStack>
               <Label
                 htmlFor={
-                  isImageChapter
-                    ? "chapter-display-label-image"
-                    : "chapter-display-label-standard"
+                  isImageChapter ? "chapter-display-label-image" : "chapter-display-label-standard"
                 }
               >
                 Rótulo do extra
               </Label>
               <Input
                 id={
-                  isImageChapter
-                    ? "chapter-display-label-image"
-                    : "chapter-display-label-standard"
+                  isImageChapter ? "chapter-display-label-image" : "chapter-display-label-standard"
                 }
                 value={draft.displayLabel || ""}
                 onChange={(event) =>
@@ -289,21 +255,11 @@ const ChapterEditorIdentitySection = ({
         ) : null}
 
         <DashboardFieldStack>
-          <Label
-            htmlFor={
-              isImageChapter
-                ? "chapter-synopsis-image"
-                : "chapter-synopsis-standard"
-            }
-          >
+          <Label htmlFor={isImageChapter ? "chapter-synopsis-image" : "chapter-synopsis-standard"}>
             Sinopse
           </Label>
           <Textarea
-            id={
-              isImageChapter
-                ? "chapter-synopsis-image"
-                : "chapter-synopsis-standard"
-            }
+            id={isImageChapter ? "chapter-synopsis-image" : "chapter-synopsis-standard"}
             value={draft.synopsis || ""}
             onChange={(event) =>
               updateDraft((current) => ({

@@ -81,13 +81,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
   const synopsisKey = project?.id ?? projectId ?? "project-embed";
   const resolveEmbedSynopsisMaxLines = useCallback(
-    ({
-      columnWidth,
-      defaultMaxLines,
-    }: {
-      columnWidth: number;
-      defaultMaxLines: number;
-    }) =>
+    ({ columnWidth, defaultMaxLines }: { columnWidth: number; defaultMaxLines: number }) =>
       resolvePublicProjectCardResponsiveMaxLines({
         profile: embedClampProfile,
         columnWidth,
@@ -105,38 +99,35 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
     const tags = Array.isArray(project?.tags) ? project.tags : [];
     return sortByTranslatedLabel(tags, (tag) => translateTag(tag, tagTranslationMap));
   }, [project?.tags, tagTranslationMap]);
-  const primaryBadges = useMemo<PublicProjectCardBadge[]>(
-    () => {
-      const badges: Array<PublicProjectCardBadge | null> = [
-        project?.status
-          ? {
-              key: "status",
-              label: project.status,
-              variant: "outline" as const,
-              className: "max-w-[8.5rem] truncate",
-            }
-          : null,
-        project?.studio
-          ? {
-              key: "studio",
-              label: project.studio,
-              variant: "outline" as const,
-              className: "max-w-[8.5rem] truncate",
-            }
-          : null,
-        project?.episodes
-          ? {
-              key: "episodes",
-              label: project.episodes,
-              variant: "outline" as const,
-              className: "hidden sm:inline-flex",
-            }
-          : null,
-      ];
-      return badges.filter((badge): badge is PublicProjectCardBadge => badge != null);
-    },
-    [project?.episodes, project?.status, project?.studio],
-  );
+  const primaryBadges = useMemo<PublicProjectCardBadge[]>(() => {
+    const badges: Array<PublicProjectCardBadge | null> = [
+      project?.status
+        ? {
+            key: "status",
+            label: project.status,
+            variant: "outline" as const,
+            className: "max-w-[8.5rem] truncate",
+          }
+        : null,
+      project?.studio
+        ? {
+            key: "studio",
+            label: project.studio,
+            variant: "outline" as const,
+            className: "max-w-[8.5rem] truncate",
+          }
+        : null,
+      project?.episodes
+        ? {
+            key: "episodes",
+            label: project.episodes,
+            variant: "outline" as const,
+            className: "hidden sm:inline-flex",
+          }
+        : null,
+    ];
+    return badges.filter((badge): badge is PublicProjectCardBadge => badge != null);
+  }, [project?.episodes, project?.status, project?.studio]);
   const synopsisClampState = resolvePublicProjectCardClampState({
     profile: embedClampProfile,
     lines: lineByKey[synopsisKey],

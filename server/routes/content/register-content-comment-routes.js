@@ -87,16 +87,18 @@ export const registerContentCommentRoutes = ({
       website,
     });
     if (requestError) {
-      return res.status(
-        requestError === "content_too_long" ||
-          requestError === "fields_required" ||
-          requestError === "invalid_email" ||
-          requestError === "invalid_payload" ||
-          requestError === "invalid_target" ||
-          requestError === "target_required"
-          ? 400
-          : 500,
-      ).json({ error: requestError });
+      return res
+        .status(
+          requestError === "content_too_long" ||
+            requestError === "fields_required" ||
+            requestError === "invalid_email" ||
+            requestError === "invalid_payload" ||
+            requestError === "invalid_target" ||
+            requestError === "target_required"
+            ? 400
+            : 500,
+        )
+        .json({ error: requestError });
     }
     const ip = typeof getRequestIp === "function" ? getRequestIp(req) : String(req?.ip || "");
     if (!(await canSubmitComment(ip))) {

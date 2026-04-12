@@ -174,7 +174,13 @@ export const matchesChapterSearch = (episode: ProjectEpisode, query: string) => 
   if (!normalizedQuery) {
     return true;
   }
-  const haystack = [episode.number, episode.volume, episode.title, episode.displayLabel, episode.synopsis]
+  const haystack = [
+    episode.number,
+    episode.volume,
+    episode.title,
+    episode.displayLabel,
+    episode.synopsis,
+  ]
     .map((value) => String(value || "").toLowerCase())
     .join(" ");
   return haystack.includes(normalizedQuery);
@@ -203,13 +209,21 @@ export const matchesStageChapterSearch = (chapter: StageChapter, query: string) 
   if (!normalizedQuery) {
     return true;
   }
-  const haystack = [chapter.number, chapter.volume, chapter.title, chapter.sourceLabel, chapter.titleDetected]
+  const haystack = [
+    chapter.number,
+    chapter.volume,
+    chapter.title,
+    chapter.sourceLabel,
+    chapter.titleDetected,
+  ]
     .map((value) => String(value || "").toLowerCase())
     .join(" ");
   return haystack.includes(normalizedQuery);
 };
 
-export const normalizeEpubImportPreviewPayload = (value: unknown): EpubImportPreviewPayload | null =>
+export const normalizeEpubImportPreviewPayload = (
+  value: unknown,
+): EpubImportPreviewPayload | null =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as EpubImportPreviewPayload)
     : null;
@@ -364,11 +378,15 @@ export const normalizeChapterState = (
   return progressKind ? syncProjectProgress(normalizedChapter, progressKind) : normalizedChapter;
 };
 
-export const normalizeChapterForSave = (chapter: ProjectEpisode, progressKind?: ProjectProgressKind) =>
-  normalizeChapterState(chapter, progressKind);
+export const normalizeChapterForSave = (
+  chapter: ProjectEpisode,
+  progressKind?: ProjectProgressKind,
+) => normalizeChapterState(chapter, progressKind);
 
-export const normalizeChapterForEditor = (chapter: ProjectEpisode, progressKind?: ProjectProgressKind) =>
-  normalizeChapterState(chapter, progressKind, { preserveEmptySources: true });
+export const normalizeChapterForEditor = (
+  chapter: ProjectEpisode,
+  progressKind?: ProjectProgressKind,
+) => normalizeChapterState(chapter, progressKind, { preserveEmptySources: true });
 
 export const buildChapterSnapshot = (
   chapter: ProjectEpisode | null,
@@ -489,10 +507,15 @@ export const appendNextProjectVolumeEntryDraft = (
 ) => {
   const normalizedEntries = normalizeProjectVolumeEntries(entries);
   const nextVolume =
-    normalizedEntries.reduce((maxValue, entry) => Math.max(maxValue, Number(entry.volume) || 0), 0) +
-    1;
+    normalizedEntries.reduce(
+      (maxValue, entry) => Math.max(maxValue, Number(entry.volume) || 0),
+      0,
+    ) + 1;
   return {
-    entries: normalizeProjectVolumeEntries([...normalizedEntries, buildEmptyVolumeEntry(nextVolume)]),
+    entries: normalizeProjectVolumeEntries([
+      ...normalizedEntries,
+      buildEmptyVolumeEntry(nextVolume),
+    ]),
     selectedVolume: nextVolume,
   };
 };
@@ -829,8 +852,8 @@ export const resolveSelectedVolumeChapterCount = ({
     return 0;
   }
   return (
-    availableVolumes.find((volumeOption) => volumeOption.volume === normalizedVolume)?.chapterCount ||
-    0
+    availableVolumes.find((volumeOption) => volumeOption.volume === normalizedVolume)
+      ?.chapterCount || 0
   );
 };
 

@@ -41,12 +41,11 @@ const createDeps = (overrides = {}) => {
     }),
     filterByDateRange: (rows) => rows,
     filterExportEntries: (rows, filters: Record<string, unknown> = {}) => {
-      const normalizedStatus = String(filters.status || "").trim().toLowerCase();
+      const normalizedStatus = String(filters.status || "")
+        .trim()
+        .toLowerCase();
       return rows.filter((entry) => {
-        if (
-          normalizedStatus &&
-          String(entry.status || "").toLowerCase() !== normalizedStatus
-        ) {
+        if (normalizedStatus && String(entry.status || "").toLowerCase() !== normalizedStatus) {
           return false;
         }
         return true;
@@ -89,15 +88,22 @@ const createDeps = (overrides = {}) => {
     metricsRegistry: {
       inc: vi.fn(),
     },
-    normalizeExportDataset: (value) => String(value || "").trim().toLowerCase() || "audit_log",
+    normalizeExportDataset: (value) =>
+      String(value || "")
+        .trim()
+        .toLowerCase() || "audit_log",
     normalizeExportFilters: (value) => {
-      const source =
-        value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+      const source = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
       return {
-        status: String(source.status || "").trim().toLowerCase(),
+        status: String(source.status || "")
+          .trim()
+          .toLowerCase(),
       };
     },
-    normalizeExportStatus: (value) => String(value || "").trim().toLowerCase() || "queued",
+    normalizeExportStatus: (value) =>
+      String(value || "")
+        .trim()
+        .toLowerCase() || "queued",
     normalizeUsers: (rows) => rows,
     upsertAdminExportJob,
     writeExportFile: vi.fn(() => "/tmp-admin-exports/users-job-1.csv"),

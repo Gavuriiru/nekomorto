@@ -130,7 +130,10 @@ const getMemberLayoutByName = (memberName: string) => {
   const avatarPicture = avatarImage.parentElement as HTMLElement | null;
   expect(avatarPicture).not.toBeNull();
 
-  const avatarStage = avatarPicture?.parentElement as HTMLElement | null;
+  const avatarFrame = avatarPicture?.parentElement as HTMLElement | null;
+  expect(avatarFrame).not.toBeNull();
+
+  const avatarStage = avatarFrame?.parentElement as HTMLElement | null;
   expect(avatarStage).not.toBeNull();
 
   const avatarSlot = avatarStage?.parentElement as HTMLElement | null;

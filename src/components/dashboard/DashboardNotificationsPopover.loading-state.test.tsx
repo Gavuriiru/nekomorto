@@ -190,9 +190,7 @@ describe("DashboardNotificationsPopover loading state", () => {
       classTokens(candidate).includes("w-[min(30rem,calc(100vw-1rem))]"),
     );
     expect(popoverSurface).not.toBeNull();
-    expect(classTokens(popoverSurface as HTMLElement)).toContain(
-      "shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]",
-    );
+    expect(classTokens(popoverSurface as HTMLElement)).toContain("shadow-floating-soft");
 
     await waitFor(() => {
       expect(apiFetchMock).toHaveBeenCalledWith(

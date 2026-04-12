@@ -67,8 +67,7 @@ export const createSiteRenderingRuntimeBundle = (dependencies = {}) => {
     buildVersionedInstitutionalOgImagePath: dependencies.buildVersionedInstitutionalOgImagePath,
     buildVersionedPostOgImagePath: dependencies.buildVersionedPostOgImagePath,
     buildVersionedProjectOgImagePath: dependencies.buildVersionedProjectOgImagePath,
-    buildVersionedProjectReadingOgImagePath:
-      dependencies.buildVersionedProjectReadingOgImagePath,
+    buildVersionedProjectReadingOgImagePath: dependencies.buildVersionedProjectReadingOgImagePath,
     extractFirstImageFromPostContent: dependencies.extractFirstImageFromPostContent,
     loadPages: dependencies.loadPages,
     loadSiteSettings: dependencies.loadSiteSettings,
@@ -89,8 +88,7 @@ export const createSiteRenderingRuntimeBundle = (dependencies = {}) => {
     buildProjectReadingOgRevisionValue: dependencies.buildProjectReadingOgRevisionValue,
     buildVersionedPostOgImagePath: dependencies.buildVersionedPostOgImagePath,
     buildVersionedProjectOgImagePath: dependencies.buildVersionedProjectOgImagePath,
-    buildVersionedProjectReadingOgImagePath:
-      dependencies.buildVersionedProjectReadingOgImagePath,
+    buildVersionedProjectReadingOgImagePath: dependencies.buildVersionedProjectReadingOgImagePath,
     extractFirstImageFromPostContent: dependencies.extractFirstImageFromPostContent,
     primaryAppOrigin: dependencies.PRIMARY_APP_ORIGIN,
     resolveMetaImageVariantUrl: dependencies.resolveMetaImageVariantUrl,

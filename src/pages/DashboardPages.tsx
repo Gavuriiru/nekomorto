@@ -9,14 +9,12 @@ import {
 } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
-import DashboardActionButton, { default as Button } from "@/components/dashboard/DashboardActionButton";
+import DashboardActionButton, {
+  default as Button,
+} from "@/components/dashboard/DashboardActionButton";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
-import {
-  Combobox,
-  Input,
-  Textarea,
-} from "@/components/dashboard/dashboard-form-controls";
+import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
 import {
   dashboardPageLayoutTokens,
   dashboardSubtleSurfaceHoverClassName,
@@ -340,8 +338,7 @@ type DashboardPagesCacheEntry = {
 
 let dashboardPagesCache: DashboardPagesCacheEntry | null = null;
 
-const clonePagesConfig = (value: PagesConfig) =>
-  JSON.parse(JSON.stringify(value)) as PagesConfig;
+const clonePagesConfig = (value: PagesConfig) => JSON.parse(JSON.stringify(value)) as PagesConfig;
 
 const generateDashboardPagesEditorLocalId = () => {
   const alpha = String.fromCharCode(97 + Math.floor(Math.random() * 26));
@@ -382,18 +379,21 @@ const withDashboardPagesEditorKeys = <T extends DashboardPagesEditorRecord>(
   }));
 };
 
-const stripDashboardPagesEditorKeys = <T extends DashboardPagesEditorRecord>(
-  items: T[] | null | undefined,
-) => {
+const stripDashboardPagesEditorKeys = <T extends object>(items: T[] | null | undefined) => {
   if (!Array.isArray(items)) {
     return [] as Array<Omit<T, "_editorKey">>;
   }
 
   return items.map((item) => {
-    const { _editorKey: _ignoredEditorKey, ...nextItem } = item;
-    return nextItem;
+    const { _editorKey: _ignoredEditorKey, ...nextItem } = item as T & DashboardPagesEditorRecord;
+    return nextItem as Omit<T, "_editorKey">;
   });
 };
+
+const normalizeDonationsCryptoServicesForSave = (
+  services: CryptoService[] | null | undefined,
+): DonationsCryptoService[] =>
+  stripDashboardPagesEditorKeys(normalizeDonationsCryptoServices(services));
 
 const readDashboardPagesCache = () => {
   if (!dashboardPagesCache) {
@@ -413,9 +413,7 @@ const writeDashboardPagesCache = (value: PagesConfig) => {
   };
 };
 
-const mergePagesConfig = (
-  value: Partial<PagesConfig> | null | undefined,
-): PagesConfig => {
+const mergePagesConfig = (value: Partial<PagesConfig> | null | undefined): PagesConfig => {
   const incoming = value || {};
   return {
     ...defaultPages,
@@ -477,9 +475,7 @@ const normalizePageShareImage = <T extends PageWithShareImage>(
   return {
     ...page,
     shareImage,
-    shareImageAlt: shareImage
-      ? shareImageAlt || getShareImageAltFallback(pageKey)
-      : "",
+    shareImageAlt: shareImage ? shareImageAlt || getShareImageAltFallback(pageKey) : "",
   };
 };
 
@@ -505,9 +501,7 @@ const normalizeDonationsMonthlyGoalFields = (
   monthlyGoalNote: String(donations.monthlyGoalNote || "").trim(),
   cryptoTitle: String(donations.cryptoTitle || "").trim(),
   cryptoSubtitle: String(donations.cryptoSubtitle || "").trim(),
-  cryptoServices: stripDashboardPagesEditorKeys(
-    normalizeDonationsCryptoServices(donations.cryptoServices),
-  ),
+  cryptoServices: normalizeDonationsCryptoServicesForSave(donations.cryptoServices),
   donors: stripDashboardPagesEditorKeys(donations.donors),
 });
 
@@ -573,9 +567,7 @@ const buildDashboardPagesTabUrl = (
   return `${pathname}${nextSearch ? `?${nextSearch}` : ""}${hash}`;
 };
 
-const parseDashboardPagesTabParam = (
-  value: string | null,
-): DashboardPagesTabKey => {
+const parseDashboardPagesTabParam = (value: string | null): DashboardPagesTabKey => {
   const normalized = String(value || "").trim();
   if (normalized === "preview-paginas") {
     return "preview";
@@ -594,25 +586,20 @@ const reorder = <T,>(items: T[], from: number, to: number) => {
 };
 
 const dashboardPagesCardClassName = dashboardPageLayoutTokens.surfaceSolid;
-const dashboardPagesInsetSurfaceClassName =
-  dashboardPageLayoutTokens.groupedFieldSurface;
-const dashboardPagesControlSurfaceClassName =
-  dashboardPageLayoutTokens.controlSurface;
-const dashboardPagesReorderableSurfaceClassName =
-  `${dashboardPagesControlSurfaceClassName} ${dashboardSubtleSurfaceHoverClassName}`;
+const dashboardPagesInsetSurfaceClassName = dashboardPageLayoutTokens.groupedFieldSurface;
+const dashboardPagesControlSurfaceClassName = dashboardPageLayoutTokens.controlSurface;
+const dashboardPagesReorderableSurfaceClassName = `${dashboardPagesControlSurfaceClassName} ${dashboardSubtleSurfaceHoverClassName}`;
 const dashboardPagesMetaTextClassName = dashboardPageLayoutTokens.cardMetaText;
 
 type DashboardPagesContentProps = {
   currentUser: ReturnType<typeof useDashboardCurrentUser>["currentUser"];
 };
 
-const dashboardPageIconOptions: ComboboxOption[] = iconOptions.map(
-  (icon) => ({
-    value: icon,
-    label: icon,
-    icon: editorIconMap[icon] || Sparkles,
-  }),
-);
+const dashboardPageIconOptions: ComboboxOption[] = iconOptions.map((icon) => ({
+  value: icon,
+  label: icon,
+  icon: editorIconMap[icon] || Sparkles,
+}));
 
 const IconSelect = ({
   value,
@@ -647,23 +634,12 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
   );
   const initialCacheRef = useRef(readDashboardPagesCache());
   const [pages, setPages] = useState<PagesConfig>(() =>
-    normalizePagesConfigForState(
-      initialCacheRef.current ?? defaultPages,
-      initialCacheRef.current,
-    ),
+    normalizePagesConfigForState(initialCacheRef.current ?? defaultPages, initialCacheRef.current),
   );
-  const [isInitialLoading, setIsInitialLoading] = useState(
-    !initialCacheRef.current,
-  );
-  const [isRefreshing, setIsRefreshing] = useState(
-    Boolean(initialCacheRef.current),
-  );
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(
-    Boolean(initialCacheRef.current),
-  );
-  const [hasResolvedPages, setHasResolvedPages] = useState(
-    Boolean(initialCacheRef.current),
-  );
+  const [isInitialLoading, setIsInitialLoading] = useState(!initialCacheRef.current);
+  const [isRefreshing, setIsRefreshing] = useState(Boolean(initialCacheRef.current));
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(Boolean(initialCacheRef.current));
+  const [hasResolvedPages, setHasResolvedPages] = useState(Boolean(initialCacheRef.current));
   const [hasLoadError, setHasLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
   const [activeTab, setActiveTab] = useState<DashboardPagesTabKey>(() =>
@@ -678,17 +654,14 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
     index: number;
   } | null>(null);
   const [isPreviewLibraryOpen, setIsPreviewLibraryOpen] = useState(false);
-  const [previewLibraryTarget, setPreviewLibraryTarget] =
-    useState<ShareImagePageKey>("home");
+  const [previewLibraryTarget, setPreviewLibraryTarget] = useState<ShareImagePageKey>("home");
   const requestIdRef = useRef(0);
   const hasLoadedOnceRef = useRef(hasLoadedOnce);
   const pagesRef = useRef(pages);
   const tabUrlSyncTimeoutRef = useRef<number | null>(null);
 
   const merchantName =
-    String(
-      settings.site.name || settings.footer.brandName || "NEKOMATA",
-    ).trim() || "NEKOMATA";
+    String(settings.site.name || settings.footer.brandName || "NEKOMATA").trim() || "NEKOMATA";
   const previewLibraryFolders = useMemo(
     () =>
       filterImageLibraryFoldersByAccess(["shared", "posts", "projects"], {
@@ -813,10 +786,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
 
   const savePages = useCallback(
     async (nextPages: PagesConfig) => {
-      const normalizedNextPages = normalizePagesConfigForState(
-        nextPages,
-        pagesRef.current,
-      );
+      const normalizedNextPages = normalizePagesConfigForState(nextPages, pagesRef.current);
       const payloadPages = normalizePagesConfigForSave(normalizedNextPages);
       const response = await apiFetch(apiBase, "/api/pages", {
         method: "PUT",
@@ -829,9 +799,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
       }
       const data = await response.json().catch(() => null);
       const normalizedPages = normalizePagesConfigForState(
-        mergePagesConfig(
-          (data?.pages as Partial<PagesConfig> | undefined) || payloadPages,
-        ),
+        mergePagesConfig((data?.pages as Partial<PagesConfig> | undefined) || payloadPages),
         normalizedNextPages,
       );
       setPages(normalizedPages);
@@ -918,8 +886,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
     field: "monthlyGoalRaised" | "monthlyGoalTarget",
     value?: string,
   ) => {
-    const sourceValue =
-      typeof value === "string" ? value : pages.donations[field];
+    const sourceValue = typeof value === "string" ? value : pages.donations[field];
     const normalizedValue = finalizeMonthlyGoalAmountInput(sourceValue);
     if (normalizedValue === sourceValue) {
       return;
@@ -932,10 +899,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
     updateDonations({
       monthlyGoalSupporters: sanitizeMonthlyGoalSupportersInput(value),
     });
-  const updateCryptoServiceAt = (
-    index: number,
-    patch: Partial<CryptoService>,
-  ) => {
+  const updateCryptoServiceAt = (index: number, patch: Partial<CryptoService>) => {
     const next = [...pages.donations.cryptoServices];
     next[index] = {
       ...next[index],
@@ -957,22 +921,18 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
       recruitment: { ...prev.recruitment, ...patch },
     }));
   const readPageShareImage = useCallback(
-    (pageKey: ShareImagePageKey) =>
-      String(pages[pageKey]?.shareImage || "").trim(),
+    (pageKey: ShareImagePageKey) => String(pages[pageKey]?.shareImage || "").trim(),
     [pages],
   );
-  const updatePageShareImage = useCallback(
-    (pageKey: ShareImagePageKey, shareImage: string) => {
-      setPages((prev) => ({
-        ...prev,
-        [pageKey]: {
-          ...prev[pageKey],
-          shareImage,
-        },
-      }));
-    },
-    [],
-  );
+  const updatePageShareImage = useCallback((pageKey: ShareImagePageKey, shareImage: string) => {
+    setPages((prev) => ({
+      ...prev,
+      [pageKey]: {
+        ...prev[pageKey],
+        shareImage,
+      },
+    }));
+  }, []);
   const applyPageShareImage = useCallback(
     (pageKey: ShareImagePageKey, shareImage: string, altText?: string) => {
       const normalizedShareImage = String(shareImage || "").trim();
@@ -1071,11 +1031,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
     dragOverState?.list === list &&
     dragOverState.index === index;
 
-  const getReorderableSurfaceClassName = (
-    list: string,
-    index: number,
-    paddingClassName: string,
-  ) =>
+  const getReorderableSurfaceClassName = (list: string, index: number, paddingClassName: string) =>
     `${dashboardPagesReorderableSurfaceClassName} ${paddingClassName} ${
       isDragOverTarget(list, index) ? "border-primary/40 bg-primary/5" : ""
     }`;
@@ -1114,19 +1070,14 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
               </h1>
               <p
                 className={`mt-2 text-sm ${dashboardPagesMetaTextClassName} animate-slide-up opacity-0`}
-                style={dashboardAnimationDelay(
-                  dashboardMotionDelays.headerDescriptionMs,
-                )}
+                style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
               >
-                Edite textos e previews de compartilhamento das páginas
-                públicas.
+                Edite textos e previews de compartilhamento das páginas públicas.
               </p>
             </div>
             <div
               className="w-full animate-slide-up opacity-0 sm:w-auto"
-              style={dashboardAnimationDelay(
-                dashboardMotionDelays.headerActionsMs,
-              )}
+              style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               data-testid="dashboard-pages-autosave-reveal"
             >
               <DashboardAutosaveStatus
@@ -1150,9 +1101,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                   void handleSave();
                 }}
                 manualActionLabel={
-                  pagesAutosave.status === "saving"
-                    ? "Salvando..."
-                    : "Salvar alterações"
+                  pagesAutosave.status === "saving" ? "Salvando..." : "Salvar alterações"
                 }
                 manualActionDisabled={!hasResolvedPages || pagesAutosave.status === "saving"}
               />
@@ -1168,11 +1117,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
           >
             <TabsList className="no-scrollbar flex w-full flex-nowrap justify-start overflow-x-auto overscroll-x-contain md:grid md:grid-cols-6 md:overflow-visible">
               {orderedPageTabs.map((tab) => (
-                <TabsTrigger
-                  key={tab.key}
-                  value={tab.key}
-                  className="shrink-0 md:w-full"
-                >
+                <TabsTrigger key={tab.key} value={tab.key} className="shrink-0 md:w-full">
                   <span>{tab.label}</span>
                 </TabsTrigger>
               ))}
@@ -1199,15 +1144,11 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                   <Alert className="mt-6">
                     <AlertTitle>Atualização parcial indisponível</AlertTitle>
                     <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-                      <span>
-                        Mantendo a última configuração pública carregada.
-                      </span>
+                      <span>Mantendo a última configuração pública carregada.</span>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() =>
-                          setLoadVersion((previous) => previous + 1)
-                        }
+                        onClick={() => setLoadVersion((previous) => previous + 1)}
                       >
                         Tentar novamente
                       </Button>
@@ -1248,20 +1189,12 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                         value="preview"
                         className="mt-6 space-y-6 data-[state=inactive]:hidden"
                       >
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="space-y-6 p-6">
                             <div>
-                              <h2 className="text-lg font-semibold">
-                                Prévias de compartilhamento
-                              </h2>
-                              <p
-                                className={`text-xs ${dashboardPagesMetaTextClassName}`}
-                              >
-                                Defina a imagem OG de cada página para links
-                                compartilhados.
+                              <h2 className="text-lg font-semibold">Prévias de compartilhamento</h2>
+                              <p className={`text-xs ${dashboardPagesMetaTextClassName}`}>
+                                Defina a imagem OG de cada página para links compartilhados.
                               </p>
                             </div>
 
@@ -1277,11 +1210,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                       <p className="text-sm font-semibold">
                                         {shareImagePageLabels[pageKey]}
                                       </p>
-                                      <p
-                                        className={`text-xs ${dashboardPagesMetaTextClassName}`}
-                                      >
-                                        Imagem exibida no card social ao
-                                        compartilhar essa URL.
+                                      <p className={`text-xs ${dashboardPagesMetaTextClassName}`}>
+                                        Imagem exibida no card social ao compartilhar essa URL.
                                       </p>
                                     </div>
 
@@ -1302,17 +1232,13 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                         </p>
                                       </div>
                                     ) : (
-                                      <p
-                                        className={`text-xs ${dashboardPagesMetaTextClassName}`}
-                                      >
+                                      <p className={`text-xs ${dashboardPagesMetaTextClassName}`}>
                                         Sem imagem de preview definida.
                                       </p>
                                     )}
 
                                     <div className="space-y-2">
-                                      <Label
-                                        htmlFor={`page-preview-${pageKey}`}
-                                      >
+                                      <Label htmlFor={`page-preview-${pageKey}`}>
                                         URL da imagem
                                       </Label>
                                       <Input
@@ -1322,9 +1248,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                         onChange={(event) =>
                                           updatePageShareImage(
                                             pageKey,
-                                            String(
-                                              event.target.value || "",
-                                            ).trim(),
+                                            String(event.target.value || "").trim(),
                                           )
                                         }
                                       />
@@ -1334,9 +1258,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                       <DashboardActionButton
                                         type="button"
                                         size="sm"
-                                        onClick={() =>
-                                          openPreviewLibrary(pageKey)
-                                        }
+                                        onClick={() => openPreviewLibrary(pageKey)}
                                       >
                                         Biblioteca
                                       </DashboardActionButton>
@@ -1367,36 +1289,27 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                         value="about"
                         className="mt-6 space-y-6 data-[state=inactive]:hidden"
                       >
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                             <DashboardFieldStack>
                               <Label>Badge</Label>
                               <Input
                                 value={pages.about.heroBadge}
-                                onChange={(e) =>
-                                  updateAbout({ heroBadge: e.target.value })
-                                }
+                                onChange={(e) => updateAbout({ heroBadge: e.target.value })}
                               />
                             </DashboardFieldStack>
                             <DashboardFieldStack>
                               <Label>Título</Label>
                               <Input
                                 value={pages.about.heroTitle}
-                                onChange={(e) =>
-                                  updateAbout({ heroTitle: e.target.value })
-                                }
+                                onChange={(e) => updateAbout({ heroTitle: e.target.value })}
                               />
                             </DashboardFieldStack>
                             <DashboardFieldStack className="md:col-span-2">
                               <Label>Subtítulo</Label>
                               <Textarea
                                 value={pages.about.heroSubtitle}
-                                onChange={(e) =>
-                                  updateAbout({ heroSubtitle: e.target.value })
-                                }
+                                onChange={(e) => updateAbout({ heroSubtitle: e.target.value })}
                               />
                             </DashboardFieldStack>
                             <DashboardFieldStack className="md:col-span-2">
@@ -1410,9 +1323,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     <Input
                                       value={badge}
                                       onChange={(e) => {
-                                        const next = [
-                                          ...pages.about.heroBadges,
-                                        ];
+                                        const next = [...pages.about.heroBadges];
                                         next[index] = e.target.value;
                                         updateAbout({ heroBadges: next });
                                       }}
@@ -1421,10 +1332,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                       variant="ghost"
                                       size="icon"
                                       onClick={() => {
-                                        const next =
-                                          pages.about.heroBadges.filter(
-                                            (_, i) => i !== index,
-                                          );
+                                        const next = pages.about.heroBadges.filter(
+                                          (_, i) => i !== index,
+                                        );
                                         updateAbout({ heroBadges: next });
                                       }}
                                     >
@@ -1437,10 +1347,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   size="sm"
                                   onClick={() =>
                                     updateAbout({
-                                      heroBadges: [
-                                        ...pages.about.heroBadges,
-                                        "Nova badge",
-                                      ],
+                                      heroBadges: [...pages.about.heroBadges, "Nova badge"],
                                     })
                                   }
                                 >
@@ -1452,10 +1359,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                           </CardContent>
                         </Card>
 
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="space-y-4 p-6">
                             <div className="flex items-center justify-between">
                               <h2
@@ -1488,15 +1392,11 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                 <div
                                   key={`${item.label}-${index}`}
                                   draggable
-                                  onDragStart={() =>
-                                    handleDragStart("about.highlights", index)
-                                  }
+                                  onDragStart={() => handleDragStart("about.highlights", index)}
                                   onDragOver={(event) =>
                                     handleDragOver(event, "about.highlights", index)
                                   }
-                                  onDrop={() =>
-                                    handleDrop("about.highlights", index)
-                                  }
+                                  onDrop={() => handleDrop("about.highlights", index)}
                                   onDragEnd={clearDragState}
                                   className={getReorderableSurfaceClassName(
                                     "about.highlights",
@@ -1517,11 +1417,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                         index={index}
                                         total={pages.about.highlights.length}
                                         onMove={(targetIndex) =>
-                                          moveListItem(
-                                            "about.highlights",
-                                            index,
-                                            targetIndex,
-                                          )
+                                          moveListItem("about.highlights", index, targetIndex)
                                         }
                                       />
                                       <Button
@@ -1529,10 +1425,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                         size="icon"
                                         onClick={() =>
                                           updateAbout({
-                                            highlights:
-                                              pages.about.highlights.filter(
-                                                (_, i) => i !== index,
-                                              ),
+                                            highlights: pages.about.highlights.filter(
+                                              (_, i) => i !== index,
+                                            ),
                                           })
                                         }
                                       >
@@ -1544,9 +1439,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     <Input
                                       value={item.label}
                                       onChange={(e) => {
-                                        const next = [
-                                          ...pages.about.highlights,
-                                        ];
+                                        const next = [...pages.about.highlights];
                                         next[index] = {
                                           ...item,
                                           label: e.target.value,
@@ -1557,9 +1450,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     <Textarea
                                       value={item.text}
                                       onChange={(e) => {
-                                        const next = [
-                                          ...pages.about.highlights,
-                                        ];
+                                        const next = [...pages.about.highlights];
                                         next[index] = {
                                           ...item,
                                           text: e.target.value,
@@ -1572,9 +1463,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                       <IconSelect
                                         value={item.icon || "Sparkles"}
                                         onChange={(nextIcon) => {
-                                          const next = [
-                                            ...pages.about.highlights,
-                                          ];
+                                          const next = [...pages.about.highlights];
                                           next[index] = {
                                             ...item,
                                             icon: nextIcon,
@@ -1590,10 +1479,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                           </CardContent>
                         </Card>
 
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="space-y-4 p-6">
                             <DashboardFieldStack>
                               <Label>Título do manifesto</Label>
@@ -1610,57 +1496,44 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               <Label>Ícone do manifesto</Label>
                               <IconSelect
                                 value={pages.about.manifestoIcon || "Flame"}
-                                onChange={(nextIcon) =>
-                                  updateAbout({ manifestoIcon: nextIcon })
-                                }
+                                onChange={(nextIcon) => updateAbout({ manifestoIcon: nextIcon })}
                               />
                             </DashboardFieldStack>
                             <div className="grid gap-3">
-                              {pages.about.manifestoParagraphs.map(
-                                (paragraph, index) => (
-                                  <div
-                                    key={`${paragraph}-${index}`}
-                                    className="flex gap-2"
+                              {pages.about.manifestoParagraphs.map((paragraph, index) => (
+                                <div key={`${paragraph}-${index}`} className="flex gap-2">
+                                  <Textarea
+                                    value={paragraph}
+                                    onChange={(e) => {
+                                      const next = [...pages.about.manifestoParagraphs];
+                                      next[index] = e.target.value;
+                                      updateAbout({
+                                        manifestoParagraphs: next,
+                                      });
+                                    }}
+                                  />
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      const next = pages.about.manifestoParagraphs.filter(
+                                        (_, i) => i !== index,
+                                      );
+                                      updateAbout({
+                                        manifestoParagraphs: next,
+                                      });
+                                    }}
                                   >
-                                    <Textarea
-                                      value={paragraph}
-                                      onChange={(e) => {
-                                        const next = [
-                                          ...pages.about.manifestoParagraphs,
-                                        ];
-                                        next[index] = e.target.value;
-                                        updateAbout({
-                                          manifestoParagraphs: next,
-                                        });
-                                      }}
-                                    />
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => {
-                                        const next =
-                                          pages.about.manifestoParagraphs.filter(
-                                            (_, i) => i !== index,
-                                          );
-                                        updateAbout({
-                                          manifestoParagraphs: next,
-                                        });
-                                      }}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                ),
-                              )}
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
                               <DashboardActionButton
                                 type="button"
                                 size="sm"
                                 onClick={() =>
                                   updateAbout({
-                                    manifestoParagraphs: [
-                                      ...pages.about.manifestoParagraphs,
-                                      "",
-                                    ],
+                                    manifestoParagraphs: [...pages.about.manifestoParagraphs, ""],
                                   })
                                 }
                               >
@@ -1671,10 +1544,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                           </CardContent>
                         </Card>
 
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="space-y-4 p-6">
                             <div className="flex items-center justify-between">
                               <h2
@@ -1707,15 +1577,11 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                 <div
                                   key={`${item.title}-${index}`}
                                   draggable
-                                  onDragStart={() =>
-                                    handleDragStart("about.pillars", index)
-                                  }
+                                  onDragStart={() => handleDragStart("about.pillars", index)}
                                   onDragOver={(event) =>
                                     handleDragOver(event, "about.pillars", index)
                                   }
-                                  onDrop={() =>
-                                    handleDrop("about.pillars", index)
-                                  }
+                                  onDrop={() => handleDrop("about.pillars", index)}
                                   onDragEnd={clearDragState}
                                   className={getReorderableSurfaceClassName(
                                     "about.pillars",
@@ -1736,11 +1602,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                         index={index}
                                         total={pages.about.pillars.length}
                                         onMove={(targetIndex) =>
-                                          moveListItem(
-                                            "about.pillars",
-                                            index,
-                                            targetIndex,
-                                          )
+                                          moveListItem("about.pillars", index, targetIndex)
                                         }
                                       />
                                       <Button
@@ -1802,10 +1664,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                           </CardContent>
                         </Card>
 
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="space-y-4 p-6">
                             <div className="flex items-center justify-between">
                               <h2
@@ -1838,15 +1697,11 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                 <div
                                   key={`${item.title}-${index}`}
                                   draggable
-                                  onDragStart={() =>
-                                    handleDragStart("about.values", index)
-                                  }
+                                  onDragStart={() => handleDragStart("about.values", index)}
                                   onDragOver={(event) =>
                                     handleDragOver(event, "about.values", index)
                                   }
-                                  onDrop={() =>
-                                    handleDrop("about.values", index)
-                                  }
+                                  onDrop={() => handleDrop("about.values", index)}
                                   onDragEnd={clearDragState}
                                   className={getReorderableSurfaceClassName(
                                     "about.values",
@@ -1867,11 +1722,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                         index={index}
                                         total={pages.about.values.length}
                                         onMove={(targetIndex) =>
-                                          moveListItem(
-                                            "about.values",
-                                            index,
-                                            targetIndex,
-                                          )
+                                          moveListItem("about.values", index, targetIndex)
                                         }
                                       />
                                       <Button
@@ -1941,18 +1792,13 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                         value="donations"
                         className="mt-6 space-y-6 data-[state=inactive]:hidden"
                       >
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                             <DashboardFieldStack>
                               <Label>Título</Label>
                               <Input
                                 value={pages.donations.heroTitle}
-                                onChange={(e) =>
-                                  updateDonations({ heroTitle: e.target.value })
-                                }
+                                onChange={(e) => updateDonations({ heroTitle: e.target.value })}
                               />
                             </DashboardFieldStack>
                             <DashboardFieldStack className="md:col-span-2">
@@ -1969,10 +1815,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                           </CardContent>
                         </Card>
 
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="space-y-4 p-6">
                             <div className="flex items-center justify-between">
                               <h2
@@ -2007,15 +1850,11 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   key={item._editorKey || `donations-cost-${index}`}
                                   data-testid={`donations-cost-item-${index}`}
                                   draggable
-                                  onDragStart={() =>
-                                    handleDragStart("donations.costs", index)
-                                  }
+                                  onDragStart={() => handleDragStart("donations.costs", index)}
                                   onDragOver={(event) =>
                                     handleDragOver(event, "donations.costs", index)
                                   }
-                                  onDrop={() =>
-                                    handleDrop("donations.costs", index)
-                                  }
+                                  onDrop={() => handleDrop("donations.costs", index)}
                                   onDragEnd={clearDragState}
                                   className={getReorderableSurfaceClassName(
                                     "donations.costs",
@@ -2036,11 +1875,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                         index={index}
                                         total={pages.donations.costs.length}
                                         onMove={(targetIndex) =>
-                                          moveListItem(
-                                            "donations.costs",
-                                            index,
-                                            targetIndex,
-                                          )
+                                          moveListItem("donations.costs", index, targetIndex)
                                         }
                                       />
                                       <Button
@@ -2086,9 +1921,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                       <IconSelect
                                         value={item.icon}
                                         onChange={(nextIcon) => {
-                                          const next = [
-                                            ...pages.donations.costs,
-                                          ];
+                                          const next = [...pages.donations.costs];
                                           next[index] = {
                                             ...item,
                                             icon: nextIcon,
@@ -2104,10 +1937,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                           </CardContent>
                         </Card>
 
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                             <DashboardFieldStack>
                               <Label>Título do bloco</Label>
@@ -2123,12 +1953,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                             <DashboardFieldStack>
                               <Label>Ícone do bloco</Label>
                               <IconSelect
-                                value={
-                                  pages.donations.reasonIcon || "HeartHandshake"
-                                }
-                                onChange={(nextIcon) =>
-                                  updateDonations({ reasonIcon: nextIcon })
-                                }
+                                value={pages.donations.reasonIcon || "HeartHandshake"}
+                                onChange={(nextIcon) => updateDonations({ reasonIcon: nextIcon })}
                               />
                             </DashboardFieldStack>
                             <DashboardFieldStack className="md:col-span-2">
@@ -2156,10 +1982,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                           </CardContent>
                         </Card>
 
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                             <DashboardFieldStack>
                               <Label htmlFor="donations-monthly-goal-raised">
@@ -2169,10 +1992,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                 id="donations-monthly-goal-raised"
                                 value={pages.donations.monthlyGoalRaised}
                                 onChange={(e) =>
-                                  updateMonthlyGoalAmount(
-                                    "monthlyGoalRaised",
-                                    e.target.value,
-                                  )
+                                  updateMonthlyGoalAmount("monthlyGoalRaised", e.target.value)
                                 }
                                 onBlur={(e) =>
                                   finalizeMonthlyGoalAmountField(
@@ -2190,10 +2010,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                 id="donations-monthly-goal-target"
                                 value={pages.donations.monthlyGoalTarget}
                                 onChange={(e) =>
-                                  updateMonthlyGoalAmount(
-                                    "monthlyGoalTarget",
-                                    e.target.value,
-                                  )
+                                  updateMonthlyGoalAmount("monthlyGoalTarget", e.target.value)
                                 }
                                 onBlur={(e) =>
                                   finalizeMonthlyGoalAmountField(
@@ -2212,20 +2029,14 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               <Input
                                 id="donations-monthly-goal-supporters"
                                 value={pages.donations.monthlyGoalSupporters}
-                                onChange={(e) =>
-                                  updateMonthlyGoalSupporters(e.target.value)
-                                }
-                                onBlur={(e) =>
-                                  updateMonthlyGoalSupporters(e.target.value)
-                                }
+                                onChange={(e) => updateMonthlyGoalSupporters(e.target.value)}
+                                onBlur={(e) => updateMonthlyGoalSupporters(e.target.value)}
                                 inputMode="numeric"
                                 placeholder="0"
                               />
                             </DashboardFieldStack>
                             <DashboardFieldStack className="md:col-span-2">
-                              <Label htmlFor="donations-monthly-goal-note">
-                                Nota da meta
-                              </Label>
+                              <Label htmlFor="donations-monthly-goal-note">Nota da meta</Label>
                               <Textarea
                                 id="donations-monthly-goal-note"
                                 value={pages.donations.monthlyGoalNote}
@@ -2240,43 +2051,34 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                             <p
                               className={`text-xs ${dashboardPagesMetaTextClassName} md:col-span-2`}
                             >
-                              Aceita vírgula ou ponto. Deixe a meta vazia para
-                              ocultar a barra na página pública.
+                              Aceita vírgula ou ponto. Deixe a meta vazia para ocultar a barra na
+                              página pública.
                             </p>
                           </CardContent>
                         </Card>
 
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="grid gap-4 p-6 md:grid-cols-[1.2fr_0.8fr]">
                             <div className="space-y-4">
                               <DashboardFieldStack>
                                 <Label>Ícone do Pix</Label>
                                 <IconSelect
                                   value={pages.donations.pixIcon || "QrCode"}
-                                  onChange={(nextIcon) =>
-                                    updateDonations({ pixIcon: nextIcon })
-                                  }
+                                  onChange={(nextIcon) => updateDonations({ pixIcon: nextIcon })}
                                 />
                               </DashboardFieldStack>
                               <DashboardFieldStack>
                                 <Label>Chave Pix</Label>
                                 <Input
                                   value={pages.donations.pixKey}
-                                  onChange={(e) =>
-                                    updateDonations({ pixKey: e.target.value })
-                                  }
+                                  onChange={(e) => updateDonations({ pixKey: e.target.value })}
                                 />
                               </DashboardFieldStack>
                               <DashboardFieldStack>
                                 <Label>Descrição no QR (opcional)</Label>
                                 <Input
                                   value={pages.donations.pixNote}
-                                  onChange={(e) =>
-                                    updateDonations({ pixNote: e.target.value })
-                                  }
+                                  onChange={(e) => updateDonations({ pixNote: e.target.value })}
                                 />
                               </DashboardFieldStack>
                               <DashboardFieldStack>
@@ -2291,9 +2093,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     }
                                     placeholder="CIDADE"
                                   />
-                                  <p
-                                    className={`text-xs ${dashboardPagesMetaTextClassName}`}
-                                  >
+                                  <p className={`text-xs ${dashboardPagesMetaTextClassName}`}>
                                     Se vazio, o QR Pix usa CIDADE como fallback.
                                   </p>
                                 </DashboardFieldStack>
@@ -2336,11 +2136,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                 >
                                   Criptomoedas
                                 </h2>
-                                <p
-                                  className={`mt-1 text-xs ${dashboardPagesMetaTextClassName}`}
-                                >
-                                  A seção pública aparece quando pelo menos um
-                                  serviço tiver nome e endereço.
+                                <p className={`mt-1 text-xs ${dashboardPagesMetaTextClassName}`}>
+                                  A seção pública aparece quando pelo menos um serviço tiver nome e
+                                  endereço.
                                 </p>
                               </div>
                               <DashboardActionButton
@@ -2365,332 +2163,277 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                             </div>
 
                             <div className="grid gap-4">
-                              {pages.donations.cryptoServices.map(
-                                (service, index) => {
-                                  const previewLogoUrl = String(
-                                    service.iconUrl || "",
-                                  ).trim();
-                                  const PreviewIcon =
-                                    editorIconMap[service.icon] || Coins;
+                              {pages.donations.cryptoServices.map((service, index) => {
+                                const previewLogoUrl = String(service.iconUrl || "").trim();
+                                const PreviewIcon = editorIconMap[service.icon] || Coins;
 
-                                  return (
-                                    <div
-                                      key={
-                                        service._editorKey ||
-                                        `donations-crypto-service-${index}`
-                                      }
-                                      data-testid={`donations-crypto-item-${index}`}
-                                      draggable
-                                      onDragStart={() =>
-                                        handleDragStart(
-                                          "donations.cryptoServices",
-                                          index,
-                                        )
-                                      }
-                                      onDragOver={(event) =>
-                                        handleDragOver(
-                                          event,
-                                          "donations.cryptoServices",
-                                          index,
-                                        )
-                                      }
-                                      onDrop={() =>
-                                        handleDrop(
-                                          "donations.cryptoServices",
-                                          index,
-                                        )
-                                      }
-                                      onDragEnd={clearDragState}
-                                      className={getReorderableSurfaceClassName(
-                                        "donations.cryptoServices",
-                                        index,
-                                        "p-4",
-                                      )}
-                                    >
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div
-                                          className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                return (
+                                  <div
+                                    key={service._editorKey || `donations-crypto-service-${index}`}
+                                    data-testid={`donations-crypto-item-${index}`}
+                                    draggable
+                                    onDragStart={() =>
+                                      handleDragStart("donations.cryptoServices", index)
+                                    }
+                                    onDragOver={(event) =>
+                                      handleDragOver(event, "donations.cryptoServices", index)
+                                    }
+                                    onDrop={() => handleDrop("donations.cryptoServices", index)}
+                                    onDragEnd={clearDragState}
+                                    className={getReorderableSurfaceClassName(
+                                      "donations.cryptoServices",
+                                      index,
+                                      "p-4",
+                                    )}
+                                  >
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div
+                                        className={`flex items-center gap-2 text-xs ${dashboardPagesMetaTextClassName}`}
+                                      >
+                                        <GripVertical className="h-4 w-4" />
+                                        Arraste para reordenar
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <ReorderControls
+                                          label={`serviço cripto ${index + 1}`}
+                                          index={index}
+                                          total={pages.donations.cryptoServices.length}
+                                          onMove={(targetIndex) =>
+                                            moveListItem(
+                                              "donations.cryptoServices",
+                                              index,
+                                              targetIndex,
+                                            )
+                                          }
+                                        />
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          aria-label={`Remover serviço cripto ${index + 1}`}
+                                          onClick={() => removeCryptoServiceAt(index)}
                                         >
-                                          <GripVertical className="h-4 w-4" />
-                                          Arraste para reordenar
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <ReorderControls
-                                            label={`serviço cripto ${index + 1}`}
-                                            index={index}
-                                            total={
-                                              pages.donations.cryptoServices
-                                                .length
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </div>
+
+                                    <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_200px]">
+                                      <div className="grid gap-4 md:grid-cols-2">
+                                        <DashboardFieldStack>
+                                          <Label htmlFor={`donations-crypto-name-${index}`}>
+                                            Nome do serviço
+                                          </Label>
+                                          <Input
+                                            id={`donations-crypto-name-${index}`}
+                                            aria-label={`Nome do serviço cripto ${index + 1}`}
+                                            value={service.name}
+                                            onChange={(e) =>
+                                              updateCryptoServiceAt(index, {
+                                                name: e.target.value,
+                                              })
                                             }
-                                            onMove={(targetIndex) =>
-                                              moveListItem(
-                                                "donations.cryptoServices",
-                                                index,
-                                                targetIndex,
-                                              )
-                                            }
+                                            placeholder="Bitcoin"
                                           />
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label={`Remover serviço cripto ${index + 1}`}
-                                            onClick={() =>
-                                              removeCryptoServiceAt(index)
+                                        </DashboardFieldStack>
+                                        <DashboardFieldStack>
+                                          <Label htmlFor={`donations-crypto-ticker-${index}`}>
+                                            Ticker
+                                          </Label>
+                                          <Input
+                                            id={`donations-crypto-ticker-${index}`}
+                                            aria-label={`Ticker do serviço cripto ${index + 1}`}
+                                            value={service.ticker}
+                                            onChange={(e) =>
+                                              updateCryptoServiceAt(index, {
+                                                ticker: e.target.value,
+                                              })
                                             }
-                                          >
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                        </div>
+                                            placeholder="BTC"
+                                          />
+                                        </DashboardFieldStack>
+                                        <DashboardFieldStack>
+                                          <Label htmlFor={`donations-crypto-network-${index}`}>
+                                            Rede
+                                          </Label>
+                                          <Input
+                                            id={`donations-crypto-network-${index}`}
+                                            aria-label={`Rede do serviço cripto ${index + 1}`}
+                                            value={service.network}
+                                            onChange={(e) =>
+                                              updateCryptoServiceAt(index, {
+                                                network: e.target.value,
+                                              })
+                                            }
+                                            placeholder="Bitcoin"
+                                          />
+                                        </DashboardFieldStack>
+                                        <DashboardFieldStack>
+                                          <Label htmlFor={`donations-crypto-action-label-${index}`}>
+                                            Rótulo da ação externa
+                                          </Label>
+                                          <Input
+                                            id={`donations-crypto-action-label-${index}`}
+                                            aria-label={`Rótulo da ação externa do serviço cripto ${index + 1}`}
+                                            value={service.actionLabel}
+                                            onChange={(e) =>
+                                              updateCryptoServiceAt(index, {
+                                                actionLabel: e.target.value,
+                                              })
+                                            }
+                                            placeholder="Abrir carteira"
+                                          />
+                                        </DashboardFieldStack>
+                                        <DashboardFieldStack className="md:col-span-2">
+                                          <Label htmlFor={`donations-crypto-address-${index}`}>
+                                            Endereço para cópia
+                                          </Label>
+                                          <Textarea
+                                            id={`donations-crypto-address-${index}`}
+                                            aria-label={`Endereço para cópia do serviço cripto ${index + 1}`}
+                                            value={service.address}
+                                            onChange={(e) =>
+                                              updateCryptoServiceAt(index, {
+                                                address: e.target.value,
+                                              })
+                                            }
+                                            placeholder="bc1..."
+                                          />
+                                        </DashboardFieldStack>
+                                        <DashboardFieldStack className="md:col-span-2">
+                                          <Label htmlFor={`donations-crypto-qr-value-${index}`}>
+                                            Valor para QR (opcional)
+                                          </Label>
+                                          <Input
+                                            id={`donations-crypto-qr-value-${index}`}
+                                            aria-label={`Valor para QR do serviço cripto ${index + 1}`}
+                                            value={service.qrValue}
+                                            onChange={(e) =>
+                                              updateCryptoServiceAt(index, {
+                                                qrValue: e.target.value,
+                                              })
+                                            }
+                                            placeholder="Se vazio, usa o endereço"
+                                          />
+                                        </DashboardFieldStack>
+                                        <DashboardFieldStack>
+                                          <Label htmlFor={`donations-crypto-action-url-${index}`}>
+                                            URL da ação externa
+                                          </Label>
+                                          <Input
+                                            id={`donations-crypto-action-url-${index}`}
+                                            aria-label={`URL da ação externa do serviço cripto ${index + 1}`}
+                                            value={service.actionUrl}
+                                            onChange={(e) =>
+                                              updateCryptoServiceAt(index, {
+                                                actionUrl: e.target.value,
+                                              })
+                                            }
+                                            placeholder="https://..."
+                                          />
+                                        </DashboardFieldStack>
+                                        <DashboardFieldStack>
+                                          <Label htmlFor={`donations-crypto-icon-url-${index}`}>
+                                            Logo customizada (URL)
+                                          </Label>
+                                          <Input
+                                            id={`donations-crypto-icon-url-${index}`}
+                                            aria-label={`Logo customizada do serviço cripto ${index + 1}`}
+                                            value={service.iconUrl}
+                                            onChange={(e) =>
+                                              updateCryptoServiceAt(index, {
+                                                iconUrl: e.target.value,
+                                              })
+                                            }
+                                            placeholder="https://..."
+                                          />
+                                        </DashboardFieldStack>
+                                        <DashboardFieldStack className="md:col-span-2">
+                                          <Label htmlFor={`donations-crypto-note-${index}`}>
+                                            Nota
+                                          </Label>
+                                          <Textarea
+                                            id={`donations-crypto-note-${index}`}
+                                            aria-label={`Nota do serviço cripto ${index + 1}`}
+                                            value={service.note}
+                                            onChange={(e) =>
+                                              updateCryptoServiceAt(index, {
+                                                note: e.target.value,
+                                              })
+                                            }
+                                            placeholder="Ex.: ERC-20, sem memo."
+                                          />
+                                        </DashboardFieldStack>
                                       </div>
 
-                                      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_200px]">
-                                        <div className="grid gap-4 md:grid-cols-2">
-                                          <DashboardFieldStack>
-                                            <Label
-                                              htmlFor={`donations-crypto-name-${index}`}
-                                            >
-                                              Nome do serviço
-                                            </Label>
-                                            <Input
-                                              id={`donations-crypto-name-${index}`}
-                                              aria-label={`Nome do serviço cripto ${index + 1}`}
-                                              value={service.name}
-                                              onChange={(e) =>
-                                                updateCryptoServiceAt(index, {
-                                                  name: e.target.value,
-                                                })
-                                              }
-                                              placeholder="Bitcoin"
-                                            />
-                                          </DashboardFieldStack>
-                                          <DashboardFieldStack>
-                                            <Label
-                                              htmlFor={`donations-crypto-ticker-${index}`}
-                                            >
-                                              Ticker
-                                            </Label>
-                                            <Input
-                                              id={`donations-crypto-ticker-${index}`}
-                                              aria-label={`Ticker do serviço cripto ${index + 1}`}
-                                              value={service.ticker}
-                                              onChange={(e) =>
-                                                updateCryptoServiceAt(index, {
-                                                  ticker: e.target.value,
-                                                })
-                                              }
-                                              placeholder="BTC"
-                                            />
-                                          </DashboardFieldStack>
-                                          <DashboardFieldStack>
-                                            <Label
-                                              htmlFor={`donations-crypto-network-${index}`}
-                                            >
-                                              Rede
-                                            </Label>
-                                            <Input
-                                              id={`donations-crypto-network-${index}`}
-                                              aria-label={`Rede do serviço cripto ${index + 1}`}
-                                              value={service.network}
-                                              onChange={(e) =>
-                                                updateCryptoServiceAt(index, {
-                                                  network: e.target.value,
-                                                })
-                                              }
-                                              placeholder="Bitcoin"
-                                            />
-                                          </DashboardFieldStack>
-                                          <DashboardFieldStack>
-                                            <Label
-                                              htmlFor={`donations-crypto-action-label-${index}`}
-                                            >
-                                              Rótulo da ação externa
-                                            </Label>
-                                            <Input
-                                              id={`donations-crypto-action-label-${index}`}
-                                              aria-label={`Rótulo da ação externa do serviço cripto ${index + 1}`}
-                                              value={service.actionLabel}
-                                              onChange={(e) =>
-                                                updateCryptoServiceAt(index, {
-                                                  actionLabel: e.target.value,
-                                                })
-                                              }
-                                              placeholder="Abrir carteira"
-                                            />
-                                          </DashboardFieldStack>
-                                          <DashboardFieldStack className="md:col-span-2">
-                                            <Label
-                                              htmlFor={`donations-crypto-address-${index}`}
-                                            >
-                                              Endereço para cópia
-                                            </Label>
-                                            <Textarea
-                                              id={`donations-crypto-address-${index}`}
-                                              aria-label={`Endereço para cópia do serviço cripto ${index + 1}`}
-                                              value={service.address}
-                                              onChange={(e) =>
-                                                updateCryptoServiceAt(index, {
-                                                  address: e.target.value,
-                                                })
-                                              }
-                                              placeholder="bc1..."
-                                            />
-                                          </DashboardFieldStack>
-                                          <DashboardFieldStack className="md:col-span-2">
-                                            <Label
-                                              htmlFor={`donations-crypto-qr-value-${index}`}
-                                            >
-                                              Valor para QR (opcional)
-                                            </Label>
-                                            <Input
-                                              id={`donations-crypto-qr-value-${index}`}
-                                              aria-label={`Valor para QR do serviço cripto ${index + 1}`}
-                                              value={service.qrValue}
-                                              onChange={(e) =>
-                                                updateCryptoServiceAt(index, {
-                                                  qrValue: e.target.value,
-                                                })
-                                              }
-                                              placeholder="Se vazio, usa o endereço"
-                                            />
-                                          </DashboardFieldStack>
-                                          <DashboardFieldStack>
-                                            <Label
-                                              htmlFor={`donations-crypto-action-url-${index}`}
-                                            >
-                                              URL da ação externa
-                                            </Label>
-                                            <Input
-                                              id={`donations-crypto-action-url-${index}`}
-                                              aria-label={`URL da ação externa do serviço cripto ${index + 1}`}
-                                              value={service.actionUrl}
-                                              onChange={(e) =>
-                                                updateCryptoServiceAt(index, {
-                                                  actionUrl: e.target.value,
-                                                })
-                                              }
-                                              placeholder="https://..."
-                                            />
-                                          </DashboardFieldStack>
-                                          <DashboardFieldStack>
-                                            <Label
-                                              htmlFor={`donations-crypto-icon-url-${index}`}
-                                            >
-                                              Logo customizada (URL)
-                                            </Label>
-                                            <Input
-                                              id={`donations-crypto-icon-url-${index}`}
-                                              aria-label={`Logo customizada do serviço cripto ${index + 1}`}
-                                              value={service.iconUrl}
-                                              onChange={(e) =>
-                                                updateCryptoServiceAt(index, {
-                                                  iconUrl: e.target.value,
-                                                })
-                                              }
-                                              placeholder="https://..."
-                                            />
-                                          </DashboardFieldStack>
-                                          <DashboardFieldStack className="md:col-span-2">
-                                            <Label
-                                              htmlFor={`donations-crypto-note-${index}`}
-                                            >
-                                              Nota
-                                            </Label>
-                                            <Textarea
-                                              id={`donations-crypto-note-${index}`}
-                                              aria-label={`Nota do serviço cripto ${index + 1}`}
-                                              value={service.note}
-                                              onChange={(e) =>
-                                                updateCryptoServiceAt(index, {
-                                                  note: e.target.value,
-                                                })
-                                              }
-                                              placeholder="Ex.: ERC-20, sem memo."
-                                            />
-                                          </DashboardFieldStack>
-                                        </div>
-
-                                        <div
-                                          className={`${dashboardPagesControlSurfaceClassName} flex flex-col gap-4 p-4`}
-                                        >
-                                          <DashboardFieldStack>
-                                            <Label
-                                              htmlFor={`donations-crypto-icon-${index}`}
-                                            >
-                                              Ícone padrão
-                                            </Label>
-                                            <IconSelect
-                                              value={
-                                                service.icon ||
-                                                DEFAULT_DONATIONS_CRYPTO_ICON
-                                              }
-                                              onChange={(nextIcon) =>
-                                                updateCryptoServiceAt(index, {
-                                                  icon: nextIcon,
-                                                })
-                                              }
-                                              ariaLabel={`Selecionar ícone do serviço cripto ${index + 1}`}
-                                            />
-                                          </DashboardFieldStack>
-                                          <div className="space-y-2">
-                                            <p
-                                              className={`text-xs ${dashboardPagesMetaTextClassName}`}
-                                            >
-                                              Prévia da página pública
-                                            </p>
-                                            <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/70 p-3">
-                                              <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-background">
-                                                {previewLogoUrl ? (
-                                                  <img
-                                                    src={normalizeAssetUrl(
-                                                      previewLogoUrl,
-                                                    )}
-                                                    alt={
-                                                      service.name
-                                                        ? `Logo ${service.name}`
-                                                        : `Logo do serviço cripto ${index + 1}`
-                                                    }
-                                                    className="h-full w-full object-cover"
-                                                  />
-                                                ) : (
-                                                  <PreviewIcon className="h-6 w-6 text-primary" />
-                                                )}
-                                              </div>
-                                              <div className="min-w-0">
-                                                <p className="truncate text-sm font-medium text-foreground">
-                                                  {service.name ||
-                                                    "Serviço sem nome"}
-                                                </p>
-                                                <p
-                                                  className={`truncate text-xs ${dashboardPagesMetaTextClassName}`}
-                                                >
-                                                  {service.ticker ||
-                                                    service.network ||
-                                                    "Sem metadados extras"}
-                                                </p>
-                                              </div>
+                                      <div
+                                        className={`${dashboardPagesControlSurfaceClassName} flex flex-col gap-4 p-4`}
+                                      >
+                                        <DashboardFieldStack>
+                                          <Label htmlFor={`donations-crypto-icon-${index}`}>
+                                            Ícone padrão
+                                          </Label>
+                                          <IconSelect
+                                            value={service.icon || DEFAULT_DONATIONS_CRYPTO_ICON}
+                                            onChange={(nextIcon) =>
+                                              updateCryptoServiceAt(index, {
+                                                icon: nextIcon,
+                                              })
+                                            }
+                                            ariaLabel={`Selecionar ícone do serviço cripto ${index + 1}`}
+                                          />
+                                        </DashboardFieldStack>
+                                        <div className="space-y-2">
+                                          <p
+                                            className={`text-xs ${dashboardPagesMetaTextClassName}`}
+                                          >
+                                            Prévia da página pública
+                                          </p>
+                                          <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/70 p-3">
+                                            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-background">
+                                              {previewLogoUrl ? (
+                                                <img
+                                                  src={normalizeAssetUrl(previewLogoUrl)}
+                                                  alt={
+                                                    service.name
+                                                      ? `Logo ${service.name}`
+                                                      : `Logo do serviço cripto ${index + 1}`
+                                                  }
+                                                  className="h-full w-full object-cover"
+                                                />
+                                              ) : (
+                                                <PreviewIcon className="h-6 w-6 text-primary" />
+                                              )}
                                             </div>
-                                            <p
-                                              className={`text-xs ${dashboardPagesMetaTextClassName}`}
-                                            >
-                                              Se a URL da logo estiver
-                                              preenchida, ela substitui o ícone
-                                              na página pública.
-                                            </p>
+                                            <div className="min-w-0">
+                                              <p className="truncate text-sm font-medium text-foreground">
+                                                {service.name || "Serviço sem nome"}
+                                              </p>
+                                              <p
+                                                className={`truncate text-xs ${dashboardPagesMetaTextClassName}`}
+                                              >
+                                                {service.ticker ||
+                                                  service.network ||
+                                                  "Sem metadados extras"}
+                                              </p>
+                                            </div>
                                           </div>
+                                          <p
+                                            className={`text-xs ${dashboardPagesMetaTextClassName}`}
+                                          >
+                                            Se a URL da logo estiver preenchida, ela substitui o
+                                            ícone na página pública.
+                                          </p>
                                         </div>
                                       </div>
                                     </div>
-                                  );
-                                },
-                              )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </CardContent>
                         </Card>
 
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="space-y-4 p-6">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                               <h2
@@ -2700,12 +2443,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               </h2>
                               <div className="w-full md:w-56">
                                 <IconSelect
-                                  value={
-                                    pages.donations.donorsIcon || "PiggyBank"
-                                  }
-                                  onChange={(nextIcon) =>
-                                    updateDonations({ donorsIcon: nextIcon })
-                                  }
+                                  value={pages.donations.donorsIcon || "PiggyBank"}
+                                  onChange={(nextIcon) => updateDonations({ donorsIcon: nextIcon })}
                                 />
                               </div>
                               <DashboardActionButton
@@ -2736,15 +2475,11 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   key={donor._editorKey || `donations-donor-${index}`}
                                   data-testid={`donations-donor-item-${index}`}
                                   draggable
-                                  onDragStart={() =>
-                                    handleDragStart("donations.donors", index)
-                                  }
+                                  onDragStart={() => handleDragStart("donations.donors", index)}
                                   onDragOver={(event) =>
                                     handleDragOver(event, "donations.donors", index)
                                   }
-                                  onDrop={() =>
-                                    handleDrop("donations.donors", index)
-                                  }
+                                  onDrop={() => handleDrop("donations.donors", index)}
                                   onDragEnd={clearDragState}
                                   className={getReorderableSurfaceClassName(
                                     "donations.donors",
@@ -2765,11 +2500,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                         index={index}
                                         total={pages.donations.donors.length}
                                         onMove={(targetIndex) =>
-                                          moveListItem(
-                                            "donations.donors",
-                                            index,
-                                            targetIndex,
-                                          )
+                                          moveListItem("donations.donors", index, targetIndex)
                                         }
                                       />
                                       <Button
@@ -2777,10 +2508,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                         size="icon"
                                         onClick={() =>
                                           updateDonations({
-                                            donors:
-                                              pages.donations.donors.filter(
-                                                (_, i) => i !== index,
-                                              ),
+                                            donors: pages.donations.donors.filter(
+                                              (_, i) => i !== index,
+                                            ),
                                           })
                                         }
                                       >
@@ -2792,9 +2522,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     <Input
                                       value={donor.name}
                                       onChange={(e) => {
-                                        const next = [
-                                          ...pages.donations.donors,
-                                        ];
+                                        const next = [...pages.donations.donors];
                                         next[index] = {
                                           ...donor,
                                           name: e.target.value,
@@ -2806,9 +2534,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     <Input
                                       value={donor.amount}
                                       onChange={(e) => {
-                                        const next = [
-                                          ...pages.donations.donors,
-                                        ];
+                                        const next = [...pages.donations.donors];
                                         next[index] = {
                                           ...donor,
                                           amount: e.target.value,
@@ -2820,9 +2546,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     <Input
                                       value={donor.goal}
                                       onChange={(e) => {
-                                        const next = [
-                                          ...pages.donations.donors,
-                                        ];
+                                        const next = [...pages.donations.donors];
                                         next[index] = {
                                           ...donor,
                                           goal: e.target.value,
@@ -2834,9 +2558,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     <Input
                                       value={donor.date}
                                       onChange={(e) => {
-                                        const next = [
-                                          ...pages.donations.donors,
-                                        ];
+                                        const next = [...pages.donations.donors];
                                         next[index] = {
                                           ...donor,
                                           date: e.target.value,
@@ -2860,36 +2582,26 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                         value="faq"
                         className="mt-6 space-y-6 data-[state=inactive]:hidden"
                       >
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                             <DashboardFieldStack>
                               <Label>Título</Label>
                               <Input
                                 value={pages.faq.heroTitle}
-                                onChange={(e) =>
-                                  updateFaq({ heroTitle: e.target.value })
-                                }
+                                onChange={(e) => updateFaq({ heroTitle: e.target.value })}
                               />
                             </DashboardFieldStack>
                             <DashboardFieldStack className="md:col-span-2">
                               <Label>Subtítulo</Label>
                               <Textarea
                                 value={pages.faq.heroSubtitle}
-                                onChange={(e) =>
-                                  updateFaq({ heroSubtitle: e.target.value })
-                                }
+                                onChange={(e) => updateFaq({ heroSubtitle: e.target.value })}
                               />
                             </DashboardFieldStack>
                           </CardContent>
                         </Card>
 
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="space-y-4 p-6">
                             <div className="flex items-center justify-between">
                               <h2
@@ -2923,12 +2635,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                 <div
                                   key={`${card.title}-${index}`}
                                   draggable
-                                  onDragStart={() =>
-                                    handleDragStart("faq.intro", index)
-                                  }
-                                  onDragOver={(event) =>
-                                    handleDragOver(event, "faq.intro", index)
-                                  }
+                                  onDragStart={() => handleDragStart("faq.intro", index)}
+                                  onDragOver={(event) => handleDragOver(event, "faq.intro", index)}
                                   onDrop={() => handleDrop("faq.intro", index)}
                                   onDragEnd={clearDragState}
                                   className={getReorderableSurfaceClassName(
@@ -2950,11 +2658,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                         index={index}
                                         total={pages.faq.introCards.length}
                                         onMove={(targetIndex) =>
-                                          moveListItem(
-                                            "faq.intro",
-                                            index,
-                                            targetIndex,
-                                          )
+                                          moveListItem("faq.intro", index, targetIndex)
                                         }
                                       />
                                       <Button
@@ -2962,10 +2666,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                         size="icon"
                                         onClick={() =>
                                           updateFaq({
-                                            introCards:
-                                              pages.faq.introCards.filter(
-                                                (_, i) => i !== index,
-                                              ),
+                                            introCards: pages.faq.introCards.filter(
+                                              (_, i) => i !== index,
+                                            ),
                                           })
                                         }
                                       >
@@ -3025,10 +2728,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                           </CardContent>
                         </Card>
 
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="space-y-4 p-6">
                             <div className="flex items-center justify-between">
                               <h2
@@ -3061,15 +2761,11 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                 <div
                                   key={`${group.title}-${groupIndex}`}
                                   draggable
-                                  onDragStart={() =>
-                                    handleDragStart("faq.groups", groupIndex)
-                                  }
+                                  onDragStart={() => handleDragStart("faq.groups", groupIndex)}
                                   onDragOver={(event) =>
                                     handleDragOver(event, "faq.groups", groupIndex)
                                   }
-                                  onDrop={() =>
-                                    handleDrop("faq.groups", groupIndex)
-                                  }
+                                  onDrop={() => handleDrop("faq.groups", groupIndex)}
                                   onDragEnd={clearDragState}
                                   className={getReorderableSurfaceClassName(
                                     "faq.groups",
@@ -3090,11 +2786,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                         index={groupIndex}
                                         total={pages.faq.groups.length}
                                         onMove={(targetIndex) =>
-                                          moveListItem(
-                                            "faq.groups",
-                                            groupIndex,
-                                            targetIndex,
-                                          )
+                                          moveListItem("faq.groups", groupIndex, targetIndex)
                                         }
                                       />
                                       <Button
@@ -3173,27 +2865,19 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                           onDragStart={(event) => {
                                             // Avoid parent FAQ group dragstart overriding item drag state.
                                             event.stopPropagation();
-                                            handleDragStart(
+                                            handleDragStart(`faq.items.${groupIndex}`, itemIndex);
+                                          }}
+                                          onDragOver={(event) => {
+                                            event.stopPropagation();
+                                            handleDragOver(
+                                              event,
                                               `faq.items.${groupIndex}`,
                                               itemIndex,
                                             );
                                           }}
-                                          onDragOver={(event) =>
-                                            {
-                                              event.stopPropagation();
-                                              handleDragOver(
-                                                event,
-                                                `faq.items.${groupIndex}`,
-                                                itemIndex,
-                                              );
-                                            }
-                                          }
                                           onDrop={(event) => {
                                             event.stopPropagation();
-                                            handleDrop(
-                                              `faq.items.${groupIndex}`,
-                                              itemIndex,
-                                            );
+                                            handleDrop(`faq.items.${groupIndex}`, itemIndex);
                                           }}
                                           onDragEnd={clearDragState}
                                           className={getReorderableSurfaceClassName(
@@ -3226,13 +2910,10 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                                 variant="ghost"
                                                 size="icon"
                                                 onClick={() => {
-                                                  const next = [
-                                                    ...pages.faq.groups,
-                                                  ];
-                                                  const items =
-                                                    group.items.filter(
-                                                      (_, i) => i !== itemIndex,
-                                                    );
+                                                  const next = [...pages.faq.groups];
+                                                  const items = group.items.filter(
+                                                    (_, i) => i !== itemIndex,
+                                                  );
                                                   next[groupIndex] = {
                                                     ...group,
                                                     items,
@@ -3248,9 +2929,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                             <Input
                                               value={item.question}
                                               onChange={(e) => {
-                                                const next = [
-                                                  ...pages.faq.groups,
-                                                ];
+                                                const next = [...pages.faq.groups];
                                                 const items = [...group.items];
                                                 items[itemIndex] = {
                                                   ...item,
@@ -3266,9 +2945,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                             <Textarea
                                               value={item.answer}
                                               onChange={(e) => {
-                                                const next = [
-                                                  ...pages.faq.groups,
-                                                ];
+                                                const next = [...pages.faq.groups];
                                                 const items = [...group.items];
                                                 items[itemIndex] = {
                                                   ...item,
@@ -3300,45 +2977,34 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                         value="team"
                         className="mt-6 space-y-6 data-[state=inactive]:hidden"
                       >
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                             <DashboardFieldStack>
                               <Label>Badge</Label>
                               <Input
                                 value={pages.team.heroBadge}
-                                onChange={(e) =>
-                                  updateTeam({ heroBadge: e.target.value })
-                                }
+                                onChange={(e) => updateTeam({ heroBadge: e.target.value })}
                               />
                             </DashboardFieldStack>
                             <DashboardFieldStack>
                               <Label>Título</Label>
                               <Input
                                 value={pages.team.heroTitle}
-                                onChange={(e) =>
-                                  updateTeam({ heroTitle: e.target.value })
-                                }
+                                onChange={(e) => updateTeam({ heroTitle: e.target.value })}
                               />
                             </DashboardFieldStack>
                             <DashboardFieldStack className="md:col-span-2">
                               <Label>Subtítulo</Label>
                               <Textarea
                                 value={pages.team.heroSubtitle}
-                                onChange={(e) =>
-                                  updateTeam({ heroSubtitle: e.target.value })
-                                }
+                                onChange={(e) => updateTeam({ heroSubtitle: e.target.value })}
                               />
                             </DashboardFieldStack>
                             <DashboardFieldStack>
                               <Label>Título aposentados</Label>
                               <Input
                                 value={pages.team.retiredTitle}
-                                onChange={(e) =>
-                                  updateTeam({ retiredTitle: e.target.value })
-                                }
+                                onChange={(e) => updateTeam({ retiredTitle: e.target.value })}
                               />
                             </DashboardFieldStack>
                             <DashboardFieldStack className="md:col-span-2">
@@ -3363,10 +3029,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                         value="recruitment"
                         className="mt-6 space-y-6 data-[state=inactive]:hidden"
                       >
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                             <DashboardFieldStack>
                               <Label>Badge</Label>
@@ -3404,10 +3067,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                           </CardContent>
                         </Card>
 
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="space-y-4 p-6">
                             <div className="flex items-center justify-between">
                               <h2
@@ -3440,15 +3100,11 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                 <div
                                   key={`${role.title}-${index}`}
                                   draggable
-                                  onDragStart={() =>
-                                    handleDragStart("recruitment.roles", index)
-                                  }
+                                  onDragStart={() => handleDragStart("recruitment.roles", index)}
                                   onDragOver={(event) =>
                                     handleDragOver(event, "recruitment.roles", index)
                                   }
-                                  onDrop={() =>
-                                    handleDrop("recruitment.roles", index)
-                                  }
+                                  onDrop={() => handleDrop("recruitment.roles", index)}
                                   onDragEnd={clearDragState}
                                   className={getReorderableSurfaceClassName(
                                     "recruitment.roles",
@@ -3469,11 +3125,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                         index={index}
                                         total={pages.recruitment.roles.length}
                                         onMove={(targetIndex) =>
-                                          moveListItem(
-                                            "recruitment.roles",
-                                            index,
-                                            targetIndex,
-                                          )
+                                          moveListItem("recruitment.roles", index, targetIndex)
                                         }
                                       />
                                       <Button
@@ -3481,10 +3133,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                         size="icon"
                                         onClick={() =>
                                           updateRecruitment({
-                                            roles:
-                                              pages.recruitment.roles.filter(
-                                                (_, i) => i !== index,
-                                              ),
+                                            roles: pages.recruitment.roles.filter(
+                                              (_, i) => i !== index,
+                                            ),
                                           })
                                         }
                                       >
@@ -3496,9 +3147,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     <Input
                                       value={role.title}
                                       onChange={(e) => {
-                                        const next = [
-                                          ...pages.recruitment.roles,
-                                        ];
+                                        const next = [...pages.recruitment.roles];
                                         next[index] = {
                                           ...role,
                                           title: e.target.value,
@@ -3509,9 +3158,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     <IconSelect
                                       value={role.icon}
                                       onChange={(nextIcon) => {
-                                        const next = [
-                                          ...pages.recruitment.roles,
-                                        ];
+                                        const next = [...pages.recruitment.roles];
                                         next[index] = {
                                           ...role,
                                           icon: nextIcon,
@@ -3523,9 +3170,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                       className="md:col-span-2"
                                       value={role.description}
                                       onChange={(e) => {
-                                        const next = [
-                                          ...pages.recruitment.roles,
-                                        ];
+                                        const next = [...pages.recruitment.roles];
                                         next[index] = {
                                           ...role,
                                           description: e.target.value,
@@ -3540,10 +3185,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                           </CardContent>
                         </Card>
 
-                        <Card
-                          lift={false}
-                          className={dashboardPagesCardClassName}
-                        >
+                        <Card lift={false} className={dashboardPagesCardClassName}>
                           <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                             <DashboardFieldStack>
                               <Label>Título do CTA</Label>
@@ -3605,11 +3247,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
           currentPreviewLibrarySelection ? [currentPreviewLibrarySelection] : []
         }
         onSave={({ urls, items }) =>
-          applyPageShareImage(
-            previewLibraryTarget,
-            String(urls[0] || "").trim(),
-            items[0]?.altText,
-          )
+          applyPageShareImage(previewLibraryTarget, String(urls[0] || "").trim(), items[0]?.altText)
         }
       />
     </>

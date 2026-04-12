@@ -1,4 +1,4 @@
-export const reorderItems = <T,>(items: T[], from: number, to: number) => {
+export const reorderItems = <T>(items: T[], from: number, to: number) => {
   if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) {
     return items;
   }

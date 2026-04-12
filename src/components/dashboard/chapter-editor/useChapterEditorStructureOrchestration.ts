@@ -11,7 +11,11 @@ import {
 } from "@/lib/dashboard-project-chapter";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
 
-import type { ChapterStructureGroup, ProjectRecord, VolumeSelectionOptions } from "./chapter-editor-types";
+import type {
+  ChapterStructureGroup,
+  ProjectRecord,
+  VolumeSelectionOptions,
+} from "./chapter-editor-types";
 
 type PersistProjectContext =
   | "epub-import"
@@ -112,7 +116,13 @@ export const useChapterEditorStructureOrchestration = ({
         selectedVolume: selectedVolumeNumber,
         structureGroups,
       }),
-    [activeChapterKey, hasActiveChapter, selectedStageChapterId, selectedVolumeNumber, structureGroups],
+    [
+      activeChapterKey,
+      hasActiveChapter,
+      selectedStageChapterId,
+      selectedVolumeNumber,
+      structureGroups,
+    ],
   );
 
   const selectedStructureGroupKey = useMemo(
@@ -124,7 +134,13 @@ export const useChapterEditorStructureOrchestration = ({
         selectedVolume: selectedVolumeNumber,
         structureGroups,
       }),
-    [activeChapterKey, hasActiveChapter, selectedStageChapterId, selectedVolumeNumber, structureGroups],
+    [
+      activeChapterKey,
+      hasActiveChapter,
+      selectedStageChapterId,
+      selectedVolumeNumber,
+      structureGroups,
+    ],
   );
 
   const structureProjectSnapshotRef = useRef<ProjectRecord>(structureProjectSnapshot);
@@ -146,7 +162,8 @@ export const useChapterEditorStructureOrchestration = ({
     setOpenStructureGroupKeys((currentKeys) => {
       const fallbackGroupKey = structureGroups[0]?.key || "";
       const normalizedActiveStructureGroupKey =
-        activeStructureGroupKey && structureGroups.some((group) => group.key === activeStructureGroupKey)
+        activeStructureGroupKey &&
+        structureGroups.some((group) => group.key === activeStructureGroupKey)
           ? activeStructureGroupKey
           : fallbackGroupKey;
       const normalizedCurrentKeys = normalizeStructureGroupKeys(currentKeys, structureGroups);

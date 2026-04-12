@@ -28,10 +28,7 @@ type DashboardSearchParamBuildOptions = {
   deleteKeys?: string[];
 };
 
-const normalizeParamValue = (
-  value: string | number | null | undefined,
-  trim = true,
-) => {
+const normalizeParamValue = (value: string | number | null | undefined, trim = true) => {
   if (value === null || value === undefined) {
     return "";
   }
@@ -57,10 +54,7 @@ export const buildDashboardSearchParams = (
   return nextParams;
 };
 
-export const removeDashboardSearchParamKeys = (
-  currentParams: URLSearchParams,
-  keys: string[],
-) => {
+export const removeDashboardSearchParamKeys = (currentParams: URLSearchParams, keys: string[]) => {
   const nextParams = new URLSearchParams(currentParams);
   keys.forEach((key) => {
     nextParams.delete(key);
@@ -68,7 +62,5 @@ export const removeDashboardSearchParamKeys = (
   return nextParams;
 };
 
-export const areDashboardSearchParamsEqual = (
-  left: URLSearchParams,
-  right: URLSearchParams,
-) => left.toString() === right.toString();
+export const areDashboardSearchParamsEqual = (left: URLSearchParams, right: URLSearchParams) =>
+  left.toString() === right.toString();

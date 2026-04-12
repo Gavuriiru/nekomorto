@@ -1,13 +1,8 @@
 import path from "path";
 
 import { isTruthyEnv } from "../lib/authz.js";
-import {
-  buildOriginConfig,
-} from "../lib/origin-config.js";
-import {
-  parseDataEncryptionKeyring,
-  resolveSessionSecrets,
-} from "../lib/security-crypto.js";
+import { buildOriginConfig } from "../lib/origin-config.js";
+import { parseDataEncryptionKeyring, resolveSessionSecrets } from "../lib/security-crypto.js";
 import { buildSessionCookieConfig } from "../lib/session-cookie-config.js";
 import { createSiteSettingsRuntimeHelpers } from "../lib/site-settings-runtime-helpers.js";
 
@@ -19,10 +14,7 @@ export const parseEnvInteger = (value, fallback, min, max) => {
   return Math.min(Math.max(Math.floor(parsed), min), max);
 };
 
-export const buildServerBootConfig = ({
-  env = process.env,
-  repoRootDir = process.cwd(),
-} = {}) => {
+export const buildServerBootConfig = ({ env = process.env, repoRootDir = process.cwd() } = {}) => {
   const {
     DATABASE_URL = "",
     REDIS_URL = "",
@@ -88,10 +80,7 @@ export const buildServerBootConfig = ({
   const isPwaDevEnabled = VITE_PWA_DEV_ENABLED_ENV === "true";
   const isHomeHeroShellEnabled = isTruthyEnv(HOME_HERO_SHELL_ENABLED_ENV, true);
   const MFA_ENROLLMENT_TTL_MS = Number.isFinite(Number(MFA_ENROLLMENT_TTL_MS_ENV))
-    ? Math.min(
-        Math.max(Math.floor(Number(MFA_ENROLLMENT_TTL_MS_ENV)), 60_000),
-        24 * 60 * 60 * 1000,
-      )
+    ? Math.min(Math.max(Math.floor(Number(MFA_ENROLLMENT_TTL_MS_ENV)), 60_000), 24 * 60 * 60 * 1000)
     : 10 * 60 * 1000;
   const ADMIN_EXPORT_TTL_HOURS = Number.isFinite(Number(ADMIN_EXPORT_TTL_HOURS_ENV))
     ? Math.min(Math.max(Math.floor(Number(ADMIN_EXPORT_TTL_HOURS_ENV)), 1), 7 * 24)
@@ -193,12 +182,7 @@ export const buildServerBootConfig = ({
     60 * 1000,
     24 * 60 * 60 * 1000,
   );
-  const ANALYTICS_RETENTION_DAYS = parseEnvInteger(
-    ANALYTICS_RETENTION_DAYS_ENV,
-    90,
-    7,
-    3650,
-  );
+  const ANALYTICS_RETENTION_DAYS = parseEnvInteger(ANALYTICS_RETENTION_DAYS_ENV, 90, 7, 3650);
   const ANALYTICS_AGG_RETENTION_DAYS = parseEnvInteger(
     ANALYTICS_AGG_RETENTION_DAYS_ENV,
     365,

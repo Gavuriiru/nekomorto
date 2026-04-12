@@ -41,7 +41,9 @@ export const collectProjectImageItems = ({
       return;
     }
     dedupe.add(dedupeKey);
-    const resolvedFolder = String(folder || getUploadFolderFromUrlValue(normalizedUrl) || "").trim();
+    const resolvedFolder = String(
+      folder || getUploadFolderFromUrlValue(normalizedUrl) || "",
+    ).trim();
     items.push({
       source: "project",
       url: normalizedUrl,

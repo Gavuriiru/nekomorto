@@ -411,7 +411,7 @@ describe("Public pages share image meta", () => {
       "hover:-translate-y-1",
       "hover:border-primary/60",
       "hover:bg-card/90",
-      "hover:shadow-lg",
+      "hover:shadow-md",
     );
     expect(costTitle).toHaveClass("transition-colors", "duration-300", "group-hover:text-primary");
     expect(screen.getByText(/Mantem servidor/)).toHaveClass(
@@ -421,42 +421,28 @@ describe("Public pages share image meta", () => {
     );
 
     const reasonTitle = screen.getByText("Por que apoiar");
-    expect(reasonTitle.closest(".group\\/reason")).toHaveClass(
-      "group/reason",
-      "hover:-translate-y-1",
-      "hover:border-primary/60",
+    expect(screen.getByTestId("donations-reason-panel")).toHaveClass(
+      "space-y-4",
+      "rounded-2xl",
+      "p-2",
     );
-    expect(reasonTitle).toHaveClass(
-      "transition-colors",
-      "duration-300",
-      "group-hover/reason:text-primary",
-    );
+    expect(reasonTitle).toHaveClass("flex", "items-center", "gap-3", "text-sm");
     expect(screen.getByText(/sem anuncios/)).toHaveClass(
-      "transition-colors",
-      "duration-300",
-      "group-hover/reason:text-foreground/80",
+      "text-sm",
+      "text-muted-foreground",
+      "md:text-base",
     );
     expect(screen.getByText(/Toda ajuda/)).toHaveClass(
-      "transition-colors",
-      "duration-300",
-      "group-hover/reason:border-primary/30",
-      "group-hover/reason:bg-background/80",
-      "group-hover/reason:text-foreground/80",
+      "rounded-2xl",
+      "border",
+      "border-border/60",
+      "bg-background/60",
+      "p-4",
     );
 
     const donorsTitle = screen.getByText("Lista de doadores");
-    expect(donorsTitle.closest(".group")).toHaveClass(
-      "group",
-      "hover:-translate-y-1",
-      "hover:border-primary/60",
-      "hover:bg-card/90",
-      "hover:shadow-lg",
-    );
-    expect(donorsTitle).toHaveClass(
-      "transition-colors",
-      "duration-300",
-      "group-hover:text-primary",
-    );
+    expect(screen.getByTestId("donations-donors-card")).toHaveClass("bg-card/80", "shadow-md");
+    expect(donorsTitle).toHaveClass("flex", "items-center", "gap-3", "text-xl", "font-semibold");
 
     expect(screen.getByText(/^Pix$/).closest("#pix-doacoes")).not.toHaveClass(
       "hover:-translate-y-1",

@@ -116,7 +116,10 @@ export const createDataRepositorySiteConfigRuntime = (dependencies = {}) => {
   };
 
   const writeSiteSettings = (settings) => {
-    const normalizeSiteSettings = resolveLazyDependency("getNormalizeSiteSettings", getNormalizeSiteSettings);
+    const normalizeSiteSettings = resolveLazyDependency(
+      "getNormalizeSiteSettings",
+      getNormalizeSiteSettings,
+    );
     const buildSiteSettingsStoragePayload = resolveLazyDependency(
       "getBuildSiteSettingsStoragePayload",
       getBuildSiteSettingsStoragePayload,
@@ -135,7 +138,10 @@ export const createDataRepositorySiteConfigRuntime = (dependencies = {}) => {
     if (cached) {
       return cached;
     }
-    const normalizeSiteSettings = resolveLazyDependency("getNormalizeSiteSettings", getNormalizeSiteSettings);
+    const normalizeSiteSettings = resolveLazyDependency(
+      "getNormalizeSiteSettings",
+      getNormalizeSiteSettings,
+    );
     const buildSiteSettingsStoragePayload = resolveLazyDependency(
       "getBuildSiteSettingsStoragePayload",
       getBuildSiteSettingsStoragePayload,

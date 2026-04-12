@@ -254,7 +254,8 @@ const setupBootstrapMock = ({
   });
 };
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const expectHeroPrimaryButtonTokens = (element: HTMLElement) => {
   const tokens = classTokens(element);

@@ -248,87 +248,90 @@ export const useDashboardProjectChapterEpub = ({
     [backendSupportsEpubImport, isImportingEpub],
   );
 
-  const handleEpubImportFailureResponse = useCallback((response: Response, data: unknown) => {
-    const payload = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
-    if (response.status === 404) {
-      if (payload?.error === "project_not_found") {
-        setEpubRouteStatus("legacy_project_not_found");
+  const handleEpubImportFailureResponse = useCallback(
+    (response: Response, data: unknown) => {
+      const payload = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+      if (response.status === 404) {
+        if (payload?.error === "project_not_found") {
+          setEpubRouteStatus("legacy_project_not_found");
+          toast({
+            title: "Falha ao importar EPUB",
+            description: EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE,
+            variant: "destructive",
+          });
+          return;
+        }
+        setEpubRouteStatus("route_unreachable_for_current_origin");
         toast({
           title: "Falha ao importar EPUB",
-          description: EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE,
+          description: EPUB_IMPORT_ROUTE_MISSING_MESSAGE,
           variant: "destructive",
         });
         return;
       }
-      setEpubRouteStatus("route_unreachable_for_current_origin");
+      if (response.status === 403) {
+        setEpubRouteStatus("forbidden");
+        toast({
+          title: "Falha ao importar EPUB",
+          description: "Você não tem permissão para importar EPUB.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (
+        (typeof payload?.error === "string" && payload.error === "project_snapshot_too_large") ||
+        isLegacyMultipartSnapshotTooLargeError(payload?.error, payload?.detail)
+      ) {
+        setEpubRouteStatus("ok");
+        toast({
+          title: "Falha ao importar EPUB",
+          description: EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (typeof payload?.error === "string" && payload.error === "invalid_project_snapshot") {
+        setEpubRouteStatus("ok");
+        toast({
+          title: "Falha ao importar EPUB",
+          description: EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (typeof payload?.error === "string" && payload.error === "duplicate_episode_key") {
+        setEpubRouteStatus("ok");
+        toast({
+          title: "Falha ao importar EPUB",
+          description: EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (
+        typeof payload?.error === "string" &&
+        payload.error === "epub_import_failed" &&
+        (isEpubCssEngineFailureDetail(payload?.detail) ||
+          !(typeof payload?.detail === "string" && payload.detail.trim().length > 0))
+      ) {
+        toast({
+          title: "Falha ao importar EPUB",
+          description: EPUB_IMPORT_PROCESSING_MESSAGE,
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Falha ao importar EPUB",
-        description: EPUB_IMPORT_ROUTE_MISSING_MESSAGE,
+        description:
+          typeof payload?.detail === "string"
+            ? payload.detail
+            : "Não foi possível processar o arquivo informado.",
         variant: "destructive",
       });
-      return;
-    }
-    if (response.status === 403) {
-      setEpubRouteStatus("forbidden");
-      toast({
-        title: "Falha ao importar EPUB",
-        description: "Você não tem permissão para importar EPUB.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (
-      (typeof payload?.error === "string" && payload.error === "project_snapshot_too_large") ||
-      isLegacyMultipartSnapshotTooLargeError(payload?.error, payload?.detail)
-    ) {
-      setEpubRouteStatus("ok");
-      toast({
-        title: "Falha ao importar EPUB",
-        description: EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE,
-        variant: "destructive",
-      });
-      return;
-    }
-    if (typeof payload?.error === "string" && payload.error === "invalid_project_snapshot") {
-      setEpubRouteStatus("ok");
-      toast({
-        title: "Falha ao importar EPUB",
-        description: EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE,
-        variant: "destructive",
-      });
-      return;
-    }
-    if (typeof payload?.error === "string" && payload.error === "duplicate_episode_key") {
-      setEpubRouteStatus("ok");
-      toast({
-        title: "Falha ao importar EPUB",
-        description: EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
-        variant: "destructive",
-      });
-      return;
-    }
-    if (
-      typeof payload?.error === "string" &&
-      payload.error === "epub_import_failed" &&
-      (isEpubCssEngineFailureDetail(payload?.detail) ||
-        !(typeof payload?.detail === "string" && payload.detail.trim().length > 0))
-    ) {
-      toast({
-        title: "Falha ao importar EPUB",
-        description: EPUB_IMPORT_PROCESSING_MESSAGE,
-        variant: "destructive",
-      });
-      return;
-    }
-    toast({
-      title: "Falha ao importar EPUB",
-      description:
-        typeof payload?.detail === "string"
-          ? payload.detail
-          : "Não foi possível processar o arquivo informado.",
-      variant: "destructive",
-    });
-  }, [setEpubRouteStatus]);
+    },
+    [setEpubRouteStatus],
+  );
 
   const applyImportedEpubPayload = useCallback(
     async (payload: unknown, baseProjectSnapshot: ProjectRecord) => {

@@ -514,6 +514,3 @@ const MangaImportExportPanel = ({
 };
 
 export default MangaImportExportPanel;
-
-
-

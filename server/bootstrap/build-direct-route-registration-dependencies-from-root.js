@@ -27,8 +27,7 @@ export const buildDirectRouteRegistrationDependenciesFromRoot = (dependencies = 
     deleteUserMfaTotpRecord: dependencies.deleteUserMfaTotpRecord,
     discordApi: dependencies.discordApi ?? dependencies.DISCORD_API,
     discordClientId: dependencies.discordClientId ?? dependencies.DISCORD_CLIENT_ID,
-    discordClientSecret:
-      dependencies.discordClientSecret ?? dependencies.DISCORD_CLIENT_SECRET,
+    discordClientSecret: dependencies.discordClientSecret ?? dependencies.DISCORD_CLIENT_SECRET,
     encryptStringWithKeyring: dependencies.encryptStringWithKeyring,
     ensureOwnerUser: dependencies.ensureOwnerUser,
     establishAuthenticatedSession: dependencies.establishAuthenticatedSession,

@@ -124,9 +124,7 @@ export const createProjectEpubImportRuntime = (dependencies = {}) => {
         status: "failed",
         resultPath: null,
         finishedAt: new Date().toISOString(),
-        error: String(
-          mappedError?.body?.detail || error?.message || error || "epub_import_failed",
-        ),
+        error: String(mappedError?.body?.detail || error?.message || error || "epub_import_failed"),
       });
     }
   };

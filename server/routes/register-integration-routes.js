@@ -47,7 +47,10 @@ export const registerIntegrationRoutes = ({
       return res.status(403).json({ error: "forbidden" });
     }
     const projectTypes = getActiveProjectTypes({ includeDefaults: true });
-    const settings = normalizeUnifiedWebhookSettingsForRequest(loadIntegrationSettings(), projectTypes);
+    const settings = normalizeUnifiedWebhookSettingsForRequest(
+      loadIntegrationSettings(),
+      projectTypes,
+    );
     const sources = loadIntegrationSettingsSources();
     appendAuditLog(req, "integrations.webhooks.read", "integrations", {
       scope: "all",
@@ -629,25 +632,38 @@ export const registerIntegrationRoutes = ({
     let filtered = rows.slice();
     if (statusFilter) {
       filtered = filtered.filter(
-        (entry) => String(entry?.status || "").trim().toLowerCase() === statusFilter,
+        (entry) =>
+          String(entry?.status || "")
+            .trim()
+            .toLowerCase() === statusFilter,
       );
     }
     if (scopeFilter) {
       filtered = filtered.filter(
-        (entry) => String(entry?.scope || "").trim().toLowerCase() === scopeFilter,
+        (entry) =>
+          String(entry?.scope || "")
+            .trim()
+            .toLowerCase() === scopeFilter,
       );
     }
     if (channelFilter) {
       filtered = filtered.filter(
-        (entry) => String(entry?.channel || "").trim().toLowerCase() === channelFilter,
+        (entry) =>
+          String(entry?.channel || "")
+            .trim()
+            .toLowerCase() === channelFilter,
       );
     }
-    filtered.sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime());
+    filtered.sort(
+      (a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime(),
+    );
 
     const total = filtered.length;
     const start = (page - 1) * limit;
     return res.json({
-      items: filtered.slice(start, start + limit).map((entry) => toWebhookDeliveryApiResponse(entry)),
+      items: filtered
+        .slice(start, start + limit)
+        .map((entry) => toWebhookDeliveryApiResponse(entry)),
       summary: summarizeWebhookDeliveries(rows),
       page,
       limit,
@@ -665,7 +681,11 @@ export const registerIntegrationRoutes = ({
     if (!current) {
       return res.status(404).json({ error: "not_found" });
     }
-    if (String(current.status || "").trim().toLowerCase() !== WEBHOOK_DELIVERY_STATUS.FAILED) {
+    if (
+      String(current.status || "")
+        .trim()
+        .toLowerCase() !== WEBHOOK_DELIVERY_STATUS.FAILED
+    ) {
       return res.status(409).json({ error: "delivery_not_retryable" });
     }
 

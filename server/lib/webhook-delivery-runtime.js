@@ -66,7 +66,9 @@ export const createWebhookDeliveryRuntime = (dependencies = {}) => {
     const record = upsertWebhookDelivery({
       id: createRequestId(),
       scope: String(scope || "").trim(),
-      provider: String(provider || "").trim().toLowerCase(),
+      provider: String(provider || "")
+        .trim()
+        .toLowerCase(),
       channel: String(channel || "").trim() || null,
       eventKey: String(eventKey || "").trim() || null,
       status: webhookDeliveryStatus.QUEUED,

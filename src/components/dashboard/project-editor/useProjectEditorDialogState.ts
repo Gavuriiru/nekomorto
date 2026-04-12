@@ -33,9 +33,7 @@ export const useProjectEditorDialogState = ({
   const confirmActionRef = useRef<(() => void) | null>(null);
   const confirmCancelRef = useRef<(() => void) | null>(null);
   const autoEditHandledRef = useRef<string | null>(null);
-  const editorInitialSnapshotRef = useRef<string>(
-    buildProjectEditorSnapshot(initialFormState, ""),
-  );
+  const editorInitialSnapshotRef = useRef<string>(buildProjectEditorSnapshot(initialFormState, ""));
   const pendingEpisodeFocusRef = useRef<ProjectEditorPendingEpisodeFocus>(null);
 
   const isDirty = useMemo(

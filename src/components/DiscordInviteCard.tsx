@@ -7,9 +7,7 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 const DiscordInviteCard = () => {
   const { settings } = useSiteSettings();
   const inviteCard = settings.community.inviteCard;
-  const ctaHref =
-    String(inviteCard.ctaUrl || settings.community.discordUrl || "#").trim() ||
-    "#";
+  const ctaHref = String(inviteCard.ctaUrl || settings.community.discordUrl || "#").trim() || "#";
 
   return (
     <Card
@@ -17,30 +15,30 @@ const DiscordInviteCard = () => {
       className="bg-card reveal rounded-lg border border-border/60 shadow-none"
       data-reveal
     >
-        <CardHeader className="px-4 pb-3 pt-4">
-          <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <MessageCircle className="w-4 h-4 text-primary/80" />
-            {inviteCard.title}
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">{inviteCard.subtitle}</p>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 px-4 pb-4 pt-0">
-          <div className="space-y-2 rounded-xl border border-border/60 bg-background/40 p-3 transition-[border-color,color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-primary/60 focus-within:border-primary/60">
-            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Users className="h-4 w-4 text-primary/80" aria-hidden="true" />
-              {inviteCard.panelTitle}
-            </div>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {inviteCard.panelDescription}
-            </p>
+      <CardHeader className="px-4 pb-3 pt-4">
+        <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <MessageCircle className="w-4 h-4 text-primary/80" />
+          {inviteCard.title}
+        </CardTitle>
+        <p className="text-xs text-muted-foreground">{inviteCard.subtitle}</p>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 px-4 pb-4 pt-0">
+        <div className="space-y-2 rounded-xl border border-border/60 bg-background/40 p-3 transition-[border-color,color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-primary/60 focus-within:border-primary/60">
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Users className="h-4 w-4 text-primary/80" aria-hidden="true" />
+            {inviteCard.panelTitle}
           </div>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {inviteCard.panelDescription}
+          </p>
+        </div>
 
-          <Button asChild className="w-full">
-            <a href={ctaHref} target="_blank" rel="noreferrer">
-              {inviteCard.ctaLabel}
-            </a>
-          </Button>
-        </CardContent>
+        <Button asChild className="w-full">
+          <a href={ctaHref} target="_blank" rel="noreferrer">
+            {inviteCard.ctaLabel}
+          </a>
+        </Button>
+      </CardContent>
     </Card>
   );
 };

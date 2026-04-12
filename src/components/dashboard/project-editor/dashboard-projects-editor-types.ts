@@ -81,7 +81,10 @@ export type ProjectRecord = {
   deletedBy?: string | null;
 };
 
-export type ProjectForm = Omit<ProjectRecord, "views" | "commentsCount" | "order" | "episodeDownloads"> & {
+export type ProjectForm = Omit<
+  ProjectRecord,
+  "views" | "commentsCount" | "order" | "episodeDownloads"
+> & {
   episodeDownloads: EditorProjectEpisode[];
 };
 

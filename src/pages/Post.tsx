@@ -450,7 +450,7 @@ const Post = () => {
               <section data-testid="post-reader-layout">
                 <article data-testid="post-reader-main" className="min-w-0 space-y-8">
                   <div className="relative">
-                    <Card className="border-border/60 bg-card/85 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.75)]">
+                    <Card className="border-border/60 bg-card/85 shadow-post-card">
                       <CardContent className="min-w-0 space-y-7 p-6 text-sm leading-relaxed text-muted-foreground md:p-8">
                         {post.content ? (
                           <Suspense fallback={<LexicalViewerFallback />}>

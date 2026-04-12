@@ -96,7 +96,10 @@ export const registerSiteConfigRoutes = ({
     const settings = loadSiteSettings();
     return res.json({
       pages,
-      mediaVariants: buildPublicMediaVariants([pages, { image: settings?.site?.defaultShareImage || "" }]),
+      mediaVariants: buildPublicMediaVariants([
+        pages,
+        { image: settings?.site?.defaultShareImage || "" },
+      ]),
       revision: createRevisionToken(pages),
     });
   });
@@ -139,7 +142,9 @@ export const registerSiteConfigRoutes = ({
     const normalized = normalizeSiteSettings(settings);
     writeSiteSettings(normalized);
     const nextDownloadIcons = collectDownloadIconUploads(normalized);
-    const removedIcons = Array.from(previousDownloadIcons).filter((url) => !nextDownloadIcons.has(url));
+    const removedIcons = Array.from(previousDownloadIcons).filter(
+      (url) => !nextDownloadIcons.has(url),
+    );
     removedIcons.forEach((url) => deletePrivateUploadByUrl(url));
     appendAuditLog(req, "settings.update", "settings", {});
     void enqueueProjectOgPrewarm({
@@ -261,7 +266,9 @@ export const registerSiteConfigRoutes = ({
     }
     const normalizedTags =
       tags && typeof tags === "object"
-        ? Object.fromEntries(Object.entries(tags).map(([key, value]) => [String(key), String(value || "")]))
+        ? Object.fromEntries(
+            Object.entries(tags).map(([key, value]) => [String(key), String(value || "")]),
+          )
         : current.tags;
     const normalizedGenres =
       genres && typeof genres === "object"

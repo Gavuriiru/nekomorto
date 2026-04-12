@@ -282,7 +282,10 @@ describe("DashboardProjectsEditor episode accordion", () => {
     }
 
     const dedicatedEditorLink = within(footer).getByRole("link", { name: /Conte/i });
-    expect(dedicatedEditorLink).toHaveAttribute("href", "/dashboard/projetos/project-ln-1/capitulos");
+    expect(dedicatedEditorLink).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/project-ln-1/capitulos",
+    );
     expectLinkIconClass(dedicatedEditorLink, "lucide-file-text");
   });
 

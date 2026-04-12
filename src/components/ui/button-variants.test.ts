@@ -15,13 +15,7 @@ const expectNoLiftPressOrHoverShadow = (tokens: string[]) => {
 
 describe("buttonVariants", () => {
   it("aplica a identidade global sem lift, press ou hover shadow", () => {
-    const variants = [
-      "default",
-      "secondary",
-      "outline",
-      "destructive",
-      "ghost",
-    ] as const;
+    const variants = ["default", "secondary", "outline", "destructive", "ghost"] as const;
 
     variants.forEach((variant) => {
       const tokens = classTokens(buttonVariants({ variant }));

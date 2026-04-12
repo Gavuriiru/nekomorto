@@ -7,7 +7,8 @@ export const buildProjectRuntimeDependencies = (dependencies = {}) => ({
   deleteProjectImageImportJobResult: dependencies.deleteProjectImageImportJobResult,
   ensureProjectImageExportJobsDirectory: dependencies.ensureProjectImageExportJobsDirectory,
   epubImportJobsDir: dependencies.epubImportJobsDir,
-  epubImportResultTtlMs: dependencies.epubImportResultTtlMs ?? dependencies.EPUB_IMPORT_JOB_RESULT_TTL_MS,
+  epubImportResultTtlMs:
+    dependencies.epubImportResultTtlMs ?? dependencies.EPUB_IMPORT_JOB_RESULT_TTL_MS,
   express: dependencies.express,
   exportProjectImageCollection: dependencies.exportProjectImageCollection,
   findDuplicateEpisodeKey: dependencies.findDuplicateEpisodeKey,
@@ -29,10 +30,12 @@ export const buildProjectRuntimeDependencies = (dependencies = {}) => ({
   pathJoin: dependencies.pathJoin ?? dependencies.path?.join,
   projectImageExportJobsDir: dependencies.projectImageExportJobsDir,
   projectImageExportResultTtlMs:
-    dependencies.projectImageExportResultTtlMs ?? dependencies.PROJECT_IMAGE_EXPORT_JOB_RESULT_TTL_MS,
+    dependencies.projectImageExportResultTtlMs ??
+    dependencies.PROJECT_IMAGE_EXPORT_JOB_RESULT_TTL_MS,
   projectImageImportJobsDir: dependencies.projectImageImportJobsDir,
   projectImageImportResultTtlMs:
-    dependencies.projectImageImportResultTtlMs ?? dependencies.PROJECT_IMAGE_IMPORT_JOB_RESULT_TTL_MS,
+    dependencies.projectImageImportResultTtlMs ??
+    dependencies.PROJECT_IMAGE_IMPORT_JOB_RESULT_TTL_MS,
   publicUploadsDir: dependencies.publicUploadsDir ?? dependencies.PUBLIC_UPLOADS_DIR,
   upsertEpubImportJob: dependencies.upsertEpubImportJob,
   upsertProjectImageExportJob: dependencies.upsertProjectImageExportJob,

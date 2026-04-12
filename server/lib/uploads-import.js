@@ -128,7 +128,9 @@ export const buildEpubImportTempFolder = ({ userId, importId }) =>
   );
 
 export const isEpubImportTempFolder = (folder) =>
-  sanitizeUploadFolder(folder, { trimTrailingSlash: true }).startsWith(`${EPUB_IMPORT_TMP_PREFIX}/`);
+  sanitizeUploadFolder(folder, { trimTrailingSlash: true }).startsWith(
+    `${EPUB_IMPORT_TMP_PREFIX}/`,
+  );
 
 export const storeUploadImageBuffer = async ({
   uploadsDir,

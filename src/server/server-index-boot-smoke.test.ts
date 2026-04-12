@@ -84,10 +84,9 @@ vi.mock("../../server/lib/rate-limiter.js", () => ({
 }));
 
 vi.mock("../../server/lib/frontend-runtime.js", async () => {
-  const actual =
-    await vi.importActual<typeof import("../../server/lib/frontend-runtime.js")>(
-      "../../server/lib/frontend-runtime.js",
-    );
+  const actual = await vi.importActual<typeof import("../../server/lib/frontend-runtime.js")>(
+    "../../server/lib/frontend-runtime.js",
+  );
   return {
     ...actual,
     createViteDevServer: vi.fn(async () => null),
@@ -143,12 +142,14 @@ describe.sequential("server/index boot smoke", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const listenSpy = vi
-      .spyOn(http.Server.prototype, "listen")
-      .mockImplementation(function (this: http.Server, _port, callback?: () => void) {
-        callback?.();
-        return this;
-      });
+    const listenSpy = vi.spyOn(http.Server.prototype, "listen").mockImplementation(function (
+      this: http.Server,
+      _port,
+      callback?: () => void,
+    ) {
+      callback?.();
+      return this;
+    });
     const onSpy = vi.spyOn(http.Server.prototype, "on");
 
     await expect(import("../../server/index.js")).resolves.toBeTruthy();

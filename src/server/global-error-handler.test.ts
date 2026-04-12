@@ -49,7 +49,7 @@ describe("global-error-handler", () => {
     expect(res.statusCode).toBe(500);
     expect(res.body).toEqual({ error: "Something went wrong" });
     expect(logger).toHaveBeenCalledTimes(1);
-    expect(String(logger.mock.calls[0][0])).toContain("\"requestId\":\"req-1\"");
+    expect(String(logger.mock.calls[0][0])).toContain('"requestId":"req-1"');
     expect(String(logger.mock.calls[0][0])).toContain("Database exploded");
     expect(String(logger.mock.calls[0][0])).toContain("C:\\\\secret\\\\server.js");
   });

@@ -8,7 +8,9 @@ export const buildOperationalMonitoringRuntimeDependencies = (dependencies = {})
     dependencies.dbLatencyWarningMs ?? dependencies.OPS_ALERTS_DB_LATENCY_WARNING_MS,
   fsAccess:
     dependencies.fsAccess ??
-    (dependencies.fs ? (targetPath, mode) => dependencies.fs.promises.access(targetPath, mode) : undefined),
+    (dependencies.fs
+      ? (targetPath, mode) => dependencies.fs.promises.access(targetPath, mode)
+      : undefined),
   fsConstants: dependencies.fsConstants ?? dependencies.fs?.constants,
   isMaintenanceMode: dependencies.isMaintenanceMode,
   isProduction: dependencies.isProduction,

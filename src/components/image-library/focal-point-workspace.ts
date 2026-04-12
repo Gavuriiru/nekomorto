@@ -8,10 +8,7 @@ export const FOCAL_CROP_HANDLE_KEYS = ["nw", "ne", "sw", "se"] as const;
 
 export type FocalCropHandle = (typeof FOCAL_CROP_HANDLE_KEYS)[number];
 
-export const areFocalCropRectsEqual = (
-  left: UploadFocalCropRect,
-  right: UploadFocalCropRect,
-) =>
+export const areFocalCropRectsEqual = (left: UploadFocalCropRect, right: UploadFocalCropRect) =>
   Math.abs(left.left - right.left) < 0.0001 &&
   Math.abs(left.top - right.top) < 0.0001 &&
   Math.abs(left.width - right.width) < 0.0001 &&
@@ -86,10 +83,8 @@ export const buildResizedFocalCrop = ({
   const startBottomPx = startTopPx + startHeightPx;
   const anchorX = handle === "nw" || handle === "sw" ? startRightPx : startLeftPx;
   const anchorY = handle === "nw" || handle === "ne" ? startBottomPx : startTopPx;
-  const maxWidthPx =
-    handle === "nw" || handle === "sw" ? anchorX : fitRectWidth - anchorX;
-  const maxHeightPx =
-    handle === "nw" || handle === "ne" ? anchorY : fitRectHeight - anchorY;
+  const maxWidthPx = handle === "nw" || handle === "sw" ? anchorX : fitRectWidth - anchorX;
+  const maxHeightPx = handle === "nw" || handle === "ne" ? anchorY : fitRectHeight - anchorY;
   const minWidthPx = Math.min(fitRectWidth, MIN_FOCAL_CROP_DISPLAY_PX);
   const minHeightPx = Math.min(fitRectHeight, MIN_FOCAL_CROP_DISPLAY_PX);
   const maxAllowedWidthPx = Math.max(0, Math.min(maxWidthPx, maxHeightPx * activeAspectRatio));
@@ -99,11 +94,7 @@ export const buildResizedFocalCrop = ({
   );
   const rawWidthPx = Math.abs(localX - anchorX);
   const rawHeightPx = Math.abs(localY - anchorY);
-  const requestedWidthPx = Math.min(
-    rawWidthPx,
-    rawHeightPx * activeAspectRatio,
-    maxAllowedWidthPx,
-  );
+  const requestedWidthPx = Math.min(rawWidthPx, rawHeightPx * activeAspectRatio, maxAllowedWidthPx);
   const nextWidthPx = Math.max(minAllowedWidthPx, requestedWidthPx);
   const nextHeightPx = nextWidthPx / activeAspectRatio;
   let nextLeftPx = anchorX;

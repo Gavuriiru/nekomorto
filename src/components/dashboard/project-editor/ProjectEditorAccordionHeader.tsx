@@ -8,10 +8,7 @@ type ProjectEditorAccordionHeaderProps = {
   subtitle: string;
 };
 
-const ProjectEditorAccordionHeader = ({
-  title,
-  subtitle,
-}: ProjectEditorAccordionHeaderProps) => (
+const ProjectEditorAccordionHeader = ({ title, subtitle }: ProjectEditorAccordionHeaderProps) => (
   <div className={projectEditorAccordionHeaderTextClassName}>
     <span className={projectEditorAccordionTitleClassName}>{title}</span>
     <span className={projectEditorAccordionSubtitleClassName}>{subtitle}</span>

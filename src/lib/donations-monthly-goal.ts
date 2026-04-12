@@ -9,8 +9,7 @@ const monthFormatter = new Intl.DateTimeFormat("pt-BR", {
   month: "long",
 });
 
-const formatGroupedInteger = (digits: string) =>
-  digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+const formatGroupedInteger = (digits: string) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
 const sanitizeAmountValue = (value: string | undefined) => {
   const rawValue = String(value || "").trim();
@@ -50,9 +49,7 @@ const resolveAmountParts = (value: string | undefined) => {
 
   const rawIntegerDigits = integerSource.replace(/[.,]/g, "");
   const integerDigits =
-    rawIntegerDigits === ""
-      ? "0"
-      : rawIntegerDigits.replace(/^0+(?=\d)/, "") || "0";
+    rawIntegerDigits === "" ? "0" : rawIntegerDigits.replace(/^0+(?=\d)/, "") || "0";
 
   return {
     hasDecimal,

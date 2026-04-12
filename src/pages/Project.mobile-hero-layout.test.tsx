@@ -365,7 +365,7 @@ describe("Project mobile hero layout", () => {
     const coverFrameTokens = classTokens(coverFrame);
     expect(coverFrameTokens).not.toContain("h-full");
     expect(coverFrameTokens).not.toContain("md:max-h-[620px]");
-    expect(coverFrameTokens).toContain("shadow-[0_22px_64px_-42px_rgba(0,0,0,0.62)]");
+    expect(coverFrameTokens).toContain("shadow-project-cover-card");
     expect(coverFrameTokens).not.toContain("shadow-[0_30px_100px_-55px_rgba(0,0,0,0.95)]");
     expect(coverFrame.style.aspectRatio).toBe("9 / 14");
 
@@ -442,9 +442,8 @@ describe("Project mobile hero layout", () => {
     expect(classTokens(tagLink)).toContain("focus-visible:bg-accent/15");
     expect(classTokens(tagLink)).toContain("focus-visible:text-foreground");
 
-    const aboutSection = findAncestor(
-      screen.getByText("Sobre o projeto"),
-      (candidate) => classTokens(candidate).includes("bg-card/80"),
+    const aboutSection = findAncestor(screen.getByText("Sobre o projeto"), (candidate) =>
+      classTokens(candidate).includes("bg-card/80"),
     );
     expect(aboutSection).not.toBeNull();
 

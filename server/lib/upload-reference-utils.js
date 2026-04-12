@@ -96,12 +96,7 @@ export const collectUploadUrlsFromDatasets = (loaders = {}, options = {}) => {
 const escapeRegExp = (value) => String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const absoluteUrlPattern = /https?:\/\/[^\s"'()<>]+/gi;
 
-export const replaceUploadReferencesInText = (
-  value,
-  oldUrl,
-  newUrl,
-  { normalizeUrl } = {},
-) => {
+export const replaceUploadReferencesInText = (value, oldUrl, newUrl, { normalizeUrl } = {}) => {
   if (!value || typeof value !== "string") {
     return { value, count: 0 };
   }

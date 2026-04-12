@@ -17,10 +17,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "lodash/isEqualWith": path.resolve(
-        __dirname,
-        "./node_modules/lodash/isEqualWith.js",
-      ),
+      "lodash/isEqualWith": path.resolve(__dirname, "./node_modules/lodash/isEqualWith.js"),
     },
   },
 });

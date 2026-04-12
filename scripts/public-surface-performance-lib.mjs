@@ -82,10 +82,7 @@ export const median = (values) => {
   return (sorted[middle - 1] + sorted[middle]) / 2;
 };
 
-export const collectAuditNumericValues = (
-  report,
-  auditIds = PUBLIC_SURFACE_METRIC_AUDIT_IDS,
-) =>
+export const collectAuditNumericValues = (report, auditIds = PUBLIC_SURFACE_METRIC_AUDIT_IDS) =>
   auditIds.reduce((result, auditId) => {
     result[auditId] = coerceFiniteNumber(report?.audits?.[auditId]?.numericValue);
     return result;
@@ -260,8 +257,7 @@ export const comparePublicSurfaceSummary = ({
     }
 
     const hasRegressionWarnings = warnings.some(
-      (warning) =>
-        warning.kind !== "missing-baseline" && warning.kind !== "missing-current",
+      (warning) => warning.kind !== "missing-baseline" && warning.kind !== "missing-current",
     );
     if (hasRegressionWarnings) {
       warningCount += warnings.length;

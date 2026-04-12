@@ -64,7 +64,9 @@ const buildServerRouteSource = () =>
   );
 
 const buildServerRouteFragmentSource = () =>
-  [...new Set((Object.values(SERVER_ROUTE_SOURCE_FRAGMENT_KEYS) as string[][]).flat())].reduce<Record<string, unknown>>(
+  [...new Set((Object.values(SERVER_ROUTE_SOURCE_FRAGMENT_KEYS) as string[][]).flat())].reduce<
+    Record<string, unknown>
+  >(
     (source, key) => {
       source[key] = createNamedValue(key);
       return source;
@@ -98,9 +100,9 @@ describe("server bootstrap dependency builders", () => {
     const authSource = buildDirectRouteSource("auth");
     authSource.discordClientSecret = undefined;
 
-    expect(() =>
-      buildDirectRouteDependencies({ routes: ["auth"] }, authSource),
-    ).toThrow(/discordClientSecret/);
+    expect(() => buildDirectRouteDependencies({ routes: ["auth"] }, authSource)).toThrow(
+      /discordClientSecret/,
+    );
   });
 
   it("builds the high-level direct route registration dependencies", () => {
@@ -201,9 +203,7 @@ describe("server bootstrap dependency builders", () => {
     const source = buildServerRouteSource();
     delete source.resolveMetaImageVariantUrl;
 
-    expect(() => buildServerRouteDependencySource(source)).toThrow(
-      /resolveMetaImageVariantUrl/,
-    );
+    expect(() => buildServerRouteDependencySource(source)).toThrow(/resolveMetaImageVariantUrl/);
   });
 
   it("builds the semantic server route source fragments without leaking extras", () => {
@@ -285,7 +285,10 @@ describe("server bootstrap dependency builders", () => {
     source.buildAnalyticsRange = undefined;
 
     expect(() =>
-      buildServerRouteSourceFragments({ app: source.app, publicMediaRuntime: source.publicMediaRuntime }, source),
+      buildServerRouteSourceFragments(
+        { app: source.app, publicMediaRuntime: source.publicMediaRuntime },
+        source,
+      ),
     ).toThrow(/buildAnalyticsRange/);
   });
 
@@ -403,7 +406,9 @@ describe("server bootstrap dependency builders", () => {
       PRIMARY_APP_ORIGIN: "https://app.example.com",
       WEBHOOK_DELIVERY_SCOPE: { SECURITY: "security" },
       WEBHOOK_DELIVERY_STATUS: { QUEUED: "queued" },
-      createResolveEditorialAuthorFromPost: createNamedValue("createResolveEditorialAuthorFromPost"),
+      createResolveEditorialAuthorFromPost: createNamedValue(
+        "createResolveEditorialAuthorFromPost",
+      ),
       crypto,
     });
 

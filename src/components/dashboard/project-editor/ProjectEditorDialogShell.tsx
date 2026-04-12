@@ -112,9 +112,7 @@ export const ProjectEditorDialogShell = ({
                     manualmente.
                   </DialogDescription>
                 </div>
-                <div
-                  className={`${projectEditorSummarySurfaceClassName} px-3 py-1.5 text-right`}
-                >
+                <div className={`${projectEditorSummarySurfaceClassName} px-3 py-1.5 text-right`}>
                   <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                     Projeto
                   </p>

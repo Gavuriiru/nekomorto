@@ -52,7 +52,9 @@ const createDeferredResponse = () => {
   };
 };
 const classTokens = (element: Element | null) =>
-  String(element?.className || "").split(/\s+/).filter(Boolean);
+  String(element?.className || "")
+    .split(/\s+/)
+    .filter(Boolean);
 
 describe("DashboardSecurity semantic badges", () => {
   beforeEach(() => {

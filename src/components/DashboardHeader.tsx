@@ -598,10 +598,7 @@ const DashboardHeader = ({
                 </Button>
               </DropdownMenuTrigger>
               {isAccountMenuOpen ? (
-                <DropdownMenuContent
-                  align="end"
-                  className={cn("w-56", headerMenuContentClass)}
-                >
+                <DropdownMenuContent align="end" className={cn("w-56", headerMenuContentClass)}>
                   {menuItems
                     .filter((item) => item.enabled)
                     .map((item) => {

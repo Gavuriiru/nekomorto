@@ -2,10 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
-import {
-  Input,
-  Combobox,
-} from "@/components/dashboard/dashboard-form-controls";
+import { Input, Combobox } from "@/components/dashboard/dashboard-form-controls";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
@@ -752,9 +749,7 @@ const DashboardAuditLog = () => {
                 <DashboardActionButton tone="primary" onClick={applyFilters}>
                   Aplicar filtros
                 </DashboardActionButton>
-                <DashboardActionButton onClick={clearFilters}>
-                  Limpar
-                </DashboardActionButton>
+                <DashboardActionButton onClick={clearFilters}>Limpar</DashboardActionButton>
               </div>
             </div>
 

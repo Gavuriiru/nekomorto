@@ -87,7 +87,9 @@ export const normalizeAvatarDisplay = (value) => {
 };
 
 export const normalizeUploadMime = (value) => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (normalized === "image/jpg") {
     return "image/jpeg";
   }
@@ -299,10 +301,7 @@ export const getUploadImageDimensions = (buffer, mime) => {
 
 export const validateUploadRasterDimensions = (
   { width, height } = {},
-  {
-    maxDimension = MAX_UPLOAD_IMAGE_DIMENSION,
-    maxPixels = MAX_UPLOAD_IMAGE_PIXELS,
-  } = {},
+  { maxDimension = MAX_UPLOAD_IMAGE_DIMENSION, maxPixels = MAX_UPLOAD_IMAGE_PIXELS } = {},
 ) => {
   const safeWidth = Number(width);
   const safeHeight = Number(height);

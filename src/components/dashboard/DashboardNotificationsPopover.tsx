@@ -278,77 +278,77 @@ const DashboardNotificationsPopover = ({
       </PopoverTrigger>
       {open ? (
         <PopoverContent align="end" className="w-[min(30rem,calc(100vw-1rem))] p-0">
-        <div className="border-b border-border/70 px-4 py-3">
-          <p className="text-sm font-semibold">Notificações operacionais</p>
-          <p className="text-xs text-muted-foreground">Atualização automática a cada 15s.</p>
-        </div>
-        <div className="max-h-[70vh] overflow-y-auto px-3 py-2">
-          {shouldShowLoading ? (
-            <div
-              className="space-y-2 px-1 py-2"
-              data-testid="dashboard-notifications-loading"
-              role="status"
-              aria-live="polite"
-              aria-busy="true"
-            >
-              {Array.from({ length: 3 }).map((_, index) => (
-                <div
-                  key={`dashboard-notifications-loading-${index}`}
-                  className="rounded-xl border border-border/60 bg-card/60 p-3"
-                >
-                  <div className="flex items-start gap-3">
-                    <Skeleton className="h-7 w-7 rounded-full" />
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Skeleton className="h-4 w-36" />
-                        <Skeleton className="h-5 w-14 rounded-full" />
+          <div className="border-b border-border/70 px-4 py-3">
+            <p className="text-sm font-semibold">Notificações operacionais</p>
+            <p className="text-xs text-muted-foreground">Atualização automática a cada 15s.</p>
+          </div>
+          <div className="max-h-[70vh] overflow-y-auto px-3 py-2">
+            {shouldShowLoading ? (
+              <div
+                className="space-y-2 px-1 py-2"
+                data-testid="dashboard-notifications-loading"
+                role="status"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={`dashboard-notifications-loading-${index}`}
+                    className="rounded-xl border border-border/60 bg-card/60 p-3"
+                  >
+                    <div className="flex items-start gap-3">
+                      <Skeleton className="h-7 w-7 rounded-full" />
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-4 w-36" />
+                          <Skeleton className="h-5 w-14 rounded-full" />
+                        </div>
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-3 w-4/5" />
                       </div>
-                      <Skeleton className="h-3 w-full" />
-                      <Skeleton className="h-3 w-4/5" />
                     </div>
                   </div>
-                </div>
-              ))}
-              <span className="sr-only">Carregando notificações...</span>
-            </div>
-          ) : items.length === 0 ? (
-            <p className="px-2 py-4 text-sm text-muted-foreground">
-              Nenhuma pendência operacional no momento.
-            </p>
-          ) : (
-            items.map((item) => {
-              const ItemIcon = getNotificationIcon(item);
-              return (
-                <Link
-                  key={item.id}
-                  to={item.href || "/dashboard"}
-                  className={`mb-2 block rounded-xl border border-border/60 bg-card/60 p-3 transition ${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="mt-0.5 rounded-full bg-card/90 p-1.5">
-                      <ItemIcon className="h-4 w-4" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-medium">{item.title}</p>
-                        <Badge variant="secondary" className="shrink-0 text-[10px] uppercase">
-                          {item.kind}
-                        </Badge>
+                ))}
+                <span className="sr-only">Carregando notificações...</span>
+              </div>
+            ) : items.length === 0 ? (
+              <p className="px-2 py-4 text-sm text-muted-foreground">
+                Nenhuma pendência operacional no momento.
+              </p>
+            ) : (
+              items.map((item) => {
+                const ItemIcon = getNotificationIcon(item);
+                return (
+                  <Link
+                    key={item.id}
+                    to={item.href || "/dashboard"}
+                    className={`mb-2 block rounded-xl border border-border/60 bg-card/60 p-3 transition ${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 rounded-full bg-card/90 p-1.5">
+                        <ItemIcon className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate text-sm font-medium">{item.title}</p>
+                          <Badge variant="secondary" className="shrink-0 text-[10px] uppercase">
+                            {item.kind}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {item.description || "Sem descrição"}
+                        </p>
+                        <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <CircleDot className="h-3 w-3" />
+                          {new Date(item.ts || "").toLocaleString("pt-BR")}
+                        </p>
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {item.description || "Sem descrição"}
-                      </p>
-                      <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <CircleDot className="h-3 w-3" />
-                        {new Date(item.ts || "").toLocaleString("pt-BR")}
-                      </p>
                     </div>
-                  </div>
-                </Link>
-              );
-            })
-          )}
-        </div>
+                  </Link>
+                );
+              })
+            )}
+          </div>
         </PopoverContent>
       ) : null}
     </Popover>

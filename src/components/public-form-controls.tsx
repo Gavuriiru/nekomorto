@@ -32,8 +32,4 @@ const Combobox = ({ className, searchInputClassName, ...props }: PublicComboboxP
   />
 );
 
-export {
-  Combobox,
-  Input,
-  Textarea,
-};
+export { Combobox, Input, Textarea };

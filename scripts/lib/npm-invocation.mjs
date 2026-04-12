@@ -49,12 +49,7 @@ export const resolveNpmInvocation = (npmArgs = [], options = {}) => {
     const command = String(options.comSpec || env?.ComSpec || env?.COMSPEC || "cmd.exe").trim();
     return {
       command: command || "cmd.exe",
-      args: [
-        "/d",
-        "/s",
-        "/c",
-        ["npm", ...normalizedArgs].map(quoteWindowsCmdArgument).join(" "),
-      ],
+      args: ["/d", "/s", "/c", ["npm", ...normalizedArgs].map(quoteWindowsCmdArgument).join(" ")],
     };
   }
 

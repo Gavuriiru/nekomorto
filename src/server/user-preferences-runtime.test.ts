@@ -32,7 +32,9 @@ const createDeps = (overrides = {}) => {
     isPlainObject: (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value),
     loadStoredUserPreferences: vi.fn((userId) => storedByUserId[userId] ?? {}),
     normalizeProjectReaderPreferences: (value) => ({
-      mode: String(value?.mode || "").trim().toLowerCase(),
+      mode: String(value?.mode || "")
+        .trim()
+        .toLowerCase(),
     }),
     userPreferencesDensitySet: new Set(["comfortable", "compact"]),
     userPreferencesThemeModeSet: new Set(["light", "dark", "system"]),

@@ -1,7 +1,8 @@
 import { createRouteRuntimeGroups } from "./create-route-runtime-groups.js";
 
 export const buildRootRouteRegistrationDependencies = (dependencies = {}) => {
-  const routeRuntimeGroups = dependencies.routeRuntimeGroups ?? createRouteRuntimeGroups(dependencies);
+  const routeRuntimeGroups =
+    dependencies.routeRuntimeGroups ?? createRouteRuntimeGroups(dependencies);
   const {
     adminExports,
     authzLib,

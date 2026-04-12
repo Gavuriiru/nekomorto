@@ -47,7 +47,10 @@ const LightNovelReadingHeader = ({
   const chapterBadgeText = String(chapterLabel || "").trim() || "Capítulo";
 
   return (
-    <section data-testid="project-reading-hero" className="project-reading-masthead relative overflow-hidden">
+    <section
+      data-testid="project-reading-hero"
+      className="project-reading-masthead relative overflow-hidden"
+    >
       <UploadPicture
         src={heroImage}
         alt=""

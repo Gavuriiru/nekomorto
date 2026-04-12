@@ -74,7 +74,7 @@ describe("DashboardAutosaveStatus mobile layout", () => {
 
     const manualButton = screen.getByRole("button", { name: /Salvar ajustes|Salvo/i });
     const buttonTokens = classTokens(manualButton);
-    expect(buttonTokens).toContain("bg-secondary");
+    expect(buttonTokens).toContain("bg-primary/10");
     expect(buttonTokens).toContain("shadow-none");
   });
 
@@ -95,8 +95,8 @@ describe("DashboardAutosaveStatus mobile layout", () => {
 
     const manualButton = screen.getByRole("button", { name: /Salvar ajustes|Salvo/i });
     const buttonTokens = classTokens(manualButton);
-    expect(buttonTokens).not.toContain("bg-secondary");
-    expect(buttonTokens).toContain("shadow-md");
+    expect(buttonTokens).toContain("bg-primary/10");
+    expect(buttonTokens).toContain("shadow-none");
   });
 
   it("destaca o botao no mobile quando autosave esta desativado", () => {
@@ -116,7 +116,7 @@ describe("DashboardAutosaveStatus mobile layout", () => {
 
     const manualButton = screen.getByRole("button", { name: /Salvar ajustes|Salvo/i });
     const buttonTokens = classTokens(manualButton);
-    expect(buttonTokens).not.toContain("bg-secondary");
-    expect(buttonTokens).toContain("shadow-md");
+    expect(buttonTokens).toContain("bg-primary/10");
+    expect(buttonTokens).toContain("shadow-none");
   });
 });

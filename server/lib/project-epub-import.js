@@ -2346,7 +2346,10 @@ const buildSvgRasterReplacementImage = ({ document, svgElement, imageElement } =
     replacement.setAttribute("height", height);
   }
 
-  const replacementClassName = [svgElement?.getAttribute?.("class"), imageElement?.getAttribute?.("class")]
+  const replacementClassName = [
+    svgElement?.getAttribute?.("class"),
+    imageElement?.getAttribute?.("class"),
+  ]
     .flatMap((value) => String(value || "").split(/\s+/))
     .map((value) => value.trim())
     .filter(Boolean)
@@ -2641,13 +2644,7 @@ const unwrapAnchorElement = (element) => {
   parent.removeChild(element);
 };
 
-const pushEpubInternalLinkWarning = ({
-  warnings,
-  warningKeys,
-  chapterTitle,
-  rawHref,
-  reason,
-}) => {
+const pushEpubInternalLinkWarning = ({ warnings, warningKeys, chapterTitle, rawHref, reason }) => {
   if (!Array.isArray(warnings)) {
     return;
   }
@@ -2710,7 +2707,10 @@ const rewriteImportedChapterSourceDocumentHtml = ({
 
       if (
         resolvedTarget.fragment &&
-        !(targetChapter.anchorIds instanceof Set && targetChapter.anchorIds.has(resolvedTarget.fragment))
+        !(
+          targetChapter.anchorIds instanceof Set &&
+          targetChapter.anchorIds.has(resolvedTarget.fragment)
+        )
       ) {
         pushEpubInternalLinkWarning({
           warnings,
@@ -3463,7 +3463,6 @@ export const importProjectEpub = async ({
     /* legacy single-pass conversion block removed */
     if (false) {
       const message = `Falha ao converter o capítulo ${chapterIndex + 1} ("${title}"), item "${String(item?.id || "").trim() || "unknown"}": ${String(error?.message || error || "conversion_failed")}`;
-
     }
 
     chapters.push({

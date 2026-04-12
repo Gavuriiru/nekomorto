@@ -43,7 +43,10 @@ const createDeps = (overrides = {}) => {
       inc: vi.fn(),
     },
     newNetworkLookbackMs: 30 * 24 * 60 * 60 * 1000,
-    normalizeSecurityEventStatus: (value) => String(value || "").trim().toLowerCase() || "open",
+    normalizeSecurityEventStatus: (value) =>
+      String(value || "")
+        .trim()
+        .toLowerCase() || "open",
     securityEventCooldownMaxEntries: 100,
     securityEventCooldownMs: 10 * 60 * 1000,
     securityEventMaxRows: 1,

@@ -719,7 +719,9 @@ describe("Dashboard overview async states", () => {
     await screen.findByRole("heading", { name: /Painel de controle da comunidade/i });
 
     expectOverviewActionLinkClasses(screen.getByRole("link", { name: "Ver analytics completos" }));
-    expectOverviewActionLinkClasses(screen.getByRole("link", { name: "Ver analytics de projetos" }));
+    expectOverviewActionLinkClasses(
+      screen.getByRole("link", { name: "Ver analytics de projetos" }),
+    );
     expectOverviewActionLinkClasses(screen.getByRole("link", { name: "Ver analytics de posts" }));
     expectOverviewActionLinkClasses(screen.getByRole("link", { name: "Ver audit log" }));
     expectOverviewActionLinkClasses(screen.getByRole("link", { name: "Ver todos os projetos" }));

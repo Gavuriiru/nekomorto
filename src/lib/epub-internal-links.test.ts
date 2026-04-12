@@ -40,9 +40,7 @@ describe("epub internal links", () => {
       [{ number: 5 }],
     );
 
-    expect(href).toBe(
-      `/projeto/projeto-teste/leitura/5${buildEpubAnchorHash("nota especial")}`,
-    );
+    expect(href).toBe(`/projeto/projeto-teste/leitura/5${buildEpubAnchorHash("nota especial")}`);
   });
 
   it("classifica href interno de capitulo para navegacao do viewer", () => {

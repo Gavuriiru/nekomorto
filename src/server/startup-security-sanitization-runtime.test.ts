@@ -51,34 +51,38 @@ describe("startup-security-sanitization-runtime", () => {
   });
 
   it("counts dropped legacy entries and emits an audit log on startup", () => {
-    const { appendAuditLog, createSystemAuditReq, loadIntegrationSettings, loadLinkTypes, loadSiteSettings, loadUsers, runtime } =
-      createRuntime({
-        dataRepository: {
-          loadLinkTypes: () => [{ icon: "unsafe-icon" }, { icon: "https://safe.example/icon.svg" }],
-          loadSiteSettings: () => ({
-            navbar: {
-              links: [{ href: "https://unsafe.example/nav" }, { href: "https://safe.example/nav" }],
+    const {
+      appendAuditLog,
+      createSystemAuditReq,
+      loadIntegrationSettings,
+      loadLinkTypes,
+      loadSiteSettings,
+      loadUsers,
+      runtime,
+    } = createRuntime({
+      dataRepository: {
+        loadLinkTypes: () => [{ icon: "unsafe-icon" }, { icon: "https://safe.example/icon.svg" }],
+        loadSiteSettings: () => ({
+          navbar: {
+            links: [{ href: "https://unsafe.example/nav" }, { href: "https://safe.example/nav" }],
+          },
+          footer: {
+            socialLinks: [{ href: "https://unsafe.example/footer" }],
+          },
+          community: {
+            discordUrl: "https://unsafe.example/discord",
+            inviteCard: {
+              ctaUrl: "https://safe.example/invite",
             },
-            footer: {
-              socialLinks: [{ href: "https://unsafe.example/footer" }],
-            },
-            community: {
-              discordUrl: "https://unsafe.example/discord",
-              inviteCard: {
-                ctaUrl: "https://safe.example/invite",
-              },
-            },
-          }),
-          loadUsers: () => [
-            {
-              socials: [
-                { href: "https://safe.example/a" },
-                { href: "https://unsafe.example/b" },
-              ],
-            },
-          ],
-        },
-      });
+          },
+        }),
+        loadUsers: () => [
+          {
+            socials: [{ href: "https://safe.example/a" }, { href: "https://unsafe.example/b" }],
+          },
+        ],
+      },
+    });
 
     runtime.runStartupSecuritySanitization();
 
@@ -100,10 +104,17 @@ describe("startup-security-sanitization-runtime", () => {
   });
 
   it("always triggers normalization loads and skips audit logging when nothing is dropped", () => {
-    const { appendAuditLog, createSystemAuditReq, loadIntegrationSettings, loadLinkTypes, loadSiteSettings, loadUsers, runtime } =
-      createRuntime({
-        dataRepository: null,
-      });
+    const {
+      appendAuditLog,
+      createSystemAuditReq,
+      loadIntegrationSettings,
+      loadLinkTypes,
+      loadSiteSettings,
+      loadUsers,
+      runtime,
+    } = createRuntime({
+      dataRepository: null,
+    });
 
     runtime.runStartupSecuritySanitization();
 

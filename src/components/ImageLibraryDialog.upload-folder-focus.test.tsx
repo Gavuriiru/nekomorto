@@ -766,7 +766,7 @@ describe("ImageLibraryDialog upload folder focus", () => {
     expect(await screen.findByRole("option", { name: chapterFolder })).toBeVisible();
 
     const listbox = await screen.findByRole("listbox");
-    expect(String(listbox.className)).toContain(
+    expect(String(listbox.parentElement?.className || "")).toContain(
       "origin-[var(--radix-select-content-transform-origin)]",
     );
   });

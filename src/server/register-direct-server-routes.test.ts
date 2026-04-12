@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  DIRECT_ROUTE_DEPENDENCY_KEYS,
-} from "../../server/bootstrap/build-direct-route-dependencies.js";
+import { DIRECT_ROUTE_DEPENDENCY_KEYS } from "../../server/bootstrap/build-direct-route-dependencies.js";
 import {
   DIRECT_SERVER_ROUTE_ORDER,
   registerDirectServerRoutes,

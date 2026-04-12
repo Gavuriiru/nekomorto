@@ -90,7 +90,7 @@ describe("PublicUserProfileCard", () => {
     expect(avatarShell).toHaveClass(
       "team-member-avatar-shell",
       "rounded-full",
-      "shadow-[0_20px_46px_-24px_rgba(0,0,0,0.82)]",
+      "shadow-profile-avatar",
       "transition-transform",
       "duration-500",
       "group-hover:scale-105",

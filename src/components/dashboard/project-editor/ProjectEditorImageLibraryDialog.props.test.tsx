@@ -56,8 +56,6 @@ describe("ProjectEditorImageLibraryDialog selection memoization", () => {
     };
 
     expect(firstProps.currentSelectionUrls).toBe(secondProps.currentSelectionUrls);
-    expect(secondProps.currentSelectionUrls).toEqual([
-      "/uploads/projects/project-1/banner.png",
-    ]);
+    expect(secondProps.currentSelectionUrls).toEqual(["/uploads/projects/project-1/banner.png"]);
   });
 });

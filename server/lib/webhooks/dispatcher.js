@@ -48,7 +48,13 @@ export const dispatchWebhookMessage = async ({
     };
   }
   if (!message || typeof message !== "object") {
-    return { ok: false, status: "failed", code: "invalid_message", retryable: false, durationMs: 0 };
+    return {
+      ok: false,
+      status: "failed",
+      code: "invalid_message",
+      retryable: false,
+      durationMs: 0,
+    };
   }
   const safeWebhookUrl = validatedWebhook.url;
   const maxRetries = Math.max(0, Number(retries) || 0);

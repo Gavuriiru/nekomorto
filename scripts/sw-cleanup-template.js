@@ -4,7 +4,9 @@ const DASHBOARD_PATH_PATTERN = /^\/dashboard(?:\/|$)/;
 const isPublicClient = (clientUrl) => {
   try {
     const parsedUrl = new URL(String(clientUrl || ""), self.location.origin);
-    return parsedUrl.origin === self.location.origin && !DASHBOARD_PATH_PATTERN.test(parsedUrl.pathname);
+    return (
+      parsedUrl.origin === self.location.origin && !DASHBOARD_PATH_PATTERN.test(parsedUrl.pathname)
+    );
   } catch {
     return false;
   }

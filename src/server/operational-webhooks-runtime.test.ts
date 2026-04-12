@@ -80,17 +80,19 @@ const createDeps = (overrides = {}) => {
       body: Buffer.from([]),
       durationMs: 10,
     }),
-    enqueueWebhookDelivery: vi.fn().mockImplementation(({ scope, provider, webhookUrl, payload, context }) => ({
-      ok: true,
-      delivery: {
-        id: `${scope}-delivery`,
-        scope,
-        provider,
-        targetUrl: webhookUrl,
-        payload,
-        context,
-      },
-    })),
+    enqueueWebhookDelivery: vi
+      .fn()
+      .mockImplementation(({ scope, provider, webhookUrl, payload, context }) => ({
+        ok: true,
+        delivery: {
+          id: `${scope}-delivery`,
+          scope,
+          provider,
+          targetUrl: webhookUrl,
+          payload,
+          context,
+        },
+      })),
     evaluateOperationalMonitoring: vi.fn().mockResolvedValue({
       alerts: {
         alerts: [{ code: "db_unhealthy", severity: "critical" }],

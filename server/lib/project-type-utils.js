@@ -41,9 +41,10 @@ export const createGetActiveProjectTypes = ({
   normalizeProjects,
 } = {}) => {
   return ({ includeDefaults = true } = {}) => {
-    const existingTypes = (typeof normalizeProjects === "function"
-      ? normalizeProjects(typeof loadProjects === "function" ? loadProjects() : [])
-      : []
+    const existingTypes = (
+      typeof normalizeProjects === "function"
+        ? normalizeProjects(typeof loadProjects === "function" ? loadProjects() : [])
+        : []
     )
       .filter((project) => !project?.deletedAt)
       .map((project) => String(project?.type || "").trim())

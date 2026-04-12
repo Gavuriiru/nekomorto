@@ -111,8 +111,7 @@ const createDeps = (overrides = {}) => {
       USUARIOS_BASICO: "users_basic_v2",
       USUARIOS_ACESSO: "users_access_v2",
     },
-    addOwnerRoleLabel: (roles, isOwnerUser) =>
-      isOwnerUser ? [...roles, "owner"] : roles,
+    addOwnerRoleLabel: (roles, isOwnerUser) => (isOwnerUser ? [...roles, "owner"] : roles),
     buildAnalyticsRange: () => ({
       fromTs: 0,
       toTs: Date.now(),
@@ -124,7 +123,12 @@ const createDeps = (overrides = {}) => {
     }),
     can: ({ grants, permissionId }) =>
       Array.isArray(grants?.permissions) && grants.permissions.includes(permissionId),
-    computeEffectiveAccessRole: ({ userId, accessRole, ownerIds: inputOwnerIds, primaryOwnerId }) => {
+    computeEffectiveAccessRole: ({
+      userId,
+      accessRole,
+      ownerIds: inputOwnerIds,
+      primaryOwnerId,
+    }) => {
       if (inputOwnerIds.includes(String(userId)) && String(userId) === String(primaryOwnerId)) {
         return "owner_primary";
       }
@@ -193,14 +197,16 @@ describe("user-access-runtime", () => {
   it("normalizes users and builds public team members with owner metadata", () => {
     const runtime = createUserAccessRuntime(createDeps());
 
-    expect(runtime.normalizeUsers([
-      {
-        id: "owner-1",
-        name: "Owner",
-        roles: ["admin", "owner"],
-        permissions: ["*", "usuarios", "*"],
-      },
-    ])).toEqual([
+    expect(
+      runtime.normalizeUsers([
+        {
+          id: "owner-1",
+          name: "Owner",
+          roles: ["admin", "owner"],
+          permissions: ["*", "usuarios", "*"],
+        },
+      ]),
+    ).toEqual([
       expect.objectContaining({
         id: "owner-1",
         status: "active",

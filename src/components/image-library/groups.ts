@@ -174,23 +174,25 @@ export const buildUploadFolderGroups = ({
       const folders =
         collapseProjectFoldersToRoots && projectRoot && projectRoot === folder
           ? Array.from(
-              items.reduce<Map<string, ProjectImageFolderGroup>>((folderMap, item) => {
-                const itemFolder = resolveItemFolder(item);
-                const folderKey = itemFolder || "__sem-pasta__";
-                if (!folderMap.has(folderKey)) {
-                  folderMap.set(folderKey, {
-                    key: `upload-folder:${key}:folder:${folderKey}`,
-                    folder: itemFolder,
-                    title: toRelativeProjectFolderLabel({
+              items
+                .reduce<Map<string, ProjectImageFolderGroup>>((folderMap, item) => {
+                  const itemFolder = resolveItemFolder(item);
+                  const folderKey = itemFolder || "__sem-pasta__";
+                  if (!folderMap.has(folderKey)) {
+                    folderMap.set(folderKey, {
+                      key: `upload-folder:${key}:folder:${folderKey}`,
                       folder: itemFolder,
-                      projectRoot,
-                    }),
-                    items: [],
-                  });
-                }
-                folderMap.get(folderKey)?.items.push(item);
-                return folderMap;
-              }, new Map()).values(),
+                      title: toRelativeProjectFolderLabel({
+                        folder: itemFolder,
+                        projectRoot,
+                      }),
+                      items: [],
+                    });
+                  }
+                  folderMap.get(folderKey)?.items.push(item);
+                  return folderMap;
+                }, new Map())
+                .values(),
             ).sort(compareProjectFolderGroupsRootFirst)
           : [];
       return {
@@ -586,10 +588,8 @@ const findProjectGroupByComparableKey = (
   targetKey: string,
 ) => projectImageGroups.find((group) => hasComparableItemKey(group.items, targetKey));
 
-const findFolderGroupByComparableKey = (
-  folders: ProjectImageFolderGroup[],
-  targetKey: string,
-) => folders.find((folderGroup) => hasComparableItemKey(folderGroup.items, targetKey));
+const findFolderGroupByComparableKey = (folders: ProjectImageFolderGroup[], targetKey: string) =>
+  folders.find((folderGroup) => hasComparableItemKey(folderGroup.items, targetKey));
 
 export type PendingUploadRevealStep =
   | { type: "wait" }

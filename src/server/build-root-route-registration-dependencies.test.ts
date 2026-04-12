@@ -21,14 +21,16 @@ const createNamedValue = (key: string) => ({ key });
 const buildDirectRouteSource = (scopeName) =>
   (DIRECT_ROUTE_DEPENDENCY_KEYS[scopeName] as string[]).reduce<Record<string, unknown>>(
     (source, key) => {
-    source[key] = key === "app" ? { use: () => {} } : createNamedValue(key);
-    return source;
+      source[key] = key === "app" ? { use: () => {} } : createNamedValue(key);
+      return source;
     },
     {},
   );
 
 const buildServerRouteSource = () =>
-  [...new Set((Object.values(SERVER_ROUTE_SOURCE_FRAGMENT_KEYS) as string[][]).flat())].reduce<Record<string, unknown>>(
+  [...new Set((Object.values(SERVER_ROUTE_SOURCE_FRAGMENT_KEYS) as string[][]).flat())].reduce<
+    Record<string, unknown>
+  >(
     (source, key) => {
       source[key] = createNamedValue(key);
       return source;

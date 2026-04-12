@@ -30,11 +30,10 @@ const toScopeName = (sectionName) =>
   `register${sectionName.charAt(0).toUpperCase()}${sectionName.slice(1)}Routes`;
 
 const buildSectionDependencies = (sectionName, app, section = {}) =>
-  assertRequiredDependencies(
-    toScopeName(sectionName),
-    { app, ...section },
-    ["app", ...(SERVER_ROUTE_SECTION_KEYS[sectionName] || [])],
-  );
+  assertRequiredDependencies(toScopeName(sectionName), { app, ...section }, [
+    "app",
+    ...(SERVER_ROUTE_SECTION_KEYS[sectionName] || []),
+  ]);
 
 export const registerServerRoutes = (context = {}) => {
   const {

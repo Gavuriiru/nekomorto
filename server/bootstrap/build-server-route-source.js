@@ -383,7 +383,10 @@ export const buildServerRouteSourceFragments = (...sources) => {
 
 export const buildServerRouteContextSource = (...sources) => {
   const merged = mergeDependencySources(...sources);
-  assertRequiredDependencies("buildServerRouteContextSource", merged, ["app", "publicMediaRuntime"]);
+  assertRequiredDependencies("buildServerRouteContextSource", merged, [
+    "app",
+    "publicMediaRuntime",
+  ]);
   const fragments = buildServerRouteSourceFragments(merged);
   return buildServerRouteDependencySource(
     { app: merged.app },

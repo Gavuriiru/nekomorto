@@ -157,11 +157,7 @@ const renderComboboxIcon = (
 
 const isItemDisabled = (item: ComboboxItem) => item.kind === "option" && item.disabled;
 
-const findNavigableIndex = (
-  items: ComboboxItem[],
-  startIndex: number,
-  direction: 1 | -1,
-) => {
+const findNavigableIndex = (items: ComboboxItem[], startIndex: number, direction: 1 | -1) => {
   if (!items.length) {
     return -1;
   }
@@ -236,7 +232,11 @@ const Combobox = ({
   const shouldRenderSearchInput =
     resolvedSearchable && !isEditable && options.length >= SEARCH_FIELD_MIN_OPTION_COUNT;
   const shouldFilterOptions = isEditable || shouldRenderSearchInput;
-  const activeQuery = isEditable ? String(inputValue || "") : shouldRenderSearchInput ? searchQuery : "";
+  const activeQuery = isEditable
+    ? String(inputValue || "")
+    : shouldRenderSearchInput
+      ? searchQuery
+      : "";
   const normalizedQuery = normalizeSearchText(activeQuery);
 
   const baseItems = React.useMemo<ComboboxOptionItem[]>(
@@ -252,12 +252,11 @@ const Combobox = ({
   );
 
   const filteredState = React.useMemo(() => {
-    const matches =
-      shouldFilterOptions
-        ? baseItems.filter((item) =>
-            normalizedQuery ? item.searchText.includes(normalizedQuery) : true,
-          )
-        : baseItems;
+    const matches = shouldFilterOptions
+      ? baseItems.filter((item) =>
+          normalizedQuery ? item.searchText.includes(normalizedQuery) : true,
+        )
+      : baseItems;
 
     const visibleMatches = Number.isFinite(initialVisibleCount)
       ? matches.slice(0, visibleCount)
@@ -483,7 +482,8 @@ const Combobox = ({
           return -1;
         }
 
-        const startIndex = current >= 0 ? current + direction : direction > 0 ? 0 : items.length - 1;
+        const startIndex =
+          current >= 0 ? current + direction : direction > 0 ? 0 : items.length - 1;
         return findNavigableIndex(items, startIndex, direction);
       });
     },
@@ -536,7 +536,9 @@ const Combobox = ({
   }, [filteredState.hasHiddenItems, highlightedIndex, items.length, open, revealMoreItems]);
 
   const selectedDescendantId =
-    highlightedIndex >= 0 && highlightedIndex < items.length ? items[highlightedIndex]?.id : undefined;
+    highlightedIndex >= 0 && highlightedIndex < items.length
+      ? items[highlightedIndex]?.id
+      : undefined;
   const compactTriggerClassName = isCompactVariant ? "min-h-8 gap-2 px-2.5 py-1.5" : "";
   const compactPopoverClassName = isCompactVariant
     ? "w-[var(--radix-popover-trigger-width)] min-w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-2"
@@ -621,7 +623,9 @@ const Combobox = ({
                           : null;
                       const exactMatch = items.find(
                         (item) =>
-                          item.kind === "option" && item.searchText === normalizedQuery && !item.disabled,
+                          item.kind === "option" &&
+                          item.searchText === normalizedQuery &&
+                          !item.disabled,
                       );
                       if (commitItem(highlightedItem, false)) {
                         event.preventDefault();
@@ -780,11 +784,7 @@ const Combobox = ({
             event.preventDefault();
           }
         }}
-        className={cn(
-          dropdownPopoverClassName,
-          compactPopoverClassName,
-          popoverClassName,
-        )}
+        className={cn(dropdownPopoverClassName, compactPopoverClassName, popoverClassName)}
       >
         {shouldRenderSearchInput ? (
           <Input
@@ -797,7 +797,9 @@ const Combobox = ({
                   event.preventDefault();
                   if (items.length) {
                     const nextIndex =
-                      highlightedIndex >= 0 ? findNavigableIndex(items, highlightedIndex + 1, 1) : 0;
+                      highlightedIndex >= 0
+                        ? findNavigableIndex(items, highlightedIndex + 1, 1)
+                        : 0;
                     setHighlightedIndex(nextIndex);
                     window.requestAnimationFrame(() => {
                       optionRefs.current[nextIndex]?.focus();
@@ -877,7 +879,11 @@ const Combobox = ({
             items.map((item, index) => {
               const isSelected = item.kind === "option" && item.option.value === value;
               const itemIcon =
-                item.kind === "option" ? item.option.icon : <Plus className={dropdownRichIconClassName} />;
+                item.kind === "option" ? (
+                  item.option.icon
+                ) : (
+                  <Plus className={dropdownRichIconClassName} />
+                );
 
               return (
                 <button

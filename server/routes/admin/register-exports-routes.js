@@ -87,10 +87,14 @@ export const registerExportsRoutes = ({
         (entry) => String(entry.requestedBy || "") === String(req.query.requestedBy || ""),
       );
     }
-    rows.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    rows.sort(
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
+    );
     const total = rows.length;
     const start = (page - 1) * limit;
-    const paged = rows.slice(start, start + limit).map((entry) => toAdminExportJobApiResponse(entry));
+    const paged = rows
+      .slice(start, start + limit)
+      .map((entry) => toAdminExportJobApiResponse(entry));
     return res.json({ jobs: paged, page, limit, total });
   });
 

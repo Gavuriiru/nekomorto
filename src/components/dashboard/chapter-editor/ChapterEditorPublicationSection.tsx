@@ -46,14 +46,11 @@ const ChapterEditorPublicationSection = ({
           <div>
             <Label className="text-sm">Status atual</Label>
             <p className="text-xs text-muted-foreground">
-              Use as ações do topo para publicar este capítulo ou voltar para
-              rascunho.
+              Use as ações do topo para publicar este capítulo ou voltar para rascunho.
             </p>
           </div>
           <Badge
-            variant={
-              draft.publicationStatus === "draft" ? "outline" : "default"
-            }
+            variant={draft.publicationStatus === "draft" ? "outline" : "default"}
             className="text-[10px] uppercase tracking-[0.12em]"
           >
             {chapterStatusLabel(draft)}

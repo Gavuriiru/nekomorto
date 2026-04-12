@@ -125,9 +125,13 @@ const FocalPointWorkspace = ({
           data-testid="focal-stage"
           className="relative w-full overflow-hidden rounded-xl border border-border/60 bg-background/40"
           style={{ height: "min(68vh, 46rem)" }}
-          onPointerMove={handleStagePointerMove as (event: ReactPointerEvent<HTMLDivElement>) => void}
+          onPointerMove={
+            handleStagePointerMove as (event: ReactPointerEvent<HTMLDivElement>) => void
+          }
           onPointerUp={handleStagePointerEnd as (event: ReactPointerEvent<HTMLDivElement>) => void}
-          onPointerCancel={handleStagePointerEnd as (event: ReactPointerEvent<HTMLDivElement>) => void}
+          onPointerCancel={
+            handleStagePointerEnd as (event: ReactPointerEvent<HTMLDivElement>) => void
+          }
         >
           <div
             data-testid="focal-image-shell"
@@ -159,7 +163,9 @@ const FocalPointWorkspace = ({
                   cursor: interactionMode === "move" ? "grabbing" : "grab",
                   touchAction: "none",
                 }}
-                onPointerDown={beginMoveInteraction as (event: ReactPointerEvent<HTMLDivElement>) => void}
+                onPointerDown={
+                  beginMoveInteraction as (event: ReactPointerEvent<HTMLDivElement>) => void
+                }
               >
                 {FOCAL_CROP_HANDLE_KEYS.map((handle) => (
                   <div

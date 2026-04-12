@@ -1,10 +1,7 @@
 import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
-import {
-  Combobox,
-  Input,
-} from "@/components/dashboard/dashboard-form-controls";
+import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
 import DashboardDedicatedEditorHeader from "@/components/dashboard/DashboardDedicatedEditorHeader";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -135,7 +132,7 @@ type PendingEpisodeAction =
   | null;
 
 const editorSectionClassName =
-  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
+  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-editor-surface";
 
 const formatCountLabel = (count: number, singular: string, plural: string) =>
   `${count} ${count === 1 ? singular : plural}`;

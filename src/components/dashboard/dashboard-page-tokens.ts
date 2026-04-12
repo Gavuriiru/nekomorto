@@ -1,5 +1,4 @@
-export const dashboardStrongFocusFieldClassName =
-  "focus-visible:border-primary";
+export const dashboardStrongFocusFieldClassName = "focus-visible:border-primary";
 export const dashboardStrongSurfaceHoverClassName = "hover:border-primary/60";
 export const dashboardSubtleSurfaceHoverClassName =
   "transition-[border-color,background-color] duration-200 hover:border-primary/40";
@@ -20,11 +19,9 @@ export const dashboardPageLayoutTokens = {
   surfaceDefault: "rounded-2xl border border-border/60 bg-card/60",
   surfaceMuted: "rounded-2xl border border-border/60 bg-card/40",
   listCard: "rounded-2xl border border-border/60 bg-card/80 shadow-lg",
-  surfaceSolid:
-    `rounded-2xl border border-border/70 bg-card shadow-[0_18px_38px_-30px_rgba(0,0,0,0.82)] transition-[border-color] duration-200 ${dashboardStrongSurfaceHoverClassName}`,
+  surfaceSolid: `rounded-2xl border border-border/70 bg-card shadow-dashboard-surface transition-[border-color] duration-200 ${dashboardStrongSurfaceHoverClassName}`,
   surfaceInset: "rounded-2xl border border-border/70 bg-background",
-  listCardSolid:
-    "rounded-2xl border border-border/70 bg-card shadow-[0_20px_40px_-32px_rgba(0,0,0,0.8)]",
+  listCardSolid: "rounded-2xl border border-border/70 bg-card shadow-dashboard-inset-surface",
   cardMetaText: "text-foreground/70",
   cardActionSurface: "rounded-xl border border-border/70 bg-background",
   cardChip: "border border-border/70 bg-background text-foreground/70",

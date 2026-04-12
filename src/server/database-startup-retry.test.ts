@@ -22,9 +22,7 @@ describe("database startup retry", () => {
       }),
     ).toBe(true);
 
-    expect(
-      isRetryableDatabaseStartupError("FATAL: the database system is starting up"),
-    ).toBe(true);
+    expect(isRetryableDatabaseStartupError("FATAL: the database system is starting up")).toBe(true);
   });
 
   it("does not retry non-transient database errors", () => {

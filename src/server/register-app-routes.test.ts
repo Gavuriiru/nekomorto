@@ -19,7 +19,11 @@ const createTestServer = async () => {
     }),
     loadPages: () => [],
     resolveInstitutionalOgPageKeyFromPath: () => null,
-    buildInstitutionalPageMeta: () => ({ title: "Institutional", description: "", siteName: "Test" }),
+    buildInstitutionalPageMeta: () => ({
+      title: "Institutional",
+      description: "",
+      siteName: "Test",
+    }),
     buildSiteMetaWithSettings: () => ({ title: "Site", description: "", siteName: "Test" }),
     resolveThemeColor: () => "#000000",
     getPageTitleFromPath: () => "",
@@ -92,22 +96,19 @@ describe("registerAppRoutes", () => {
     "/@id/__x00__react",
     "/@fs/C:/repo/src/main.tsx",
     "/node_modules/.vite/deps/react.js",
-  ])(
-    "returns 404 without HTML for reserved asset route %s",
-    async (path) => {
-      const started = await createTestServer();
-      activeServer = started.server;
+  ])("returns 404 without HTML for reserved asset route %s", async (path) => {
+    const started = await createTestServer();
+    activeServer = started.server;
 
-      const response = await fetch(`${started.baseUrl}${path}`);
-      const body = await response.text();
+    const response = await fetch(`${started.baseUrl}${path}`);
+    const body = await response.text();
 
-      expect(response.status).toBe(404);
-      expect(String(response.headers.get("content-type") || "").toLowerCase()).not.toContain(
-        "text/html",
-      );
-      expect(body).not.toMatch(/<!doctype html>/i);
-    },
-  );
+    expect(response.status).toBe(404);
+    expect(String(response.headers.get("content-type") || "").toLowerCase()).not.toContain(
+      "text/html",
+    );
+    expect(body).not.toMatch(/<!doctype html>/i);
+  });
 
   it("keeps /api paths as JSON 404s", async () => {
     const started = await createTestServer();

@@ -149,12 +149,7 @@ describe("DashboardHeader mobile search layout", () => {
 
     expect(header).not.toBeNull();
     expect(classTokens(header as HTMLElement)).toEqual(
-      expect.arrayContaining([
-        "dashboard-scroll-lock-fixed-right",
-        "fixed",
-        "right-0",
-        "top-0",
-      ]),
+      expect.arrayContaining(["dashboard-scroll-lock-fixed-right", "fixed", "right-0", "top-0"]),
     );
   });
 
@@ -262,7 +257,7 @@ describe("DashboardHeader mobile search layout", () => {
     expect(classTokens(results)).toContain("xl:w-80");
     expect(classTokens(results)).toContain("left-0");
     expect(classTokens(results)).toContain("right-0");
-    expect(classTokens(results)).toContain("shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]");
+    expect(classTokens(results)).toContain("shadow-floating-soft");
     expect(classTokens(results)).not.toContain("shadow-lg");
 
     fireEvent.mouseDown(document.body);
@@ -422,7 +417,7 @@ describe("DashboardHeader mobile search layout", () => {
     expect(profileButton).toBeTruthy();
     fireEvent.keyDown(profileButton as HTMLButtonElement, { key: "ArrowDown" });
     const profileMenu = await screen.findByRole("menu");
-    expect(classTokens(profileMenu)).toContain("shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]");
+    expect(classTokens(profileMenu)).toContain("shadow-floating-soft");
     expect(classTokens(profileMenu)).not.toContain("shadow-xl");
     fireEvent.click(await screen.findByRole("menuitem", { name: /Sair/i }));
 

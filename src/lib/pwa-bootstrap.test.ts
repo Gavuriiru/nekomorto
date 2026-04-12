@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  readBootstrapPwaEnabled,
-  scheduleBootstrapPwaRegistration,
-} from "@/lib/pwa-bootstrap";
+import { readBootstrapPwaEnabled, scheduleBootstrapPwaRegistration } from "@/lib/pwa-bootstrap";
 
 describe("pwa-bootstrap", () => {
   it("reads the bootstrap flag strictly from the server global", () => {

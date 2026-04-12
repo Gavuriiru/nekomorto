@@ -14,7 +14,9 @@ const assertRequiredDependencies = (dependencies = {}) => {
   if (missing.length === 0) {
     return;
   }
-  throw new Error(`[post-version-runtime] missing required dependencies: ${missing.sort().join(", ")}`);
+  throw new Error(
+    `[post-version-runtime] missing required dependencies: ${missing.sort().join(", ")}`,
+  );
 };
 
 const resolveLazyDependency = (dependencyName, getter) => {
@@ -301,7 +303,11 @@ export const createPostVersionRuntime = (dependencies = {}) => {
       createdAt: new Date().toISOString(),
       snapshot: buildPostVersionSnapshot(normalizedPost),
     };
-    const nextEntries = prunePostVersions([...versions, record], normalizedPost.id, postVersionRetentionMax);
+    const nextEntries = prunePostVersions(
+      [...versions, record],
+      normalizedPost.id,
+      postVersionRetentionMax,
+    );
     writePostVersions(nextEntries);
     return record;
   };
@@ -332,10 +338,7 @@ export const createPostVersionRuntime = (dependencies = {}) => {
       return { versions: [], nextCursor: null };
     }
     const limitRaw = Number(options.limit);
-    const limit = Math.min(
-      Math.max(Number.isFinite(limitRaw) ? Math.floor(limitRaw) : 20, 1),
-      100,
-    );
+    const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? Math.floor(limitRaw) : 20, 1), 100);
     const cursor = decodePostVersionCursor(options.cursor);
     let versions = loadPostVersions()
       .filter((item) => item.postId === safePostId)

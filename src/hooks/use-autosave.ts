@@ -198,8 +198,7 @@ export const useAutosave = <T>({
 
         const queuedSource = queuedDuringSaveRef.current;
         queuedDuringSaveRef.current = null;
-        const hasPendingSnapshot =
-          latestSerializedRef.current !== baselineSerializedRef.current;
+        const hasPendingSnapshot = latestSerializedRef.current !== baselineSerializedRef.current;
         const shouldFlushQueue =
           hasPendingSnapshot &&
           queuedSource !== null &&
@@ -225,15 +224,7 @@ export const useAutosave = <T>({
       inFlightPromiseRef.current = savePromise;
       return savePromise;
     },
-    [
-      clearTimer,
-      isReady,
-      onError,
-      onSaved,
-      queueSaveDuringFlight,
-      saveWithRetry,
-      serializeValue,
-    ],
+    [clearTimer, isReady, onError, onSaved, queueSaveDuringFlight, saveWithRetry, serializeValue],
   );
 
   useEffect(() => {

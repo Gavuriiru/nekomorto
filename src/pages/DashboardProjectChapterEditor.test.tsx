@@ -408,7 +408,8 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const expectStableDashboardActionButton = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
   const tokens = classTokens(element);

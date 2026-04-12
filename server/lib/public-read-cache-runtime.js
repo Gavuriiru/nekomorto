@@ -19,8 +19,14 @@ export const createPublicReadCacheRuntime = (dependencies = {}) => {
   assertRequiredDependencies(dependencies);
 
   const { publicReadCache } = dependencies;
-  const readCache = assertCacheMethod("publicReadCache.get", publicReadCache?.get?.bind(publicReadCache));
-  const writeCache = assertCacheMethod("publicReadCache.set", publicReadCache?.set?.bind(publicReadCache));
+  const readCache = assertCacheMethod(
+    "publicReadCache.get",
+    publicReadCache?.get?.bind(publicReadCache),
+  );
+  const writeCache = assertCacheMethod(
+    "publicReadCache.set",
+    publicReadCache?.set?.bind(publicReadCache),
+  );
   const invalidateTags = assertCacheMethod(
     "publicReadCache.invalidateTags",
     publicReadCache?.invalidateTags?.bind(publicReadCache),

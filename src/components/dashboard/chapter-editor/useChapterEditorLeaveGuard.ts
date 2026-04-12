@@ -80,9 +80,7 @@ export const useChapterEditorLeaveGuard = ({
         Boolean(options?.routeExit) ||
         (!!options?.nextHref && !isEditorRouteHref(options.nextHref));
       const mangaWorkflowDirty =
-        shouldCheckMangaWorkflow &&
-        isMangaProject &&
-        Boolean(hasMangaWorkflowUnsavedChanges());
+        shouldCheckMangaWorkflow && isMangaProject && Boolean(hasMangaWorkflowUnsavedChanges());
       return chapterDirty || volumeDirty || mangaWorkflowDirty;
     },
     [
@@ -201,8 +199,7 @@ export const useChapterEditorLeaveGuard = ({
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      const mangaWorkflowDirty =
-        isMangaProject && Boolean(hasMangaWorkflowUnsavedChanges());
+      const mangaWorkflowDirty = isMangaProject && Boolean(hasMangaWorkflowUnsavedChanges());
       if ((!hasActiveChapter || !isDirty) && !isVolumeDirty && !mangaWorkflowDirty) {
         return;
       }
@@ -211,13 +208,7 @@ export const useChapterEditorLeaveGuard = ({
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [
-    hasActiveChapter,
-    hasMangaWorkflowUnsavedChanges,
-    isDirty,
-    isMangaProject,
-    isVolumeDirty,
-  ]);
+  }, [hasActiveChapter, hasMangaWorkflowUnsavedChanges, isDirty, isMangaProject, isVolumeDirty]);
 
   return {
     handleCloseSelectedVolume,

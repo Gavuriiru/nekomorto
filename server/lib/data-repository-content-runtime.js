@@ -70,7 +70,10 @@ export const createDataRepositoryContentRuntime = (dependencies = {}) => {
     }
     const parsed = dataRepository.loadPosts();
     const items = Array.isArray(parsed) ? parsed : [];
-    const pruneExpiredDeleted = resolveLazyDependency("getPruneExpiredDeleted", getPruneExpiredDeleted);
+    const pruneExpiredDeleted = resolveLazyDependency(
+      "getPruneExpiredDeleted",
+      getPruneExpiredDeleted,
+    );
     const normalizePosts = resolveLazyDependency("getNormalizePosts", getNormalizePosts);
     const pruned = pruneExpiredDeleted(items);
     if (pruned.length !== items.length) {
@@ -94,7 +97,10 @@ export const createDataRepositoryContentRuntime = (dependencies = {}) => {
     }
     const parsed = dataRepository.loadProjects();
     const items = Array.isArray(parsed) ? parsed : [];
-    const pruneExpiredDeleted = resolveLazyDependency("getPruneExpiredDeleted", getPruneExpiredDeleted);
+    const pruneExpiredDeleted = resolveLazyDependency(
+      "getPruneExpiredDeleted",
+      getPruneExpiredDeleted,
+    );
     const normalizeProjects = resolveLazyDependency("getNormalizeProjects", getNormalizeProjects);
     const pruned = pruneExpiredDeleted(items);
     if (pruned.length !== items.length) {
@@ -234,7 +240,11 @@ export const createDataRepositoryContentRuntime = (dependencies = {}) => {
         if (!project) {
           return false;
         }
-        return hasProjectChapter(project, comment?.targetMeta?.chapterNumber, comment?.targetMeta?.volume);
+        return hasProjectChapter(
+          project,
+          comment?.targetMeta?.chapterNumber,
+          comment?.targetMeta?.volume,
+        );
       }
       return false;
     });

@@ -448,7 +448,7 @@ const DashboardComments = () => {
                 key={comment.id}
                 lift={false}
                 data-testid={`pending-comment-card-${comment.id}`}
-                className={`${dashboardPageLayoutTokens.listCard} ${dashboardStrongSurfaceHoverClassName} border-border bg-card shadow-[0_12px_28px_-24px_rgba(0,0,0,0.45)] overflow-hidden transition animate-slide-up opacity-0`}
+                className={`${dashboardPageLayoutTokens.listCard} ${dashboardStrongSurfaceHoverClassName} border-border bg-card shadow-dashboard-list-card overflow-hidden transition animate-slide-up opacity-0`}
                 style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
               >
                 <CardContent className="p-0">

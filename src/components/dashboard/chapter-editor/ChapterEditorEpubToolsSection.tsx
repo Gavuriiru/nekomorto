@@ -1,5 +1,10 @@
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Input } from "@/components/dashboard/dashboard-form-controls";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -80,7 +85,7 @@ export const ChapterEditorEpubToolsSection = ({
     >
       <AccordionItem
         value="epub-tools"
-        className="overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_54px_-42px_rgba(0,0,0,0.72)]"
+        className="overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-editor-epub-tools"
       >
         <AccordionTrigger className="project-editor-section-trigger flex w-full items-start gap-4 px-5 py-3.5 text-left hover:no-underline md:py-4">
           <ChapterEditorAccordionHeader
@@ -177,9 +182,7 @@ export const ChapterEditorEpubToolsSection = ({
                   onCheckedChange={(checked) => onEpubImportAsDraftChange(checked === true)}
                 />
                 <span className="space-y-1">
-                  <span className="block font-medium text-foreground">
-                    Importar como rascunho
-                  </span>
+                  <span className="block font-medium text-foreground">Importar como rascunho</span>
                   <span className="block text-xs text-muted-foreground">
                     Capítulos importados ficam ocultos ao público até a publicação.
                   </span>

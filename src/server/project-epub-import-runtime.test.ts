@@ -40,9 +40,7 @@ const createDeps = (overrides = {}) => {
 
 describe("project-epub-import-runtime", () => {
   it("fails early when required dependencies are missing", () => {
-    expect(() => createProjectEpubImportRuntime()).toThrow(
-      /missing required dependencies/i,
-    );
+    expect(() => createProjectEpubImportRuntime()).toThrow(/missing required dependencies/i);
   });
 
   it("runs EPUB jobs through the queue and persists the completed result", async () => {
@@ -122,9 +120,7 @@ describe("project-epub-import-runtime", () => {
 
     runtime.recoverEpubImportJobsAfterRestart();
 
-    expect(deps.deleteEpubImportJobResult).toHaveBeenCalledWith(
-      "tmp-epub-jobs/expired-job.json",
-    );
+    expect(deps.deleteEpubImportJobResult).toHaveBeenCalledWith("tmp-epub-jobs/expired-job.json");
     expect(deps.upsertEpubImportJob).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "queued-job",

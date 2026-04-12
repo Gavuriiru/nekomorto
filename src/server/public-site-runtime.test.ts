@@ -13,7 +13,11 @@ const createDeps = (overrides = {}) => ({
   buildPublicTeamMembers: () => [{ id: "team-1", avatarUrl: "/uploads/team-1.png" }],
   buildUserPayload: (user) => ({ ...user, built: true }),
   createGuid: () => "uuid-1",
-  createSlug: (value) => String(value || "").trim().toLowerCase().replace(/\s+/g, "-"),
+  createSlug: (value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-"),
   extractLocalStylesheetHrefs: () => ["/assets/app.css"],
   getPublicInProgressItems: () => [
     {
@@ -74,25 +78,32 @@ const createDeps = (overrides = {}) => ({
   injectPreloadLinks: ({ html, preloads }) => `${html}|preloads:${preloads.length}`,
   loadLinkTypes: () => [{ id: "site", label: "Site" }],
   loadPages: () => ({ home: { shareImage: "/uploads/home.jpg", shareImageAlt: "Home" } }),
-  loadSiteSettings: () => ({ updatedAt: "2026-03-28T09:00:00.000Z", site: { defaultShareImage: "/uploads/default-og.jpg" } }),
+  loadSiteSettings: () => ({
+    updatedAt: "2026-03-28T09:00:00.000Z",
+    site: { defaultShareImage: "/uploads/default-og.jpg" },
+  }),
   loadTagTranslations: () => ({ tags: {}, genres: {}, staffRoles: {} }),
   primaryAppOrigin: "https://example.com",
   resolveHomeHeroPreloadFromSlide: ({ imageUrl }) =>
-    imageUrl
-      ? { href: imageUrl, imagesrcset: `${imageUrl} 1x`, imagesizes: "100vw" }
-      : null,
+    imageUrl ? { href: imageUrl, imagesrcset: `${imageUrl} 1x`, imagesizes: "100vw" } : null,
   resolveMetaImageVariantUrl: (value) => value,
   resolvePostCover: (post) => ({
     coverImageUrl: post.coverImageUrl || "",
     coverAlt: "cover-alt",
   }),
-  resolvePublicPostCoverPreload: ({ coverUrl }) => (coverUrl ? { href: coverUrl, as: "image" } : null),
+  resolvePublicPostCoverPreload: ({ coverUrl }) =>
+    coverUrl ? { href: coverUrl, as: "image" } : null,
   resolvePublicProjectsListPreloads: ({ projects }) =>
-    Array.isArray(projects) && projects.length ? [{ href: "/uploads/project-hero.jpg", as: "image" }] : [],
-  resolvePublicReaderHeroPreload: ({ imageUrl }) => (imageUrl ? { href: imageUrl, as: "image" } : null),
+    Array.isArray(projects) && projects.length
+      ? [{ href: "/uploads/project-hero.jpg", as: "image" }]
+      : [],
+  resolvePublicReaderHeroPreload: ({ imageUrl }) =>
+    imageUrl ? { href: imageUrl, as: "image" } : null,
   resolveBootstrapPwaEnabled: undefined,
   resolvePublicTeamAvatarPreload: ({ teamMembers }) =>
-    Array.isArray(teamMembers) && teamMembers.length ? { href: "/uploads/team-1.png", as: "image" } : null,
+    Array.isArray(teamMembers) && teamMembers.length
+      ? { href: "/uploads/team-1.png", as: "image" }
+      : null,
   sitemapStaticPublicPaths: ["/", "/projetos"],
   stripHtml: (value) => String(value || "").replace(/<[^>]+>/g, ""),
   ...overrides,
@@ -276,7 +287,9 @@ describe("public-site-runtime", () => {
       bootstrapMode: PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
     });
 
-    expect(capturedShellMarkup).toContain('class="public-home-hero-shell public-home-hero-viewport"');
+    expect(capturedShellMarkup).toContain(
+      'class="public-home-hero-shell public-home-hero-viewport"',
+    );
     expect(capturedShellMarkup).toContain('class="public-home-hero-shell__image"');
     expect(capturedShellMarkup).toContain("/uploads/project-hero.jpg");
     expect(capturedShellMarkup).not.toContain("public-home-hero-shell__header");
@@ -284,7 +297,7 @@ describe("public-site-runtime", () => {
     expect(capturedShellMarkup).not.toContain("public-home-hero-shell__controls");
     expect(capturedCriticalCss).toContain(".public-home-hero-shell");
     expect(capturedCriticalCss).toContain(".public-home-hero-shell__image");
-    expect(capturedCriticalCss).not.toContain('@font-face');
+    expect(capturedCriticalCss).not.toContain("@font-face");
     expect(capturedCriticalCss).not.toContain("public-home-hero-shell__header");
   });
 

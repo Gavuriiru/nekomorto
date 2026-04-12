@@ -115,10 +115,7 @@ describe("ScrollToTop", () => {
         <MemoryRouter initialEntries={["/doacoes#pix-doacoes"]}>
           <ScrollToTop />
           <Routes>
-            <Route
-              path="*"
-              element={<div id="pix-doacoes" data-scroll-block="center" />}
-            />
+            <Route path="*" element={<div id="pix-doacoes" data-scroll-block="center" />} />
           </Routes>
         </MemoryRouter>,
       );

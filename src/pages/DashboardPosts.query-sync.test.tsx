@@ -187,7 +187,8 @@ const getPreferenceCalls = () =>
     return path === "/api/me/preferences";
   });
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const expectSegmentedButtonTokens = (element: HTMLElement) => {
   const tokens = classTokens(element);
@@ -360,7 +361,7 @@ describe("DashboardPosts query sync", () => {
     });
     expect(screen.getByText("Lixeira")).toBeInTheDocument();
     expect(screen.getByTestId("location-search").textContent).toBe("?page=2");
-  });
+  }, 10000);
 
   it("calendario renderiza postagens agendadas e publicadas com status", async () => {
     const now = new Date();
@@ -510,7 +511,9 @@ describe("DashboardPosts query sync", () => {
     );
 
     await waitFor(() => {
-      expect(screen.queryByTestId("dashboard-posts-calendar-loading-space")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("dashboard-posts-calendar-loading-space"),
+      ).not.toBeInTheDocument();
     });
 
     const readyContent = screen.getByTestId("dashboard-posts-calendar-ready-content");

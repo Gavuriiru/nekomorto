@@ -226,7 +226,13 @@ describe("DashboardProjectsEditor card layout", () => {
     expect(cover).not.toBeNull();
     expect(cover).toHaveStyle({ aspectRatio: "9 / 14" });
     expect(classTokens(cover)).toEqual(
-      expect.arrayContaining(["w-[180px]", "max-w-full", "overflow-hidden", "lg:h-full", "lg:w-full"]),
+      expect.arrayContaining([
+        "w-[180px]",
+        "max-w-full",
+        "overflow-hidden",
+        "lg:h-full",
+        "lg:w-full",
+      ]),
     );
     expect(classTokens(cover)).not.toContain("h-52");
     expect(classTokens(cover)).not.toContain("w-full");
@@ -297,7 +303,9 @@ describe("DashboardProjectsEditor card layout", () => {
     const meta = card.querySelector('[data-slot="project-card-meta"]');
 
     expect(synopsis).not.toBeNull();
-    expect(within(synopsis as HTMLElement).getByText("Sem sinopse cadastrada.")).toBeInTheDocument();
+    expect(
+      within(synopsis as HTMLElement).getByText("Sem sinopse cadastrada."),
+    ).toBeInTheDocument();
     expect(classTokens(synopsis)).toEqual(
       expect.arrayContaining(["max-h-[7.5rem]", "overflow-hidden", "leading-5"]),
     );

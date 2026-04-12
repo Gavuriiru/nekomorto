@@ -118,13 +118,7 @@ const HeaderSearchPopover = ({
     hasMinimumSearchQueryLength && (activeProjects.length > 0 || activePosts.length > 0);
   const synopsisKeys = useMemo(() => activeProjects.map((item) => item.href), [activeProjects]);
   const resolveSearchSynopsisMaxLines = useCallback(
-    ({
-      columnWidth,
-      defaultMaxLines,
-    }: {
-      columnWidth: number;
-      defaultMaxLines: number;
-    }) =>
+    ({ columnWidth, defaultMaxLines }: { columnWidth: number; defaultMaxLines: number }) =>
       resolvePublicProjectCardResponsiveMaxLines({
         profile: searchClampProfile,
         columnWidth,

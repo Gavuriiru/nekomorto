@@ -15,10 +15,7 @@ import {
 import { buttonVariants } from "@/components/ui/button-variants";
 import UploadPicture from "@/components/UploadPicture";
 import { scheduleOnBrowserIdle } from "@/lib/browser-idle";
-import {
-  HOME_HERO_READY_EVENT,
-  PUBLIC_HOME_HERO_VIEWPORT_CLASS,
-} from "@/lib/home-hero";
+import { HOME_HERO_READY_EVENT, PUBLIC_HOME_HERO_VIEWPORT_CLASS } from "@/lib/home-hero";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
@@ -500,7 +497,10 @@ const HeroSection = () => {
     if (!bootstrapData && !isFetched) {
       return [];
     }
-    if (Array.isArray(bootstrapData?.homeHero?.slides) && bootstrapData.homeHero.slides.length > 0) {
+    if (
+      Array.isArray(bootstrapData?.homeHero?.slides) &&
+      bootstrapData.homeHero.slides.length > 0
+    ) {
       return bootstrapData.homeHero.slides as HeroSlide[];
     }
     const projects = Array.isArray(bootstrapData?.projects)

@@ -3,9 +3,7 @@ const normalizeText = (value) => String(value || "").trim();
 export const DEFAULT_PROJECT_FOLDER_FALLBACK_KEY = "draft";
 
 export const sanitizeProjectFolderSegment = (createSlug, value) =>
-  String(
-    typeof createSlug === "function" ? createSlug(normalizeText(value)) : normalizeText(value),
-  )
+  String(typeof createSlug === "function" ? createSlug(normalizeText(value)) : normalizeText(value))
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
@@ -65,11 +63,7 @@ export const resolveVolumeFolderSegment = (volume) => {
   return normalizedVolume === null ? "volume-sem-volume" : `volume-${normalizedVolume}`;
 };
 
-export const buildProjectChapterFolder = ({
-  episode,
-  index = 0,
-  projectChaptersFolder,
-} = {}) => {
+export const buildProjectChapterFolder = ({ episode, index = 0, projectChaptersFolder } = {}) => {
   const parsedNumber = Number(episode?.number);
   const chapterNumber =
     Number.isFinite(parsedNumber) && parsedNumber > 0 ? Math.floor(parsedNumber) : index + 1;

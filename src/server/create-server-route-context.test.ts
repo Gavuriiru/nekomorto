@@ -43,9 +43,7 @@ describe("createServerRouteContext", () => {
     expect(context.upload.loadUploads).toBe("loadUploads");
     expect(context.upload.loadUsers).toBe("loadUsers");
     expect(context.upload.normalizeUploadScopeUserId).toBe("normalizeUploadScopeUserId");
-    expect(context.upload.resolveRequestUploadAccessScope).toBe(
-      "resolveRequestUploadAccessScope",
-    );
+    expect(context.upload.resolveRequestUploadAccessScope).toBe("resolveRequestUploadAccessScope");
     expect(context.site.resolveThemeColor).toBe("resolveThemeColor");
     expect(context.user.requireAuth).toBe("requireAuth");
     expect(context).not.toHaveProperty("appendAuditLog");

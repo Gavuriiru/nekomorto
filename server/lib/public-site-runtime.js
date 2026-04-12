@@ -577,8 +577,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
   const resolveDiscordAvatarSize = (requestedSize) => {
     const size = Math.max(16, Math.floor(Number(requestedSize) || 0));
     return (
-      [16, 32, 64, 128, 256, 512, 1024, 2048, 4096].find((candidate) => candidate >= size) ||
-      4096
+      [16, 32, 64, 128, 256, 512, 1024, 2048, 4096].find((candidate) => candidate >= size) || 4096
     );
   };
 

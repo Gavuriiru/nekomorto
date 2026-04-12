@@ -202,11 +202,7 @@ const CryptoDonationPanel = ({
               disabled={!service.address}
               className={copyButtonClassName}
             >
-              {copiedKey === copyKey ? (
-                <Check className="h-3 w-3" />
-              ) : (
-                <Copy className="h-3 w-3" />
-              )}
+              {copiedKey === copyKey ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
             </button>
           </div>
         </div>
@@ -504,9 +500,7 @@ const Donations = () => {
                       value={monthlyGoal.percentage}
                       className={`h-3 ${monthlyGoal.isComplete ? "bg-primary/20" : "bg-primary/15"}`}
                       indicatorClassName={
-                        monthlyGoal.isComplete
-                          ? "bg-primary shadow-[0_0_24px_-10px_hsl(var(--primary))]"
-                          : undefined
+                        monthlyGoal.isComplete ? "bg-primary shadow-primary-glow" : undefined
                       }
                       aria-label={monthlyGoal.title}
                       aria-valuetext={monthlyGoal.progressLabel}
@@ -522,10 +516,7 @@ const Donations = () => {
             >
               <Card className="border-border/60 bg-card/90 shadow-md">
                 <CardContent className="grid gap-6 p-6 md:grid-cols-[1.1fr_0.9fr] md:p-8">
-                  <div
-                    data-testid="donations-reason-panel"
-                    className="space-y-4 rounded-2xl p-2"
-                  >
+                  <div data-testid="donations-reason-panel" className="space-y-4 rounded-2xl p-2">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       {(() => {
                         const ReasonIcon = resolveDonationsIcon(
@@ -569,9 +560,7 @@ const Donations = () => {
                         </div>
                       </div>
                       <div className="space-y-3">
-                        <div className={donationsPixKeyClassName}>
-                          {donations.pixKey}
-                        </div>
+                        <div className={donationsPixKeyClassName}>{donations.pixKey}</div>
                         <div className="flex w-full flex-wrap items-center gap-3 md:justify-center">
                           <Button
                             className="w-full gap-2 md:w-auto"
@@ -599,10 +588,7 @@ const Donations = () => {
                 data-reveal
                 data-testid="donations-crypto-section"
               >
-                <Card
-                  data-testid="donations-crypto-card"
-                  className="border-0 bg-card/90 shadow-md"
-                >
+                <Card data-testid="donations-crypto-card" className="border-0 bg-card/90 shadow-md">
                   <CardContent className="space-y-4 p-5 md:space-y-5 md:p-6">
                     <div
                       className={

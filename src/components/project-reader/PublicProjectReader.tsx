@@ -40,9 +40,7 @@ import {
   useProjectReaderPreferences,
   type ProjectReaderPreferencesState,
 } from "@/components/project-reader/use-project-reader-preferences";
-import {
-  Combobox,
-} from "@/components/public-form-controls";
+import { Combobox } from "@/components/public-form-controls";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -124,7 +122,7 @@ type PublicProjectReaderProps = PublicProjectReaderBaseProps & {
 
 const PAGE_WRAPPER_BASE_CLASS = "relative flex min-w-0 justify-center";
 const SIDEBAR_SECTION_CLASS_NAME =
-  "rounded-[1.75rem] border border-border/55 bg-card/35 p-3.5 shadow-[0_18px_46px_-34px_rgba(0,0,0,0.58)]";
+  "rounded-[1.75rem] border border-border/55 bg-card/35 p-3.5 shadow-reader-panel";
 const SIDEBAR_FIELD_CLASS_NAME = "space-y-2";
 const SIDEBAR_LABEL_CLASS_NAME =
   "text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground/70";
@@ -5499,10 +5497,10 @@ const PublicProjectReaderContent = ({
                       variant="ghost"
                       size="icon"
                       className={cn(
-                        "h-10 w-10 rounded-full border border-border/45 bg-card/45 text-foreground/85 shadow-[0_14px_30px_-24px_rgba(0,0,0,0.65)] backdrop-blur-sm transition-[background-color,border-color,color,box-shadow] duration-300 ease-out hover:bg-accent/90 hover:text-accent-foreground",
+                        "h-10 w-10 rounded-full border border-border/45 bg-card/45 text-foreground/85 shadow-reader-control backdrop-blur-sm transition-[background-color,border-color,color,box-shadow] duration-300 ease-out hover:bg-accent/90 hover:text-accent-foreground",
                         isCinemaMode ? "bg-background/75" : "",
                         isMenuOpen
-                          ? "border-primary/25 bg-primary/8 text-foreground shadow-[0_20px_42px_-28px_hsl(var(--foreground)/0.72)]"
+                          ? "border-primary/25 bg-primary/8 text-foreground shadow-reader-active-control"
                           : "",
                       )}
                       onClick={handleMenuButtonClick}
@@ -5529,7 +5527,7 @@ const PublicProjectReaderContent = ({
                   role="dialog"
                   data-testid="project-reader-sidebar"
                   className={cn(
-                    "absolute right-0 top-0 z-20 flex min-h-0 flex-col overflow-hidden rounded-[2rem] border shadow-[0_28px_90px_-42px_rgba(0,0,0,0.72)] transition-[opacity,transform] duration-200 ease-out origin-top-right",
+                    "absolute right-0 top-0 z-20 flex min-h-0 flex-col overflow-hidden rounded-[2rem] border shadow-reader-menu transition-[opacity,transform] duration-200 ease-out origin-top-right",
                     sidebarToneClassName,
                     isMenuOverlayVisible
                       ? "pointer-events-auto translate-y-0 scale-100 opacity-100"

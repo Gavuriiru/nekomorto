@@ -123,7 +123,8 @@ describe("content-collections-runtime", () => {
   });
 
   it("increments views and applies approved comment counts", () => {
-    const { dependencies, postsStore, projectsStore, writePosts, writeProjects } = createDependencies();
+    const { dependencies, postsStore, projectsStore, writePosts, writeProjects } =
+      createDependencies();
     const runtime = createContentCollectionsRuntime(dependencies);
 
     const nextPost = runtime.incrementPostViews("hello-world");
@@ -134,14 +135,22 @@ describe("content-collections-runtime", () => {
     expect(writePosts).toHaveBeenCalledTimes(1);
     expect(writeProjects).toHaveBeenCalledTimes(1);
 
-    const postCommentsApplied = runtime.applyCommentCountToPosts(postsStore, [
-      { status: "approved", targetType: "post", targetId: "hello-world" },
-      { status: "pending", targetType: "post", targetId: "hello-world" },
-    ], "hello-world");
-    const projectCommentsApplied = runtime.applyCommentCountToProjects(projectsStore, [
-      { status: "approved", targetType: "project", targetId: "project-1" },
-      { status: "approved", targetType: "project", targetId: "project-1" },
-    ], "project-1");
+    const postCommentsApplied = runtime.applyCommentCountToPosts(
+      postsStore,
+      [
+        { status: "approved", targetType: "post", targetId: "hello-world" },
+        { status: "pending", targetType: "post", targetId: "hello-world" },
+      ],
+      "hello-world",
+    );
+    const projectCommentsApplied = runtime.applyCommentCountToProjects(
+      projectsStore,
+      [
+        { status: "approved", targetType: "project", targetId: "project-1" },
+        { status: "approved", targetType: "project", targetId: "project-1" },
+      ],
+      "project-1",
+    );
 
     expect(postCommentsApplied[0]).toMatchObject({ commentsCount: 1 });
     expect(projectCommentsApplied[0]).toMatchObject({ commentsCount: 2 });

@@ -1,6 +1,32 @@
 import crypto from "crypto";
 
-export const registerProjectEpubRoutes = ({ app, PUBLIC_UPLOADS_DIR, canManageProjects, cleanupProjectEpubImportTempUploads, enqueueEpubImportJob, exportProjectEpub, findDuplicateEpisodeKey, findDuplicateVolumeCover, findEpubImportJobForUser, importProjectEpub, isEpubImportJobStorageAvailable, loadProjects, loadSiteSettings, loadUploads, mapEpubImportExecutionError, normalizeProjectSnapshotForEpubImport, normalizeProjects, parseEpubImportRequestBody, readEpubImportJobResult, requireAuth, resolveEpubImportRequestInput, toEpubImportJobApiResponse, upsertEpubImportJob, writeUploads, getUsedUploadUrls } = {}) => {
+export const registerProjectEpubRoutes = ({
+  app,
+  PUBLIC_UPLOADS_DIR,
+  canManageProjects,
+  cleanupProjectEpubImportTempUploads,
+  enqueueEpubImportJob,
+  exportProjectEpub,
+  findDuplicateEpisodeKey,
+  findDuplicateVolumeCover,
+  findEpubImportJobForUser,
+  importProjectEpub,
+  isEpubImportJobStorageAvailable,
+  loadProjects,
+  loadSiteSettings,
+  loadUploads,
+  mapEpubImportExecutionError,
+  normalizeProjectSnapshotForEpubImport,
+  normalizeProjects,
+  parseEpubImportRequestBody,
+  readEpubImportJobResult,
+  requireAuth,
+  resolveEpubImportRequestInput,
+  toEpubImportJobApiResponse,
+  upsertEpubImportJob,
+  writeUploads,
+  getUsedUploadUrls,
+} = {}) => {
   app.post(
     "/api/projects/epub/import/jobs",
     requireAuth,
@@ -115,62 +141,67 @@ export const registerProjectEpubRoutes = ({ app, PUBLIC_UPLOADS_DIR, canManagePr
     return res.json({ job: toEpubImportJobApiResponse(job) });
   });
 
-  app.post("/api/projects/epub/import", requireAuth, parseEpubImportRequestBody, async (req, res) => {
-    const sessionUser = req.session.user;
-    if (!canManageProjects(sessionUser?.id)) {
-      return res.status(403).json({ error: "forbidden" });
-    }
-
-    let requestInput;
-    try {
-      requestInput = resolveEpubImportRequestInput(req);
-    } catch (error) {
-      if (error?.code === "duplicate_episode_key") {
-        return res.status(400).json({ error: "duplicate_episode_key", key: error.key });
+  app.post(
+    "/api/projects/epub/import",
+    requireAuth,
+    parseEpubImportRequestBody,
+    async (req, res) => {
+      const sessionUser = req.session.user;
+      if (!canManageProjects(sessionUser?.id)) {
+        return res.status(403).json({ error: "forbidden" });
       }
-      if (error?.code === "duplicate_volume_cover_key") {
-        return res.status(400).json({ error: "duplicate_volume_cover_key", key: error.key });
+
+      let requestInput;
+      try {
+        requestInput = resolveEpubImportRequestInput(req);
+      } catch (error) {
+        if (error?.code === "duplicate_episode_key") {
+          return res.status(400).json({ error: "duplicate_episode_key", key: error.key });
+        }
+        if (error?.code === "duplicate_volume_cover_key") {
+          return res.status(400).json({ error: "duplicate_volume_cover_key", key: error.key });
+        }
+        return res.status(400).json({ error: "invalid_project_snapshot" });
       }
-      return res.status(400).json({ error: "invalid_project_snapshot" });
-    }
 
-    if (requestInput.isMultipartRequest && !req.file) {
-      return res.status(400).json({ error: "file_required" });
-    }
-
-    if (!requestInput.buffer.length) {
-      return res.status(400).json({ error: "empty_epub_upload" });
-    }
-
-    let project = requestInput.project;
-    const rawProjectId = requestInput.rawProjectId;
-    if (!project && rawProjectId) {
-      project =
-        normalizeProjects(loadProjects()).find(
-          (item) => item.id === rawProjectId && !item.deletedAt,
-        ) || null;
-      if (!project) {
-        return res.status(404).json({ error: "project_not_found" });
+      if (requestInput.isMultipartRequest && !req.file) {
+        return res.status(400).json({ error: "file_required" });
       }
-    }
 
-    try {
-      const preview = await importProjectEpub({
-        buffer: requestInput.buffer,
-        project,
-        targetVolume: requestInput.targetVolume,
-        defaultStatus: requestInput.defaultStatus,
-        uploadsDir: PUBLIC_UPLOADS_DIR,
-        loadUploads,
-        writeUploads,
-        uploadUserId: sessionUser?.id,
-      });
-      return res.json(preview);
-    } catch (error) {
-      const mappedError = mapEpubImportExecutionError(error);
-      return res.status(mappedError.status).json(mappedError.body);
-    }
-  });
+      if (!requestInput.buffer.length) {
+        return res.status(400).json({ error: "empty_epub_upload" });
+      }
+
+      let project = requestInput.project;
+      const rawProjectId = requestInput.rawProjectId;
+      if (!project && rawProjectId) {
+        project =
+          normalizeProjects(loadProjects()).find(
+            (item) => item.id === rawProjectId && !item.deletedAt,
+          ) || null;
+        if (!project) {
+          return res.status(404).json({ error: "project_not_found" });
+        }
+      }
+
+      try {
+        const preview = await importProjectEpub({
+          buffer: requestInput.buffer,
+          project,
+          targetVolume: requestInput.targetVolume,
+          defaultStatus: requestInput.defaultStatus,
+          uploadsDir: PUBLIC_UPLOADS_DIR,
+          loadUploads,
+          writeUploads,
+          uploadUserId: sessionUser?.id,
+        });
+        return res.json(preview);
+      } catch (error) {
+        const mappedError = mapEpubImportExecutionError(error);
+        return res.status(mappedError.status).json(mappedError.body);
+      }
+    },
+  );
 
   app.post("/api/projects/epub/import/cleanup", requireAuth, (req, res) => {
     const sessionUser = req.session.user;

@@ -1,9 +1,5 @@
-import {
-  createPublicVisibilityRuntime,
-} from "../lib/public-visibility-runtime.js";
-import {
-  createPublicSiteRuntime,
-} from "../lib/public-site-runtime.js";
+import { createPublicVisibilityRuntime } from "../lib/public-visibility-runtime.js";
+import { createPublicSiteRuntime } from "../lib/public-site-runtime.js";
 import { assertRequiredDependencies } from "./assert-required-dependencies.js";
 
 const PUBLIC_RUNTIME_DEPENDENCY_KEYS = [

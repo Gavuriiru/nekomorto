@@ -110,7 +110,11 @@ export const registerProjectWriteManagementRoutes = ({
       return res.status(404).json({ error: "not_found" });
     }
     const updates = loadUpdates().filter((item) => item.projectId !== id);
-    const episodeUpdates = collectEpisodeUpdatesByVisibility(null, project, new Date().toISOString())
+    const episodeUpdates = collectEpisodeUpdatesByVisibility(
+      null,
+      project,
+      new Date().toISOString(),
+    )
       .map((item) => ({
         ...item,
         updatedAt: item.updatedAt || new Date().toISOString(),

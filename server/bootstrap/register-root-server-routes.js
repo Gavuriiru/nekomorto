@@ -18,10 +18,7 @@ export const createRootServerRouteContexts = (dependencies = {}) => {
 
 export const registerRootServerRoutes = (
   dependencies = {},
-  {
-    registerDirectRoutes = registerDirectServerRoutes,
-    registerRoutes = registerServerRoutes,
-  } = {},
+  { registerDirectRoutes = registerDirectServerRoutes, registerRoutes = registerServerRoutes } = {},
 ) => {
   const contexts = createRootServerRouteContexts(dependencies);
   registerDirectRoutes(contexts.directRouteDependencies);

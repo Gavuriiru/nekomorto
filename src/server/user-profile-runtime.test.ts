@@ -25,8 +25,7 @@ const createDeps = (overrides = {}) => {
     AccessRole: {
       NORMAL: "normal",
     },
-    addOwnerRoleLabel: (roles, isOwnerUser) =>
-      isOwnerUser ? [...roles, "owner"] : roles,
+    addOwnerRoleLabel: (roles, isOwnerUser) => (isOwnerUser ? [...roles, "owner"] : roles),
     computeEffectiveAccessRole: ({ accessRole }) => accessRole || "normal",
     computeGrants: ({ userId, accessRole }) => ({ userId, accessRole }),
     createRevisionToken: (payload) => `revision:${payload.id}:${payload.avatarRenderVersion}`,
@@ -101,9 +100,7 @@ describe("user-profile-runtime", () => {
       avatarUrl: "https://cdn.discordapp.com/avatars/owner-1/session.png?size=128",
     });
 
-    expect(deps.ensureOwnerUser).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "owner-1" }),
-    );
+    expect(deps.ensureOwnerUser).toHaveBeenCalledWith(expect.objectContaining({ id: "owner-1" }));
     expect(payload).toEqual(
       expect.objectContaining({
         id: "owner-1",
@@ -138,9 +135,9 @@ describe("user-profile-runtime", () => {
           "revision:owner-1:render:https://cdn.discordapp.com/avatars/owner-1/session.png?size=128",
       }),
     );
-    expect(runtime.resolveDiscordAvatarFallbackUrl("https://cdn.discordapp.com/avatars/test.png")).toBe(
-      "https://cdn.discordapp.com/avatars/test.png",
-    );
+    expect(
+      runtime.resolveDiscordAvatarFallbackUrl("https://cdn.discordapp.com/avatars/test.png"),
+    ).toBe("https://cdn.discordapp.com/avatars/test.png");
     expect(runtime.withEffectiveAvatarUrl({ id: "u-1", avatarUrl: "" }, "/fallback.png")).toEqual(
       expect.objectContaining({
         avatarUrl: "/fallback.png",

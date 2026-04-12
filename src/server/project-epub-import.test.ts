@@ -1432,8 +1432,12 @@ describe("project EPUB import", () => {
   });
 
   it("desativa link interno do EPUB sem destino importado e gera warning", async () => {
-    epubState.toc = [{ id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
-    epubState.flow = [{ id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
+    epubState.toc = [
+      { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+    ];
+    epubState.flow = [
+      { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+    ];
     epubState.manifest = {
       chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
     };

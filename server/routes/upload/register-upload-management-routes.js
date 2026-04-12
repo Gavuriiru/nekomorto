@@ -437,7 +437,9 @@ export const registerUploadManagementRoutes = (deps) => {
 
     deps.cleanupUploadStagingWorkspace(stagingWorkspace);
 
-    const nextUploads = uploads.filter((item) => String(item?.url || "") !== String(entry?.url || ""));
+    const nextUploads = uploads.filter(
+      (item) => String(item?.url || "") !== String(entry?.url || ""),
+    );
     nextUploads.push(enrichedEntry);
     writeUploads(nextUploads);
     appendAuditLog(req, "uploads.image_from_url", "uploads", {

@@ -112,24 +112,22 @@ const buildAnalyticsDataset = ({
     commentsCreated: Math.max(Math.floor(views / 40), 0),
     commentsApproved: Math.max(Math.floor(views / 60), 0),
   },
-  series:
-    series ??
-    [
-      { date: "2026-02-10", value: Math.max(Math.floor(views / 30), 1) },
-      { date: "2026-02-11", value: Math.max(Math.floor(views / 24), 1) },
-    ],
-  topEntries:
-    topEntries ??
-    [
-      {
-        resourceType: "project",
-        resourceId: `project-${views}`,
-        title: `Projeto ${views}`,
-        views: Math.max(Math.floor(views / 3), 1),
-        uniqueViews: Math.max(Math.floor(views / 5), 1),
-      },
-    ],
-  referrerHost: [{ key: "(internal)", count: referrerCount ?? Math.max(Math.floor(views / 10), 1) }],
+  series: series ?? [
+    { date: "2026-02-10", value: Math.max(Math.floor(views / 30), 1) },
+    { date: "2026-02-11", value: Math.max(Math.floor(views / 24), 1) },
+  ],
+  topEntries: topEntries ?? [
+    {
+      resourceType: "project",
+      resourceId: `project-${views}`,
+      title: `Projeto ${views}`,
+      views: Math.max(Math.floor(views / 3), 1),
+      uniqueViews: Math.max(Math.floor(views / 5), 1),
+    },
+  ],
+  referrerHost: [
+    { key: "(internal)", count: referrerCount ?? Math.max(Math.floor(views / 10), 1) },
+  ],
 });
 
 const createDeferredResponse = () => {
@@ -531,7 +529,9 @@ describe("DashboardAnalytics", () => {
     await screen.findByText("300");
     await changeAnalyticsSelect(0, "7 dias");
 
-    expect(await screen.findByText(/Mantendo os últimos resultados carregados/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Mantendo os últimos resultados carregados/i),
+    ).toBeInTheDocument();
     expect(screen.getByText("300")).toBeInTheDocument();
     expect(screen.queryByText(/Carregando análises/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Exportar" })).toBeDisabled();

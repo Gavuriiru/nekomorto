@@ -9,10 +9,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { resolveEpubViewerLinkAction } from "@/lib/epub-internal-links";
 import { EMPTY_LEXICAL_JSON } from "@/lib/lexical/empty-state";
-import {
-  prepareLexicalViewerState,
-  readPreparedLexicalViewerState,
-} from "@/lib/lexical/viewer";
+import { prepareLexicalViewerState, readPreparedLexicalViewerState } from "@/lib/lexical/viewer";
 import LexicalViewerNodes from "./LexicalViewerNodes";
 import LexicalViewerTheme from "./LexicalViewerTheme";
 import { ViewerPollProvider, type PollTarget } from "./viewer-nodes/ViewerPollContext";
@@ -148,8 +145,7 @@ const ChecklistA11yPlugin = () => {
 
 const isModifiedNavigationEvent = (
   event: Pick<MouseEvent, "button" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey">,
-) =>
-  event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey;
+) => event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey;
 
 const LexicalViewer = ({
   value,

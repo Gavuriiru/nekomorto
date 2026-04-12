@@ -248,7 +248,9 @@ const createInlineEditorialTextConversion =
       if (!node || node.nodeType !== 1) {
         return null;
       }
-      const editorialStyle = extractInlineEditorialTextStyle(node.style);
+      const editorialStyle = extractInlineEditorialTextStyle(
+        node.style || node.getAttribute?.("style") || "",
+      );
       if (!editorialStyle && !createNode && !impliedFormat) {
         return null;
       }
@@ -322,9 +324,17 @@ class ServerEpubAnchorNode extends DecoratorNode {
   }
 
   static importDOM() {
+    const hasAnchorId = (node) =>
+      Boolean(
+        node &&
+          node.nodeType === 1 &&
+          normalizeAnchorId(
+            node.getAttribute?.("data-epub-anchor") || node.getAttribute?.("id") || "",
+          ),
+      );
     const createConversion = () => ({
       conversion: (node) => {
-        if (!(node instanceof globalThis.HTMLElement)) {
+        if (!node || node.nodeType !== 1) {
           return null;
         }
         const anchorId = normalizeAnchorId(
@@ -341,8 +351,8 @@ class ServerEpubAnchorNode extends DecoratorNode {
     });
 
     return {
-      "epub-anchor": createConversion,
-      span: createConversion,
+      "epub-anchor": (domNode) => (hasAnchorId(domNode) ? createConversion() : null),
+      span: (domNode) => (hasAnchorId(domNode) ? createConversion() : null),
     };
   }
 

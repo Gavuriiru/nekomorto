@@ -27,12 +27,22 @@ const normalizeAttemptCount = (value) => {
 };
 
 export const isWebhookDeliveryTerminalStatus = (status) =>
-  String(status || "").trim().toLowerCase() === WEBHOOK_DELIVERY_STATUS.SENT ||
-  String(status || "").trim().toLowerCase() === WEBHOOK_DELIVERY_STATUS.FAILED;
+  String(status || "")
+    .trim()
+    .toLowerCase() === WEBHOOK_DELIVERY_STATUS.SENT ||
+  String(status || "")
+    .trim()
+    .toLowerCase() === WEBHOOK_DELIVERY_STATUS.FAILED;
 
 export const isWebhookDeliveryRetryableStatus = (status) =>
-  [WEBHOOK_DELIVERY_STATUS.QUEUED, WEBHOOK_DELIVERY_STATUS.PROCESSING, WEBHOOK_DELIVERY_STATUS.RETRYING].includes(
-    String(status || "").trim().toLowerCase(),
+  [
+    WEBHOOK_DELIVERY_STATUS.QUEUED,
+    WEBHOOK_DELIVERY_STATUS.PROCESSING,
+    WEBHOOK_DELIVERY_STATUS.RETRYING,
+  ].includes(
+    String(status || "")
+      .trim()
+      .toLowerCase(),
   );
 
 export const computeWebhookRetryDelayMs = ({ attemptCount, retryAfterMs } = {}) => {
@@ -60,7 +70,9 @@ const buildResourceIds = (context) => {
 
 export const toWebhookDeliveryApiResponse = (record = {}) => {
   const context = asObject(record.context);
-  const status = String(record.status || "").trim().toLowerCase();
+  const status = String(record.status || "")
+    .trim()
+    .toLowerCase();
   return {
     id: String(record.id || "").trim(),
     scope: String(record.scope || "").trim(),
@@ -74,7 +86,9 @@ export const toWebhookDeliveryApiResponse = (record = {}) => {
     createdAt: record.createdAt ? String(record.createdAt) : null,
     nextAttemptAt: record.nextAttemptAt ? String(record.nextAttemptAt) : null,
     lastAttemptAt: record.lastAttemptAt ? String(record.lastAttemptAt) : null,
-    statusCode: Number.isFinite(Number(record.lastStatusCode)) ? Number(record.lastStatusCode) : null,
+    statusCode: Number.isFinite(Number(record.lastStatusCode))
+      ? Number(record.lastStatusCode)
+      : null,
     error: record.lastError ? String(record.lastError) : null,
     targetLabel: String(record.targetLabel || "").trim(),
     resourceIds: buildResourceIds(context),
@@ -101,7 +115,11 @@ export const summarizeWebhookDeliveries = (records = []) => {
       }
 
       const sentAtTs = new Date(record?.sentAt || record?.updatedAt || 0).getTime();
-      if (status === WEBHOOK_DELIVERY_STATUS.SENT && Number.isFinite(sentAtTs) && sentAtTs >= windowStart) {
+      if (
+        status === WEBHOOK_DELIVERY_STATUS.SENT &&
+        Number.isFinite(sentAtTs) &&
+        sentAtTs >= windowStart
+      ) {
         summary.sentLast24h += 1;
       }
       return summary;

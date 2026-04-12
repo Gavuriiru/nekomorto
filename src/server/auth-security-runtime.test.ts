@@ -73,11 +73,13 @@ describe("auth-security-runtime", () => {
       secret: "secret-1",
       otpauthUrl: "otpauth://generated",
     });
-    expect(runtime.resolveEnrollmentFromSession({
-      req,
-      enrollmentToken: "token-1",
-      userId: "user-1",
-    })).toMatchObject({
+    expect(
+      runtime.resolveEnrollmentFromSession({
+        req,
+        enrollmentToken: "token-1",
+        userId: "user-1",
+      }),
+    ).toMatchObject({
       token: "token-1",
       secret: "secret-1",
       userId: "user-1",

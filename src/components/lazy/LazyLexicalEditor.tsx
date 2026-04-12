@@ -1,10 +1,7 @@
 import { Suspense, forwardRef, lazy, type ReactNode } from "react";
 
 import LexicalEditorFallback from "@/components/lexical/LexicalEditorFallback";
-import type {
-  LexicalEditorHandle,
-  LexicalEditorProps,
-} from "@/components/lexical/LexicalEditor";
+import type { LexicalEditorHandle, LexicalEditorProps } from "@/components/lexical/LexicalEditor";
 
 export const loadLexicalEditor = () => import("@/components/lexical/LexicalEditor");
 

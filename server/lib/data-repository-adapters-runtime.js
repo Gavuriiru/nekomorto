@@ -61,7 +61,8 @@ export const createDataRepositoryAdaptersRuntime = (dependencies = {}) => {
     callRepositoryMethod("upsertProjectImageExportJob", [job], null);
 
   const loadSecretRotations = () => callRepositoryMethod("loadSecretRotations", [], []);
-  const appendSecretRotation = (entry) => callRepositoryMethod("appendSecretRotation", [entry], null);
+  const appendSecretRotation = (entry) =>
+    callRepositoryMethod("appendSecretRotation", [entry], null);
 
   return {
     appendSecretRotation,

@@ -5,7 +5,8 @@ const toTimestamp = (value) => {
 
 export const selectRecentApprovedComments = (comments, limit = 3) => {
   const normalizedLimit = Number(limit);
-  const resolvedLimit = Number.isFinite(normalizedLimit) && normalizedLimit > 0 ? normalizedLimit : 3;
+  const resolvedLimit =
+    Number.isFinite(normalizedLimit) && normalizedLimit > 0 ? normalizedLimit : 3;
 
   return (Array.isArray(comments) ? comments : [])
     .filter((comment) => comment?.status === "approved")

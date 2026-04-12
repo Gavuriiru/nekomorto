@@ -14,7 +14,7 @@ type ProjectEditorSectionCardProps = {
 };
 
 const sectionClassName =
-  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
+  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-editor-surface";
 const headerClassName =
   "flex flex-col gap-3 border-b border-border/60 px-5 py-4 md:flex-row md:items-start md:justify-between";
 const bodyClassName = "space-y-5 px-5 py-5";

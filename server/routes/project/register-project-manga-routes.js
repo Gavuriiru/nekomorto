@@ -1,6 +1,62 @@
 import crypto from "crypto";
 
-export const registerProjectMangaRoutes = ({ app, PUBLIC_UPLOADS_DIR, appendAuditLog, applyEpisodePublicationMetadata, applyProjectChapterUpdate, buildProjectImageExportDownloadPath, canManageIntegrations, canManageProjects, createRevisionToken, deriveAniListMediaOrganization, dispatchEditorialWebhookEvent, enqueueProjectImageExportJob, enqueueProjectImageImportJob, enqueueProjectOgPrewarm, ensureNoEditConflict, expireProjectImageExportJob, expireProjectImageImportJob, exportProjectImageChapter, fetchAniListMediaById, findDuplicateEpisodeKey, findDuplicateVolumeCover, findProjectChapterByEpisodeNumber, findProjectImageExportJobForUser, findProjectImageImportJobForUser, findPublishedImageEpisodeWithoutPages, getActiveProjectTypes, importRemoteImageFile, isProjectImageExportJobStorageAvailable, isProjectImageImportJobStorageAvailable, isWithinRestoreWindow, localizeProjectImageFields, loadProjects, loadSiteSettings, loadUpdates, loadUploads, mapProjectImageImportExecutionError, normalizeProjectSnapshotForEpubImport, normalizeProjects, parseEditRevisionOptions, parseProjectImageImportRequestBody, previewProjectImageImport, readProjectImageImportJobResult, requireAuth, resolveEpisodeLookup, resolveProjectImageImportRequestInput, resolveProjectWebhookEventKey, runAutoUploadReorganization, toProjectImageExportJobApiResponse, toProjectImageImportJobApiResponse, upsertProjectImageExportJob, upsertProjectImageImportJob, upsertUploadEntries, writeProjects, writeUpdates, writeUploads } = {}) => {
+export const registerProjectMangaRoutes = ({
+  app,
+  PUBLIC_UPLOADS_DIR,
+  appendAuditLog,
+  applyEpisodePublicationMetadata,
+  applyProjectChapterUpdate,
+  buildProjectImageExportDownloadPath,
+  canManageIntegrations,
+  canManageProjects,
+  createRevisionToken,
+  deriveAniListMediaOrganization,
+  dispatchEditorialWebhookEvent,
+  enqueueProjectImageExportJob,
+  enqueueProjectImageImportJob,
+  enqueueProjectOgPrewarm,
+  ensureNoEditConflict,
+  expireProjectImageExportJob,
+  expireProjectImageImportJob,
+  exportProjectImageChapter,
+  fetchAniListMediaById,
+  findDuplicateEpisodeKey,
+  findDuplicateVolumeCover,
+  findProjectChapterByEpisodeNumber,
+  findProjectImageExportJobForUser,
+  findProjectImageImportJobForUser,
+  findPublishedImageEpisodeWithoutPages,
+  getActiveProjectTypes,
+  importRemoteImageFile,
+  isProjectImageExportJobStorageAvailable,
+  isProjectImageImportJobStorageAvailable,
+  isWithinRestoreWindow,
+  localizeProjectImageFields,
+  loadProjects,
+  loadSiteSettings,
+  loadUpdates,
+  loadUploads,
+  mapProjectImageImportExecutionError,
+  normalizeProjectSnapshotForEpubImport,
+  normalizeProjects,
+  parseEditRevisionOptions,
+  parseProjectImageImportRequestBody,
+  previewProjectImageImport,
+  readProjectImageImportJobResult,
+  requireAuth,
+  resolveEpisodeLookup,
+  resolveProjectImageImportRequestInput,
+  resolveProjectWebhookEventKey,
+  runAutoUploadReorganization,
+  toProjectImageExportJobApiResponse,
+  toProjectImageImportJobApiResponse,
+  upsertProjectImageExportJob,
+  upsertProjectImageImportJob,
+  upsertUploadEntries,
+  writeProjects,
+  writeUpdates,
+  writeUploads,
+} = {}) => {
   app.post(
     "/api/projects/:id/manga-import/preview",
     requireAuth,
@@ -405,7 +461,8 @@ export const registerProjectMangaRoutes = ({ app, PUBLIC_UPLOADS_DIR, appendAudi
         ? job.summary
         : {};
     const fileName =
-      String(summary.filename || "").trim() || path.basename(String(job.resultPath || "export.zip"));
+      String(summary.filename || "").trim() ||
+      path.basename(String(job.resultPath || "export.zip"));
     const contentType = String(summary.contentType || "").trim() || "application/zip";
     res.setHeader("Content-Type", contentType);
     res.setHeader("Content-Disposition", `attachment; filename=\"${fileName}\"`);

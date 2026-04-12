@@ -12,8 +12,12 @@ import PublicProjectCard, {
 
 describe("PublicProjectCard", () => {
   it("normaliza linhas de clamp e compartilha perfis responsivos por variant", () => {
-    expect(normalizePublicProjectCardClampLines({ lines: undefined, fallbackLines: 2, maxLines: 4 })).toBe(2);
-    expect(normalizePublicProjectCardClampLines({ lines: 9, fallbackLines: 2, maxLines: 4 })).toBe(4);
+    expect(
+      normalizePublicProjectCardClampLines({ lines: undefined, fallbackLines: 2, maxLines: 4 }),
+    ).toBe(2);
+    expect(normalizePublicProjectCardClampLines({ lines: 9, fallbackLines: 2, maxLines: 4 })).toBe(
+      4,
+    );
     expect(getPublicProjectCardClampClass({ lines: 0, family: "safe" })).toBe("hidden");
     expect(getPublicProjectCardClampClass({ lines: 3, family: "safe" })).toBe("clamp-safe-3");
     expect(getPublicProjectCardClampClass({ lines: 2, family: "search" })).toBe(

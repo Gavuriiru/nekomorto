@@ -1,8 +1,7 @@
 export const buildAdminExportRuntimeDependencies = (dependencies = {}) => ({
   AccessRole: dependencies.AccessRole,
   adminExportMaxRows: dependencies.adminExportMaxRows ?? dependencies.ADMIN_EXPORT_MAX_ROWS,
-  adminExportTtlHours:
-    dependencies.adminExportTtlHours ?? dependencies.ADMIN_EXPORT_TTL_HOURS,
+  adminExportTtlHours: dependencies.adminExportTtlHours ?? dependencies.ADMIN_EXPORT_TTL_HOURS,
   adminExportsDir: dependencies.adminExportsDir,
   appendAuditLog: dependencies.appendAuditLog,
   backgroundJobQueue: dependencies.backgroundJobQueue,

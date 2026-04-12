@@ -25,11 +25,11 @@ export const usePixQrCode = ({
 
     return (
       buildStaticPixPayload({
-      pixKey: normalizedPixKey,
-      merchantName,
-      merchantCity: pixCity || "",
-      additionalInfo: pixNote || "",
-      txid: "***",
+        pixKey: normalizedPixKey,
+        merchantName,
+        merchantCity: pixCity || "",
+        additionalInfo: pixNote || "",
+        txid: "***",
       }) || ""
     );
   }, [merchantName, pixCity, pixKey, pixNote]);

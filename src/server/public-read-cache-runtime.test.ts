@@ -26,11 +26,15 @@ describe("public-read-cache-runtime", () => {
       },
     };
 
-    const cacheKey = runtime.writePublicCachedJson(req, { ok: true }, {
-      statusCode: 201,
-      ttlMs: 1500,
-      tags: ["posts"],
-    });
+    const cacheKey = runtime.writePublicCachedJson(
+      req,
+      { ok: true },
+      {
+        statusCode: 201,
+        ttlMs: 1500,
+        tags: ["posts"],
+      },
+    );
 
     expect(cacheKey).toBe("/api/public/posts?a=first&tags=manga&tags=novel&z=last");
     expect(runtime.readPublicCachedJson(req)).toEqual({

@@ -10,8 +10,7 @@ export const ensurePostManagerSessionUser = ({ canManagePosts, req, res } = {}) 
   return sessionUser;
 };
 
-export const findPostIndexById = (posts, id) =>
-  posts.findIndex((post) => post.id === String(id));
+export const findPostIndexById = (posts, id) => posts.findIndex((post) => post.id === String(id));
 
 export const normalizeRequestedPostStatus = (status, fallback = "draft") =>
   POST_STATUSES.has(status) ? status : fallback;

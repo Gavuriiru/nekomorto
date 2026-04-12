@@ -28,10 +28,7 @@ import {
   normalizeApiContractBuildMetadata,
   normalizeApiContractCapabilities,
 } from "@/lib/project-epub";
-import type {
-  ApiContractBuildMetadata,
-  ApiContractCapabilities,
-} from "@/types/api-contract";
+import type { ApiContractBuildMetadata, ApiContractCapabilities } from "@/types/api-contract";
 import type { EpubRouteStatus } from "@/lib/project-epub";
 
 import type { ProjectRecord } from "./chapter-editor-types";
@@ -176,10 +173,12 @@ export const useDashboardProjectChapterEditorResource = ({
   onProjectResourceReset,
   projectId,
 }: UseDashboardProjectChapterEditorResourceOptions): DashboardProjectChapterEditorResourceState => {
-  const [backendCapabilities, setBackendCapabilities] =
-    useState<ApiContractCapabilities | null>(null);
-  const [backendBuildMetadata, setBackendBuildMetadata] =
-    useState<ApiContractBuildMetadata | null>(null);
+  const [backendCapabilities, setBackendCapabilities] = useState<ApiContractCapabilities | null>(
+    null,
+  );
+  const [backendBuildMetadata, setBackendBuildMetadata] = useState<ApiContractBuildMetadata | null>(
+    null,
+  );
   const [backendCapabilitiesError, setBackendCapabilitiesError] = useState<string | null>(null);
   const [epubRouteStatus, setEpubRouteStatus] = useState<EpubRouteStatus>("unknown");
   const [project, setProject] = useState<ProjectRecord | null>(null);
@@ -252,11 +251,10 @@ export const useDashboardProjectChapterEditorResource = ({
       snapshot: ProjectRecord,
       options: { context: PersistProjectContext },
     ): Promise<ProjectRecord | null> => {
-      const normalizedSnapshot =
-        normalizeProjectSnapshotChapterOrderForPersist<ProjectRecord | null, ProjectRecord>(
-          projectRef.current,
-          snapshot,
-        ) as ProjectRecord;
+      const normalizedSnapshot = normalizeProjectSnapshotChapterOrderForPersist<
+        ProjectRecord | null,
+        ProjectRecord
+      >(projectRef.current, snapshot) as ProjectRecord;
       const { revision: _ignoredRevision, ...payload } = normalizedSnapshot;
       const response = await apiFetch(apiBase, `/api/projects/${normalizedSnapshot.id}`, {
         method: "PUT",

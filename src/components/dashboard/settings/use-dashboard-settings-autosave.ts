@@ -102,7 +102,9 @@ export const useDashboardSettingsAutosave = ({
         ...nextSettings,
         reader: {
           ...nextSettings.reader,
-          projectTypes: sanitizeReaderProjectTypesForDashboardSave(nextSettings.reader.projectTypes),
+          projectTypes: sanitizeReaderProjectTypesForDashboardSave(
+            nextSettings.reader.projectTypes,
+          ),
         },
       };
       const socialDiscord = sanitizedSettings.footer.socialLinks.find(
@@ -248,10 +250,7 @@ export const useDashboardSettingsAutosave = ({
     value: settings,
     onSave: saveSettingsResource,
     isReady: hasResolvedSettings,
-    enabled:
-      initialAutosaveEnabledRef.current &&
-      !isTranslationsTabActive &&
-      !isLinkTypesTabActive,
+    enabled: initialAutosaveEnabledRef.current && !isTranslationsTabActive && !isLinkTypesTabActive,
     debounceMs: autosaveRuntimeConfig.debounceMs,
     retryMax: autosaveRuntimeConfig.retryMax,
     retryBaseMs: autosaveRuntimeConfig.retryBaseMs,

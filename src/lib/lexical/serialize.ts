@@ -105,15 +105,16 @@ const createInlineEditorialTextConversion =
   } = {}) =>
   () => ({
     conversion: (node: Node) => {
-      if (!(node instanceof Element)) {
+      if (node.nodeType !== 1) {
         return null;
       }
-      const editorialStyle = extractInlineEditorialTextStyle(node.getAttribute("style") || "");
+      const element = node as Element;
+      const editorialStyle = extractInlineEditorialTextStyle(element.getAttribute("style") || "");
       if (!editorialStyle && !createNode && !impliedFormat) {
         return null;
       }
       return {
-        node: typeof createNode === "function" ? createNode(node) : null,
+        node: typeof createNode === "function" ? createNode(element) : null,
         forChild: (lexicalNode: LexicalNode) =>
           applyInlineEditorialStyleToTextNode(lexicalNode, editorialStyle, impliedFormat),
       };

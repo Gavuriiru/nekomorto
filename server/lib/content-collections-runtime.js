@@ -166,9 +166,7 @@ export const createContentCollectionsRuntime = (dependencies = {}) => {
             const hash = String(episode?.hash || "").trim() || legacyHash;
             const rawSizeBytes = Number(episode?.sizeBytes);
             const resolvedRawSizeBytes =
-              Number.isFinite(rawSizeBytes) && rawSizeBytes > 0
-                ? rawSizeBytes
-                : legacyRawSizeBytes;
+              Number.isFinite(rawSizeBytes) && rawSizeBytes > 0 ? rawSizeBytes : legacyRawSizeBytes;
             const sizeBytes =
               Number.isFinite(resolvedRawSizeBytes) && resolvedRawSizeBytes > 0
                 ? Math.round(resolvedRawSizeBytes)
@@ -291,7 +289,9 @@ export const createContentCollectionsRuntime = (dependencies = {}) => {
         trailerUrl: project?.trailerUrl || "",
         forceHero: Boolean(project?.forceHero),
         heroImageUrl: String(project?.heroImageUrl || ""),
-        heroImageAlt: String(project?.heroImageAlt || `${project?.title || "Projeto"} (hero)`).trim(),
+        heroImageAlt: String(
+          project?.heroImageAlt || `${project?.title || "Projeto"} (hero)`,
+        ).trim(),
         readerConfig: normalizeProjectReaderConfig(project?.readerConfig, {
           projectType: project?.type || project?.format || "",
         }),

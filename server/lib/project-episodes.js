@@ -191,10 +191,7 @@ export const resolvePublishedEpisodeLookup = (
   project,
   episodeNumber,
   volume,
-  {
-    notFoundError = "not_found",
-    volumeRequiredError = "volume_required",
-  } = {},
+  { notFoundError = "not_found", volumeRequiredError = "volume_required" } = {},
 ) => {
   const lookup = resolveEpisodeLookup(project, episodeNumber, volume, {
     requirePublished: true,

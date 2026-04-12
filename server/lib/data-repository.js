@@ -139,7 +139,9 @@ const normalizeWebhookDeliveryRecord = (record) => {
     provider: String(record?.provider || "").trim(),
     channel: record?.channel ? String(record.channel).trim() : null,
     eventKey: record?.eventKey ? String(record.eventKey).trim() : null,
-    status: String(record?.status || WEBHOOK_DELIVERY_STATUS.QUEUED).trim().toLowerCase(),
+    status: String(record?.status || WEBHOOK_DELIVERY_STATUS.QUEUED)
+      .trim()
+      .toLowerCase(),
     targetUrl: String(record?.targetUrl || "").trim(),
     targetLabel: String(record?.targetLabel || "").trim(),
     payload:
@@ -175,7 +177,10 @@ const normalizeWebhookStateRecord = (value) => {
   }
   return {
     key,
-    data: value?.data && typeof value.data === "object" && !Array.isArray(value.data) ? cloneValue(value.data) : {},
+    data:
+      value?.data && typeof value.data === "object" && !Array.isArray(value.data)
+        ? cloneValue(value.data)
+        : {},
     updatedAt: String(value?.updatedAt || new Date().toISOString()),
   };
 };
@@ -523,21 +528,23 @@ export class DbDataRepository {
             return Promise.resolve([]);
           })(),
       typeof prisma.webhookDeliveryRecord?.findMany === "function"
-        ? prisma.webhookDeliveryRecord.findMany({ orderBy: { createdAt: "desc" } }).catch((error) => {
-            if (
-              isPrismaMissingTableError(error, {
-                modelName: "WebhookDeliveryRecord",
-                tableName: "webhook_deliveries",
-              })
-            ) {
-              this.webhookDeliveryStorageAvailable = false;
-              console.warn(
-                "[data-repository:webhook_deliveries] table missing; persistent webhook delivery disabled until migrations run.",
-              );
-              return [];
-            }
-            throw error;
-          })
+        ? prisma.webhookDeliveryRecord
+            .findMany({ orderBy: { createdAt: "desc" } })
+            .catch((error) => {
+              if (
+                isPrismaMissingTableError(error, {
+                  modelName: "WebhookDeliveryRecord",
+                  tableName: "webhook_deliveries",
+                })
+              ) {
+                this.webhookDeliveryStorageAvailable = false;
+                console.warn(
+                  "[data-repository:webhook_deliveries] table missing; persistent webhook delivery disabled until migrations run.",
+                );
+                return [];
+              }
+              throw error;
+            })
         : (() => {
             this.webhookDeliveryStorageAvailable = false;
             return Promise.resolve([]);
@@ -767,7 +774,9 @@ export class DbDataRepository {
       maxAttempts: Number.isFinite(Number(row?.maxAttempts)) ? Number(row.maxAttempts) : 1,
       nextAttemptAt: row?.nextAttemptAt ? new Date(row.nextAttemptAt).toISOString() : null,
       lastAttemptAt: row?.lastAttemptAt ? new Date(row.lastAttemptAt).toISOString() : null,
-      lastStatusCode: Number.isFinite(Number(row?.lastStatusCode)) ? Number(row.lastStatusCode) : null,
+      lastStatusCode: Number.isFinite(Number(row?.lastStatusCode))
+        ? Number(row.lastStatusCode)
+        : null,
       lastErrorCode: row?.lastErrorCode ? String(row.lastErrorCode) : null,
       lastError: row?.lastError ? String(row.lastError) : null,
       processingOwner: row?.processingOwner ? String(row.processingOwner) : null,
@@ -2167,7 +2176,9 @@ export class DbDataRepository {
     const fallbackCandidates = ensureArray(this.snapshot.webhookDeliveries)
       .filter((entry) =>
         [WEBHOOK_DELIVERY_STATUS.QUEUED, WEBHOOK_DELIVERY_STATUS.RETRYING].includes(
-          String(entry?.status || "").trim().toLowerCase(),
+          String(entry?.status || "")
+            .trim()
+            .toLowerCase(),
         ),
       )
       .filter((entry) => {

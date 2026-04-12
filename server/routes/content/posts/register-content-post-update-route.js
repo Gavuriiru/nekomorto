@@ -69,7 +69,10 @@ export const registerContentPostUpdateRoute = ({
     }
 
     const normalizedSlug = slug ? createSlug(slug) : "";
-    if (normalizedSlug && posts.some((post) => post.slug === normalizedSlug && post.id !== String(id))) {
+    if (
+      normalizedSlug &&
+      posts.some((post) => post.slug === normalizedSlug && post.id !== String(id))
+    ) {
       return res.status(409).json({ error: "slug_exists" });
     }
 

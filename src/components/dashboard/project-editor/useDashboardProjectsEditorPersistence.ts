@@ -8,15 +8,8 @@ import { buildEpisodeKey } from "@/lib/project-episode-key";
 import { resolveProjectEpisodePublicationErrorState } from "@/lib/project-publication";
 
 import { buildProjectFormPatchFromAniList } from "./project-editor-anilist";
-import {
-  buildProjectSavePayload,
-  prepareProjectSaveState,
-} from "./project-editor-form";
-import type {
-  AniListMedia,
-  ProjectForm,
-  ProjectRecord,
-} from "./dashboard-projects-editor-types";
+import { buildProjectSavePayload, prepareProjectSaveState } from "./project-editor-form";
+import type { AniListMedia, ProjectForm, ProjectRecord } from "./dashboard-projects-editor-types";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 
 type UseDashboardProjectsEditorPersistenceOptions = {
@@ -81,12 +74,15 @@ export const useDashboardProjectsEditorPersistence = ({
       let syncTags: string[] = [];
 
       setFormState((prev) => {
-        const { patch, syncGenres: nextSyncGenres, syncTags: nextSyncTags } =
-          buildProjectFormPatchFromAniList({
-            media,
-            previousForm: prev,
-            projects,
-          });
+        const {
+          patch,
+          syncGenres: nextSyncGenres,
+          syncTags: nextSyncTags,
+        } = buildProjectFormPatchFromAniList({
+          media,
+          previousForm: prev,
+          projects,
+        });
         syncGenres = nextSyncGenres;
         syncTags = nextSyncTags;
         return {

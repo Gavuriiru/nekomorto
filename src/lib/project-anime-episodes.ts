@@ -34,7 +34,7 @@ export const generateEpisodeEditorLocalId = () => {
 };
 
 export const resolveEpisodeEditorLocalKey = (
-  episode: Partial<ProjectEpisode> & { _editorKey?: string } | null | undefined,
+  episode: (Partial<ProjectEpisode> & { _editorKey?: string }) | null | undefined,
 ) => {
   const currentKey = String(episode?._editorKey || "").trim();
   return currentKey || generateEpisodeEditorLocalId();

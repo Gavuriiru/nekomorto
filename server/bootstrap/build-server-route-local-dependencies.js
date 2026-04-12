@@ -154,8 +154,7 @@ export const buildServerRouteLocalDependencies = (dependencies = {}) => ({
   normalizeSearchQuery: dependencies.normalizeSearchQuery,
   normalizeSiteSettings: dependencies.normalizeSiteSettings,
   normalizeTags: dependencies.normalizeTags,
-  normalizeUnifiedWebhookSettingsForRequest:
-    dependencies.normalizeUnifiedWebhookSettingsForRequest,
+  normalizeUnifiedWebhookSettingsForRequest: dependencies.normalizeUnifiedWebhookSettingsForRequest,
   normalizeUploadMime: dependencies.normalizeUploadMime,
   normalizeVariants: dependencies.normalizeVariants,
   ogRenderCache: dependencies.ogRenderCache,

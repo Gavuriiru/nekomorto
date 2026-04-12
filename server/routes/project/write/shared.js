@@ -92,11 +92,14 @@ export const writeProjectMutationUpdates = ({
   writeUpdates,
 } = {}) => {
   const updates = loadUpdates();
-  const episodeWebhookUpdates = collectEpisodeUpdatesByVisibility(previousProject, currentProject, now)
-    .map((item) => ({
-      ...item,
-      updatedAt: item.updatedAt || now,
-    }));
+  const episodeWebhookUpdates = collectEpisodeUpdatesByVisibility(
+    previousProject,
+    currentProject,
+    now,
+  ).map((item) => ({
+    ...item,
+    updatedAt: item.updatedAt || now,
+  }));
   const episodeUpdateRecords = buildEpisodeUpdateRecords({
     project: currentProject,
     updates: episodeWebhookUpdates,

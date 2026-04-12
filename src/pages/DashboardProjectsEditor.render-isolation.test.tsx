@@ -267,7 +267,7 @@ describe("DashboardProjectsEditor render isolation", () => {
 
     const option = await screen.findByRole("option", { name: "Light Novel" });
     expect(option).toHaveClass("rounded-xl", "py-2", "pl-9", "pr-3");
-    expect(screen.getByRole("listbox")).toHaveClass(
+    expect(screen.getByRole("listbox").parentElement).toHaveClass(
       "rounded-2xl",
       "border-border/70",
       "bg-popover/95",

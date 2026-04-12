@@ -1,6 +1,7 @@
 const OG_IMAGE_CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=86400";
 
-export const sendOgText = (res, statusCode, body) => res.status(statusCode).type("text/plain").send(body);
+export const sendOgText = (res, statusCode, body) =>
+  res.status(statusCode).type("text/plain").send(body);
 
 export const sendOgImageResponse = (res, rendered, deliveryHeaders = null) => {
   res.setHeader("Content-Type", rendered.contentType || "image/png");

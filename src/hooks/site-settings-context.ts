@@ -182,10 +182,7 @@ export const defaultSettings: SiteSettings = {
   },
 };
 
-export const mergeSettings = <T>(
-  base: T,
-  override: Partial<T> | undefined,
-): T => {
+export const mergeSettings = <T>(base: T, override: Partial<T> | undefined): T => {
   if (Array.isArray(base)) {
     return (Array.isArray(override) ? override : base) as T;
   }
@@ -195,9 +192,7 @@ export const mergeSettings = <T>(
       Object.keys(override as Record<string, unknown>).forEach((key) => {
         next[key] = mergeSettings(
           (base as Record<string, unknown>)[key],
-          (override as Record<string, unknown>)[key] as
-            | Partial<unknown>
-            | undefined,
+          (override as Record<string, unknown>)[key] as Partial<unknown> | undefined,
         );
       });
     }

@@ -70,7 +70,7 @@ type ChapterEditorStructureSectionProps = {
 };
 
 const structureSectionClassName =
-  "project-editor-section overflow-hidden rounded-2xl border border-border/60 bg-card/65 shadow-[0_16px_44px_-38px_rgba(0,0,0,0.68)] xl:flex xl:max-h-[calc(100dvh-7rem)] xl:min-h-0 xl:flex-col";
+  "project-editor-section overflow-hidden rounded-2xl border border-border/60 bg-card/65 shadow-editor-section xl:flex xl:max-h-[calc(100dvh-7rem)] xl:min-h-0 xl:flex-col";
 const structureTriggerClassName =
   "project-editor-section-trigger flex w-full items-start gap-4 px-5 py-3.5 text-left hover:no-underline md:py-4 xl:shrink-0";
 const structureContentClassName =
@@ -204,7 +204,7 @@ export const ChapterEditorStructureSection = memo(
                 return (
                   <section
                     key={group.key}
-                    className={`overflow-hidden rounded-[20px] border bg-background/40 shadow-[0_14px_42px_-34px_rgba(0,0,0,0.74)] ${
+                    className={`overflow-hidden rounded-[20px] border bg-background/40 shadow-editor-nested-card ${
                       isSelected ? "border-primary/45 bg-primary/[0.06]" : "border-border/50"
                     }`}
                     data-testid={`chapter-structure-group-${group.key}`}

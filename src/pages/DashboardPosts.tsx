@@ -10,14 +10,13 @@ import {
 } from "react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
-import DashboardActionButton, { default as Button } from "@/components/dashboard/DashboardActionButton";
+import DashboardActionButton, {
+  default as Button,
+} from "@/components/dashboard/DashboardActionButton";
 import DashboardSegmentedActionButton from "@/components/dashboard/DashboardSegmentedActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardEditorBackdrop from "@/components/dashboard/DashboardEditorBackdrop";
-import {
-  Combobox,
-  Input,
-} from "@/components/dashboard/dashboard-form-controls";
+import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import {
@@ -2103,12 +2102,19 @@ const DashboardPosts = () => {
                       <div className="project-editor-footer sticky bottom-0 z-20 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex-row md:items-center md:justify-between md:px-6 md:py-2.5 lg:px-8">
                         <div className="flex flex-wrap items-center gap-2">
                           {editingPostHasRestorableHistory ? (
-                            <DashboardActionButton size="sm" onClick={() => void openVersionHistory()}>
+                            <DashboardActionButton
+                              size="sm"
+                              onClick={() => void openVersionHistory()}
+                            >
                               Histórico
                             </DashboardActionButton>
                           ) : null}
                           {editingPost ? (
-                            <DashboardActionButton size="sm" tone="destructive" onClick={handleDelete}>
+                            <DashboardActionButton
+                              size="sm"
+                              tone="destructive"
+                              onClick={handleDelete}
+                            >
                               Excluir
                             </DashboardActionButton>
                           ) : null}
@@ -2132,7 +2138,11 @@ const DashboardPosts = () => {
                           </DashboardActionButton>
                           {editingPost ? (
                             <>
-                              <DashboardActionButton size="sm" tone="primary" onClick={() => handleSave()}>
+                              <DashboardActionButton
+                                size="sm"
+                                tone="primary"
+                                onClick={() => handleSave()}
+                              >
                                 Salvar
                               </DashboardActionButton>
                               {formState.status === "draft" ? (
@@ -2268,9 +2278,7 @@ const DashboardPosts = () => {
                 description="Confira a conexão e tente atualizar os dados."
                 className={dashboardPageLayoutTokens.surfaceSolid}
                 action={
-                  <DashboardActionButton onClick={refreshPosts}>
-                    Recarregar
-                  </DashboardActionButton>
+                  <DashboardActionButton onClick={refreshPosts}>Recarregar</DashboardActionButton>
                 }
               />
             ) : showPostsSurfaceSkeleton ? (
@@ -2410,95 +2418,98 @@ const DashboardPosts = () => {
                         >
                           <div className="grid gap-2">
                             {calendarWeeks.map((week, weekIndex) => (
-                            <div
-                              key={`calendar-week-${weekIndex}`}
-                              data-testid={`dashboard-posts-calendar-week-${weekIndex}`}
-                              className="grid grid-cols-7 gap-2"
-                            >
-                              {week.map((day) => {
-                                const dayKey = toLocalDateKey(day);
-                                const dayItems = calendarDayItemsMap.get(dayKey) || [];
-                                const isCurrentMonth =
-                                  day.getMonth() === calendarMonthCursor.getMonth();
-                                const isToday = dayKey === toLocalDateKey(new Date());
-                                return (
-                                  <div
-                                    key={dayKey}
-                                    className={`min-h-[120px] rounded-lg border p-2 ${
-                                      isCurrentMonth
-                                        ? "border-border/70 bg-background"
-                                        : "border-border/40 bg-muted/15"
-                                    } ${isToday ? "ring-1 ring-primary/50" : ""}`}
-                                  >
-                                    <div className="mb-2 flex items-center justify-between gap-2">
-                                      <span
-                                        className={`text-xs font-medium ${
-                                          isCurrentMonth
-                                            ? "text-foreground"
-                                            : "text-muted-foreground"
-                                        }`}
-                                      >
-                                        {day.getDate()}
-                                      </span>
-                                      {dayItems.length > 0 ? (
-                                        <Badge variant="secondary" className="text-[10px] uppercase">
-                                          {dayItems.length}
-                                        </Badge>
-                                      ) : null}
-                                    </div>
-                                    <div className="space-y-1">
-                                      {dayItems.length === 0 ? (
-                                        <span className="text-[11px] text-muted-foreground">
-                                          Sem postagens
+                              <div
+                                key={`calendar-week-${weekIndex}`}
+                                data-testid={`dashboard-posts-calendar-week-${weekIndex}`}
+                                className="grid grid-cols-7 gap-2"
+                              >
+                                {week.map((day) => {
+                                  const dayKey = toLocalDateKey(day);
+                                  const dayItems = calendarDayItemsMap.get(dayKey) || [];
+                                  const isCurrentMonth =
+                                    day.getMonth() === calendarMonthCursor.getMonth();
+                                  const isToday = dayKey === toLocalDateKey(new Date());
+                                  return (
+                                    <div
+                                      key={dayKey}
+                                      className={`min-h-[120px] rounded-lg border p-2 ${
+                                        isCurrentMonth
+                                          ? "border-border/70 bg-background"
+                                          : "border-border/40 bg-muted/15"
+                                      } ${isToday ? "ring-1 ring-primary/50" : ""}`}
+                                    >
+                                      <div className="mb-2 flex items-center justify-between gap-2">
+                                        <span
+                                          className={`text-xs font-medium ${
+                                            isCurrentMonth
+                                              ? "text-foreground"
+                                              : "text-muted-foreground"
+                                          }`}
+                                        >
+                                          {day.getDate()}
                                         </span>
-                                      ) : (
-                                        dayItems.slice(0, 4).map((item) => (
-                                          <button
-                                            key={item.id}
-                                            type="button"
-                                            className={`block w-full rounded-md border border-border/70 bg-background px-2 py-1 text-left ${dashboardStrongSurfaceHoverClassName}`}
-                                            onClick={() => {
-                                              const target = posts.find(
-                                                (post) => post.id === item.id,
-                                              );
-                                              if (target && canManagePosts) {
-                                                openEdit(target);
-                                              }
-                                            }}
+                                        {dayItems.length > 0 ? (
+                                          <Badge
+                                            variant="secondary"
+                                            className="text-[10px] uppercase"
                                           >
-                                            <div className="flex items-center justify-between gap-1">
-                                              <div className="truncate text-[11px] font-medium text-foreground">
-                                                {item.title}
-                                              </div>
-                                              <Badge
-                                                variant={
-                                                  item.status === "published"
-                                                    ? "outline"
-                                                    : "secondary"
+                                            {dayItems.length}
+                                          </Badge>
+                                        ) : null}
+                                      </div>
+                                      <div className="space-y-1">
+                                        {dayItems.length === 0 ? (
+                                          <span className="text-[11px] text-muted-foreground">
+                                            Sem postagens
+                                          </span>
+                                        ) : (
+                                          dayItems.slice(0, 4).map((item) => (
+                                            <button
+                                              key={item.id}
+                                              type="button"
+                                              className={`block w-full rounded-md border border-border/70 bg-background px-2 py-1 text-left ${dashboardStrongSurfaceHoverClassName}`}
+                                              onClick={() => {
+                                                const target = posts.find(
+                                                  (post) => post.id === item.id,
+                                                );
+                                                if (target && canManagePosts) {
+                                                  openEdit(target);
                                                 }
-                                                className="shrink-0 text-[9px] uppercase"
-                                              >
-                                                {getCalendarItemStatusLabel(item.status)}
-                                              </Badge>
-                                            </div>
-                                            <div className="truncate text-[10px] text-muted-foreground">
-                                              {formatLocalTimeShort(
-                                                getCalendarItemDisplayTime(item),
-                                              )}
-                                            </div>
-                                          </button>
-                                        ))
-                                      )}
-                                      {dayItems.length > 4 ? (
-                                        <span className="text-[10px] text-muted-foreground">
-                                          +{dayItems.length - 4} postagens
-                                        </span>
-                                      ) : null}
+                                              }}
+                                            >
+                                              <div className="flex items-center justify-between gap-1">
+                                                <div className="truncate text-[11px] font-medium text-foreground">
+                                                  {item.title}
+                                                </div>
+                                                <Badge
+                                                  variant={
+                                                    item.status === "published"
+                                                      ? "outline"
+                                                      : "secondary"
+                                                  }
+                                                  className="shrink-0 text-[9px] uppercase"
+                                                >
+                                                  {getCalendarItemStatusLabel(item.status)}
+                                                </Badge>
+                                              </div>
+                                              <div className="truncate text-[10px] text-muted-foreground">
+                                                {formatLocalTimeShort(
+                                                  getCalendarItemDisplayTime(item),
+                                                )}
+                                              </div>
+                                            </button>
+                                          ))
+                                        )}
+                                        {dayItems.length > 4 ? (
+                                          <span className="text-[10px] text-muted-foreground">
+                                            +{dayItems.length - 4} postagens
+                                          </span>
+                                        ) : null}
+                                      </div>
                                     </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
+                                  );
+                                })}
+                              </div>
                             ))}
                           </div>
                           {calendarItems.length === 0 ? (
@@ -2909,10 +2920,7 @@ const DashboardPosts = () => {
               </div>
             )}
             <div className="flex justify-end">
-              <DashboardActionButton
-                type="button"
-                onClick={() => setIsVersionHistoryOpen(false)}
-              >
+              <DashboardActionButton type="button" onClick={() => setIsVersionHistoryOpen(false)}>
                 Fechar
               </DashboardActionButton>
             </div>

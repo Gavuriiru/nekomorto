@@ -393,7 +393,7 @@ describe("Projects query sync", () => {
         "rounded-2xl",
         "border-border/70",
         "bg-popover/95",
-        "shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]",
+        "shadow-floating-soft",
       ]),
     );
     expect(animeOption).toHaveClass("rounded-xl", "py-2", "pl-9", "pr-3");
@@ -1252,7 +1252,7 @@ describe("Projects query sync", () => {
       "text-foreground/70",
       "hover:border-accent/60",
       "hover:bg-accent/15",
-      "hover:text-accent-foreground",
+      "hover:text-foreground",
     );
     expect(genreButton).toHaveClass(
       "min-h-6",
@@ -1266,7 +1266,7 @@ describe("Projects query sync", () => {
       "text-foreground/70",
       "hover:border-accent/60",
       "hover:bg-accent/15",
-      "hover:text-accent-foreground",
+      "hover:text-foreground",
     );
   });
 });

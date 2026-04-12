@@ -122,12 +122,7 @@ describe("CompactPagination", () => {
     const onPageChange = vi.fn();
 
     render(
-      <CompactPagination
-        currentPage={1}
-        totalPages={3}
-        disabled
-        onPageChange={onPageChange}
-      />,
+      <CompactPagination currentPage={1} totalPages={3} disabled onPageChange={onPageChange} />,
     );
 
     const previousLink = screen.getByRole("link", { name: "Ir para a p\u00E1gina anterior" });

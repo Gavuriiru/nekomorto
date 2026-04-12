@@ -1,7 +1,15 @@
 import { collectProjectImageItems } from "./upload-route-utils.js";
 
 export const registerUploadProjectImageRoutes = (deps) => {
-  const { app, canManageUploads, createSlug, getUploadFolderFromUrlValue, isChapterBasedType, loadProjects, normalizeProjects } = deps;
+  const {
+    app,
+    canManageUploads,
+    createSlug,
+    getUploadFolderFromUrlValue,
+    isChapterBasedType,
+    loadProjects,
+    normalizeProjects,
+  } = deps;
 
   app.get("/api/uploads/project-images", deps.requireAuth, (req, res) => {
     const sessionUser = req.session.user;

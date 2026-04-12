@@ -528,9 +528,7 @@ describe("Donations Pix and crypto QR code", () => {
     const ethereumPanel = screen.getByTestId("donations-crypto-panel");
     const ethereumDetails = within(ethereumPanel).getByTestId("donations-crypto-details");
     const ethereumActions = within(ethereumPanel).getByTestId("donations-crypto-actions");
-    expect(
-      within(ethereumActions).getByAltText("QR Code Ethereum"),
-    ).toBeInTheDocument();
+    expect(within(ethereumActions).getByAltText("QR Code Ethereum")).toBeInTheDocument();
     expect(within(ethereumActions).queryByRole("button", { name: "Copiar endereço" })).toBeNull();
     expect(within(ethereumActions).queryByRole("link", { name: "Abrir carteira" })).toBeNull();
     expect(within(ethereumDetails).getByText("Endereço")).toBeInTheDocument();

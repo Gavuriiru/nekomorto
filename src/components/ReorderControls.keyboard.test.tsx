@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import ReorderControls from "@/components/ReorderControls";
 import { AccessibilityAnnouncerProvider } from "@/hooks/accessibility-announcer";
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 describe("ReorderControls keyboard support", () => {
   it("supports click and Alt+Arrow shortcuts while announcing movement", async () => {

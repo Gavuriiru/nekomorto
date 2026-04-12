@@ -15,13 +15,7 @@ export const serializePublicComment = (comment, { buildGravatarUrl } = {}) => ({
 
 export const serializeAdminComment = (
   comment,
-  {
-    buildGravatarUrl,
-    includeStatus = true,
-    posts,
-    primaryAppOrigin,
-    projects,
-  } = {},
+  { buildGravatarUrl, includeStatus = true, posts, primaryAppOrigin, projects } = {},
 ) => {
   const target = buildCommentTargetInfo(comment, posts, projects, primaryAppOrigin);
 
@@ -225,12 +219,7 @@ export const getPublicCommentRequestError = ({
   return null;
 };
 
-export const hasValidCommentParent = ({
-  comments,
-  parentId,
-  targetId,
-  targetType,
-} = {}) => {
+export const hasValidCommentParent = ({ comments, parentId, targetId, targetType } = {}) => {
   if (!parentId) {
     return true;
   }
@@ -293,11 +282,7 @@ export const buildApprovedComment = (comment, { now = new Date().toISOString() }
   approvedAt: now,
 });
 
-export const appendApprovedCommentAnalytics = ({
-  appendAnalyticsEvent,
-  comment,
-  req,
-} = {}) => {
+export const appendApprovedCommentAnalytics = ({ appendAnalyticsEvent, comment, req } = {}) => {
   appendAnalyticsEvent?.(req, {
     eventType: "comment_approved",
     resourceType: "comment",
@@ -310,11 +295,7 @@ export const appendApprovedCommentAnalytics = ({
   });
 };
 
-export const appendCommentCreatedAnalytics = ({
-  appendAnalyticsEvent,
-  comment,
-  req,
-} = {}) => {
+export const appendCommentCreatedAnalytics = ({ appendAnalyticsEvent, comment, req } = {}) => {
   appendAnalyticsEvent?.(req, {
     eventType: "comment_created",
     resourceType: "comment",

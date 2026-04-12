@@ -127,13 +127,7 @@ const TopProjectsSection = () => {
 
   const synopsisKeys = useMemo(() => topProjects.map((item) => item.id), [topProjects]);
   const resolveSidebarSynopsisMaxLines = useCallback(
-    ({
-      columnWidth,
-      defaultMaxLines,
-    }: {
-      columnWidth: number;
-      defaultMaxLines: number;
-    }) =>
+    ({ columnWidth, defaultMaxLines }: { columnWidth: number; defaultMaxLines: number }) =>
       resolvePublicProjectCardResponsiveMaxLines({
         profile: sidebarClampProfile,
         columnWidth,

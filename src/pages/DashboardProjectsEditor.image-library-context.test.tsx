@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -29,6 +29,13 @@ vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
 }));
 
 vi.mock("@/components/ImageLibraryDialog", () => ({
+  default: (props: unknown) => {
+    imageLibraryPropsSpy(props);
+    return <div data-testid="image-library-dialog" />;
+  },
+}));
+
+vi.mock("@/components/lazy/LazyImageLibraryDialog", () => ({
   default: (props: unknown) => {
     imageLibraryPropsSpy(props);
     return <div data-testid="image-library-dialog" />;
@@ -207,6 +214,10 @@ describe("DashboardProjectsEditor image library context", () => {
     fireEvent.click(projectCardButton);
     await screen.findByText("Editar projeto");
 
+    fireEvent.click(screen.getByRole("button", { name: /M.dias/i }));
+    const mediaLibraryButtons = await screen.findAllByRole("button", { name: "Biblioteca" });
+    fireEvent.click(mediaLibraryButtons[1] ?? mediaLibraryButtons[0]);
+
     await waitFor(() => {
       const latestImageLibraryProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
         uploadFolder?: string;
@@ -239,7 +250,7 @@ describe("DashboardProjectsEditor image library context", () => {
     );
   });
 
-  it("aplica pasta de capitulo tambem para manga na biblioteca da capa", async () => {
+  it("leva manga ao editor dedicado de capitulos sem montar conteudo inline", async () => {
     setupApiMock({ type: "Manga" });
 
     render(
@@ -254,40 +265,10 @@ describe("DashboardProjectsEditor image library context", () => {
     fireEvent.click(projectCardButton);
     await screen.findByText("Editar projeto");
 
-    const [episodesSectionTrigger] = await screen.findAllByRole("button", { name: /Conte.do/i });
-    fireEvent.click(episodesSectionTrigger);
-    const volumeGroup = await screen.findByTestId("volume-group-none");
-    const volumeGroupTrigger = volumeGroup.querySelector("button");
-    expect(volumeGroupTrigger).toBeTruthy();
-    fireEvent.click(volumeGroupTrigger as HTMLButtonElement);
-
-    const episodeCard = await screen.findByTestId("episode-card-0");
-    const episodeToggleButton = episodeCard.querySelector("button");
-    expect(episodeToggleButton).toBeTruthy();
-    fireEvent.click(episodeToggleButton as HTMLButtonElement);
-
-    const episodeLibraryButton = within(episodeCard).getAllByRole("button", {
-      name: "Biblioteca",
-    })[0];
-    fireEvent.click(episodeLibraryButton);
-
-    await waitFor(() => {
-      const latestImageLibraryProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
-        uploadFolder?: string;
-      };
-      expect(latestImageLibraryProps?.uploadFolder).toBe(
-        "projects/project-1/capitulos/volume-sem-volume/capitulo-1",
-      );
-    });
-
-    const latestImageLibraryProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
-      listFolders?: string[];
-    };
-    expect(latestImageLibraryProps.listFolders).toEqual([
-      "projects/project-1/capitulos/volume-sem-volume/capitulo-1",
-      "projects/project-1/capitulos",
-      "projects/project-1/episodes",
-      "projects/project-1",
-    ]);
+    expect(screen.queryByTestId("volume-group-none")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Conte.do/i })).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/project-1/capitulos",
+    );
   });
 });

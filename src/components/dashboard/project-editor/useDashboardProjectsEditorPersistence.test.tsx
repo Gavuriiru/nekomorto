@@ -169,7 +169,9 @@ describe("useDashboardProjectsEditorPersistence", () => {
     const { result } = renderHook(() => useDashboardProjectsEditorPersistence(options));
 
     await act(async () => {
-      await result.current.handleRestoreProject(createProjectRecord({ deletedAt: "2026-04-01T00:00:00.000Z" }));
+      await result.current.handleRestoreProject(
+        createProjectRecord({ deletedAt: "2026-04-01T00:00:00.000Z" }),
+      );
     });
 
     expect(refetchPublicBootstrapCacheMock).toHaveBeenCalledWith("http://api.local");

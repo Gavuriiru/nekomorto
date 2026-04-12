@@ -1,4 +1,7 @@
-import { buildMangaSpreadSlots, type MangaSpreadSlot } from "@/components/project-reader/manga-spread-slots";
+import {
+  buildMangaSpreadSlots,
+  type MangaSpreadSlot,
+} from "@/components/project-reader/manga-spread-slots";
 
 export type ReaderRenderablePage = {
   position: number;
@@ -16,11 +19,14 @@ export type ReaderVisibilityMeasurement = {
   end: number;
 };
 
-const getVisibleMeasurementSize = (measurement: ReaderVisibilityMeasurement, viewportSize: number) =>
-  Math.max(0, Math.min(measurement.end, viewportSize) - Math.max(measurement.start, 0));
+const getVisibleMeasurementSize = (
+  measurement: ReaderVisibilityMeasurement,
+  viewportSize: number,
+) => Math.max(0, Math.min(measurement.end, viewportSize) - Math.max(measurement.start, 0));
 const clampMeasurementRatio = (value: number) => Math.min(Math.max(value, 0), 1);
 
-export const isPaginatedReaderLayout = (layout: string) => layout === "single" || layout === "double";
+export const isPaginatedReaderLayout = (layout: string) =>
+  layout === "single" || layout === "double";
 
 export const buildReaderDisplayPages = ({
   pages,
@@ -52,7 +58,9 @@ export const buildReaderDisplayPages = ({
       : null;
 
   const accessiblePageCount =
-    requestedLimit === null ? normalizedPages.length : Math.min(normalizedPages.length, requestedLimit);
+    requestedLimit === null
+      ? normalizedPages.length
+      : Math.min(normalizedPages.length, requestedLimit);
   const hasPurchaseGate = accessiblePageCount < normalizedPages.length;
 
   const renderablePages: ReaderRenderablePage[] = hasPurchaseGate
@@ -238,9 +246,9 @@ export const interpolateContinuousPageRatio = ({
     return 0;
   }
 
-  const viewportCenter = clampMeasurementRatio(
-    (viewportAnchorOffsetPx ?? viewportSize / 2) / viewportSize,
-  ) * viewportSize;
+  const viewportCenter =
+    clampMeasurementRatio((viewportAnchorOffsetPx ?? viewportSize / 2) / viewportSize) *
+    viewportSize;
   const centeredMeasurements = sortedMeasurements.map((measurement) => ({
     ...measurement,
     center: (measurement.start + measurement.end) / 2,
@@ -267,7 +275,8 @@ export const interpolateContinuousPageRatio = ({
       centerDistance <= 0 ? 0 : (viewportCenter - previousMeasurement.center) / centerDistance;
     const interpolatedIndex =
       previousMeasurement.index +
-      (nextMeasurement.index - previousMeasurement.index) * clampMeasurementRatio(interpolationRatio);
+      (nextMeasurement.index - previousMeasurement.index) *
+        clampMeasurementRatio(interpolationRatio);
     return clampMeasurementRatio(interpolatedIndex / lastIndex);
   }
 
@@ -285,8 +294,7 @@ export const buildReaderPageItems = ({
     value: String(index),
     pageNumber: index + 1,
     blocked: index >= accessiblePageCount,
-    label:
-      index >= accessiblePageCount ? `Página ${index + 1} (bloqueada)` : `Página ${index + 1}`,
+    label: index >= accessiblePageCount ? `Página ${index + 1} (bloqueada)` : `Página ${index + 1}`,
   }));
 
 export const getReaderVisualState = ({

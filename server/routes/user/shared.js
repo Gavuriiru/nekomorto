@@ -126,11 +126,7 @@ export const canManageUsersAccessWithOwnerGovernance = ({
   });
 };
 
-export const hasChangedOwnerManagedUserOrder = ({
-  loadOwnerIds,
-  previousUsers,
-  users,
-}) => {
+export const hasChangedOwnerManagedUserOrder = ({ loadOwnerIds, previousUsers, users }) => {
   const ownerIds = new Set(loadNormalizedOwnerIds(loadOwnerIds));
   const previousOrderById = new Map(
     (Array.isArray(previousUsers) ? previousUsers : []).map((user) => [user.id, user.order]),
@@ -202,10 +198,7 @@ export const buildManagedUserAuditChanges = ({
     "accessRole",
   ]);
 
-export const hasManagedUserPrivilegeEscalation = ({
-  afterSnapshot,
-  beforeSnapshot,
-}) =>
+export const hasManagedUserPrivilegeEscalation = ({ afterSnapshot, beforeSnapshot }) =>
   JSON.stringify(beforeSnapshot?.permissions || []) !==
     JSON.stringify(afterSnapshot?.permissions || []) ||
   String(beforeSnapshot?.accessRole || "") !== String(afterSnapshot?.accessRole || "") ||
@@ -527,10 +520,7 @@ export const buildSelfResponseUser = ({
   }
 
   return withUserProfileRevision(
-    withEffectiveAvatarUrl(
-      user,
-      resolveDiscordAvatarFallbackUrl(req.session?.user?.avatarUrl),
-    ),
+    withEffectiveAvatarUrl(user, resolveDiscordAvatarFallbackUrl(req.session?.user?.avatarUrl)),
     responseUploads,
   );
 };

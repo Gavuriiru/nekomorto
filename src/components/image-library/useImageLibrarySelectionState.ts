@@ -2,7 +2,10 @@ import { useCallback, useMemo, useRef, useState, type Dispatch, type SetStateAct
 
 import { toComparableSelectionKey } from "@/components/image-library/selection";
 import type { LibraryImageItem } from "@/components/image-library/types";
-import { toLibraryItemRenderUrl, toLibraryItemRenderVersion } from "@/components/image-library/utils";
+import {
+  toLibraryItemRenderUrl,
+  toLibraryItemRenderVersion,
+} from "@/components/image-library/utils";
 
 type PendingRevealRequest = {
   url: string;

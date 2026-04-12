@@ -10,7 +10,11 @@ const ResizablePanelGroup = ({
   ...props
 }: ComponentProps<typeof ResizablePrimitive.Group>) => (
   <ResizablePrimitive.Group
-    className={cn("flex h-full w-full", orientation === "vertical" ? "flex-col" : "flex-row", className)}
+    className={cn(
+      "flex h-full w-full",
+      orientation === "vertical" ? "flex-col" : "flex-row",
+      className,
+    )}
     orientation={orientation}
     {...props}
   />

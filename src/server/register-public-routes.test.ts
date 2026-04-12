@@ -79,123 +79,123 @@ describe("registerPublicRoutes", () => {
     expect(getRoute(routes, "POST", LEGACY_PUBLIC_ANALYTICS_INGEST_PATH)).toBeDefined();
   });
 
-  it.each([PUBLIC_ANALYTICS_INGEST_PATH, LEGACY_PUBLIC_ANALYTICS_INGEST_PATH])(
-    "accepts valid public analytics ingestion payloads on %s",
-    async (path) => {
-      const { app, routes } = createAppRecorder();
-      const dependencies = createDependencies({ app });
+  it.each([
+    PUBLIC_ANALYTICS_INGEST_PATH,
+    LEGACY_PUBLIC_ANALYTICS_INGEST_PATH,
+  ])("accepts valid public analytics ingestion payloads on %s", async (path) => {
+    const { app, routes } = createAppRecorder();
+    const dependencies = createDependencies({ app });
 
-      registerPublicRoutes(dependencies);
+    registerPublicRoutes(dependencies);
 
-      const route = getRoute(routes, "POST", path);
-      const req = buildRequest({
+    const route = getRoute(routes, "POST", path);
+    const req = buildRequest({
+      eventType: "chapter_view",
+      resourceType: "chapter",
+      resourceId: "project-1:1:2",
+      meta: {
+        projectId: "project-1",
+        chapterNumber: 1,
+        volume: 2,
+      },
+    });
+    const res = await invokeFinalHandler(route, req);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ ok: true, deduped: false });
+    expect(dependencies.canRegisterView).toHaveBeenCalledWith("127.0.0.1");
+    expect(dependencies.appendAnalyticsEvent).toHaveBeenCalledWith(
+      req,
+      expect.objectContaining({
         eventType: "chapter_view",
         resourceType: "chapter",
         resourceId: "project-1:1:2",
-        meta: {
+        meta: expect.objectContaining({
           projectId: "project-1",
           chapterNumber: 1,
           volume: 2,
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    PUBLIC_ANALYTICS_INGEST_PATH,
+    LEGACY_PUBLIC_ANALYTICS_INGEST_PATH,
+  ])("returns 400 for invalid event types on %s", async (path) => {
+    const { app, routes } = createAppRecorder();
+
+    registerPublicRoutes(createDependencies({ app }));
+
+    const route = getRoute(routes, "POST", path);
+    const res = await invokeFinalHandler(
+      route,
+      buildRequest({
+        eventType: "invalid",
+        resourceType: "chapter",
+        resourceId: "project-1:1:2",
+      }),
+    );
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: "invalid_event_type" });
+  });
+
+  it.each([
+    PUBLIC_ANALYTICS_INGEST_PATH,
+    LEGACY_PUBLIC_ANALYTICS_INGEST_PATH,
+  ])("returns 429 when public analytics ingestion is rate limited on %s", async (path) => {
+    const { app, routes } = createAppRecorder();
+
+    registerPublicRoutes(
+      createDependencies({
+        app,
+        overrides: {
+          canRegisterView: vi.fn(async () => false),
         },
-      });
-      const res = await invokeFinalHandler(route, req);
+      }),
+    );
 
-      expect(res.statusCode).toBe(200);
-      expect(res.body).toEqual({ ok: true, deduped: false });
-      expect(dependencies.canRegisterView).toHaveBeenCalledWith("127.0.0.1");
-      expect(dependencies.appendAnalyticsEvent).toHaveBeenCalledWith(
-        req,
-        expect.objectContaining({
-          eventType: "chapter_view",
-          resourceType: "chapter",
-          resourceId: "project-1:1:2",
-          meta: expect.objectContaining({
-            projectId: "project-1",
-            chapterNumber: 1,
-            volume: 2,
-          }),
-        }),
-      );
-    },
-  );
+    const route = getRoute(routes, "POST", path);
+    const res = await invokeFinalHandler(
+      route,
+      buildRequest({
+        eventType: "chapter_view",
+        resourceType: "chapter",
+        resourceId: "project-1:1:2",
+      }),
+    );
 
-  it.each([PUBLIC_ANALYTICS_INGEST_PATH, LEGACY_PUBLIC_ANALYTICS_INGEST_PATH])(
-    "returns 400 for invalid event types on %s",
-    async (path) => {
-      const { app, routes } = createAppRecorder();
+    expect(res.statusCode).toBe(429);
+    expect(res.body).toEqual({ error: "rate_limited" });
+  });
 
-      registerPublicRoutes(createDependencies({ app }));
+  it.each([
+    PUBLIC_ANALYTICS_INGEST_PATH,
+    LEGACY_PUBLIC_ANALYTICS_INGEST_PATH,
+  ])("returns 500 when analytics event persistence fails on %s", async (path) => {
+    const { app, routes } = createAppRecorder();
 
-      const route = getRoute(routes, "POST", path);
-      const res = await invokeFinalHandler(
-        route,
-        buildRequest({
-          eventType: "invalid",
-          resourceType: "chapter",
-          resourceId: "project-1:1:2",
-        }),
-      );
+    registerPublicRoutes(
+      createDependencies({
+        app,
+        overrides: {
+          appendAnalyticsEvent: vi.fn(() => ({ ok: false, reason: "write_failed" })),
+        },
+      }),
+    );
 
-      expect(res.statusCode).toBe(400);
-      expect(res.body).toEqual({ error: "invalid_event_type" });
-    },
-  );
+    const route = getRoute(routes, "POST", path);
+    const res = await invokeFinalHandler(
+      route,
+      buildRequest({
+        eventType: "chapter_view",
+        resourceType: "chapter",
+        resourceId: "project-1:1:2",
+      }),
+    );
 
-  it.each([PUBLIC_ANALYTICS_INGEST_PATH, LEGACY_PUBLIC_ANALYTICS_INGEST_PATH])(
-    "returns 429 when public analytics ingestion is rate limited on %s",
-    async (path) => {
-      const { app, routes } = createAppRecorder();
-
-      registerPublicRoutes(
-        createDependencies({
-          app,
-          overrides: {
-            canRegisterView: vi.fn(async () => false),
-          },
-        }),
-      );
-
-      const route = getRoute(routes, "POST", path);
-      const res = await invokeFinalHandler(
-        route,
-        buildRequest({
-          eventType: "chapter_view",
-          resourceType: "chapter",
-          resourceId: "project-1:1:2",
-        }),
-      );
-
-      expect(res.statusCode).toBe(429);
-      expect(res.body).toEqual({ error: "rate_limited" });
-    },
-  );
-
-  it.each([PUBLIC_ANALYTICS_INGEST_PATH, LEGACY_PUBLIC_ANALYTICS_INGEST_PATH])(
-    "returns 500 when analytics event persistence fails on %s",
-    async (path) => {
-      const { app, routes } = createAppRecorder();
-
-      registerPublicRoutes(
-        createDependencies({
-          app,
-          overrides: {
-            appendAnalyticsEvent: vi.fn(() => ({ ok: false, reason: "write_failed" })),
-          },
-        }),
-      );
-
-      const route = getRoute(routes, "POST", path);
-      const res = await invokeFinalHandler(
-        route,
-        buildRequest({
-          eventType: "chapter_view",
-          resourceType: "chapter",
-          resourceId: "project-1:1:2",
-        }),
-      );
-
-      expect(res.statusCode).toBe(500);
-      expect(res.body).toEqual({ error: "event_write_failed" });
-    },
-  );
+    expect(res.statusCode).toBe(500);
+    expect(res.body).toEqual({ error: "event_write_failed" });
+  });
 });

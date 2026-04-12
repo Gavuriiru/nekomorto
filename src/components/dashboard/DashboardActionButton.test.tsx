@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 describe("DashboardActionButton", () => {
   it("reuses the dashboard home surface without lift classes", () => {
@@ -46,11 +47,7 @@ describe("DashboardActionButton", () => {
   });
 
   it("supports toolbar sizing without lift classes", () => {
-    render(
-      <DashboardActionButton size="toolbar">
-        Importar AniList
-      </DashboardActionButton>,
-    );
+    render(<DashboardActionButton size="toolbar">Importar AniList</DashboardActionButton>);
 
     const button = screen.getByRole("button", { name: "Importar AniList" });
     const tokens = classTokens(button);

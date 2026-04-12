@@ -1,6 +1,9 @@
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { getPublicBootstrapLastFetchedAt, refetchPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
+import {
+  getPublicBootstrapLastFetchedAt,
+  refetchPublicBootstrapCache,
+} from "@/hooks/use-public-bootstrap";
 import {
   getBuildFingerprint,
   getFrontendBuildMetadata,
@@ -19,7 +22,8 @@ const normalizePathname = (value: unknown) =>
     .trim()
     .split(/[?#]/, 1)[0] || "/";
 
-const isDashboardPath = (pathname: unknown) => DASHBOARD_PATH_PATTERN.test(normalizePathname(pathname));
+const isDashboardPath = (pathname: unknown) =>
+  DASHBOARD_PATH_PATTERN.test(normalizePathname(pathname));
 
 const readReloadFingerprint = (storage?: Pick<Storage, "getItem"> | null) => {
   try {
@@ -29,10 +33,7 @@ const readReloadFingerprint = (storage?: Pick<Storage, "getItem"> | null) => {
   }
 };
 
-const writeReloadFingerprint = (
-  fingerprint: string,
-  storage?: Pick<Storage, "setItem"> | null,
-) => {
+const writeReloadFingerprint = (fingerprint: string, storage?: Pick<Storage, "setItem"> | null) => {
   try {
     storage?.setItem(PUBLIC_BUILD_RELOAD_SENTINEL_KEY, fingerprint);
   } catch {
@@ -41,7 +42,7 @@ const writeReloadFingerprint = (
 };
 
 const shouldSkipBootstrapRefresh = (globalWindow?: Window & typeof globalThis) =>
-  (globalWindow as Window & { __BOOTSTRAP_SKIP_PUBLIC_FETCH__?: unknown } | undefined)
+  (globalWindow as (Window & { __BOOTSTRAP_SKIP_PUBLIC_FETCH__?: unknown }) | undefined)
     ?.__BOOTSTRAP_SKIP_PUBLIC_FETCH__ === true;
 
 export const fetchBackendBuildMetadata = async (apiBase = getApiBase()) => {

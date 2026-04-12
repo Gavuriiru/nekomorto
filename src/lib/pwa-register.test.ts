@@ -40,7 +40,7 @@ const createRegistration = ({
 }: {
   activeScriptUrl?: string | null;
   waiting?: { postMessage?: ReturnType<typeof vi.fn> } | null;
-  installing?: ReturnType<typeof createEventTarget> & { state?: string } | null;
+  installing?: (ReturnType<typeof createEventTarget> & { state?: string }) | null;
 } = {}) => ({
   ...createEventTarget(),
   active: activeScriptUrl ? { scriptURL: activeScriptUrl } : null,

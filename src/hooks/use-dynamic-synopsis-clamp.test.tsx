@@ -53,7 +53,7 @@ const defineColumnRectWidth = (element: Element, width: number) => {
 };
 
 const createResizeObserverEntry = (target: Element) =>
-  ({ target } as unknown as ResizeObserverEntry);
+  ({ target }) as unknown as ResizeObserverEntry;
 
 const Harness = ({
   maxLines = 3,

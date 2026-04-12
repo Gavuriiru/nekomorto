@@ -15,8 +15,7 @@ import {
 
 const defaultRuns = 3;
 const defaultHomeUrl = process.env.LIGHTHOUSE_HOME_URL || "http://127.0.0.1:4173/";
-const defaultProjectsUrl =
-  process.env.LIGHTHOUSE_PROJECTS_URL || "http://127.0.0.1:4173/projetos";
+const defaultProjectsUrl = process.env.LIGHTHOUSE_PROJECTS_URL || "http://127.0.0.1:4173/projetos";
 const defaultPostUrl =
   process.env.LIGHTHOUSE_READER_POST_URL || "http://127.0.0.1:4173/postagem/post-teste";
 const defaultChapterUrl =
@@ -53,7 +52,8 @@ const parseArgs = (argv) => {
       continue;
     }
     if (arg.startsWith("--projects-mobile-url=")) {
-      args.projectsMobileUrl = arg.slice("--projects-mobile-url=".length).trim() || defaultProjectsUrl;
+      args.projectsMobileUrl =
+        arg.slice("--projects-mobile-url=".length).trim() || defaultProjectsUrl;
       continue;
     }
     if (arg.startsWith("--projects-desktop-url=")) {
@@ -147,12 +147,16 @@ const terminateProcess = async (child) => {
 
 const runScript = async (scriptName, args) =>
   new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [path.join(WORKSPACE_ROOT, "scripts", scriptName), ...args], {
-      cwd: WORKSPACE_ROOT,
-      stdio: "inherit",
-      env: process.env,
-      shell: false,
-    });
+    const child = spawn(
+      process.execPath,
+      [path.join(WORKSPACE_ROOT, "scripts", scriptName), ...args],
+      {
+        cwd: WORKSPACE_ROOT,
+        stdio: "inherit",
+        env: process.env,
+        shell: false,
+      },
+    );
     child.on("error", reject);
     child.on("close", (code) => {
       if (code === 0) {
@@ -201,10 +205,7 @@ const main = async () => {
     }
 
     console.log("[lighthouse-public-surface] running home mobile");
-    await runScript("lighthouse-home-mobile.mjs", [
-      `--runs=${args.runs}`,
-      `--url=${args.homeUrl}`,
-    ]);
+    await runScript("lighthouse-home-mobile.mjs", [`--runs=${args.runs}`, `--url=${args.homeUrl}`]);
 
     console.log("[lighthouse-public-surface] running projects mobile");
     await runScript("lighthouse-projects.mjs", [

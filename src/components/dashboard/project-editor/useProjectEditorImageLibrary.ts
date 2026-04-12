@@ -1,7 +1,4 @@
-import type {
-  ImageLibraryOptions,
-  ImageLibrarySavePayload,
-} from "@/components/ImageLibraryDialog";
+import type { ImageLibraryOptions, ImageLibrarySavePayload } from "@/components/ImageLibraryDialog";
 import type { ProjectEpisode, ProjectVolumeEntry } from "@/data/projects";
 import {
   buildProjectAssetLibraryOptions,
@@ -17,12 +14,7 @@ import { resolveProjectVolumeEntryIndexByVolume } from "./project-editor-form";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
-type ProjectImageLibraryTarget =
-  | "cover"
-  | "banner"
-  | "hero"
-  | "episode-cover"
-  | "volume-cover";
+type ProjectImageLibraryTarget = "cover" | "banner" | "hero" | "episode-cover" | "volume-cover";
 
 type ProjectEditorLibraryEpisode = Pick<
   ProjectEpisode,
@@ -232,12 +224,7 @@ export function useProjectEditorImageLibrary<
         return next;
       });
     },
-    [
-      episodeCoverIndex,
-      libraryTarget,
-      setFormState,
-      volumeCoverTargetVolume,
-    ],
+    [episodeCoverIndex, libraryTarget, setFormState, volumeCoverTargetVolume],
   );
 
   const openLibraryForProjectImage = useCallback((target: "cover" | "banner" | "hero") => {

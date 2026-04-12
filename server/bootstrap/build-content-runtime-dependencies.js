@@ -11,8 +11,7 @@ export const buildContentRuntimeDependencies = (dependencies = {}) => ({
   normalizeProjectEpisodePages: dependencies.normalizeProjectEpisodePages,
   normalizeProjectReaderConfig: dependencies.normalizeProjectReaderConfig,
   normalizeUploadsDeep: dependencies.normalizeUploadsDeep,
-  publicReadCacheTags:
-    dependencies.publicReadCacheTags ?? dependencies.PUBLIC_READ_CACHE_TAGS,
+  publicReadCacheTags: dependencies.publicReadCacheTags ?? dependencies.PUBLIC_READ_CACHE_TAGS,
   readUploadStorageProvider: dependencies.readUploadStorageProvider,
   resolveEpisodeLookup: dependencies.resolveEpisodeLookup,
   resolvePostStatus: dependencies.resolvePostStatus,

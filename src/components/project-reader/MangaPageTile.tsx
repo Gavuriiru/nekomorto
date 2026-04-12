@@ -224,11 +224,11 @@ const MangaPageTile = ({
         className={cn(
           "relative aspect-[1/1.414] overflow-hidden rounded-[22px] border bg-card/75 transition",
           isDragged
-            ? "z-10 cursor-grabbing border-primary/60 opacity-85 ring-2 ring-primary/25 shadow-[0_24px_60px_-30px_rgba(0,0,0,0.45)]"
+            ? "z-10 cursor-grabbing border-primary/60 opacity-85 ring-2 ring-primary/25 shadow-manga-page-dragging"
             : isPreviewTarget
               ? "cursor-grab border-primary/60 ring-2 ring-primary/15"
               : "cursor-grab border-border/50",
-          isSurfaceActive ? "shadow-[0_18px_46px_-28px_rgba(0,0,0,0.55)]" : "",
+          isSurfaceActive ? "shadow-manga-page-active" : "",
           "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
         )}
       >

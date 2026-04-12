@@ -20,8 +20,5 @@ for (const { fileName, target } of shims) {
     continue;
   }
 
-  fs.writeFileSync(
-    shimPath,
-    `module.exports = require(${JSON.stringify(target)});\n`,
-  );
+  fs.writeFileSync(shimPath, `module.exports = require(${JSON.stringify(target)});\n`);
 }

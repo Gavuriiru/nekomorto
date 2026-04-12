@@ -47,9 +47,7 @@ const resolveLazyDependency = (dependencyName, getter) => {
   if (typeof value === "function") {
     return value;
   }
-  throw new Error(
-    `[upload-entries-runtime] ${dependencyName} getter must resolve to a function`,
-  );
+  throw new Error(`[upload-entries-runtime] ${dependencyName} getter must resolve to a function`);
 };
 
 export const createUploadEntriesRuntime = (dependencies = {}) => {
@@ -422,7 +420,11 @@ export const createUploadEntriesRuntime = (dependencies = {}) => {
       requestedVariantPresetKeys.length === 0 ||
       requestedVariantPresetKeys.every((presetKey) => currentVariantPresetKeys.includes(presetKey))
     ) {
-      return { entry: currentEntry, uploads: Array.isArray(uploads) ? uploads : [], changed: false };
+      return {
+        entry: currentEntry,
+        uploads: Array.isArray(uploads) ? uploads : [],
+        changed: false,
+      };
     }
     const mergedVariantPresetKeys = mergeUploadVariantPresetKeys(
       currentVariantPresetKeys,
@@ -484,7 +486,11 @@ export const createUploadEntriesRuntime = (dependencies = {}) => {
         cleanupUploadStagingWorkspace(stagingWorkspace);
       }
     } catch {
-      return { entry: currentEntry, uploads: Array.isArray(uploads) ? uploads : [], changed: false };
+      return {
+        entry: currentEntry,
+        uploads: Array.isArray(uploads) ? uploads : [],
+        changed: false,
+      };
     }
   };
 

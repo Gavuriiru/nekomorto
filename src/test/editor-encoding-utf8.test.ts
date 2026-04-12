@@ -41,10 +41,7 @@ describe("editor utf8 encoding guard", () => {
       const source = readFileSync(absolutePath, "utf8");
       const unicodeEscapes = source.match(unicodeEscapePattern) || [];
       const unexpectedEscapes = unicodeEscapes.filter((escape) => !allowedEscapes.includes(escape));
-      expect(
-        unexpectedEscapes,
-        `escape unicode nao permitido em ${relativePath}`,
-      ).toEqual([]);
+      expect(unexpectedEscapes, `escape unicode nao permitido em ${relativePath}`).toEqual([]);
     });
   });
 });

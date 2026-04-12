@@ -55,7 +55,9 @@ export const collectBootstrapPublicMediaUrls = (payload, options = {}) => {
   });
 
   projects.forEach((project, projectIndex) => {
-    const episodeDownloads = Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : [];
+    const episodeDownloads = Array.isArray(project?.episodeDownloads)
+      ? project.episodeDownloads
+      : [];
     if (episodeDownloads.length > 0) {
       pushCandidate(
         firstEpisodeCovers,
@@ -74,7 +76,9 @@ export const collectBootstrapPublicMediaUrls = (payload, options = {}) => {
   });
 
   projects.forEach((project, projectIndex) => {
-    const episodeDownloads = Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : [];
+    const episodeDownloads = Array.isArray(project?.episodeDownloads)
+      ? project.episodeDownloads
+      : [];
     episodeDownloads.forEach((episode, episodeIndex) => {
       if (episodeIndex === 0) {
         return;

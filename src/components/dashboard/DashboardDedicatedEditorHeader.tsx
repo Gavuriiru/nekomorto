@@ -20,9 +20,9 @@ type DashboardDedicatedEditorHeaderProps = {
 };
 
 const mastheadClassName =
-  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.7)]";
+  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-editor-surface";
 const commandBarClassName =
-  "sticky top-3 z-20 overflow-hidden rounded-2xl border border-border/60 bg-background/92 shadow-[0_18px_52px_-42px_rgba(0,0,0,0.72)] backdrop-blur supports-backdrop-filter:bg-background/78";
+  "sticky top-3 z-20 overflow-hidden rounded-2xl border border-border/60 bg-background/92 shadow-dedicated-editor-sticky backdrop-blur supports-backdrop-filter:bg-background/78";
 
 const DashboardDedicatedEditorHeader = ({
   shellTestId,
@@ -55,7 +55,7 @@ const DashboardDedicatedEditorHeader = ({
           </div>
         </div>
         {summaryCard ? (
-          <div className="rounded-[22px] border border-border/50 bg-background/45 p-4 text-left shadow-[0_16px_50px_-40px_rgba(0,0,0,0.8)] lg:text-right">
+          <div className="rounded-[22px] border border-border/50 bg-background/45 p-4 text-left shadow-dedicated-editor-meta lg:text-right">
             {summaryCard}
           </div>
         ) : null}

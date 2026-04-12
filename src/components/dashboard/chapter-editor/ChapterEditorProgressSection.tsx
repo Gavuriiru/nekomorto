@@ -20,13 +20,8 @@ const ChapterEditorProgressSection = ({
     testId="chapter-progress-section"
     bodyClassName="space-y-3 py-4"
     actions={
-      <Badge
-        variant="outline"
-        className="text-[10px] uppercase tracking-[0.12em]"
-      >
-        <span data-testid="chapter-progress-percent">
-          {chapterProgressState.progress}%
-        </span>
+      <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+        <span data-testid="chapter-progress-percent">{chapterProgressState.progress}%</span>
       </Badge>
     }
   >
@@ -38,11 +33,8 @@ const ChapterEditorProgressSection = ({
         aria-label="Resumo visual das etapas editoriais"
       >
         {chapterProgressState.stages.map((stage) => {
-          const isCompleted = chapterProgressState.completedStages.includes(
-            stage.id,
-          );
-          const isCurrentStage =
-            stage.id === chapterProgressState.currentStageId;
+          const isCompleted = chapterProgressState.completedStages.includes(stage.id);
+          const isCurrentStage = stage.id === chapterProgressState.currentStageId;
 
           return (
             <span
@@ -56,10 +48,7 @@ const ChapterEditorProgressSection = ({
                 isCompleted
                   ? "w-6 bg-primary"
                   : isCurrentStage
-                    ? cn(
-                        "w-10 border border-border/60 bg-background/80",
-                        stage.indicatorClassName,
-                      )
+                    ? cn("w-10 border border-border/60 bg-background/80", stage.indicatorClassName)
                     : "w-2.5 bg-muted/55",
               )}
             />
@@ -75,11 +64,8 @@ const ChapterEditorProgressSection = ({
         aria-label="Etapas concluídas"
       >
         {chapterProgressState.stages.map((stage) => {
-          const isCompleted = chapterProgressState.completedStages.includes(
-            stage.id,
-          );
-          const isCurrentStage =
-            stage.id === chapterProgressState.currentStageId;
+          const isCompleted = chapterProgressState.completedStages.includes(stage.id);
+          const isCurrentStage = stage.id === chapterProgressState.currentStageId;
 
           return (
             <label
@@ -93,17 +79,11 @@ const ChapterEditorProgressSection = ({
                   data-testid={`chapter-progress-toggle-${stage.id}`}
                   aria-label={stage.label}
                 />
-                <span className="truncate text-sm font-medium text-foreground">
-                  {stage.label}
-                </span>
+                <span className="truncate text-sm font-medium text-foreground">{stage.label}</span>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <span className="text-xs text-muted-foreground">
-                  {isCompleted
-                    ? "Concluida"
-                    : isCurrentStage
-                      ? "Atual"
-                      : "Pendente"}
+                  {isCompleted ? "Concluida" : isCurrentStage ? "Atual" : "Pendente"}
                 </span>
                 {isCurrentStage ? (
                   <Badge variant="info" className="shrink-0">

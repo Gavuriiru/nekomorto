@@ -115,7 +115,12 @@ const createRuntime = () => {
       sourcePath: path.join(uploadsDir, "users", "avatar.png"),
     })),
     mergeUploadVariantPresetKeys: vi.fn((current, requested) =>
-      Array.from(new Set([...(Array.isArray(current) ? current : []), ...(Array.isArray(requested) ? requested : [])])),
+      Array.from(
+        new Set([
+          ...(Array.isArray(current) ? current : []),
+          ...(Array.isArray(requested) ? requested : []),
+        ]),
+      ),
     ),
     normalizeFocalCrops: vi.fn((value, fallback, options) => {
       if (Array.isArray(value)) {
@@ -149,7 +154,9 @@ const createRuntime = () => {
       }
       return [];
     }),
-    normalizeUploadStorageProvider: vi.fn((value, fallback) => String(value || fallback || "local")),
+    normalizeUploadStorageProvider: vi.fn((value, fallback) =>
+      String(value || fallback || "local"),
+    ),
     normalizeUploadVariantPresetKeys: vi.fn((value) =>
       Array.isArray(value) ? value.map((item) => String(item || "")) : [],
     ),
@@ -162,7 +169,12 @@ const createRuntime = () => {
       String(entry?.storageProvider || fallback || "local"),
     ),
     resolveUploadAbsolutePath: vi.fn(({ uploadUrl }) =>
-      path.join(uploadsDir, String(uploadUrl || "").replace(/^\/uploads\//, "").replace(/\//g, path.sep)),
+      path.join(
+        uploadsDir,
+        String(uploadUrl || "")
+          .replace(/^\/uploads\//, "")
+          .replace(/\//g, path.sep),
+      ),
     ),
     sanitizeUploadSlot: vi.fn((value) =>
       String(value || "")
@@ -252,9 +264,9 @@ describe("upload-entries-runtime", () => {
     fs.mkdirSync(usersDir, { recursive: true });
     fs.writeFileSync(path.join(usersDir, "avatar.png"), "avatar");
 
-    expect(runtime.normalizeUploadUrlValue("https://example.com/uploads/users/avatar.png?x=1")).toBe(
-      "/uploads/users/avatar.png",
-    );
+    expect(
+      runtime.normalizeUploadUrlValue("https://example.com/uploads/users/avatar.png?x=1"),
+    ).toBe("/uploads/users/avatar.png");
     expect(runtime.getUploadFolderFromUrlValue("/uploads/users/avatar.png")).toBe("users");
     expect(runtime.isPrivateUploadFolder("users/avatar.png")).toBe(true);
 

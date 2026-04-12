@@ -26,8 +26,7 @@ const matchesFolderFilterForRelativePath = (relativePath, normalizedFolder) => {
   }
   const normalizedRelative = getUploadRelativePath(relativePath);
   return (
-    normalizedRelative === normalizedFolder ||
-    normalizedRelative.startsWith(`${normalizedFolder}/`)
+    normalizedRelative === normalizedFolder || normalizedRelative.startsWith(`${normalizedFolder}/`)
   );
 };
 
@@ -36,12 +35,7 @@ const getUploadAssetUrls = (entry) =>
     .map((asset) => normalizeUploadFilterUrl(asset?.url))
     .filter(Boolean);
 
-export const buildUploadFilterScope = ({
-  uploads,
-  folder = "",
-  uploadId = "",
-  url = "",
-} = {}) => {
+export const buildUploadFilterScope = ({ uploads, folder = "", uploadId = "", url = "" } = {}) => {
   const normalizedFolder = normalizeUploadFilterFolder(folder);
   const normalizedUploadId = String(uploadId || "").trim();
   const normalizedUrl = normalizeUploadFilterUrl(url);

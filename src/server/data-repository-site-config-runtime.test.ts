@@ -31,9 +31,7 @@ const createRepository = () => ({
 
 describe("data-repository-site-config-runtime", () => {
   it("fails early when required dependencies are missing", () => {
-    expect(() => createDataRepositorySiteConfigRuntime()).toThrow(
-      /missing required dependencies/i,
-    );
+    expect(() => createDataRepositorySiteConfigRuntime()).toThrow(/missing required dependencies/i);
   });
 
   it("loads and writes repository-backed site configuration collections", () => {
@@ -68,7 +66,10 @@ describe("data-repository-site-config-runtime", () => {
         site: { name: "Default" },
       },
       fixMojibakeDeep: (value) => value,
-      getBuildEnvOperationalWebhookSettings: () => () => ({ enabled: false, source: "ops-fallback" }),
+      getBuildEnvOperationalWebhookSettings: () => () => ({
+        enabled: false,
+        source: "ops-fallback",
+      }),
       getBuildEnvSecurityWebhookSettings: () => () => ({ enabled: false, source: "sec-fallback" }),
       getBuildSiteSettingsStoragePayload: () => buildSiteSettingsStoragePayload,
       getBuildWebhookSettingsBundle: () => buildWebhookSettingsBundle,

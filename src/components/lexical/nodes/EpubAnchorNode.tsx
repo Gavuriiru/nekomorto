@@ -49,11 +49,12 @@ const applyAnchorAttributes = (element: HTMLElement, anchorId: string) => {
 };
 
 const convertAnchorNode = (node: Node): DOMConversionOutput | null => {
-  if (!(node instanceof HTMLElement)) {
+  if (node.nodeType !== 1) {
     return null;
   }
+  const element = node as Element;
   const anchorId = normalizeAnchorId(
-    node.getAttribute("data-epub-anchor") || node.getAttribute("id") || "",
+    element.getAttribute("data-epub-anchor") || element.getAttribute("id") || "",
   );
   if (!anchorId) {
     return null;
@@ -79,15 +80,26 @@ export class EpubAnchorNode extends DecoratorNode<null> {
   }
 
   static importDOM(): DOMConversionMap | null {
+    const hasAnchorId = (domNode: Node) =>
+      domNode.nodeType === 1 &&
+      Boolean(
+        normalizeAnchorId(
+          (domNode as Element).getAttribute("data-epub-anchor") ||
+            (domNode as Element).getAttribute("id") ||
+            "",
+        ),
+      );
+    const createConversion = (domNode: Node) =>
+      hasAnchorId(domNode)
+        ? {
+            conversion: convertAnchorNode,
+            priority: 4 as const,
+          }
+        : null;
+
     return {
-      "epub-anchor": () => ({
-        conversion: convertAnchorNode,
-        priority: 4 as const,
-      }),
-      span: () => ({
-        conversion: convertAnchorNode,
-        priority: 4 as const,
-      }),
+      "epub-anchor": createConversion,
+      span: createConversion,
     };
   }
 

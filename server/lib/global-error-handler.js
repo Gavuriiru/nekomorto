@@ -20,7 +20,8 @@ const buildErrorLogPayload = (error, req, statusCode) => ({
   stack: typeof error?.stack === "string" ? error.stack : "",
 });
 
-export const createGlobalErrorHandler = ({ logger = console.error } = {}) =>
+export const createGlobalErrorHandler =
+  ({ logger = console.error } = {}) =>
   (error, req, res, next) => {
     if (res.headersSent) {
       return next(error);

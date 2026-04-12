@@ -107,7 +107,9 @@ export const useProjectEditorEpisodeSectionState = ({
   const pendingContentSectionScrollRef = useRef(false);
   const pendingEpisodeToScrollRef = useRef<EditorProjectEpisode | null>(null);
   const previousEpisodeCountRef = useRef(0);
-  const episodeCardNodeMapRef = useRef<WeakMap<EditorProjectEpisode, HTMLDivElement>>(new WeakMap());
+  const episodeCardNodeMapRef = useRef<WeakMap<EditorProjectEpisode, HTMLDivElement>>(
+    new WeakMap(),
+  );
   const volumeGroupNodeMapRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const contentSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -156,7 +158,10 @@ export const useProjectEditorEpisodeSectionState = ({
       const normalizedVolume = Number(volume);
       setFormState((previousForm) => {
         const nextVolumeEntries = [...previousForm.volumeEntries];
-        const entryIndex = resolveProjectVolumeEntryIndexByVolume(nextVolumeEntries, normalizedVolume);
+        const entryIndex = resolveProjectVolumeEntryIndexByVolume(
+          nextVolumeEntries,
+          normalizedVolume,
+        );
         if (entryIndex >= 0) {
           nextVolumeEntries[entryIndex] = updater({
             ...nextVolumeEntries[entryIndex],
@@ -468,13 +473,10 @@ export const useProjectEditorEpisodeSectionState = ({
       }));
     }
     setFormState((previousForm) => {
-      const nextMainNumber = resolveNextMainEpisodeNumber(
-        previousForm.episodeDownloads,
-        {
-          isExtra: (episode) =>
-            getEpisodeEntryKind(episode as Partial<EditorProjectEpisode>) === "extra",
-        },
-      );
+      const nextMainNumber = resolveNextMainEpisodeNumber(previousForm.episodeDownloads, {
+        isExtra: (episode) =>
+          getEpisodeEntryKind(episode as Partial<EditorProjectEpisode>) === "extra",
+      });
       const newEpisode: EditorProjectEpisode = {
         _editorKey: generateEpisodeEditorLocalId(),
         number: nextMainNumber,

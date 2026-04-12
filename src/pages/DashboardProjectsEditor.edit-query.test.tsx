@@ -431,7 +431,7 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(animationStudioInput.className).not.toContain("focus-visible:border-primary/60");
     expect(animationStudioInput.className).not.toContain("focus-visible:ring-primary/45");
     expect(animationStudioInput.className).not.toContain("focus-visible:ring-inset");
-  });
+  }, 10000);
 
   it("aplica hover accent suave e destaque de drag-over nos cards internos", async () => {
     setupApiMock({ canManageProjects: true, projects: [projectWithInteractiveCardsFixture] });

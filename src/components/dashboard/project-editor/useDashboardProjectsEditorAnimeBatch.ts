@@ -110,9 +110,7 @@ type UseDashboardProjectsEditorAnimeBatchResult = {
   setAnimeBatchOperationDuration: Dispatch<SetStateAction<string>>;
   setAnimeBatchOperationPublicationStatus: Dispatch<SetStateAction<"draft" | "published">>;
   setAnimeBatchOperationShiftDays: Dispatch<SetStateAction<string>>;
-  setAnimeBatchOperationSourceType: Dispatch<
-    SetStateAction<EditorProjectEpisode["sourceType"]>
-  >;
+  setAnimeBatchOperationSourceType: Dispatch<SetStateAction<EditorProjectEpisode["sourceType"]>>;
   setAnimeBatchPublicationStatus: Dispatch<SetStateAction<"draft" | "published">>;
   setAnimeBatchQuantity: Dispatch<SetStateAction<string>>;
   setAnimeBatchSourceType: Dispatch<SetStateAction<EditorProjectEpisode["sourceType"]>>;
@@ -136,8 +134,7 @@ export function useDashboardProjectsEditorAnimeBatch({
 }: UseDashboardProjectsEditorAnimeBatchParams): UseDashboardProjectsEditorAnimeBatchResult {
   const [selectedAnimeEpisodeKeys, setSelectedAnimeEpisodeKeys] = useState<string[]>([]);
   const [removedAnimeEpisode, setRemovedAnimeEpisode] = useState<RemovedAnimeEpisode>(null);
-  const [animeEpisodeFilter, setAnimeEpisodeFilter] =
-    useState<AnimeEpisodeQuickFilter>("all");
+  const [animeEpisodeFilter, setAnimeEpisodeFilter] = useState<AnimeEpisodeQuickFilter>("all");
   const [animeBatchCreateOpen, setAnimeBatchCreateOpen] = useState(false);
   const [animeBatchStartNumber, setAnimeBatchStartNumber] = useState("");
   const [animeBatchQuantity, setAnimeBatchQuantity] = useState("3");
@@ -258,7 +255,14 @@ export function useDashboardProjectsEditorAnimeBatch({
       setEpisodeSizeErrors((prev) => shiftDraftAfterRemoval(prev, index));
       setCollapsedEpisodes((prev) => shiftCollapsedEpisodesAfterRemoval(prev, index));
     },
-    [setCollapsedEpisodes, setEpisodeDateDraft, setEpisodeSizeDrafts, setEpisodeSizeErrors, setEpisodeTimeDraft, setFormState],
+    [
+      setCollapsedEpisodes,
+      setEpisodeDateDraft,
+      setEpisodeSizeDrafts,
+      setEpisodeSizeErrors,
+      setEpisodeTimeDraft,
+      setFormState,
+    ],
   );
 
   const undoRemoveAnimeEpisode = useCallback(() => {
@@ -295,7 +299,13 @@ export function useDashboardProjectsEditorAnimeBatch({
         [formState.episodeDownloads.length]: false,
       }));
     },
-    [formState.episodeDownloads.length, formState.episodeDownloads, pendingEpisodeToScrollRef, setCollapsedEpisodes, setFormState],
+    [
+      formState.episodeDownloads.length,
+      formState.episodeDownloads,
+      pendingEpisodeToScrollRef,
+      setCollapsedEpisodes,
+      setFormState,
+    ],
   );
 
   const createAnimeEpisodeBatch = useCallback(() => {

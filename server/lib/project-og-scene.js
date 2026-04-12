@@ -92,12 +92,13 @@ const buildTitleNode = (model) =>
     },
     ...(Array.isArray(model.titleLineLayouts) && model.titleLineLayouts.length > 0
       ? model.titleLineLayouts
-      : (Array.isArray(model.titleLines) ? model.titleLines : [String(model.title || "Projeto")]).map(
-          (line) => ({
-            text: line,
-            maxWidth: model.layout.titleWidth,
-          }),
-        )
+      : (Array.isArray(model.titleLines)
+          ? model.titleLines
+          : [String(model.title || "Projeto")]
+        ).map((line) => ({
+          text: line,
+          maxWidth: model.layout.titleWidth,
+        }))
     ).map((line, index) =>
       createElement(
         "div",
@@ -185,7 +186,8 @@ const buildSubtitleNode = (model) => {
       : null;
   if (subtitleLineLayouts) {
     const lineHeightPx = (Number(model.layout?.subtitleFontSize) || 0) * 1.2;
-    const subtitleHeight = Number(model.subtitleHeight) || subtitleLineLayouts.length * lineHeightPx;
+    const subtitleHeight =
+      Number(model.subtitleHeight) || subtitleLineLayouts.length * lineHeightPx;
     const subtitleRenderWidth = Math.max(
       0,
       ...subtitleLineLayouts.map((line) => Number(line.maxWidth) || 0),
@@ -562,23 +564,22 @@ export const buildProjectOgScene = (model = {}) => {
     ...(model?.layout && typeof model.layout === "object" ? model.layout : {}),
   };
   const palette =
-    model?.palette && typeof model.palette === "object"
-      ? model.palette
-      : resolveProjectOgPalette();
+    model?.palette && typeof model.palette === "object" ? model.palette : resolveProjectOgPalette();
   const safeModel = {
     ...model,
     layout,
     palette,
     title: String(model?.title || "").trim() || "Projeto",
     titleLines:
-      Array.isArray(model?.titleLines) && model.titleLines.length > 0 ? model.titleLines : ["Projeto"],
+      Array.isArray(model?.titleLines) && model.titleLines.length > 0
+        ? model.titleLines
+        : ["Projeto"],
     titleLineLayouts:
       Array.isArray(model?.titleLineLayouts) && model.titleLineLayouts.length > 0
         ? model.titleLineLayouts
-        : (
-            Array.isArray(model?.titleLines) && model.titleLines.length > 0
-              ? model.titleLines
-              : ["Projeto"]
+        : (Array.isArray(model?.titleLines) && model.titleLines.length > 0
+            ? model.titleLines
+            : ["Projeto"]
           ).map((line) => ({
             text: String(line || ""),
             maxWidth: layout.titleWidth,

@@ -8,15 +8,13 @@ import DashboardSettings, { __testing } from "@/pages/DashboardSettings";
 import { defaultSettings } from "@/hooks/site-settings-context";
 import type { SiteSettings } from "@/types/site-settings";
 
-const { apiFetchMock, dismissToastMock, navigateMock, refreshMock, toastMock } = vi.hoisted(
-  () => ({
-    apiFetchMock: vi.fn(),
-    dismissToastMock: vi.fn(),
-    navigateMock: vi.fn(),
-    refreshMock: vi.fn(async () => undefined),
-    toastMock: vi.fn(),
-  }),
-);
+const { apiFetchMock, dismissToastMock, navigateMock, refreshMock, toastMock } = vi.hoisted(() => ({
+  apiFetchMock: vi.fn(),
+  dismissToastMock: vi.fn(),
+  navigateMock: vi.fn(),
+  refreshMock: vi.fn(async () => undefined),
+  toastMock: vi.fn(),
+}));
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,

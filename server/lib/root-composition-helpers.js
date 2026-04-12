@@ -18,10 +18,12 @@ export const createDiscordAvatarUrl = (user) => {
   return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`;
 };
 
-export const createRuntimeMetadataBuilder = ({ apiVersion, getBuildMetadata } = {}) => () => ({
-  apiVersion,
-  ...(typeof getBuildMetadata === "function" ? getBuildMetadata() : {}),
-});
+export const createRuntimeMetadataBuilder =
+  ({ apiVersion, getBuildMetadata } = {}) =>
+  () => ({
+    apiVersion,
+    ...(typeof getBuildMetadata === "function" ? getBuildMetadata() : {}),
+  });
 
 export const createRouteGuards = ({ isOwner, isPrimaryOwner } = {}) => {
   const requireAuth = (req, res, next) => {

@@ -55,9 +55,7 @@ export const buildPublicInProgressItems = (projects) =>
           displayLabel: String(episode?.displayLabel || "").trim() || undefined,
           progressStage: String(episode?.progressStage || "").trim(),
           completedStages: Array.isArray(episode?.completedStages)
-            ? episode.completedStages
-                .map((stageId) => String(stageId || "").trim())
-                .filter(Boolean)
+            ? episode.completedStages.map((stageId) => String(stageId || "").trim()).filter(Boolean)
             : [],
         })),
     );

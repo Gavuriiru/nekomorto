@@ -28,10 +28,7 @@ export const buildScopedProjectImageIds = (projectId?: string | null) => {
   return normalizedProjectId ? [normalizedProjectId] : [];
 };
 
-export const filterProjectLibraryFolders = (
-  folders: string[],
-  canManageProjects = true,
-) =>
+export const filterProjectLibraryFolders = (folders: string[], canManageProjects = true) =>
   filterImageLibraryFoldersByAccess(folders, {
     grants: { projetos: canManageProjects },
   });
@@ -75,10 +72,8 @@ export const resolveProjectEpisodeAssetAltText = ({
   isChapterBased?: boolean;
 }) => resolveAssetAltText(altText, getEpisodeCoverAltFallback(isChapterBased));
 
-export const resolveProjectVolumeAssetAltText = (
-  volume: number,
-  altText?: string | null,
-) => resolveAssetAltText(altText, `Capa do volume ${volume}`);
+export const resolveProjectVolumeAssetAltText = (volume: number, altText?: string | null) =>
+  resolveAssetAltText(altText, `Capa do volume ${volume}`);
 
 export const buildProjectVolumeCoversFromEntries = (
   entries: Array<{ volume: number; coverImageUrl?: string | null; coverImageAlt?: string | null }>,

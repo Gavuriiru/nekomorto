@@ -47,9 +47,7 @@ const createDeps = (overrides = {}) => {
 
 describe("project-import-request-runtime", () => {
   it("fails early when required dependencies are missing", () => {
-    expect(() => createProjectImportRequestRuntime()).toThrow(
-      /missing required dependencies/i,
-    );
+    expect(() => createProjectImportRequestRuntime()).toThrow(/missing required dependencies/i);
   });
 
   it("normalizes valid project snapshots and resolves multipart request input", () => {

@@ -1,7 +1,4 @@
-export const registerPublicUpdateRoutes = ({
-  app,
-  getPublicVisibleUpdates,
-} = {}) => {
+export const registerPublicUpdateRoutes = ({ app, getPublicVisibleUpdates } = {}) => {
   app.get("/api/public/updates", (req, res) => {
     const limitRaw = Number(req.query.limit);
     const pageRaw = Number(req.query.page);

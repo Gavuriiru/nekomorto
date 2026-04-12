@@ -151,7 +151,7 @@ const PublicUserProfileAvatar = ({
   }, [normalizedImageSrc]);
 
   return (
-    <div className="team-member-avatar-shell relative z-10 h-56 w-56 rounded-full shadow-[0_20px_46px_-24px_rgba(0,0,0,0.82)] transition-transform duration-500 group-hover:scale-105 sm:h-60 sm:w-60 md:h-64 md:w-64 lg:h-64 lg:w-64">
+    <div className="team-member-avatar-shell relative z-10 h-56 w-56 rounded-full shadow-profile-avatar transition-transform duration-500 group-hover:scale-105 sm:h-60 sm:w-60 md:h-64 md:w-64 lg:h-64 lg:w-64">
       <div className="team-member-avatar-frame h-full w-full overflow-hidden rounded-full border border-white/10 bg-background ring-4 ring-background/70">
         <UploadPicture
           src={resolvedSrc}
@@ -328,7 +328,7 @@ const PublicUserProfileCard = ({
     <Card
       data-testid={testId}
       className={cn(
-        "group overflow-hidden rounded-[28px] border shadow-[0_24px_70px_-36px_rgba(0,0,0,0.75)] transition-colors duration-300",
+        "group overflow-hidden rounded-[28px] border shadow-profile-card transition-colors duration-300",
         hasFavoriteWorks && "team-member-card--interactive",
         retired
           ? "border-border/35 bg-card/80 hover:border-primary/60 hover:bg-card/85"

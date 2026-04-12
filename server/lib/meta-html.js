@@ -21,20 +21,22 @@ const escapeHtml = (value) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-export const createAbsoluteUrlResolver = ({ origin }) => (value) => {
-  const input = String(value || "").trim();
-  if (!input) {
-    return "";
-  }
-  if (input.startsWith("http://") || input.startsWith("https://") || input.startsWith("data:")) {
-    return input;
-  }
-  try {
-    return new URL(input, origin).toString();
-  } catch {
-    return input;
-  }
-};
+export const createAbsoluteUrlResolver =
+  ({ origin }) =>
+  (value) => {
+    const input = String(value || "").trim();
+    if (!input) {
+      return "";
+    }
+    if (input.startsWith("http://") || input.startsWith("https://") || input.startsWith("data:")) {
+      return input;
+    }
+    try {
+      return new URL(input, origin).toString();
+    } catch {
+      return input;
+    }
+  };
 
 const upsertMeta = (html, attr, key, content) => {
   const escaped = escapeHtml(content);
@@ -119,12 +121,7 @@ export const createMetaHtmlRenderer = ({
     }
     html = upsertMeta(html, "name", "twitter:title", title);
     html = upsertMeta(html, "name", "twitter:description", safeDescription);
-    html = upsertMeta(
-      html,
-      "name",
-      "twitter:card",
-      safeImage ? "summary_large_image" : "summary",
-    );
+    html = upsertMeta(html, "name", "twitter:card", safeImage ? "summary_large_image" : "summary");
     html = upsertLink(html, "canonical", safeUrl);
     if (favicon) {
       html = upsertLink(html, "icon", toAbsoluteUrl(favicon));
@@ -133,21 +130,19 @@ export const createMetaHtmlRenderer = ({
   },
 });
 
-export const createHtmlSender = ({
-  applyHtmlCachingHeaders,
-  injectNonceIntoHtmlScripts,
-  viteDevServer,
-}) => async (req, res, html) => {
-  let nextHtml = html;
-  const requestPath = req.originalUrl || req.url || "/";
-  if (viteDevServer) {
-    nextHtml = await viteDevServer.transformIndexHtml(requestPath, nextHtml);
-  }
-  const nonce = typeof res.locals?.cspNonce === "string" ? res.locals.cspNonce : "";
-  const body = nonce ? injectNonceIntoHtmlScripts(nextHtml, nonce) : nextHtml;
-  applyHtmlCachingHeaders(res, {
-    pathname: requestPath,
-    isAuthenticated: Boolean(req?.session?.user),
-  });
-  return res.type("html").send(body);
-};
+export const createHtmlSender =
+  ({ applyHtmlCachingHeaders, injectNonceIntoHtmlScripts, viteDevServer }) =>
+  async (req, res, html) => {
+    let nextHtml = html;
+    const requestPath = req.originalUrl || req.url || "/";
+    if (viteDevServer) {
+      nextHtml = await viteDevServer.transformIndexHtml(requestPath, nextHtml);
+    }
+    const nonce = typeof res.locals?.cspNonce === "string" ? res.locals.cspNonce : "";
+    const body = nonce ? injectNonceIntoHtmlScripts(nextHtml, nonce) : nextHtml;
+    applyHtmlCachingHeaders(res, {
+      pathname: requestPath,
+      isAuthenticated: Boolean(req?.session?.user),
+    });
+    return res.type("html").send(body);
+  };

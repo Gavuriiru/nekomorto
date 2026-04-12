@@ -28,20 +28,22 @@ const Consumer = ({ testId }: { testId: string }) => {
 describe("usePublicCurrentUser", () => {
   it("dedupes /api/public/me across concurrent consumers", async () => {
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (endpoint === "/api/public/me" && method === "GET") {
-        return mockJsonResponse(true, {
-          user: {
-            id: "user-1",
-            name: "Admin",
-            username: "admin",
-            permissions: ["posts"],
-          },
-        });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (endpoint === "/api/public/me" && method === "GET") {
+          return mockJsonResponse(true, {
+            user: {
+              id: "user-1",
+              name: "Admin",
+              username: "admin",
+              permissions: ["posts"],
+            },
+          });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     (
       window as Window & {
@@ -57,7 +59,9 @@ describe("usePublicCurrentUser", () => {
     );
 
     await waitFor(() => {
-      const meCalls = apiFetchMock.mock.calls.filter((call) => String(call[1] || "") === "/api/public/me");
+      const meCalls = apiFetchMock.mock.calls.filter(
+        (call) => String(call[1] || "") === "/api/public/me",
+      );
       expect(meCalls).toHaveLength(1);
     });
 

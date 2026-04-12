@@ -110,8 +110,16 @@ const createDependencies = ({ app, overrides = {} }) => ({
   collectLinkTypeIconUploads: vi.fn(() => []),
   createGravatarHash: vi.fn((email) => `hash:${email}`),
   createRevisionToken: vi.fn(() => "revision-token"),
-  createSlug: vi.fn((value) => String(value || "").trim().toLowerCase()),
-  createUniqueSlug: vi.fn((value) => String(value || "").trim().toLowerCase()),
+  createSlug: vi.fn((value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase(),
+  ),
+  createUniqueSlug: vi.fn((value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase(),
+  ),
   deletePrivateUploadByUrl: vi.fn(),
   dispatchEditorialWebhookEvent: vi.fn(),
   ensureNoEditConflict: vi.fn(() => true),
@@ -124,7 +132,11 @@ const createDependencies = ({ app, overrides = {} }) => ({
   loadPostVersions: vi.fn(() => []),
   loadPosts: vi.fn(() => []),
   loadProjects: vi.fn(() => []),
-  normalizeEmail: vi.fn((value) => String(value || "").trim().toLowerCase()),
+  normalizeEmail: vi.fn((value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase(),
+  ),
   normalizeLinkTypes: vi.fn((value) => value),
   normalizePosts: vi.fn((value) => value),
   normalizeProjects: vi.fn((value) => value),

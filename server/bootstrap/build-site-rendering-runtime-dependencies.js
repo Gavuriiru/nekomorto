@@ -11,8 +11,7 @@ export const buildSiteRenderingRuntimeDependencies = (dependencies = {}) => ({
   buildVersionedInstitutionalOgImagePath: dependencies.buildVersionedInstitutionalOgImagePath,
   buildVersionedPostOgImagePath: dependencies.buildVersionedPostOgImagePath,
   buildVersionedProjectOgImagePath: dependencies.buildVersionedProjectOgImagePath,
-  buildVersionedProjectReadingOgImagePath:
-    dependencies.buildVersionedProjectReadingOgImagePath,
+  buildVersionedProjectReadingOgImagePath: dependencies.buildVersionedProjectReadingOgImagePath,
   extractFirstImageFromPostContent: dependencies.extractFirstImageFromPostContent,
   getIndexHtml: dependencies.getIndexHtml,
   injectNonceIntoHtmlScripts: dependencies.injectNonceIntoHtmlScripts,

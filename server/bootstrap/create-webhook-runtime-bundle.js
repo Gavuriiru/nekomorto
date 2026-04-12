@@ -61,7 +61,8 @@ export const createWebhookRuntimeBundle = (dependencies = {}) => {
 
   const operationalWebhooksRuntime = createOperationalWebhooksRuntime({
     appendAuditLog: dependencies.appendAuditLog,
-    buildOperationalAlertsWebhookNotification: dependencies.buildOperationalAlertsWebhookNotification,
+    buildOperationalAlertsWebhookNotification:
+      dependencies.buildOperationalAlertsWebhookNotification,
     buildWebhookAuditMeta: dependencies.buildWebhookAuditMeta,
     buildWebhookTargetLabel: dependencies.buildWebhookTargetLabel,
     clampWebhookInteger: dependencies.clampWebhookInteger,

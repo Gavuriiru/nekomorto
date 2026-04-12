@@ -127,7 +127,11 @@ export const useChapterEditorPersistence = ({
       if (normalizedSnapshot.volume !== undefined) {
         return false;
       }
-      const nextProjectSnapshot = overlayDraftOnProject(project, activeChapterKey, normalizedSnapshot);
+      const nextProjectSnapshot = overlayDraftOnProject(
+        project,
+        activeChapterKey,
+        normalizedSnapshot,
+      );
       const saveLookup = resolveEpisodeLookup(
         Array.isArray(nextProjectSnapshot.episodeDownloads)
           ? nextProjectSnapshot.episodeDownloads
@@ -174,9 +178,13 @@ export const useChapterEditorPersistence = ({
         const data = await response.json().catch(() => null);
         const errorCode = String(data?.error || "").trim();
         if (errorCode === "duplicate_episode_key") {
-          setIdentityError("J\u00e1 existe um cap\u00edtulo com essa combina\u00e7\u00e3o de n\u00famero e volume.");
+          setIdentityError(
+            "J\u00e1 existe um cap\u00edtulo com essa combina\u00e7\u00e3o de n\u00famero e volume.",
+          );
         } else if (errorCode === "volume_required") {
-          setIdentityError("Informe o volume para salvar um cap\u00edtulo com n\u00famero amb\u00edguo.");
+          setIdentityError(
+            "Informe o volume para salvar um cap\u00edtulo com n\u00famero amb\u00edguo.",
+          );
         } else if (
           errorCode === "image_pages_required_for_publication" ||
           errorCode === "reader_content_or_download_required_for_publication" ||

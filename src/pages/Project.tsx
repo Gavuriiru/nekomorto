@@ -34,11 +34,7 @@ import {
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { canManageProjectsAccess } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
-import {
-  isChapterBasedType,
-  isLightNovelType,
-  isMangaType,
-} from "@/lib/project-utils";
+import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
 import {
   hasPublicEpisodePages,
@@ -79,16 +75,8 @@ type ProjectFilterPillLinkProps = {
 const projectFilterPillClassName =
   "h-6 min-h-6 min-w-6 gap-0 rounded-full px-2 py-0 text-[10px] uppercase leading-none";
 
-const ProjectFilterPillLink = ({
-  label,
-  to,
-  tone,
-}: ProjectFilterPillLinkProps) => (
-  <PillButton
-    asChild
-    tone={tone}
-    className={projectFilterPillClassName}
-  >
+const ProjectFilterPillLink = ({ label, to, tone }: ProjectFilterPillLinkProps) => (
+  <PillButton asChild tone={tone} className={projectFilterPillClassName}>
     <Link to={to}>{label}</Link>
   </PillButton>
 );
@@ -100,20 +88,12 @@ const ProjectPage = () => {
   const [projectRevision, setProjectRevision] = useState("");
   const [hasLoaded, setHasLoaded] = useState(false);
   const [projectDirectory, setProjectDirectory] = useState<Project[]>([]);
-  const [tagTranslations, setTagTranslations] = useState<
-    Record<string, string>
-  >({});
-  const [genreTranslations, setGenreTranslations] = useState<
-    Record<string, string>
-  >({});
-  const [staffRoleTranslations, setStaffRoleTranslations] = useState<
-    Record<string, string>
-  >({});
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
+  const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
+  const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>({});
   const { currentUser } = usePublicCurrentUser();
   const [episodePage, setEpisodePage] = useState(1);
-  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>(
-    {},
-  );
+  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
   const { settings } = useSiteSettings();
   const trackedViewsRef = useRef<Set<string>>(new Set());
   const projectOgImageAlt = project?.title
@@ -136,8 +116,7 @@ const ProjectPage = () => {
     title: project?.title || "Projeto",
     description: project?.synopsis || "",
     image: shareImage,
-    imageAlt:
-      projectOgImageAlt || settings.site.defaultShareImageAlt || undefined,
+    imageAlt: projectOgImageAlt || settings.site.defaultShareImageAlt || undefined,
     mediaVariants,
     type: "article",
   });
@@ -149,10 +128,7 @@ const ProjectPage = () => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await apiFetch(
-          apiBase,
-          `/api/public/projects/${slug}`,
-        );
+        const response = await apiFetch(apiBase, `/api/public/projects/${slug}`);
         if (!response.ok) {
           if (isActive) {
             setProject(null);
@@ -166,9 +142,7 @@ const ProjectPage = () => {
           setProject(data.project || null);
           setProjectRevision(String(data?.revision || "").trim());
           setMediaVariants(
-            data?.mediaVariants && typeof data.mediaVariants === "object"
-              ? data.mediaVariants
-              : {},
+            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
           );
         }
       } catch {
@@ -197,13 +171,9 @@ const ProjectPage = () => {
       return;
     }
     trackedViewsRef.current.add(project.id);
-    void apiFetchBestEffort(
-      apiBase,
-      `/api/public/projects/${project.id}/view`,
-      {
-        method: "POST",
-      },
-    );
+    void apiFetchBestEffort(apiBase, `/api/public/projects/${project.id}/view`, {
+      method: "POST",
+    });
   }, [apiBase, project?.id]);
   useEffect(() => {
     let isActive = true;
@@ -218,9 +188,7 @@ const ProjectPage = () => {
         if (projectsRes.ok) {
           const data = await projectsRes.json();
           if (isActive) {
-            setProjectDirectory(
-              Array.isArray(data.projects) ? data.projects : [],
-            );
+            setProjectDirectory(Array.isArray(data.projects) ? data.projects : []);
           }
         }
         if (tagsRes.ok) {
@@ -268,10 +236,7 @@ const ProjectPage = () => {
     ].filter((item) => String(item.value || "").trim().length > 0);
   }, [project]);
 
-  const tagTranslationMap = useMemo(
-    () => buildTranslationMap(tagTranslations),
-    [tagTranslations],
-  );
+  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
   const genreTranslationMap = useMemo(
     () => buildTranslationMap(genreTranslations),
     [genreTranslations],
@@ -283,23 +248,16 @@ const ProjectPage = () => {
 
   const sortedTags = useMemo(() => {
     const tags = Array.isArray(project?.tags) ? project.tags : [];
-    return sortByTranslatedLabel(tags, (tag) =>
-      translateTag(tag, tagTranslationMap),
-    );
+    return sortByTranslatedLabel(tags, (tag) => translateTag(tag, tagTranslationMap));
   }, [project?.tags, tagTranslationMap]);
 
   const sortedGenres = useMemo(() => {
     const genres = Array.isArray(project?.genres) ? project.genres : [];
-    return sortByTranslatedLabel(genres, (genre) =>
-      translateGenre(genre, genreTranslationMap),
-    );
+    return sortByTranslatedLabel(genres, (genre) => translateGenre(genre, genreTranslationMap));
   }, [project?.genres, genreTranslationMap]);
 
   const sourceThemeMap = useMemo(() => {
-    const map = new Map<
-      string,
-      { color: string; icon?: string; tintIcon: boolean }
-    >();
+    const map = new Map<string, { color: string; icon?: string; tintIcon: boolean }>();
     settings.downloads.sources.forEach((source) => {
       if (!source?.label) {
         return;
@@ -321,9 +279,7 @@ const ProjectPage = () => {
   ) => {
     if (
       iconKey &&
-      (iconKey.startsWith("http") ||
-        iconKey.startsWith("data:") ||
-        iconKey.startsWith("/uploads/"))
+      (iconKey.startsWith("http") || iconKey.startsWith("data:") || iconKey.startsWith("/uploads/"))
     ) {
       if (!tintIcon) {
         return <img src={iconKey} alt={label || ""} className="h-4 w-4" />;
@@ -340,12 +296,7 @@ const ProjectPage = () => {
     const normalized = String(iconKey || "").toLowerCase();
     if (normalized === "google-drive") {
       return (
-        <svg
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          className="h-4 w-4"
-          style={{ color }}
-        >
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" style={{ color }}>
           <path fill="currentColor" d="M7.5 3h9l4.5 8-4.5 8h-9L3 11z" />
         </svg>
       );
@@ -372,18 +323,11 @@ const ProjectPage = () => {
     return <Icon className="h-4 w-4" style={{ color }} />;
   };
 
-  const buildEpisodeMetadata = (episode: {
-    sizeBytes?: number;
-    hash?: string;
-  }) => {
+  const buildEpisodeMetadata = (episode: { sizeBytes?: number; hash?: string }) => {
     const rawSize = Number(episode.sizeBytes);
-    const sizeLabel =
-      Number.isFinite(rawSize) && rawSize > 0
-        ? formatBytesCompact(rawSize)
-        : "";
+    const sizeLabel = Number.isFinite(rawSize) && rawSize > 0 ? formatBytesCompact(rawSize) : "";
     const hashTitle = String(episode.hash || "").trim();
-    const hashLabel =
-      hashTitle.length > 36 ? `${hashTitle.slice(0, 36)}...` : hashTitle;
+    const hashLabel = hashTitle.length > 36 ? `${hashTitle.slice(0, 36)}...` : hashTitle;
     return {
       sizeLabel,
       hashLabel,
@@ -413,9 +357,8 @@ const ProjectPage = () => {
     return trimmed;
   };
 
-  const getEpisodeEntryKind = (
-    episode: { entryKind?: string } | null | undefined,
-  ) => (episode?.entryKind === "extra" ? "extra" : "main");
+  const getEpisodeEntryKind = (episode: { entryKind?: string } | null | undefined) =>
+    episode?.entryKind === "extra" ? "extra" : "main";
 
   const compareEpisodeOrdering = (
     left: { number?: number; volume?: number; readingOrder?: number },
@@ -444,27 +387,20 @@ const ProjectPage = () => {
   };
 
   const downloadableEpisodes = useMemo(
-    () =>
-      (project?.episodeDownloads || []).filter(
-        (episode) => (episode.sources || []).length > 0,
-      ),
+    () => (project?.episodeDownloads || []).filter((episode) => (episode.sources || []).length > 0),
     [project?.episodeDownloads],
   );
 
   const readableChapters = useMemo(
     () =>
       (project?.episodeDownloads || []).filter(
-        (episode) =>
-          hasPublicEpisodeReadableContent(episode) ||
-          (episode.sources || []).length > 0,
+        (episode) => hasPublicEpisodeReadableContent(episode) || (episode.sources || []).length > 0,
       ),
     [project?.episodeDownloads],
   );
 
   const sortedDownloadableEpisodes = useMemo(() => {
-    return [...downloadableEpisodes].sort((a, b) =>
-      compareEpisodeOrdering(a, b),
-    );
+    return [...downloadableEpisodes].sort((a, b) => compareEpisodeOrdering(a, b));
   }, [downloadableEpisodes]);
 
   const sortedReadableChapters = useMemo(
@@ -474,9 +410,7 @@ const ProjectPage = () => {
 
   const filteredReadableChapters = sortedReadableChapters;
   const firstReadableChapter =
-    filteredReadableChapters.find((episode) =>
-      hasPublicEpisodeReadableContent(episode),
-    ) || null;
+    filteredReadableChapters.find((episode) => hasPublicEpisodeReadableContent(episode)) || null;
 
   const visibleRelations = useMemo(() => {
     if (!project?.relations?.length) {
@@ -485,16 +419,14 @@ const ProjectPage = () => {
     const ids = new Set(projectDirectory.map((item) => String(item.id)));
     return project.relations.filter((relation) => {
       const relationId =
-        relation.projectId ||
-        (relation.anilistId ? String(relation.anilistId) : "");
+        relation.projectId || (relation.anilistId ? String(relation.anilistId) : "");
       return relationId && ids.has(relationId);
     });
   }, [project?.relations, projectDirectory]);
 
   const projectType = project?.type || "";
   const projectId = project?.id || "";
-  const projectFallbackCardImage =
-    project?.banner || project?.cover || "/placeholder.svg";
+  const projectFallbackCardImage = project?.banner || project?.cover || "/placeholder.svg";
   const isManga = isMangaType(projectType);
   const isLightNovel = isLightNovelType(projectType);
   const isChapterBased = isChapterBasedType(projectType);
@@ -595,7 +527,7 @@ const ProjectPage = () => {
     return (
       <Card
         key={key}
-        className={`w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)] ${
+        className={`w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-floating-soft ${
           isAnimeDownloadCard ? "md:h-[210px]" : "md:min-h-[185px]"
         }`}
       >
@@ -639,9 +571,7 @@ const ProjectPage = () => {
                     title={String(episode.duration)}
                   >
                     <Clock3 className="h-3.5 w-3.5 text-primary/70" />
-                    <span className="font-medium text-foreground/90">
-                      Duração:
-                    </span>
+                    <span className="font-medium text-foreground/90">Duração:</span>
                     <span className="truncate">{episode.duration}</span>
                   </span>
                 ) : null}
@@ -651,12 +581,8 @@ const ProjectPage = () => {
                     title={formatDate(episode.releaseDate)}
                   >
                     <CalendarDays className="h-3.5 w-3.5 text-primary/70" />
-                    <span className="font-medium text-foreground/90">
-                      Data:
-                    </span>
-                    <span className="truncate">
-                      {formatDate(episode.releaseDate)}
-                    </span>
+                    <span className="font-medium text-foreground/90">Data:</span>
+                    <span className="truncate">{formatDate(episode.releaseDate)}</span>
                   </span>
                 ) : null}
                 {sizeLabel ? (
@@ -665,18 +591,14 @@ const ProjectPage = () => {
                     title={sizeLabel}
                   >
                     <HardDrive className="h-3.5 w-3.5 text-primary/70" />
-                    <span className="font-medium text-foreground/90">
-                      Tamanho:
-                    </span>
+                    <span className="font-medium text-foreground/90">Tamanho:</span>
                     <span className="truncate">{sizeLabel}</span>
                   </span>
                 ) : null}
                 {hashTitle ? (
                   <span className="inline-flex min-w-0 max-w-full items-center gap-1">
                     <Hash className="h-3.5 w-3.5 shrink-0 text-primary/70" />
-                    <span className="shrink-0 font-medium text-foreground/90">
-                      Hash:
-                    </span>
+                    <span className="shrink-0 font-medium text-foreground/90">Hash:</span>
                     <span className="max-w-[260px] truncate" title={hashTitle}>
                       {hashLabel}
                     </span>
@@ -684,9 +606,7 @@ const ProjectPage = () => {
                 ) : null}
               </div>
               {showSynopsis && episode.synopsis ? (
-                <p className="text-sm text-muted-foreground">
-                  {episode.synopsis}
-                </p>
+                <p className="text-sm text-muted-foreground">{episode.synopsis}</p>
               ) : null}
             </div>
 
@@ -700,9 +620,7 @@ const ProjectPage = () => {
               ) : null}
               {hasSources
                 ? sources.map((source, sourceIndex) => {
-                    const theme = sourceThemeMap.get(
-                      source.label.toLowerCase(),
-                    );
+                    const theme = sourceThemeMap.get(source.label.toLowerCase());
                     const color = theme?.color || "#4b5563";
                     const icon = renderSourceIcon(
                       theme?.icon,
@@ -726,14 +644,10 @@ const ProjectPage = () => {
                           aria-label={source.label}
                           title={source.label}
                           className="inline-flex items-center justify-center gap-0 md:gap-2"
-                          onClick={() =>
-                            trackDownloadClick(episode, source.label)
-                          }
+                          onClick={() => trackDownloadClick(episode, source.label)}
                         >
                           {icon}
-                          <span className="sr-only md:not-sr-only">
-                            {source.label}
-                          </span>
+                          <span className="sr-only md:not-sr-only">{source.label}</span>
                         </a>
                       </Button>
                     );
@@ -769,29 +683,21 @@ const ProjectPage = () => {
         : "Capítulo";
     const rawChapterTitle = String(chapter.title || "").trim();
     const normalizedChapterTitle = rawChapterTitle.toLocaleLowerCase();
-    const isGenericNumberedChapterTitle = /^cap[íi]tulo\s+\d+$/i.test(
-      rawChapterTitle,
-    );
+    const isGenericNumberedChapterTitle = /^cap[íi]tulo\s+\d+$/i.test(rawChapterTitle);
     const hasRelevantCustomTitle =
       rawChapterTitle.length > 0 &&
       normalizedChapterTitle !== "capítulo" &&
       normalizedChapterTitle !== "capitulo" &&
       normalizedChapterTitle !== "extra" &&
       !isGenericNumberedChapterTitle;
-    const chapterTitle = hasRelevantCustomTitle
-      ? rawChapterTitle
-      : chapterLabel;
+    const chapterTitle = hasRelevantCustomTitle ? rawChapterTitle : chapterLabel;
     const hasContent = hasPublicEpisodeReadableContent(chapter);
     const hasPages = hasPublicEpisodePages(chapter);
     const hasSources = (chapter.sources || []).length > 0;
     const readAction: EpisodeReadAction | null =
       allowReadAction && hasContent
         ? {
-            href: buildProjectPublicReadingHref(
-              projectId,
-              chapter.number,
-              chapter.volume,
-            ),
+            href: buildProjectPublicReadingHref(projectId, chapter.number, chapter.volume),
             label: isExtraEntry
               ? "Ler extra"
               : hasPages && !hasSources
@@ -803,7 +709,7 @@ const ProjectPage = () => {
     return (
       <Card
         key={key}
-        className="chapter-download-card group/chapter-card w-full !transform-none rounded-2xl border border-border/60 bg-background/40 shadow-[0_6px_14px_-12px_rgba(0,0,0,0.06),0_16px_32px_-24px_rgba(0,0,0,0.1)]"
+        className="chapter-download-card group/chapter-card w-full !transform-none rounded-2xl border border-border/60 bg-background/40 shadow-project-download-card"
       >
         <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
           <p
@@ -840,14 +746,10 @@ const ProjectPage = () => {
                         aria-label={source.label}
                         title={source.label}
                         className="inline-flex items-center justify-center gap-0 md:gap-2"
-                        onClick={() =>
-                          trackDownloadClick(chapter, source.label)
-                        }
+                        onClick={() => trackDownloadClick(chapter, source.label)}
                       >
                         {icon}
-                        <span className="sr-only md:not-sr-only">
-                          {source.label}
-                        </span>
+                        <span className="sr-only md:not-sr-only">{source.label}</span>
                       </a>
                     </Button>
                   );
@@ -871,9 +773,7 @@ const ProjectPage = () => {
 
   const volumeGroups = useMemo(() => {
     const groups = new Map<string, VolumeGroup>();
-    const allItems = isChapterBased
-      ? sortedReadableChapters
-      : sortedDownloadableEpisodes;
+    const allItems = isChapterBased ? sortedReadableChapters : sortedDownloadableEpisodes;
     allItems.forEach((item) => {
       const volumeKey =
         typeof item.volume === "number" && !Number.isNaN(item.volume)
@@ -907,14 +807,8 @@ const ProjectPage = () => {
   }, [project?.volumeEntries, project?.volumeCovers]);
 
   const resolveVolumeGroupMeta = (group: VolumeGroup): VolumeGroupMeta => {
-    const volumeEntry = findVolumeCoverByVolume(
-      normalizedVolumeEntries,
-      group.volume,
-    );
-    const volumeCover = findVolumeCoverByVolume(
-      project?.volumeCovers,
-      group.volume,
-    );
+    const volumeEntry = findVolumeCoverByVolume(normalizedVolumeEntries, group.volume);
+    const volumeCover = findVolumeCoverByVolume(project?.volumeCovers, group.volume);
     const firstEpisodeWithCover = group.items.find(
       (item) => String(item.coverImageUrl || "").trim().length > 0,
     );
@@ -935,8 +829,7 @@ const ProjectPage = () => {
           ? `Capa do volume ${Number(group.volume)} de ${project?.title || ""}`
           : `Capa do projeto ${project?.title || ""}`),
       synopsis:
-        String(volumeEntry?.synopsis || "").trim() ||
-        String(project?.synopsis || "").trim(),
+        String(volumeEntry?.synopsis || "").trim() || String(project?.synopsis || "").trim(),
     };
   };
 
@@ -956,7 +849,7 @@ const ProjectPage = () => {
       <Accordion key={group.label} type="multiple" className="w-full">
         <AccordionItem
           value={group.label}
-          className="w-full overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_10px_20px_-18px_rgba(0,0,0,0.08),0_24px_48px_-34px_rgba(0,0,0,0.12)]"
+          className="w-full overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-project-details-card"
         >
           <AccordionTrigger className="items-start gap-3 px-5 py-5 text-left hover:no-underline">
             <div className="grid w-full items-start gap-4 md:grid-cols-[128px_minmax(0,1fr)_auto] md:items-start md:gap-5">
@@ -977,12 +870,8 @@ const ProjectPage = () => {
               </div>
 
               <div className="self-start space-y-1 text-center md:text-left">
-                <p className="text-base font-semibold text-foreground">
-                  {group.label}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {chapterCountLabel}
-                </p>
+                <p className="text-base font-semibold text-foreground">{group.label}</p>
+                <p className="text-xs text-muted-foreground">{chapterCountLabel}</p>
                 {groupMeta.synopsis ? (
                   <p className="text-sm text-muted-foreground line-clamp-3 md:line-clamp-2">
                     {groupMeta.synopsis}
@@ -1074,22 +963,15 @@ const ProjectPage = () => {
   }
 
   const heroBannerSrc =
-    project.banner ||
-    project.heroImageUrl ||
-    project.cover ||
-    "/placeholder.svg";
+    project.banner || project.heroImageUrl || project.cover || "/placeholder.svg";
   const heroCoverSrc = project.cover || project.banner || "/placeholder.svg";
-  const heroCoverDisplaySrc =
-    normalizeAssetUrl(heroCoverSrc) || "/placeholder.svg";
+  const heroCoverDisplaySrc = normalizeAssetUrl(heroCoverSrc) || "/placeholder.svg";
   const heroBannerAlt = `Banner do projeto ${project.title}`;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main>
-        <section
-          data-testid="project-hero"
-          className="relative overflow-hidden"
-        >
+        <section data-testid="project-hero" className="relative overflow-hidden">
           <UploadPicture
             src={heroBannerSrc}
             alt={heroBannerAlt}
@@ -1121,7 +1003,7 @@ const ProjectPage = () => {
               >
                 <div
                   data-testid="project-hero-cover-frame"
-                  className="overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-[0_22px_64px_-42px_rgba(0,0,0,0.62)] animate-slide-up opacity-0"
+                  className="overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-project-cover-card animate-slide-up opacity-0"
                   style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
                 >
                   <img
@@ -1180,11 +1062,7 @@ const ProjectPage = () => {
                   </Button>
                   {project.trailerUrl ? (
                     <Button asChild variant="outline" className="gap-2">
-                      <a
-                        href={project.trailerUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                      <a href={project.trailerUrl} target="_blank" rel="noreferrer">
                         <PlayCircle className="h-4 w-4" />
                         Assistir trailer
                       </a>
@@ -1192,19 +1070,13 @@ const ProjectPage = () => {
                   ) : null}
                   {canEditProject ? (
                     <Button asChild variant="secondary" className="gap-2">
-                      <Link
-                        to={`/dashboard/projetos?edit=${encodeURIComponent(project.id)}`}
-                      >
+                      <Link to={`/dashboard/projetos?edit=${encodeURIComponent(project.id)}`}>
                         Editar projeto
                       </Link>
                     </Button>
                   ) : null}
                   {isChapterBased && firstReadableChapter ? (
-                    <Button
-                      asChild
-                      variant="outline"
-                      className="gap-2 order-last"
-                    >
+                    <Button asChild variant="outline" className="gap-2 order-last">
                       <Link
                         to={buildProjectPublicReadingHref(
                           project.id,
@@ -1281,9 +1153,7 @@ const ProjectPage = () => {
                       {visibleRelations.map((relation) => {
                         const relationId =
                           relation.projectId ||
-                          (relation.anilistId
-                            ? String(relation.anilistId)
-                            : "");
+                          (relation.anilistId ? String(relation.anilistId) : "");
                         const projectId = relationProjectIds.get(relationId);
                         const targetId = projectId || relationId;
                         const supportingText = [relation.format, relation.status]
@@ -1330,9 +1200,7 @@ const ProjectPage = () => {
                           <p className="block text-xs font-semibold uppercase tracking-widest text-primary/80">
                             {staff.role}
                           </p>
-                          <p className="mt-1 text-sm text-foreground">
-                            {staff.members.join(", ")}
-                          </p>
+                          <p className="mt-1 text-sm text-foreground">{staff.members.join(", ")}</p>
                         </div>
                       ))}
                     </div>
@@ -1354,14 +1222,9 @@ const ProjectPage = () => {
                           className="rounded-xl border border-border/50 bg-background/60 px-4 py-3"
                         >
                           <p className="block text-xs font-semibold uppercase tracking-widest text-primary/80">
-                            {translateAnilistRole(
-                              staff.role,
-                              staffRoleTranslationMap,
-                            )}
+                            {translateAnilistRole(staff.role, staffRoleTranslationMap)}
                           </p>
-                          <p className="mt-1 text-sm text-foreground">
-                            {staff.members.join(", ")}
-                          </p>
+                          <p className="mt-1 text-sm text-foreground">{staff.members.join(", ")}</p>
                         </div>
                       ))}
                     </div>
@@ -1413,8 +1276,8 @@ const ProjectPage = () => {
               )
             ) : filteredDownloadableEpisodes.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground">
-                Este projeto ainda está em produção. Assim que os episódios
-                forem lançados, os downloads aparecerão aqui.
+                Este projeto ainda está em produção. Assim que os episódios forem lançados, os
+                downloads aparecerão aqui.
               </div>
             ) : (
               <div className="grid gap-6">
@@ -1425,13 +1288,9 @@ const ProjectPage = () => {
                       }),
                     )
                   : paginatedEpisodes.map((episode) =>
-                      renderEpisodeDownloadCard(
-                        episode,
-                        String(episode.number),
-                        {
-                          showRawBadge: true,
-                        },
-                      ),
+                      renderEpisodeDownloadCard(episode, String(episode.number), {
+                        showRawBadge: true,
+                      }),
                     )}
               </div>
             )}
@@ -1442,9 +1301,7 @@ const ProjectPage = () => {
                   variant="outline"
                   size="sm"
                   disabled={episodePage === 1}
-                  onClick={() =>
-                    setEpisodePage((page) => Math.max(1, page - 1))
-                  }
+                  onClick={() => setEpisodePage((page) => Math.max(1, page - 1))}
                 >
                   Anterior
                 </Button>
@@ -1455,11 +1312,7 @@ const ProjectPage = () => {
                   variant="outline"
                   size="sm"
                   disabled={episodePage === totalEpisodePages}
-                  onClick={() =>
-                    setEpisodePage((page) =>
-                      Math.min(totalEpisodePages, page + 1),
-                    )
-                  }
+                  onClick={() => setEpisodePage((page) => Math.min(totalEpisodePages, page + 1))}
                 >
                   Próxima
                 </Button>
@@ -1479,10 +1332,7 @@ const ProjectPage = () => {
               </CardHeader>
               <CardContent className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Share2
-                    className="h-4 w-4 text-primary/70"
-                    aria-hidden="true"
-                  />
+                  <Share2 className="h-4 w-4 text-primary/70" aria-hidden="true" />
                   Copie o link para compartilhar este projeto.
                 </div>
                 <Button size="sm" variant="secondary" onClick={handleCopyLink}>

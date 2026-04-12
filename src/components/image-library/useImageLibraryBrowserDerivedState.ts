@@ -290,11 +290,7 @@ export const useImageLibraryBrowserDerivedState = ({
     if (uploadFolderFilterOptions.length === 0) {
       return false;
     }
-    return (
-      listAll ||
-      uploadFolderFilterOptions.length > 1 ||
-      hasExcludedProjectFolderContext
-    );
+    return listAll || uploadFolderFilterOptions.length > 1 || hasExcludedProjectFolderContext;
   }, [
     hasExcludedProjectFolderContext,
     listAll,

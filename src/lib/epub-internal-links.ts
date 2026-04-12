@@ -145,7 +145,7 @@ export const resolveEpubInternalProjectReadingHref = <
     buildProjectPublicReadingHref(
       projectIdOrSlug,
       canonicalChapter?.number ?? target.chapterNumber,
-      canonicalChapter?.volume ?? (target.volume ?? undefined),
+      canonicalChapter?.volume ?? target.volume ?? undefined,
     ) + buildEpubAnchorHash(target.fragment)
   );
 };

@@ -395,7 +395,10 @@ const PublicProjectCard = ({
             ) : null}
 
             {primaryBadges.length > 0 || metaPills.length > 0 ? (
-              <div data-synopsis-role="badges" className="mt-auto flex shrink-0 flex-col gap-2 pt-3">
+              <div
+                data-synopsis-role="badges"
+                className="mt-auto flex shrink-0 flex-col gap-2 pt-3"
+              >
                 {primaryBadges.length > 0 ? (
                   <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
                     {primaryBadges.map(renderPrimaryBadge)}
@@ -570,7 +573,10 @@ const PublicProjectCard = ({
               <p
                 data-synopsis-role="synopsis"
                 data-synopsis-lines={model.synopsisLines}
-                className={cn("mt-2 text-xs leading-relaxed text-muted-foreground", model.synopsisClampClass)}
+                className={cn(
+                  "mt-2 text-xs leading-relaxed text-muted-foreground",
+                  model.synopsisClampClass,
+                )}
               >
                 {model.synopsis}
               </p>
@@ -619,7 +625,10 @@ const PublicProjectCard = ({
             className={cn("min-w-0 space-y-2 p-[1.125rem]", bodyClassName)}
           >
             {model.eyebrow ? (
-              <p data-synopsis-role="title" className="text-xs font-semibold uppercase tracking-widest text-primary/80">
+              <p
+                data-synopsis-role="title"
+                className="text-xs font-semibold uppercase tracking-widest text-primary/80"
+              >
                 {model.eyebrow}
               </p>
             ) : null}
@@ -638,7 +647,10 @@ const PublicProjectCard = ({
   }
 
   return (
-    <PublicInteractiveCardShell shadowPreset={shellPreset} className={cn("rounded-2xl", shellClassName)}>
+    <PublicInteractiveCardShell
+      shadowPreset={shellPreset}
+      className={cn("rounded-2xl", shellClassName)}
+    >
       <Link
         to={model.href}
         className={cn(
@@ -684,7 +696,9 @@ const PublicProjectCard = ({
               >
                 <div data-synopsis-role="title" className="space-y-1">
                   {model.eyebrow ? (
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-primary/80">{model.eyebrow}</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-primary/80">
+                      {model.eyebrow}
+                    </p>
                   ) : null}
                   <span className="clamp-safe-2 interactive-content-transition text-lg font-semibold text-foreground group-hover:text-primary group-focus-visible:text-primary">
                     {model.title}
@@ -712,7 +726,9 @@ const PublicProjectCard = ({
                         {primaryBadges.map((badge) =>
                           renderSecondaryBadge({
                             ...badge,
-                            testId: badge.testId ?? (testIdBase ? `${testIdBase}-${badge.key}-badge` : undefined),
+                            testId:
+                              badge.testId ??
+                              (testIdBase ? `${testIdBase}-${badge.key}-badge` : undefined),
                           }),
                         )}
                       </div>

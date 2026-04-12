@@ -12,9 +12,7 @@ type DashboardPostEditorSnapshotSource = {
   tags: string[];
 };
 
-export const buildDashboardPostEditorSnapshot = (
-  form: DashboardPostEditorSnapshotSource,
-) =>
+export const buildDashboardPostEditorSnapshot = (form: DashboardPostEditorSnapshotSource) =>
   JSON.stringify({
     title: form.title,
     slug: form.slug,
@@ -29,9 +27,7 @@ export const buildDashboardPostEditorSnapshot = (
     tags: form.tags,
   });
 
-export const normalizeComparableDashboardPostCoverUrl = (
-  value?: string | null,
-) => {
+export const normalizeComparableDashboardPostCoverUrl = (value?: string | null) => {
   const trimmed = String(value || "").trim();
   if (!trimmed) {
     return "";
@@ -50,10 +46,7 @@ export const normalizeComparableDashboardPostCoverUrl = (
   return trimmed;
 };
 
-export const areDashboardPostCoverUrlsEquivalent = (
-  left?: string | null,
-  right?: string | null,
-) =>
+export const areDashboardPostCoverUrlsEquivalent = (left?: string | null, right?: string | null) =>
   normalizeComparableDashboardPostCoverUrl(left) ===
   normalizeComparableDashboardPostCoverUrl(right);
 

@@ -1,7 +1,4 @@
-import {
-  collectUploadUrlsDeep,
-  collectUploadUrlsFromDatasets,
-} from "./upload-reference-utils.js";
+import { collectUploadUrlsDeep, collectUploadUrlsFromDatasets } from "./upload-reference-utils.js";
 
 export const createPublicMediaRuntime = ({
   backgroundJobQueue,
@@ -66,7 +63,9 @@ export const createPublicMediaRuntime = ({
     if (urls.size === 0) {
       return {};
     }
-    const allowPrivateUrls = Array.isArray(options?.allowPrivateUrls) ? options.allowPrivateUrls : [];
+    const allowPrivateUrls = Array.isArray(options?.allowPrivateUrls)
+      ? options.allowPrivateUrls
+      : [];
     const uploads = loadUploads();
     const mediaVariants = {};
     uploads.forEach((entry) => {

@@ -7,7 +7,10 @@ import { apiFetch } from "@/lib/api-client";
 
 import type { Dispatch, SetStateAction } from "react";
 
-import type { PostRecord, UserRecord } from "@/components/dashboard/post-editor/dashboard-posts-types";
+import type {
+  PostRecord,
+  UserRecord,
+} from "@/components/dashboard/post-editor/dashboard-posts-types";
 
 const POSTS_CACHE_TTL_MS = 60_000;
 export const DASHBOARD_POST_SORT_MODES = [

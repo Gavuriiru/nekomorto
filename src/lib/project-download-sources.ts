@@ -91,7 +91,9 @@ export const getDownloadSourceOptions = (
   legacyLabels: Array<string | null | undefined> = [],
 ) => {
   const configuredOptions = Array.isArray(configuredSources)
-    ? configuredSources.map(normalizeConfiguredSource).filter((option): option is DownloadSourceOption => Boolean(option))
+    ? configuredSources
+        .map(normalizeConfiguredSource)
+        .filter((option): option is DownloadSourceOption => Boolean(option))
     : [];
 
   const baseOptions = configuredOptions.length
@@ -124,9 +126,7 @@ export const isIncompleteDownloadSource = (source: DownloadSource | null | undef
   return (Boolean(label) || Boolean(url)) && (!label || !url);
 };
 
-export const findIncompleteDownloadSourceIndex = (
-  sources: DownloadSource[] | null | undefined,
-) => {
+export const findIncompleteDownloadSourceIndex = (sources: DownloadSource[] | null | undefined) => {
   const normalizedSources = Array.isArray(sources) ? sources : [];
   const index = normalizedSources.findIndex((source) => isIncompleteDownloadSource(source));
   return index >= 0 ? index : -1;

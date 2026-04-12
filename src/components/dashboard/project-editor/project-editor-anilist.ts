@@ -109,26 +109,29 @@ export const buildProjectFormPatchFromAniList = ({
     relationIdMap.set(Number(item.id), item.id);
   });
   const seenRelationIds = new Set<string>();
-  const relations: ProjectRelation[] = relationNodes.reduce<ProjectRelation[]>((acc, node, index) => {
-    const projectId = relationIdMap.get(node.id) || "";
-    const relationKey = projectId || String(node.id) || node.title?.romaji || "";
-    if (relationKey && seenRelationIds.has(relationKey)) {
+  const relations: ProjectRelation[] = relationNodes.reduce<ProjectRelation[]>(
+    (acc, node, index) => {
+      const projectId = relationIdMap.get(node.id) || "";
+      const relationKey = projectId || String(node.id) || node.title?.romaji || "";
+      if (relationKey && seenRelationIds.has(relationKey)) {
+        return acc;
+      }
+      if (relationKey) {
+        seenRelationIds.add(relationKey);
+      }
+      acc.push({
+        relation: translateRelation(relationEdges[index]?.relationType || ""),
+        title: node.title?.romaji || "",
+        format: formatType(node.format || ""),
+        status: formatStatus(node.status || ""),
+        image: node.coverImage?.large || "",
+        anilistId: node.id,
+        projectId,
+      });
       return acc;
-    }
-    if (relationKey) {
-      seenRelationIds.add(relationKey);
-    }
-    acc.push({
-      relation: translateRelation(relationEdges[index]?.relationType || ""),
-      title: node.title?.romaji || "",
-      format: formatType(node.format || ""),
-      status: formatStatus(node.status || ""),
-      image: node.coverImage?.large || "",
-      anilistId: node.id,
-      projectId,
-    });
-    return acc;
-  }, []);
+    },
+    [],
+  );
 
   const staffEdges = media.staff?.edges || [];
   const staffNodes = media.staff?.nodes || [];

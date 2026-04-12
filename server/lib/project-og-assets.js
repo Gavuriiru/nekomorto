@@ -411,7 +411,10 @@ export const buildProjectOgFonts = () => {
   }
 
   const fonts = [
-    { weight: PROJECT_OG_CHIP_FONT_WEIGHT, data: getFontBufferByWeight(PROJECT_OG_CHIP_FONT_WEIGHT) },
+    {
+      weight: PROJECT_OG_CHIP_FONT_WEIGHT,
+      data: getFontBufferByWeight(PROJECT_OG_CHIP_FONT_WEIGHT),
+    },
     {
       weight: PROJECT_OG_EYEBROW_FONT_WEIGHT,
       data: getFontBufferByWeight(PROJECT_OG_EYEBROW_FONT_WEIGHT),

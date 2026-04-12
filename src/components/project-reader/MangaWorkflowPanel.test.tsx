@@ -119,9 +119,7 @@ const renderWorkflow = (options?: {
       options?.initialStagedChapters ?? [],
     );
     const [selectedStageChapterId, setSelectedStageChapterId] = useState<string | null>(
-      options?.initialSelectedStageChapterId ??
-        options?.initialStagedChapters?.[0]?.id ??
-        null,
+      options?.initialSelectedStageChapterId ?? options?.initialStagedChapters?.[0]?.id ?? null,
     );
     return (
       <AccessibilityAnnouncerProvider>
@@ -230,9 +228,7 @@ describe("MangaWorkflowPanel", () => {
     expect(within(importFields).getByLabelText(/^Volume$/i)).toBeInTheDocument();
     expect(within(importFields).getByLabelText(/Capítulo/i)).toBeInTheDocument();
     expect(within(importFields).getByLabelText(/Status inicial/i)).toBeInTheDocument();
-    expect(
-      within(importFields).queryByRole("button", { name: /Limpar importação/i }),
-    ).toBeNull();
+    expect(within(importFields).queryByRole("button", { name: /Limpar importação/i })).toBeNull();
   });
 
   it("esconde a importacao quando ha capitulos preparados e a reexibe ao remover o ultimo", async () => {
@@ -346,9 +342,9 @@ describe("MangaWorkflowPanel", () => {
     });
 
     await waitFor(() => {
-      expect(JSON.parse(screen.getByTestId("staged-chapters-json").textContent || "[]")).toHaveLength(
-        2,
-      );
+      expect(
+        JSON.parse(screen.getByTestId("staged-chapters-json").textContent || "[]"),
+      ).toHaveLength(2);
     });
 
     expect(document.getElementById("stage-chapter-number")).toHaveValue(20);
@@ -397,19 +393,11 @@ describe("MangaWorkflowPanel", () => {
     await stageSingleChapter();
 
     expect(getStagePageOrder()).toEqual(["blob:001.jpg", "blob:002.jpg"]);
-    expect(screen.getByTestId("manga-stage-page-surface-0").parentElement?.parentElement).toHaveClass(
-      "grid",
-      "gap-3",
-      "sm:grid-cols-2",
-      "lg:grid-cols-3",
-      "xl:grid-cols-5",
-    );
-    expect(screen.getByTestId("manga-stage-page-position-badge-0")).toHaveTextContent(
-      /P.gina 1/i,
-    );
-    expect(screen.getByTestId("manga-stage-page-position-badge-1")).toHaveTextContent(
-      /P.gina 2/i,
-    );
+    expect(
+      screen.getByTestId("manga-stage-page-surface-0").parentElement?.parentElement,
+    ).toHaveClass("grid", "gap-3", "sm:grid-cols-2", "lg:grid-cols-3", "xl:grid-cols-5");
+    expect(screen.getByTestId("manga-stage-page-position-badge-0")).toHaveTextContent(/P.gina 1/i);
+    expect(screen.getByTestId("manga-stage-page-position-badge-1")).toHaveTextContent(/P.gina 2/i);
     expect(screen.getByTestId("manga-stage-page-top-row-0")).toHaveClass(
       "absolute",
       "left-3",
@@ -604,12 +592,10 @@ describe("MangaWorkflowPanel", () => {
       warnings: [],
     };
 
-    const onPersistProjectSnapshot = vi.fn(
-      async (snapshot: Project & { revision?: string }) => ({
-        ...snapshot,
-        revision: "rev-2",
-      }),
-    );
+    const onPersistProjectSnapshot = vi.fn(async (snapshot: Project & { revision?: string }) => ({
+      ...snapshot,
+      revision: "rev-2",
+    }));
     const { onOpenImportedChapterSpy, onProjectChangeSpy } = renderWorkflow({
       onPersistProjectSnapshot,
       initialStagedChapters: [manualChapter],
@@ -662,10 +648,8 @@ describe("MangaWorkflowPanel", () => {
       expect(onPersistProjectSnapshot).toHaveBeenCalledTimes(1);
     });
 
-    const [persistedSnapshot, persistedOptions] = onPersistProjectSnapshot.mock.calls[0] as unknown as [
-      Project & { revision?: string },
-      { context: string },
-    ];
+    const [persistedSnapshot, persistedOptions] = onPersistProjectSnapshot.mock
+      .calls[0] as unknown as [Project & { revision?: string }, { context: string }];
     expect(persistedOptions).toEqual({ context: "manga-import" });
     expect(persistedSnapshot.episodeDownloads).toEqual(
       expect.arrayContaining([

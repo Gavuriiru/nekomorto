@@ -1,9 +1,5 @@
 import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
-import {
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { ReactNode } from "react";
 
 export type ProjectEditorEpisodesSectionProps = {
@@ -30,10 +26,7 @@ const ProjectEditorEpisodesSection = ({
       <AccordionTrigger className={triggerClassName}>
         <ProjectEditorAccordionHeader title={title} subtitle={subtitle} />
       </AccordionTrigger>
-      <AccordionContent
-        className={contentClassName}
-        contentClassName={contentPanelClassName}
-      >
+      <AccordionContent className={contentClassName} contentClassName={contentPanelClassName}>
         {children}
       </AccordionContent>
     </AccordionItem>

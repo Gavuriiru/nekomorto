@@ -128,7 +128,8 @@ const DEFAULT_STAGE_ID = "aguardando-raw";
 
 const normalizeStageId = (value: unknown) => String(value || "").trim();
 
-export const getProjectProgressStages = (kind: ProjectProgressKind) => PROJECT_PROGRESS_STAGES[kind];
+export const getProjectProgressStages = (kind: ProjectProgressKind) =>
+  PROJECT_PROGRESS_STAGES[kind];
 
 export const getProjectProgressKindForEditor = (projectType: string): ProjectProgressKind =>
   isChapterBasedType(projectType) ? "manga" : "anime";
@@ -136,9 +137,8 @@ export const getProjectProgressKindForEditor = (projectType: string): ProjectPro
 export const getProjectProgressStagesForEditor = (projectType: string) =>
   getProjectProgressStages(getProjectProgressKindForEditor(projectType));
 
-export const getProjectProgressKindForPublicCard = (
-  projectType: string,
-): ProjectProgressKind => (isChapterBasedType(projectType) ? "manga" : "anime");
+export const getProjectProgressKindForPublicCard = (projectType: string): ProjectProgressKind =>
+  isChapterBasedType(projectType) ? "manga" : "anime";
 
 export const normalizeCompletedStages = (
   completedStages: string[] | null | undefined,
@@ -163,8 +163,7 @@ export const getProjectProgressState = ({
   const stages = getProjectProgressStages(kind);
   const normalizedCompletedStages = normalizeCompletedStages(completedStages, kind);
   const completedSet = new Set(normalizedCompletedStages);
-  const currentStage =
-    stages.find((stage) => !completedSet.has(stage.id)) ??
+  const currentStage = stages.find((stage) => !completedSet.has(stage.id)) ??
     stages[stages.length - 1] ?? {
       id: DEFAULT_STAGE_ID,
       label: "Aguardando Raw",
@@ -201,8 +200,7 @@ export const getProjectProgressStateForPublicCard = (
   const normalizedCompletedStages = normalizeCompletedStages(completedStages, kind);
   const completedSet = new Set(normalizedCompletedStages);
   const normalizedProgressStage = normalizeStageId(progressStage);
-  const currentStage =
-    stages.find((stage) => stage.id === normalizedProgressStage) ??
+  const currentStage = stages.find((stage) => stage.id === normalizedProgressStage) ??
     stages.find((stage) => !completedSet.has(stage.id)) ??
     stages[stages.length - 1] ?? {
       id: DEFAULT_STAGE_ID,
@@ -231,7 +229,9 @@ export const getProjectProgressStateForPublicCard = (
   };
 };
 
-export const syncProjectProgress = <T extends { completedStages?: string[]; progressStage?: string }>(
+export const syncProjectProgress = <
+  T extends { completedStages?: string[]; progressStage?: string },
+>(
   value: T,
   kind: ProjectProgressKind,
 ): T => {

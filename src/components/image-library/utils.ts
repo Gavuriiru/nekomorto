@@ -152,7 +152,9 @@ export const isFolderWithinSelection = ({
   if (!normalizedSelected) {
     return normalizedItem === "";
   }
-  return normalizedItem === normalizedSelected || normalizedItem.startsWith(`${normalizedSelected}/`);
+  return (
+    normalizedItem === normalizedSelected || normalizedItem.startsWith(`${normalizedSelected}/`)
+  );
 };
 
 export const listFolderAncestors = (value: string | null | undefined) => {

@@ -1,7 +1,12 @@
 import { ImageLibraryDialogLoadingGrid } from "@/components/ImageLibraryDialogLoading";
 import type { Dispatch, SetStateAction } from "react";
 
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import type { LibraryImageItem, ProjectImageGroup } from "@/components/image-library/types";
 import ImageLibraryBrowserCardGrid from "@/components/image-library/ImageLibraryBrowserCardGrid";
 
@@ -101,7 +106,9 @@ const ImageLibraryProjectSection = ({
                       <AccordionTrigger className="py-2 text-xs hover:no-underline">
                         <span className="flex items-center gap-2">
                           <span className="font-medium text-foreground/90">{folder.title}</span>
-                          <span className="text-[11px] text-muted-foreground">{folder.items.length}</span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {folder.items.length}
+                          </span>
                         </span>
                       </AccordionTrigger>
                       <AccordionContent className="[&>div]:mt-0">

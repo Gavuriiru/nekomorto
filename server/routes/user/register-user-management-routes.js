@@ -256,19 +256,15 @@ export const registerUserManagementRoutes = ({
     const sessionUser = req.session.user;
     const update = req.body || {};
     const existing = users[index];
-    const {
-      currentRevision,
-      currentUserSnapshot,
-      ownerIds,
-      responseUploads,
-    } = buildManagedUserResponseContext({
-      applyOwnerRole,
-      buildUserProfileRevisionToken,
-      loadOwnerIds,
-      loadUploads,
-      user: existing,
-      userWithAccessForResponse,
-    });
+    const { currentRevision, currentUserSnapshot, ownerIds, responseUploads } =
+      buildManagedUserResponseContext({
+        applyOwnerRole,
+        buildUserProfileRevisionToken,
+        loadOwnerIds,
+        loadUploads,
+        user: existing,
+        userWithAccessForResponse,
+      });
 
     if (!isRbacV2Enabled) {
       const isOwnerRequest = isOwner(sessionUser.id);
@@ -312,10 +308,7 @@ export const registerUserManagementRoutes = ({
         JSON.stringify(existing.permissions || []) !== JSON.stringify(updated.permissions || []);
       if (
         permissionsChanged &&
-        shouldEmitSecurityRuleEvent(
-          "privilege_escalation_warning",
-          `${sessionUser.id}:${targetId}`,
-        )
+        shouldEmitSecurityRuleEvent("privilege_escalation_warning", `${sessionUser.id}:${targetId}`)
       ) {
         emitSecurityEvent({
           req,

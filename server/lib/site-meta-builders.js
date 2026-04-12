@@ -118,7 +118,9 @@ export const createSiteMetaBuilders = ({
     const siteName = settings.site?.name || "Nekomata";
     const title = project?.title ? `${project.title} | ${siteName}` : siteName;
     const description = truncateMetaDescription(
-      stripHtml(project?.synopsis || project?.description || "") || settings.site?.description || "",
+      stripHtml(project?.synopsis || project?.description || "") ||
+        settings.site?.description ||
+        "",
     );
     const imageRevision = buildProjectOgRevision({
       project,

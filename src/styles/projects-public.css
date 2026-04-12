@@ -2,14 +2,10 @@
   .projects-public-card {
     box-shadow: none;
     transition:
-      box-shadow var(--interactive-duration-medium)
-        var(--interactive-ease-standard),
-      border-color var(--interactive-duration-medium)
-        var(--interactive-ease-standard),
-      background-color var(--interactive-duration-medium)
-        var(--interactive-ease-standard),
-      color var(--interactive-duration-medium)
-        var(--interactive-ease-standard);
+      box-shadow var(--interactive-duration-medium) var(--interactive-ease-standard),
+      border-color var(--interactive-duration-medium) var(--interactive-ease-standard),
+      background-color var(--interactive-duration-medium) var(--interactive-ease-standard),
+      color var(--interactive-duration-medium) var(--interactive-ease-standard);
   }
 
   .projects-public-card:hover,
@@ -38,9 +34,7 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     padding-bottom: var(--projects-public-synopsis-padding-bottom, 0.12em);
-    margin-bottom: calc(
-      -1 * var(--projects-public-synopsis-padding-bottom, 0.12em)
-    );
+    margin-bottom: calc(-1 * var(--projects-public-synopsis-padding-bottom, 0.12em));
   }
 
   .projects-public-synopsis-clamp-1 {

@@ -3,10 +3,7 @@ import { memo, type Dispatch, type SetStateAction } from "react";
 import ReorderControls from "@/components/ReorderControls";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import ProjectMemberCombobox from "@/components/dashboard/ProjectMemberCombobox";
-import {
-  Combobox,
-  Input,
-} from "@/components/dashboard/dashboard-form-controls";
+import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { translateAnilistRole } from "@/lib/project-taxonomy";
@@ -191,7 +188,11 @@ const ProjectEditorStaffSectionComponent = ({
                     onCommit={(member) => onCommitMember(index, member)}
                     placeholder="Adicionar membro"
                   />
-                  <DashboardActionButton type="button" size="sm" onClick={() => onCommitMember(index)}>
+                  <DashboardActionButton
+                    type="button"
+                    size="sm"
+                    onClick={() => onCommitMember(index)}
+                  >
                     Adicionar
                   </DashboardActionButton>
                 </div>

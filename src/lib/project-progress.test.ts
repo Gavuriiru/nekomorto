@@ -43,11 +43,7 @@ describe("project-progress", () => {
     expect(state).not.toBeNull();
     expect(state?.currentStageId).toBe("typesetting");
     expect(state?.currentStage.label).toBe("Typesetting");
-    expect(state?.visualCompletedStages).toEqual([
-      "aguardando-raw",
-      "traducao",
-      "typesetting",
-    ]);
+    expect(state?.visualCompletedStages).toEqual(["aguardando-raw", "traducao", "typesetting"]);
     expect(state?.progress).toBe(43);
     expect(state?.isInProgress).toBe(true);
   });
@@ -55,14 +51,7 @@ describe("project-progress", () => {
   it("esconde o item do card público quando progressStage chega na etapa final", () => {
     const state = getProjectProgressStateForPublicCard(
       "Anime",
-      [
-        "aguardando-raw",
-        "traducao",
-        "revisao",
-        "timing",
-        "typesetting",
-        "quality-check",
-      ],
+      ["aguardando-raw", "traducao", "revisao", "timing", "typesetting", "quality-check"],
       "encode",
     );
 

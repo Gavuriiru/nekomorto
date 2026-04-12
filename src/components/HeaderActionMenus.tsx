@@ -92,7 +92,7 @@ const HeaderActionMenus = ({
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="h-11 gap-2 rounded-full px-2">
-            <Avatar className="h-8 w-8 border border-border/70 shadow-[0_10px_24px_-18px_hsl(var(--foreground)/0.65)]">
+            <Avatar className="h-8 w-8 border border-border/70 shadow-avatar-subtle">
               {headerAvatarUrl ? (
                 <AvatarImage src={headerAvatarUrl} alt={currentUser.name} />
               ) : null}

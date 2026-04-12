@@ -10,9 +10,7 @@ import {
   dashboardMotionDelays,
 } from "@/components/dashboard/dashboard-motion";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
-import {
-  Combobox,
-} from "@/components/dashboard/dashboard-form-controls";
+import { Combobox } from "@/components/dashboard/dashboard-form-controls";
 import DashboardShell from "@/components/DashboardShell";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
@@ -531,7 +529,9 @@ const DashboardAnalytics = () => {
                 size="toolbar"
                 className="self-start lg:ml-auto lg:self-auto"
                 onClick={exportCsv}
-                disabled={!displayedSnapshot || isRefreshing || !isSnapshotAlignedWithRequestedFilters}
+                disabled={
+                  !displayedSnapshot || isRefreshing || !isSnapshotAlignedWithRequestedFilters
+                }
               >
                 Exportar
               </DashboardActionButton>
@@ -549,9 +549,7 @@ const DashboardAnalytics = () => {
                 <p>{loadError}</p>
                 <p>Mantendo os últimos resultados carregados.</p>
               </div>
-              <DashboardActionButton
-                onClick={() => setReloadTick((previous) => previous + 1)}
-              >
+              <DashboardActionButton onClick={() => setReloadTick((previous) => previous + 1)}>
                 Tentar novamente
               </DashboardActionButton>
             </AlertDescription>
@@ -570,9 +568,7 @@ const DashboardAnalytics = () => {
             title="Não foi possível carregar as análises"
             description={loadError}
             action={
-              <DashboardActionButton
-                onClick={() => setReloadTick((previous) => previous + 1)}
-              >
+              <DashboardActionButton onClick={() => setReloadTick((previous) => previous + 1)}>
                 Tentar novamente
               </DashboardActionButton>
             }
@@ -683,7 +679,9 @@ const DashboardAnalytics = () => {
                 style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
               >
                 <CardHeader>
-                  <CardTitle>Série temporal ({formatMetricLabel(displayedFilters.metric)})</CardTitle>
+                  <CardTitle>
+                    Série temporal ({formatMetricLabel(displayedFilters.metric)})
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="min-w-0">
                   {chartData.length ? (

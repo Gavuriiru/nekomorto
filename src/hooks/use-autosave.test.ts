@@ -282,5 +282,4 @@ describe("useAutosave", () => {
     expect(save).toHaveBeenCalledTimes(3);
     expect(result.current.status).toBe("error");
   });
-
 });

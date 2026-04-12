@@ -16,8 +16,7 @@ export const badgeVariants = cva(
           "border-[hsl(var(--badge-warning-border))] bg-[hsl(var(--badge-warning-bg))] text-[hsl(var(--badge-warning-fg))]",
         danger:
           "border-[hsl(var(--badge-danger-border))] bg-[hsl(var(--badge-danger-bg))] text-[hsl(var(--badge-danger-fg))]",
-        info:
-          "border-[hsl(var(--badge-info-border))] bg-[hsl(var(--badge-info-bg))] text-[hsl(var(--badge-info-fg))]",
+        info: "border-[hsl(var(--badge-info-border))] bg-[hsl(var(--badge-info-bg))] text-[hsl(var(--badge-info-fg))]",
         neutral:
           "border-[hsl(var(--badge-neutral-border))] bg-[hsl(var(--badge-neutral-bg))] text-[hsl(var(--badge-neutral-fg))]",
         static: "border-border/70 bg-background text-foreground/70",

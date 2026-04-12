@@ -120,7 +120,7 @@ const ReleasesSection = () => {
                               {release.title}
                             </h3>
                             <p className="line-clamp-3 text-sm text-muted-foreground">
-                              {release.excerpt || "Sem prÃ©via cadastrada."}
+                              {release.excerpt || "Sem prévia cadastrada."}
                             </p>
                           </div>
                           <div className="mt-auto flex items-center justify-between gap-3 px-5 pb-5 text-xs text-muted-foreground">
@@ -129,7 +129,10 @@ const ReleasesSection = () => {
                               {release.author || "Equipe"}
                             </span>
                             <span className="inline-flex items-center gap-1.5">
-                              <CalendarDays className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                              <CalendarDays
+                                className="h-4 w-4 text-primary/70"
+                                aria-hidden="true"
+                              />
                               {formatDate(release.publishedAt)}
                             </span>
                           </div>

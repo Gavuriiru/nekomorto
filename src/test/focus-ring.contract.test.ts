@@ -48,7 +48,7 @@ const focusContractFiles = [
   },
   {
     path: "src/components/ui/combobox.tsx",
-    expectedTokens: ["role=\"combobox\"", "role=\"listbox\"", "role=\"option\"", "dropdownListClassName"],
+    expectedTokens: ['role="combobox"', 'role="listbox"', 'role="option"', "dropdownListClassName"],
   },
   {
     path: "src/components/ui/checkbox.tsx",

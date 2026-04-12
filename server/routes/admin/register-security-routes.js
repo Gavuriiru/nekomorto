@@ -84,7 +84,9 @@ export const registerSecurityRoutes = ({
     rows.sort((a, b) => new Date(b.ts || 0).getTime() - new Date(a.ts || 0).getTime());
     const total = rows.length;
     const start = (page - 1) * limit;
-    const paged = rows.slice(start, start + limit).map((entry) => toSecurityEventApiResponse(entry));
+    const paged = rows
+      .slice(start, start + limit)
+      .map((entry) => toSecurityEventApiResponse(entry));
     return res.json({ events: paged, page, limit, total });
   });
 
@@ -236,7 +238,9 @@ export const registerSecurityRoutes = ({
     const currentSid = String(req.sessionID || "");
     const rows = loadUserSessionIndexRecords({ includeRevoked: false })
       .filter((entry) => !entry.revokedAt)
-      .sort((a, b) => new Date(b.lastSeenAt || 0).getTime() - new Date(a.lastSeenAt || 0).getTime());
+      .sort(
+        (a, b) => new Date(b.lastSeenAt || 0).getTime() - new Date(a.lastSeenAt || 0).getTime(),
+      );
     const total = rows.length;
     const start = (page - 1) * limit;
     const sessions = rows.slice(start, start + limit).map((entry) => {

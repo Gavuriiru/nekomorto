@@ -58,7 +58,7 @@ describe("Lexical viewer styles", () => {
     expect(cssSource).toContain("padding: 0 5px 5px 20px;");
     expect(cssSource).toContain("left: 7px;");
     expect(cssSource).toContain("font-weight: bold;");
-    expect(cssSource).toContain('.Collapsible__content[hidden]');
+    expect(cssSource).toContain(".Collapsible__content[hidden]");
     expect(cssSource).toContain('.Collapsible__content[hidden="until-found"]');
     expect(cssSource).toContain("display: none !important;");
     expect(cssSource).toContain("padding: 0 !important;");

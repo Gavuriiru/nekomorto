@@ -54,7 +54,8 @@ describe("applySecurityHeaders", () => {
     const res = { setHeader };
 
     applySecurityHeaders(res, "nonce-dinamico");
-    const permissionsPolicy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()";
+    const permissionsPolicy =
+      "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()";
 
     expect(setHeader).toHaveBeenCalledWith("X-Content-Type-Options", "nosniff");
     expect(setHeader).toHaveBeenCalledWith("X-Frame-Options", "DENY");

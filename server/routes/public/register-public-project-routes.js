@@ -62,7 +62,10 @@ const buildPublicProjectsPayload = ({
   };
 };
 
-const serializePublicProjectDetail = (project, { resolveProjectReaderConfig, siteSettings } = {}) => {
+const serializePublicProjectDetail = (
+  project,
+  { resolveProjectReaderConfig, siteSettings } = {},
+) => {
   const { discordRoleId: _discordRoleId, ...projectWithoutDiscordRoleId } = project;
   return {
     ...projectWithoutDiscordRoleId,

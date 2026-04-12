@@ -2,16 +2,14 @@ import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react
 import { useNavigate, useSearchParams } from "react-router-dom";
 import QRCode from "qrcode";
 import DashboardShell from "@/components/DashboardShell";
-import DashboardActionButton, { default as Button } from "@/components/dashboard/DashboardActionButton";
+import DashboardActionButton, {
+  default as Button,
+} from "@/components/dashboard/DashboardActionButton";
 import DashboardEditorBackdrop from "@/components/dashboard/DashboardEditorBackdrop";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
-import {
-  Combobox,
-  Input,
-  Textarea,
-} from "@/components/dashboard/dashboard-form-controls";
+import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
 import {
   dashboardEditorDialogWidthClassName,
   dashboardPageLayoutTokens,
@@ -41,9 +39,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  dropdownRichIconClassName,
-} from "@/components/ui/dropdown-contract";
+import { dropdownRichIconClassName } from "@/components/ui/dropdown-contract";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -677,10 +673,7 @@ const DashboardUsers = () => {
   const canEditStatus = canEditAccessControls && !isEditingSelf && !isPrimaryOwnerRecord;
   const basicProfileOnlyEdit = Boolean(editingUser && canEditBasicFields && !canEditAccessControls);
   const canResetManagedUserTotp = Boolean(
-    editingUser &&
-      isDialogOpen &&
-      !isEditingSelf &&
-      (isPrimaryOwnerActor || isSecondaryOwnerActor),
+    editingUser && isDialogOpen && !isEditingSelf && (isPrimaryOwnerActor || isSecondaryOwnerActor),
   );
 
   useEffect(() => {
@@ -1469,9 +1462,7 @@ const DashboardUsers = () => {
         key={user.id}
         data-testid={`dashboard-user-card-${user.id}`}
         className={`relative min-w-0 overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up opacity-0 ${
-          !isRetired
-            ? `transition ${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5`
-            : ""
+          !isRetired ? `transition ${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5` : ""
         } ${isLoneLastCard ? "lg:col-span-2 lg:mx-auto lg:w-[calc(50%-0.5rem)]" : ""}`}
         style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
         draggable={canManageUsers}
@@ -1653,7 +1644,9 @@ const DashboardUsers = () => {
                   description="Tente novamente em alguns instantes."
                   className="mt-6"
                   action={
-                    <DashboardActionButton onClick={() => setLoadVersion((previous) => previous + 1)}>
+                    <DashboardActionButton
+                      onClick={() => setLoadVersion((previous) => previous + 1)}
+                    >
                       Tentar novamente
                     </DashboardActionButton>
                   }
@@ -1666,7 +1659,10 @@ const DashboardUsers = () => {
                   className="mt-6"
                 />
               ) : (
-                <div data-testid="dashboard-users-active-grid" className="mt-6 grid gap-4 lg:grid-cols-2">
+                <div
+                  data-testid="dashboard-users-active-grid"
+                  className="mt-6 grid gap-4 lg:grid-cols-2"
+                >
                   {activeUsers.map((user, index) =>
                     renderUserCard({
                       user,
@@ -1696,7 +1692,10 @@ const DashboardUsers = () => {
                       </Badge>
                     </span>
                   </div>
-                  <div data-testid="dashboard-users-retired-grid" className="mt-6 grid gap-4 lg:grid-cols-2">
+                  <div
+                    data-testid="dashboard-users-retired-grid"
+                    className="mt-6 grid gap-4 lg:grid-cols-2"
+                  >
                     {retiredUsers.map((user, index) =>
                       renderUserCard({
                         user,
@@ -2037,22 +2036,22 @@ const DashboardUsers = () => {
                                     disabled={!canEditBasicFields}
                                     ariaLabel={selectedLabel}
                                     options={availableLinkTypes.map((option) => {
-                                        const isCustomIcon = isIconUrl(option.icon);
-                                        const Icon = socialIconMap[option.icon] || Globe;
-                                        return {
-                                          value: option.id,
-                                          label: option.label,
-                                          icon: isCustomIcon ? (
-                                            <ThemedSvgLogo
-                                              url={option.icon}
-                                              label={option.label}
-                                              className={`${dropdownRichIconClassName} text-primary`}
-                                            />
-                                          ) : (
-                                            Icon
-                                          ),
-                                        };
-                                      })}
+                                      const isCustomIcon = isIconUrl(option.icon);
+                                      const Icon = socialIconMap[option.icon] || Globe;
+                                      return {
+                                        value: option.id,
+                                        label: option.label,
+                                        icon: isCustomIcon ? (
+                                          <ThemedSvgLogo
+                                            url={option.icon}
+                                            label={option.label}
+                                            className={`${dropdownRichIconClassName} text-primary`}
+                                          />
+                                        ) : (
+                                          Icon
+                                        ),
+                                      };
+                                    })}
                                     placeholder="Rede"
                                     searchable
                                     searchPlaceholder="Buscar rede"
@@ -2152,7 +2151,11 @@ const DashboardUsers = () => {
                           <div
                             className={`space-y-3 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}
                           >
-                            <DashboardActionButton size="sm" tone="primary" onClick={startSelfEnrollment}>
+                            <DashboardActionButton
+                              size="sm"
+                              tone="primary"
+                              onClick={startSelfEnrollment}
+                            >
                               Ativar 2FA (TOTP)
                             </DashboardActionButton>
                             {securityEnrollment ? (

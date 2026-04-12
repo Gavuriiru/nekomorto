@@ -485,7 +485,7 @@ describe("Header mobile search layout", () => {
     expect(classTokens(results)).toContain("md:w-80");
     expect(classTokens(results)).toContain("left-0");
     expect(classTokens(results)).toContain("right-0");
-    expect(classTokens(results)).toContain("shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]");
+    expect(classTokens(results)).toContain("shadow-floating-soft");
     expect(classTokens(results)).not.toContain("shadow-lg");
 
     await user.click(document.body);
@@ -1018,7 +1018,7 @@ describe("Header mobile search layout", () => {
     expect(profileButton).toBeTruthy();
     await user.click(profileButton as HTMLButtonElement);
     const profileMenu = await screen.findByRole("menu");
-    expect(classTokens(profileMenu)).toContain("shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]");
+    expect(classTokens(profileMenu)).toContain("shadow-floating-soft");
     expect(classTokens(profileMenu)).not.toContain("shadow-xl");
     await user.click(await screen.findByRole("menuitem", { name: /Sair/i }));
 

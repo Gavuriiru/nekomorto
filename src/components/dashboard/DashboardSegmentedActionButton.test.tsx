@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import DashboardSegmentedActionButton from "@/components/dashboard/DashboardSegmentedActionButton";
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 describe("DashboardSegmentedActionButton", () => {
   it("renders active and inactive segmented states without lift classes", () => {

@@ -121,9 +121,10 @@ describe("ui copy portuguese regressions", () => {
       const source = readFileSync(absolutePath, "utf8");
 
       fragments.forEach((fragment) => {
-        expect(source, `fragmento regressivo detectado em ${relativePath}: ${fragment}`).not.toContain(
-          fragment,
-        );
+        expect(
+          source,
+          `fragmento regressivo detectado em ${relativePath}: ${fragment}`,
+        ).not.toContain(fragment);
       });
     });
   });

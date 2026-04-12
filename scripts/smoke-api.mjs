@@ -11,7 +11,10 @@ const baseUrl = (getArgValue("--base") || "http://localhost:8080").replace(/\/+$
 const timeoutMs = Number.parseInt(getArgValue("--timeout-ms") || "10000", 10);
 const expectProdHtml = /^(?:1|true|yes)$/i.test(getArgValue("--expect-prod-html") || "false");
 const checkPublicMedia = /^(?:1|true|yes)$/i.test(getArgValue("--check-public-media") || "false");
-const publicMediaSampleSize = Number.parseInt(getArgValue("--public-media-sample-size") || "12", 10);
+const publicMediaSampleSize = Number.parseInt(
+  getArgValue("--public-media-sample-size") || "12",
+  10,
+);
 
 if (!baseUrl) {
   console.error("--base is required");
@@ -158,8 +161,9 @@ const assertRootHtmlEndpoint = async ({ path, expectProdHtml }) => {
     throw new Error(`${path} did not return an HTML document`);
   }
   const containsViteClient = body.includes("/@vite/client");
-  const containsLegacyPwaModule = body.includes("/@vite-plugin-pwa/") || body.includes("vite-plugin-pwa");
-  const containsSrcMainTsx = body.includes('/src/main.tsx') || body.includes('"/src/main.tsx"');
+  const containsLegacyPwaModule =
+    body.includes("/@vite-plugin-pwa/") || body.includes("vite-plugin-pwa");
+  const containsSrcMainTsx = body.includes("/src/main.tsx") || body.includes('"/src/main.tsx"');
   if (expectProdHtml && containsViteClient) {
     throw new Error(`${path} returned Vite dev HTML with /@vite/client on a prod-like target`);
   }

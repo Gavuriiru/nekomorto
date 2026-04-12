@@ -149,8 +149,10 @@ const PERSIST_USER_DEPENDENCY_KEYS = [
 
 export const registerUserRoutes = (dependencies = {}) => {
   const needsPersistUsers =
-    shouldRegisterUserGroup(dependencies, ["normalizeAvatarDisplay", "defaultPermissionsForRole"]) ||
-    shouldRegisterUserGroup(dependencies, ["resolveDiscordAvatarFallbackUrl"]);
+    shouldRegisterUserGroup(dependencies, [
+      "normalizeAvatarDisplay",
+      "defaultPermissionsForRole",
+    ]) || shouldRegisterUserGroup(dependencies, ["resolveDiscordAvatarFallbackUrl"]);
   const persistDependencies = needsPersistUsers
     ? pickUserDependencies(
         dependencies,
@@ -199,7 +201,9 @@ export const registerUserRoutes = (dependencies = {}) => {
       ),
     );
   }
-  if (shouldRegisterUserGroup(dependencies, ["normalizeAvatarDisplay", "defaultPermissionsForRole"])) {
+  if (
+    shouldRegisterUserGroup(dependencies, ["normalizeAvatarDisplay", "defaultPermissionsForRole"])
+  ) {
     registerUserManagementRoutes({
       ...pickUserDependencies(
         dependencies,

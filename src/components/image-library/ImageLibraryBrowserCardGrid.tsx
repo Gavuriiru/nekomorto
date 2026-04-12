@@ -59,9 +59,12 @@ const ImageLibraryBrowserCardGrid = ({
         const isSelected = selectedResolvedUrlSet.has(item.url);
         const itemRenderUrl = toLibraryItemRenderUrl(item);
         const canRename = allowUploadManagementActions && item.source === "upload";
-        const canDelete = allowUploadManagementActions && item.source === "upload" && Boolean(item.canDelete);
-        const canEditFocal = allowUploadManagementActions && item.source === "upload" && Boolean(item.id);
-        const canEditAltText = allowUploadManagementActions && item.source === "upload" && Boolean(item.id);
+        const canDelete =
+          allowUploadManagementActions && item.source === "upload" && Boolean(item.canDelete);
+        const canEditFocal =
+          allowUploadManagementActions && item.source === "upload" && Boolean(item.id);
+        const canEditAltText =
+          allowUploadManagementActions && item.source === "upload" && Boolean(item.id);
         const hasManagementActions = canRename || canDelete || canEditFocal || canEditAltText;
 
         return (

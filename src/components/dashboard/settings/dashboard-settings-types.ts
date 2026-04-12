@@ -3,11 +3,7 @@ import type { ReactNode } from "react";
 import type { useDashboardSettingsMedia } from "@/components/dashboard/settings/use-dashboard-settings-media";
 import type { useDashboardSettingsResource } from "@/components/dashboard/settings/use-dashboard-settings-resource";
 
-import type {
-  FooterBrandMode,
-  LogoEditorField,
-  NavbarBrandMode,
-} from "./shared";
+import type { FooterBrandMode, LogoEditorField, NavbarBrandMode } from "./shared";
 
 type DashboardSettingsPreviewContext = {
   footerBrandNamePreview: string;

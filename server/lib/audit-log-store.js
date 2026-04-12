@@ -67,7 +67,8 @@ export const createAuditLogStore = ({
     }
     try {
       const origin =
-        (typeof getPrimaryAppOrigin === "function" ? getPrimaryAppOrigin() : primaryAppOrigin) || "";
+        (typeof getPrimaryAppOrigin === "function" ? getPrimaryAppOrigin() : primaryAppOrigin) ||
+        "";
       const parsed = new URL(text, origin);
       return `${parsed.origin}${parsed.pathname}?[redacted]`;
     } catch {

@@ -166,10 +166,7 @@ describe("DashboardPages autosave", () => {
 
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Sobre" }));
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "Sobre" })).toHaveAttribute(
-        "aria-selected",
-        "true",
-      );
+      expect(screen.getByRole("tab", { name: "Sobre" })).toHaveAttribute("aria-selected", "true");
     });
 
     const addBadgeButton = await screen.findByRole("button", { name: /Adicionar badge/i });
@@ -688,8 +685,9 @@ describe("DashboardPages autosave", () => {
     cryptoNameInput.focus();
     expect(cryptoNameInput).toHaveFocus();
     fireEvent.change(cryptoNameInput, { target: { value: "Bit" } });
-    const updatedCryptoNameInput = within(screen.getByTestId("donations-crypto-item-0"))
-      .getByDisplayValue("Bit") as HTMLInputElement;
+    const updatedCryptoNameInput = within(
+      screen.getByTestId("donations-crypto-item-0"),
+    ).getByDisplayValue("Bit") as HTMLInputElement;
     expect(updatedCryptoNameInput).toHaveFocus();
     fireEvent.change(updatedCryptoNameInput, { target: { value: "Bitcoin" } });
     expect(
@@ -731,8 +729,9 @@ describe("DashboardPages autosave", () => {
     cryptoNameInput.focus();
     fireEvent.change(cryptoNameInput, { target: { value: "Bitcoin" } });
 
-    const focusedInputBeforeSave = within(screen.getByTestId("donations-crypto-item-0"))
-      .getByDisplayValue("Bitcoin") as HTMLInputElement;
+    const focusedInputBeforeSave = within(
+      screen.getByTestId("donations-crypto-item-0"),
+    ).getByDisplayValue("Bitcoin") as HTMLInputElement;
     expect(focusedInputBeforeSave).toHaveFocus();
 
     await act(async () => {
@@ -741,8 +740,9 @@ describe("DashboardPages autosave", () => {
     });
 
     expect(getPutPageCalls().length).toBeGreaterThan(0);
-    const focusedInputAfterSave = within(screen.getByTestId("donations-crypto-item-0"))
-      .getByDisplayValue("Bitcoin") as HTMLInputElement;
+    const focusedInputAfterSave = within(
+      screen.getByTestId("donations-crypto-item-0"),
+    ).getByDisplayValue("Bitcoin") as HTMLInputElement;
     expect(focusedInputAfterSave).toHaveFocus();
   });
 
@@ -861,7 +861,9 @@ describe("DashboardPages autosave", () => {
 
     fireEvent.click(within(costsEditor as HTMLElement).getByRole("button", { name: /Adicionar/i }));
     fireEvent.click(within(cryptoEditor).getByRole("button", { name: /Adicionar/i }));
-    fireEvent.click(within(donorsEditor as HTMLElement).getByRole("button", { name: /Adicionar/i }));
+    fireEvent.click(
+      within(donorsEditor as HTMLElement).getByRole("button", { name: /Adicionar/i }),
+    );
 
     fireEvent.change(
       within(screen.getByTestId("donations-cost-item-0")).getByDisplayValue("Novo custo"),

@@ -15,23 +15,17 @@ import {
   roleIconOptions,
 } from "./shared";
 
-const teamRoleSelectOptions: ComboboxOption[] = roleIconOptions.map(
-  (option) => ({
-    value: option.id,
-    label: option.label,
-    icon: roleIconMap[option.id] || null,
-  }),
-);
+const teamRoleSelectOptions: ComboboxOption[] = roleIconOptions.map((option) => ({
+  value: option.id,
+  label: option.label,
+  icon: roleIconMap[option.id] || null,
+}));
 
 export const DashboardSettingsTeamTab = () => {
   const { setSettings, settings } = useDashboardSettingsContext();
 
   return (
-    <TabsContent
-      forceMount
-      value="equipe"
-      className="mt-6 space-y-6 data-[state=inactive]:hidden"
-    >
+    <TabsContent forceMount value="equipe" className="mt-6 space-y-6 data-[state=inactive]:hidden">
       <Card lift={false} className={dashboardSettingsCardClassName}>
         <CardContent className="space-y-6 p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -102,9 +96,7 @@ export const DashboardSettingsTeamTab = () => {
                   onClick={() =>
                     setSettings((prev) => ({
                       ...prev,
-                      teamRoles: prev.teamRoles.filter(
-                        (_, idx) => idx !== index,
-                      ),
+                      teamRoles: prev.teamRoles.filter((_, idx) => idx !== index),
                     }))
                   }
                 >

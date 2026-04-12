@@ -50,8 +50,7 @@ export const buildUserRuntimeDependencies = (dependencies = {}) => {
     expandLegacyPermissions: dependencies.expandLegacyPermissions,
     filterAnalyticsEvents: dependencies.filterAnalyticsEvents,
     generateTotpSecret: dependencies.generateTotpSecret,
-    getDispatchCriticalSecurityEventWebhook:
-      dependencies.getDispatchCriticalSecurityEventWebhook,
+    getDispatchCriticalSecurityEventWebhook: dependencies.getDispatchCriticalSecurityEventWebhook,
     getIpv4Network24: dependencies.getIpv4Network24,
     getRequestIp: dependencies.getRequestIp,
     hashRecoveryCode: dependencies.hashRecoveryCode,
@@ -80,8 +79,7 @@ export const buildUserRuntimeDependencies = (dependencies = {}) => {
     mfaIssuer: dependencies.mfaIssuer ?? dependencies.MFA_ISSUER,
     mfaRecoveryCodePepper:
       dependencies.mfaRecoveryCodePepper ?? dependencies.MFA_RECOVERY_CODE_PEPPER,
-    newNetworkLookbackMs:
-      dependencies.newNetworkLookbackMs ?? dependencies.NEW_NETWORK_LOOKBACK_MS,
+    newNetworkLookbackMs: dependencies.newNetworkLookbackMs ?? dependencies.NEW_NETWORK_LOOKBACK_MS,
     normalizeAccessRole: dependencies.normalizeAccessRole,
     normalizeAnalyticsTypeFilter: dependencies.normalizeAnalyticsTypeFilter,
     normalizeAvatarDisplay: dependencies.normalizeAvatarDisplay,
@@ -100,12 +98,12 @@ export const buildUserRuntimeDependencies = (dependencies = {}) => {
     sanitizeFavoriteWorksByCategory: dependencies.sanitizeFavoriteWorksByCategory,
     sanitizePermissionsForStorage: dependencies.sanitizePermissionsForStorage,
     sanitizeSocials: dependencies.sanitizeSocials,
-    securityEventSeverity:
-      dependencies.securityEventSeverity ?? dependencies.SecurityEventSeverity,
+    securityEventSeverity: dependencies.securityEventSeverity ?? dependencies.SecurityEventSeverity,
     securityEventStatus: dependencies.securityEventStatus ?? dependencies.SecurityEventStatus,
     selectRecentApprovedComments: dependencies.selectRecentApprovedComments,
     sessionIndexTouchMinIntervalMs:
-      dependencies.sessionIndexTouchMinIntervalMs ?? dependencies.SESSION_INDEX_TOUCH_MIN_INTERVAL_MS,
+      dependencies.sessionIndexTouchMinIntervalMs ??
+      dependencies.SESSION_INDEX_TOUCH_MIN_INTERVAL_MS,
     sessionIndexTouchTsBySid: dependencies.sessionIndexTouchTsBySid,
     sessionStore: dependencies.sessionStore,
     shouldSyncDiscordAvatarToStoredUser: dependencies.shouldSyncDiscordAvatarToStoredUser,

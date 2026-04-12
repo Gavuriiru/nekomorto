@@ -43,7 +43,7 @@ describe("DropdownMenu scroll lock", () => {
 
     await user.click(screen.getByRole("button", { name: "Abrir menu" }));
     const menu = await screen.findByRole("menu");
-    expect(classTokens(menu)).toContain("shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]");
+    expect(classTokens(menu)).toContain("shadow-floating-soft");
 
     await waitFor(() => {
       expect(document.body.getAttribute("data-scroll-locked")).toBeNull();
@@ -57,7 +57,7 @@ describe("DropdownMenu scroll lock", () => {
 
     await user.click(screen.getByRole("button", { name: "Abrir menu" }));
     const menu = await screen.findByRole("menu");
-    expect(classTokens(menu)).toContain("shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]");
+    expect(classTokens(menu)).toContain("shadow-floating-soft");
 
     await waitFor(() => {
       const lockCount = Number.parseInt(document.body.getAttribute("data-scroll-locked") || "", 10);

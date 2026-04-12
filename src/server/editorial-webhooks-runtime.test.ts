@@ -93,8 +93,7 @@ const createDeps = (overrides = {}) => {
     resolveEditorialAuthorFromPost: () => ({
       avatarUrl: "/author.png",
     }),
-    resolveEditorialEventChannel: (eventKey) =>
-      eventKey === "project_release" ? "projects" : "",
+    resolveEditorialEventChannel: (eventKey) => (eventKey === "project_release" ? "projects" : ""),
     resolveEditorialEventLabel: (eventKey) => `label:${eventKey}`,
     resolveEpisodeLookup: () => ({
       ok: true,
@@ -133,11 +132,7 @@ describe("editorial-webhooks-runtime", () => {
   it("prepares project dispatch payloads and resolves chapters from the episode lookup", () => {
     const runtime = createEditorialWebhooksRuntime(createDeps());
 
-    const chapter = runtime.findProjectChapterByEpisodeNumber(
-      { id: "project-1" },
-      12,
-      3,
-    );
+    const chapter = runtime.findProjectChapterByEpisodeNumber({ id: "project-1" }, 12, 3);
     const prepared = runtime.prepareEditorialWebhookDispatch({
       eventKey: "project_release",
       project: {

@@ -26,7 +26,9 @@ const PublicPageContainer = ({
   maxWidth = "6xl",
 }: PublicPageContainerProps) => {
   return (
-    <main className={cn(publicPageLayoutTokens.main, publicStrongFocusScopeClassName, mainClassName)}>
+    <main
+      className={cn(publicPageLayoutTokens.main, publicStrongFocusScopeClassName, mainClassName)}
+    >
       <section
         className={cn(
           publicPageLayoutTokens.sectionBase,

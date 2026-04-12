@@ -28,9 +28,7 @@ export const registerProjectWriteAniListRoutes = ({
       return res.json({
         ...(result.data && typeof result.data === "object" ? result.data : {}),
         data: {
-          ...(result.data?.data && typeof result.data.data === "object"
-            ? result.data.data
-            : {}),
+          ...(result.data?.data && typeof result.data.data === "object" ? result.data.data : {}),
           Media: media,
         },
       });

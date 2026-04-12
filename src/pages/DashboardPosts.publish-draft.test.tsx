@@ -147,7 +147,7 @@ describe("DashboardPosts publish draft", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar posts" });
-    fireEvent.click(screen.getByText("Post draft"));
+    fireEvent.click(await screen.findByText("Post draft"));
 
     const dialog = await screen.findByRole("dialog");
     const publishNowButton = within(dialog).getByRole("button", { name: "Publicar agora" });
@@ -183,7 +183,7 @@ describe("DashboardPosts publish draft", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar posts" });
-    fireEvent.click(screen.getByText("Post published"));
+    fireEvent.click(await screen.findByText("Post published"));
 
     const dialog = await screen.findByRole("dialog");
     const viewLink = within(dialog).getByRole("link", { name: "Visualizar página" });
@@ -206,7 +206,7 @@ describe("DashboardPosts publish draft", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar posts" });
-    fireEvent.click(screen.getByText(`Post ${status}`));
+    fireEvent.click(await screen.findByText(`Post ${status}`));
 
     const dialog = await screen.findByRole("dialog");
     expect(
@@ -224,7 +224,7 @@ describe("DashboardPosts publish draft", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar posts" });
-    fireEvent.click(screen.getByText("Post published"));
+    fireEvent.click(await screen.findByText("Post published"));
 
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));

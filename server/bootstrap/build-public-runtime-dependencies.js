@@ -1,6 +1,5 @@
 export const buildPublicRuntimeDependencies = (dependencies = {}) => ({
-  bootstrapPwaEnabled:
-    dependencies.bootstrapPwaEnabled ?? dependencies.BOOTSTRAP_PWA_ENABLED,
+  bootstrapPwaEnabled: dependencies.bootstrapPwaEnabled ?? dependencies.BOOTSTRAP_PWA_ENABLED,
   buildPublicBootstrapPayload: dependencies.buildPublicBootstrapPayload,
   buildPublicMediaVariants: dependencies.buildPublicMediaVariants,
   buildPublicReadableProjects: dependencies.buildPublicReadableProjects,

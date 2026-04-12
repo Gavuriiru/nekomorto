@@ -78,14 +78,7 @@ const collectSignals = (value, signals, seen) => {
     }
   }
 
-  const nestedKeys = [
-    "cause",
-    "driverAdapterError",
-    "error",
-    "errors",
-    "meta",
-    "originalError",
-  ];
+  const nestedKeys = ["cause", "driverAdapterError", "error", "errors", "meta", "originalError"];
   for (const key of nestedKeys) {
     const nestedValue = value[key];
     if (Array.isArray(nestedValue)) {
@@ -103,27 +96,19 @@ const collectSignals = (value, signals, seen) => {
 };
 
 export const getDatabaseStartupRetryConfig = (env = process.env) => ({
-  maxAttempts: clampPositiveInt(
-    env.DB_STARTUP_MAX_ATTEMPTS,
-    DEFAULT_DB_STARTUP_MAX_ATTEMPTS,
-    { min: 1, max: 100 },
-  ),
-  retryDelayMs: clampPositiveInt(
-    env.DB_STARTUP_RETRY_DELAY_MS,
-    DEFAULT_DB_STARTUP_RETRY_DELAY_MS,
-  ),
+  maxAttempts: clampPositiveInt(env.DB_STARTUP_MAX_ATTEMPTS, DEFAULT_DB_STARTUP_MAX_ATTEMPTS, {
+    min: 1,
+    max: 100,
+  }),
+  retryDelayMs: clampPositiveInt(env.DB_STARTUP_RETRY_DELAY_MS, DEFAULT_DB_STARTUP_RETRY_DELAY_MS),
 });
 
 export const isRetryableDatabaseStartupError = (error) => {
   const signals = [];
   collectSignals(error, signals, new Set());
-  const normalizedSignals = signals
-    .map((value) => String(value || "").trim())
-    .filter(Boolean);
+  const normalizedSignals = signals.map((value) => String(value || "").trim()).filter(Boolean);
 
-  if (
-    normalizedSignals.some((value) => RETRYABLE_DB_ERROR_CODES.has(value.toUpperCase()))
-  ) {
+  if (normalizedSignals.some((value) => RETRYABLE_DB_ERROR_CODES.has(value.toUpperCase()))) {
     return true;
   }
 

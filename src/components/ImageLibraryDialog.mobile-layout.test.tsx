@@ -103,7 +103,7 @@ describe("ImageLibraryDialog mobile layout", () => {
     expect(screen.getAllByRole("button", { name: /Limpar sele/i })).toHaveLength(1);
     expect(filterControls).toBeTruthy();
     expect(selectionCount).toHaveTextContent("Selecionadas: 0");
-    expect(clearSelectionButton.parentElement).toBe(cancelButton.parentElement);
+    expect(clearSelectionButton.parentElement).not.toBe(cancelButton.parentElement);
     expect(saveButton.parentElement).toBe(cancelButton.parentElement);
 
     const filterControlsTokens = classTokens(filterControls);

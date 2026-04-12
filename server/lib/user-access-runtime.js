@@ -342,8 +342,7 @@ export const createUserAccessRuntime = (dependencies = {}) => {
       : [];
     const posts = canReadPosts
       ? normalizePosts(loadPosts()).sort(
-          (a, b) =>
-            new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime(),
+          (a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime(),
         )
       : [];
     const comments = canReadComments ? loadComments() : [];
@@ -395,19 +394,18 @@ export const createUserAccessRuntime = (dependencies = {}) => {
         updatedAt: String(post.updatedAt || post.publishedAt || ""),
       }));
     const pendingCommentsCount = comments.filter((comment) => comment.status === "pending").length;
-    const recentComments = selectRecentApprovedComments(comments, 3)
-      .map((comment) => {
-        const target = buildCommentTargetInfo(comment, posts, projects, primaryAppOrigin);
-        return {
-          id: comment.id,
-          author: String(comment.name || ""),
-          message: String(comment.content || ""),
-          page: target.label,
-          createdAt: String(comment.createdAt || ""),
-          url: target.url,
-          status: String(comment.status || "approved"),
-        };
-      });
+    const recentComments = selectRecentApprovedComments(comments, 3).map((comment) => {
+      const target = buildCommentTargetInfo(comment, posts, projects, primaryAppOrigin);
+      return {
+        id: comment.id,
+        author: String(comment.name || ""),
+        message: String(comment.content || ""),
+        page: target.label,
+        createdAt: String(comment.createdAt || ""),
+        url: target.url,
+        status: String(comment.status || "approved"),
+      };
+    });
 
     let totalViewsLast7 = 0;
     let totalProjectViewsLast7 = 0;
@@ -495,7 +493,10 @@ export const createUserAccessRuntime = (dependencies = {}) => {
   };
 
   const toDashboardNotificationId = (value) =>
-    createHash("sha256").update(String(value || "")).digest("hex").slice(0, 16);
+    createHash("sha256")
+      .update(String(value || ""))
+      .digest("hex")
+      .slice(0, 16);
 
   const canManageUsersBasic = (userId) => {
     if (!userId) {

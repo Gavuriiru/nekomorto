@@ -89,7 +89,7 @@ const HeaderActionsFallback = ({
     </Button>
     {currentUser ? (
       <Button variant="ghost" className="h-11 gap-2 rounded-full px-2">
-        <Avatar className="h-8 w-8 border border-border/70 shadow-[0_10px_24px_-18px_hsl(var(--foreground)/0.65)]">
+        <Avatar className="h-8 w-8 border border-border/70 shadow-avatar-subtle">
           {headerAvatarUrl ? <AvatarImage src={headerAvatarUrl} alt={currentUser.name} /> : null}
           <AvatarFallback className="bg-secondary text-xs text-foreground">
             {(currentUser.name || "").slice(0, 2).toUpperCase()}
@@ -481,9 +481,7 @@ const Header = ({
     <header
       className={cn(
         "left-0 right-0 px-6 py-4 text-foreground transition-[background-color,backdrop-filter] duration-300 ease-in-out md:px-12",
-        variant === "fixed"
-          ? "fixed top-0"
-          : "",
+        variant === "fixed" ? "fixed top-0" : "",
         variant === "fixed" && showBottomGradient
           ? "after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-8 after:bg-linear-to-b after:from-background/70 after:via-background/25 after:to-transparent after:transition-opacity after:duration-300 after:ease-in-out"
           : "",

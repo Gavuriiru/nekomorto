@@ -141,10 +141,7 @@ const runCommand = (command, commandArgs, options = {}) =>
       if (code !== 0) {
         reject(
           new Error(
-            `Command failed (exit ${code}): ${formatCommand(
-              invocation.command,
-              invocation.args,
-            )}`,
+            `Command failed (exit ${code}): ${formatCommand(invocation.command, invocation.args)}`,
           ),
         );
         return;

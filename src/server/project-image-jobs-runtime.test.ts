@@ -43,7 +43,10 @@ const createDeps = (overrides = {}) => {
     mapProjectImageImportExecutionError: (error) => ({
       body: { detail: String(error?.message || error || "import_failed") },
     }),
-    pathBasename: (value) => String(value || "").split(/[\\/]/).pop(),
+    pathBasename: (value) =>
+      String(value || "")
+        .split(/[\\/]/)
+        .pop(),
     pathJoin: (...parts) => parts.join("/"),
     projectImageExportJobsDir: "tmp-project-image-export-jobs",
     projectImageExportResultTtlMs: 60_000,
@@ -58,7 +61,9 @@ const createDeps = (overrides = {}) => {
       importJobs = [...importJobs.filter((entry) => entry.id !== job.id), job];
       return job;
     }),
-    writeProjectImageImportJobResult: vi.fn(() => "tmp-project-image-import-jobs/import-job-1.json"),
+    writeProjectImageImportJobResult: vi.fn(
+      () => "tmp-project-image-import-jobs/import-job-1.json",
+    ),
     writeUploads: vi.fn(),
     ...overrides,
   };

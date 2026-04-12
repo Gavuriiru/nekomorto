@@ -36,8 +36,4 @@ const Combobox = ({ className, searchInputClassName, ...props }: DashboardCombob
   />
 );
 
-export {
-  Combobox,
-  Input,
-  Textarea,
-};
+export { Combobox, Input, Textarea };

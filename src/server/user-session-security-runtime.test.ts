@@ -52,10 +52,7 @@ const createDeps = (overrides = {}) => {
         }),
       ),
       upsertUserSessionIndexRecord: vi.fn((record) => {
-        sessionRecords = [
-          ...sessionRecords.filter((item) => item.sid !== record.sid),
-          record,
-        ];
+        sessionRecords = [...sessionRecords.filter((item) => item.sid !== record.sid), record];
       }),
       revokeUserSessionIndexRecord: vi.fn((sid, options = {}) => {
         sessionRecords = sessionRecords.map((record) =>
@@ -90,9 +87,7 @@ const createDeps = (overrides = {}) => {
 
 describe("user-session-security-runtime", () => {
   it("fails early when required dependencies are missing", () => {
-    expect(() => createUserSessionSecurityRuntime()).toThrow(
-      /missing required dependencies/i,
-    );
+    expect(() => createUserSessionSecurityRuntime()).toThrow(/missing required dependencies/i);
   });
 
   it("reads, writes and deletes MFA records", () => {
@@ -133,7 +128,9 @@ describe("user-session-security-runtime", () => {
       expect.objectContaining({ sid: "sid-3" }),
       expect.objectContaining({ sid: "sid-1" }),
     ]);
-    expect(runtime.loadUserSessionIndexRecords({ userId: "user-1", includeRevoked: true })).toHaveLength(3);
+    expect(
+      runtime.loadUserSessionIndexRecords({ userId: "user-1", includeRevoked: true }),
+    ).toHaveLength(3);
   });
 
   it("revokes a session by sid and updates metrics", async () => {

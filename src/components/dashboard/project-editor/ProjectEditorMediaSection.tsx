@@ -45,12 +45,7 @@ const ProjectEditorMediaCard = ({
         ) : (
           <div className={emptyPreviewClassName}>Sem imagem</div>
         )}
-        <DashboardActionButton
-          type="button"
-          size="sm"
-          className="ml-auto"
-          onClick={onOpenLibrary}
-        >
+        <DashboardActionButton type="button" size="sm" className="ml-auto" onClick={onOpenLibrary}>
           Biblioteca
         </DashboardActionButton>
       </div>

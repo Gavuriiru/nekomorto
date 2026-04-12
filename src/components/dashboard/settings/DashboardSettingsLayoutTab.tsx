@@ -4,11 +4,7 @@ import DashboardActionButton from "@/components/dashboard/DashboardActionButton"
 import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPresetCard";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
-import {
-  Combobox,
-  Input,
-  Textarea,
-} from "@/components/dashboard/dashboard-form-controls";
+import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
 import type { ComboboxOption } from "@/components/ui/combobox";
 import {
   dashboardStrongFocusFieldClassName,
@@ -22,15 +18,7 @@ import { Label } from "@/components/ui/label";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
-import {
-  Download,
-  GripVertical,
-  Link2,
-  Plus,
-  Save,
-  Trash2,
-  User,
-} from "lucide-react";
+import { Download, GripVertical, Link2, Plus, Save, Trash2, User } from "lucide-react";
 import { navbarIconOptions } from "@/lib/navbar-icons";
 import { useDashboardSettingsContext } from "./dashboard-settings-context";
 import {
@@ -68,12 +56,11 @@ import {
   socialIconMap,
 } from "./shared";
 
-const layoutNavbarIconOptions: ComboboxOption[] =
-  navbarIconOptions.map((option) => ({
-    value: option.id,
-    label: option.label,
-    icon: option.icon,
-  }));
+const layoutNavbarIconOptions: ComboboxOption[] = navbarIconOptions.map((option) => ({
+  value: option.id,
+  label: option.label,
+  icon: option.icon,
+}));
 
 const layoutFooterSocialGridClass =
   "grid gap-3 md:grid-cols-[auto_auto_minmax(180px,0.95fr)_minmax(260px,1.55fr)_auto] md:items-center";
@@ -151,11 +138,7 @@ export const DashboardSettingsLayoutTab = () => {
   );
 
   return (
-    <TabsContent
-      forceMount
-      value="layout"
-      className="mt-6 space-y-6 data-[state=inactive]:hidden"
-    >
+    <TabsContent forceMount value="layout" className="mt-6 space-y-6 data-[state=inactive]:hidden">
       <div className="space-y-1">
         <h2 className="text-lg font-semibold">Header / Navegação</h2>
         <p className="text-xs text-foreground/70">
@@ -168,9 +151,7 @@ export const DashboardSettingsLayoutTab = () => {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">Links do menu</h2>
-              <p className="text-xs text-foreground/70">
-                Ordem e URLs usados na navbar do site.
-              </p>
+              <p className="text-xs text-foreground/70">Ordem e URLs usados na navbar do site.</p>
             </div>
             <DashboardActionButton
               type="button"
@@ -179,10 +160,7 @@ export const DashboardSettingsLayoutTab = () => {
                   ...prev,
                   navbar: {
                     ...prev.navbar,
-                    links: [
-                      ...prev.navbar.links,
-                      { label: "Novo link", href: "/", icon: "link" },
-                    ],
+                    links: [...prev.navbar.links, { label: "Novo link", href: "/", icon: "link" }],
                   },
                 }))
               }
@@ -261,9 +239,7 @@ export const DashboardSettingsLayoutTab = () => {
                       ...prev,
                       navbar: {
                         ...prev.navbar,
-                        links: prev.navbar.links.filter(
-                          (_, idx) => idx !== index,
-                        ),
+                        links: prev.navbar.links.filter((_, idx) => idx !== index),
                       },
                     }))
                   }
@@ -311,9 +287,7 @@ export const DashboardSettingsLayoutTab = () => {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">Colunas de links</h2>
-              <p className="text-xs text-foreground/70">
-                Edite as seções do footer.
-              </p>
+              <p className="text-xs text-foreground/70">Edite as seções do footer.</p>
             </div>
             <DashboardActionButton
               type="button"
@@ -322,10 +296,7 @@ export const DashboardSettingsLayoutTab = () => {
                   ...prev,
                   footer: {
                     ...prev.footer,
-                    columns: [
-                      ...prev.footer.columns,
-                      { title: "Nova coluna", links: [] },
-                    ],
+                    columns: [...prev.footer.columns, { title: "Nova coluna", links: [] }],
                   },
                 }))
               }
@@ -367,9 +338,7 @@ export const DashboardSettingsLayoutTab = () => {
                         ...prev,
                         footer: {
                           ...prev.footer,
-                          columns: prev.footer.columns.filter(
-                            (_, idx) => idx !== columnIndex,
-                          ),
+                          columns: prev.footer.columns.filter((_, idx) => idx !== columnIndex),
                         },
                       }))
                     }
@@ -459,10 +428,7 @@ export const DashboardSettingsLayoutTab = () => {
                     onClick={() =>
                       setSettings((prev) => {
                         const nextColumns = [...prev.footer.columns];
-                        const links = [
-                          ...nextColumns[columnIndex].links,
-                          { label: "", href: "" },
-                        ];
+                        const links = [...nextColumns[columnIndex].links, { label: "", href: "" }];
                         nextColumns[columnIndex] = {
                           ...nextColumns[columnIndex],
                           links,
@@ -489,9 +455,7 @@ export const DashboardSettingsLayoutTab = () => {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">Redes sociais</h2>
-              <p className="text-xs text-foreground/70">
-                Links exibidos no footer.
-              </p>
+              <p className="text-xs text-foreground/70">Links exibidos no footer.</p>
             </div>
             <DashboardActionButton
               type="button"
@@ -536,9 +500,7 @@ export const DashboardSettingsLayoutTab = () => {
                       draggable
                       className={responsiveFooterSocialDragButtonClass}
                       aria-label={`Arrastar rede ${link.label || index + 1}`}
-                      onDragStart={(event) =>
-                        handleFooterSocialDragStart(event, index)
-                      }
+                      onDragStart={(event) => handleFooterSocialDragStart(event, index)}
                       onDragEnd={clearFooterSocialDragState}
                     >
                       <GripVertical className="h-4 w-4" />
@@ -547,9 +509,7 @@ export const DashboardSettingsLayoutTab = () => {
                       label={`rede ${link.label || index + 1}`}
                       index={index}
                       total={settings.footer.socialLinks.length}
-                      onMove={(targetIndex) =>
-                        moveFooterSocialLink(index, targetIndex)
-                      }
+                      onMove={(targetIndex) => moveFooterSocialLink(index, targetIndex)}
                       className="justify-self-center md:justify-self-auto"
                       buttonClassName="h-7 w-7 md:h-8 md:w-8"
                     />
@@ -563,9 +523,7 @@ export const DashboardSettingsLayoutTab = () => {
                           ...prev,
                           footer: {
                             ...prev.footer,
-                            socialLinks: prev.footer.socialLinks.filter(
-                              (_, idx) => idx !== index,
-                            ),
+                            socialLinks: prev.footer.socialLinks.filter((_, idx) => idx !== index),
                           },
                         }))
                       }
@@ -627,9 +585,7 @@ export const DashboardSettingsLayoutTab = () => {
                         ...prev,
                         footer: {
                           ...prev.footer,
-                          socialLinks: prev.footer.socialLinks.filter(
-                            (_, idx) => idx !== index,
-                          ),
+                          socialLinks: prev.footer.socialLinks.filter((_, idx) => idx !== index),
                         },
                       }))
                     }
@@ -647,19 +603,14 @@ export const DashboardSettingsLayoutTab = () => {
         <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
           <div className="space-y-1">
             <h2 className="text-lg font-semibold">Textos legais</h2>
-            <p className="text-xs text-foreground/70">
-              Descrição, aviso e copyright.
-            </p>
+            <p className="text-xs text-foreground/70">Descrição, aviso e copyright.</p>
           </div>
           <div className="grid gap-3 md:gap-4">
             <div className="space-y-2">
               <Label>Parágrafos do aviso</Label>
               <div className="space-y-3">
                 {settings.footer.disclaimer.map((item, index) => (
-                  <div
-                    key={`disclaimer-${index}`}
-                    className={responsiveCompactTextareaRowClass}
-                  >
+                  <div key={`disclaimer-${index}`} className={responsiveCompactTextareaRowClass}>
                     <Textarea
                       className="min-h-[96px] md:min-h-[80px]"
                       value={item}
@@ -683,9 +634,7 @@ export const DashboardSettingsLayoutTab = () => {
                           ...prev,
                           footer: {
                             ...prev.footer,
-                            disclaimer: prev.footer.disclaimer.filter(
-                              (_, idx) => idx !== index,
-                            ),
+                            disclaimer: prev.footer.disclaimer.filter((_, idx) => idx !== index),
                           },
                         }))
                       }

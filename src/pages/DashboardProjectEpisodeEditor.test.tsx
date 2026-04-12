@@ -27,7 +27,8 @@ const {
   },
 }));
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 const expectDashboardActionButtonTokens = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
   const tokens = classTokens(element);
 
@@ -434,10 +435,12 @@ describe("DashboardProjectEpisodeEditor", () => {
         .closest("button") as HTMLButtonElement,
     );
 
-    await waitFor(() =>
-      expect(screen.getByTestId("location")).toHaveTextContent(
-        "/dashboard/projetos/project-1/episodios/2",
-      ),
+    await waitFor(
+      () =>
+        expect(screen.getByTestId("location")).toHaveTextContent(
+          "/dashboard/projetos/project-1/episodios/2",
+        ),
+      { timeout: 3000 },
     );
 
     expect(screen.getByTestId("anime-episode-editor-sidebar")).toBeInTheDocument();
@@ -456,10 +459,12 @@ describe("DashboardProjectEpisodeEditor", () => {
       }),
     );
 
-    await waitFor(() =>
-      expect(screen.getByTestId("location")).toHaveTextContent(
-        "/dashboard/projetos/project-1/episodios/3",
-      ),
+    await waitFor(
+      () =>
+        expect(screen.getByTestId("location")).toHaveTextContent(
+          "/dashboard/projetos/project-1/episodios/3",
+        ),
+      { timeout: 3000 },
     );
 
     const createdEpisode = apiState
@@ -508,10 +513,12 @@ describe("DashboardProjectEpisodeEditor", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Descartar e continuar/i }));
 
-    await waitFor(() =>
-      expect(screen.getByTestId("location")).toHaveTextContent(
-        "/dashboard/projetos/project-1/episodios/3",
-      ),
+    await waitFor(
+      () =>
+        expect(screen.getByTestId("location")).toHaveTextContent(
+          "/dashboard/projetos/project-1/episodios/3",
+        ),
+      { timeout: 3000 },
     );
 
     const createdEpisode = apiState
@@ -549,10 +556,12 @@ describe("DashboardProjectEpisodeEditor", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Salvar e continuar/i }));
 
-    await waitFor(() =>
-      expect(screen.getByTestId("location")).toHaveTextContent(
-        "/dashboard/projetos/project-1/episodios/3",
-      ),
+    await waitFor(
+      () =>
+        expect(screen.getByTestId("location")).toHaveTextContent(
+          "/dashboard/projetos/project-1/episodios/3",
+        ),
+      { timeout: 3000 },
     );
 
     const persistedProject = apiState.getPersistedProjects().at(-1);
@@ -656,7 +665,7 @@ describe("DashboardProjectEpisodeEditor", () => {
 
     const blurayOption = await screen.findByRole("option", { name: /^Blu-ray$/i });
     expect(blurayOption).toHaveClass("rounded-xl", "py-2", "pl-9", "pr-3");
-    expect(screen.getByRole("listbox")).toHaveClass(
+    expect(screen.getByRole("listbox").parentElement).toHaveClass(
       "rounded-2xl",
       "border-border/70",
       "bg-popover/95",

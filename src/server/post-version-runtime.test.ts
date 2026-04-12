@@ -52,7 +52,13 @@ const createNormalizePosts = () => (items: Array<Record<string, unknown>>) =>
     };
   });
 
-const createRuntime = ({ storedEntries = [] as any[], normalizePosts }: { storedEntries?: any[]; normalizePosts?: (() => any) | undefined } = {}) => {
+const createRuntime = ({
+  storedEntries = [] as any[],
+  normalizePosts,
+}: {
+  storedEntries?: any[];
+  normalizePosts?: (() => any) | undefined;
+} = {}) => {
   const cache = new Map();
   let currentEntries = [...storedEntries];
   const dataRepository = {
@@ -149,7 +155,11 @@ describe("post-version-runtime", () => {
     });
 
     expect(first).toMatchObject({ versionNumber: 1, reason: "create", actorId: "user-1" });
-    expect(second).toMatchObject({ versionNumber: 2, reason: "manual", label: "Manual checkpoint" });
+    expect(second).toMatchObject({
+      versionNumber: 2,
+      reason: "manual",
+      label: "Manual checkpoint",
+    });
     expect(currentEntries()).toHaveLength(2);
 
     const firstPage = runtime.listPostVersions("post-1", { limit: 1 });

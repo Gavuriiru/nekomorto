@@ -17,9 +17,7 @@ const assertRequiredDependencies = (dependencies = {}) => {
 
 const resolveLazyDependency = (dependencyName, getter) => {
   if (typeof getter !== "function") {
-    throw new Error(
-      `[data-repository-basic-runtime] ${dependencyName} getter must be a function`,
-    );
+    throw new Error(`[data-repository-basic-runtime] ${dependencyName} getter must be a function`);
   }
   const value = getter();
   if (typeof value === "function") {

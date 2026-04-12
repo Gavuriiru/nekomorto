@@ -91,9 +91,7 @@ describe("public-visibility-runtime", () => {
     expect(runtime.getPublicVisibleProjects()).toEqual([
       expect.objectContaining({ id: "project-1" }),
     ]);
-    expect(runtime.getPublicVisiblePosts()).toEqual([
-      expect.objectContaining({ id: "post-1" }),
-    ]);
+    expect(runtime.getPublicVisiblePosts()).toEqual([expect.objectContaining({ id: "post-1" })]);
     expect(runtime.getPublicVisibleUpdates()).toEqual([
       expect.objectContaining({
         id: "update-1",
