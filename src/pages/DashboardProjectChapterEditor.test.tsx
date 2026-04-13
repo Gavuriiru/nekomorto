@@ -1116,16 +1116,18 @@ describe("DashboardProjectChapterEditor", () => {
     expect(sidebar).toContainElement(structureSection);
     expect(sidebar).not.toContainElement(epubTools);
     expect(sidebar).toHaveClass("min-w-0", "xl:sticky", "xl:top-24", "xl:min-h-0");
+    expect(upperLayout.style.getPropertyValue("--dedicated-editor-sidebar-height")).toBe("34rem");
     expect(Array.from(sidebar.children)[0]).toBe(structureAccordion);
     expect(structureSection).toHaveAttribute("data-state", "open");
     expect(structureAccordion).toHaveClass("project-editor-accordion", "space-y-2.5", "min-h-0");
     expect(structureSection).toHaveClass(
       "flex",
-      "h-[min(34rem,calc(100dvh-9rem))]",
-      "max-h-[calc(100dvh-9rem)]",
+      "h-[var(--dedicated-editor-sidebar-height,34rem)]",
+      "max-h-[var(--dedicated-editor-sidebar-height,34rem)]",
       "min-h-0",
       "flex-col",
     );
+    expect(structureSection).not.toHaveClass("max-h-[calc(100dvh-9rem)]");
     expect(structureScrollRegion).toHaveClass(
       "no-scrollbar",
       "min-h-0",
@@ -2038,16 +2040,18 @@ describe("DashboardProjectChapterEditor", () => {
     expect(masthead).toHaveTextContent(/Gerenciamento de Conte/i);
     expect(sidebar).toContainElement(structureSection);
     expect(sidebar).toHaveClass("min-w-0", "xl:sticky", "xl:top-24", "xl:min-h-0");
+    expect(upperLayout.style.getPropertyValue("--dedicated-editor-sidebar-height")).toBe("34rem");
     expect(structureAccordion).not.toBeNull();
     expect(Array.from(sidebar.children)[0]).toBe(structureAccordion);
     expect(structureAccordion).toHaveClass("project-editor-accordion", "space-y-2.5", "min-h-0");
     expect(structureSection).toHaveClass(
       "flex",
-      "h-[min(34rem,calc(100dvh-9rem))]",
-      "max-h-[calc(100dvh-9rem)]",
+      "h-[var(--dedicated-editor-sidebar-height,34rem)]",
+      "max-h-[var(--dedicated-editor-sidebar-height,34rem)]",
       "min-h-0",
       "flex-col",
     );
+    expect(structureSection).not.toHaveClass("max-h-[calc(100dvh-9rem)]");
     expect(structureScrollRegion).toHaveClass(
       "no-scrollbar",
       "min-h-0",
@@ -2152,6 +2156,79 @@ describe("DashboardProjectChapterEditor", () => {
       "resize-none",
     );
   });
+
+  it("mede a coluna principal textual para definir a altura da sidebar", async () => {
+    setupApiMock();
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.getAttribute("data-testid") === "chapter-editor-main-column") {
+          return createMockDomRect(0, 1184, 1024);
+        }
+        return createMockDomRect(0, 0);
+      });
+
+    renderEditor();
+    await screen.findByTestId("chapter-lexical-wrapper");
+
+    await waitFor(() => {
+      expect(
+        screen
+          .getByTestId("chapter-editor-upper-layout")
+          .style.getPropertyValue("--dedicated-editor-sidebar-height"),
+      ).toBe("1184px");
+    });
+
+    rectSpy.mockRestore();
+  });
+
+  it("mede a coluna principal de imagem para definir a altura da sidebar", async () => {
+    const imageProject = buildProject({
+      type: "MangÃ¡",
+      episodeDownloads: [
+        {
+          ...baseProject.episodeDownloads[0],
+          number: 3,
+          volume: 1,
+          title: "CapÃ­tulo em imagem",
+          content: "",
+          contentFormat: "images",
+          publicationStatus: "draft",
+          coverImageUrl: "https://cdn.test/page-1.jpg",
+          coverImageAlt: "Capa do capÃ­tulo em imagem",
+          pages: [
+            { position: 1, imageUrl: "https://cdn.test/page-1.jpg" },
+            { position: 2, imageUrl: "https://cdn.test/page-2.jpg" },
+          ],
+          pageCount: 2,
+          hasPages: true,
+        },
+      ],
+    });
+    setupApiMock({ project: imageProject });
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.getAttribute("data-testid") === "chapter-editor-main-column") {
+          return createMockDomRect(0, 1632, 1024);
+        }
+        return createMockDomRect(0, 0);
+      });
+
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/3?volume=1");
+    await screen.findByTestId("manga-chapter-pages-editor");
+
+    await waitFor(() => {
+      expect(
+        screen
+          .getByTestId("chapter-editor-upper-layout")
+          .style.getPropertyValue("--dedicated-editor-sidebar-height"),
+      ).toBe("1632px");
+    });
+
+    rectSpy.mockRestore();
+  });
+
   it("simplifica o workspace para capitulos em imagem", async () => {
     const imageProject = buildProject({
       type: "Manga",

@@ -2,6 +2,9 @@
 import { LayoutGroup, useReducedMotion } from "framer-motion";
 import { FileArchive, FolderOpen, ImagePlus, Loader2, Plus } from "lucide-react";
 import {
+  memo,
+  useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -24,11 +27,13 @@ import {
   buildReorderAnnouncement,
   getReorderLayoutTransition,
   buildPreviewReorderList,
+  collectReorderSurfaceRects,
   handleAltArrowReorder,
   hasExceededPointerDragThreshold,
   reorderList,
-  resolvePointerReorderIndex,
+  resolvePointerReorderIndexFromRects,
   resolvePageDisplayName,
+  type ReorderSurfaceRect,
 } from "@/components/project-reader/page-reorder";
 import { exportMangaChapter } from "@/components/project-reader/manga-chapter-export";
 import MangaPageTile from "@/components/project-reader/MangaPageTile";
@@ -125,6 +130,338 @@ type PagePointerDragState = {
   isDragging: boolean;
 };
 
+type PagePointerMove = {
+  pointerId: number;
+  clientX: number;
+  clientY: number;
+};
+
+type PageReorderGeometry = {
+  rects: ReorderSurfaceRect[];
+  itemCount: number;
+  scrollX: number;
+  scrollY: number;
+};
+
+type MangaEditorPage = ReturnType<typeof normalizePagesForEditor>[number];
+
+type MangaChapterPagesGridProps = {
+  layoutGroupId: string;
+  pages: MangaEditorPage[];
+  coverImageUrl: string;
+  isUploading: boolean;
+  shouldReduceMotion: boolean;
+  reorderTransition: ReturnType<typeof getReorderLayoutTransition>;
+  onMovePage: (fromIndex: number, toIndex: number) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLDivElement>, index: number) => void;
+  onJoinSpread: (event: MouseEvent<HTMLButtonElement>, index: number) => void;
+  onUnsetSpread: (
+    event: MouseEvent<HTMLButtonElement>,
+    index: number,
+    spreadPairId: string,
+  ) => void;
+  onSetCover: (event: MouseEvent<HTMLButtonElement>, index: number, imageUrl: string) => void;
+  onRemove: (event: MouseEvent<HTMLButtonElement>, index: number) => void;
+};
+
+const MangaChapterPagesGrid = memo(
+  ({
+    layoutGroupId,
+    pages,
+    coverImageUrl,
+    isUploading,
+    shouldReduceMotion,
+    reorderTransition,
+    onMovePage,
+    onKeyDown,
+    onJoinSpread,
+    onUnsetSpread,
+    onSetCover,
+    onRemove,
+  }: MangaChapterPagesGridProps) => {
+    const gridRef = useRef<HTMLDivElement | null>(null);
+    const pointerDragStateRef = useRef<PagePointerDragState | null>(null);
+    const reorderGeometryRef = useRef<PageReorderGeometry | null>(null);
+    const queuedPointerMoveRef = useRef<PagePointerMove | null>(null);
+    const pointerMoveFrameRef = useRef<number | null>(null);
+    const [pointerDragState, setPointerDragState] = useState<PagePointerDragState | null>(null);
+    const dragIndex = pointerDragState?.isDragging ? pointerDragState.sourceIndex : null;
+    const dragOverIndex = pointerDragState?.isDragging ? pointerDragState.overIndex : null;
+    const previewPages = useMemo(
+      () => buildPreviewReorderList(pages, dragIndex, dragOverIndex),
+      [dragIndex, dragOverIndex, pages],
+    );
+    const draggedPage = dragIndex !== null ? pages[dragIndex] : null;
+    const pressedPage =
+      pointerDragState?.sourceIndex !== undefined ? pages[pointerDragState.sourceIndex] : null;
+    const shouldUseAnimatedLayout = dragIndex !== null || dragOverIndex !== null;
+
+    const captureReorderGeometry = useCallback(() => {
+      const rects = collectReorderSurfaceRects({
+        container: gridRef.current,
+        scope: "manga-page",
+      });
+      const nextGeometry = {
+        rects,
+        itemCount: pages.length,
+        scrollX: window.scrollX,
+        scrollY: window.scrollY,
+      };
+      reorderGeometryRef.current = nextGeometry;
+      return nextGeometry;
+    }, [pages.length]);
+
+    const getReorderGeometry = useCallback(() => {
+      const current = reorderGeometryRef.current;
+      if (
+        !current ||
+        current.itemCount !== pages.length ||
+        current.scrollX !== window.scrollX ||
+        current.scrollY !== window.scrollY
+      ) {
+        return captureReorderGeometry();
+      }
+      return current;
+    }, [captureReorderGeometry, pages.length]);
+
+    const cancelScheduledPointerMove = useCallback(() => {
+      if (
+        pointerMoveFrameRef.current !== null &&
+        typeof window !== "undefined" &&
+        typeof window.cancelAnimationFrame === "function"
+      ) {
+        window.cancelAnimationFrame(pointerMoveFrameRef.current);
+      }
+      pointerMoveFrameRef.current = null;
+      queuedPointerMoveRef.current = null;
+    }, []);
+
+    const clearDragState = useCallback(() => {
+      cancelScheduledPointerMove();
+      pointerDragStateRef.current = null;
+      reorderGeometryRef.current = null;
+      setPointerDragState(null);
+    }, [cancelScheduledPointerMove]);
+
+    useEffect(() => clearDragState, [clearDragState]);
+
+    useEffect(() => {
+      const clearGeometry = () => {
+        reorderGeometryRef.current = null;
+      };
+      window.addEventListener("resize", clearGeometry);
+      return () => {
+        window.removeEventListener("resize", clearGeometry);
+      };
+    }, []);
+
+    const handlePagePointerDown = useCallback(
+      (event: PointerEvent<HTMLDivElement>, index: number) => {
+        if (isUploading) {
+          return;
+        }
+        if (event.pointerType === "mouse" && event.button !== 0) {
+          return;
+        }
+        const nextState = {
+          sourceIndex: index,
+          overIndex: index,
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          isDragging: false,
+        };
+        pointerDragStateRef.current = nextState;
+        reorderGeometryRef.current = null;
+        setPointerDragState(nextState);
+      },
+      [isUploading],
+    );
+
+    const applyPagePointerMove = useCallback(
+      ({ pointerId, clientX, clientY }: PagePointerMove) => {
+        if (isUploading) {
+          return;
+        }
+
+        const current = pointerDragStateRef.current;
+        if (!current || (Number.isFinite(pointerId) && current.pointerId !== pointerId)) {
+          return;
+        }
+
+        const hasDragDistance =
+          current.isDragging ||
+          hasExceededPointerDragThreshold({
+            startX: current.startX,
+            startY: current.startY,
+            clientX,
+            clientY,
+          });
+        if (!hasDragDistance) {
+          return;
+        }
+
+        const geometry = getReorderGeometry();
+        const resolvedIndex = resolvePointerReorderIndexFromRects({
+          clientX,
+          clientY,
+          rects: geometry.rects,
+        });
+        const nextOverIndex = resolvedIndex ?? current.overIndex;
+
+        if (current.isDragging && current.overIndex === nextOverIndex) {
+          return;
+        }
+
+        const nextState = {
+          ...current,
+          isDragging: true,
+          overIndex: nextOverIndex,
+        };
+        pointerDragStateRef.current = nextState;
+        setPointerDragState(nextState);
+      },
+      [getReorderGeometry, isUploading],
+    );
+
+    const handlePagePointerMove = useCallback(
+      (event: PointerEvent<HTMLDivElement>) => {
+        if (isUploading) {
+          return;
+        }
+
+        queuedPointerMoveRef.current = {
+          pointerId: event.pointerId,
+          clientX: event.clientX,
+          clientY: event.clientY,
+        };
+
+        if (pointerMoveFrameRef.current !== null) {
+          return;
+        }
+
+        if (
+          typeof window === "undefined" ||
+          typeof window.requestAnimationFrame !== "function"
+        ) {
+          const queuedMove = queuedPointerMoveRef.current;
+          queuedPointerMoveRef.current = null;
+          if (queuedMove) {
+            applyPagePointerMove(queuedMove);
+          }
+          return;
+        }
+
+        pointerMoveFrameRef.current = window.requestAnimationFrame(() => {
+          pointerMoveFrameRef.current = null;
+          const queuedMove = queuedPointerMoveRef.current;
+          queuedPointerMoveRef.current = null;
+          if (queuedMove) {
+            applyPagePointerMove(queuedMove);
+          }
+        });
+      },
+      [applyPagePointerMove, isUploading],
+    );
+
+    const handlePagePointerUp = useCallback(
+      (event: PointerEvent<HTMLDivElement>) => {
+        cancelScheduledPointerMove();
+        applyPagePointerMove({
+          pointerId: event.pointerId,
+          clientX: event.clientX,
+          clientY: event.clientY,
+        });
+        const currentState = pointerDragStateRef.current;
+        const geometry = reorderGeometryRef.current;
+        clearDragState();
+        if (
+          isUploading ||
+          !currentState ||
+          (Number.isFinite(event.pointerId) && currentState.pointerId !== event.pointerId) ||
+          !currentState.isDragging
+        ) {
+          return;
+        }
+
+        const resolvedIndex = geometry
+          ? resolvePointerReorderIndexFromRects({
+              clientX: event.clientX,
+              clientY: event.clientY,
+              rects: geometry.rects,
+            })
+          : null;
+        const targetIndex = resolvedIndex ?? currentState.overIndex;
+        if (currentState.sourceIndex === targetIndex) {
+          return;
+        }
+        onMovePage(currentState.sourceIndex, targetIndex);
+      },
+      [applyPagePointerMove, cancelScheduledPointerMove, clearDragState, isUploading, onMovePage],
+    );
+
+    const renderTile = (page: MangaEditorPage, index: number) => {
+      const isCover = coverImageUrl === page.imageUrl;
+      const isSpread = Boolean(page.spreadPairId);
+      const isDragged = draggedPage === page;
+      const isPreviewTarget = dragIndex !== null && dragOverIndex === index;
+      const pageList = shouldUseAnimatedLayout ? previewPages : pages;
+      const canJoinWithNext = Boolean(
+        !page.spreadPairId && pageList[index + 1] && !pageList[index + 1]?.spreadPairId,
+      );
+
+      return (
+        <MangaPageTile
+          key={`${page.imageUrl}-${page.position}`}
+          testIdPrefix="manga-page"
+          src={page.imageUrl}
+          alt={`Página ${index + 1}`}
+          displayName={page.displayName}
+          index={index}
+          spreadPairId={page.spreadPairId}
+          isCover={isCover}
+          isSpread={isSpread}
+          isDragged={isDragged}
+          isPreviewTarget={isPreviewTarget}
+          isPressed={pressedPage === page}
+          disabled={isUploading}
+          canJoinWithNext={canJoinWithNext}
+          reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
+          reorderTransition={reorderTransition}
+          onPointerDown={handlePagePointerDown}
+          onPointerMove={handlePagePointerMove}
+          onPointerUp={handlePagePointerUp}
+          onPointerCancel={clearDragState}
+          onLostPointerCapture={clearDragState}
+          onKeyDown={onKeyDown}
+          onJoinSpread={canJoinWithNext ? onJoinSpread : undefined}
+          onUnsetSpread={isSpread && page.spreadPairId ? onUnsetSpread : undefined}
+          onSetCover={isCover ? undefined : onSetCover}
+          onRemove={onRemove}
+        />
+      );
+    };
+
+    const grid = (
+      <div
+        ref={gridRef}
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+        data-testid="manga-pages-grid"
+      >
+        {(shouldUseAnimatedLayout ? previewPages : pages).map(renderTile)}
+      </div>
+    );
+
+    return shouldUseAnimatedLayout ? (
+      <LayoutGroup id={layoutGroupId}>{grid}</LayoutGroup>
+    ) : (
+      grid
+    );
+  },
+);
+
+MangaChapterPagesGrid.displayName = "MangaChapterPagesGrid";
+
 const MangaChapterPagesEditor = ({
   apiBase,
   projectSnapshot,
@@ -136,24 +473,14 @@ const MangaChapterPagesEditor = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
   const archiveInputRef = useRef<HTMLInputElement | null>(null);
-  const pointerDragStateRef = useRef<PagePointerDragState | null>(null);
   const { announce } = useAccessibilityAnnouncer();
   const shouldReduceMotion = useReducedMotion();
   const [isUploading, setIsUploading] = useState(false);
   const [isExportingZip, setIsExportingZip] = useState(false);
-  const [pointerDragState, setPointerDragState] = useState<PagePointerDragState | null>(null);
   const reorderTransition = useMemo(
     () => getReorderLayoutTransition(!!shouldReduceMotion),
     [shouldReduceMotion],
   );
-  const dragIndex = pointerDragState?.isDragging ? pointerDragState.sourceIndex : null;
-  const dragOverIndex = pointerDragState?.isDragging ? pointerDragState.overIndex : null;
-  const previewPages = useMemo(
-    () => buildPreviewReorderList(pages, dragIndex, dragOverIndex),
-    [dragIndex, dragOverIndex, pages],
-  );
-  const draggedPage = dragIndex !== null ? pages[dragIndex] : null;
-  const shouldUseAnimatedLayout = dragIndex !== null || dragOverIndex !== null;
 
   const setChapterState = (
     overrides: Partial<ProjectEpisode>,
@@ -305,11 +632,6 @@ const MangaChapterPagesEditor = ({
     }
   };
 
-  const clearDragState = () => {
-    pointerDragStateRef.current = null;
-    setPointerDragState(null);
-  };
-
   const movePage = (fromIndex: number, toIndex: number) => {
     const nextPages = reorderList(pages, fromIndex, toIndex);
     if (nextPages === pages) {
@@ -322,101 +644,6 @@ const MangaChapterPagesEditor = ({
         ? `${buildReorderAnnouncement(`Pagina ${fromIndex + 1}`, toIndex)} Spread desfeito porque as paginas deixaram de ficar juntas.`
         : buildReorderAnnouncement(`Pagina ${fromIndex + 1}`, toIndex),
     );
-  };
-
-  const handlePagePointerDown = (event: PointerEvent<HTMLDivElement>, index: number) => {
-    if (isUploading) {
-      return;
-    }
-    if (event.pointerType === "mouse" && event.button !== 0) {
-      return;
-    }
-    const nextState = {
-      sourceIndex: index,
-      overIndex: index,
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      isDragging: false,
-    };
-    pointerDragStateRef.current = nextState;
-    setPointerDragState(nextState);
-  };
-
-  const handlePagePointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (isUploading) {
-      return;
-    }
-
-    setPointerDragState((current) => {
-      if (
-        !current ||
-        (Number.isFinite(event.pointerId) && current.pointerId !== event.pointerId)
-      ) {
-        return current;
-      }
-
-      const resolvedIndex = resolvePointerReorderIndex({
-        clientX: event.clientX,
-        clientY: event.clientY,
-        scope: "manga-page",
-      });
-      const nextIsDragging =
-        current.isDragging ||
-        hasExceededPointerDragThreshold({
-          startX: current.startX,
-          startY: current.startY,
-          clientX: event.clientX,
-          clientY: event.clientY,
-        }) ||
-        (resolvedIndex !== null && resolvedIndex !== current.sourceIndex);
-
-      if (!nextIsDragging) {
-        return current;
-      }
-
-      const nextOverIndex = resolvedIndex ?? current.overIndex;
-
-      if (current.isDragging === nextIsDragging && current.overIndex === nextOverIndex) {
-        return current;
-      }
-
-      const nextState = {
-        ...current,
-        isDragging: nextIsDragging,
-        overIndex: nextOverIndex,
-      };
-      pointerDragStateRef.current = nextState;
-      return nextState;
-    });
-  };
-
-  const handlePagePointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    const currentState = pointerDragStateRef.current;
-    clearDragState();
-    if (
-      isUploading ||
-      !currentState ||
-      (Number.isFinite(event.pointerId) && currentState.pointerId !== event.pointerId) ||
-      !currentState.isDragging
-    ) {
-      return;
-    }
-
-    const resolvedIndex = resolvePointerReorderIndex({
-      clientX: event.clientX,
-      clientY: event.clientY,
-      scope: "manga-page",
-    });
-    const targetIndex = resolvedIndex ?? currentState.overIndex;
-    if (currentState.sourceIndex === targetIndex) {
-      return;
-    }
-    movePage(currentState.sourceIndex, targetIndex);
-  };
-
-  const handlePagePointerCancel = () => {
-    clearDragState();
   };
 
   const handlePageKeyDown = (event: KeyboardEvent<HTMLDivElement>, index: number) => {
@@ -474,7 +701,11 @@ const MangaChapterPagesEditor = ({
     announce(`Spread criado entre as paginas ${index + 1} e ${index + 2}.`);
   };
 
-  const unsetSpreadPair = (event: MouseEvent<HTMLButtonElement>, spreadPairId: string) => {
+  const unsetSpreadPair = (
+    event: MouseEvent<HTMLButtonElement>,
+    _index: number,
+    spreadPairId: string,
+  ) => {
     event.stopPropagation();
     if (!spreadPairId) {
       return;
@@ -494,7 +725,11 @@ const MangaChapterPagesEditor = ({
     }
   };
 
-  const setPageAsCover = (event: MouseEvent<HTMLButtonElement>, imageUrl: string) => {
+  const setPageAsCover = (
+    event: MouseEvent<HTMLButtonElement>,
+    _index: number,
+    imageUrl: string,
+  ) => {
     event.stopPropagation();
     setNextChapter(pages, { coverImageUrl: imageUrl });
     toast({
@@ -624,113 +859,20 @@ const MangaChapterPagesEditor = ({
       </div>
 
       {pages.length > 0 ? (
-        shouldUseAnimatedLayout ? (
-          <LayoutGroup
-            id={`manga-pages-${projectSnapshot.id}-${chapter.number}-${chapter.volume ?? "none"}`}
-          >
-            <div
-              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
-              data-testid="manga-pages-grid"
-            >
-              {previewPages.map((page, index) => {
-                const isCover = chapter.coverImageUrl === page.imageUrl;
-                const isSpread = Boolean(page.spreadPairId);
-                const isDragged = draggedPage === page;
-                const isPreviewTarget = dragIndex !== null && dragOverIndex === index;
-                const canJoinWithNext = Boolean(
-                  !page.spreadPairId &&
-                    previewPages[index + 1] &&
-                    !previewPages[index + 1]?.spreadPairId,
-                );
-                return (
-                  <MangaPageTile
-                    key={`${page.imageUrl}-${page.position}`}
-                    testIdPrefix="manga-page"
-                    src={page.imageUrl}
-                    alt={`Página ${index + 1}`}
-                    displayName={page.displayName}
-                    index={index}
-                    isCover={isCover}
-                    isSpread={isSpread}
-                    isDragged={isDragged}
-                    isPreviewTarget={isPreviewTarget}
-                    isPressed={pointerDragState?.sourceIndex === index}
-                    disabled={isUploading}
-                    canJoinWithNext={canJoinWithNext}
-                    reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
-                    reorderTransition={reorderTransition}
-                    onPointerDown={(event) => handlePagePointerDown(event, index)}
-                    onPointerMove={handlePagePointerMove}
-                    onPointerUp={handlePagePointerUp}
-                    onPointerCancel={() => handlePagePointerCancel()}
-                    onLostPointerCapture={() => handlePagePointerCancel()}
-                    onKeyDown={(event) => handlePageKeyDown(event, index)}
-                    onJoinSpread={
-                      canJoinWithNext ? (event) => joinSpreadPair(event, index) : undefined
-                    }
-                    onUnsetSpread={
-                      isSpread && page.spreadPairId
-                        ? (event) => unsetSpreadPair(event, page.spreadPairId || "")
-                        : undefined
-                    }
-                    onSetCover={
-                      isCover ? undefined : (event) => setPageAsCover(event, page.imageUrl)
-                    }
-                    onRemove={(event) => removePage(event, index)}
-                  />
-                );
-              })}
-            </div>
-          </LayoutGroup>
-        ) : (
-          <div
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
-            data-testid="manga-pages-grid"
-          >
-            {pages.map((page, index) => {
-              const isCover = chapter.coverImageUrl === page.imageUrl;
-              const isSpread = Boolean(page.spreadPairId);
-              const canJoinWithNext = Boolean(
-                !page.spreadPairId && pages[index + 1] && !pages[index + 1]?.spreadPairId,
-              );
-              return (
-                <MangaPageTile
-                  key={`${page.imageUrl}-${page.position}`}
-                  testIdPrefix="manga-page"
-                  src={page.imageUrl}
-                  alt={`Página ${index + 1}`}
-                  displayName={page.displayName}
-                  index={index}
-                  isCover={isCover}
-                  isSpread={isSpread}
-                  isDragged={false}
-                  isPreviewTarget={false}
-                  isPressed={pointerDragState?.sourceIndex === index}
-                  disabled={isUploading}
-                  canJoinWithNext={canJoinWithNext}
-                  reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
-                  reorderTransition={reorderTransition}
-                  onPointerDown={(event) => handlePagePointerDown(event, index)}
-                  onPointerMove={handlePagePointerMove}
-                  onPointerUp={handlePagePointerUp}
-                  onPointerCancel={() => handlePagePointerCancel()}
-                  onLostPointerCapture={() => handlePagePointerCancel()}
-                  onKeyDown={(event) => handlePageKeyDown(event, index)}
-                  onJoinSpread={
-                    canJoinWithNext ? (event) => joinSpreadPair(event, index) : undefined
-                  }
-                  onUnsetSpread={
-                    isSpread && page.spreadPairId
-                      ? (event) => unsetSpreadPair(event, page.spreadPairId || "")
-                      : undefined
-                  }
-                  onSetCover={isCover ? undefined : (event) => setPageAsCover(event, page.imageUrl)}
-                  onRemove={(event) => removePage(event, index)}
-                />
-              );
-            })}
-          </div>
-        )
+        <MangaChapterPagesGrid
+          layoutGroupId={`manga-pages-${projectSnapshot.id}-${chapter.number}-${chapter.volume ?? "none"}`}
+          pages={pages}
+          coverImageUrl={chapter.coverImageUrl || ""}
+          isUploading={isUploading}
+          shouldReduceMotion={!!shouldReduceMotion}
+          reorderTransition={reorderTransition}
+          onMovePage={movePage}
+          onKeyDown={handlePageKeyDown}
+          onJoinSpread={joinSpreadPair}
+          onUnsetSpread={unsetSpreadPair}
+          onSetCover={setPageAsCover}
+          onRemove={removePage}
+        />
       ) : (
         <div
           className="rounded-[20px] border border-dashed border-border/60 bg-background/35 px-4 py-8 text-center text-sm text-muted-foreground"

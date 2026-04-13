@@ -39,6 +39,19 @@ const expectDashboardActionButtonTokens = (element: HTMLElement, sizeToken: "h-9
   expect(tokens).not.toContain("pressable");
 };
 
+const createMockDomRect = (top: number, height = 40, width = 320): DOMRect =>
+  ({
+    x: 0,
+    y: top,
+    top,
+    bottom: top + height,
+    left: 0,
+    right: width,
+    width,
+    height,
+    toJSON: () => ({}),
+  }) as DOMRect;
+
 vi.mock("@/components/DashboardShell", () => ({
   default: ({
     children,
@@ -337,6 +350,30 @@ describe("DashboardProjectEpisodeEditor", () => {
     await screen.findByText("Acesso negado");
   });
 
+  it("mede a coluna principal ativa para definir a altura da sidebar", async () => {
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.getAttribute("data-testid") === "anime-episode-editor-main-column") {
+          return createMockDomRect(0, 1416, 1024);
+        }
+        return createMockDomRect(0, 0);
+      });
+
+    renderEditor("/dashboard/projetos/project-1/episodios/2");
+    await screen.findByTestId("anime-episode-file-section");
+
+    await waitFor(() => {
+      expect(
+        screen
+          .getByTestId("anime-episode-editor-layout")
+          .style.getPropertyValue("--dedicated-editor-sidebar-height"),
+      ).toBe("1416px");
+    });
+
+    rectSpy.mockRestore();
+  });
+
   it("salva o episódio ativo e envia o snapshot completo do projeto", async () => {
     const apiState = setupApiMock();
     renderEditor();
@@ -444,19 +481,24 @@ describe("DashboardProjectEpisodeEditor", () => {
     );
 
     const sidebar = screen.getByTestId("anime-episode-editor-sidebar");
+    const layout = screen.getByTestId("anime-episode-editor-layout");
+    const mainColumn = screen.getByTestId("anime-episode-editor-main-column");
     const scrollRegion = screen.getByTestId("anime-episode-sidebar-scroll-region");
     const sidebarPanel = sidebar.querySelector("section");
 
     expect(sidebar).toBeInTheDocument();
     expect(sidebar).toHaveClass("min-w-0", "xl:sticky", "xl:top-24", "xl:min-h-0");
+    expect(layout.style.getPropertyValue("--dedicated-editor-sidebar-height")).toBe("34rem");
+    expect(layout).toContainElement(mainColumn);
     expect(sidebarPanel).not.toBeNull();
     expect(sidebarPanel).toHaveClass(
       "flex",
-      "h-[min(34rem,calc(100dvh-9rem))]",
-      "max-h-[calc(100dvh-9rem)]",
+      "h-[var(--dedicated-editor-sidebar-height,34rem)]",
+      "max-h-[var(--dedicated-editor-sidebar-height,34rem)]",
       "min-h-0",
       "flex-col",
     );
+    expect(sidebarPanel).not.toHaveClass("max-h-[calc(100dvh-9rem)]");
     expect(scrollRegion).toHaveClass(
       "no-scrollbar",
       "min-h-0",

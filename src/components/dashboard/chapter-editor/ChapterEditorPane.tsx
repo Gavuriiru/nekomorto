@@ -12,7 +12,11 @@ import { useChapterEditorStructureOrchestration } from "@/components/dashboard/c
 import { useChapterEditorImageLibrary } from "@/components/dashboard/chapter-editor/useChapterEditorImageLibrary";
 import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
 import DashboardDedicatedEditorHeader from "@/components/dashboard/DashboardDedicatedEditorHeader";
-import { dedicatedEditorSidebarStickyClassName } from "@/components/dashboard/dedicated-editor-sidebar";
+import {
+  dedicatedEditorSidebarStickyClassName,
+  type DedicatedEditorSidebarHeightStyle,
+  useDedicatedEditorSidebarHeight,
+} from "@/components/dashboard/dedicated-editor-sidebar";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import { useChapterEditorLeaveGuard } from "@/components/dashboard/chapter-editor/useChapterEditorLeaveGuard";
@@ -152,7 +156,6 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -337,6 +340,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     const apiBase = getApiBase();
     const editorRef = useRef<LexicalEditorHandle | null>(null);
     const mangaWorkflowRef = useRef<MangaWorkflowPanelHandle | null>(null);
+    const mainColumnRef = useRef<HTMLDivElement | null>(null);
     const cancelLeaveDialogRef = useRef<(() => void) | null>(null);
     const hasPendingLeaveDialogRef = useRef(false);
     const hasActiveChapter = Boolean(activeChapter && activeChapterKey);
@@ -478,6 +482,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       supportsStructureReordering,
     });
     const showVolumeEditor = selectedVolumeNumber !== null && !hasActiveChapter;
+    const measuredSidebarHeight = useDedicatedEditorSidebarHeight(
+      mainColumnRef,
+      activeChapterKey || selectedVolumeNumber || "neutral",
+    );
     const selectedVolumeLabel =
       selectedVolumeNumber !== null ? buildChapterVolumeLabel(selectedVolumeNumber) : "Volumes";
     const showVolumeSaveControls = isVolumeDirty || isSavingVolumes;
@@ -1756,9 +1764,18 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
         <div
           className="project-editor-layout mx-auto grid w-full gap-5 pb-8 pt-4 md:pb-10 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start"
           data-testid="chapter-editor-upper-layout"
+          style={
+            {
+              "--dedicated-editor-sidebar-height": measuredSidebarHeight,
+            } as DedicatedEditorSidebarHeightStyle
+          }
         >
           {" "}
-          <div className="min-w-0 w-full" data-testid="chapter-editor-main-column">
+          <div
+            className="min-w-0 w-full"
+            data-testid="chapter-editor-main-column"
+            ref={mainColumnRef}
+          >
             {" "}
             <div className="space-y-4" data-testid="chapter-editor-workspace">
               {" "}

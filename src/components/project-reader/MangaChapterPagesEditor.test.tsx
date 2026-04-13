@@ -125,23 +125,28 @@ const getPageCardBySrc = (src: string) => {
   return card;
 };
 
-const mockElementFromPoint = (resolver: () => Element | null) => {
-  const original = document.elementFromPoint;
-  Object.defineProperty(document, "elementFromPoint", {
-    configurable: true,
-    value: resolver,
+const mockPageSurfaceRects = (count: number) => {
+  Array.from({ length: count }, (_, index) => {
+    const left = index * 120;
+    const top = 0;
+    const width = 100;
+    const height = 140;
+    const rect = {
+      x: left,
+      y: top,
+      left,
+      top,
+      width,
+      height,
+      right: left + width,
+      bottom: top + height,
+      toJSON: () => rect,
+    } as DOMRect;
+    Object.defineProperty(screen.getByTestId(`manga-page-surface-${index}`), "getBoundingClientRect", {
+      configurable: true,
+      value: () => rect,
+    });
   });
-  return () => {
-    if (typeof original === "function") {
-      Object.defineProperty(document, "elementFromPoint", {
-        configurable: true,
-        value: original,
-      });
-      return;
-    }
-    delete (document as Document & { elementFromPoint?: (x: number, y: number) => Element | null })
-      .elementFromPoint;
-  };
 };
 
 const renderEditor = (options?: { chapter?: ProjectEpisode }) => {
@@ -263,18 +268,45 @@ describe("MangaChapterPagesEditor", () => {
     fireEvent.pointerUp(draggedSurface, { pointerId: 1, clientX: 40, clientY: 40 });
     expect(draggedSurface).toHaveAttribute("data-surface-active", "false");
 
-    const restoreElementFromPoint = mockElementFromPoint(() =>
-      screen.getByTestId("manga-page-surface-0"),
-    );
+    mockPageSurfaceRects(2);
+    fireEvent.pointerDown(draggedSurface, { pointerId: 4, button: 0, clientX: 160, clientY: 40 });
+    fireEvent.pointerMove(draggedSurface, { pointerId: 4, clientX: 170, clientY: 40 });
+    await waitFor(() => {
+      expect(getPageSurfaceBySrc("https://cdn.test/page-2.jpg")).toHaveAttribute(
+        "data-reorder-state",
+        "dragging",
+      );
+    });
+    expect(getPageOrder()).toEqual(["https://cdn.test/page-1.jpg", "https://cdn.test/page-2.jpg"]);
+    fireEvent.pointerUp(getPageSurfaceBySrc("https://cdn.test/page-2.jpg"), {
+      pointerId: 4,
+      clientX: 170,
+      clientY: 40,
+    });
+    await waitFor(() => {
+      expect(getPageSurfaceBySrc("https://cdn.test/page-2.jpg")).toHaveAttribute(
+        "data-reorder-state",
+        "idle",
+      );
+    });
+    expect(getPageOrder()).toEqual(["https://cdn.test/page-1.jpg", "https://cdn.test/page-2.jpg"]);
+    expect(onChangeSpy).not.toHaveBeenCalled();
+
+    const draggedSurfaceAfterSameSlot = screen.getByTestId("manga-page-surface-1");
     const targetSurface = screen.getByTestId("manga-page-surface-0");
 
-    fireEvent.pointerDown(draggedSurface, { pointerId: 2, button: 0, clientX: 140, clientY: 140 });
+    fireEvent.pointerDown(draggedSurfaceAfterSameSlot, {
+      pointerId: 2,
+      button: 0,
+      clientX: 160,
+      clientY: 40,
+    });
     expect(screen.getByTestId("manga-page-surface-1")).toHaveAttribute("data-surface-active", "true");
     expect(screen.getByTestId("manga-page-surface-1")).toHaveAttribute(
       "data-reorder-state",
       "idle",
     );
-    fireEvent.pointerMove(targetSurface, { pointerId: 2, clientX: 160, clientY: 160 });
+    fireEvent.pointerMove(targetSurface, { pointerId: 2, clientX: 40, clientY: 40 });
     await waitFor(() => {
       expect(getPageSurfaceBySrc("https://cdn.test/page-2.jpg")).toHaveAttribute(
         "data-reorder-state",
@@ -309,10 +341,9 @@ describe("MangaChapterPagesEditor", () => {
 
     fireEvent.pointerUp(getPageSurfaceBySrc("https://cdn.test/page-2.jpg"), {
       pointerId: 2,
-      clientX: 160,
-      clientY: 160,
+      clientX: 40,
+      clientY: 40,
     });
-    restoreElementFromPoint();
 
     await waitFor(() => {
       expect(getPageOrder()).toEqual([
@@ -475,13 +506,11 @@ describe("MangaChapterPagesEditor", () => {
     });
 
     const draggedSurface = screen.getByTestId("manga-page-surface-1");
-    const restoreElementFromPoint = mockElementFromPoint(() =>
-      screen.getByTestId("manga-page-surface-2"),
-    );
+    mockPageSurfaceRects(3);
     const targetSurface = screen.getByTestId("manga-page-surface-2");
 
-    fireEvent.pointerDown(draggedSurface, { pointerId: 3, button: 0, clientX: 120, clientY: 120 });
-    fireEvent.pointerMove(targetSurface, { pointerId: 3, clientX: 140, clientY: 140 });
+    fireEvent.pointerDown(draggedSurface, { pointerId: 3, button: 0, clientX: 160, clientY: 40 });
+    fireEvent.pointerMove(targetSurface, { pointerId: 3, clientX: 280, clientY: 40 });
 
     await waitFor(() => {
       expect(getPageOrder()).toEqual([
@@ -493,10 +522,9 @@ describe("MangaChapterPagesEditor", () => {
 
     fireEvent.pointerUp(getPageSurfaceBySrc("https://cdn.test/page-2.jpg"), {
       pointerId: 3,
-      clientX: 140,
-      clientY: 140,
+      clientX: 280,
+      clientY: 40,
     });
-    restoreElementFromPoint();
 
     await waitFor(() => {
       expect(getPageOrder()).toEqual([

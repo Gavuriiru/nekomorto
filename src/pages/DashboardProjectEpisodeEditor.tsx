@@ -6,6 +6,8 @@ import {
   dedicatedEditorSidebarPanelClassName,
   dedicatedEditorSidebarScrollRegionClassName,
   dedicatedEditorSidebarStickyClassName,
+  type DedicatedEditorSidebarHeightStyle,
+  useDedicatedEditorSidebarHeight,
 } from "@/components/dashboard/dedicated-editor-sidebar";
 import DashboardDedicatedEditorHeader from "@/components/dashboard/DashboardDedicatedEditorHeader";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
@@ -322,8 +324,13 @@ const DashboardProjectEpisodeEditor = () => {
   const [pendingAction, setPendingAction] = useState<PendingEpisodeAction>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const titleInputRef = useRef<HTMLInputElement | null>(null);
+  const mainColumnRef = useRef<HTMLDivElement | null>(null);
   const focusTitleOnNextOpenRef = useRef(false);
   const fallbackNeutralToastKeyRef = useRef<string | null>(null);
+  const measuredSidebarHeight = useDedicatedEditorSidebarHeight(
+    mainColumnRef,
+    activeDraft?._editorKey || "neutral",
+  );
 
   const canManageProjects = useMemo(() => {
     return canManageProjectsAccess(currentUser);
@@ -1108,8 +1115,18 @@ const DashboardProjectEpisodeEditor = () => {
                   ? "grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start"
                   : "space-y-5"
               }
+              data-testid="anime-episode-editor-layout"
+              style={
+                {
+                  "--dedicated-editor-sidebar-height": measuredSidebarHeight,
+                } as DedicatedEditorSidebarHeightStyle
+              }
             >
-              <div className="min-w-0 space-y-4">
+              <div
+                className="min-w-0 space-y-4"
+                data-testid="anime-episode-editor-main-column"
+                ref={mainColumnRef}
+              >
                 {activeDraft ? (
                   <>
                     <ProjectEditorSectionCard

@@ -129,23 +129,32 @@ const getStagePageCardBySrc = (src: string) => {
   return card;
 };
 
-const mockElementFromPoint = (resolver: () => Element | null) => {
-  const original = document.elementFromPoint;
-  Object.defineProperty(document, "elementFromPoint", {
-    configurable: true,
-    value: resolver,
-  });
-  return () => {
-    if (typeof original === "function") {
-      Object.defineProperty(document, "elementFromPoint", {
+const mockStagePageSurfaceRects = (count: number) => {
+  Array.from({ length: count }, (_, index) => {
+    const left = index * 120;
+    const top = 0;
+    const width = 100;
+    const height = 140;
+    const rect = {
+      x: left,
+      y: top,
+      left,
+      top,
+      width,
+      height,
+      right: left + width,
+      bottom: top + height,
+      toJSON: () => rect,
+    } as DOMRect;
+    Object.defineProperty(
+      screen.getByTestId(`manga-stage-page-surface-${index}`),
+      "getBoundingClientRect",
+      {
         configurable: true,
-        value: original,
-      });
-      return;
-    }
-    delete (document as Document & { elementFromPoint?: (x: number, y: number) => Element | null })
-      .elementFromPoint;
-  };
+        value: () => rect,
+      },
+    );
+  });
 };
 
 const renderWorkflow = (options?: {
@@ -502,12 +511,32 @@ describe("MangaWorkflowPanel", () => {
     fireEvent.pointerUp(draggedSurface, { pointerId: 1, clientX: 40, clientY: 40 });
     expect(draggedSurface).toHaveAttribute("data-surface-active", "false");
 
-    const restoreElementFromPoint = mockElementFromPoint(() =>
-      screen.getByTestId("manga-stage-page-surface-0"),
-    );
+    mockStagePageSurfaceRects(2);
+    fireEvent.pointerDown(draggedSurface, { pointerId: 4, button: 0, clientX: 160, clientY: 40 });
+    fireEvent.pointerMove(draggedSurface, { pointerId: 4, clientX: 170, clientY: 40 });
+    await waitFor(() => {
+      expect(getStagePageSurfaceBySrc("blob:002.jpg")).toHaveAttribute(
+        "data-reorder-state",
+        "dragging",
+      );
+    });
+    expect(getStagePageOrder()).toEqual(["blob:001.jpg", "blob:002.jpg"]);
+    fireEvent.pointerUp(getStagePageSurfaceBySrc("blob:002.jpg"), {
+      pointerId: 4,
+      clientX: 170,
+      clientY: 40,
+    });
+    await waitFor(() => {
+      expect(getStagePageSurfaceBySrc("blob:002.jpg")).toHaveAttribute(
+        "data-reorder-state",
+        "idle",
+      );
+    });
+    expect(getStagePageOrder()).toEqual(["blob:001.jpg", "blob:002.jpg"]);
+
     const targetSurface = screen.getByTestId("manga-stage-page-surface-0");
 
-    fireEvent.pointerDown(draggedSurface, { pointerId: 2, button: 0, clientX: 140, clientY: 140 });
+    fireEvent.pointerDown(draggedSurface, { pointerId: 2, button: 0, clientX: 160, clientY: 40 });
     expect(screen.getByTestId("manga-stage-page-surface-1")).toHaveAttribute(
       "data-surface-active",
       "true",
@@ -516,7 +545,7 @@ describe("MangaWorkflowPanel", () => {
       "data-reorder-state",
       "idle",
     );
-    fireEvent.pointerMove(targetSurface, { pointerId: 2, clientX: 160, clientY: 160 });
+    fireEvent.pointerMove(targetSurface, { pointerId: 2, clientX: 40, clientY: 40 });
     await waitFor(() => {
       expect(getStagePageSurfaceBySrc("blob:002.jpg")).toHaveAttribute(
         "data-reorder-state",
@@ -548,10 +577,9 @@ describe("MangaWorkflowPanel", () => {
 
     fireEvent.pointerUp(getStagePageSurfaceBySrc("blob:002.jpg"), {
       pointerId: 2,
-      clientX: 160,
-      clientY: 160,
+      clientX: 40,
+      clientY: 40,
     });
-    restoreElementFromPoint();
 
     await waitFor(() => {
       expect(getStagePageOrder()).toEqual(["blob:002.jpg", "blob:001.jpg"]);

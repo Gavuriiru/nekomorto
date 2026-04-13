@@ -1,6 +1,7 @@
 import { motion, type Transition } from "framer-motion";
 import { Columns2, Link2Off, Star, Trash2 } from "lucide-react";
 import {
+  memo,
   useEffect,
   useRef,
   useState,
@@ -20,9 +21,11 @@ type InputModality = "keyboard" | "pointer";
 type MangaPageTileProps = {
   testIdPrefix: string;
   src: string;
+  actionId?: string;
   alt: string;
   displayName: string;
   index: number;
+  spreadPairId?: string;
   isCover: boolean;
   isSpread: boolean;
   isDragged: boolean;
@@ -32,16 +35,20 @@ type MangaPageTileProps = {
   canJoinWithNext?: boolean;
   reorderMotion: "spring" | "reduced";
   reorderTransition: Transition;
-  onPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
+  onPointerDown?: (event: PointerEvent<HTMLDivElement>, index: number) => void;
   onPointerMove?: (event: PointerEvent<HTMLDivElement>) => void;
   onPointerUp?: (event: PointerEvent<HTMLDivElement>) => void;
   onPointerCancel?: (event: PointerEvent<HTMLDivElement>) => void;
   onLostPointerCapture?: (event: PointerEvent<HTMLDivElement>) => void;
-  onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
-  onJoinSpread?: (event: MouseEvent<HTMLButtonElement>) => void;
-  onUnsetSpread?: (event: MouseEvent<HTMLButtonElement>) => void;
-  onSetCover?: (event: MouseEvent<HTMLButtonElement>) => void;
-  onRemove: (event: MouseEvent<HTMLButtonElement>) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLDivElement>, index: number) => void;
+  onJoinSpread?: (event: MouseEvent<HTMLButtonElement>, index: number) => void;
+  onUnsetSpread?: (
+    event: MouseEvent<HTMLButtonElement>,
+    index: number,
+    spreadPairId: string,
+  ) => void;
+  onSetCover?: (event: MouseEvent<HTMLButtonElement>, index: number, actionId: string) => void;
+  onRemove: (event: MouseEvent<HTMLButtonElement>, index: number, actionId: string) => void;
 };
 
 let currentInputModality: InputModality = "pointer";
@@ -102,9 +109,11 @@ const isKeyboardFocus = (target: EventTarget | null, modality: InputModality) =>
 const MangaPageTile = ({
   testIdPrefix,
   src,
+  actionId = src,
   alt,
   displayName,
   index,
+  spreadPairId = "",
   isCover,
   isSpread,
   isDragged,
@@ -189,7 +198,7 @@ const MangaPageTile = ({
   const handleSurfacePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     clearKeyboardFocusState();
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    onPointerDown?.(event);
+    onPointerDown?.(event, index);
   };
 
   const handleSurfacePointerMove = (event: PointerEvent<HTMLDivElement>) => {
@@ -231,9 +240,29 @@ const MangaPageTile = ({
     event.stopPropagation();
   };
 
+  const handleSurfaceKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    onKeyDown(event, index);
+  };
+
+  const handleJoinSpread = (event: MouseEvent<HTMLButtonElement>) => {
+    onJoinSpread?.(event, index);
+  };
+
+  const handleUnsetSpread = (event: MouseEvent<HTMLButtonElement>) => {
+    onUnsetSpread?.(event, index, spreadPairId);
+  };
+
+  const handleSetCover = (event: MouseEvent<HTMLButtonElement>) => {
+    onSetCover?.(event, index, actionId);
+  };
+
+  const handleRemove = (event: MouseEvent<HTMLButtonElement>) => {
+    onRemove(event, index, actionId);
+  };
+
   return (
     <motion.article
-      layout={!isDragged}
+      layout={isDragged ? false : "position"}
       transition={reorderTransition}
       className="group"
       data-testid={`${testIdPrefix}-card-${index}`}
@@ -242,7 +271,7 @@ const MangaPageTile = ({
       <div
         role="button"
         tabIndex={0}
-        onKeyDown={onKeyDown}
+        onKeyDown={handleSurfaceKeyDown}
         onPointerDown={handleSurfacePointerDown}
         onPointerMove={handleSurfacePointerMove}
         onPointerUp={handleSurfacePointerUp}
@@ -344,7 +373,7 @@ const MangaPageTile = ({
                 type="button"
                 variant="secondary"
                 size="icon"
-                onClick={onUnsetSpread}
+                onClick={handleUnsetSpread}
                 onPointerDown={stopActionPointerPropagation}
                 onKeyDown={stopActionKeyPropagation}
                 disabled={disabled}
@@ -358,7 +387,7 @@ const MangaPageTile = ({
                 type="button"
                 variant="secondary"
                 size="icon"
-                onClick={onJoinSpread}
+                onClick={handleJoinSpread}
                 onPointerDown={stopActionPointerPropagation}
                 onKeyDown={stopActionKeyPropagation}
                 disabled={disabled}
@@ -373,7 +402,7 @@ const MangaPageTile = ({
                 type="button"
                 variant="secondary"
                 size="icon"
-                onClick={onSetCover}
+                onClick={handleSetCover}
                 onPointerDown={stopActionPointerPropagation}
                 onKeyDown={stopActionKeyPropagation}
                 disabled={disabled}
@@ -387,7 +416,7 @@ const MangaPageTile = ({
               type="button"
               variant="secondary"
               size="icon"
-              onClick={onRemove}
+              onClick={handleRemove}
               onPointerDown={stopActionPointerPropagation}
               onKeyDown={stopActionKeyPropagation}
               disabled={disabled}
@@ -416,4 +445,25 @@ const MangaPageTile = ({
   );
 };
 
-export default MangaPageTile;
+const areMangaPageTilePropsEqual = (
+  previous: MangaPageTileProps,
+  next: MangaPageTileProps,
+) =>
+  previous.testIdPrefix === next.testIdPrefix &&
+  previous.src === next.src &&
+  previous.actionId === next.actionId &&
+  previous.alt === next.alt &&
+  previous.displayName === next.displayName &&
+  previous.index === next.index &&
+  previous.spreadPairId === next.spreadPairId &&
+  previous.isCover === next.isCover &&
+  previous.isSpread === next.isSpread &&
+  previous.isDragged === next.isDragged &&
+  previous.isPreviewTarget === next.isPreviewTarget &&
+  previous.isPressed === next.isPressed &&
+  previous.disabled === next.disabled &&
+  previous.canJoinWithNext === next.canJoinWithNext &&
+  previous.reorderMotion === next.reorderMotion &&
+  previous.reorderTransition === next.reorderTransition;
+
+export default memo(MangaPageTile, areMangaPageTilePropsEqual);

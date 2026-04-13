@@ -40,6 +40,16 @@ export const buildPreviewReorderList = <T>(
 
 export const REORDER_POINTER_DRAG_THRESHOLD = 6;
 
+export type ReorderSurfaceRect = {
+  index: number;
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  centerX: number;
+  centerY: number;
+};
+
 export const hasExceededPointerDragThreshold = ({
   startX,
   startY,
@@ -101,33 +111,82 @@ export const resolvePageDisplayName = ({
   getPathBasename(String(imageUrl || "")) ||
   fallback;
 
-export const resolvePointerReorderIndex = ({
+export const collectReorderSurfaceRects = ({
+  container,
+  scope,
+}: {
+  container: HTMLElement | null;
+  scope: string;
+}): ReorderSurfaceRect[] => {
+  if (!container) {
+    return [];
+  }
+
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      `[data-reorder-surface="true"][data-reorder-scope="${scope}"]`,
+    ),
+  )
+    .map((surface) => {
+      const index = Number(surface.getAttribute("data-reorder-index"));
+      const rect = surface.getBoundingClientRect();
+      if (
+        !Number.isInteger(index) ||
+        index < 0 ||
+        rect.width <= 0 ||
+        rect.height <= 0
+      ) {
+        return null;
+      }
+      return {
+        index,
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        centerX: rect.left + rect.width / 2,
+        centerY: rect.top + rect.height / 2,
+      };
+    })
+    .filter((rect): rect is ReorderSurfaceRect => Boolean(rect))
+    .sort((left, right) => left.index - right.index);
+};
+
+export const resolvePointerReorderIndexFromRects = ({
   clientX,
   clientY,
-  scope,
+  rects,
 }: {
   clientX: number;
   clientY: number;
-  scope: string;
+  rects: ReorderSurfaceRect[];
 }) => {
-  if (typeof document === "undefined") {
+  if (!rects.length) {
     return null;
   }
 
-  const target = document.elementFromPoint(clientX, clientY);
-  if (!(target instanceof Element)) {
-    return null;
-  }
-
-  const surface = target.closest<HTMLElement>(
-    `[data-reorder-surface="true"][data-reorder-scope="${scope}"]`,
+  const containingRect = rects.find(
+    (rect) =>
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom,
   );
-  if (!surface) {
-    return null;
+  if (containingRect) {
+    return containingRect.index;
   }
 
-  const index = Number(surface.getAttribute("data-reorder-index"));
-  return Number.isInteger(index) && index >= 0 ? index : null;
+  let closestRect = rects[0];
+  let closestDistance = Number.POSITIVE_INFINITY;
+  for (const rect of rects) {
+    const distance = (clientX - rect.centerX) ** 2 + (clientY - rect.centerY) ** 2;
+    if (distance < closestDistance) {
+      closestRect = rect;
+      closestDistance = distance;
+    }
+  }
+
+  return closestRect.index;
 };
 
 export const buildReorderAnnouncement = (label: string, targetIndex: number) =>
