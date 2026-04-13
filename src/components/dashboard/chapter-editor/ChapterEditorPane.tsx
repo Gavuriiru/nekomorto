@@ -12,6 +12,7 @@ import { useChapterEditorStructureOrchestration } from "@/components/dashboard/c
 import { useChapterEditorImageLibrary } from "@/components/dashboard/chapter-editor/useChapterEditorImageLibrary";
 import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
 import DashboardDedicatedEditorHeader from "@/components/dashboard/DashboardDedicatedEditorHeader";
+import { dedicatedEditorSidebarStickyClassName } from "@/components/dashboard/dedicated-editor-sidebar";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import { useChapterEditorLeaveGuard } from "@/components/dashboard/chapter-editor/useChapterEditorLeaveGuard";
@@ -1825,7 +1826,10 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               )}{" "}
             </div>{" "}
           </div>{" "}
-          <aside className="min-w-0 xl:sticky xl:top-24" data-testid="chapter-editor-sidebar">
+          <aside
+            className={dedicatedEditorSidebarStickyClassName}
+            data-testid="chapter-editor-sidebar"
+          >
             {" "}
             {structureAccordion}{" "}
           </aside>{" "}

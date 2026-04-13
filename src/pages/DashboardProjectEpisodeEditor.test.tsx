@@ -443,7 +443,27 @@ describe("DashboardProjectEpisodeEditor", () => {
       { timeout: 3000 },
     );
 
-    expect(screen.getByTestId("anime-episode-editor-sidebar")).toBeInTheDocument();
+    const sidebar = screen.getByTestId("anime-episode-editor-sidebar");
+    const scrollRegion = screen.getByTestId("anime-episode-sidebar-scroll-region");
+    const sidebarPanel = sidebar.querySelector("section");
+
+    expect(sidebar).toBeInTheDocument();
+    expect(sidebar).toHaveClass("min-w-0", "xl:sticky", "xl:top-24", "xl:min-h-0");
+    expect(sidebarPanel).not.toBeNull();
+    expect(sidebarPanel).toHaveClass(
+      "flex",
+      "h-[min(34rem,calc(100dvh-9rem))]",
+      "max-h-[calc(100dvh-9rem)]",
+      "min-h-0",
+      "flex-col",
+    );
+    expect(scrollRegion).toHaveClass(
+      "no-scrollbar",
+      "min-h-0",
+      "flex-1",
+      "overflow-y-auto",
+      "overscroll-contain",
+    );
   });
 
   it("adiciona o próximo episódio, persiste o snapshot e navega para a nova rota", async () => {

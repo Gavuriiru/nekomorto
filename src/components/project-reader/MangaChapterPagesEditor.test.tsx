@@ -13,8 +13,28 @@ const { apiFetchMock, toastMock, downloadBinaryResponseMock } = vi.hoisted(() =>
 }));
 
 vi.mock("@/components/UploadPicture", () => ({
-  default: ({ src, alt }: { src: string; alt: string }) => (
-    <img data-testid="upload-picture" src={src} alt={alt} />
+  default: ({
+    src,
+    alt,
+    draggable,
+    className,
+    imgClassName,
+  }: {
+    src: string;
+    alt: string;
+    draggable?: boolean;
+    className?: string;
+    imgClassName?: string;
+  }) => (
+    <picture className={className}>
+      <img
+        data-testid="upload-picture"
+        src={src}
+        alt={alt}
+        draggable={draggable}
+        className={imgClassName}
+      />
+    </picture>
   ),
 }));
 
@@ -80,16 +100,49 @@ const createChapterFixture = (overrides: Partial<ProjectEpisode> = {}): ProjectE
   };
 };
 
-const createDataTransfer = () => ({
-  effectAllowed: "move",
-  dropEffect: "move",
-  setData: vi.fn(),
-  getData: vi.fn(),
-  clearData: vi.fn(),
-});
-
 const getPageOrder = () =>
   screen.getAllByTestId("upload-picture").map((node) => node.getAttribute("src"));
+
+const getPageSurfaceBySrc = (src: string) => {
+  const image = screen
+    .getAllByTestId("upload-picture")
+    .find((node) => node.getAttribute("src") === src);
+  if (!image) {
+    throw new Error(`page_image_not_found:${src}`);
+  }
+  const surface = image.closest('[data-reorder-surface="true"]');
+  if (!(surface instanceof HTMLElement)) {
+    throw new Error(`page_surface_not_found:${src}`);
+  }
+  return surface;
+};
+
+const getPageCardBySrc = (src: string) => {
+  const card = getPageSurfaceBySrc(src).closest("article");
+  if (!(card instanceof HTMLElement)) {
+    throw new Error(`page_card_not_found:${src}`);
+  }
+  return card;
+};
+
+const mockElementFromPoint = (resolver: () => Element | null) => {
+  const original = document.elementFromPoint;
+  Object.defineProperty(document, "elementFromPoint", {
+    configurable: true,
+    value: resolver,
+  });
+  return () => {
+    if (typeof original === "function") {
+      Object.defineProperty(document, "elementFromPoint", {
+        configurable: true,
+        value: original,
+      });
+      return;
+    }
+    delete (document as Document & { elementFromPoint?: (x: number, y: number) => Element | null })
+      .elementFromPoint;
+  };
+};
 
 const renderEditor = (options?: { chapter?: ProjectEpisode }) => {
   const onChangeSpy = vi.fn();
@@ -192,22 +245,50 @@ describe("MangaChapterPagesEditor", () => {
     expect(screen.getByTestId("manga-page-filename-1")).toHaveTextContent("page-2.jpg");
     expect(screen.getByTestId("manga-page-surface-0")).not.toHaveAttribute("title");
     expect(screen.getByTestId("manga-page-filename-0")).not.toHaveAttribute("title");
+    expect(screen.getAllByTestId("upload-picture")[0]).toHaveAttribute("draggable", "false");
+    expect(screen.getAllByTestId("upload-picture")[0]).toHaveClass(
+      "h-full",
+      "w-full",
+      "select-none",
+      "object-cover",
+      "object-top",
+    );
+    expect(screen.getByTestId("manga-page-surface-0")).toHaveClass("select-none");
 
-    const dataTransfer = createDataTransfer();
-    fireEvent.dragStart(screen.getByTestId("manga-page-surface-1"), { dataTransfer });
+    const draggedSurface = screen.getByTestId("manga-page-surface-1");
+    expect(draggedSurface).toHaveAttribute("data-surface-active", "false");
+
+    fireEvent.pointerDown(draggedSurface, { pointerId: 1, button: 0, clientX: 40, clientY: 40 });
+    expect(draggedSurface).toHaveAttribute("data-surface-active", "true");
+    fireEvent.pointerUp(draggedSurface, { pointerId: 1, clientX: 40, clientY: 40 });
+    expect(draggedSurface).toHaveAttribute("data-surface-active", "false");
+
+    const restoreElementFromPoint = mockElementFromPoint(() =>
+      screen.getByTestId("manga-page-surface-0"),
+    );
+    const targetSurface = screen.getByTestId("manga-page-surface-0");
+
+    fireEvent.pointerDown(draggedSurface, { pointerId: 2, button: 0, clientX: 140, clientY: 140 });
+    expect(screen.getByTestId("manga-page-surface-1")).toHaveAttribute("data-surface-active", "true");
     expect(screen.getByTestId("manga-page-surface-1")).toHaveAttribute(
       "data-reorder-state",
-      "dragging",
+      "idle",
     );
-    expect(screen.getByTestId("manga-page-surface-1")).toHaveAttribute(
+    fireEvent.pointerMove(targetSurface, { pointerId: 2, clientX: 160, clientY: 160 });
+    await waitFor(() => {
+      expect(getPageSurfaceBySrc("https://cdn.test/page-2.jpg")).toHaveAttribute(
+        "data-reorder-state",
+        "dragging",
+      );
+    });
+    expect(getPageSurfaceBySrc("https://cdn.test/page-2.jpg")).toHaveAttribute(
       "data-reorder-motion",
       "spring",
     );
-    expect(screen.getByTestId("manga-page-card-1")).toHaveAttribute(
+    expect(getPageCardBySrc("https://cdn.test/page-2.jpg")).toHaveAttribute(
       "data-reorder-layout",
       "static",
     );
-    fireEvent.dragOver(screen.getByTestId("manga-page-surface-0"), { dataTransfer });
 
     await waitFor(() => {
       expect(getPageOrder()).toEqual([
@@ -215,19 +296,23 @@ describe("MangaChapterPagesEditor", () => {
         "https://cdn.test/page-1.jpg",
       ]);
     });
-    expect(screen.getByTestId("manga-page-card-0")).toHaveAttribute(
+    expect(getPageCardBySrc("https://cdn.test/page-2.jpg")).toHaveAttribute(
       "data-reorder-layout",
       "static",
     );
-    expect(screen.getByTestId("manga-page-card-1")).toHaveAttribute(
+    expect(getPageCardBySrc("https://cdn.test/page-1.jpg")).toHaveAttribute(
       "data-reorder-layout",
       "animated",
     );
     expect(screen.getByTestId("manga-page-filename-0")).toHaveTextContent("page-2.jpg");
     expect(screen.getByTestId("manga-page-surface-0")).not.toHaveAttribute("title");
 
-    fireEvent.drop(screen.getByTestId("manga-page-surface-0"), { dataTransfer });
-    fireEvent.dragEnd(screen.getByTestId("manga-page-surface-1"), { dataTransfer });
+    fireEvent.pointerUp(getPageSurfaceBySrc("https://cdn.test/page-2.jpg"), {
+      pointerId: 2,
+      clientX: 160,
+      clientY: 160,
+    });
+    restoreElementFromPoint();
 
     await waitFor(() => {
       expect(getPageOrder()).toEqual([
@@ -389,11 +474,29 @@ describe("MangaChapterPagesEditor", () => {
       expect(screen.getByTestId("manga-page-spread-badge-1")).toBeInTheDocument();
     });
 
-    const dataTransfer = createDataTransfer();
-    fireEvent.dragStart(screen.getByTestId("manga-page-surface-1"), { dataTransfer });
-    fireEvent.dragOver(screen.getByTestId("manga-page-surface-2"), { dataTransfer });
-    fireEvent.drop(screen.getByTestId("manga-page-surface-2"), { dataTransfer });
-    fireEvent.dragEnd(screen.getByTestId("manga-page-surface-1"), { dataTransfer });
+    const draggedSurface = screen.getByTestId("manga-page-surface-1");
+    const restoreElementFromPoint = mockElementFromPoint(() =>
+      screen.getByTestId("manga-page-surface-2"),
+    );
+    const targetSurface = screen.getByTestId("manga-page-surface-2");
+
+    fireEvent.pointerDown(draggedSurface, { pointerId: 3, button: 0, clientX: 120, clientY: 120 });
+    fireEvent.pointerMove(targetSurface, { pointerId: 3, clientX: 140, clientY: 140 });
+
+    await waitFor(() => {
+      expect(getPageOrder()).toEqual([
+        "https://cdn.test/page-1.jpg",
+        "https://cdn.test/page-3.jpg",
+        "https://cdn.test/page-2.jpg",
+      ]);
+    });
+
+    fireEvent.pointerUp(getPageSurfaceBySrc("https://cdn.test/page-2.jpg"), {
+      pointerId: 3,
+      clientX: 140,
+      clientY: 140,
+    });
+    restoreElementFromPoint();
 
     await waitFor(() => {
       expect(getPageOrder()).toEqual([

@@ -1,6 +1,11 @@
 ﻿import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
 import type { ComboboxOption } from "@/components/ui/combobox";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import {
+  dedicatedEditorSidebarBodyClassName,
+  dedicatedEditorSidebarPanelClassName,
+  dedicatedEditorSidebarScrollRegionClassName,
+} from "@/components/dashboard/dedicated-editor-sidebar";
 import { Badge } from "@/components/ui/badge";
 import {
   Accordion,
@@ -69,12 +74,11 @@ type ChapterEditorStructureSectionProps = {
   onToggleGroup: (groupKey: string) => void;
 };
 
-const structureSectionClassName =
-  "project-editor-section overflow-hidden rounded-2xl border border-border/60 bg-card/65 shadow-editor-section xl:flex xl:max-h-[calc(100dvh-7rem)] xl:min-h-0 xl:flex-col";
+const structureSectionClassName = `project-editor-section ${dedicatedEditorSidebarPanelClassName}`;
 const structureTriggerClassName =
   "project-editor-section-trigger flex w-full items-start gap-4 px-5 py-3.5 text-left hover:no-underline md:py-4 xl:shrink-0";
 const structureContentClassName =
-  "project-editor-section-content px-5 pb-5 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col";
+  `project-editor-section-content px-5 pb-5 ${dedicatedEditorSidebarBodyClassName}`;
 const filterOptions: ComboboxOption[] = [
   { value: "all", label: "Todos" },
   { value: "draft", label: "Rascunhos" },
@@ -111,7 +115,7 @@ export const ChapterEditorStructureSection = memo(
       type="single"
       collapsible
       defaultValue="structure"
-      className="project-editor-accordion space-y-2.5"
+      className="project-editor-accordion min-h-0 space-y-2.5"
     >
       <AccordionItem
         value="structure"
@@ -125,11 +129,11 @@ export const ChapterEditorStructureSection = memo(
           />
         </AccordionTrigger>
         <AccordionContent
-          contentClassName="xl:min-h-0 xl:flex-1"
+          contentClassName="flex min-h-0 flex-1 flex-col"
           className={structureContentClassName}
         >
           <div
-            className="space-y-4 xl:no-scrollbar xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain xl:pr-1"
+            className={`space-y-4 pr-1 ${dedicatedEditorSidebarScrollRegionClassName}`}
             data-testid="chapter-structure-scroll-region"
           >
             <div className="space-y-3 rounded-[20px] border border-border/50 bg-background/45 p-3.5">
@@ -204,7 +208,7 @@ export const ChapterEditorStructureSection = memo(
                 return (
                   <section
                     key={group.key}
-                    className={`overflow-hidden rounded-[20px] border bg-background/40 shadow-editor-nested-card ${
+                    className={`overflow-hidden rounded-[20px] border bg-background/40 ${
                       isSelected ? "border-primary/45 bg-primary/[0.06]" : "border-border/50"
                     }`}
                     data-testid={`chapter-structure-group-${group.key}`}
@@ -335,7 +339,7 @@ export const ChapterEditorStructureSection = memo(
                                   }}
                                   className={`w-full rounded-[18px] border px-3.5 py-3 text-left transition ${
                                     isActivePending
-                                      ? "border-primary/50 bg-primary/[0.07] shadow-sm"
+                                      ? "border-primary/50 bg-primary/[0.07]"
                                       : "border-border/50 bg-background/55 hover:bg-background/78"
                                   }`}
                                 >
@@ -452,7 +456,7 @@ export const ChapterEditorStructureSection = memo(
                                   onKeyDown={handleEpisodeCardKeyDown}
                                   className={`w-full cursor-pointer rounded-[18px] border px-3.5 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45 ${
                                     isActive
-                                      ? "border-primary/50 bg-primary/[0.07] shadow-sm"
+                                      ? "border-primary/50 bg-primary/[0.07]"
                                       : "border-border/50 bg-background/55 hover:bg-background/78"
                                   }`}
                                 >

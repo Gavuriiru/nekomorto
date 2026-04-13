@@ -1101,6 +1101,9 @@ describe("DashboardProjectChapterEditor", () => {
     const sidebar = screen.getByTestId("chapter-editor-sidebar");
     const upperLayout = screen.getByTestId("chapter-editor-upper-layout");
     const structureSection = screen.getByTestId("chapter-structure-section");
+    const structureScrollRegion = screen.getByTestId("chapter-structure-scroll-region");
+    const structureGroup = screen.getByTestId("chapter-structure-group-2");
+    const activeChapterCard = screen.getByTestId("chapter-structure-episode-open-1:2");
     const structureAccordion = structureSection.parentElement;
     const epubTrigger = within(epubTools).getByRole("button", { name: /Ferramentas EPUB/i });
     expect(structureAccordion).not.toBeNull();
@@ -1112,8 +1115,26 @@ describe("DashboardProjectChapterEditor", () => {
     expect(mainColumn).toContainElement(workspace);
     expect(sidebar).toContainElement(structureSection);
     expect(sidebar).not.toContainElement(epubTools);
+    expect(sidebar).toHaveClass("min-w-0", "xl:sticky", "xl:top-24", "xl:min-h-0");
     expect(Array.from(sidebar.children)[0]).toBe(structureAccordion);
     expect(structureSection).toHaveAttribute("data-state", "open");
+    expect(structureAccordion).toHaveClass("project-editor-accordion", "space-y-2.5", "min-h-0");
+    expect(structureSection).toHaveClass(
+      "flex",
+      "h-[min(34rem,calc(100dvh-9rem))]",
+      "max-h-[calc(100dvh-9rem)]",
+      "min-h-0",
+      "flex-col",
+    );
+    expect(structureScrollRegion).toHaveClass(
+      "no-scrollbar",
+      "min-h-0",
+      "flex-1",
+      "overflow-y-auto",
+      "overscroll-contain",
+    );
+    expect(structureGroup).not.toHaveClass("shadow-editor-nested-card");
+    expect(activeChapterCard).not.toHaveClass("shadow-sm");
     expect(epubTrigger).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
     expect(within(epubTools).getByText("Ferramentas EPUB")).toBeInTheDocument();
     expect(within(epubTools).getByText("Importação e exportação por volume")).toBeInTheDocument();
@@ -1998,6 +2019,9 @@ describe("DashboardProjectChapterEditor", () => {
     const topActions = screen.getByTestId("chapter-editor-top-actions");
     const statusBar = screen.getByTestId("chapter-editor-status-bar");
     const structureSection = screen.getByTestId("chapter-structure-section");
+    const structureScrollRegion = screen.getByTestId("chapter-structure-scroll-region");
+    const structureGroup = screen.getByTestId("chapter-structure-group-2");
+    const activeChapterCard = screen.getByTestId("chapter-structure-episode-open-1:2");
     const structureAccordion = structureSection.parentElement;
     const structureTrigger = within(screen.getByTestId("chapter-structure-section")).getByRole(
       "button",
@@ -2013,8 +2037,26 @@ describe("DashboardProjectChapterEditor", () => {
     expect(Array.from(workspace.children)).toEqual([topRow, contentAccordion, supportRow]);
     expect(masthead).toHaveTextContent(/Gerenciamento de Conte/i);
     expect(sidebar).toContainElement(structureSection);
+    expect(sidebar).toHaveClass("min-w-0", "xl:sticky", "xl:top-24", "xl:min-h-0");
     expect(structureAccordion).not.toBeNull();
     expect(Array.from(sidebar.children)[0]).toBe(structureAccordion);
+    expect(structureAccordion).toHaveClass("project-editor-accordion", "space-y-2.5", "min-h-0");
+    expect(structureSection).toHaveClass(
+      "flex",
+      "h-[min(34rem,calc(100dvh-9rem))]",
+      "max-h-[calc(100dvh-9rem)]",
+      "min-h-0",
+      "flex-col",
+    );
+    expect(structureScrollRegion).toHaveClass(
+      "no-scrollbar",
+      "min-h-0",
+      "flex-1",
+      "overflow-y-auto",
+      "overscroll-contain",
+    );
+    expect(structureGroup).not.toHaveClass("shadow-editor-nested-card");
+    expect(activeChapterCard).not.toHaveClass("shadow-sm");
     expect(screen.getByTestId("chapter-structure-group-header-2")).toBeInTheDocument();
     expect(screen.getByTestId("chapter-structure-group-actions-2")).toContainElement(
       screen.getByTestId("chapter-structure-add-chapter-2"),

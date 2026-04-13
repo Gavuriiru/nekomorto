@@ -212,7 +212,7 @@ const getCalendarItemStatusLabel = (status: EditorialCalendarItem["status"]) =>
   status === "published" ? "Publicada" : "Agendada";
 
 const calendarWeekdayLabels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const;
-const calendarReadyContentFadeStyle: CSSProperties = {
+const calendarSurfaceFadeStyle: CSSProperties = {
   animationDuration: "220ms",
   animationTimingFunction: "ease-out",
 };
@@ -2336,7 +2336,8 @@ const DashboardPosts = () => {
               <Card
                 lift={false}
                 data-testid="dashboard-posts-calendar-surface"
-                className={dashboardPageLayoutTokens.surfaceSolid}
+                className={`${dashboardPageLayoutTokens.surfaceSolid} animate-fade-in opacity-0`}
+                style={calendarSurfaceFadeStyle}
               >
                 <CardContent
                   data-testid="dashboard-posts-calendar-content"
@@ -2413,8 +2414,7 @@ const DashboardPosts = () => {
                       ) : (
                         <div
                           data-testid="dashboard-posts-calendar-ready-content"
-                          className="space-y-3 animate-fade-in"
-                          style={calendarReadyContentFadeStyle}
+                          className="space-y-3"
                         >
                           <div className="grid gap-2">
                             {calendarWeeks.map((week, weekIndex) => (

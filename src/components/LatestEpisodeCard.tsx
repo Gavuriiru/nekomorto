@@ -5,16 +5,27 @@ import { Link } from "react-router-dom";
 
 import PublicInteractiveCardShell from "@/components/PublicInteractiveCardShell";
 import UploadPicture from "@/components/UploadPicture";
-import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { formatDate } from "@/lib/date";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
+import { cn } from "@/lib/utils";
 
 const PT_DIACRITICS_REGEX = /[\u0300-\u036f]/g;
 const RECENT_UPDATES_CARD_HEIGHT_PX = 164;
 const RECENT_UPDATES_THUMB_WIDTH = "calc(var(--card-h) * 9 / 14)";
+const recentUpdateBasePillClassName = cn(
+  buttonVariants({ variant: "ghost", size: "pill" }),
+  "pointer-events-none h-6 min-h-6 min-w-6 shrink-0 gap-0 rounded-full px-2 py-0 text-[10px] leading-none hover:border-current hover:bg-inherit hover:text-inherit focus-visible:border-current focus-visible:bg-inherit focus-visible:text-inherit",
+);
+const recentUpdateNeutralPillClassName = "border-border/70 bg-background text-foreground/70";
+const recentUpdateTypePillClassName = {
+  launch: "border-primary/50 bg-primary/10 text-primary",
+  adjustment: "border-amber-500/50 bg-amber-500/10 text-amber-400",
+  fallback: "border-border/60 bg-background text-muted-foreground",
+} as const;
 
 const normalizeLookupKey = (value: string) =>
   String(value || "")
@@ -197,32 +208,38 @@ const LatestEpisodeCard = () => {
                       </div>
                       <div className="recent-updates-item-body flex h-full min-w-0 flex-1 flex-col gap-3">
                         <div className="no-scrollbar flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
-                          <Badge
-                            variant="secondary"
-                            className="hidden shrink-0 text-[10px] md:inline-flex"
+                          <span
+                            className={cn(
+                              recentUpdateBasePillClassName,
+                              recentUpdateNeutralPillClassName,
+                              "hidden md:inline-flex",
+                            )}
                           >
                             {isExtraUnit ? "Extra" : `${unitShort} ${update.episodeNumber}`}
-                          </Badge>
+                          </span>
                           {update.volume ? (
-                            <Badge
-                              variant="outline"
-                              className="hidden shrink-0 text-[10px] md:inline-flex"
+                            <span
+                              className={cn(
+                                recentUpdateBasePillClassName,
+                                recentUpdateNeutralPillClassName,
+                                "hidden md:inline-flex",
+                              )}
                             >
                               Vol. {update.volume}
-                            </Badge>
+                            </span>
                           ) : null}
-                          <Badge
-                            variant="outline"
-                            className={`shrink-0 text-[10px] ${
+                          <span
+                            className={cn(
+                              recentUpdateBasePillClassName,
                               kindLabel === "Lançamento"
-                                ? "border-primary/50 text-primary"
+                                ? recentUpdateTypePillClassName.launch
                                 : kindLabel === "Ajuste"
-                                  ? "border-amber-500/50 text-amber-400"
-                                  : "border-border/60 text-muted-foreground"
-                            }`}
+                                  ? recentUpdateTypePillClassName.adjustment
+                                  : recentUpdateTypePillClassName.fallback,
+                            )}
                           >
                             {kindLabel}
-                          </Badge>
+                          </span>
                         </div>
                         <div className="space-y-1">
                           <h4 className="clamp-safe-2 interactive-content-transition text-sm font-semibold text-foreground group-hover/recent-update:text-primary group-focus-within/recent-update:text-primary">

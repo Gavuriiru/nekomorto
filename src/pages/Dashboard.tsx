@@ -311,7 +311,7 @@ const dashboardOverviewInsetDashedClassName =
   "rounded-2xl border border-dashed border-border/70 bg-background";
 const dashboardOverviewInteractiveSurfaceClassName = `${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5`;
 const dashboardOverviewBadgeClassName =
-  "border-primary/35 bg-primary/10 text-foreground hover:bg-primary/15";
+  "border-accent/60 bg-accent/10 text-accent hover:bg-accent/15";
 const dashboardOverviewMetaTextClassName = dashboardPageLayoutTokens.cardMetaText;
 
 const DashboardLoadingSkeleton = () => (

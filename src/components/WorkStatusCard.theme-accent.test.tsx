@@ -104,8 +104,9 @@ describe("WorkStatusCard accent mode", () => {
     expect(cardRoot).not.toHaveClass("shadow-xs");
 
     const badge = await screen.findByText("Timing");
-    expect(badge).toHaveClass("bg-primary", "text-primary-foreground", "border-primary/80");
+    expect(badge).toHaveClass("border-accent/60", "bg-accent/10", "text-accent");
     expect(badge).not.toHaveClass("bg-pink-500/20");
+    expect(badge).not.toHaveClass("text-primary-foreground");
     const progressLink = badge.closest("a");
     expect(progressLink).not.toBeNull();
     expect(progressLink).toHaveClass("work-status-item", "relative", "z-10");

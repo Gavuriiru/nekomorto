@@ -83,7 +83,7 @@ const ChapterEditorProgressSection = ({
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {isCurrentStage ? (
-                  <Badge variant="accentSoft" className="shrink-0">
+                  <Badge variant="accent" className="shrink-0">
                     Atual
                   </Badge>
                 ) : (

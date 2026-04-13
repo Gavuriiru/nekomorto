@@ -191,13 +191,14 @@ const expectOverviewBadgeClasses = (element: Element | null) => {
   const tokens = classTokens(element);
   expect(tokens).toEqual(
     expect.arrayContaining([
-      "border-primary/35",
-      "bg-primary/10",
-      "text-foreground",
-      "hover:bg-primary/15",
+      "border-accent/60",
+      "bg-accent/10",
+      "text-accent",
+      "hover:bg-accent/15",
     ]),
   );
   expect(tokens).not.toContain("bg-background");
+  expect(tokens).not.toContain("text-foreground");
 };
 
 const expectOverviewActionLinkClasses = (element: Element | null) => {

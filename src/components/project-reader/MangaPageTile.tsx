@@ -4,7 +4,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type DragEvent,
   type FocusEvent,
   type KeyboardEvent,
   type MouseEvent,
@@ -28,14 +27,16 @@ type MangaPageTileProps = {
   isSpread: boolean;
   isDragged: boolean;
   isPreviewTarget: boolean;
+  isPressed?: boolean;
   disabled: boolean;
   canJoinWithNext?: boolean;
   reorderMotion: "spring" | "reduced";
   reorderTransition: Transition;
-  onDragStart: (event: DragEvent<HTMLDivElement>) => void;
-  onDragEnd: (event: DragEvent<HTMLDivElement>) => void;
-  onDragOver: (event: DragEvent<HTMLDivElement>) => void;
-  onDrop: (event: DragEvent<HTMLDivElement>) => void;
+  onPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
+  onPointerMove?: (event: PointerEvent<HTMLDivElement>) => void;
+  onPointerUp?: (event: PointerEvent<HTMLDivElement>) => void;
+  onPointerCancel?: (event: PointerEvent<HTMLDivElement>) => void;
+  onLostPointerCapture?: (event: PointerEvent<HTMLDivElement>) => void;
   onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
   onJoinSpread?: (event: MouseEvent<HTMLButtonElement>) => void;
   onUnsetSpread?: (event: MouseEvent<HTMLButtonElement>) => void;
@@ -108,14 +109,16 @@ const MangaPageTile = ({
   isSpread,
   isDragged,
   isPreviewTarget,
+  isPressed = false,
   disabled,
   canJoinWithNext = false,
   reorderMotion,
   reorderTransition,
-  onDragStart,
-  onDragEnd,
-  onDragOver,
-  onDrop,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+  onLostPointerCapture,
   onKeyDown,
   onJoinSpread,
   onUnsetSpread,
@@ -137,7 +140,9 @@ const MangaPageTile = ({
   );
 
   const isSurfaceActive =
-    (isSurfaceHovered || isSurfaceFocused) && !isActionsHovered && !isActionsFocused;
+    (isSurfaceHovered || isSurfaceFocused || isPressed || isDragged) &&
+    !isActionsHovered &&
+    !isActionsFocused;
   const areActionsVisible =
     isSurfaceHovered || isSurfaceFocused || isActionsHovered || isActionsFocused;
   const areStatusBadgesVisible = !areActionsVisible;
@@ -181,8 +186,40 @@ const MangaPageTile = ({
     }
   };
 
-  const handleSurfacePointerDown = () => {
+  const handleSurfacePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     clearKeyboardFocusState();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    onPointerDown?.(event);
+  };
+
+  const handleSurfacePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    onPointerMove?.(event);
+  };
+
+  const handleSurfaceMouseMove = (event: MouseEvent<HTMLDivElement>) => {
+    onPointerMove?.(event as unknown as PointerEvent<HTMLDivElement>);
+  };
+
+  const handleSurfacePointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    onPointerUp?.(event);
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
+  };
+
+  const handleSurfaceMouseUp = (event: MouseEvent<HTMLDivElement>) => {
+    onPointerUp?.(event as unknown as PointerEvent<HTMLDivElement>);
+  };
+
+  const handleSurfacePointerCancel = (event: PointerEvent<HTMLDivElement>) => {
+    onPointerCancel?.(event);
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
+  };
+
+  const handleSurfaceLostPointerCapture = (event: PointerEvent<HTMLDivElement>) => {
+    onLostPointerCapture?.(event);
   };
 
   const stopActionPointerPropagation = (event: PointerEvent<HTMLButtonElement>) => {
@@ -205,24 +242,28 @@ const MangaPageTile = ({
       <div
         role="button"
         tabIndex={0}
-        draggable={!disabled}
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-        onDragOver={onDragOver}
-        onDrop={onDrop}
         onKeyDown={onKeyDown}
         onPointerDown={handleSurfacePointerDown}
+        onPointerMove={handleSurfacePointerMove}
+        onPointerUp={handleSurfacePointerUp}
+        onPointerCancel={handleSurfacePointerCancel}
+        onLostPointerCapture={handleSurfaceLostPointerCapture}
+        onMouseMove={handleSurfaceMouseMove}
+        onMouseUp={handleSurfaceMouseUp}
         onMouseEnter={() => setIsSurfaceHovered(true)}
         onMouseLeave={() => setIsSurfaceHovered(false)}
         onFocus={handleSurfaceFocus}
         onBlur={handleSurfaceBlur}
         aria-label={`Arrastar página ${index + 1} para reordenar. Use Alt+Seta para mover pelo teclado.`}
         data-testid={`${testIdPrefix}-surface-${index}`}
+        data-reorder-surface="true"
+        data-reorder-scope={testIdPrefix}
+        data-reorder-index={index}
         data-reorder-motion={reorderMotion}
         data-reorder-state={isDragged ? "dragging" : isPreviewTarget ? "preview-target" : "idle"}
         data-surface-active={isSurfaceActive ? "true" : "false"}
         className={cn(
-          "relative aspect-[1/1.414] overflow-hidden rounded-[22px] border bg-card/75 transition",
+          "relative aspect-[1/1.414] overflow-hidden rounded-[22px] border bg-card/75 select-none transition",
           isDragged
             ? "z-10 cursor-grabbing border-primary/60 opacity-85 ring-2 ring-primary/25 shadow-manga-page-dragging"
             : isPreviewTarget
@@ -236,8 +277,9 @@ const MangaPageTile = ({
           src={src}
           alt={alt}
           preset="poster"
-          className="h-full w-full"
-          imgClassName="h-full w-full object-cover object-top"
+          draggable={false}
+          className="h-full w-full select-none"
+          imgClassName="h-full w-full select-none object-cover object-top"
         />
         <div
           className="pointer-events-none absolute left-3 top-3 flex items-start"

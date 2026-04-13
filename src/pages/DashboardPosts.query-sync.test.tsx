@@ -406,7 +406,7 @@ describe("DashboardPosts query sync", () => {
     expect(screen.getByText("Publicada")).toBeInTheDocument();
   });
 
-  it("renderiza o conteudo pronto do calendario com fade-in suave", async () => {
+  it("renderiza a superficie inteira do calendario com fade-in suave", async () => {
     setupApiMock({
       calendarItems: [
         {
@@ -431,8 +431,10 @@ describe("DashboardPosts query sync", () => {
     fireEvent.click(screen.getByRole("button", { name: /Calend/i }));
 
     const calendarSurface = await screen.findByTestId("dashboard-posts-calendar-surface");
-    expect(classTokens(calendarSurface)).not.toContain("animate-fade-in");
-    expect(classTokens(calendarSurface)).not.toContain("opacity-0");
+    expect(classTokens(calendarSurface)).toContain("animate-fade-in");
+    expect(classTokens(calendarSurface)).toContain("opacity-0");
+    expect(calendarSurface.style.animationDuration).toBe("220ms");
+    expect(calendarSurface.style.animationTimingFunction).toBe("ease-out");
 
     const calendarContent = await screen.findByTestId("dashboard-posts-calendar-content");
     expect(classTokens(calendarContent)).not.toContain("animate-fade-in");
@@ -449,10 +451,10 @@ describe("DashboardPosts query sync", () => {
     expect(classTokens(weekdayRow)).not.toContain("opacity-0");
 
     const readyContent = await screen.findByTestId("dashboard-posts-calendar-ready-content");
-    expect(classTokens(readyContent)).toContain("animate-fade-in");
+    expect(classTokens(readyContent)).not.toContain("animate-fade-in");
     expect(classTokens(readyContent)).not.toContain("opacity-0");
-    expect(readyContent.style.animationDuration).toBe("220ms");
-    expect(readyContent.style.animationTimingFunction).toBe("ease-out");
+    expect(readyContent.style.animationDuration).toBe("");
+    expect(readyContent.style.animationTimingFunction).toBe("");
 
     const weekRows = screen.getAllByTestId(/dashboard-posts-calendar-week-/);
     expect(weekRows.length).toBeGreaterThan(0);
@@ -479,8 +481,10 @@ describe("DashboardPosts query sync", () => {
 
     const calendarSurface = screen.getByTestId("dashboard-posts-calendar-surface");
     expect(calendarSurface).toBeInTheDocument();
-    expect(classTokens(calendarSurface)).not.toContain("animate-fade-in");
-    expect(classTokens(calendarSurface)).not.toContain("opacity-0");
+    expect(classTokens(calendarSurface)).toContain("animate-fade-in");
+    expect(classTokens(calendarSurface)).toContain("opacity-0");
+    expect(calendarSurface.style.animationDuration).toBe("220ms");
+    expect(calendarSurface.style.animationTimingFunction).toBe("ease-out");
 
     const loadingCalendarContent = screen.getByTestId("dashboard-posts-calendar-content");
     expect(classTokens(loadingCalendarContent)).not.toContain("animate-fade-in");
@@ -517,10 +521,10 @@ describe("DashboardPosts query sync", () => {
     });
 
     const readyContent = screen.getByTestId("dashboard-posts-calendar-ready-content");
-    expect(classTokens(readyContent)).toContain("animate-fade-in");
+    expect(classTokens(readyContent)).not.toContain("animate-fade-in");
     expect(classTokens(readyContent)).not.toContain("opacity-0");
-    expect(readyContent.style.animationDuration).toBe("220ms");
-    expect(readyContent.style.animationTimingFunction).toBe("ease-out");
+    expect(readyContent.style.animationDuration).toBe("");
+    expect(readyContent.style.animationTimingFunction).toBe("");
 
     const readyCalendarContent = screen.getByTestId("dashboard-posts-calendar-content");
     expect(classTokens(readyCalendarContent)).not.toContain("animate-fade-in");

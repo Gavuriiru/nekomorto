@@ -5,9 +5,9 @@ import {
   useMemo,
   useRef,
   useState,
-  type DragEvent,
   type KeyboardEvent,
   type MouseEvent,
+  type PointerEvent,
 } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -25,9 +25,10 @@ import {
   getReorderLayoutTransition,
   buildPreviewReorderList,
   handleAltArrowReorder,
+  hasExceededPointerDragThreshold,
   reorderList,
+  resolvePointerReorderIndex,
   resolvePageDisplayName,
-  setDragPreviewFromElement,
 } from "@/components/project-reader/page-reorder";
 import { exportMangaChapter } from "@/components/project-reader/manga-chapter-export";
 import MangaPageTile from "@/components/project-reader/MangaPageTile";
@@ -115,6 +116,15 @@ const archiveEntriesToFiles = async (file: File) => {
     .sort((left, right) => compareNatural(left.relativePath, right.relativePath));
 };
 
+type PagePointerDragState = {
+  sourceIndex: number;
+  overIndex: number;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  isDragging: boolean;
+};
+
 const MangaChapterPagesEditor = ({
   apiBase,
   projectSnapshot,
@@ -126,16 +136,18 @@ const MangaChapterPagesEditor = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
   const archiveInputRef = useRef<HTMLInputElement | null>(null);
+  const pointerDragStateRef = useRef<PagePointerDragState | null>(null);
   const { announce } = useAccessibilityAnnouncer();
   const shouldReduceMotion = useReducedMotion();
   const [isUploading, setIsUploading] = useState(false);
   const [isExportingZip, setIsExportingZip] = useState(false);
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [pointerDragState, setPointerDragState] = useState<PagePointerDragState | null>(null);
   const reorderTransition = useMemo(
     () => getReorderLayoutTransition(!!shouldReduceMotion),
     [shouldReduceMotion],
   );
+  const dragIndex = pointerDragState?.isDragging ? pointerDragState.sourceIndex : null;
+  const dragOverIndex = pointerDragState?.isDragging ? pointerDragState.overIndex : null;
   const previewPages = useMemo(
     () => buildPreviewReorderList(pages, dragIndex, dragOverIndex),
     [dragIndex, dragOverIndex, pages],
@@ -294,8 +306,8 @@ const MangaChapterPagesEditor = ({
   };
 
   const clearDragState = () => {
-    setDragIndex(null);
-    setDragOverIndex(null);
+    pointerDragStateRef.current = null;
+    setPointerDragState(null);
   };
 
   const movePage = (fromIndex: number, toIndex: number) => {
@@ -312,45 +324,99 @@ const MangaChapterPagesEditor = ({
     );
   };
 
-  const handlePageDragStart = (event: DragEvent<HTMLDivElement>, index: number) => {
+  const handlePagePointerDown = (event: PointerEvent<HTMLDivElement>, index: number) => {
     if (isUploading) {
-      event.preventDefault();
       return;
     }
-    setDragIndex(index);
-    setDragOverIndex(index);
-    if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = "move";
-      setDragPreviewFromElement(event, event.currentTarget);
-      try {
-        event.dataTransfer.setData("text/plain", String(index));
-      } catch {
-        // Ignore browser/test environments that block custom drag payloads.
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+    const nextState = {
+      sourceIndex: index,
+      overIndex: index,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      isDragging: false,
+    };
+    pointerDragStateRef.current = nextState;
+    setPointerDragState(nextState);
+  };
+
+  const handlePagePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (isUploading) {
+      return;
+    }
+
+    setPointerDragState((current) => {
+      if (
+        !current ||
+        (Number.isFinite(event.pointerId) && current.pointerId !== event.pointerId)
+      ) {
+        return current;
       }
-    }
+
+      const resolvedIndex = resolvePointerReorderIndex({
+        clientX: event.clientX,
+        clientY: event.clientY,
+        scope: "manga-page",
+      });
+      const nextIsDragging =
+        current.isDragging ||
+        hasExceededPointerDragThreshold({
+          startX: current.startX,
+          startY: current.startY,
+          clientX: event.clientX,
+          clientY: event.clientY,
+        }) ||
+        (resolvedIndex !== null && resolvedIndex !== current.sourceIndex);
+
+      if (!nextIsDragging) {
+        return current;
+      }
+
+      const nextOverIndex = resolvedIndex ?? current.overIndex;
+
+      if (current.isDragging === nextIsDragging && current.overIndex === nextOverIndex) {
+        return current;
+      }
+
+      const nextState = {
+        ...current,
+        isDragging: nextIsDragging,
+        overIndex: nextOverIndex,
+      };
+      pointerDragStateRef.current = nextState;
+      return nextState;
+    });
   };
 
-  const handlePageDragOver = (event: DragEvent<HTMLElement>, index: number) => {
-    if (isUploading || dragIndex === null) {
-      return;
-    }
-    event.preventDefault();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = "move";
-    }
-    if (dragOverIndex !== index) {
-      setDragOverIndex(index);
-    }
-  };
-
-  const handlePageDrop = (event: DragEvent<HTMLElement>, index: number) => {
-    event.preventDefault();
-    const fromIndex = dragIndex;
+  const handlePagePointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    const currentState = pointerDragStateRef.current;
     clearDragState();
-    if (isUploading || fromIndex === null || fromIndex === index) {
+    if (
+      isUploading ||
+      !currentState ||
+      (Number.isFinite(event.pointerId) && currentState.pointerId !== event.pointerId) ||
+      !currentState.isDragging
+    ) {
       return;
     }
-    movePage(fromIndex, index);
+
+    const resolvedIndex = resolvePointerReorderIndex({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      scope: "manga-page",
+    });
+    const targetIndex = resolvedIndex ?? currentState.overIndex;
+    if (currentState.sourceIndex === targetIndex) {
+      return;
+    }
+    movePage(currentState.sourceIndex, targetIndex);
+  };
+
+  const handlePagePointerCancel = () => {
+    clearDragState();
   };
 
   const handlePageKeyDown = (event: KeyboardEvent<HTMLDivElement>, index: number) => {
@@ -588,14 +654,16 @@ const MangaChapterPagesEditor = ({
                     isSpread={isSpread}
                     isDragged={isDragged}
                     isPreviewTarget={isPreviewTarget}
+                    isPressed={pointerDragState?.sourceIndex === index}
                     disabled={isUploading}
                     canJoinWithNext={canJoinWithNext}
                     reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
                     reorderTransition={reorderTransition}
-                    onDragStart={(event) => handlePageDragStart(event, index)}
-                    onDragEnd={clearDragState}
-                    onDragOver={(event) => handlePageDragOver(event, index)}
-                    onDrop={(event) => handlePageDrop(event, index)}
+                    onPointerDown={(event) => handlePagePointerDown(event, index)}
+                    onPointerMove={handlePagePointerMove}
+                    onPointerUp={handlePagePointerUp}
+                    onPointerCancel={() => handlePagePointerCancel()}
+                    onLostPointerCapture={() => handlePagePointerCancel()}
                     onKeyDown={(event) => handlePageKeyDown(event, index)}
                     onJoinSpread={
                       canJoinWithNext ? (event) => joinSpreadPair(event, index) : undefined
@@ -637,14 +705,16 @@ const MangaChapterPagesEditor = ({
                   isSpread={isSpread}
                   isDragged={false}
                   isPreviewTarget={false}
+                  isPressed={pointerDragState?.sourceIndex === index}
                   disabled={isUploading}
                   canJoinWithNext={canJoinWithNext}
                   reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
                   reorderTransition={reorderTransition}
-                  onDragStart={(event) => handlePageDragStart(event, index)}
-                  onDragEnd={clearDragState}
-                  onDragOver={(event) => handlePageDragOver(event, index)}
-                  onDrop={(event) => handlePageDrop(event, index)}
+                  onPointerDown={(event) => handlePagePointerDown(event, index)}
+                  onPointerMove={handlePagePointerMove}
+                  onPointerUp={handlePagePointerUp}
+                  onPointerCancel={() => handlePagePointerCancel()}
+                  onLostPointerCapture={() => handlePagePointerCancel()}
                   onKeyDown={(event) => handlePageKeyDown(event, index)}
                   onJoinSpread={
                     canJoinWithNext ? (event) => joinSpreadPair(event, index) : undefined

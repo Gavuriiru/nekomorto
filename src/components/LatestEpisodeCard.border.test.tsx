@@ -138,11 +138,26 @@ describe("LatestEpisodeCard border styles", () => {
     const unitBadge = within(firstUpdateLink).getByText("Cap 12");
     const volumeBadge = within(firstUpdateLink).getByText("Vol. 4");
     const kindBadge = within(firstUpdateLink).getByText(/lan/i);
+
+    [unitBadge, volumeBadge, kindBadge].forEach((badge) => {
+      expect(badge).toHaveClass(
+        "min-h-6",
+        "min-w-6",
+        "rounded-full",
+        "border",
+        "shadow-none",
+        "pointer-events-none",
+      );
+    });
+
     expect(unitBadge).toHaveClass("hidden");
     expect(unitBadge).toHaveClass("md:inline-flex");
+    expect(unitBadge).toHaveClass("border-border/70", "bg-background", "text-foreground/70");
     expect(volumeBadge).toHaveClass("hidden");
     expect(volumeBadge).toHaveClass("md:inline-flex");
+    expect(volumeBadge).toHaveClass("border-border/70", "bg-background", "text-foreground/70");
     expect(kindBadge).not.toHaveClass("hidden");
+    expect(kindBadge).toHaveClass("border-primary/50", "bg-primary/10", "text-primary");
 
     const badges = Array.from(badgesRow?.children ?? []);
     expect(badges.length).toBeGreaterThan(0);
@@ -266,5 +281,29 @@ describe("LatestEpisodeCard border styles", () => {
     expect(volumeBadge).toHaveClass("hidden");
     expect(volumeBadge).toHaveClass("md:inline-flex");
     expect(kindBadge).not.toHaveClass("hidden");
+    expect(kindBadge).toHaveClass("border-primary/50", "bg-primary/10", "text-primary");
+  });
+
+  it("mantem a pill de ajuste com o destaque ambar no novo shell", async () => {
+    setupBootstrapMock();
+
+    render(
+      <MemoryRouter>
+        <LatestEpisodeCard />
+      </MemoryRouter>,
+    );
+
+    const updateLink = (await screen.findAllByRole("link"))[1];
+    const kindBadge = within(updateLink).getByText("Ajuste");
+
+    expect(kindBadge).toHaveClass(
+      "min-h-6",
+      "min-w-6",
+      "rounded-full",
+      "border",
+      "shadow-none",
+      "pointer-events-none",
+    );
+    expect(kindBadge).toHaveClass("border-amber-500/50", "bg-amber-500/10", "text-amber-400");
   });
 });

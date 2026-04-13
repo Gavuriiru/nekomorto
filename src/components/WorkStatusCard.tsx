@@ -24,7 +24,6 @@ interface WorkItem {
   projectId: string;
 }
 
-const themedBadgeClass = "bg-primary text-primary-foreground border-primary/80";
 const themedIndicatorClass = "bg-primary";
 const VISIBLE_PROGRESS_ITEMS = 5;
 const PROGRESS_CARD_ITEM_MIN_HEIGHT = "5.75rem";
@@ -139,10 +138,10 @@ const WorkStatusCard = () => {
                         </span>
                       </div>
                       <Badge
-                        variant="outline"
+                        variant={useAccentInProgressCard ? "accent" : "outline"}
                         className={`shrink-0 flex items-center gap-1 ${
                           useAccentInProgressCard
-                            ? themedBadgeClass
+                            ? ""
                             : item.progressState.currentStage.badgeClassName
                         }`}
                       >

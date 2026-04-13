@@ -1,5 +1,5 @@
 import type { Transition } from "framer-motion";
-import type { DragEvent, KeyboardEvent } from "react";
+import type { KeyboardEvent } from "react";
 
 type AltArrowReorderOptions = {
   event: KeyboardEvent<HTMLElement>;
@@ -37,6 +37,22 @@ export const buildPreviewReorderList = <T>(
   }
   return reorderList(items, Number(fromIndex), Number(toIndex));
 };
+
+export const REORDER_POINTER_DRAG_THRESHOLD = 6;
+
+export const hasExceededPointerDragThreshold = ({
+  startX,
+  startY,
+  clientX,
+  clientY,
+  threshold = REORDER_POINTER_DRAG_THRESHOLD,
+}: {
+  startX: number;
+  startY: number;
+  clientX: number;
+  clientY: number;
+  threshold?: number;
+}) => Math.hypot(clientX - startX, clientY - startY) >= threshold;
 
 export const getReorderLayoutTransition = (reduceMotion = false): Transition =>
   reduceMotion
@@ -85,48 +101,33 @@ export const resolvePageDisplayName = ({
   getPathBasename(String(imageUrl || "")) ||
   fallback;
 
-export const setDragPreviewFromElement = (
-  event: DragEvent<HTMLElement>,
-  element: HTMLElement | null,
-) => {
-  if (!event.dataTransfer || !element || typeof document === "undefined") {
-    return;
+export const resolvePointerReorderIndex = ({
+  clientX,
+  clientY,
+  scope,
+}: {
+  clientX: number;
+  clientY: number;
+  scope: string;
+}) => {
+  if (typeof document === "undefined") {
+    return null;
   }
 
-  const rect = element.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) {
-    return;
+  const target = document.elementFromPoint(clientX, clientY);
+  if (!(target instanceof Element)) {
+    return null;
   }
 
-  const preview = element.cloneNode(true);
-  if (!(preview instanceof HTMLElement)) {
-    return;
+  const surface = target.closest<HTMLElement>(
+    `[data-reorder-surface="true"][data-reorder-scope="${scope}"]`,
+  );
+  if (!surface) {
+    return null;
   }
 
-  preview.style.position = "fixed";
-  preview.style.top = "-10000px";
-  preview.style.left = "-10000px";
-  preview.style.width = `${rect.width}px`;
-  preview.style.height = `${rect.height}px`;
-  preview.style.pointerEvents = "none";
-  preview.style.opacity = "0.96";
-  preview.style.transform = "rotate(1.5deg)";
-  preview.style.zIndex = "2147483647";
-
-  document.body.appendChild(preview);
-
-  try {
-    const offsetX = Math.min(Math.max(event.clientX - rect.left, 0), rect.width);
-    const offsetY = Math.min(Math.max(event.clientY - rect.top, 0), rect.height);
-    event.dataTransfer.setDragImage(preview, offsetX, offsetY);
-  } catch {
-    preview.remove();
-    return;
-  }
-
-  window.setTimeout(() => {
-    preview.remove();
-  }, 0);
+  const index = Number(surface.getAttribute("data-reorder-index"));
+  return Number.isInteger(index) && index >= 0 ? index : null;
 };
 
 export const buildReorderAnnouncement = (label: string, targetIndex: number) =>

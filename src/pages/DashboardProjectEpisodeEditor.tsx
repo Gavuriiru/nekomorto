@@ -2,6 +2,11 @@ import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
+import {
+  dedicatedEditorSidebarPanelClassName,
+  dedicatedEditorSidebarScrollRegionClassName,
+  dedicatedEditorSidebarStickyClassName,
+} from "@/components/dashboard/dedicated-editor-sidebar";
 import DashboardDedicatedEditorHeader from "@/components/dashboard/DashboardDedicatedEditorHeader";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -831,10 +836,10 @@ const DashboardProjectEpisodeEditor = () => {
 
   const episodeNavigationPanel = (
     <section
-      className={editorSectionClassName}
+      className={activeDraft ? dedicatedEditorSidebarPanelClassName : editorSectionClassName}
       data-testid={activeDraft ? undefined : "anime-episode-empty-state"}
     >
-      <div className="space-y-4 px-5 py-5">
+      <div className={`space-y-4 px-5 py-5 ${activeDraft ? "shrink-0" : ""}`}>
         <div className="space-y-3">
           {!activeDraft ? (
             <div className="rounded-[22px] border border-dashed border-border/60 bg-background/35 px-4 py-5">
@@ -886,8 +891,12 @@ const DashboardProjectEpisodeEditor = () => {
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="space-y-2.5">
+      <div
+        className={activeDraft ? `space-y-2.5 px-5 pb-5 ${dedicatedEditorSidebarScrollRegionClassName}` : "space-y-2.5 px-5 pb-5"}
+        data-testid={activeDraft ? "anime-episode-sidebar-scroll-region" : undefined}
+      >
           {filteredEpisodes.map((episode) => {
             const episodeHref = buildDashboardProjectEpisodeEditorHref(project.id, episode.number);
             const isActive = activeEpisodeKey === buildEpisodeKey(episode.number, episode.volume);
@@ -943,7 +952,6 @@ const DashboardProjectEpisodeEditor = () => {
               Nenhum episódio corresponde aos filtros atuais.
             </div>
           ) : null}
-        </div>
       </div>
     </section>
   );
@@ -1221,7 +1229,7 @@ const DashboardProjectEpisodeEditor = () => {
                             <div className="flex items-center justify-between gap-2">
                               <p className="text-sm font-medium text-foreground">Etapa atual</p>
                               <Badge
-                                variant="accentSoft"
+                                variant="accent"
                                 data-testid="anime-episode-current-stage-badge"
                               >
                                 {progressState.currentStage.label}
@@ -1298,7 +1306,7 @@ const DashboardProjectEpisodeEditor = () => {
                                     </div>
                                     <div className="flex shrink-0 items-center gap-2">
                                       {isCurrentStage ? (
-                                        <Badge variant="accentSoft">Atual</Badge>
+                                        <Badge variant="accent">Atual</Badge>
                                       ) : (
                                         <span className="text-xs text-muted-foreground">
                                           {isCompleted ? "Concluída" : "Pendente"}
@@ -1599,7 +1607,7 @@ const DashboardProjectEpisodeEditor = () => {
 
               {activeDraft ? (
                 <aside
-                  className="min-w-0 xl:sticky xl:top-24"
+                  className={dedicatedEditorSidebarStickyClassName}
                   data-testid="anime-episode-editor-sidebar"
                 >
                   {episodeNavigationPanel}

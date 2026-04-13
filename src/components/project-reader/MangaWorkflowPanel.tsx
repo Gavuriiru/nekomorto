@@ -10,9 +10,9 @@ import {
   useRef,
   useState,
   type Dispatch,
-  type DragEvent,
   type KeyboardEvent,
   type MouseEvent,
+  type PointerEvent,
   type SetStateAction,
 } from "react";
 
@@ -38,9 +38,10 @@ import {
   buildPreviewReorderList,
   getReorderLayoutTransition,
   handleAltArrowReorder,
+  hasExceededPointerDragThreshold,
   reorderList,
+  resolvePointerReorderIndex,
   resolvePageDisplayName,
-  setDragPreviewFromElement,
 } from "@/components/project-reader/page-reorder";
 import MangaPageTile from "@/components/project-reader/MangaPageTile";
 import { mergeImportedImageChaptersIntoProject } from "@/lib/project-manga";
@@ -76,6 +77,16 @@ export type StageChapter = {
   operation: "create" | "update";
   warnings: string[];
   leaveGuardPristine?: boolean;
+};
+
+type StagePagePointerDragState = {
+  chapterId: string;
+  sourceIndex: number;
+  overIndex: number;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  isDragging: boolean;
 };
 
 export type MangaWorkflowPanelHandle = {
@@ -502,11 +513,10 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
     const [reviewImportStatus, setReviewImportStatus] = useState<"draft" | "published" | null>(
       null,
     );
-    const [stagePageDragState, setStagePageDragState] = useState<{
-      chapterId: string;
-      index: number;
-      overIndex: number | null;
-    } | null>(null);
+    const stagePageDragStateRef = useRef<StagePagePointerDragState | null>(null);
+    const [stagePageDragState, setStagePageDragState] = useState<StagePagePointerDragState | null>(
+      null,
+    );
     const reorderTransition = useMemo(
       () => getReorderLayoutTransition(!!shouldReduceMotion),
       [shouldReduceMotion],
@@ -532,18 +542,23 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
       if (!selectedStageChapter) {
         return [];
       }
-      if (stagePageDragState?.chapterId !== selectedStageChapter.id) {
+      if (
+        stagePageDragState?.chapterId !== selectedStageChapter.id ||
+        !stagePageDragState.isDragging
+      ) {
         return selectedStageChapter.pages;
       }
       return buildPreviewReorderList(
         selectedStageChapter.pages,
-        stagePageDragState.index,
+        stagePageDragState.sourceIndex,
         stagePageDragState.overIndex,
       );
     }, [selectedStageChapter, stagePageDragState]);
     const draggedStagePage =
-      selectedStageChapter && stagePageDragState?.chapterId === selectedStageChapter.id
-        ? selectedStageChapter.pages[stagePageDragState.index] || null
+      selectedStageChapter &&
+      stagePageDragState?.chapterId === selectedStageChapter.id &&
+      stagePageDragState.isDragging
+        ? selectedStageChapter.pages[stagePageDragState.sourceIndex] || null
         : null;
 
     useEffect(() => {
@@ -744,6 +759,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
     );
 
     const clearStagePageDragState = useCallback(() => {
+      stagePageDragStateRef.current = null;
       setStagePageDragState(null);
     }, []);
 
@@ -764,60 +780,105 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
       [announce, reconciledStagedChapters, updateStageChapter],
     );
 
-    const handleStagePageDragStart = useCallback(
-      (event: DragEvent<HTMLDivElement>, chapterId: string, index: number) => {
+    const handleStagePagePointerDown = useCallback(
+      (event: PointerEvent<HTMLDivElement>, chapterId: string, index: number) => {
         if (isImporting) {
-          event.preventDefault();
           return;
         }
-        setStagePageDragState({ chapterId, index, overIndex: index });
-        if (event.dataTransfer) {
-          event.dataTransfer.effectAllowed = "move";
-          setDragPreviewFromElement(event, event.currentTarget);
-          try {
-            event.dataTransfer.setData("text/plain", `${chapterId}:${index}`);
-          } catch {
-            // Ignore environments without drag payload support.
-          }
+        if (event.pointerType === "mouse" && event.button !== 0) {
+          return;
         }
+        const nextState = {
+          chapterId,
+          sourceIndex: index,
+          overIndex: index,
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          isDragging: false,
+        };
+        stagePageDragStateRef.current = nextState;
+        setStagePageDragState(nextState);
       },
       [isImporting],
     );
 
-    const handleStagePageDragOver = useCallback(
-      (event: DragEvent<HTMLElement>, chapterId: string, index: number) => {
-        if (isImporting || !stagePageDragState || stagePageDragState.chapterId !== chapterId) {
+    const handleStagePagePointerMove = useCallback(
+      (event: PointerEvent<HTMLDivElement>) => {
+        if (isImporting) {
           return;
         }
-        event.preventDefault();
-        if (event.dataTransfer) {
-          event.dataTransfer.dropEffect = "move";
-        }
-        if (stagePageDragState.overIndex !== index) {
-          setStagePageDragState((current) =>
-            current && current.chapterId === chapterId ? { ...current, overIndex: index } : current,
-          );
-        }
+        setStagePageDragState((current) => {
+          if (
+            !current ||
+            (Number.isFinite(event.pointerId) && current.pointerId !== event.pointerId)
+          ) {
+            return current;
+          }
+
+          const resolvedIndex = resolvePointerReorderIndex({
+            clientX: event.clientX,
+            clientY: event.clientY,
+            scope: "manga-stage-page",
+          });
+          const nextIsDragging =
+            current.isDragging ||
+            hasExceededPointerDragThreshold({
+              startX: current.startX,
+              startY: current.startY,
+              clientX: event.clientX,
+              clientY: event.clientY,
+            }) ||
+            (resolvedIndex !== null && resolvedIndex !== current.sourceIndex);
+
+          if (!nextIsDragging) {
+            return current;
+          }
+
+          const nextOverIndex = resolvedIndex ?? current.overIndex;
+
+          if (current.isDragging === nextIsDragging && current.overIndex === nextOverIndex) {
+            return current;
+          }
+
+          const nextState = {
+            ...current,
+            isDragging: nextIsDragging,
+            overIndex: nextOverIndex,
+          };
+          stagePageDragStateRef.current = nextState;
+          return nextState;
+        });
       },
-      [isImporting, stagePageDragState],
+      [isImporting],
     );
 
-    const handleStagePageDrop = useCallback(
-      (event: DragEvent<HTMLElement>, chapterId: string, index: number) => {
-        event.preventDefault();
-        const dragState = stagePageDragState;
+    const handleStagePagePointerUp = useCallback(
+      (event: PointerEvent<HTMLDivElement>, chapterId: string) => {
+        const dragState = stagePageDragStateRef.current;
         clearStagePageDragState();
         if (
           isImporting ||
           !dragState ||
+          (Number.isFinite(event.pointerId) && dragState.pointerId !== event.pointerId) ||
           dragState.chapterId !== chapterId ||
-          dragState.index === index
+          !dragState.isDragging
         ) {
           return;
         }
-        reorderStagePages(chapterId, dragState.index, index);
+
+        const resolvedIndex = resolvePointerReorderIndex({
+          clientX: event.clientX,
+          clientY: event.clientY,
+          scope: "manga-stage-page",
+        });
+        const targetIndex = resolvedIndex ?? dragState.overIndex;
+        if (dragState.sourceIndex === targetIndex) {
+          return;
+        }
+        reorderStagePages(chapterId, dragState.sourceIndex, targetIndex);
       },
-      [clearStagePageDragState, isImporting, reorderStagePages, stagePageDragState],
+      [clearStagePageDragState, isImporting, reorderStagePages],
     );
 
     const handleStagePageKeyDown = useCallback(
@@ -1737,6 +1798,7 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                           const isDragged = draggedStagePage === page;
                           const isDropTarget =
                             stagePageDragState?.chapterId === selectedStageChapter.id &&
+                            stagePageDragState.isDragging &&
                             stagePageDragState.overIndex === index;
                           const pageDisplayName = resolvePageDisplayName({
                             name: page.name,
@@ -1755,19 +1817,22 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                               isSpread={false}
                               isDragged={isDragged}
                               isPreviewTarget={isDropTarget}
+                              isPressed={
+                                stagePageDragState?.chapterId === selectedStageChapter.id &&
+                                stagePageDragState.sourceIndex === index
+                              }
                               disabled={isImporting}
                               reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
                               reorderTransition={reorderTransition}
-                              onDragStart={(event) =>
-                                handleStagePageDragStart(event, selectedStageChapter.id, index)
+                              onPointerDown={(event) =>
+                                handleStagePagePointerDown(event, selectedStageChapter.id, index)
                               }
-                              onDragEnd={clearStagePageDragState}
-                              onDragOver={(event) =>
-                                handleStagePageDragOver(event, selectedStageChapter.id, index)
+                              onPointerMove={handleStagePagePointerMove}
+                              onPointerUp={(event) =>
+                                handleStagePagePointerUp(event, selectedStageChapter.id)
                               }
-                              onDrop={(event) =>
-                                handleStagePageDrop(event, selectedStageChapter.id, index)
-                              }
+                              onPointerCancel={() => clearStagePageDragState()}
+                              onLostPointerCapture={() => clearStagePageDragState()}
                               onKeyDown={(event) =>
                                 handleStagePageKeyDown(event, selectedStageChapter.id, index)
                               }

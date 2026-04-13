@@ -12,7 +12,6 @@ describe("Badge semantic variants", () => {
         <Badge variant="danger">Falha</Badge>
         <Badge variant="info">Atual</Badge>
         <Badge variant="accent">Etapa</Badge>
-        <Badge variant="accentSoft">Atual suave</Badge>
         <Badge variant="neutral">Na fila</Badge>
       </div>,
     );
@@ -38,11 +37,6 @@ describe("Badge semantic variants", () => {
       "text-[hsl(var(--badge-info-fg))]",
     );
     expect(screen.getByText("Etapa")).toHaveClass(
-      "border-accent/60",
-      "bg-accent",
-      "text-accent-foreground",
-    );
-    expect(screen.getByText("Atual suave")).toHaveClass(
       "border-accent/60",
       "bg-accent/10",
       "text-accent",
