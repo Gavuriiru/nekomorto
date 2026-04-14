@@ -48,7 +48,7 @@
     "format:check": "biome check . --formatter-enabled=true --linter-enabled=false --assist-enabled=false",
     "preview": "vite preview",
     "uploads:reorganize": "node --env-file=.env scripts/reorganize-upload-folders.mjs",
-    "uploads:check-integrity": "node --env-file=.env scripts/check-upload-integrity.mjs",
+    "uploads:check-integrity": "node scripts/check-upload-integrity.mjs",
     "uploads:sync-to-object-storage": "node --env-file=.env scripts/sync-uploads-to-object-storage.mjs",
     "uploads:restore-from-object-storage": "node --env-file=.env scripts/restore-uploads-from-object-storage.mjs",
     "uploads:generate-inventory": "node --env-file=.env scripts/generate-uploads-inventory.mjs",
