@@ -5,7 +5,7 @@ WORKDIR /app
 FROM base AS deps
 
 COPY package.json package-lock.json ./
-COPY scripts/patch-vercel-og.mjs ./scripts/patch-vercel-og.mjs
+COPY scripts/patch-vercel-og.mjs scripts/patch-lodash-subpaths.mjs ./scripts/
 RUN npm ci
 
 FROM deps AS build
