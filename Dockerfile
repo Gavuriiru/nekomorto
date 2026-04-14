@@ -44,6 +44,7 @@ COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/server ./server
 COPY --from=build /app/public ./public
 COPY --from=build /app/scripts ./scripts
+COPY --from=build /app/shared ./shared
 COPY --from=build /app/dist ./dist
 
 RUN mkdir -p /app/public/uploads && chown -R node:node /app
