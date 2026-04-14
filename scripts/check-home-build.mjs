@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const DEFAULT_MAX_HOME_CRITICAL_CSS_BYTES = 210 * 1024;
 const MAX_HOME_CRITICAL_CSS_BYTES =
-  Number.parseInt(process.env.HOME_CRITICAL_CSS_MAX_BYTES ?? "", 10) ||
+  Number.parseInt(process.env.HOME_CRITICAL_CSS_MAX_BYTES ?? "216000", 10) ||
   DEFAULT_MAX_HOME_CRITICAL_CSS_BYTES;
 
 const __filename = fileURLToPath(import.meta.url);
