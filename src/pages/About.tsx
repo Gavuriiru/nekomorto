@@ -173,113 +173,129 @@ const About = () => {
           badges={about.heroBadges}
         />
 
-        <section
-          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-16 pt-10 reveal`}
-          data-reveal
-        >
-          <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="space-y-4">
-              {about.highlights.map((item) => {
-                const HighlightIcon = resolveAboutIcon(item.icon, Sparkles);
+        {about.highlights.length > 0 || about.manifestoTitle || about.manifestoParagraphs.length > 0 ? (
+          <section
+            className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-16 pt-10 reveal`}
+            data-reveal
+          >
+            <div className={`grid gap-6 ${
+              about.highlights.length > 0 && (about.manifestoTitle || about.manifestoParagraphs.length > 0)
+                ? "lg:grid-cols-[0.9fr_1.1fr]"
+                : "lg:grid-cols-1"
+            }`}>
+              {about.highlights.length > 0 ? (
+                <div className="space-y-4">
+                  {about.highlights.map((item) => {
+                    const HighlightIcon = resolveAboutIcon(item.icon, Sparkles);
+                    return (
+                      <div
+                        key={item.label}
+                        className="group rounded-2xl border border-border/60 bg-background/60 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-background/80 hover:shadow-public-card"
+                      >
+                        <div
+                          className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelXs}`}
+                        >
+                          <HighlightIcon className={publicPageLayoutTokens.sectionLabelIcon} />
+                          {item.label}
+                        </div>
+                        <p className="mt-2 text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                          {item.text}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+              {about.manifestoTitle || about.manifestoParagraphs.length > 0 ? (
+                <Card className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card">
+                  <CardContent className="space-y-5 p-6 md:p-8">
+                    {about.manifestoTitle ? (
+                      <div
+                        className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelSm}`}
+                      >
+                        {(() => {
+                          const ManifestoIcon = resolveAboutIcon(about.manifestoIcon, Flame);
+                          return <ManifestoIcon className={publicPageLayoutTokens.sectionLabelIcon} />;
+                        })()}
+                        {about.manifestoTitle}
+                      </div>
+                    ) : null}
+                    {about.manifestoParagraphs.map((paragraph) => (
+                      <p
+                        key={paragraph}
+                        className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80 md:text-base"
+                      >
+                        {paragraph}
+                      </p>
+                    ))}
+                  </CardContent>
+                </Card>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
+        {about.pillars.length > 0 ? (
+          <section
+            className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-16 pt-2 reveal`}
+            data-reveal
+          >
+            <div className="grid gap-6 md:grid-cols-3">
+              {about.pillars.map((pillar) => {
+                const Icon = resolveAboutIcon(pillar.icon, Sparkles);
                 return (
-                  <div
-                    key={item.label}
-                    className="group rounded-2xl border border-border/60 bg-background/60 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-background/80 hover:shadow-public-card"
+                  <Card
+                    key={pillar.title}
+                    className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card"
                   >
-                    <div
-                      className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelXs}`}
-                    >
-                      <HighlightIcon className={publicPageLayoutTokens.sectionLabelIcon} />
-                      {item.label}
-                    </div>
-                    <p className="mt-2 text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
-                      {item.text}
-                    </p>
-                  </div>
+                    <CardContent className="space-y-3 p-6">
+                      <div
+                        className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelSm}`}
+                      >
+                        <Icon className={publicPageLayoutTokens.sectionLabelIcon} />
+                        {pillar.title}
+                      </div>
+                      <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                        {pillar.description}
+                      </p>
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>
-            <Card className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card">
-              <CardContent className="space-y-5 p-6 md:p-8">
-                <div
-                  className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelSm}`}
-                >
-                  {(() => {
-                    const ManifestoIcon = resolveAboutIcon(about.manifestoIcon, Flame);
-                    return <ManifestoIcon className={publicPageLayoutTokens.sectionLabelIcon} />;
-                  })()}
-                  {about.manifestoTitle}
-                </div>
-                {about.manifestoParagraphs.map((paragraph) => (
-                  <p
-                    key={paragraph}
-                    className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80 md:text-base"
+          </section>
+        ) : null}
+
+        {about.values.length > 0 ? (
+          <section
+            className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-24 pt-4 reveal`}
+            data-reveal
+          >
+            <div className="grid gap-6 md:grid-cols-2">
+              {about.values.map((value) => {
+                const Icon = resolveAboutIcon(value.icon, Sparkles);
+                return (
+                  <Card
+                    key={value.title}
+                    className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card"
                   >
-                    {paragraph}
-                  </p>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
-        <section
-          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-16 pt-2 reveal`}
-          data-reveal
-        >
-          <div className="grid gap-6 md:grid-cols-3">
-            {about.pillars.map((pillar) => {
-              const Icon = resolveAboutIcon(pillar.icon, Sparkles);
-              return (
-                <Card
-                  key={pillar.title}
-                  className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card"
-                >
-                  <CardContent className="space-y-3 p-6">
-                    <div
-                      className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelSm}`}
-                    >
-                      <Icon className={publicPageLayoutTokens.sectionLabelIcon} />
-                      {pillar.title}
-                    </div>
-                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
-                      {pillar.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </section>
-
-        <section
-          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-24 pt-4 reveal`}
-          data-reveal
-        >
-          <div className="grid gap-6 md:grid-cols-2">
-            {about.values.map((value) => {
-              const Icon = resolveAboutIcon(value.icon, Sparkles);
-              return (
-                <Card
-                  key={value.title}
-                  className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card"
-                >
-                  <CardContent className="space-y-3 p-6">
-                    <div
-                      className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelSm}`}
-                    >
-                      <Icon className={publicPageLayoutTokens.sectionLabelIcon} />
-                      {value.title}
-                    </div>
-                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
-                      {value.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </section>
+                    <CardContent className="space-y-3 p-6">
+                      <div
+                        className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelSm}`}
+                      >
+                        <Icon className={publicPageLayoutTokens.sectionLabelIcon} />
+                        {value.title}
+                      </div>
+                      <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                        {value.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
       </main>
     </div>
   );

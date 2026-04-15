@@ -400,32 +400,34 @@ const Donations = () => {
           </section>
         ) : (
           <>
-            <section
-              className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-12 pt-10 reveal`}
-              data-reveal
-            >
-              <div className="grid gap-6 md:grid-cols-3">
-                {donations.costs.map((item) => {
-                  const Icon = resolveDonationsIcon(item.icon, Sparkles);
-                  return (
-                    <Card
-                      key={item.title}
-                      className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card"
-                    >
-                      <CardContent className="space-y-3 p-6">
-                        <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
-                          <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
-                          {item.title}
-                        </div>
-                        <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
-                          {item.description}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </section>
+            {donations.costs.length > 0 ? (
+              <section
+                className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-12 pt-10 reveal`}
+                data-reveal
+              >
+                <div className="grid gap-6 md:grid-cols-3">
+                  {donations.costs.map((item) => {
+                    const Icon = resolveDonationsIcon(item.icon, Sparkles);
+                    return (
+                      <Card
+                        key={item.title}
+                        className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card"
+                      >
+                        <CardContent className="space-y-3 p-6">
+                          <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
+                            <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
+                            {item.title}
+                          </div>
+                          <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                            {item.description}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
 
             {monthlyGoal ? (
               <section
@@ -510,77 +512,92 @@ const Donations = () => {
               </section>
             ) : null}
 
-            <section
-              className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-12 pt-0 reveal`}
-              data-reveal
-            >
-              <Card className="border-border/60 bg-card/90 shadow-public-card">
-                <CardContent className="grid gap-6 p-6 md:grid-cols-[1.1fr_0.9fr] md:p-8">
-                  <div data-testid="donations-reason-panel" className="space-y-4 rounded-2xl p-2">
-                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                      {(() => {
-                        const ReasonIcon = resolveDonationsIcon(
-                          donations.reasonIcon,
-                          HeartHandshake,
-                        );
-                        return <ReasonIcon className="h-4 w-4 text-primary/80" />;
-                      })()}
-                      {donations.reasonTitle}
-                    </div>
-                    <p className="text-sm text-muted-foreground md:text-base">
-                      {donations.reasonText}
-                    </p>
-                    <div className="rounded-2xl border border-border/60 bg-background/60 p-4 text-sm text-muted-foreground">
-                      {donations.reasonNote}
-                    </div>
-                  </div>
-                  <div
-                    id="pix-doacoes"
-                    data-scroll-block="center"
-                    className="rounded-2xl border border-border/60 bg-background/50 p-5"
+            {donations.reasonTitle || donations.reasonText || donations.pixKey ? (
+              <section
+                className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-12 pt-0 reveal`}
+                data-reveal
+              >
+                <Card className="border-border/60 bg-card/90 shadow-public-card">
+                  <CardContent
+                    className={`grid gap-6 p-6 md:p-8 ${
+                      (donations.reasonTitle || donations.reasonText) && donations.pixKey
+                        ? "md:grid-cols-[1.1fr_0.9fr]"
+                        : "md:grid-cols-1"
+                    }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                        {(() => {
-                          const PixIcon = resolveDonationsIcon(donations.pixIcon, QrCode);
-                          return <PixIcon className="h-4 w-4 text-primary/80" />;
-                        })()}
-                        Pix
+                    {donations.reasonTitle || donations.reasonText ? (
+                      <div data-testid="donations-reason-panel" className="space-y-4 rounded-2xl p-2">
+                        <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                          {(() => {
+                            const ReasonIcon = resolveDonationsIcon(
+                              donations.reasonIcon,
+                              HeartHandshake,
+                            );
+                            return <ReasonIcon className="h-4 w-4 text-primary/80" />;
+                          })()}
+                          {donations.reasonTitle}
+                        </div>
+                        <p className="text-sm text-muted-foreground md:text-base">
+                          {donations.reasonText}
+                        </p>
+                        {donations.reasonNote ? (
+                          <div className="rounded-2xl border border-border/60 bg-background/60 p-4 text-sm text-muted-foreground">
+                            {donations.reasonNote}
+                          </div>
+                        ) : null}
                       </div>
-                      <span className="text-xs text-muted-foreground">Chave e QR Code</span>
-                    </div>
-                    <div className="mt-4 grid gap-4 md:grid-cols-[0.8fr_1.2fr] md:items-center">
-                      <div className={donationsPixQrShellClassName}>
-                        <div className={donationsQrFrameClassName}>
-                          <img
-                            src={qrUrl}
-                            alt="QR Code PIX"
-                            className="aspect-square w-full rounded-lg object-cover"
-                          />
+                    ) : null}
+                    
+                    {donations.pixKey ? (
+                      <div
+                        id="pix-doacoes"
+                        data-scroll-block="center"
+                        className="rounded-2xl border border-border/60 bg-background/50 p-5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                            {(() => {
+                              const PixIcon = resolveDonationsIcon(donations.pixIcon, QrCode);
+                              return <PixIcon className="h-4 w-4 text-primary/80" />;
+                            })()}
+                            Pix
+                          </div>
+                          <span className="text-xs text-muted-foreground">Chave e QR Code</span>
+                        </div>
+                        <div className="mt-4 grid gap-4 md:grid-cols-[0.8fr_1.2fr] md:items-center">
+                          <div className={donationsPixQrShellClassName}>
+                            <div className={donationsQrFrameClassName}>
+                              <img
+                                src={qrUrl}
+                                alt="QR Code PIX"
+                                className="aspect-square w-full rounded-lg object-cover"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-3">
+                            <div className={donationsPixKeyClassName}>{donations.pixKey}</div>
+                            <div className="flex w-full flex-wrap items-center gap-3 md:justify-center">
+                              <Button
+                                className="w-full gap-2 md:w-auto"
+                                onClick={() => void handleCopy(donations.pixKey, "pix")}
+                                disabled={!donations.pixKey?.trim()}
+                              >
+                                {copiedKey === "pix" ? (
+                                  <Check className="h-4 w-4" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                                {copiedKey === "pix" ? "Copiado" : "Copiar chave PIX"}
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="space-y-3">
-                        <div className={donationsPixKeyClassName}>{donations.pixKey}</div>
-                        <div className="flex w-full flex-wrap items-center gap-3 md:justify-center">
-                          <Button
-                            className="w-full gap-2 md:w-auto"
-                            onClick={() => void handleCopy(donations.pixKey, "pix")}
-                            disabled={!donations.pixKey?.trim()}
-                          >
-                            {copiedKey === "pix" ? (
-                              <Check className="h-4 w-4" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                            {copiedKey === "pix" ? "Copiado" : "Copiar chave PIX"}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              </section>
+            ) : null}
 
             {visibleCryptoServices.length > 0 ? (
               <section
@@ -687,51 +704,53 @@ const Donations = () => {
               </section>
             ) : null}
 
-            <section
-              className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-24 pt-4 reveal`}
-              data-reveal
-            >
-              <Card data-testid="donations-donors-card" className="bg-card/80 shadow-public-card">
-                <CardContent className="p-6 md:p-8">
-                  <div className="flex items-center gap-3 text-xl font-semibold text-foreground">
-                    {(() => {
-                      const DonorsIcon = iconMap[donations.donorsIcon] || PiggyBank;
-                      return <DonorsIcon className="h-5 w-5 text-primary/80" />;
-                    })()}
-                    Lista de doadores
-                  </div>
-                  <Separator className="my-6 bg-border/60" />
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <colgroup>
-                        <col className="w-[34%]" />
-                        <col className="w-[22%]" />
-                        <col className="w-[28%]" />
-                        <col className="w-[16%]" />
-                      </colgroup>
-                      <thead className="text-xs uppercase tracking-widest text-muted-foreground">
-                        <tr>
-                          <th className="pb-3">Doador</th>
-                          <th className="pb-3">Valor</th>
-                          <th className="pb-3">Objetivo</th>
-                          <th className="pb-3">Mês/Ano</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/40">
-                        {donations.donors.map((donor, index) => (
-                          <tr key={`${donor.name}-${donor.date}-${index}`}>
-                            <td className="py-3 font-medium text-foreground">{donor.name}</td>
-                            <td className="py-3 text-muted-foreground">{donor.amount}</td>
-                            <td className="py-3 text-muted-foreground">{donor.goal}</td>
-                            <td className="py-3 text-muted-foreground">{donor.date}</td>
+            {donations.donors.length > 0 ? (
+              <section
+                className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-24 pt-4 reveal`}
+                data-reveal
+              >
+                <Card data-testid="donations-donors-card" className="bg-card/80 shadow-public-card">
+                  <CardContent className="p-6 md:p-8">
+                    <div className="flex items-center gap-3 text-xl font-semibold text-foreground">
+                      {(() => {
+                        const DonorsIcon = iconMap[donations.donorsIcon] || PiggyBank;
+                        return <DonorsIcon className="h-5 w-5 text-primary/80" />;
+                      })()}
+                      Lista de doadores
+                    </div>
+                    <Separator className="my-6 bg-border/60" />
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <colgroup>
+                          <col className="w-[34%]" />
+                          <col className="w-[22%]" />
+                          <col className="w-[28%]" />
+                          <col className="w-[16%]" />
+                        </colgroup>
+                        <thead className="text-xs uppercase tracking-widest text-muted-foreground">
+                          <tr>
+                            <th className="pb-3">Doador</th>
+                            <th className="pb-3">Valor</th>
+                            <th className="pb-3">Objetivo</th>
+                            <th className="pb-3">Mês/Ano</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
+                        </thead>
+                        <tbody className="divide-y divide-border/40">
+                          {donations.donors.map((donor, index) => (
+                            <tr key={`${donor.name}-${donor.date}-${index}`}>
+                              <td className="py-3 font-medium text-foreground">{donor.name}</td>
+                              <td className="py-3 text-muted-foreground">{donor.amount}</td>
+                              <td className="py-3 text-muted-foreground">{donor.goal}</td>
+                              <td className="py-3 text-muted-foreground">{donor.date}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </section>
+            ) : null}
           </>
         )}
       </main>

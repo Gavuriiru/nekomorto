@@ -156,56 +156,62 @@ const Recruitment = () => {
           subtitle={recruitment.heroSubtitle}
         />
 
-        <section
-          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pt-10 reveal`}
-          data-reveal
-        >
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {recruitment.roles.map((role, index) => {
-              const Icon = isRecruitmentIconKey(role.icon) ? iconMap[role.icon] : Sparkles;
-              return (
-                <Card
-                  key={role.title}
-                  className="group interactive-lift-md interactive-surface-transition bg-card/70 animate-fade-in opacity-0 hover:border-primary/60 hover:bg-card/90"
-                  style={{ animationDelay: `${index * 80}ms` }}
-                >
-                  <CardContent className="space-y-3 p-5">
-                    <div className="flex items-center gap-3">
-                      <span className="interactive-control-transition flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/80 text-primary group-hover:scale-105 group-hover:bg-primary/15">
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <h2 className="interactive-content-transition text-base font-semibold text-foreground group-hover:text-primary">
-                        {role.title}
-                      </h2>
-                    </div>
-                    <p className="interactive-content-transition text-sm text-muted-foreground group-hover:text-foreground/80">
-                      {role.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </section>
+        {recruitment.roles.length > 0 ? (
+          <section
+            className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pt-10 reveal`}
+            data-reveal
+          >
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {recruitment.roles.map((role, index) => {
+                const Icon = isRecruitmentIconKey(role.icon) ? iconMap[role.icon] : Sparkles;
+                return (
+                  <Card
+                    key={role.title}
+                    className="group interactive-lift-md interactive-surface-transition bg-card/70 animate-fade-in opacity-0 hover:border-primary/60 hover:bg-card/90"
+                    style={{ animationDelay: `${index * 80}ms` }}
+                  >
+                    <CardContent className="space-y-3 p-5">
+                      <div className="flex items-center gap-3">
+                        <span className="interactive-control-transition flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/80 text-primary group-hover:scale-105 group-hover:bg-primary/15">
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <h2 className="interactive-content-transition text-base font-semibold text-foreground group-hover:text-primary">
+                          {role.title}
+                        </h2>
+                      </div>
+                      <p className="interactive-content-transition text-sm text-muted-foreground group-hover:text-foreground/80">
+                        {role.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
 
-        <section
-          className={`${publicPageLayoutTokens.sectionBase} mt-12 max-w-6xl reveal`}
-          data-reveal
-        >
-          <Card className="bg-card/70 animate-fade-in opacity-0" style={{ animationDelay: "0.4s" }}>
-            <CardContent className="flex flex-col items-stretch justify-between gap-4 p-6 md:flex-row md:items-center">
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold text-foreground">{recruitment.ctaTitle}</h2>
-                <p className="text-sm text-muted-foreground">{recruitment.ctaSubtitle}</p>
-              </div>
-              <Button asChild className="w-full md:w-auto">
-                <a href={discordUrl} target="_blank" rel="noreferrer">
-                  {recruitment.ctaButtonLabel}
-                </a>
-              </Button>
-            </CardContent>
-          </Card>
-        </section>
+        {recruitment.ctaTitle || recruitment.ctaSubtitle || recruitment.ctaButtonLabel ? (
+          <section
+            className={`${publicPageLayoutTokens.sectionBase} mt-12 max-w-6xl reveal`}
+            data-reveal
+          >
+            <Card className="bg-card/70 animate-fade-in opacity-0" style={{ animationDelay: "0.4s" }}>
+              <CardContent className="flex flex-col items-stretch justify-between gap-4 p-6 md:flex-row md:items-center">
+                <div className="space-y-1">
+                  <h2 className="text-lg font-semibold text-foreground">{recruitment.ctaTitle}</h2>
+                  <p className="text-sm text-muted-foreground">{recruitment.ctaSubtitle}</p>
+                </div>
+                {recruitment.ctaButtonLabel ? (
+                  <Button asChild className="w-full md:w-auto">
+                    <a href={discordUrl} target="_blank" rel="noreferrer">
+                      {recruitment.ctaButtonLabel}
+                    </a>
+                  </Button>
+                ) : null}
+              </CardContent>
+            </Card>
+          </section>
+        ) : null}
       </main>
     </div>
   );

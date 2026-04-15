@@ -214,15 +214,21 @@ const Team = () => {
 
               {retiredMembers.length > 0 ? (
                 <section className="mt-16 space-y-6" aria-labelledby="team-retired-members-heading">
-                  <div>
-                    <h2
-                      id="team-retired-members-heading"
-                      className="text-lg font-semibold text-foreground"
-                    >
-                      {pageCopy.retiredTitle}
-                    </h2>
-                    <p className="text-sm text-muted-foreground">{pageCopy.retiredSubtitle}</p>
-                  </div>
+                  {pageCopy.retiredTitle || pageCopy.retiredSubtitle ? (
+                    <div>
+                      {pageCopy.retiredTitle ? (
+                        <h2
+                          id="team-retired-members-heading"
+                          className="text-lg font-semibold text-foreground"
+                        >
+                          {pageCopy.retiredTitle}
+                        </h2>
+                      ) : null}
+                      {pageCopy.retiredSubtitle ? (
+                        <p className="text-sm text-muted-foreground">{pageCopy.retiredSubtitle}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <div className="mt-8 grid gap-8 md:gap-10">
                     {retiredMembers.map((member) =>
                       renderMemberCard(member, {
