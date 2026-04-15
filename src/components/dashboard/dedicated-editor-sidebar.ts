@@ -6,7 +6,7 @@ export const dedicatedEditorSidebarFallbackHeight = "34rem";
 export const dedicatedEditorSidebarStickyClassName = "min-w-0 xl:sticky xl:top-24 xl:min-h-0";
 
 export const dedicatedEditorSidebarPanelClassName =
-  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-editor-surface flex h-[var(--dedicated-editor-sidebar-height,34rem)] max-h-[var(--dedicated-editor-sidebar-height,34rem)] min-h-0 flex-col";
+  "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-editor-surface flex max-h-[var(--dedicated-editor-sidebar-height,34rem)] min-h-0 flex-col";
 
 export const dedicatedEditorSidebarBodyClassName = "flex min-h-0 flex-1 flex-col";
 
