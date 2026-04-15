@@ -45,9 +45,10 @@ COPY --from=build /app/server ./server
 COPY --from=build /app/public ./public
 COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/shared ./shared
+COPY --from=build /app/src ./src
 COPY --from=build /app/dist ./dist
 
-RUN mkdir -p /app/public/uploads && chown -R node:node /app
+RUN mkdir -p /app/public/uploads && chown -R node:node /app/public/uploads
 
 USER node
 

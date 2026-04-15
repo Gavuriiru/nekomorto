@@ -1,4 +1,4 @@
-﻿import "dotenv/config";
+import "dotenv/config";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
@@ -397,7 +397,7 @@ import {
   buildWebhookTargetLabel,
   validateWebhookUrlForProvider,
 } from "./lib/webhooks/validation.js";
-import { deriveAniListMediaOrganization } from "../src/lib/anilist-media.js";
+import { deriveAniListMediaOrganization } from "../shared/anilist-media.js";
 import {
   buildInstitutionalOgImageAlt,
   resolveInstitutionalOgPageKeyFromPath,

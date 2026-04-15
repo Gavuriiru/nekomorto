@@ -10,7 +10,7 @@ import {
   hasAniListOrganizationChanges,
   mergeAniListOrganizationIntoProject,
 } from "../server/lib/project-anilist-metadata.js";
-import { deriveAniListMediaOrganization } from "../src/lib/anilist-media.js";
+import { deriveAniListMediaOrganization } from "../shared/anilist-media.js";
 
 const DEFAULT_RETRY_ATTEMPTS = 3;
 const DEFAULT_RETRY_DELAY_MS = 750;

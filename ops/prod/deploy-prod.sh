@@ -193,13 +193,16 @@ case "${PROXY_PROVIDER}" in
     require_non_empty "APP_WWW_DOMAIN" "${APP_WWW_DOMAIN}" "is required for PROXY_PROVIDER=traefik."
     require_non_empty "TRAEFIK_ACME_EMAIL" "${TRAEFIK_ACME_EMAIL}" "is required for PROXY_PROVIDER=traefik."
     ;;
+  standalone)
+    echo "[deploy] Standalone mode: no reverse proxy. TLS must be handled externally."
+    ;;
   *)
-    echo "Invalid PROXY_PROVIDER: ${PROXY_PROVIDER}. Allowed values: caddy, nginx, traefik." >&2
+    echo "Invalid PROXY_PROVIDER: ${PROXY_PROVIDER}. Allowed values: caddy, nginx, traefik, standalone." >&2
     exit 1
     ;;
 esac
 
-if [[ "${APP_DOMAIN}" == "${APP_WWW_DOMAIN}" ]]; then
+if [[ "${PROXY_PROVIDER}" != "standalone" && "${APP_DOMAIN}" == "${APP_WWW_DOMAIN}" ]]; then
   echo "APP_DOMAIN and APP_WWW_DOMAIN must be different values." >&2
   exit 1
 fi
@@ -248,8 +251,13 @@ compose_cmd run --rm app npm run prisma:migrate:deploy
 echo "[deploy] Checking uploads integrity..."
 compose_cmd run --rm app npm run uploads:check-integrity -- --mode=fast
 
-echo "[deploy] Starting app + edge..."
-compose_cmd up -d app edge
+if [[ "${PROXY_PROVIDER}" == "standalone" ]]; then
+  echo "[deploy] Starting app (standalone, no edge)..."
+  compose_cmd up -d app
+else
+  echo "[deploy] Starting app + edge..."
+  compose_cmd up -d app edge
+fi
 
 echo "[deploy] Running internal health checks..."
 compose_cmd run --rm app \
