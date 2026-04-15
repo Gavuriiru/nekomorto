@@ -1,4 +1,4 @@
-﻿import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
+import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
 import type { ComboboxOption } from "@/components/ui/combobox";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import {
@@ -214,9 +214,9 @@ export const ChapterEditorStructureSection = memo(
                     data-testid={`chapter-structure-group-${group.key}`}
                   >
                     <div
-                      className={`space-y-3 border-b border-border/50 px-4 py-4 ${
-                        isSelected ? "bg-primary/[0.04]" : ""
-                      }`}
+                      className={`space-y-3 px-4 py-4 ${
+                        isOpen ? "border-b border-border/50" : ""
+                      } ${isSelected ? "bg-primary/[0.04]" : ""}`}
                       data-testid={`chapter-structure-group-header-${group.key}`}
                     >
                       <div className="flex items-start gap-3">
