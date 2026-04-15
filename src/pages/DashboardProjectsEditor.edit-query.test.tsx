@@ -256,7 +256,7 @@ const resizeObserverUnobserveMock = vi.fn();
 const resizeObserverDisconnectMock = vi.fn();
 const originalResizeObserver = globalThis.ResizeObserver;
 class ResizeObserverMock {
-  constructor(_callback: ResizeObserverCallback) {}
+  constructor(_callback: ResizeObserverCallback) { }
 
   observe = resizeObserverObserveMock;
 
@@ -389,7 +389,7 @@ describe("DashboardProjectsEditor edit query", () => {
       "h-9",
     );
 
-    fireEvent.click(within(editorDialog).getByRole("button", { name: /Staff do anime/i }));
+    fireEvent.click(within(editorDialog).getByRole("button", { name: /Staff/i }));
 
     const animeMemberInput = within(editorDialog).getAllByPlaceholderText(
       "Adicionar membro",
@@ -788,7 +788,7 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(sectionTitles).toEqual(
       expect.arrayContaining([
         expect.stringContaining("Equipe da fansub"),
-        expect.stringContaining("Staff do anime"),
+        expect.stringContaining("Staff"),
       ]),
     );
     expect(sectionTitles).not.toEqual(

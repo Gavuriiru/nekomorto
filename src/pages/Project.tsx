@@ -104,10 +104,9 @@ const ProjectPage = () => {
     () =>
       project?.id
         ? normalizeAssetUrl(
-            `/api/og/project/${encodeURIComponent(project.id)}${
-              projectRevision ? `?v=${encodeURIComponent(projectRevision)}` : ""
-            }`,
-          )
+          `/api/og/project/${encodeURIComponent(project.id)}${projectRevision ? `?v=${encodeURIComponent(projectRevision)}` : ""
+          }`,
+        )
         : normalizeAssetUrl(settings.site.defaultShareImage),
     [project?.id, projectRevision, settings.site.defaultShareImage],
   );
@@ -441,9 +440,8 @@ const ProjectPage = () => {
     }
     const chapterNumber = Number(episode.number);
     const volumeNumber = Number(episode.volume);
-    const resourceId = `${project.id}:${Number.isFinite(chapterNumber) ? chapterNumber : 0}:${
-      Number.isFinite(volumeNumber) ? volumeNumber : 0
-    }`;
+    const resourceId = `${project.id}:${Number.isFinite(chapterNumber) ? chapterNumber : 0}:${Number.isFinite(volumeNumber) ? volumeNumber : 0
+      }`;
     const payload: {
       eventType: "download_click";
       resourceType: "chapter";
@@ -527,9 +525,8 @@ const ProjectPage = () => {
     return (
       <Card
         key={key}
-        className={`w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-floating-soft ${
-          isAnimeDownloadCard ? "md:h-[210px]" : "md:min-h-[185px]"
-        }`}
+        className={`w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-floating-soft ${isAnimeDownloadCard ? "md:h-[210px]" : "md:min-h-[185px]"
+          }`}
       >
         <CardContent className="relative grid h-full gap-4 p-4 md:grid-cols-[316px_minmax(0,1fr)] md:items-start md:gap-4 md:p-4">
           <div className="w-full overflow-hidden rounded-xl border border-border/40 bg-background/50 shadow-inner md:h-[178px] md:w-[316px]">
@@ -620,38 +617,38 @@ const ProjectPage = () => {
               ) : null}
               {hasSources
                 ? sources.map((source, sourceIndex) => {
-                    const theme = sourceThemeMap.get(source.label.toLowerCase());
-                    const color = theme?.color || "#4b5563";
-                    const icon = renderSourceIcon(
-                      theme?.icon,
-                      color,
-                      source.label,
-                      theme?.tintIcon ?? true,
-                    );
-                    return (
-                      <Button
-                        key={`${key}-${source.label}-${sourceIndex}`}
-                        asChild
-                        variant="outline"
-                        size="sm"
-                        className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
-                        style={{ borderColor: `${color}99`, color }}
+                  const theme = sourceThemeMap.get(source.label.toLowerCase());
+                  const color = theme?.color || "#4b5563";
+                  const icon = renderSourceIcon(
+                    theme?.icon,
+                    color,
+                    source.label,
+                    theme?.tintIcon ?? true,
+                  );
+                  return (
+                    <Button
+                      key={`${key}-${source.label}-${sourceIndex}`}
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
+                      style={{ borderColor: `${color}99`, color }}
+                    >
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={source.label}
+                        title={source.label}
+                        className="inline-flex items-center justify-center gap-0 md:gap-2"
+                        onClick={() => trackDownloadClick(episode, source.label)}
                       >
-                        <a
-                          href={source.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label={source.label}
-                          title={source.label}
-                          className="inline-flex items-center justify-center gap-0 md:gap-2"
-                          onClick={() => trackDownloadClick(episode, source.label)}
-                        >
-                          {icon}
-                          <span className="sr-only md:not-sr-only">{source.label}</span>
-                        </a>
-                      </Button>
-                    );
-                  })
+                        {icon}
+                        <span className="sr-only md:not-sr-only">{source.label}</span>
+                      </a>
+                    </Button>
+                  );
+                })
                 : null}
               {!hasReadAction && !hasSources && emptyStateBadge ? (
                 <Badge variant="outline" className="text-[10px] uppercase">
@@ -697,13 +694,13 @@ const ProjectPage = () => {
     const readAction: EpisodeReadAction | null =
       allowReadAction && hasContent
         ? {
-            href: buildProjectPublicReadingHref(projectId, chapter.number, chapter.volume),
-            label: isExtraEntry
-              ? "Ler extra"
-              : hasPages && !hasSources
-                ? "Abrir leitor"
-                : "Ler capítulo",
-          }
+          href: buildProjectPublicReadingHref(projectId, chapter.number, chapter.volume),
+          label: isExtraEntry
+            ? "Ler extra"
+            : hasPages && !hasSources
+              ? "Abrir leitor"
+              : "Ler capítulo",
+        }
         : null;
 
     return (
@@ -722,38 +719,38 @@ const ProjectPage = () => {
           <div className="chapter-download-card__actions flex flex-wrap items-center gap-2 md:justify-end">
             {hasSources
               ? (chapter.sources || []).map((source, sourceIndex) => {
-                  const theme = sourceThemeMap.get(source.label.toLowerCase());
-                  const color = theme?.color || "#4b5563";
-                  const icon = renderSourceIcon(
-                    theme?.icon,
-                    color,
-                    source.label,
-                    theme?.tintIcon ?? true,
-                  );
-                  return (
-                    <Button
-                      key={`${key}-${source.label}-${sourceIndex}`}
-                      asChild
-                      variant="outline"
-                      size="sm"
-                      className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
-                      style={{ borderColor: `${color}99`, color }}
+                const theme = sourceThemeMap.get(source.label.toLowerCase());
+                const color = theme?.color || "#4b5563";
+                const icon = renderSourceIcon(
+                  theme?.icon,
+                  color,
+                  source.label,
+                  theme?.tintIcon ?? true,
+                );
+                return (
+                  <Button
+                    key={`${key}-${source.label}-${sourceIndex}`}
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
+                    style={{ borderColor: `${color}99`, color }}
+                  >
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={source.label}
+                      title={source.label}
+                      className="inline-flex items-center justify-center gap-0 md:gap-2"
+                      onClick={() => trackDownloadClick(chapter, source.label)}
                     >
-                      <a
-                        href={source.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={source.label}
-                        title={source.label}
-                        className="inline-flex items-center justify-center gap-0 md:gap-2"
-                        onClick={() => trackDownloadClick(chapter, source.label)}
-                      >
-                        {icon}
-                        <span className="sr-only md:not-sr-only">{source.label}</span>
-                      </a>
-                    </Button>
-                  );
-                })
+                      {icon}
+                      <span className="sr-only md:not-sr-only">{source.label}</span>
+                    </a>
+                  </Button>
+                );
+              })
               : null}
             {readAction ? (
               <Button asChild size="sm" className="order-last">
@@ -1213,7 +1210,7 @@ const ProjectPage = () => {
                   <CardContent className="space-y-5 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       <Users className="h-4 w-4 text-primary" />
-                      Staff do anime
+                      Staff
                     </div>
                     <div className="space-y-3">
                       {project.animeStaff.map((staff) => (
@@ -1283,15 +1280,15 @@ const ProjectPage = () => {
               <div className="grid gap-6">
                 {isManga
                   ? volumeGroups.map((group) =>
-                      renderVolumeAccordionCard(group, {
-                        allowReadAction: false,
-                      }),
-                    )
+                    renderVolumeAccordionCard(group, {
+                      allowReadAction: false,
+                    }),
+                  )
                   : paginatedEpisodes.map((episode) =>
-                      renderEpisodeDownloadCard(episode, String(episode.number), {
-                        showRawBadge: true,
-                      }),
-                    )}
+                    renderEpisodeDownloadCard(episode, String(episode.number), {
+                      showRawBadge: true,
+                    }),
+                  )}
               </div>
             )}
 

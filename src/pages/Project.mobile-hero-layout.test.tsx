@@ -677,7 +677,7 @@ describe("Project mobile hero layout", () => {
       findSectionCard("Sobre o projeto"),
       findSectionCard("Relacionados"),
       findSectionCard("Equipe da fansub"),
-      findSectionCard("Staff do anime"),
+      findSectionCard("Staff"),
       findSectionCard("Compartilhar"),
     ];
 

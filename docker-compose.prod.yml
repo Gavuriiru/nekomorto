@@ -41,6 +41,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8080
+      REDIS_URL: redis://redis:6379/0
     expose:
       - "8080"
     volumes:
@@ -178,6 +179,23 @@ services:
         max-size: "10m"
         max-file: "5"
 
+  # ---------------------------------------------------------------------------
+  # Redis: Cache em memoria e suporte distribuido para rate limit / caches.
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: nekomorto-redis-prod
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - nekomorto_internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 networks:
   nekomorto_internal:
     name: nekomorto-internal
@@ -193,3 +211,5 @@ volumes:
     name: nekomorto-caddy-config
   traefik_data:
     name: nekomorto-traefik-data
+  redis_data:
+    name: nekomorto-redis-data

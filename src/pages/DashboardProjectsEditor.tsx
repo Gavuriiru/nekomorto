@@ -595,8 +595,8 @@ const DashboardProjectsEditor = () => {
       selectedType === "Todos"
         ? activeProjectSearchIndex
         : activeProjectSearchIndex.filter(
-            ({ project }) => String(project.type || "").trim() === selectedType,
-          );
+          ({ project }) => String(project.type || "").trim() === selectedType,
+        );
     const query = deferredSearchQuery.trim().toLowerCase();
     if (!query) {
       return projectsByType.map(({ project }) => project);
@@ -732,8 +732,8 @@ const DashboardProjectsEditor = () => {
       setCollapsedVolumeGroups(() =>
         focusedVolumeGroupKey
           ? {
-              [focusedVolumeGroupKey]: false,
-            }
+            [focusedVolumeGroupKey]: false,
+          }
           : {},
       );
       setIsEditorOpen(true);
@@ -798,9 +798,9 @@ const DashboardProjectsEditor = () => {
         }
         pendingEpisodeFocusRef.current = hasChapterTarget
           ? {
-              number: parsedChapterNumber,
-              volume: resolvedVolumeTarget,
-            }
+            number: parsedChapterNumber,
+            volume: resolvedVolumeTarget,
+          }
           : null;
         openEdit(target);
       } else {
@@ -1014,8 +1014,8 @@ const DashboardProjectsEditor = () => {
             number: canKeepCurrent
               ? currentNumber
               : resolveNextExtraTechnicalNumber(nextEpisodes, currentEpisode.volume, {
-                  excludeIndex: index,
-                }),
+                excludeIndex: index,
+              }),
           };
           return {
             ...prev,
@@ -1033,10 +1033,10 @@ const DashboardProjectsEditor = () => {
           ...nextEpisodeBase,
           number: shouldReassign
             ? resolveNextMainEpisodeNumber(nextEpisodes, {
-                excludeIndex: index,
-                volume: currentEpisode.volume,
-                isExtra: (episode) => getEpisodeEntryKind(episode) === "extra",
-              })
+              excludeIndex: index,
+              volume: currentEpisode.volume,
+              isExtra: (episode) => getEpisodeEntryKind(episode) === "extra",
+            })
             : currentNumber,
         };
         return {
@@ -3155,7 +3155,7 @@ const DashboardProjectsEditor = () => {
                 shiftDraftAfterRemoval={shiftDraftAfterRemoval}
                 staffEntries={formState.animeStaff}
                 staffKey="animeStaff"
-                title="Staff do anime"
+                title="Staff"
                 triggerClassName={editorSectionTriggerClassName}
                 variant="anime"
               />

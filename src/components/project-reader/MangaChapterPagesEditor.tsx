@@ -1,4 +1,4 @@
-﻿import { unzipSync } from "fflate";
+import { unzipSync } from "fflate";
 import { LayoutGroup, useReducedMotion } from "framer-motion";
 import { FileArchive, FolderOpen, ImagePlus, Loader2, Plus } from "lucide-react";
 import {
@@ -108,10 +108,18 @@ const archiveEntriesToFiles = async (file: File) => {
   const archiveBuffer = new Uint8Array(await file.arrayBuffer());
   const extracted = unzipSync(archiveBuffer);
   return Object.entries(extracted)
-    .map(([relativePath, content]) => ({
-      relativePath,
-      blob: new Blob([toBlobPart(content)]),
-    }))
+    .map(([relativePath, content]) => {
+      const ext = (relativePath.split(".").pop() || "").toLowerCase();
+      let type = "image/jpeg";
+      if (ext === "png") type = "image/png";
+      else if (ext === "gif") type = "image/gif";
+      else if (ext === "webp") type = "image/webp";
+
+      return {
+        relativePath,
+        blob: new Blob([toBlobPart(content)], { type }),
+      };
+    })
     .filter((entry) => /\.(png|jpe?g|gif|webp)$/i.test(entry.relativePath))
     .filter(
       (entry) =>
