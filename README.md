@@ -479,11 +479,7 @@ Regras:
 ### 8.1 Arquivos oficiais de producao
 
 - `Dockerfile`
-- `docker-compose.prod.yml`
-- `docker-compose.prod.caddy.yml`
-- `docker-compose.prod.nginx.yml`
-- `docker-compose.prod.traefik.yml`
-- `docker-compose.prod.standalone.yml`
+- `docker-compose.prod.yml` (profiles: `caddy`, `nginx`, `traefik`; sem profile = standalone)
 - `ops/prod/docker-compose.quickstart.yml`
 - `ops/caddy/Caddyfile`
 - `ops/nginx/default.conf.template`
@@ -575,30 +571,32 @@ sudo ufw enable
 ```bash
 cd /srv/nekomorto
 export PROXY_PROVIDER="${PROXY_PROVIDER:-caddy}"
-export EDGE_COMPOSE_FILE="docker-compose.prod.${PROXY_PROVIDER}.yml"
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" up -d postgres
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" pull app
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" run --rm app npm run uploads:check-integrity -- --mode=fast
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" up -d app edge
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER}" up -d postgres
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER}" pull app
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER}" run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER}" run --rm app npm run uploads:check-integrity -- --mode=fast
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER}" up -d
 ```
 
 #### Sem proxy reverso (standalone)
 
 Use quando o TLS e tratado externamente (ex.: dominio apontando para Cloudflare com proxy ligado, nuvem laranja) ou em rede local/intranet.
+O deploy script gera automaticamente um override temporario para publicar `APP_LISTEN_PORT`.
 
 ```bash
 cd /srv/nekomorto
-export PROXY_PROVIDER="standalone"
-export EDGE_COMPOSE_FILE="docker-compose.prod.${PROXY_PROVIDER}.yml"
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" up -d postgres
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" pull app
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" run --rm app npm run uploads:check-integrity -- --mode=fast
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" up -d app
+# Via deploy script (recomendado):
+PROXY_PROVIDER=standalone ./ops/prod/deploy-prod.sh
+
+# Ou manualmente:
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d postgres
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull app
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run uploads:check-integrity -- --mode=fast
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d app
 ```
 
-Observe que no modo standalone, o ultimo comando sobe apenas `app` (sem `edge`).
+Observe que no modo standalone, nenhum servico `edge-*` e iniciado.
 
 Para mudar a porta publicada no host, defina `APP_LISTEN_PORT` no `.env.prod`:
 
@@ -691,8 +689,8 @@ Esse modo nao inclui proxy reverso. Para HTTPS em producao, use Cloudflare Proxy
 
 ```bash
 curl -fsS "https://<APP_DOMAIN>/api/health"
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" ps
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" logs -f app edge
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER:-caddy}" ps
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER:-caddy}" logs -f app
 ```
 
 Smoke test (opcao 1: com Node no host):
@@ -704,7 +702,7 @@ npm run api:smoke -- --base=https://<APP_DOMAIN>
 Smoke test (opcao 2: sem Node no host, usando container da app):
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" run --rm app node scripts/smoke-api.mjs --base=https://<APP_DOMAIN>
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER:-caddy}" run --rm app node scripts/smoke-api.mjs --base=https://<APP_DOMAIN>
 ```
 
 ## 9. Deploy Automatico com GitHub Actions
@@ -740,17 +738,17 @@ Fluxo CI/CD:
 4. O job `deploy` resolve a tag:
    - sem `image_tag`: usa `sha-<commit_atual>`;
    - com `image_tag`: valida `latest` ou `sha-[0-9a-f]{40}` e usa a tag informada, sem rebuild.
-5. Via SSH, sincroniza o repositorio no host e chama `ops/prod/deploy-prod.sh` com `SKIP_GIT_SYNC=true`, `APP_IMAGE_REPO` e `APP_IMAGE_TAG`. O script resolve `PROXY_PROVIDER`, `APP_DOMAIN` e o overlay `docker-compose.prod.<provider>.yml` a partir do `.env.prod`.
+5. Via SSH, sincroniza o repositorio no host e chama `ops/prod/deploy-prod.sh` com `SKIP_GIT_SYNC=true`, `APP_IMAGE_REPO` e `APP_IMAGE_TAG`. O script resolve `PROXY_PROVIDER` e `APP_DOMAIN` a partir do `.env.prod` e ativa o profile correspondente do compose.
 
 Comportamento do deploy remoto (`ops/prod/deploy-prod.sh`):
 
 1. Quando executado sem `SKIP_GIT_SYNC=true`, sincroniza a branch de deploy no host.
-2. Resolve `PROXY_PROVIDER`, dominios e o overlay `docker-compose.prod.<provider>.yml`.
+2. Resolve `PROXY_PROVIDER`, dominios e ativa o profile correspondente (`--profile caddy/nginx/traefik`). Para standalone, gera um override temporario com a porta.
 3. Sobe `postgres`.
 4. Faz `pull` da imagem `app` definida por `APP_IMAGE_REPO:APP_IMAGE_TAG`.
 5. Aplica migracoes Prisma.
 6. Executa check de integridade de uploads em modo rapido (`npm run uploads:check-integrity -- --mode=fast`).
-7. Sobe `app` + `edge` com o provider definido em `PROXY_PROVIDER`.
+7. Sobe `app` + `edge-<provider>` via profile (ou apenas `app` em standalone).
 8. Valida artefatos criticos de PWA, executa healthcheck interno/externo e smoke de fluxos criticos.
 
 ### 9.2 Desenvolvimento / staging publicado
@@ -1242,21 +1240,21 @@ npm run uploads:restore-from-object-storage -- --apply
 Producao com proxy (ordem):
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" up -d postgres
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" pull app
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" run --rm app npm run uploads:check-integrity -- --mode=fast
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" up -d app edge
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER:-caddy}" up -d postgres
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER:-caddy}" pull app
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER:-caddy}" run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER:-caddy}" run --rm app npm run uploads:check-integrity -- --mode=fast
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER:-caddy}" up -d
 ```
 
 Producao standalone (sem proxy):
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.prod.standalone.yml up -d postgres
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.prod.standalone.yml pull app
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.prod.standalone.yml run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.prod.standalone.yml run --rm app npm run uploads:check-integrity -- --mode=fast
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.prod.standalone.yml up -d app
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d postgres
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull app
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run uploads:check-integrity -- --mode=fast
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d app
 ```
 
 Backup e restore (producao):

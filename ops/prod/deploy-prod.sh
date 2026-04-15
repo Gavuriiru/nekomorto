@@ -113,17 +113,9 @@ require_file() {
   exit 1
 }
 
-resolve_proxy_overlay_file() {
-  local provider="$1"
-  local compose_dir
-  compose_dir="$(dirname "${COMPOSE_FILE}")"
-  if [[ "${compose_dir}" == "." ]]; then
-    printf 'docker-compose.prod.%s.yml' "${provider}"
-    return 0
-  fi
-  printf '%s/docker-compose.prod.%s.yml' "${compose_dir}" "${provider}"
-}
-
+# ---------------------------------------------------------------------------
+# Resolve variaveis de configuracao a partir do ENV_FILE
+# ---------------------------------------------------------------------------
 APP_ORIGIN_ENV="$(read_env_value APP_ORIGIN "${ENV_FILE}")"
 PRIMARY_ORIGIN_HOST="$(origin_host_by_index 0 "${APP_ORIGIN_ENV}")"
 SECONDARY_ORIGIN_HOST="$(origin_host_by_index 1 "${APP_ORIGIN_ENV}")"
@@ -170,15 +162,26 @@ NGINX_TLS_KEY_PATH="${NGINX_TLS_KEY_PATH:-$(read_env_value NGINX_TLS_KEY_PATH "$
 NGINX_TLS_KEY_PATH="$(trim "${NGINX_TLS_KEY_PATH}")"
 HEALTHCHECK_BASE_URL="$(strip_wrapping_quotes "$(trim "${HEALTHCHECK_BASE_URL}")")"
 
+APP_LISTEN_PORT="${APP_LISTEN_PORT:-$(read_env_value APP_LISTEN_PORT "${ENV_FILE}")}"
+APP_LISTEN_PORT="$(trim "${APP_LISTEN_PORT}")"
+if [[ -z "${APP_LISTEN_PORT}" ]]; then
+  APP_LISTEN_PORT="80"
+fi
+
 if [[ -z "${HEALTHCHECK_BASE_URL}" && -n "${APP_DOMAIN}" ]]; then
   HEALTHCHECK_BASE_URL="https://${APP_DOMAIN}"
 fi
 HEALTHCHECK_BASE_URL="${HEALTHCHECK_BASE_URL%/}"
 
+# ---------------------------------------------------------------------------
+# Validacao por provider e resolucao do profile
+# ---------------------------------------------------------------------------
+COMPOSE_PROFILE=""
 case "${PROXY_PROVIDER}" in
   caddy)
     require_non_empty "APP_DOMAIN" "${APP_DOMAIN}" "is required for PROXY_PROVIDER=caddy."
     require_non_empty "APP_WWW_DOMAIN" "${APP_WWW_DOMAIN}" "is required for PROXY_PROVIDER=caddy."
+    COMPOSE_PROFILE="caddy"
     ;;
   nginx)
     require_non_empty "APP_DOMAIN" "${APP_DOMAIN}" "is required for PROXY_PROVIDER=nginx."
@@ -187,14 +190,17 @@ case "${PROXY_PROVIDER}" in
     require_non_empty "NGINX_TLS_KEY_PATH" "${NGINX_TLS_KEY_PATH}" "is required for PROXY_PROVIDER=nginx."
     require_file "${NGINX_TLS_CERT_PATH}" "nginx certificate"
     require_file "${NGINX_TLS_KEY_PATH}" "nginx private key"
+    COMPOSE_PROFILE="nginx"
     ;;
   traefik)
     require_non_empty "APP_DOMAIN" "${APP_DOMAIN}" "is required for PROXY_PROVIDER=traefik."
     require_non_empty "APP_WWW_DOMAIN" "${APP_WWW_DOMAIN}" "is required for PROXY_PROVIDER=traefik."
     require_non_empty "TRAEFIK_ACME_EMAIL" "${TRAEFIK_ACME_EMAIL}" "is required for PROXY_PROVIDER=traefik."
+    COMPOSE_PROFILE="traefik"
     ;;
   standalone)
     echo "[deploy] Standalone mode: no reverse proxy. TLS must be handled externally."
+    COMPOSE_PROFILE=""
     ;;
   *)
     echo "Invalid PROXY_PROVIDER: ${PROXY_PROVIDER}. Allowed values: caddy, nginx, traefik, standalone." >&2
@@ -202,16 +208,48 @@ case "${PROXY_PROVIDER}" in
     ;;
 esac
 
-if [[ "${PROXY_PROVIDER}" != "standalone" && "${APP_DOMAIN}" == "${APP_WWW_DOMAIN}" ]]; then
+if [[ -n "${COMPOSE_PROFILE}" && "${APP_DOMAIN}" == "${APP_WWW_DOMAIN}" ]]; then
   echo "APP_DOMAIN and APP_WWW_DOMAIN must be different values." >&2
   exit 1
 fi
 
 require_non_empty "HEALTHCHECK_BASE_URL" "${HEALTHCHECK_BASE_URL}" "could not be derived. Set it explicitly or configure APP_DOMAIN/APP_ORIGIN."
 
-COMPOSE_OVERLAY_FILE="${COMPOSE_OVERLAY_FILE:-$(resolve_proxy_overlay_file "${PROXY_PROVIDER}")}"
+# ---------------------------------------------------------------------------
+# Override temporario para standalone (publica porta do app diretamente).
+# Removido automaticamente ao sair do script.
+# ---------------------------------------------------------------------------
+STANDALONE_OVERRIDE=""
+cleanup() {
+  if [[ -n "${STANDALONE_OVERRIDE}" && -f "${STANDALONE_OVERRIDE}" ]]; then
+    rm -f "${STANDALONE_OVERRIDE}"
+  fi
+}
+trap cleanup EXIT
 
+if [[ "${PROXY_PROVIDER}" == "standalone" ]]; then
+  STANDALONE_OVERRIDE="$(mktemp "${DEPLOY_PATH}/.compose-standalone-XXXXXX.yml")"
+  cat > "${STANDALONE_OVERRIDE}" <<EOF
+services:
+  app:
+    ports:
+      - "${APP_LISTEN_PORT}:8080"
+EOF
+fi
+
+# ---------------------------------------------------------------------------
+# compose_cmd: wrapper unificado para docker compose
+# ---------------------------------------------------------------------------
 compose_cmd() {
+  local -a extra_args=()
+
+  if [[ -n "${COMPOSE_PROFILE}" ]]; then
+    extra_args+=(--profile "${COMPOSE_PROFILE}")
+  fi
+  if [[ -n "${STANDALONE_OVERRIDE}" && -f "${STANDALONE_OVERRIDE}" ]]; then
+    extra_args+=(-f "${STANDALONE_OVERRIDE}")
+  fi
+
   ENV_FILE="${ENV_FILE}" \
   APP_IMAGE_REPO="${APP_IMAGE_REPO}" \
     APP_IMAGE_TAG="${APP_IMAGE_TAG}" \
@@ -220,9 +258,12 @@ compose_cmd() {
     TRAEFIK_ACME_EMAIL="${TRAEFIK_ACME_EMAIL}" \
     NGINX_TLS_CERT_PATH="${NGINX_TLS_CERT_PATH}" \
     NGINX_TLS_KEY_PATH="${NGINX_TLS_KEY_PATH}" \
-    docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" -f "${COMPOSE_OVERLAY_FILE}" "$@"
+    docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" "${extra_args[@]}" "$@"
 }
 
+# ---------------------------------------------------------------------------
+# Deploy
+# ---------------------------------------------------------------------------
 if [[ "${SKIP_GIT_SYNC}" == "true" ]]; then
   echo "[deploy] Repository sync skipped (SKIP_GIT_SYNC=true)."
 else
@@ -236,7 +277,6 @@ echo "[deploy] Using app image: ${APP_IMAGE_REPO}:${APP_IMAGE_TAG}"
 echo "[deploy] Using proxy provider: ${PROXY_PROVIDER}"
 echo "[deploy] Domains: ${APP_DOMAIN} -> ${APP_WWW_DOMAIN}"
 echo "[deploy] Validating compose configuration..."
-require_file "${COMPOSE_OVERLAY_FILE}" "proxy overlay compose file"
 compose_cmd config >/dev/null
 
 echo "[deploy] Ensuring postgres is running..."
@@ -252,11 +292,11 @@ echo "[deploy] Checking uploads integrity..."
 compose_cmd run --rm app npm run uploads:check-integrity -- --mode=fast
 
 if [[ "${PROXY_PROVIDER}" == "standalone" ]]; then
-  echo "[deploy] Starting app (standalone, no edge)..."
+  echo "[deploy] Starting app (standalone, port ${APP_LISTEN_PORT})..."
   compose_cmd up -d app
 else
-  echo "[deploy] Starting app + edge..."
-  compose_cmd up -d app edge
+  echo "[deploy] Starting app + edge-${PROXY_PROVIDER}..."
+  compose_cmd up -d
 fi
 
 echo "[deploy] Running internal health checks..."

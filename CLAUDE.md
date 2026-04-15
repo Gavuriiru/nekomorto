@@ -142,14 +142,14 @@ Tests are colocated with components using the pattern:
 
 ## Production Deployment
 
-Docker Compose with PostgreSQL + app container + reverse proxy (Caddy/Traefik/Nginx options):
+Docker Compose with PostgreSQL + app container + reverse proxy (Caddy/Traefik/Nginx via profiles):
 
 ```bash
-# Deploy sequence
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.prod.caddy.yml up -d postgres
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.prod.caddy.yml run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.prod.caddy.yml run --rm app npm run uploads:check-integrity -- --mode=fast
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.prod.caddy.yml up -d app edge
+# Deploy sequence (example with caddy profile)
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile caddy up -d postgres
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile caddy run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile caddy run --rm app npm run uploads:check-integrity -- --mode=fast
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile caddy up -d
 ```
 
 ## References

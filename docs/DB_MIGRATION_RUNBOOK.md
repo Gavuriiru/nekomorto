@@ -10,10 +10,7 @@ Este runbook define o fluxo oficial para a stack publicada em topologia de host 
 
 Arquivos usados em producao:
 
-- `docker-compose.prod.yml`
-- `docker-compose.prod.caddy.yml`
-- `docker-compose.prod.nginx.yml`
-- `docker-compose.prod.traefik.yml`
+- `docker-compose.prod.yml` (profiles: `caddy`, `nginx`, `traefik`; sem profile = standalone)
 - `ops/caddy/Caddyfile`
 - `ops/nginx/default.conf.template`
 - `ops/prod/.env.prod.example`
@@ -95,11 +92,10 @@ No host:
 ```bash
 cd /srv/nekomorto
 export PROXY_PROVIDER="${PROXY_PROVIDER:-caddy}"
-export EDGE_COMPOSE_FILE="docker-compose.prod.${PROXY_PROVIDER}.yml"
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" up -d postgres
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" build app
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" up -d app edge
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER}" up -d postgres
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER}" build app
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER}" run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER}" up -d
 ```
 
 Validar:
@@ -131,8 +127,8 @@ ENV_FILE=/srv/nekomorto/.env.prod \
 5. Reaplicar migrations e validar estado:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" run --rm app npx prisma migrate status
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER:-caddy}" run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER:-caddy}" run --rm app npx prisma migrate status
 ```
 
 6. Reabrir escrita (`MAINTENANCE_MODE=false`) apos health/smoke ok.
@@ -158,10 +154,10 @@ Secrets obrigatorios no ambiente `production` do GitHub:
 Fluxo remoto:
 
 1. o workflow sincroniza `origin/main` no host
-2. `ops/prod/deploy-prod.sh` resolve `PROXY_PROVIDER` e o overlay `docker-compose.prod.<provider>.yml`
+2. `ops/prod/deploy-prod.sh` resolve `PROXY_PROVIDER` e ativa o profile correspondente
 3. `docker compose build app`
 4. `docker compose run --rm app npm run prisma:migrate:deploy`
-5. `docker compose up -d app edge`
+5. `docker compose up -d` (com `--profile <provider>`)
 6. health check interno/externo
 
 Recomendacao:
@@ -194,7 +190,7 @@ ENV_FILE=/srv/nekomorto/.env.prod \
 2. Reiniciar app:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" up -d app
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER:-caddy}" up -d app
 ```
 
 3. Validar:

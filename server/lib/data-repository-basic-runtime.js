@@ -70,10 +70,11 @@ export const createDataRepositoryBasicRuntime = (dependencies = {}) => {
 
   const loadAllowedUsers = () => {
     if (!hasMethod("loadAllowedUsers")) {
-      return [];
+      return [...loadOwnerIds()];
     }
     const parsed = dataRepository.loadAllowedUsers();
-    return Array.isArray(parsed) ? parsed : [];
+    const dbUsers = Array.isArray(parsed) ? parsed : [];
+    return Array.from(new Set([...loadOwnerIds(), ...dbUsers]));
   };
 
   const writeAllowedUsers = (ids) => {
