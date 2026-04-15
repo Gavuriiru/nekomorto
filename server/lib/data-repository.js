@@ -840,7 +840,17 @@ export class DbDataRepository {
     );
     this.snapshot.ownerIds = unique;
     this.enqueuePersist("owner_ids", async () => {
-      const rows = this.snapshot.ownerIds.map((userId, index) => ({ userId, position: index }));
+      const candidateIds = this.snapshot.ownerIds;
+      // Filter to IDs that exist in the users table to satisfy the FK constraint.
+      // Owner IDs from env that haven't logged in yet won't have user records.
+      const existingUsers = await prisma.userRecord.findMany({
+        where: { id: { in: candidateIds } },
+        select: { id: true },
+      });
+      const existingIdSet = new Set(existingUsers.map((u) => u.id));
+      const rows = candidateIds
+        .filter((userId) => existingIdSet.has(userId))
+        .map((userId, index) => ({ userId, position: index }));
       await prisma.$transaction([
         prisma.ownerIdRecord.deleteMany({}),
         ...(rows.length ? [prisma.ownerIdRecord.createMany({ data: rows })] : []),
@@ -1040,7 +1050,17 @@ export class DbDataRepository {
   writeAllowedUsers(ids) {
     this.snapshot.allowedUsers = ensureArray(ids).map((id) => String(id));
     this.enqueuePersist("allowed_users", async () => {
-      const rows = this.snapshot.allowedUsers.map((userId, index) => ({ userId, position: index }));
+      const candidateIds = this.snapshot.allowedUsers;
+      // Filter to IDs that exist in the users table to satisfy the FK constraint.
+      // Owner IDs from env that haven't logged in yet won't have user records.
+      const existingUsers = await prisma.userRecord.findMany({
+        where: { id: { in: candidateIds } },
+        select: { id: true },
+      });
+      const existingIdSet = new Set(existingUsers.map((u) => u.id));
+      const rows = candidateIds
+        .filter((userId) => existingIdSet.has(userId))
+        .map((userId, index) => ({ userId, position: index }));
       await prisma.$transaction([
         prisma.allowedUserRecord.deleteMany({}),
         ...(rows.length ? [prisma.allowedUserRecord.createMany({ data: rows })] : []),
