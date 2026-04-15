@@ -657,13 +657,33 @@ curl -fsS http://localhost:${APP_LISTEN_PORT:-80}/api/health
 docker compose --env-file .env.prod -f docker-compose.quickstart.yml logs -f app
 ```
 
-Para atualizar a imagem:
+Para atualizar a imagem (redeploy):
 
 ```bash
+cd /srv/nekomorto
 docker compose --env-file .env.prod -f docker-compose.quickstart.yml pull app
 docker compose --env-file .env.prod -f docker-compose.quickstart.yml run --rm app npm run prisma:migrate:deploy
 docker compose --env-file .env.prod -f docker-compose.quickstart.yml up -d app
 ```
+
+O Docker Compose recria automaticamente o container quando a imagem muda. Nao e necessario derrubar manualmente nem rodar `down`.
+
+Rollback para uma versao anterior:
+
+```bash
+cd /srv/nekomorto
+# Use a tag sha-<commit> da versao desejada
+APP_IMAGE_TAG=sha-abc1234... docker compose --env-file .env.prod -f docker-compose.quickstart.yml pull app
+APP_IMAGE_TAG=sha-abc1234... docker compose --env-file .env.prod -f docker-compose.quickstart.yml up -d app
+```
+
+Notas:
+
+- `npm run prisma:migrate:deploy` e idempotente: se nao houver migracoes novas, ele nao faz nada. Pode rodar em todo redeploy sem risco.
+- Se o redeploy falhar no healthcheck, o container antigo continua rodando ate ser substituido com sucesso.
+- Para ver qual imagem esta rodando: `docker inspect nekomorto-app --format='{{.Config.Image}}'`.
+
+Para o fluxo com proxy (clone do repo), o redeploy e automatizado pelo script `ops/prod/deploy-prod.sh` ou pelo workflow do GitHub Actions (secao 9).
 
 Esse modo nao inclui proxy reverso. Para HTTPS em producao, use Cloudflare Proxy ou outro terminador TLS externo (ver secao 8.6 standalone).
 
