@@ -450,7 +450,8 @@ Fora do escopo desta fase:
 | --- | --- | --- | --- | --- | --- |
 | `APP_IMAGE_REPO` | `prod compose`, `dev deploy` | nunca | `ghcr.io/gavuriiru/nekomorto` no compose e no script de deploy | repositorio Docker | Repositorio da imagem da app usada no deploy. |
 | `APP_IMAGE_TAG` | `prod compose`, `dev deploy` | nunca | `latest` no compose e no script de deploy | tag Docker | Tag da imagem da app. O padrao de CI costuma usar `sha-<commit>`. |
-| `PROXY_PROVIDER` | `prod compose`, `dev deploy` | nunca | `caddy` | `caddy`, `nginx`, `traefik` | Provider oficial do proxy reverso publicado como servico `edge`. |
+| `PROXY_PROVIDER` | `prod compose`, `dev deploy` | nunca | `caddy` | `caddy`, `nginx`, `traefik`, `standalone` | Provider do proxy reverso publicado como servico `edge`. Use `standalone` para expor a app diretamente sem proxy reverso. |
+| `APP_LISTEN_PORT` | `prod compose` | nunca | `80` | inteiro de porta TCP | Porta publicada no host quando `PROXY_PROVIDER=standalone`. Ignorado nos demais providers. |
 | `APP_DOMAIN` | `prod compose`, `dev deploy` | recomendado; o deploy tenta derivar de `APP_ORIGIN` | vazio no env; sem derivacao o deploy falha | dominio sem schema | Dominio canonico publicado pela app e usado no healthcheck externo. |
 | `APP_WWW_DOMAIN` | `prod compose`, `dev deploy` | recomendado; o deploy tenta derivar de `APP_ORIGIN` ou prefixar `www.` | vazio no env | dominio sem schema | Dominio `www` redirecionado para `APP_DOMAIN`. |
 | `TRAEFIK_ACME_EMAIL` | `prod compose`, `dev deploy` | quando `PROXY_PROVIDER=traefik` | vazio | email valido | Email usado pelo ACME/Let's Encrypt do Traefik. |
@@ -482,6 +483,7 @@ Regras:
 - `docker-compose.prod.caddy.yml`
 - `docker-compose.prod.nginx.yml`
 - `docker-compose.prod.traefik.yml`
+- `docker-compose.prod.standalone.yml`
 - `ops/caddy/Caddyfile`
 - `ops/nginx/default.conf.template`
 - `ops/prod/.env.prod.example`
@@ -553,6 +555,7 @@ Antes do primeiro `up`:
   - `caddy`: HTTPS automatico com ACME, opcao padrao.
   - `traefik`: HTTPS automatico com ACME; exige `TRAEFIK_ACME_EMAIL`.
   - `nginx`: HTTPS oficial com certificado ja provisionado no host; exige `NGINX_TLS_CERT_PATH` e `NGINX_TLS_KEY_PATH`.
+  - `standalone`: sem proxy reverso. A app e exposta diretamente na porta `APP_LISTEN_PORT` (default `80`). TLS deve ser tratado externamente (ex.: Cloudflare Proxy). Nao cria servico `edge`.
 - Os arquivos de proxy ja sao parametrizados por env; nao e mais necessario editar o `Caddyfile` para trocar dominio.
 
 ### 8.5 Firewall
@@ -566,6 +569,8 @@ sudo ufw enable
 
 ### 8.6 Primeiro deploy (ordem obrigatoria)
 
+#### Com proxy reverso (caddy, nginx, traefik)
+
 ```bash
 cd /srv/nekomorto
 export PROXY_PROVIDER="${PROXY_PROVIDER:-caddy}"
@@ -576,6 +581,36 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOS
 docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" run --rm app npm run uploads:check-integrity -- --mode=fast
 docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" up -d app edge
 ```
+
+#### Sem proxy reverso (standalone)
+
+Use quando o TLS e tratado externamente (ex.: dominio apontando para Cloudflare com proxy ligado, nuvem laranja) ou em rede local/intranet.
+
+```bash
+cd /srv/nekomorto
+export PROXY_PROVIDER="standalone"
+export EDGE_COMPOSE_FILE="docker-compose.prod.${PROXY_PROVIDER}.yml"
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" up -d postgres
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" pull app
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" run --rm app npm run uploads:check-integrity -- --mode=fast
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f "${EDGE_COMPOSE_FILE}" up -d app
+```
+
+Observe que no modo standalone, o ultimo comando sobe apenas `app` (sem `edge`).
+
+Para mudar a porta publicada no host, defina `APP_LISTEN_PORT` no `.env.prod`:
+
+```dotenv
+APP_LISTEN_PORT=8080
+```
+
+Requisitos para deploy standalone em producao com Cloudflare:
+
+- No Cloudflare DNS, aponte `A`/`AAAA` do dominio para o IP do host com proxy ativado (nuvem laranja).
+- No Cloudflare SSL/TLS, use modo `Full` (nao precisa de `Full (Strict)` porque o origin nao tem certificado proprio).
+- Nao e necessario configurar `APP_WWW_DOMAIN`; o redirect `www` -> apex pode ser feito via Page Rule no Cloudflare.
+- A app ja aplica todos os headers de seguranca (HSTS, CSP com nonce, X-Frame-Options, COOP, CORP, Referrer-Policy, Permissions-Policy) e compressao gzip via middleware Express.
 
 Esse fluxo pressupoe que a imagem ja foi publicada no GHCR (via `push` em `main` ou `workflow_dispatch`).
 
@@ -1138,7 +1173,7 @@ npm run uploads:restore-from-object-storage -- --dry-run
 npm run uploads:restore-from-object-storage -- --apply
 ```
 
-Producao (ordem):
+Producao com proxy (ordem):
 
 ```bash
 docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" up -d postgres
@@ -1146,6 +1181,16 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compos
 docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" run --rm app npm run prisma:migrate:deploy
 docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" run --rm app npm run uploads:check-integrity -- --mode=fast
 docker compose --env-file .env.prod -f docker-compose.prod.yml -f "docker-compose.prod.${PROXY_PROVIDER:-caddy}.yml" up -d app edge
+```
+
+Producao standalone (sem proxy):
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.prod.standalone.yml up -d postgres
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.prod.standalone.yml pull app
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.prod.standalone.yml run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.prod.standalone.yml run --rm app npm run uploads:check-integrity -- --mode=fast
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.prod.standalone.yml up -d app
 ```
 
 Backup e restore (producao):
