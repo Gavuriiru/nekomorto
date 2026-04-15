@@ -322,7 +322,7 @@ describe("Public pages share image meta", () => {
       "hover:-translate-y-1",
       "hover:border-primary/60",
       "hover:bg-background/80",
-      "hover:shadow-lg",
+      "hover:shadow-public-card",
     );
     expect(screen.getByText(/Trabalhamos em equipe/)).toHaveClass(
       "transition-colors",
@@ -336,7 +336,7 @@ describe("Public pages share image meta", () => {
         "hover:-translate-y-1",
         "hover:border-primary/60",
         "hover:bg-card/90",
-        "hover:shadow-lg",
+        "hover:shadow-public-card",
       );
     }
 
@@ -411,7 +411,7 @@ describe("Public pages share image meta", () => {
       "hover:-translate-y-1",
       "hover:border-primary/60",
       "hover:bg-card/90",
-      "hover:shadow-md",
+      "hover:shadow-public-card",
     );
     expect(costTitle).toHaveClass("transition-colors", "duration-300", "group-hover:text-primary");
     expect(screen.getByText(/Mantem servidor/)).toHaveClass(
@@ -441,7 +441,7 @@ describe("Public pages share image meta", () => {
     );
 
     const donorsTitle = screen.getByText("Lista de doadores");
-    expect(screen.getByTestId("donations-donors-card")).toHaveClass("bg-card/80", "shadow-md");
+    expect(screen.getByTestId("donations-donors-card")).toHaveClass("bg-card/80", "shadow-public-card");
     expect(donorsTitle).toHaveClass("flex", "items-center", "gap-3", "text-xl", "font-semibold");
 
     expect(screen.getByText(/^Pix$/).closest("#pix-doacoes")).not.toHaveClass(
@@ -481,7 +481,7 @@ describe("Public pages share image meta", () => {
       "hover:-translate-y-1",
       "hover:border-primary/60",
       "hover:bg-card/90",
-      "hover:shadow-lg",
+      "hover:shadow-public-card",
     );
     expect(introTitle).toHaveClass("transition-colors", "duration-300", "group-hover:text-primary");
     expect(screen.getByText(/Se sua/)).toHaveClass(
@@ -498,7 +498,7 @@ describe("Public pages share image meta", () => {
       "hover:border-primary/60",
       "hover:bg-background/70",
     );
-    expect(questionCard).not.toHaveClass("hover:shadow-lg");
+    expect(questionCard).not.toHaveClass("hover:shadow-public-card");
     expect(question).toHaveClass(
       "transition-colors",
       "duration-300",
@@ -549,3 +549,4 @@ describe("Public pages share image meta", () => {
     });
   });
 });
+

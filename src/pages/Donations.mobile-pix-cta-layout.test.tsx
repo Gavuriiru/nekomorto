@@ -227,7 +227,7 @@ describe("Donations mobile PIX CTA layout", () => {
     const externalLink = screen.getByRole("link", { name: "Abrir carteira" });
 
     expect(classTokens(cryptoCard)).toEqual(
-      expect.arrayContaining(["border-0", "bg-card/90", "shadow-md"]),
+      expect.arrayContaining(["border-0", "bg-card/90", "shadow-public-card"]),
     );
     expect(classTokens(cryptoCard)).not.toContain("border-border/60");
     expect(classTokens(cryptoCard)).not.toContain("shadow-none");
@@ -304,3 +304,4 @@ describe("Donations mobile PIX CTA layout", () => {
     expect(copyAddressButton).toBeInTheDocument();
   });
 });
+

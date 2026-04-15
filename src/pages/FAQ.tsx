@@ -141,7 +141,7 @@ const FAQ = () => {
               return (
                 <Card
                   key={card.title}
-                  className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg"
+                  className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card"
                 >
                   <CardContent className="space-y-4 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
@@ -170,7 +170,7 @@ const FAQ = () => {
             {faq.groups.map((group) => {
               const Icon = resolveFaqIcon(group.icon, HelpCircle);
               return (
-                <Card key={group.title} className="border-border/60 bg-card/80 shadow-lg">
+                <Card key={group.title} className="border-border/60 bg-card/80 shadow-public-card">
                   <CardContent className="space-y-5 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       <Icon className="h-4 w-4 text-primary/80" />
@@ -203,3 +203,4 @@ const FAQ = () => {
 };
 
 export default FAQ;
+

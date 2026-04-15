@@ -982,27 +982,27 @@
   }
 
   .shadow-profile-avatar {
-    box-shadow: 0 20px 46px -24px rgba(0, 0, 0, 0.82);
+    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.15);
   }
 
   .shadow-profile-card {
-    box-shadow: 0 24px 70px -36px rgba(0, 0, 0, 0.75);
+    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.15);
+  }
+
+  .shadow-public-card {
+    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.15);
   }
 
   .shadow-project-cover-card {
-    box-shadow: 0 22px 64px -42px rgba(0, 0, 0, 0.62);
+    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.15);
   }
 
   .shadow-project-details-card {
-    box-shadow:
-      0 10px 20px -18px rgba(0, 0, 0, 0.08),
-      0 24px 48px -34px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.15);
   }
 
   .shadow-project-download-card {
-    box-shadow:
-      0 6px 14px -12px rgba(0, 0, 0, 0.06),
-      0 16px 32px -24px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.15);
   }
 
   .shadow-reader-active-control {

@@ -390,7 +390,7 @@ const Donations = () => {
             className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-24 pt-10 reveal`}
             data-reveal
           >
-            <Card className="border-border/60 bg-card/80 shadow-md">
+            <Card className="border-border/60 bg-card/80 shadow-public-card">
               <CardContent className="p-6 text-sm text-muted-foreground md:p-8">
                 {hasHydrationError
                   ? "Não foi possível carregar as doações agora."
@@ -410,7 +410,7 @@ const Donations = () => {
                   return (
                     <Card
                       key={item.title}
-                      className="group bg-card/80 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-md"
+                      className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card"
                     >
                       <CardContent className="space-y-3 p-6">
                         <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
@@ -433,7 +433,7 @@ const Donations = () => {
                 data-reveal
               >
                 <Card
-                  className={`shadow-md ${
+                  className={`shadow-public-card ${
                     monthlyGoal.isComplete
                       ? "border-primary/30 bg-primary/5"
                       : "border-border/60 bg-card/90"
@@ -514,7 +514,7 @@ const Donations = () => {
               className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-12 pt-0 reveal`}
               data-reveal
             >
-              <Card className="border-border/60 bg-card/90 shadow-md">
+              <Card className="border-border/60 bg-card/90 shadow-public-card">
                 <CardContent className="grid gap-6 p-6 md:grid-cols-[1.1fr_0.9fr] md:p-8">
                   <div data-testid="donations-reason-panel" className="space-y-4 rounded-2xl p-2">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
@@ -588,7 +588,7 @@ const Donations = () => {
                 data-reveal
                 data-testid="donations-crypto-section"
               >
-                <Card data-testid="donations-crypto-card" className="border-0 bg-card/90 shadow-md">
+                <Card data-testid="donations-crypto-card" className="border-0 bg-card/90 shadow-public-card">
                   <CardContent className="space-y-4 p-5 md:space-y-5 md:p-6">
                     <div
                       className={
@@ -691,7 +691,7 @@ const Donations = () => {
               className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-24 pt-4 reveal`}
               data-reveal
             >
-              <Card data-testid="donations-donors-card" className="bg-card/80 shadow-md">
+              <Card data-testid="donations-donors-card" className="bg-card/80 shadow-public-card">
                 <CardContent className="p-6 md:p-8">
                   <div className="flex items-center gap-3 text-xl font-semibold text-foreground">
                     {(() => {
@@ -740,3 +740,4 @@ const Donations = () => {
 };
 
 export default Donations;
+

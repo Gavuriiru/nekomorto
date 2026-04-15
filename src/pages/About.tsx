@@ -184,7 +184,7 @@ const About = () => {
                 return (
                   <div
                     key={item.label}
-                    className="group rounded-2xl border border-border/60 bg-background/60 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-background/80 hover:shadow-lg"
+                    className="group rounded-2xl border border-border/60 bg-background/60 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-background/80 hover:shadow-public-card"
                   >
                     <div
                       className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelXs}`}
@@ -199,7 +199,7 @@ const About = () => {
                 );
               })}
             </div>
-            <Card className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg">
+            <Card className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card">
               <CardContent className="space-y-5 p-6 md:p-8">
                 <div
                   className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelSm}`}
@@ -233,7 +233,7 @@ const About = () => {
               return (
                 <Card
                   key={pillar.title}
-                  className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg"
+                  className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card"
                 >
                   <CardContent className="space-y-3 p-6">
                     <div
@@ -262,7 +262,7 @@ const About = () => {
               return (
                 <Card
                   key={value.title}
-                  className="group bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-lg"
+                  className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card"
                 >
                   <CardContent className="space-y-3 p-6">
                     <div
@@ -286,3 +286,4 @@ const About = () => {
 };
 
 export default About;
+
