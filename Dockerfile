@@ -22,6 +22,10 @@ COPY . .
 RUN npm run prisma:generate
 RUN npm run build
 
+FROM deps AS prod-deps
+
+RUN npm prune --omit=dev
+
 FROM base AS runtime
 
 ARG APP_COMMIT_SHA=""
@@ -36,7 +40,8 @@ ENV APP_BUILD_TIME=${APP_BUILD_TIME}
 ENV VITE_APP_COMMIT_SHA=${VITE_APP_COMMIT_SHA}
 ENV VITE_APP_BUILD_TIME=${VITE_APP_BUILD_TIME}
 
-COPY --from=build /app/node_modules ./node_modules
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/package-lock.json ./package-lock.json
 COPY --from=build /app/prisma.config.ts ./prisma.config.ts
@@ -45,7 +50,6 @@ COPY --from=build /app/server ./server
 COPY --from=build /app/public ./public
 COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/shared ./shared
-COPY --from=build /app/src ./src
 COPY --from=build /app/dist ./dist
 
 RUN mkdir -p /app/public/uploads && chown -R node:node /app/public/uploads

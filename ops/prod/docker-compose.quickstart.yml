@@ -1,0 +1,82 @@
+# Deploy mínimo sem clonar o repositório.
+# Uso: salve este arquivo e crie um .env.prod ao lado dele.
+#
+#   curl -fsSLO https://raw.githubusercontent.com/gavuriiru/nekomorto/main/ops/prod/docker-compose.quickstart.yml
+#   cp .env.prod.example .env.prod   # edite com valores reais
+#
+# Subir:
+#   docker compose --env-file .env.prod -f docker-compose.quickstart.yml up -d postgres
+#   docker compose --env-file .env.prod -f docker-compose.quickstart.yml pull app
+#   docker compose --env-file .env.prod -f docker-compose.quickstart.yml run --rm app npm run prisma:migrate:deploy
+#   docker compose --env-file .env.prod -f docker-compose.quickstart.yml run --rm app npm run uploads:check-integrity -- --mode=fast
+#   docker compose --env-file .env.prod -f docker-compose.quickstart.yml up -d app
+#
+# Validar:
+#   curl -fsS http://localhost:${APP_LISTEN_PORT:-80}/api/health
+
+name: nekomorto-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nekomorto-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nekomorto}
+      POSTGRES_USER: ${POSTGRES_USER:-nekomorto_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nekomorto_app} -d ${POSTGRES_DB:-nekomorto}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - nekomorto_internal
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  app:
+    image: ${APP_IMAGE_REPO:-ghcr.io/gavuriiru/nekomorto}:${APP_IMAGE_TAG:-latest}
+    container_name: nekomorto-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ${ENV_FILE:-.env.prod}
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+    ports:
+      - "${APP_LISTEN_PORT:-80}:8080"
+    volumes:
+      - uploads_data:/app/public/uploads
+    healthcheck:
+      test: ["CMD", "node", "scripts/check-health.mjs", "--base=http://127.0.0.1:8080", "--expect-source=db"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+    networks:
+      - nekomorto_internal
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+networks:
+  nekomorto_internal:
+    name: nekomorto-internal
+
+volumes:
+  postgres_data:
+    name: nekomorto-postgres-prod-data
+  uploads_data:
+    name: nekomorto-uploads-prod-data

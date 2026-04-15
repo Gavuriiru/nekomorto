@@ -484,6 +484,7 @@ Regras:
 - `docker-compose.prod.nginx.yml`
 - `docker-compose.prod.traefik.yml`
 - `docker-compose.prod.standalone.yml`
+- `ops/prod/docker-compose.quickstart.yml`
 - `ops/caddy/Caddyfile`
 - `ops/nginx/default.conf.template`
 - `ops/prod/.env.prod.example`
@@ -621,7 +622,52 @@ Notas operacionais para uploads:
 - Se `UPLOAD_STORAGE_DRIVER=s3`, bucket e credenciais precisam existir antes do rollout.
 - Durante a fase mista (`local + s3`), preserve `public/uploads` no host ate concluir validacao e decidir pelo rollback ou consolidacao.
 
-### 8.7 Validacao apos deploy
+### 8.7 Deploy rapido sem clonar o repositorio (quickstart)
+
+Para ambientes onde voce nao precisa (ou nao quer) clonar o repo inteiro, use o compose auto-contido `ops/prod/docker-compose.quickstart.yml`. Ele combina postgres + app standalone em um unico arquivo.
+
+Requisitos:
+
+- Docker + Docker Compose plugin
+- Acesso ao GHCR para pull da imagem
+
+Passo a passo:
+
+```bash
+mkdir -p /srv/nekomorto && cd /srv/nekomorto
+
+# Baixe o compose e o exemplo de env
+curl -fsSLO https://raw.githubusercontent.com/gavuriiru/nekomorto/main/ops/prod/docker-compose.quickstart.yml
+curl -fsSL https://raw.githubusercontent.com/gavuriiru/nekomorto/main/ops/prod/.env.prod.example -o .env.prod
+
+# Edite .env.prod com valores reais (DATABASE_URL, SESSION_SECRET, DISCORD_*, OWNER_IDS, etc.)
+
+# Subir
+docker compose --env-file .env.prod -f docker-compose.quickstart.yml up -d postgres
+docker compose --env-file .env.prod -f docker-compose.quickstart.yml pull app
+docker compose --env-file .env.prod -f docker-compose.quickstart.yml run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.quickstart.yml run --rm app npm run uploads:check-integrity -- --mode=fast
+docker compose --env-file .env.prod -f docker-compose.quickstart.yml up -d app
+```
+
+Validacao:
+
+```bash
+curl -fsS http://localhost:${APP_LISTEN_PORT:-80}/api/health
+docker compose --env-file .env.prod -f docker-compose.quickstart.yml logs -f app
+```
+
+Para atualizar a imagem:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.quickstart.yml pull app
+docker compose --env-file .env.prod -f docker-compose.quickstart.yml run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.quickstart.yml up -d app
+```
+
+Esse modo nao inclui proxy reverso. Para HTTPS em producao, use Cloudflare Proxy ou outro terminador TLS externo (ver secao 8.6 standalone).
+
+### 8.8 Validacao apos deploy
 
 ```bash
 curl -fsS "https://<APP_DOMAIN>/api/health"
