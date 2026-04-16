@@ -9,8 +9,10 @@ on:
         type: string
 
 concurrency:
-  group: deploy-development
   cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build_and_push:
