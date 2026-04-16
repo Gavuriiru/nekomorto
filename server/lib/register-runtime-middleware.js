@@ -5,6 +5,7 @@ import compression from "compression";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
+import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import session from "express-session";
 import { buildCorsOptionsForRequest } from "./cors-policy.js";
 import { createIdempotencyFingerprint } from "./idempotency-store.js";
@@ -190,6 +191,22 @@ export const registerRuntimeMiddleware = ({
     }
     return next();
   };
+
+  const codeQlVisiblePublicAssetReadRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    limit: isProduction ? 5000 : 10000,
+    standardHeaders: false,
+    legacyHeaders: false,
+    skip: (req) => {
+      const method = String(req.method || "").toUpperCase();
+      return !PUBLIC_ASSET_METHODS.has(method) || !isPublicAssetReadRequest(req);
+    },
+    keyGenerator: (req) => {
+      const ip = getRequestIp(req);
+      return ip ? ipKeyGenerator(ip) : "anonymous";
+    },
+    handler: (_req, res) => rejectRateLimitedAssetRead(res),
+  });
 
   const handleMissingPwaAsset = (req, res, next) => {
     const method = String(req.method || "").toUpperCase();
@@ -476,6 +493,7 @@ export const registerRuntimeMiddleware = ({
   app.use("/uploads/_quarantine", (_req, res) => res.status(404).end());
   app.use(
     "/uploads",
+    codeQlVisiblePublicAssetReadRateLimit,
     enforcePublicAssetReadRateLimit,
     createUploadsDeliveryMiddleware({
       uploadsDir: uploadsPublicDir,
@@ -486,6 +504,7 @@ export const registerRuntimeMiddleware = ({
   );
   app.use(
     "/uploads",
+    codeQlVisiblePublicAssetReadRateLimit,
     enforcePublicAssetReadRateLimit,
     express.static(uploadsPublicDir, {
       setHeaders: (res) => {
@@ -495,14 +514,23 @@ export const registerRuntimeMiddleware = ({
   );
   if (isProduction) {
     app.use(
+      codeQlVisiblePublicAssetReadRateLimit,
       enforcePublicAssetReadRateLimit,
       express.static(clientDistDir, {
         index: false,
         setHeaders: setStaticCacheHeaders,
       }),
     );
-    app.use(enforcePublicAssetReadRateLimit, handleMissingPwaAsset);
-    app.use(enforcePublicAssetReadRateLimit, handleMissingClientAsset);
+    app.use(
+      codeQlVisiblePublicAssetReadRateLimit,
+      enforcePublicAssetReadRateLimit,
+      handleMissingPwaAsset,
+    );
+    app.use(
+      codeQlVisiblePublicAssetReadRateLimit,
+      enforcePublicAssetReadRateLimit,
+      handleMissingClientAsset,
+    );
   }
   if (!isProduction) {
     app.use((req, res, next) => {

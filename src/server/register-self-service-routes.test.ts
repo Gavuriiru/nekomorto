@@ -61,6 +61,11 @@ const invokeRoute = async (routeLayer: any, req: Record<string, unknown>) => {
   return invokeHandlers(handlers, req);
 };
 
+const getRouteHandlers = (routeLayer: any) =>
+  Array.isArray(routeLayer?.route?.stack)
+    ? routeLayer.route.stack.map((entry: any) => entry.handle)
+    : [];
+
 const createDependencies = (overrides: Record<string, unknown> = {}) => {
   const { app, getRouter } = createAppCapture();
   const appendAuditLog = vi.fn();
@@ -125,6 +130,12 @@ describe("registerSelfServiceRoutes", () => {
       verifyTotpCode,
     });
     const routeLayer = getRouteLayer(dependencies.router, "post", "/api/me/security/totp/enroll/confirm");
+    const handlers = getRouteHandlers(routeLayer);
+    expect(handlers[0]?.name || "<anonymous>").toBe("<anonymous>");
+    expect(handlers[1]).toBe(dependencies.requireAuth);
+    expect(handlers[2]?.name).toBe("requireAuthenticatedUserId");
+    expect(handlers[3]?.name || "<anonymous>").toBe("<anonymous>");
+    expect(handlers[4]?.name).toBe("handleTotpEnrollConfirm");
 
     const res = await invokeRoute(routeLayer, {
       body: {
@@ -156,6 +167,12 @@ describe("registerSelfServiceRoutes", () => {
       verifyTotpOrRecoveryCode,
     });
     const routeLayer = getRouteLayer(dependencies.router, "post", "/api/me/security/totp/disable");
+    const handlers = getRouteHandlers(routeLayer);
+    expect(handlers[0]?.name || "<anonymous>").toBe("<anonymous>");
+    expect(handlers[1]).toBe(dependencies.requireAuth);
+    expect(handlers[2]?.name).toBe("requireAuthenticatedUserId");
+    expect(handlers[3]?.name || "<anonymous>").toBe("<anonymous>");
+    expect(handlers[4]?.name).toBe("handleTotpDisable");
 
     const res = await invokeRoute(routeLayer, {
       body: {

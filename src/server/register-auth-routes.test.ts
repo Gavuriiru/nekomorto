@@ -79,6 +79,11 @@ const invokeRoute = async (routeLayer: any, req: Record<string, unknown>) => {
   return invokeHandlers(handlers, req);
 };
 
+const getRouteHandlerNames = (routeLayer: any) =>
+  Array.isArray(routeLayer?.route?.stack)
+    ? routeLayer.route.stack.map((entry: any) => entry.handle?.name || "<anonymous>")
+    : [];
+
 const createDependencies = (overrides: Record<string, unknown> = {}) => {
   const { app, getRouter } = createAppCapture();
   const appendAuditLog = vi.fn();
@@ -148,6 +153,11 @@ describe("registerAuthRoutes", () => {
       saveSessionState,
     });
     const routeLayer = getRouteLayer(dependencies.router, "get", "/auth/discord");
+    expect(getRouteHandlerNames(routeLayer)).toEqual([
+      "<anonymous>",
+      "enforceDiscordAuthAttemptRateLimit",
+      "handleDiscordAuthStart",
+    ]);
     const req = {
       query: {
         next: "/dashboard",
@@ -170,6 +180,13 @@ describe("registerAuthRoutes", () => {
       canAttemptAuth,
     });
     const routeLayer = getRouteLayer(dependencies.router, "get", "/login");
+    expect(getRouteHandlerNames(routeLayer)).toEqual([
+      "requireOAuthCallbackParams",
+      "<anonymous>",
+      "enforceLoginCallbackAuthAttemptRateLimit",
+      "prepareLoginCallbackContext",
+      "handleLoginOAuthCallback",
+    ]);
 
     const res = await invokeRoute(routeLayer, {
       query: {},
@@ -219,6 +236,12 @@ describe("registerAuthRoutes", () => {
       verifyTotpOrRecoveryCode,
     });
     const routeLayer = getRouteLayer(dependencies.router, "post", "/api/auth/mfa/verify");
+    expect(getRouteHandlerNames(routeLayer)).toEqual([
+      "<anonymous>",
+      "attachPendingMfaUser",
+      "enforcePendingMfaVerifyRateLimit",
+      "handlePendingMfaVerification",
+    ]);
 
     const res = await invokeRoute(routeLayer, {
       body: { code: "123456" },

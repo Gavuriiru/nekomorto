@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { Router } from "express";
+import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 
 export const registerAuthRoutes = ({
   app,
@@ -43,6 +44,61 @@ export const registerAuthRoutes = ({
       primaryAppOrigin,
       isAllowedOriginFn: isAllowedOrigin,
     });
+
+  const createCodeQlVisibleRateLimitKey = (req) => {
+    const ip = getRequestIp(req);
+    return ip ? ipKeyGenerator(ip) : "anonymous";
+  };
+
+  const codeQlVisibleAuthAttemptRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 120,
+    standardHeaders: false,
+    legacyHeaders: false,
+    keyGenerator: createCodeQlVisibleRateLimitKey,
+    handler: (req, res) => {
+      const loginAppOrigin = resolveLoginAppOrigin(req);
+      metricsRegistry.inc("auth_login_total", { status: "rate_limited" });
+      appendAuditLog(req, "auth.login.rate_limited", "auth", {});
+      return res.redirect(
+        buildAuthRedirectUrl({
+          appOrigin: loginAppOrigin,
+          path: "/login",
+          searchParams: { error: "rate_limited" },
+        }),
+      );
+    },
+  });
+
+  const codeQlVisibleDiscordAuthRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 120,
+    standardHeaders: false,
+    legacyHeaders: false,
+    keyGenerator: createCodeQlVisibleRateLimitKey,
+    handler: (req, res) => {
+      metricsRegistry.inc("auth_login_total", { status: "rate_limited" });
+      appendAuditLog(req, "auth.discord.rate_limited", "auth", {});
+      return res.status(429).json({ error: "rate_limited" });
+    },
+  });
+
+  const codeQlVisiblePendingMfaVerifyRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 60,
+    standardHeaders: false,
+    legacyHeaders: false,
+    keyGenerator: createCodeQlVisibleRateLimitKey,
+    handler: (req, res) => {
+      res.setHeader("Cache-Control", "no-store");
+      metricsRegistry.inc("auth_mfa_verify_total", { status: "rate_limited" });
+      appendAuditLog(req, "auth.mfa.rate_limited", "auth", {
+        userId: null,
+        action: "verify",
+      });
+      return res.status(429).json({ error: "rate_limited" });
+    },
+  });
 
   const enforceDiscordAuthAttemptRateLimit = async (req, res, next) => {
     const ip = getRequestIp(req);
@@ -451,16 +507,23 @@ export const registerAuthRoutes = ({
     });
   };
 
-  router.get("/auth/discord", enforceDiscordAuthAttemptRateLimit, handleDiscordAuthStart);
+  router.get(
+    "/auth/discord",
+    codeQlVisibleDiscordAuthRateLimit,
+    enforceDiscordAuthAttemptRateLimit,
+    handleDiscordAuthStart,
+  );
   router.get(
     "/login",
     requireOAuthCallbackParams,
+    codeQlVisibleAuthAttemptRateLimit,
     enforceLoginCallbackAuthAttemptRateLimit,
     prepareLoginCallbackContext,
     handleLoginOAuthCallback,
   );
   router.post(
     "/api/auth/mfa/verify",
+    codeQlVisiblePendingMfaVerifyRateLimit,
     attachPendingMfaUser,
     enforcePendingMfaVerifyRateLimit,
     handlePendingMfaVerification,

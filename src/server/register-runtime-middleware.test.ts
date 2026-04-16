@@ -182,6 +182,23 @@ const invokeMiddleware = async (middleware: any, req: Record<string, unknown>) =
   return { next, res };
 };
 
+const invokeMiddlewareStack = async (middlewares: any[], req: Record<string, unknown>) => {
+  const res = createResponse();
+  const finalNext = vi.fn();
+  let index = 0;
+  const next = async () => {
+    const middleware = middlewares[index];
+    index += 1;
+    if (!middleware) {
+      finalNext();
+      return;
+    }
+    await middleware(req, res, next);
+  };
+  await next();
+  return { next: finalNext, res };
+};
+
 const createRuntimeDependencies = (overrides: Record<string, unknown> = {}) => {
   const { app, entries } = createAppCapture();
   const base = {
@@ -251,6 +268,11 @@ const createRuntimeDependencies = (overrides: Record<string, unknown> = {}) => {
 const getUseEntriesByPath = (entries: Array<{ method: string; args: unknown[] }>, routePath: string) =>
   entries.filter((entry) => entry.method === "use" && entry.args[0] === routePath);
 
+const expectCodeQlVisibleAssetLimiterBeforeCustomLimiter = (args: unknown[]) => {
+  expect(String(args[0])).toContain("Promise.resolve(fn");
+  expect(String(args[1])).toContain("PUBLIC_ASSET_RATE_LIMIT_STATE");
+};
+
 describe("registerRuntimeMiddleware public asset throttling", () => {
   it("reuses the same uploads rate limiter across delivery and static handlers", async () => {
     const canReadPublicAsset = vi.fn(async () => true);
@@ -260,8 +282,8 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
     const uploadEntries = getUseEntriesByPath(entries, "/uploads");
 
     expect(uploadEntries).toHaveLength(2);
-    expect(uploadEntries[0]?.args).toHaveLength(3);
-    expect(uploadEntries[1]?.args).toHaveLength(3);
+    expect(uploadEntries[0]?.args).toHaveLength(4);
+    expect(uploadEntries[1]?.args).toHaveLength(4);
 
     const req = {
       method: "GET",
@@ -269,8 +291,8 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
       path: "/posts/cover.png",
     };
 
-    const first = await invokeMiddleware(uploadEntries[0]?.args[1], req);
-    const second = await invokeMiddleware(uploadEntries[1]?.args[1], req);
+    const first = await invokeMiddlewareStack([uploadEntries[0]?.args[1], uploadEntries[0]?.args[2]], req);
+    const second = await invokeMiddlewareStack([uploadEntries[1]?.args[1], uploadEntries[1]?.args[2]], req);
 
     expect(first.next).toHaveBeenCalledTimes(1);
     expect(second.next).toHaveBeenCalledTimes(1);
@@ -285,7 +307,7 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
     });
     const uploadEntries = getUseEntriesByPath(entries, "/uploads");
 
-    const result = await invokeMiddleware(uploadEntries[0]?.args[1], {
+    const result = await invokeMiddlewareStack([uploadEntries[0]?.args[1], uploadEntries[0]?.args[2]], {
       method: "GET",
       originalUrl: "/uploads/posts/limited.png",
       path: "/posts/limited.png",
@@ -313,8 +335,9 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
     if (!fallbackEntry) {
       throw new Error("missing pwa fallback entry");
     }
+    expectCodeQlVisibleAssetLimiterBeforeCustomLimiter(fallbackEntry.args);
 
-    const result = await invokeMiddleware(fallbackEntry.args[0], {
+    const result = await invokeMiddlewareStack(fallbackEntry.args, {
       method: "GET",
       originalUrl: "/sw.js",
       path: "/sw.js",
@@ -340,16 +363,16 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
     if (!fallbackEntry) {
       throw new Error("missing pwa fallback entry");
     }
+    expectCodeQlVisibleAssetLimiterBeforeCustomLimiter(fallbackEntry.args);
     const req = {
       method: "GET",
       originalUrl: "/sw.js",
       path: "/sw.js",
     };
 
-    const gate = await invokeMiddleware(fallbackEntry.args[0], req);
-    await (fallbackEntry.args[1] as any)(req, gate.res, gate.next);
+    const gate = await invokeMiddlewareStack(fallbackEntry.args, req);
 
-    expect(gate.next).toHaveBeenCalledTimes(1);
+    expect(gate.next).not.toHaveBeenCalled();
     expect(gate.res.statusCode).toBe(404);
     expect(gate.res.body).toEqual({ error: "pwa_asset_not_found" });
     expect(existsSyncSpy).toHaveBeenCalledTimes(1);
@@ -374,8 +397,9 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
     if (!fallbackEntry) {
       throw new Error("missing client asset fallback entry");
     }
+    expectCodeQlVisibleAssetLimiterBeforeCustomLimiter(fallbackEntry.args);
 
-    const result = await invokeMiddleware(fallbackEntry.args[0], {
+    const result = await invokeMiddlewareStack(fallbackEntry.args, {
       method: "GET",
       originalUrl: "/assets/index-missing.js",
       path: "/assets/index-missing.js",
@@ -395,7 +419,7 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
     });
     const uploadEntries = getUseEntriesByPath(entries, "/uploads");
 
-    const result = await invokeMiddleware(uploadEntries[0]?.args[1], {
+    const result = await invokeMiddlewareStack([uploadEntries[0]?.args[1], uploadEntries[0]?.args[2]], {
       method: "POST",
       originalUrl: "/uploads/posts/cover.png",
       path: "/posts/cover.png",

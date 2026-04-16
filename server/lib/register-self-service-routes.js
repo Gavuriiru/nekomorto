@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 
 const setNoStore = (res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -63,6 +64,17 @@ export const registerSelfServiceRoutes = ({
   const enforceTotpEnrollConfirmRateLimit =
     createManageMfaRateLimitMiddleware("enroll_confirm");
   const enforceTotpDisableRateLimit = createManageMfaRateLimitMiddleware("disable");
+  const codeQlVisibleMfaRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 60,
+    standardHeaders: false,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+      const ip = getRequestIp(req);
+      return ip ? ipKeyGenerator(ip) : "anonymous";
+    },
+    handler: (req, res) => rejectMfaRateLimited(req, res, "anonymous", "codeql_visible"),
+  });
 
   const requireAuthenticatedUserId = (req, res, next) => {
     setNoStore(res);
@@ -200,6 +212,7 @@ export const registerSelfServiceRoutes = ({
 
   router.post(
     "/api/me/security/totp/enroll/start",
+    codeQlVisibleMfaRateLimit,
     requireAuth,
     requireAuthenticatedUserId,
     enforceTotpEnrollStartRateLimit,
@@ -251,6 +264,7 @@ export const registerSelfServiceRoutes = ({
 
   router.post(
     "/api/me/security/totp/enroll/confirm",
+    codeQlVisibleMfaRateLimit,
     requireAuth,
     requireAuthenticatedUserId,
     enforceTotpEnrollConfirmRateLimit,
@@ -259,6 +273,7 @@ export const registerSelfServiceRoutes = ({
 
   router.post(
     "/api/me/security/totp/disable",
+    codeQlVisibleMfaRateLimit,
     requireAuth,
     requireAuthenticatedUserId,
     enforceTotpDisableRateLimit,
