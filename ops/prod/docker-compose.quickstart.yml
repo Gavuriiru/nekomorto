@@ -1,7 +1,7 @@
 # Deploy mínimo sem clonar o repositório.
 # Uso: salve este arquivo e crie um .env.prod ao lado dele.
 #
-#   curl -fsSLO https://raw.githubusercontent.com/gavuriiru/nekomorto/main/ops/prod/docker-compose.quickstart.yml
+#   curl -fsSLO https://raw.githubusercontent.com/NekomataSub/nekomorto/main/ops/prod/docker-compose.quickstart.yml
 #   cp .env.prod.example .env.prod   # edite com valores reais
 #
 # Subir:
@@ -43,7 +43,7 @@ services:
         max-file: "5"
 
   app:
-    image: ${APP_IMAGE_REPO:-ghcr.io/gavuriiru/nekomorto}:${APP_IMAGE_TAG:-latest}
+    image: ${APP_IMAGE_REPO:-ghcr.io/nekomatasub/nekomorto}:${APP_IMAGE_TAG:-latest}
     container_name: nekomorto-app
     restart: unless-stopped
     depends_on:

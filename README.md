@@ -97,7 +97,7 @@ Fluxo oficial para desenvolvimento local com PostgreSQL em Docker:
 ### Linux/macOS
 
 ```bash
-git clone https://github.com/gavuriiru/nekomorto.git
+git clone https://github.com/NekomataSub/nekomorto.git
 cd nekomorto
 npm install
 npm run setup:dev
@@ -106,7 +106,7 @@ npm run setup:dev
 ### Windows (PowerShell)
 
 ```powershell
-git clone https://github.com/gavuriiru/nekomorto.git
+git clone https://github.com/NekomataSub/nekomorto.git
 Set-Location nekomorto
 npm install
 npm run setup:dev
@@ -448,7 +448,7 @@ Fora do escopo desta fase:
 
 | Variavel | Onde aparece | Obrigatoria quando | Default | Valores/Formato | Descricao |
 | --- | --- | --- | --- | --- | --- |
-| `APP_IMAGE_REPO` | `prod compose`, `dev deploy` | nunca | `ghcr.io/gavuriiru/nekomorto` no compose e no script de deploy | repositorio Docker | Repositorio da imagem da app usada no deploy. |
+| `APP_IMAGE_REPO` | `prod compose`, `dev deploy` | nunca | `ghcr.io/nekomatasub/nekomorto` no compose e no script de deploy | repositorio Docker | Repositorio da imagem da app usada no deploy. |
 | `APP_IMAGE_TAG` | `prod compose`, `dev deploy` | nunca | `latest` no compose e no script de deploy | tag Docker | Tag da imagem da app. O padrao de CI costuma usar `sha-<commit>`. |
 | `PROXY_PROVIDER` | `prod compose`, `dev deploy` | nunca | `caddy` | `caddy`, `nginx`, `traefik`, `standalone` | Provider do proxy reverso publicado como servico `edge`. Use `standalone` para expor a app diretamente sem proxy reverso. |
 | `APP_LISTEN_PORT` | `prod compose` | nunca | `80` | inteiro de porta TCP | Porta publicada no host quando `PROXY_PROVIDER=standalone`. Ignorado nos demais providers. |
@@ -635,8 +635,8 @@ Passo a passo:
 mkdir -p /srv/nekomorto && cd /srv/nekomorto
 
 # Baixe o compose e o exemplo de env
-curl -fsSLO https://raw.githubusercontent.com/gavuriiru/nekomorto/main/ops/prod/docker-compose.quickstart.yml
-curl -fsSL https://raw.githubusercontent.com/gavuriiru/nekomorto/main/ops/prod/.env.prod.example -o .env.prod
+curl -fsSLO https://raw.githubusercontent.com/NekomataSub/nekomorto/main/ops/prod/docker-compose.quickstart.yml
+curl -fsSL https://raw.githubusercontent.com/NekomataSub/nekomorto/main/ops/prod/.env.prod.example -o .env.prod
 
 # Edite .env.prod com valores reais (DATABASE_URL, SESSION_SECRET, DISCORD_*, OWNER_IDS, etc.)
 
@@ -709,7 +709,7 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROX
 
 Pacote oficial no GHCR:
 
-- `https://github.com/gavuriiru/nekomorto/pkgs/container/nekomorto`
+- `https://github.com/NekomataSub/nekomorto/pkgs/container/nekomorto`
 
 ### 9.1 Producao
 
@@ -734,7 +734,7 @@ Fluxo CI/CD:
 
 1. Sem `image_tag`, o job `quality` roda `npm run typecheck` e `npm run test:a11y`.
 2. Em paralelo, o job `ts7_preview` roda `npm run typecheck:ts7-preview` com `continue-on-error` para observabilidade do preview nativo.
-3. Sem `image_tag`, o job `build_and_push` publica `ghcr.io/gavuriiru/nekomorto` com tags `latest` e `sha-<commit>`.
+3. Sem `image_tag`, o job `build_and_push` publica `ghcr.io/nekomatasub/nekomorto` com tags `latest` e `sha-<commit>`.
 4. O job `deploy` resolve a tag:
    - sem `image_tag`: usa `sha-<commit_atual>`;
    - com `image_tag`: valida `latest` ou `sha-[0-9a-f]{40}` e usa a tag informada, sem rebuild.
@@ -771,7 +771,7 @@ Secrets necessarios no repositorio:
 
 Fluxo:
 
-1. Sem `image_tag`, o workflow gera e publica `ghcr.io/gavuriiru/nekomorto:sha-<commit>`.
+1. Sem `image_tag`, o workflow gera e publica `ghcr.io/nekomatasub/nekomorto:sha-<commit>`.
 2. Com `image_tag`, ele reutiliza uma imagem `sha-<commit>` ja publicada.
 3. O deploy remoto chama `ops/dev/deploy-dev.sh`, que reaproveita o fluxo de producao com `ENV_FILE=.env.dev` e `HEALTHCHECK_BASE_URL=https://dev.nekomata.moe`.
 

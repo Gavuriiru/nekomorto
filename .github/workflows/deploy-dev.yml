@@ -53,7 +53,7 @@ jobs:
             VITE_APP_COMMIT_SHA=${{ steps.build-meta.outputs.commit_sha }}
             VITE_APP_BUILD_TIME=${{ steps.build-meta.outputs.build_time }}
           tags: |
-            ghcr.io/gavuriiru/nekomorto:sha-${{ github.sha }}
+            ghcr.io/nekomatasub/nekomorto:sha-${{ github.sha }}
 
   deploy:
     needs:
@@ -81,7 +81,7 @@ jobs:
             RESOLVED_TAG="sha-${{ github.sha }}"
           fi
 
-          echo "image_repo=ghcr.io/gavuriiru/nekomorto" >> "${GITHUB_OUTPUT}"
+          echo "image_repo=ghcr.io/nekomatasub/nekomorto" >> "${GITHUB_OUTPUT}"
           echo "image_tag=${RESOLVED_TAG}" >> "${GITHUB_OUTPUT}"
 
       - name: Configure SSH
