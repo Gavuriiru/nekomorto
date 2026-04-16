@@ -24,6 +24,7 @@ const createResponse = () => ({
   body: null as unknown,
   clearedCookies: [] as Array<{ name: string; options: Record<string, unknown> }>,
   headers: new Map<string, string>(),
+  nextArgs: [] as unknown[],
   redirectUrl: "",
   statusCode: 200,
   clearCookie(name: string, options: Record<string, unknown>) {
@@ -54,7 +55,13 @@ const invokeRoute = async (routeLayer: any, req: Record<string, unknown>) => {
     ? routeLayer.route.stack.map((entry: any) => entry.handle)
     : [];
   let index = 0;
-  const next = async () => {
+  const runHandler = async (arg?: unknown) => {
+    if (arg !== undefined) {
+      res.nextArgs.push(arg);
+    }
+    if (arg === "route") {
+      return;
+    }
     const handler = handlers[index];
     index += 1;
     if (!handler) {
@@ -62,7 +69,8 @@ const invokeRoute = async (routeLayer: any, req: Record<string, unknown>) => {
     }
     return handler(req, res, next);
   };
-  await next();
+  const next = async (arg?: unknown) => runHandler(arg);
+  await runHandler();
   return res;
 };
 
@@ -127,6 +135,77 @@ const createDependencies = (overrides: Record<string, unknown> = {}) => {
 };
 
 describe("registerAuthRoutes", () => {
+  it("rate limits Discord auth before generating oauth state", async () => {
+    const canAttemptAuth = vi.fn(async () => false);
+    const saveSessionState = vi.fn(async () => undefined);
+    const dependencies = createDependencies({
+      canAttemptAuth,
+      saveSessionState,
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "get", "/auth/discord");
+    const req = {
+      query: {
+        next: "/dashboard",
+      },
+      session: {},
+    };
+
+    const res = await invokeRoute(routeLayer, req);
+
+    expect(res.statusCode).toBe(429);
+    expect(res.body).toEqual({ error: "rate_limited" });
+    expect(canAttemptAuth).toHaveBeenCalledWith("203.0.113.5");
+    expect(saveSessionState).not.toHaveBeenCalled();
+    expect(req.session).not.toHaveProperty("oauthState");
+  });
+
+  it("skips the oauth callback limiter when /login has no callback params", async () => {
+    const canAttemptAuth = vi.fn(async () => false);
+    const dependencies = createDependencies({
+      canAttemptAuth,
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "get", "/login");
+
+    const res = await invokeRoute(routeLayer, {
+      query: {},
+      session: {},
+    });
+
+    expect(res.nextArgs).toEqual(["route"]);
+    expect(canAttemptAuth).not.toHaveBeenCalled();
+  });
+
+  it("rate limits the oauth callback before contacting Discord", async () => {
+    const canAttemptAuth = vi.fn(async () => false);
+    const resolveDiscordRedirectUri = vi.fn(() => "https://example.com/login");
+    const dependencies = createDependencies({
+      canAttemptAuth,
+      resolveDiscordRedirectUri,
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "get", "/login");
+
+    const res = await invokeRoute(routeLayer, {
+      query: {
+        code: "discord-code",
+        state: "oauth-state",
+      },
+      session: {
+        loginAppOrigin: "https://example.com",
+        oauthState: "oauth-state",
+      },
+    });
+
+    expect(res.redirectUrl).toBe("https://example.com/login");
+    expect(canAttemptAuth).toHaveBeenCalledWith("203.0.113.5");
+    expect(resolveDiscordRedirectUri).not.toHaveBeenCalled();
+    expect(dependencies.appendAuditLog).toHaveBeenCalledWith(
+      expect.any(Object),
+      "auth.login.rate_limited",
+      "auth",
+      {},
+    );
+  });
+
   it("rate limits MFA verification before code validation", async () => {
     const canVerifyMfa = vi.fn(async () => false);
     const verifyTotpOrRecoveryCode = vi.fn();

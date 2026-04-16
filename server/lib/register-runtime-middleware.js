@@ -21,6 +21,7 @@ const CLIENT_STATIC_ASSET_EXACT_PATHS = new Set([
   "/placeholder.svg",
   "/robots.txt",
 ]);
+const PUBLIC_ASSET_RATE_LIMIT_STATE = Symbol("publicAssetRateLimitState");
 
 export const resolvePwaCriticalAssetPath = ({ clientDistDir, requestPath }) => {
   const normalizedPath = String(requestPath || "").trim();
@@ -139,20 +140,21 @@ export const registerRuntimeMiddleware = ({
     return res.status(429).json({ error: "rate_limited" });
   };
 
-  const canServePublicAsset = async (req, res) => {
-    if (typeof canReadPublicAsset !== "function") {
-      return true;
+  const resolveRequestPath = (req) => {
+    const fallbackPath = String(req?.path || req?.url || "").trim();
+    const rawUrl = String(req?.originalUrl || req?.url || fallbackPath).trim();
+    if (!rawUrl) {
+      return fallbackPath;
     }
-    const allowed = await canReadPublicAsset(getRequestIp(req));
-    if (allowed) {
-      return true;
+    try {
+      return new URL(rawUrl, "https://nekomata.local").pathname || fallbackPath;
+    } catch {
+      return fallbackPath;
     }
-    rejectRateLimitedAssetRead(res);
-    return false;
   };
 
   const isPublicAssetReadRequest = (req) => {
-    const requestPath = String(req?.path || "").trim();
+    const requestPath = resolveRequestPath(req);
     if (!requestPath) {
       return false;
     }
@@ -176,8 +178,15 @@ export const registerRuntimeMiddleware = ({
     if (!PUBLIC_ASSET_METHODS.has(method) || !isPublicAssetReadRequest(req)) {
       return next();
     }
-    if (!(await canServePublicAsset(req, res))) {
-      return undefined;
+    if (req[PUBLIC_ASSET_RATE_LIMIT_STATE]) {
+      return next();
+    }
+    req[PUBLIC_ASSET_RATE_LIMIT_STATE] = true;
+    if (typeof canReadPublicAsset !== "function") {
+      return next();
+    }
+    if (!(await canReadPublicAsset(getRequestIp(req)))) {
+      return rejectRateLimitedAssetRead(res);
     }
     return next();
   };
@@ -430,18 +439,18 @@ export const registerRuntimeMiddleware = ({
   const uploadsPublicDir = path.join(clientRootDir, "public", "uploads");
   app.use("/uploads/_quarantine", (_req, res) => res.status(404).end());
   app.use(
+    "/uploads",
+    enforcePublicAssetReadRateLimit,
     createUploadsDeliveryMiddleware({
-      canReadPublicAsset,
-      getRequestIp,
       uploadsDir: uploadsPublicDir,
       loadUploads,
       storageService: uploadStorageService,
       defaultCacheControl: staticDefaultCacheControl,
     }),
   );
-  app.use("/uploads", enforcePublicAssetReadRateLimit);
   app.use(
     "/uploads",
+    enforcePublicAssetReadRateLimit,
     express.static(uploadsPublicDir, {
       setHeaders: (res) => {
         res.setHeader("Cache-Control", staticDefaultCacheControl);
@@ -449,14 +458,14 @@ export const registerRuntimeMiddleware = ({
     }),
   );
   if (isProduction) {
-    app.use(enforcePublicAssetReadRateLimit);
     app.use(
+      enforcePublicAssetReadRateLimit,
       express.static(clientDistDir, {
         index: false,
         setHeaders: setStaticCacheHeaders,
       }),
     );
-    app.use(async (req, res, next) => {
+    app.use(enforcePublicAssetReadRateLimit, async (req, res, next) => {
       const method = String(req.method || "").toUpperCase();
       if (method !== "GET" && method !== "HEAD") {
         return next();
@@ -468,15 +477,12 @@ export const registerRuntimeMiddleware = ({
       if (!assetPath) {
         return next();
       }
-      if (!(await canServePublicAsset(req, res))) {
-        return undefined;
-      }
       if (fs.existsSync(assetPath)) {
         return next();
       }
       return res.status(404).json({ error: "pwa_asset_not_found" });
     });
-    app.use(async (req, res, next) => {
+    app.use(enforcePublicAssetReadRateLimit, async (req, res, next) => {
       const method = String(req.method || "").toUpperCase();
       if (method !== "GET" && method !== "HEAD") {
         return next();
@@ -487,9 +493,6 @@ export const registerRuntimeMiddleware = ({
       });
       if (!assetPath) {
         return next();
-      }
-      if (!(await canServePublicAsset(req, res))) {
-        return undefined;
       }
       if (fs.existsSync(assetPath)) {
         return next();
