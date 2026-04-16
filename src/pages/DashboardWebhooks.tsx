@@ -693,26 +693,6 @@ const describeDeliveryResources = (delivery: WebhookDeliveryItem) => {
   return parts.join(" | ");
 };
 
-const describeInvalidWebhookChannelsLegacy = (value: unknown) => {
-  if (!Array.isArray(value) || value.length === 0) {
-    return "Revise as URLs de webhook configuradas.";
-  }
-  const first =
-    value[0] && typeof value[0] === "object" && !Array.isArray(value[0])
-      ? (value[0] as { channel?: unknown; reason?: unknown; code?: unknown })
-      : {};
-  const channel = String(first.channel || "").trim();
-  const label =
-    channel === "posts" || channel === "projects"
-      ? CHANNEL_LABELS[channel]
-      : channel === "operational"
-        ? "Alertas operacionais"
-        : channel === "security"
-          ? "Segurança"
-          : channel || "canal";
-  return `${label}: ${String(first.reason || first.code || "url inválida")}`;
-};
-
 const describeInvalidWebhookChannels = (value: unknown) => {
   if (!Array.isArray(value) || value.length === 0) {
     return "Revise as URLs de webhook configuradas.";

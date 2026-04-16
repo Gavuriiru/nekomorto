@@ -17,15 +17,6 @@ import { $createLinkNode, LinkNode, AutoLinkNode } from "@lexical/link";
 import { CodeNode, CodeHighlightNode } from "@lexical/code";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 
-const BLOCK_STYLE_KEYS = [
-  "font-size",
-  "text-indent",
-  "margin-top",
-  "margin-bottom",
-  "line-height",
-  "font-family",
-];
-
 const IMAGE_STYLE_KEYS = [
   "width",
   "height",
@@ -264,7 +255,6 @@ const createInlineEditorialTextConversion =
   });
 
 const hasEditorialBlockStyle = (style) => Boolean(extractBlockEditorialStyle(style).editorialStyle);
-const hasEditorialImageStyle = (style) => Boolean(extractImageEditorialStyle(style));
 
 const applyEditorialStyleToElement = (element, editorialStyle) => {
   if (!editorialStyle) {

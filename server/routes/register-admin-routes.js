@@ -27,8 +27,6 @@ export const registerAdminRoutes = (deps = {}) => {
     enqueueAdminExportJob,
     evaluateOperationalMonitoring,
     filterAnalyticsEvents,
-    filterByDateRange,
-    filterExportEntries,
     getDayKeyFromTs,
     incrementCounter,
     isAuditActionEnabled,

@@ -297,7 +297,7 @@ describe("Project mobile hero layout", () => {
   });
 
   it("centraliza todo o hero no mobile e preserva alinhamento desktop", async () => {
-    const secondRender = render(
+    render(
       <MemoryRouter>
         <ProjectPage />
       </MemoryRouter>,

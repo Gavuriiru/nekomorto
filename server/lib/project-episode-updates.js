@@ -39,9 +39,6 @@ const getEpisodePageSignature = (episode) =>
     .filter(Boolean)
     .join("|");
 
-const hasEpisodeReadableContent = (episode) =>
-  hasEpisodeContent(episode) || getEpisodePageSignature(episode).length > 0;
-
 const getEpisodeReadableSignature = (episode) => {
   const pageSignature = getEpisodePageSignature(episode);
   if (!hasEpisodeContent(episode) && !pageSignature) {

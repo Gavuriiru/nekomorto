@@ -107,8 +107,6 @@ const fontBufferCache = new Map();
 const fontParserCache = new Map();
 let projectOgFontsCache = null;
 
-const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-
 const getFontBufferByWeight = (weight) => {
   const normalizedWeight = Number(weight);
   if (fontBufferCache.has(normalizedWeight)) {

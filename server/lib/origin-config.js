@@ -37,7 +37,7 @@ const parseHttpUrl = (value, envName) => {
       throw new Error(`${envName} must use http:// or https://`);
     }
     return parsed;
-  } catch (error) {
+  } catch {
     throw new Error(`${envName} must be a valid absolute http(s) URL`);
   }
 };

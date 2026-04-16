@@ -152,61 +152,6 @@ const setViewportIsMobile = (isMobile: boolean) => {
   })) as unknown as typeof window.matchMedia;
 };
 
-const mockPrimaryBadgeLayoutMetrics = ({
-  rowWidth,
-  clickableBadgeShellWidth,
-  badgeWidth,
-}: {
-  rowWidth: number;
-  clickableBadgeShellWidth: number;
-  badgeWidth: number;
-}) => {
-  const clientWidthDescriptor = Object.getOwnPropertyDescriptor(
-    HTMLElement.prototype,
-    "clientWidth",
-  );
-  const offsetWidthDescriptor = Object.getOwnPropertyDescriptor(
-    HTMLElement.prototype,
-    "offsetWidth",
-  );
-
-  Object.defineProperty(HTMLElement.prototype, "clientWidth", {
-    configurable: true,
-    get() {
-      const element = this as HTMLElement;
-      if (
-        element.tagName === "DIV" &&
-        element.classList.contains("flex-nowrap") &&
-        element.classList.contains("overflow-hidden") &&
-        element.classList.contains("sm:flex")
-      ) {
-        return rowWidth;
-      }
-      return clientWidthDescriptor?.get?.call(element) ?? 0;
-    },
-  });
-
-  Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
-    configurable: true,
-    get() {
-      const element = this as HTMLElement;
-      if (element.dataset.badgeKey) {
-        return element.tagName === "BUTTON" ? clickableBadgeShellWidth : badgeWidth;
-      }
-      return offsetWidthDescriptor?.get?.call(element) ?? 0;
-    },
-  });
-
-  return () => {
-    if (clientWidthDescriptor) {
-      Object.defineProperty(HTMLElement.prototype, "clientWidth", clientWidthDescriptor);
-    }
-    if (offsetWidthDescriptor) {
-      Object.defineProperty(HTMLElement.prototype, "offsetWidth", offsetWidthDescriptor);
-    }
-  };
-};
-
 describe("Projects query sync", () => {
   beforeEach(() => {
     setupApiMock();

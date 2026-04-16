@@ -73,11 +73,8 @@ export const useImageLibraryDialogController = ({
   const [pinnedIncludeUrls, setPinnedIncludeUrls] = useState<string[]>([]);
   const {
     currentSelectionUrl: stableCurrentSelectionUrl,
-    currentSelectionUrlSignature: stableCurrentSelectionUrlSignature,
     currentSelectionUrls: stableCurrentSelectionUrls,
-    currentSelectionUrlsSignature: stableCurrentSelectionUrlsSignature,
     persistentIncludeUrls,
-    pinnedIncludeUrlsSignature,
   } = useMemo(
     () =>
       buildPersistentUploadIncludeUrlsState({

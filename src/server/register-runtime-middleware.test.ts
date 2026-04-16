@@ -175,13 +175,6 @@ const createResponse = () => ({
   },
 });
 
-const invokeMiddleware = async (middleware: any, req: Record<string, unknown>) => {
-  const res = createResponse();
-  const next = vi.fn();
-  await middleware(req, res, next);
-  return { next, res };
-};
-
 const invokeMiddlewareStack = async (middlewares: any[], req: Record<string, unknown>) => {
   const res = createResponse();
   const finalNext = vi.fn();

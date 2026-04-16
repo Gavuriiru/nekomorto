@@ -198,27 +198,6 @@ export const createAnalyticsStore = ({
     writeAnalyticsEvents(events);
   };
 
-  const loadAnalyticsDaily = () => {
-    const fallback = {
-      schemaVersion: analyticsSchemaVersion,
-      generatedAt: new Date().toISOString(),
-      days: {},
-    };
-    const dataRepository = getDataRepository?.();
-    if (!dataRepository) {
-      return fallback;
-    }
-    const parsed = dataRepository.loadAnalyticsDaily();
-    if (!parsed || typeof parsed !== "object") {
-      return fallback;
-    }
-    return {
-      schemaVersion: Number(parsed.schemaVersion) || analyticsSchemaVersion,
-      generatedAt: String(parsed.generatedAt || fallback.generatedAt),
-      days: parsed.days && typeof parsed.days === "object" ? parsed.days : {},
-    };
-  };
-
   const writeAnalyticsDaily = (data) => {
     const dataRepository = getDataRepository?.();
     if (!dataRepository) {

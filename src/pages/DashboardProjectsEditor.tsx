@@ -195,39 +195,6 @@ const projectSortOptions: ComboboxOption[] = [
   { value: "views", label: "Visualizações" },
   { value: "comments", label: "Comentários" },
 ];
-const animeEpisodeFilterOptions = [
-  { value: "all", label: "Todos" },
-  { value: "published", label: "Publicados" },
-  { value: "draft", label: "Rascunhos" },
-  { value: "missing-links", label: "Sem links" },
-  { value: "missing-date", label: "Sem data" },
-  { value: "incomplete", label: "Incompletos" },
-];
-const episodeSourceTypeOptions = [
-  { value: "TV", label: "TV" },
-  { value: "Web", label: "Web" },
-  { value: "Blu-ray", label: "Blu-ray" },
-];
-const episodePublicationStatusOptions = [
-  { value: "draft", label: "Rascunho" },
-  { value: "published", label: "Publicado" },
-];
-const episodeEntryKindOptions = [
-  { value: "main", label: "Principal" },
-  { value: "extra", label: "Extra" },
-];
-const fansubRoleOptions = [
-  "Tradução",
-  "Revisão",
-  "Timing",
-  "Typesetting",
-  "Quality Check",
-  "Encode",
-  "Cleaner",
-  "Redrawer",
-  "Karaoke",
-  "Editor",
-];
 
 const clearIndexedDraftValue = clearIndexedRecordValue<string>;
 
@@ -256,11 +223,8 @@ const DashboardProjectsEditor = () => {
     genreTranslations,
     hasLoadError,
     hasLoadedOnce,
-    hasResolvedMemberDirectory,
     hasResolvedProjectTypes,
     hasResolvedProjects,
-    hasResolvedTranslations,
-    isInitialLoading,
     isRefreshing,
     memberDirectory,
     projectTypeOptions,
@@ -277,7 +241,6 @@ const DashboardProjectsEditor = () => {
     staffRoleTranslations,
     tagTranslations,
   } = useDashboardProjectsEditorResource(apiBase);
-  const [episodeDragId, setEpisodeDragId] = useState<number | null>(null);
   const [relationDragIndex, setRelationDragIndex] = useState<number | null>(null);
   const [relationDragOverIndex, setRelationDragOverIndex] = useState<number | null>(null);
   const [staffDragIndex, setStaffDragIndex] = useState<number | null>(null);
@@ -286,12 +249,11 @@ const DashboardProjectsEditor = () => {
   const [animeStaffDragOverIndex, setAnimeStaffDragOverIndex] = useState<number | null>(null);
   const [staffMemberInput, setStaffMemberInput] = useState<Record<number, string>>({});
   const [animeStaffMemberInput, setAnimeStaffMemberInput] = useState<Record<number, string>>({});
-  const [episodeDateDraft, setEpisodeDateDraft] = useState<Record<number, string>>({});
-  const [episodeTimeDraft, setEpisodeTimeDraft] = useState<Record<number, string>>({});
+  const [, setEpisodeDateDraft] = useState<Record<number, string>>({});
+  const [, setEpisodeTimeDraft] = useState<Record<number, string>>({});
   const [episodeSizeDrafts, setEpisodeSizeDrafts] = useState<Record<number, string>>({});
   const [episodeSizeErrors, setEpisodeSizeErrors] = useState<Record<number, string>>({});
   const [editorAccordionValue, setEditorAccordionValue] = useState<string[]>(["informacoes"]);
-  const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
   const episodeSizeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const listFiltersRef = useRef({ searchQuery, selectedType, sortMode });
   const canManageProjects = useMemo(() => {
@@ -299,13 +261,10 @@ const DashboardProjectsEditor = () => {
   }, [currentUser]);
   const {
     activeLibraryOptions,
-    buildEpisodeLibraryOptions,
     currentLibrarySelection,
     handleLibrarySave,
     isLibraryOpen,
-    openLibraryForEpisodeCover,
     openLibraryForProjectImage,
-    openLibraryForVolumeCover,
     setIsLibraryOpen,
   } = useProjectEditorImageLibrary({
     canManageProjects,
@@ -322,27 +281,12 @@ const DashboardProjectsEditor = () => {
     [],
   );
   const {
-    addVolumeEntry,
-    collapsedEpisodes,
-    collapsedVolumeGroups,
-    contentSectionRef,
-    episodeGroupsForRender,
-    episodeOpenValues,
-    handleAddEpisodeDownload,
-    handleEpisodeAccordionChange,
-    handleEpisodeHeaderClick,
-    handleVolumeGroupAccordionChange,
     pendingEpisodeToScrollRef,
-    registerEpisodeCardNode,
-    registerVolumeGroupNode,
-    removeVolumeEntryByVolume,
     resetPendingContentNavigation,
     revealEpisodeAtIndex,
     setCollapsedEpisodes,
     setCollapsedVolumeGroups,
     sortedEpisodeDownloads,
-    updateVolumeEntryByVolume,
-    volumeGroupOpenValues,
   } = useProjectEditorEpisodeSectionState({
     editorAccordionValue,
     formState,
@@ -361,7 +305,6 @@ const DashboardProjectsEditor = () => {
     confirmOpen,
     confirmTitle,
     handleEditorOpenChange,
-    isDirty,
     isEditorDialogScrolled,
     isEditorOpen,
     markEditorSnapshot,
@@ -453,53 +396,29 @@ const DashboardProjectsEditor = () => {
 
   const hasAniListReference =
     Boolean(formState.anilistId) || parseAniListMediaId(anilistIdInput) !== null;
-  const stageOptions = getProjectProgressStagesForEditor(formState.type || "");
 
   const {
     animeBatchCadenceDays,
     animeBatchCreateOpen,
     animeBatchDurationInput,
-    animeBatchOperationCompletedStages,
-    animeBatchOperationDuration,
-    animeBatchOperationPublicationStatus,
-    animeBatchOperationShiftDays,
-    animeBatchOperationSourceType,
     animeBatchPublicationStatus,
     animeBatchQuantity,
     animeBatchSourceType,
     animeBatchStartNumber,
-    animeEpisodeFilter,
-    applyAnimeBatchCompletedStages,
-    applyAnimeBatchDuration,
-    applyAnimeBatchPublicationStatus,
-    applyAnimeBatchReplicateSources,
-    applyAnimeBatchShiftReleaseDates,
-    applyAnimeBatchSourceType,
     clearSelectedAnimeEpisodes,
     clearRemovedAnimeEpisode,
     createAnimeEpisodeBatch,
-    duplicateAnimeEpisode,
-    filteredAnimeEpisodeItems,
-    removeAnimeEpisodeAtIndex,
-    removedAnimeEpisode,
-    selectAllFilteredAnimeEpisodes,
-    selectedAnimeEpisodeKeys,
-    selectedAnimeEpisodeKeySet,
     setAnimeBatchCadenceDays,
     setAnimeBatchCreateOpen,
     setAnimeBatchDurationInput,
     setAnimeBatchOperationCompletedStages,
     setAnimeBatchOperationDuration,
-    setAnimeBatchOperationPublicationStatus,
     setAnimeBatchOperationShiftDays,
-    setAnimeBatchOperationSourceType,
     setAnimeBatchPublicationStatus,
     setAnimeBatchQuantity,
     setAnimeBatchSourceType,
     setAnimeBatchStartNumber,
     setAnimeEpisodeFilter,
-    toggleSelectedAnimeEpisode,
-    undoRemoveAnimeEpisode,
   } = useDashboardProjectsEditorAnimeBatch({
     formState,
     isChapterBased,
@@ -979,75 +898,6 @@ const DashboardProjectsEditor = () => {
     [animeStaffMemberInput],
   );
 
-  const setEpisodeEntryKind = useCallback(
-    (index: number, nextKind: "main" | "extra") => {
-      setFormState((prev) => {
-        const nextEpisodes = [...prev.episodeDownloads];
-        const currentEpisode = nextEpisodes[index];
-        if (!currentEpisode) {
-          return prev;
-        }
-        const targetKind = nextKind === "extra" ? "extra" : "main";
-        const nextEpisodeBase: EditorProjectEpisode = {
-          ...currentEpisode,
-          entryKind: targetKind,
-          entrySubtype: targetKind === "extra" ? "extra" : "chapter",
-          displayLabel: undefined,
-        };
-        const reservedKeys = new Set(
-          nextEpisodes
-            .map((episode, episodeIndex) =>
-              episodeIndex === index ? "" : buildEpisodeKey(episode?.number, episode?.volume),
-            )
-            .filter(Boolean),
-        );
-        if (targetKind === "extra") {
-          const currentNumber = Number(currentEpisode.number);
-          const currentKey = buildEpisodeKey(currentNumber, currentEpisode.volume);
-          const canKeepCurrent =
-            Number.isFinite(currentNumber) &&
-            currentNumber >= EXTRA_TECHNICAL_NUMBER_BASE &&
-            currentKey &&
-            !reservedKeys.has(currentKey);
-          nextEpisodes[index] = {
-            ...nextEpisodeBase,
-            number: canKeepCurrent
-              ? currentNumber
-              : resolveNextExtraTechnicalNumber(nextEpisodes, currentEpisode.volume, {
-                excludeIndex: index,
-              }),
-          };
-          return {
-            ...prev,
-            episodeDownloads: nextEpisodes,
-          };
-        }
-        const currentNumber = Number(currentEpisode.number);
-        const currentKey = buildEpisodeKey(currentNumber, currentEpisode.volume);
-        const shouldReassign =
-          !Number.isFinite(currentNumber) ||
-          currentNumber <= 0 ||
-          currentNumber >= EXTRA_TECHNICAL_NUMBER_BASE ||
-          (currentKey && reservedKeys.has(currentKey));
-        nextEpisodes[index] = {
-          ...nextEpisodeBase,
-          number: shouldReassign
-            ? resolveNextMainEpisodeNumber(nextEpisodes, {
-              excludeIndex: index,
-              volume: currentEpisode.volume,
-              isExtra: (episode) => getEpisodeEntryKind(episode) === "extra",
-            })
-            : currentNumber,
-        };
-        return {
-          ...prev,
-          episodeDownloads: nextEpisodes,
-        };
-      });
-    },
-    [getEpisodeEntryKind],
-  );
-
   const moveRelationItem = useCallback((from: number, to: number) => {
     if (from === to) {
       return;
@@ -1079,31 +929,6 @@ const DashboardProjectsEditor = () => {
     }));
     setAnimeStaffMemberInput({});
   }, []);
-
-  const moveEpisodeItem = useCallback(
-    (from: number, to: number) => {
-      if (from === to) {
-        return;
-      }
-      setFormState((prev) => ({
-        ...prev,
-        episodeDownloads: reorderItems(prev.episodeDownloads, from, to),
-      }));
-      setCollapsedEpisodes((prev) => {
-        const flags = Array.from(
-          { length: formState.episodeDownloads.length },
-          (_, idx) => prev[idx] ?? false,
-        );
-        const nextFlags = reorderItems(flags, from, to);
-        const next: Record<number, boolean> = {};
-        nextFlags.forEach((value, idx) => {
-          next[idx] = value;
-        });
-        return next;
-      });
-    },
-    [formState.episodeDownloads.length],
-  );
 
   const handleRelationDrop = useCallback(
     (targetIndex: number) => {
@@ -1210,23 +1035,9 @@ const DashboardProjectsEditor = () => {
     [animeStaffDragIndex],
   );
 
-  const handleEpisodeDrop = (targetIndex: number) => {
-    if (episodeDragId === null || episodeDragId === targetIndex) {
-      setEpisodeDragId(null);
-      return;
-    }
-    moveEpisodeItem(episodeDragId, targetIndex);
-    setEpisodeDragId(null);
-  };
-
   const editorSectionClassName =
     "project-editor-section rounded-2xl border border-border/60 bg-card/70 px-4";
   const editorSubtleSurfaceClassName = `rounded-2xl border border-border/60 bg-card/60 ${dashboardSubtleSurfaceHoverClassName}`;
-  const editorSubtlePanelSurfaceClassName = `rounded-2xl border border-border/60 bg-background/35 ${dashboardSubtleSurfaceHoverClassName}`;
-  const editorSubtleElevatedSurfaceClassName = `rounded-xl border border-border/60 bg-card/70 ${dashboardSubtleSurfaceHoverClassName}`;
-  const editorSubtleInsetSurfaceClassName = `rounded-xl border border-border/60 bg-background/40 ${dashboardSubtleSurfaceHoverClassName}`;
-  const editorSubtleMutedInsetSurfaceClassName = `rounded-md border border-border/60 bg-background/70 ${dashboardSubtleSurfaceHoverClassName}`;
-  const editorSubtleCalloutSurfaceClassName = `rounded-xl border border-border/60 bg-background/50 ${dashboardSubtleSurfaceHoverClassName}`;
   const editorSectionTriggerClassName =
     "project-editor-section-trigger flex w-full items-start gap-4 py-3.5 text-left hover:no-underline md:py-4";
   const editorSectionContentClassName = "project-editor-section-content pb-2.5 px-1";

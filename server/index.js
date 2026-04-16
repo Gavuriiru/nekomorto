@@ -728,7 +728,6 @@ const {
   PRIMARY_APP_ORIGIN,
   PUBLIC_READ_CACHE_MAX_ENTRIES,
   PUBLIC_READ_CACHE_TTL_MS,
-  RATE_LIMIT_PREFIX,
   SESSION_SECRET,
   SESSION_TABLE,
   adminExportsDir,
@@ -750,7 +749,6 @@ const {
   projectImageExportJobsDir,
   projectImageImportJobsDir,
   sessionCookieConfig,
-  sessionSecretList,
 } = buildServerBootConfig({
   repoRootDir: REPO_ROOT_DIR,
 });
@@ -884,19 +882,14 @@ const dataRepositoryAdaptersRuntime = createDataRepositoryAdaptersRuntime({
 });
 
 const {
-  appendSecretRotation,
   claimWebhookDelivery,
-  findWebhookDelivery,
   isEpubImportJobStorageAvailable,
-  isProjectImageExportJobStorageAvailable,
   isProjectImageImportJobStorageAvailable,
   loadAdminExportJobs,
   loadEpubImportJobs,
   loadProjectImageExportJobs,
   loadProjectImageImportJobs,
-  loadSecretRotations,
   loadSecurityEvents,
-  loadWebhookDeliveries,
   loadWebhookState,
   upsertAdminExportJob,
   upsertEpubImportJob,
@@ -1076,7 +1069,6 @@ const {
   normalizePosts,
   normalizeProjects,
   postVersionReasonLabel,
-  pruneExpiredDeleted,
   writeComments,
   writePosts,
   writeProjects,
@@ -1137,15 +1129,11 @@ const siteConfigRuntime = createSiteConfigRuntimeBundle(
 );
 
 const {
-  buildEnvOperationalWebhookSettings,
-  buildEnvSecurityWebhookSettings,
   buildOperationalWebhookTestTransition,
   buildSecurityWebhookTestEvent,
-  buildWebhookSettingsBundle,
   ensureEditorialWebhookSettingsNoConflict,
   ensureWebhookSettingsNoConflict,
   loadIntegrationSettings,
-  loadIntegrationSettingsBundle,
   loadIntegrationSettingsSources,
   loadPages,
   loadSiteSettings,
@@ -1226,28 +1214,20 @@ const {
   buildManagedStorageAreaSummary,
   buildPublicMediaVariants,
   canAttemptAuth,
-  canManageMfa,
   canBootstrap,
   canRegisterPollVote,
   canRegisterView,
-  canVerifyMfa,
   canSubmitComment,
   canUploadImage,
-  collectDownloadIconUploads,
-  collectLinkTypeIconUploads,
   createGravatarHash,
   deleteManagedUploadEntryAssets,
   deletePrivateUploadByUrl,
-  enqueueProjectOgPrewarm,
   ensureUploadEntryHasRequiredVariants,
   extractRequestedUploadFocalPayload,
-  getUsedUploadUrls,
   getUploadFolderFromUrlValue,
   hasOwnField,
   isPrivateUploadFolder,
-  logProjectOgDelivery,
   normalizeEmail,
-  normalizeUploadUrlValue,
   readUploadAltText,
   readUploadFocalState,
   readUploadSlot,
@@ -1413,37 +1393,16 @@ const userRuntime = createUserRuntimeBundle(
 );
 
 const {
-  applyOwnerRole,
-  buildDashboardOverviewResponsePayload,
   buildMySecuritySummary,
   buildPublicTeamMembers,
   buildUserPayload,
-  buildUserProfileRevisionToken,
-  canManageComments,
-  canManageIntegrations,
-  canManagePages,
-  canManagePosts,
-  canManageProjects,
-  canManageSecurityAdmin,
-  canManageSettings,
-  canManageUploads,
-  canManageUsersAccess,
-  canManageUsersBasic,
-  canViewAnalytics,
-  canViewAuditLog,
   clearEnrollmentFromSession,
   deleteUserMfaTotpRecord,
-  emitSecurityEvent,
-  enforceUserAccessInvariants,
   ensureOwnerUser,
-  getUserAccessContextById,
-  getUserTotpSecret,
   handleAuthFailureSecuritySignals,
   handleMfaFailureSecuritySignals,
-  isAdminUser,
   isTotpEnabledForUser,
   listActiveSessionsForUser,
-  loadUserMfaTotpRecord,
   loadUserPreferences,
   loadUserSessionIndexRecords,
   maybeEmitAdminActionFromNewNetwork,
@@ -1451,28 +1410,14 @@ const {
   maybeEmitNewNetworkLoginEvent,
   normalizeUserPreferences,
   normalizeUsers,
-  normalizeUploadScopeUserId,
-  parseDashboardNotificationsLimit,
-  permissionsForRead,
-  resolveDiscordAvatarFallbackUrl,
   resolveEnrollmentFromSession,
   resolveMfaMetadata,
-  resolveRequestUploadAccessScope,
   revokeSessionBySid,
   revokeUserSessionIndexRecord,
-  shouldEmitSecurityRuleEvent,
   startTotpEnrollment,
-  syncAllowedUsers,
   syncPersistedDiscordAvatarForLogin,
-  syncSessionUserDisplayProfile,
-  toDashboardNotificationId,
-  toSecurityEventApiResponse,
-  updateSecurityEventStatus,
   updateSessionIndexFromRequest,
-  userWithAccessForResponse,
   verifyTotpOrRecoveryCode,
-  withEffectiveAvatarUrl,
-  withUserProfileRevision,
   writeUserMfaTotpRecord,
   writeUserPreferences,
 } = userRuntime;
@@ -1494,10 +1439,6 @@ const { evaluateOperationalMonitoring } = createOperationalMonitoringRuntime(
     sessionCookieConfig,
   }),
 );
-
-const setNoStoreJson = (res) => {
-  res.setHeader("Cache-Control", "no-store");
-};
 
 const projectRuntime = createProjectRuntimeBundle(
   buildProjectRuntimeDependencies({
@@ -1543,22 +1484,8 @@ const projectRuntime = createProjectRuntimeBundle(
 );
 
 const {
-  buildProjectImageExportDownloadPath,
-  enqueueEpubImportJob,
-  enqueueProjectImageExportJob,
-  enqueueProjectImageImportJob,
-  expireEpubImportJob,
-  expireProjectImageExportJob,
-  expireProjectImageImportJob,
-  findEpubImportJobForUser,
-  findProjectImageExportJobForUser,
-  findProjectImageImportJobForUser,
-  normalizeProjectSnapshotForEpubImport,
-  parseEpubImportRequestBody,
-  parseProjectImageImportRequestBody,
   recoverEpubImportJobsAfterRestart,
   recoverProjectImageJobsAfterRestart,
-  resolveEpubImportRequestInput,
 } = projectRuntime;
 
 const buildRuntimeMetadata = createRuntimeMetadataBuilder({
@@ -1626,16 +1553,8 @@ const webhookRuntime = createWebhookRuntimeBundle(
 );
 
 const {
-  appendWebhookQueuedAuditLog,
-  buildOperationalAlertsWebhookPayload,
-  buildSecurityWebhookPayload,
   dispatchCriticalSecurityEventWebhook,
-  dispatchEditorialWebhookEvent,
-  findProjectChapterByEpisodeNumber,
   operationalAlertsWebhookState,
-  prepareEditorialWebhookDispatch,
-  resolveEditorialAuthorFromPost,
-  resolveProjectWebhookEventKey,
   runOperationalAlertsSchedulerTick,
   runWebhookDeliveryWorkerTick,
   webhookDeliveryWorkerState,
@@ -1672,8 +1591,6 @@ const adminExportRuntime = createAdminExportRuntime(
     writeExportFile,
   }),
 );
-
-const { enqueueAdminExportJob, toAdminExportJobApiResponse } = adminExportRuntime;
 
 recoverEpubImportJobsAfterRestart();
 recoverProjectImageJobsAfterRestart();
@@ -1722,17 +1639,7 @@ const publicRuntime = createPublicRuntimeBundle(
 );
 
 const {
-  buildLaunchesRssItems,
-  buildPostsRssItems,
-  buildPublicBootstrapResponsePayload,
-  buildPublicSitemapEntries,
-  getPublicReadableProjects,
-  getPublicVisiblePosts,
   getPublicVisibleProjects,
-  getPublicVisibleUpdates,
-  injectDashboardBootstrapHtml,
-  injectPublicBootstrapHtml,
-  sendXmlResponse,
 } = publicRuntime;
 
 const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({

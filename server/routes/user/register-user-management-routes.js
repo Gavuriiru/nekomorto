@@ -494,7 +494,7 @@ export const registerUserManagementRoutes = ({
       const removed = users[index];
       users = rebuildUsersAfterDeletion(users.filter((user) => user.id !== targetId));
 
-      const nextOwnerIds = syncOwnerIdsAfterUserDeletion({
+      syncOwnerIdsAfterUserDeletion({
         loadOwnerIds,
         primaryOwnerId,
         targetId,
@@ -539,7 +539,7 @@ export const registerUserManagementRoutes = ({
 
     users = rebuildUsersAfterDeletion(users.filter((user) => user.id !== targetId));
 
-    const nextOwnerIds = syncOwnerIdsAfterUserDeletion({
+    syncOwnerIdsAfterUserDeletion({
       loadOwnerIds,
       primaryOwnerId,
       targetId,

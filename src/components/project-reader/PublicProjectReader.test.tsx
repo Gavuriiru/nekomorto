@@ -48,16 +48,6 @@ const resolveReaderImage = async (src: string) => {
   mockReaderImageControllers.delete(src);
 };
 
-const rejectReaderImage = async (src: string) => {
-  deferredReaderImageSrcs.delete(src);
-  const controllers = mockReaderImageControllers.get(src) || [];
-  await act(async () => {
-    controllers.forEach((controller) => controller.reject());
-    await Promise.resolve();
-  });
-  mockReaderImageControllers.delete(src);
-};
-
 class MockReaderImage {
   complete = false;
   height = 1800;

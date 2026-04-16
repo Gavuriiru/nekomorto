@@ -17,10 +17,7 @@ const TOP_PROJECTS_LAST_7_DAYS = 7;
 const TOP_PROJECTS_LAST_30_DAYS = 30;
 const TOP_PROJECTS_CARD_HEIGHT_PX = 164;
 const TOP_PROJECTS_GAP_PX = 12;
-const TOP_PROJECTS_VISIBLE_MOBILE = 2;
-const TOP_PROJECTS_VISIBLE_DESKTOP = 3;
 const TOP_PROJECTS_THUMB_ASPECT_RATIO = "9 / 14";
-const TOP_PROJECTS_THUMB_WIDTH = "calc(var(--top-card-h) * 9 / 14)";
 const sidebarClampProfile = PUBLIC_PROJECT_CARD_CLAMP_PROFILES.sidebar;
 
 type TopProjectsMode = "all" | "7d" | "30d";

@@ -1,4 +1,4 @@
-type IdleCallbackHandle = number;
+
 
 type IdleCallback = (deadline: IdleDeadline) => void;
 

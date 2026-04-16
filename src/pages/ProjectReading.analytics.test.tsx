@@ -462,7 +462,7 @@ describe("ProjectReading analytics", () => {
   it("envia evento chapter_view ao carregar capitulo", async () => {
     setupProjectReadingApiMock();
 
-    const { container } = render(
+    render(
       <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
         <ProjectReading />
       </MemoryRouter>,
@@ -523,7 +523,7 @@ describe("ProjectReading analytics", () => {
     setupProjectReadingApiMock();
     window.localStorage.setItem("reading.any-value", "1");
 
-    const { container } = render(
+    render(
       <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
         <ProjectReading />
       </MemoryRouter>,

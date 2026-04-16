@@ -81,13 +81,6 @@ type VisibleStageChromeMetrics = {
 };
 type HorizontalScrollSyncTarget = "viewport" | "rail";
 type ContinuousImageReadyStatus = "ready" | "failed";
-type ContinuousVerticalPageMeasurement = {
-  height: number;
-  rect: DOMRect;
-  targetScrollTop: number;
-  viewportHeight: number;
-  viewportOffsetTop: number;
-};
 type ContinuousReaderAnimation = {
   axis: ContinuousAnimationAxis;
   duration: number;
@@ -925,7 +918,7 @@ const PublicProjectReaderContent = ({
   const [viewportWidth, setViewportWidth] = useState(getWindowWidth);
   const [readerViewportHeight, setReaderViewportHeight] = useState<number | null>(null);
   const [stageViewportHeight, setStageViewportHeight] = useState<number | null>(null);
-  const [infoBarMeasuredHeight, setInfoBarMeasuredHeight] = useState(0);
+  const [, setInfoBarMeasuredHeight] = useState(0);
   const [visibleStageChromeMetrics, setVisibleStageChromeMetrics] =
     useState<VisibleStageChromeMetrics>(() => ({
       width: getWindowWidth(),
@@ -2228,62 +2221,6 @@ const PublicProjectReaderContent = ({
       return imageUrl || null;
     },
     [renderablePages],
-  );
-
-  const getContinuousStepPageIndices = useCallback((targetIndex: number) => {
-    const currentPageIndex = activePageIndexRef.current;
-    const startIndex = Math.min(currentPageIndex, targetIndex);
-    const endIndex = Math.max(currentPageIndex, targetIndex);
-    const stepIndices: number[] = [];
-    for (let index = startIndex; index <= endIndex; index += 1) {
-      stepIndices.push(index);
-    }
-    return stepIndices;
-  }, []);
-
-  const getContinuousStepImageUrls = useCallback(
-    (targetIndex: number) => {
-      const imageUrls = new Set<string>();
-      getContinuousStepPageIndices(targetIndex).forEach((pageIndex) => {
-        const imageUrl = getContinuousPageImageUrl(pageIndex);
-        if (imageUrl) {
-          imageUrls.add(imageUrl);
-        }
-      });
-      return Array.from(imageUrls);
-    },
-    [getContinuousPageImageUrl, getContinuousStepPageIndices],
-  );
-
-  const getContinuousVerticalPageMeasurement = useCallback(
-    (pageIndex: number): ContinuousVerticalPageMeasurement | null => {
-      const container = verticalScrollRef.current;
-      const node = pageRefs.current[pageIndex];
-      if (!container || !node) {
-        return null;
-      }
-
-      const rect = node.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-      const height = Math.max(Math.round(node.offsetHeight || 0), Math.round(rect.height || 0));
-      const width = Math.max(Math.round(node.offsetWidth || 0), Math.round(rect.width || 0));
-      if (height <= 0 || width <= 0 || container.clientHeight <= 0) {
-        return null;
-      }
-
-      return {
-        height,
-        rect,
-        targetScrollTop: getTopAlignedVerticalScrollTop({
-          container,
-          targetNode: node,
-          targetRect: rect,
-        }),
-        viewportHeight: container.clientHeight,
-        viewportOffsetTop: Math.round(containerRect.top),
-      };
-    },
-    [],
   );
 
   const markContinuousImageReadyStatus = useCallback(
@@ -4490,90 +4427,6 @@ const PublicProjectReaderContent = ({
           style={{ height: "0px" }}
         >
           {stageMenuOverlay}
-        </div>
-      </div>
-    );
-  };
-
-  const renderPurchaseCard = (pageIndex: number, className?: string, surfaceClassName?: string) => (
-    <div
-      key={`reader-page-node-${pageIndex}`}
-      ref={(node) => {
-        pageRefs.current[pageIndex] = node;
-      }}
-      data-testid={`reader-page-${pageIndex}`}
-      className={cn(PAGE_WRAPPER_BASE_CLASS, "w-full items-center", className)}
-    >
-      <div
-        data-testid={`reader-page-surface-${pageIndex}`}
-        className={cn(
-          "mx-auto flex w-full max-w-xl flex-col items-center justify-center rounded-3xl border px-6 py-10 text-center shadow-lg",
-          purchaseToneClassName,
-          surfaceClassName,
-        )}
-        style={viewportBoundedSurfaceStyle}
-      >
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary/80">
-          Prévia limitada
-        </p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-tight">A prévia termina aqui</h2>
-        <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
-          Este capítulo tem {originalPages.length} páginas no total e libera {accessiblePageCount}{" "}
-          na prévia.
-        </p>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-          {resolvedConfig.purchaseUrl ? (
-            <Button asChild className="rounded-full px-5">
-              <a href={String(resolvedConfig.purchaseUrl || "")} target="_blank" rel="noreferrer">
-                {resolvedConfig.purchasePrice
-                  ? `Comprar ${String(resolvedConfig.purchasePrice)}`
-                  : "Comprar e continuar"}
-              </a>
-            </Button>
-          ) : null}
-          <Button asChild variant="outline" className="rounded-full px-5">
-            <Link to={backHref}>Voltar ao projeto</Link>
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderImagePage = (
-    page: ReaderRenderablePage,
-    pageIndex: number,
-    className?: string,
-    surfaceClassName?: string,
-    imageFit = effectiveImageFit,
-  ) => {
-    if (page.type === "purchase" || page.isPurchasePage) {
-      return renderPurchaseCard(pageIndex, className, surfaceClassName);
-    }
-
-    const resolvedImageClassName = getImageClassName(imageFit);
-
-    return (
-      <div
-        key={`reader-image-node-${pageIndex}`}
-        ref={(node) => {
-          pageRefs.current[pageIndex] = node;
-        }}
-        data-testid={`reader-page-${pageIndex}`}
-        className={cn(PAGE_WRAPPER_BASE_CLASS, getPageWrapperClassName(imageFit), className)}
-      >
-        <div
-          data-testid={`reader-page-surface-${pageIndex}`}
-          className={cn(getPageSurfaceClassName(imageFit), surfaceClassName)}
-          style={viewportBoundedSurfaceStyle}
-        >
-          <img
-            src={page.imageUrl || ""}
-            alt={`Página ${pageIndex + 1}`}
-            loading={pageIndex < 2 ? "eager" : "lazy"}
-            decoding="async"
-            className={resolvedImageClassName}
-            draggable={false}
-          />
         </div>
       </div>
     );

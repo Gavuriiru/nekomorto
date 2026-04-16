@@ -427,7 +427,6 @@ const ProjectPage = () => {
   const projectId = project?.id || "";
   const projectFallbackCardImage = project?.banner || project?.cover || "/placeholder.svg";
   const isManga = isMangaType(projectType);
-  const isLightNovel = isLightNovelType(projectType);
   const isChapterBased = isChapterBasedType(projectType);
   const canEditProject = useMemo(() => {
     return canManageProjectsAccess(currentUser);

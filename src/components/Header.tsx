@@ -36,8 +36,6 @@ type HeaderProps = {
   leading?: ReactNode;
   className?: string;
 };
-
-type CurrentUser = PublicBootstrapCurrentUser;
 type HeaderToastPayload = {
   title?: ReactNode;
   description?: ReactNode;

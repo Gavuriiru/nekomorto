@@ -31,7 +31,6 @@ export const registerUploadMetadataRoutes = (deps) => {
     getRequestIp,
     resolveIncomingUploadFocalState,
     resolveRequestUploadAccessScope,
-    resolveUploadVariantPresetKeysForArea,
     sanitizeSvg,
     sanitizeUploadFolder,
     sanitizeUploadSlot,

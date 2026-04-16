@@ -98,63 +98,6 @@ const measureEllipsizedLine = (text, maxWidth, fontSize, fontWeight) => {
   return "...";
 };
 
-const wrapTextLines = ({ text, maxWidth, fontSize, fontWeight, maxLines }) => {
-  const normalizedText = String(text || "")
-    .replace(/\r\n/g, "\n")
-    .trim();
-  if (!normalizedText) {
-    return [""];
-  }
-
-  const paragraphs = normalizedText.split("\n");
-  const lines = [];
-
-  paragraphs.forEach((paragraph) => {
-    const words = paragraph.trim().split(/\s+/).filter(Boolean);
-    if (words.length === 0) {
-      lines.push("");
-      return;
-    }
-
-    let currentLine = "";
-    words.forEach((word) => {
-      const nextLine = currentLine ? `${currentLine} ${word}` : word;
-      const nextWidth = measureTextWidth({
-        text: nextLine,
-        fontSize,
-        fontWeight,
-      });
-
-      if (!currentLine || nextWidth <= maxWidth) {
-        currentLine = nextLine;
-        return;
-      }
-
-      lines.push(currentLine);
-      currentLine = word;
-    });
-
-    if (currentLine) {
-      lines.push(currentLine);
-    }
-  });
-
-  const safeMaxLines = Math.max(1, Math.floor(Number(maxLines) || 1));
-  if (lines.length <= safeMaxLines) {
-    return lines;
-  }
-
-  const trimmed = lines.slice(0, safeMaxLines);
-  const overflowRemainder = lines.slice(safeMaxLines - 1).join(" ");
-  trimmed[safeMaxLines - 1] = measureEllipsizedLine(
-    overflowRemainder,
-    maxWidth,
-    fontSize,
-    fontWeight,
-  );
-  return trimmed;
-};
-
 const getPanelDiagonalSegment = (layout = DEFAULT_PROJECT_OG_LAYOUT) => {
   const points = parseProjectOgPolygonPoints(layout.panelPoints);
   if (points.length >= 3) {

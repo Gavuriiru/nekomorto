@@ -231,9 +231,7 @@ const DashboardPosts = () => {
     hasLoadedOnce,
     hasResolvedPosts,
     hasResolvedProjects,
-    hasResolvedTagTranslations,
     hasResolvedUsers,
-    isInitialLoading,
     isRefreshing,
     loadPosts,
     mediaVariants,
@@ -242,8 +240,6 @@ const DashboardPosts = () => {
     refreshPosts,
     setMediaVariants,
     setPosts,
-    setProjects,
-    setTagTranslations,
     tagTranslations,
   } = useDashboardPostsResource(apiBase);
   const { currentUser, isLoadingUser } = useDashboardCurrentUser();

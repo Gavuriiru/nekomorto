@@ -626,7 +626,6 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
   const apiBase = getApiBase();
   const { settings } = useSiteSettings();
   const location = useLocation();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialAutosaveEnabledRef = useRef(
     autosaveRuntimeConfig.enabledByDefault &&
@@ -3256,8 +3255,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
 
 const DashboardPages = () => {
   usePageMeta({ title: "Páginas", noIndex: true });
-  const navigate = useNavigate();
   const { currentUser, isLoadingUser } = useDashboardCurrentUser();
+  const navigate = useNavigate();
   const handleUserCardClick = useCallback(() => {
     navigate("/dashboard/usuarios?edit=me");
   }, [navigate]);

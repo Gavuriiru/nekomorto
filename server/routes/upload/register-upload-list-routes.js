@@ -10,7 +10,6 @@ import { normalizeUploadUrl } from "../../lib/uploads-reorganizer.js";
 export const registerUploadListingRoutes = (deps) => {
   const {
     app,
-    canManageUploads,
     createSlug,
     getUploadMimeFromExtension,
     isUploadFolderAllowedInScope,

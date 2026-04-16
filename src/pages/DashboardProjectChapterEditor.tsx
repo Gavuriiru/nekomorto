@@ -487,15 +487,6 @@ const DashboardProjectChapterEditor = () => {
     },
     [],
   );
-
-  const ensureVolumeDraftSelection = useCallback(
-    (volume: number | null) => {
-      const nextSelection = ensureProjectVolumeEntryDraft(volumeEntriesDraft, volume);
-      setVolumeEntriesDraft(nextSelection.entries);
-      setSelectedVolume(nextSelection.selectedVolume);
-    },
-    [volumeEntriesDraft],
-  );
   const selectVolumeFromStage = useCallback((volume: number | null) => {
     const normalizedVolume =
       Number.isFinite(Number(volume)) && Number(volume) > 0 ? Math.floor(Number(volume)) : null;

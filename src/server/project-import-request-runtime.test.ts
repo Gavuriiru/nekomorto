@@ -100,7 +100,6 @@ describe("project-import-request-runtime", () => {
 
   it("routes multipart parser errors through stable mappers", () => {
     const deps = createDeps();
-    const runtime = createProjectImportRequestRuntime(deps);
     const req = {
       headers: {
         "content-type": "multipart/form-data",

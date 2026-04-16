@@ -282,7 +282,7 @@ export const registerAuthRoutes = ({
         metricsRegistry.inc("auth_login_total", { status: "failed" });
         handleAuthFailureSecuritySignals({ req, error: "token_exchange_failed" });
         let discordErrorText = 'unknown';
-        try { discordErrorText = await tokenResponse.text(); } catch(e){}
+        try { discordErrorText = await tokenResponse.text(); } catch{}
         appendAuditLog(req, "auth.login.failed", "auth", { error: "token_exchange_failed", discordError: discordErrorText, redirectUri: redirectUri });
         return res.redirect(
           buildAuthRedirectUrl({

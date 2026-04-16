@@ -50,7 +50,6 @@ export const createOperationalMonitoringRuntime = (dependencies = {}) => {
     fsAccess,
     fsConstants,
     isMaintenanceMode,
-    isProduction,
     prisma,
     publicUploadsDir,
     rateLimiter,
