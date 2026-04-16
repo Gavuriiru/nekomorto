@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Suporte e Comunidade (Discord)
+    url: https://discord.gg/BAHKhdX2ju
+    about: Entre no nosso servidor do Discord para conversar com a comunidade e tirar dúvidas rápidas.
+  - name: Reportar Segurança
+    url: https://github.com/NekomataSub/nekomorto/security/advisories/new
+    about: Se você encontrar uma vulnerabilidade de segurança, por favor, use este canal privado.
