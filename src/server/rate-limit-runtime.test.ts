@@ -66,9 +66,12 @@ describe("rate-limit-runtime", () => {
     });
 
     await runtime.canAttemptAuth("127.0.0.1");
+    await runtime.canVerifyMfa("127.0.0.1");
+    await runtime.canManageMfa("127.0.0.1");
     await runtime.canBootstrap("127.0.0.1");
     await runtime.canUploadImage("127.0.0.1");
     await runtime.canRegisterPollVote("127.0.0.1");
+    await runtime.canReadPublicAsset("127.0.0.1");
 
     expect(rateLimiter.consume).toHaveBeenNthCalledWith(1, {
       bucket: "auth_attempt",
@@ -77,21 +80,39 @@ describe("rate-limit-runtime", () => {
       windowMs: 60000,
     });
     expect(rateLimiter.consume).toHaveBeenNthCalledWith(2, {
+      bucket: "mfa_verify",
+      key: "127.0.0.1",
+      limit: 10,
+      windowMs: 60000,
+    });
+    expect(rateLimiter.consume).toHaveBeenNthCalledWith(3, {
+      bucket: "mfa_manage",
+      key: "127.0.0.1",
+      limit: 10,
+      windowMs: 60000,
+    });
+    expect(rateLimiter.consume).toHaveBeenNthCalledWith(4, {
       bucket: "bootstrap_owner",
       key: "127.0.0.1",
       limit: 5,
       windowMs: 60000,
     });
-    expect(rateLimiter.consume).toHaveBeenNthCalledWith(3, {
+    expect(rateLimiter.consume).toHaveBeenNthCalledWith(5, {
       bucket: "upload_image",
       key: "127.0.0.1",
       limit: 20,
       windowMs: 60000,
     });
-    expect(rateLimiter.consume).toHaveBeenNthCalledWith(4, {
+    expect(rateLimiter.consume).toHaveBeenNthCalledWith(6, {
       bucket: "poll_vote",
       key: "127.0.0.1",
       limit: 20,
+      windowMs: 60000,
+    });
+    expect(rateLimiter.consume).toHaveBeenNthCalledWith(7, {
+      bucket: "public_asset_read",
+      key: "127.0.0.1",
+      limit: 600,
       windowMs: 60000,
     });
   });

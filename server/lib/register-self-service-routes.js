@@ -8,11 +8,13 @@ export const registerSelfServiceRoutes = ({
   app,
   appendAuditLog,
   buildMySecuritySummary,
+  canManageMfa,
   clearEnrollmentFromSession,
   dataEncryptionKeyring,
   deleteUserMfaTotpRecord,
   encryptStringWithKeyring,
   generateRecoveryCodes,
+  getRequestIp,
   handleMfaFailureSecuritySignals,
   hashRecoveryCode,
   isPlainObject,
@@ -35,6 +37,15 @@ export const registerSelfServiceRoutes = ({
   writeUserPreferences,
 }) => {
   const router = Router();
+
+  const rejectMfaRateLimited = (req, res, userId, action) => {
+    metricsRegistry.inc("auth_mfa_verify_total", { status: "rate_limited" });
+    appendAuditLog(req, "auth.mfa.rate_limited", "auth", {
+      userId,
+      action,
+    });
+    return res.status(429).json({ error: "rate_limited" });
+  };
 
   router.get("/api/me/preferences", requireAuth, (req, res) => {
     setNoStore(res);
@@ -119,11 +130,16 @@ export const registerSelfServiceRoutes = ({
     });
   });
 
-  router.post("/api/me/security/totp/enroll/confirm", requireAuth, (req, res) => {
+  router.post("/api/me/security/totp/enroll/confirm", requireAuth, async (req, res) => {
     setNoStore(res);
     const userId = String(req.session?.user?.id || "").trim();
     if (!userId) {
       return res.status(401).json({ error: "unauthorized" });
+    }
+    const ip = getRequestIp(req);
+    // The limiter intentionally runs before code validation to slow brute force attempts.
+    if (!(await canManageMfa(ip))) {
+      return rejectMfaRateLimited(req, res, userId, "enroll_confirm");
     }
     const enrollmentToken = String(req.body?.enrollmentToken || req.body?.token || "").trim();
     const code = String(req.body?.code || req.body?.codeOrRecoveryCode || "")
@@ -182,11 +198,15 @@ export const registerSelfServiceRoutes = ({
     });
   });
 
-  router.post("/api/me/security/totp/disable", requireAuth, (req, res) => {
+  router.post("/api/me/security/totp/disable", requireAuth, async (req, res) => {
     setNoStore(res);
     const userId = String(req.session?.user?.id || "").trim();
     if (!userId) {
       return res.status(401).json({ error: "unauthorized" });
+    }
+    const ip = getRequestIp(req);
+    if (!(await canManageMfa(ip))) {
+      return rejectMfaRateLimited(req, res, userId, "disable");
     }
     if (!isTotpEnabledForUser(userId)) {
       return res.status(409).json({ error: "totp_not_enabled" });

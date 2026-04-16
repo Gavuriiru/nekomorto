@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  parseSafeUrlValue,
   sanitizeAssetUrl,
   sanitizeFavoriteWorksByCategory,
   sanitizeIconSource,
+  sanitizeLocalAssetHref,
   sanitizePublicHref,
   sanitizeSocials,
 } from "../../server/lib/url-safety.js";
@@ -29,6 +31,13 @@ describe("server url-safety", () => {
     expect(sanitizeAssetUrl("data:image/svg+xml;base64,xxx")).toBeNull();
   });
 
+  it("blocks mixed-case protocols and encoded control characters in URLs", () => {
+    expect(sanitizePublicHref(" JaVaScRiPt:alert(1) ")).toBeNull();
+    expect(sanitizePublicHref("java%0ascript:alert(1)")).toBeNull();
+    expect(sanitizeAssetUrl("https://cdn.exemplo.com/%0aevil.svg")).toBeNull();
+    expect(sanitizePublicHref("HTTPS://Example.com/Path")).toBe("https://example.com/Path");
+  });
+
   it("sanitizeIconSource accepts only icon key, https or /uploads", () => {
     expect(sanitizeIconSource("instagram")).toBe("instagram");
     expect(sanitizeIconSource("InStaGram")).toBe("instagram");
@@ -38,6 +47,27 @@ describe("server url-safety", () => {
     expect(sanitizeIconSource("/uploads/socials/icon.svg")).toBe("/uploads/socials/icon.svg");
     expect(sanitizeIconSource("http://cdn.exemplo.com/icon.svg")).toBeNull();
     expect(sanitizeIconSource("data:image/svg+xml,<svg/>")).toBeNull();
+  });
+
+  it("normalizes local asset hrefs with parsing instead of string includes", () => {
+    expect(sanitizeLocalAssetHref("/assets/app.css")).toBe("/assets/app.css");
+    expect(
+      sanitizeLocalAssetHref("/fonts/inter/InterLatin.woff2", {
+        allowedPrefixes: ["/assets/", "/fonts/"],
+      }),
+    ).toBe("/fonts/inter/InterLatin.woff2");
+    expect(sanitizeLocalAssetHref("//evil.example.com/assets/app.css")).toBeNull();
+    expect(sanitizeLocalAssetHref("/assets/%0aapp.css")).toBeNull();
+  });
+
+  it("parses only safe URL values when a base URL is provided", () => {
+    expect(parseSafeUrlValue("/uploads/a.svg", { baseUrl: "https://example.com" })?.toString()).toBe(
+      "https://example.com/uploads/a.svg",
+    );
+    expect(parseSafeUrlValue("#chapter-1", { baseUrl: "https://example.com/book" })?.toString()).toBe(
+      "https://example.com/book#chapter-1",
+    );
+    expect(parseSafeUrlValue("data:text/html,boom", { baseUrl: "https://example.com" })).toBeNull();
   });
 
   it("sanitizeSocials removes invalid/duplicate entries", () => {

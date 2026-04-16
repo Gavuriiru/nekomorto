@@ -32,6 +32,7 @@ import {
   $createAutocompleteNode,
   AutocompleteNode,
 } from '../../nodes/AutocompleteNode';
+import {createRandomId} from '../../../lib/random-id';
 import {addSwipeRightListener} from '../../utils/swipe';
 
 const HISTORY_MERGE = {tag: HISTORY_MERGE_TAG};
@@ -49,10 +50,7 @@ type SearchPromise = {
   promise: Promise<null | string>;
 };
 
-export const uuid = Math.random()
-  .toString(36)
-  .replace(/[^a-z]+/g, '')
-  .substring(0, 5);
+export const uuid = createRandomId('autocomplete');
 
 // TODO lookup should be custom
 function $search(selection: null | BaseSelection): [boolean, string] {

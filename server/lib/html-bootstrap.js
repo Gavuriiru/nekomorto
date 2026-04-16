@@ -1,3 +1,5 @@
+import { sanitizeLocalAssetHref } from "./url-safety.js";
+
 const escapeHtmlAttribute = (value) =>
   String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -34,17 +36,7 @@ const readHtmlAttributeValue = (tag, attributeName) => {
 };
 
 const isLocalStylesheetHref = (href) => {
-  const value = String(href || "").trim();
-  if (!value) {
-    return false;
-  }
-  if (/^(?:[a-z]+:)?\/\//i.test(value)) {
-    return false;
-  }
-  if (value.startsWith("data:") || value.startsWith("javascript:")) {
-    return false;
-  }
-  return value.startsWith("/assets/") || value.startsWith("assets/");
+  return Boolean(sanitizeLocalAssetHref(href, { allowedPrefixes: ["/assets/"] }));
 };
 
 export const extractLocalStylesheetHrefs = (html) => {
@@ -57,8 +49,10 @@ export const extractLocalStylesheetHrefs = (html) => {
     if (!rel.includes("stylesheet")) {
       return;
     }
-    const href = readHtmlAttributeValue(tag, "href");
-    if (!isLocalStylesheetHref(href) || seen.has(href)) {
+    const href = sanitizeLocalAssetHref(readHtmlAttributeValue(tag, "href"), {
+      allowedPrefixes: ["/assets/"],
+    });
+    if (!href || !isLocalStylesheetHref(href) || seen.has(href)) {
       return;
     }
     seen.add(href);

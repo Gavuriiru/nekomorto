@@ -71,13 +71,28 @@ describe("upload-runtime-helpers", () => {
 
   it("sanitizes dangerous svg payloads", () => {
     const sanitized = sanitizeSvg(
-      '<svg onload="evil()"><script>alert(1)</script><a href="javascript:evil()"></a><use href="#ok" /></svg>',
+      [
+        '<svg onload="evil()">',
+        "<script>alert(1)</script>",
+        "<foreignObject><iframe src=\"https://evil.test\"></iframe></foreignObject>",
+        '<a href="jav&#x61;script:evil()"></a>',
+        '<use href="#ok" />',
+        '<use xlink:href="#shape" />',
+        '<image href="/uploads/safe.svg" />',
+        '<image xlink:href="JaVaScRiPt:evil()" />',
+        '<image href="data:image/svg+xml;base64,PHN2Zz4=" />',
+        "</svg>",
+      ].join(""),
     );
 
     expect(sanitized).not.toContain("script");
+    expect(sanitized).not.toContain("foreignObject");
     expect(sanitized).not.toContain("onload=");
     expect(sanitized).not.toContain("javascript:");
+    expect(sanitized).not.toContain("data:image");
     expect(sanitized).toContain('href="#ok"');
+    expect(sanitized).toContain('href="#shape"');
+    expect(sanitized).toContain('href="/uploads/safe.svg"');
   });
 
   it("validates raster dimensions consistently", () => {

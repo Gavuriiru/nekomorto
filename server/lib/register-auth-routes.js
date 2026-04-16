@@ -6,6 +6,7 @@ export const registerAuthRoutes = ({
   appendAuditLog,
   buildAuthRedirectUrl,
   canAttemptAuth,
+  canVerifyMfa,
   createDiscordAvatarUrl,
   discordApi,
   discordClientId,
@@ -339,6 +340,15 @@ export const registerAuthRoutes = ({
   router.post("/api/auth/mfa/verify", requirePendingMfaSession, async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     const pendingUser = req.session?.pendingMfaUser || null;
+    const ip = getRequestIp(req);
+    if (!(await canVerifyMfa(ip))) {
+      metricsRegistry.inc("auth_mfa_verify_total", { status: "rate_limited" });
+      appendAuditLog(req, "auth.mfa.rate_limited", "auth", {
+        userId: pendingUser?.id || null,
+        action: "verify",
+      });
+      return res.status(429).json({ error: "rate_limited" });
+    }
 
     const codeOrRecoveryCode = String(req.body?.codeOrRecoveryCode || req.body?.code || "").trim();
     if (!codeOrRecoveryCode) {
@@ -422,7 +432,8 @@ export const registerAuthRoutes = ({
       sessionIndexTouchTsBySid.delete(currentSid);
     }
     req.session?.destroy(() => undefined);
-    res.clearCookie(sessionCookieConfig.name, { path: "/" });
+    const { maxAge: _maxAge, expires: _expires, ...clearCookieOptions } = sessionCookieConfig.cookie;
+    res.clearCookie(sessionCookieConfig.name, clearCookieOptions);
     return res.json({ ok: true });
   });
 

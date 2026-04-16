@@ -53,7 +53,7 @@ export const buildSessionCookieConfig = ({
     cookie: {
       httpOnly: true,
       sameSite: "lax",
-      secure: isProduction ? true : "auto",
+      secure: true,
       path: "/",
       maxAge: maxAgeMs,
       priority: "high",

@@ -1,4 +1,5 @@
 import { deriveAniListMediaOrganization } from "@/lib/anilist-media";
+import { extractPlainTextFromHtml } from "@/lib/html-text";
 import { translateRelation } from "@/lib/project-taxonomy";
 
 import { normalizeUniqueStringList } from "./project-editor-form";
@@ -67,16 +68,7 @@ const formatType = (format?: string | null) => {
   }
 };
 
-const stripHtml = (value?: string | null) => {
-  if (!value) {
-    return "";
-  }
-  return value
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]*>/g, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-};
+const stripHtml = (value?: string | null) => extractPlainTextFromHtml(value, { preserveLineBreaks: true });
 
 type BuildProjectFormPatchFromAniListArgs = {
   media: AniListMedia;

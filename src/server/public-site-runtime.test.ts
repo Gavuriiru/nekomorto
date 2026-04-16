@@ -1,3 +1,4 @@
+import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -105,7 +106,14 @@ const createDeps = (overrides = {}) => ({
       ? { href: "/uploads/team-1.png", as: "image" }
       : null,
   sitemapStaticPublicPaths: ["/", "/projetos"],
-  stripHtml: (value) => String(value || "").replace(/<[^>]+>/g, ""),
+  stripHtml: (value) => {
+    const dom = new JSDOM(`<body>${String(value || "")}</body>`);
+    try {
+      return String(dom.window.document.body.textContent || "");
+    } finally {
+      dom.window.close();
+    }
+  },
   ...overrides,
 });
 

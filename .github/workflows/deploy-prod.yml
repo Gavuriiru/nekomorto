@@ -115,6 +115,9 @@ jobs:
       - quality
       - build_and_push
     if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.build_and_push.result == 'success' || needs.build_and_push.result == 'skipped') }}
+    permissions:
+      contents: read
+      packages: read
     uses: ./.github/workflows/deploy-prod-reusable.yml
     secrets: inherit
     with:

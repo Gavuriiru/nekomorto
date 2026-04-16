@@ -104,6 +104,7 @@ export const buildPwaManifestPayload = ({
 export const registerRuntimeMiddleware = ({
   app,
   apiContractVersion,
+  canReadPublicAsset,
   clientDistDir,
   clientRootDir,
   getRequestIp,
@@ -131,6 +132,56 @@ export const registerRuntimeMiddleware = ({
   uploadStorageService,
   viteDevServer,
 }) => {
+  const PUBLIC_ASSET_METHODS = new Set(["GET", "HEAD"]);
+
+  const rejectRateLimitedAssetRead = (res) => {
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(429).json({ error: "rate_limited" });
+  };
+
+  const canServePublicAsset = async (req, res) => {
+    if (typeof canReadPublicAsset !== "function") {
+      return true;
+    }
+    const allowed = await canReadPublicAsset(getRequestIp(req));
+    if (allowed) {
+      return true;
+    }
+    rejectRateLimitedAssetRead(res);
+    return false;
+  };
+
+  const isPublicAssetReadRequest = (req) => {
+    const requestPath = String(req?.path || "").trim();
+    if (!requestPath) {
+      return false;
+    }
+    if (requestPath === "/manifest.webmanifest" || requestPath.startsWith("/uploads/")) {
+      return true;
+    }
+    return Boolean(
+      resolvePwaCriticalAssetPath({
+        clientDistDir,
+        requestPath,
+      }) ||
+        resolveClientStaticAssetPath({
+          clientDistDir,
+          requestPath,
+        }),
+    );
+  };
+
+  const enforcePublicAssetReadRateLimit = async (req, res, next) => {
+    const method = String(req.method || "").toUpperCase();
+    if (!PUBLIC_ASSET_METHODS.has(method) || !isPublicAssetReadRequest(req)) {
+      return next();
+    }
+    if (!(await canServePublicAsset(req, res))) {
+      return undefined;
+    }
+    return next();
+  };
+
   app.use((req, res, next) => {
     if (!isProduction) {
       return next();
@@ -194,7 +245,10 @@ export const registerRuntimeMiddleware = ({
       resave: false,
       saveUninitialized: false,
       store: sessionStore,
-      cookie: sessionCookieConfig.cookie,
+      cookie: {
+        ...sessionCookieConfig.cookie,
+        secure: true,
+      },
     }),
   );
 
@@ -358,7 +412,7 @@ export const registerRuntimeMiddleware = ({
     return next();
   });
 
-  app.get("/manifest.webmanifest", (_req, res) => {
+  app.get("/manifest.webmanifest", enforcePublicAssetReadRateLimit, (_req, res) => {
     if (!isProduction && !isPwaDevEnabled) {
       return res.status(404).json({ error: "pwa_asset_unavailable_in_dev" });
     }
@@ -377,12 +431,15 @@ export const registerRuntimeMiddleware = ({
   app.use("/uploads/_quarantine", (_req, res) => res.status(404).end());
   app.use(
     createUploadsDeliveryMiddleware({
+      canReadPublicAsset,
+      getRequestIp,
       uploadsDir: uploadsPublicDir,
       loadUploads,
       storageService: uploadStorageService,
       defaultCacheControl: staticDefaultCacheControl,
     }),
   );
+  app.use("/uploads", enforcePublicAssetReadRateLimit);
   app.use(
     "/uploads",
     express.static(uploadsPublicDir, {
@@ -392,13 +449,14 @@ export const registerRuntimeMiddleware = ({
     }),
   );
   if (isProduction) {
+    app.use(enforcePublicAssetReadRateLimit);
     app.use(
       express.static(clientDistDir, {
         index: false,
         setHeaders: setStaticCacheHeaders,
       }),
     );
-    app.use((req, res, next) => {
+    app.use(async (req, res, next) => {
       const method = String(req.method || "").toUpperCase();
       if (method !== "GET" && method !== "HEAD") {
         return next();
@@ -410,12 +468,15 @@ export const registerRuntimeMiddleware = ({
       if (!assetPath) {
         return next();
       }
+      if (!(await canServePublicAsset(req, res))) {
+        return undefined;
+      }
       if (fs.existsSync(assetPath)) {
         return next();
       }
       return res.status(404).json({ error: "pwa_asset_not_found" });
     });
-    app.use((req, res, next) => {
+    app.use(async (req, res, next) => {
       const method = String(req.method || "").toUpperCase();
       if (method !== "GET" && method !== "HEAD") {
         return next();
@@ -426,6 +487,9 @@ export const registerRuntimeMiddleware = ({
       });
       if (!assetPath) {
         return next();
+      }
+      if (!(await canServePublicAsset(req, res))) {
+        return undefined;
       }
       if (fs.existsSync(assetPath)) {
         return next();

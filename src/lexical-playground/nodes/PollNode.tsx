@@ -23,6 +23,7 @@ import {
   type StateValueOrUpdater,
 } from 'lexical';
 import * as React from 'react';
+import {createRandomId} from '../../lib/random-id';
 
 export type Options = ReadonlyArray<Option>;
 
@@ -35,10 +36,7 @@ export type Option = Readonly<{
 const PollComponent = React.lazy(() => import('./PollComponent'));
 
 function createUID(): string {
-  return Math.random()
-    .toString(36)
-    .replace(/[^a-z]+/g, '')
-    .substring(0, 5);
+  return createRandomId('poll-option');
 }
 
 export function createPollOption(text = ''): Option {

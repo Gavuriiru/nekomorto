@@ -15,6 +15,7 @@ import {
   type StateValueOrUpdater,
   DecoratorNode,
 } from "lexical";
+import { createRandomId } from "@/lib/random-id";
 
 const ViewerPollComponent = React.lazy(() => import("./ViewerPollComponent"));
 
@@ -34,11 +35,7 @@ export type SerializedViewerPollNode = Spread<
   SerializedLexicalNode
 >;
 
-const createUID = () =>
-  Math.random()
-    .toString(36)
-    .replace(/[^a-z]+/g, "")
-    .substring(0, 5);
+const createUID = () => createRandomId("viewer-poll-option");
 
 export const createViewerPollOption = (text = ""): ViewerPollOption => ({
   text,

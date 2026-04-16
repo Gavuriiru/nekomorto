@@ -31,7 +31,14 @@ const createDeps = (overrides = {}) => {
     createRevisionToken: (payload) => `revision:${payload.id}:${payload.avatarRenderVersion}`,
     ensureOwnerUser: vi.fn(),
     enforceUserAccessInvariants: (nextUsers) => nextUsers,
-    isDiscordAvatarUrl: (value) => String(value || "").includes("cdn.discordapp.com"),
+    isDiscordAvatarUrl: (value) => {
+      try {
+        const parsed = new URL(String(value || "").trim());
+        return /^https?:$/i.test(parsed.protocol) && parsed.hostname === "cdn.discordapp.com";
+      } catch {
+        return false;
+      }
+    },
     isOwner: (userId) => String(userId) === "owner-1",
     isRbacV2AcceptLegacyStar: true,
     isRbacV2Enabled: false,

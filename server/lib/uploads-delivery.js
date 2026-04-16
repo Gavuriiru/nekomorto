@@ -44,6 +44,8 @@ const findUploadEntryForUrl = (uploads, normalizedUrl) => {
 };
 
 export const createUploadsDeliveryMiddleware = ({
+  canReadPublicAsset,
+  getRequestIp = () => "",
   uploadsDir,
   loadUploads,
   storageService,
@@ -64,6 +66,10 @@ export const createUploadsDeliveryMiddleware = ({
     }
     if (normalizedUrl.startsWith("/uploads/_quarantine/")) {
       return res.status(404).end();
+    }
+    if (typeof canReadPublicAsset === "function" && !(await canReadPublicAsset(getRequestIp(req)))) {
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(429).json({ error: "rate_limited" });
     }
 
     const uploads = typeof loadUploads === "function" ? loadUploads() : [];

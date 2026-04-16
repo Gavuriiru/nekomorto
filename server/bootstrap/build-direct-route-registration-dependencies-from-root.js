@@ -21,6 +21,8 @@ export const buildDirectRouteRegistrationDependenciesFromRoot = (dependencies = 
     buildRuntimeMetadata: dependencies.buildRuntimeMetadata,
     buildUserPayload: dependencies.buildUserPayload,
     canAttemptAuth: dependencies.canAttemptAuth,
+    canManageMfa: dependencies.canManageMfa,
+    canVerifyMfa: dependencies.canVerifyMfa,
     clearEnrollmentFromSession: dependencies.clearEnrollmentFromSession,
     createDiscordAvatarUrl: dependencies.createDiscordAvatarUrl,
     dataEncryptionKeyring: dependencies.dataEncryptionKeyring,

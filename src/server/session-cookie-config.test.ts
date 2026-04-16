@@ -6,7 +6,7 @@ import {
 } from "../../server/lib/session-cookie-config.js";
 
 describe("session-cookie-config", () => {
-  it("mantem nome simples em dev e secure auto", () => {
+  it("mantem nome simples em dev e secure sempre habilitado", () => {
     const config = buildSessionCookieConfig({
       isProduction: false,
       cookieBaseName: "rainbow.sid",
@@ -14,7 +14,7 @@ describe("session-cookie-config", () => {
     });
 
     expect(config.name).toBe("rainbow.sid");
-    expect(config.cookie.secure).toBe("auto");
+    expect(config.cookie.secure).toBe(true);
     expect(config.cookie.path).toBe("/");
     expect(config.usesDefaultSecretInProduction).toBe(false);
     expect(config.secret).toEqual(["dev-session-secret"]);

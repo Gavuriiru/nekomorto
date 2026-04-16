@@ -97,6 +97,7 @@ import { createJobQueue } from "./lib/job-queue.js";
 import { truncateMetaDescription } from "./lib/meta-description.js";
 import { createMetricsRegistry } from "./lib/metrics.js";
 import { createOgRenderCache } from "./lib/og-render-cache.js";
+import { createRateLimitRuntime } from "./lib/rate-limit-runtime.js";
 import {
   buildInstitutionalOgDeliveryHeaders,
   buildInstitutionalOgRevisionValue,
@@ -829,6 +830,11 @@ const rateLimiter = createRateLimiter({
     );
   },
 });
+const runtimeRateLimit = createRateLimitRuntime({
+  isProduction,
+  metricsRegistry,
+  rateLimiter,
+});
 const idempotencyStore = createIdempotencyStore({
   ttlMs: IDEMPOTENCY_TTL_MS,
   maxEntries: 5000,
@@ -988,6 +994,7 @@ if (isProduction && !OWNER_IDS.length && !BOOTSTRAP_TOKEN) {
 registerRuntimeMiddleware({
   app,
   apiContractVersion: API_CONTRACT_VERSION,
+  canReadPublicAsset: runtimeRateLimit.canReadPublicAsset,
   clientDistDir,
   clientRootDir,
   getRequestIp,
@@ -1220,9 +1227,11 @@ const {
   buildManagedStorageAreaSummary,
   buildPublicMediaVariants,
   canAttemptAuth,
+  canManageMfa,
   canBootstrap,
   canRegisterPollVote,
   canRegisterView,
+  canVerifyMfa,
   canSubmitComment,
   canUploadImage,
   collectDownloadIconUploads,

@@ -1,3 +1,5 @@
+import { sanitizeSvg as sanitizeSvgMarkup } from "./html-safety.js";
+
 export const MAX_SVG_SIZE_BYTES = 256 * 1024;
 export const MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024;
 export const MAX_UPLOAD_IMAGE_DIMENSION = 8192;
@@ -380,26 +382,4 @@ export const validateUploadImageBuffer = (buffer, requestedMime, options = {}) =
   };
 };
 
-export const sanitizeSvg = (value) => {
-  if (!value) {
-    return "";
-  }
-  let output = String(value);
-  output = output.replace(/<\s*script[^>]*>[\s\S]*?<\s*\/\s*script\s*>/gi, "");
-  output = output.replace(/<\s*foreignObject[^>]*>[\s\S]*?<\s*\/\s*foreignObject\s*>/gi, "");
-  output = output.replace(/<\s*(iframe|object|embed)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "");
-  output = output.replace(/\son\w+\s*=\s*(["']).*?\1/gi, "");
-  output = output.replace(/javascript:/gi, "");
-  output = output.replace(/data:(?!image\/(png|jpe?g|gif|webp);base64)/gi, "");
-  output = output.replace(
-    /(href|xlink:href|src)\s*=\s*(["'])(.*?)\2/gi,
-    (_match, attr, quote, url) => {
-      const safe = String(url || "");
-      if (safe.startsWith("#") || safe.startsWith("/")) {
-        return `${attr}=${quote}${safe}${quote}`;
-      }
-      return "";
-    },
-  );
-  return output;
-};
+export const sanitizeSvg = (value) => sanitizeSvgMarkup(value);

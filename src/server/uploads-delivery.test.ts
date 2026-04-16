@@ -42,6 +42,12 @@ class MockResponse extends Writable {
     return this;
   }
 
+  json(payload: unknown) {
+    this.setHeader("content-type", "application/json; charset=utf-8");
+    this.end(JSON.stringify(payload));
+    return this;
+  }
+
   sendFile(targetPath: string) {
     this.sentFilePath = targetPath;
     this.end();
@@ -180,5 +186,30 @@ describe("createUploadsDeliveryMiddleware", () => {
     expect(next).toHaveBeenCalledTimes(1);
     expect(res.sentFilePath).toBeNull();
     expect(res.bodyText).toBe("");
+  });
+
+  it("retorna 429 quando a leitura publica excede o limite", async () => {
+    const uploadsDir = createTempUploadsDir();
+    const middleware = createUploadsDeliveryMiddleware({
+      canReadPublicAsset: vi.fn(async () => false),
+      getRequestIp: vi.fn(() => "198.51.100.7"),
+      uploadsDir,
+      loadUploads: () => [],
+      storageService: {},
+    });
+    const req = {
+      method: "GET",
+      originalUrl: "/uploads/posts/limited.png",
+    };
+    const res = new MockResponse();
+    const next = vi.fn();
+
+    await middleware(req, res, next);
+    await waitForResponseFinish(res);
+
+    expect(res.statusCode).toBe(429);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(res.bodyText).toBe(JSON.stringify({ error: "rate_limited" }));
+    expect(next).not.toHaveBeenCalled();
   });
 });

@@ -3,6 +3,7 @@ import path from "path";
 import { JSDOM } from "jsdom";
 import EPub from "epub";
 import sanitizeHtml from "sanitize-html";
+import { parseSafeUrlValue } from "./url-safety.js";
 import { buildEpisodeKey, getEpisodePublicationStatus } from "./project-episodes.js";
 import { findVolumeCoverByVolume } from "./project-volume-covers.js";
 import { htmlToLexicalJson } from "./lexical-html.js";
@@ -322,11 +323,16 @@ const resolveRelativeEpubHref = (baseHref, targetHref) => {
 
 const normalizeEpubAssetHref = (value, currentDocumentHref) => {
   const raw = String(value || "").trim();
-  if (!raw || raw.startsWith("data:") || raw.startsWith("javascript:")) {
+  if (!raw) {
     return "";
   }
-  if (/^https?:\/\//i.test(raw)) {
-    return raw;
+  const parsed = parseSafeUrlValue(raw, { baseUrl: EPUB_RUNTIME_BASE_URL });
+  if (!parsed) {
+    return "";
+  }
+  if (parsed.origin !== new URL(EPUB_RUNTIME_BASE_URL).origin) {
+    const protocol = String(parsed.protocol || "").toLowerCase();
+    return protocol === "http:" || protocol === "https:" ? parsed.toString() : "";
   }
   return resolveRelativeEpubHref(currentDocumentHref, raw);
 };
@@ -368,7 +374,14 @@ const buildEpubInternalChapterHref = ({ chapterNumber, volume, fragment } = {}) 
   return `epub-internal://chapter/${Math.floor(parsedChapterNumber)}${search ? `?${search}` : ""}${hash}`;
 };
 
-const isExternalReadableHref = (value) => /^(?:https?:|mailto:)/i.test(String(value || "").trim());
+const isExternalReadableHref = (value) => {
+  const parsed = parseSafeUrlValue(value);
+  if (!parsed) {
+    return false;
+  }
+  const protocol = String(parsed.protocol || "").toLowerCase();
+  return protocol === "http:" || protocol === "https:" || protocol === "mailto:";
+};
 
 const resolveEpubInternalLinkTarget = ({ href, currentDocumentHref } = {}) => {
   const rawHref = String(href || "").trim();
@@ -390,7 +403,7 @@ const resolveEpubInternalLinkTarget = ({ href, currentDocumentHref } = {}) => {
         }
       : null;
   }
-  if (/^https?:\/\//i.test(resolvedDocumentHref)) {
+  if (isExternalReadableHref(resolvedDocumentHref)) {
     return null;
   }
   return {
@@ -549,8 +562,15 @@ const stripCssImportAndCharsetDirectives = (cssText) =>
 const buildEpubRuntimeUrl = (href) => {
   const normalizedHref = normalizeEpubHref(href);
   try {
-    if (/^https?:\/\//i.test(normalizedHref)) {
-      return normalizedHref;
+    const parsed = parseSafeUrlValue(normalizedHref, { baseUrl: EPUB_RUNTIME_BASE_URL });
+    if (!parsed) {
+      return EPUB_RUNTIME_BASE_URL;
+    }
+    if (parsed.origin !== new URL(EPUB_RUNTIME_BASE_URL).origin) {
+      const protocol = String(parsed.protocol || "").toLowerCase();
+      if (protocol === "http:" || protocol === "https:") {
+        return parsed.toString();
+      }
     }
     return new URL(normalizedHref || "/", EPUB_RUNTIME_BASE_URL).href;
   } catch {

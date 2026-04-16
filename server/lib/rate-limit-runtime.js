@@ -51,6 +51,20 @@ export const createRateLimitRuntime = (dependencies = {}) => {
       maxPerWindow: isProduction ? 20 : 120,
     });
 
+  const canVerifyMfa = async (ip) =>
+    consumeIpRateLimit({
+      bucket: "mfa_verify",
+      ip,
+      maxPerWindow: isProduction ? 10 : 60,
+    });
+
+  const canManageMfa = async (ip) =>
+    consumeIpRateLimit({
+      bucket: "mfa_manage",
+      ip,
+      maxPerWindow: isProduction ? 10 : 60,
+    });
+
   const canUploadImage = async (ip) =>
     consumeIpRateLimit({
       bucket: "upload_image",
@@ -79,13 +93,23 @@ export const createRateLimitRuntime = (dependencies = {}) => {
       maxPerWindow: isProduction ? 20 : 120,
     });
 
+  const canReadPublicAsset = async (ip) =>
+    consumeIpRateLimit({
+      bucket: "public_asset_read",
+      ip,
+      maxPerWindow: isProduction ? 600 : 5000,
+    });
+
   return {
     canAttemptAuth,
     canBootstrap,
+    canManageMfa,
     canRegisterPollVote,
     canRegisterView,
+    canReadPublicAsset,
     canSubmitComment,
     canUploadImage,
+    canVerifyMfa,
     consumeIpRateLimit,
   };
 };

@@ -151,7 +151,7 @@ export const TWEET: ElementTransformer = {
 
 // Very primitive table setup
 const TABLE_ROW_REG_EXP = /^(?:\|)(.+)(?:\|)\s?$/;
-const TABLE_ROW_DIVIDER_REG_EXP = /^(\| ?:?-*:? ?)+\|\s?$/;
+const TABLE_ROW_DIVIDER_REG_EXP = /^\|(?:\s*:?-{1,}:?\s*\|)+\s?$/;
 
 export const TABLE: ElementTransformer = {
   dependencies: [TableNode, TableRowNode, TableCellNode],

@@ -10,6 +10,7 @@ import { apiFetch } from "@/lib/api-client";
 import { resolveEpubViewerLinkAction } from "@/lib/epub-internal-links";
 import { EMPTY_LEXICAL_JSON } from "@/lib/lexical/empty-state";
 import { prepareLexicalViewerState, readPreparedLexicalViewerState } from "@/lib/lexical/viewer";
+import { createRandomId } from "@/lib/random-id";
 import LexicalViewerNodes from "./LexicalViewerNodes";
 import LexicalViewerTheme from "./LexicalViewerTheme";
 import { ViewerPollProvider, type PollTarget } from "./viewer-nodes/ViewerPollContext";
@@ -36,10 +37,7 @@ const getOrCreatePollVoterId = () => {
   if (existing) {
     return existing;
   }
-  const generated =
-    typeof window.crypto?.randomUUID === "function"
-      ? window.crypto.randomUUID()
-      : `guest-${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+  const generated = createRandomId("guest");
   window.localStorage.setItem(POLL_VOTER_STORAGE_KEY, generated);
   return generated;
 };

@@ -1,8 +1,7 @@
+import { extractPlainTextFromHtml } from "./html-safety.js";
+
 export const stripHtml = (value) =>
-  String(value || "")
-    .replace(/<[^>]*>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  extractPlainTextFromHtml(value);
 
 export const getPageTitleFromPath = (value) => {
   const pathValue = String(value || "/");

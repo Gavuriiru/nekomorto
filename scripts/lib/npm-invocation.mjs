@@ -11,31 +11,11 @@ export const resolveBundledNpmCliPath = ({
   return pathModule.join(pathModule.dirname(execPath), "node_modules", "npm", "bin", "npm-cli.js");
 };
 
-const quoteWindowsCmdArgument = (value) => {
-  const raw = String(value ?? "");
-  if (!raw) {
-    return '""';
-  }
-  if (!/[\s"&()^<>|]/.test(raw)) {
-    return raw;
-  }
-  return `"${raw.replace(/"/g, '""')}"`;
-};
-
 export const resolveNpmInvocation = (npmArgs = [], options = {}) => {
-  const env = options.env ?? process.env;
   const platform = options.platform ?? process.platform;
   const execPath = options.execPath ?? process.execPath;
   const existsSync = options.existsSync ?? fs.existsSync;
   const normalizedArgs = Array.isArray(npmArgs) ? [...npmArgs] : [];
-  const npmExecPath = String(env?.npm_execpath || "").trim();
-
-  if (npmExecPath) {
-    return {
-      command: execPath,
-      args: [npmExecPath, ...normalizedArgs],
-    };
-  }
 
   const bundledNpmCliPath = resolveBundledNpmCliPath({ execPath, platform });
   if (existsSync(bundledNpmCliPath)) {
@@ -46,10 +26,9 @@ export const resolveNpmInvocation = (npmArgs = [], options = {}) => {
   }
 
   if (platform === "win32") {
-    const command = String(options.comSpec || env?.ComSpec || env?.COMSPEC || "cmd.exe").trim();
     return {
-      command: command || "cmd.exe",
-      args: ["/d", "/s", "/c", ["npm", ...normalizedArgs].map(quoteWindowsCmdArgument).join(" ")],
+      command: "npm.cmd",
+      args: normalizedArgs,
     };
   }
 
