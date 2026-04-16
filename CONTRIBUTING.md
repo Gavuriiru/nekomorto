@@ -28,7 +28,8 @@ Obrigado por se interessar em contribuir para o Nekomorto! Este guia ajudará vo
 ## Padrões de Código
 
 ### Linting e Formatação
-Usamos o **Biome** para manter a qualidade e consistência do código.
+Usamos o **Biome** para manter a qualidade e consistência do código. Para detalhes sobre convenções de nomenclatura, estrutura de componentes e padrões de projeto, consulte nosso [Guia de Estilo de Código](CODE_STYLE.md).
+
 - Verificar lint: `npm run lint`
 - Formatar código: `npm run format`
 
