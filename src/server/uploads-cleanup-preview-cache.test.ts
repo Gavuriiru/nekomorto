@@ -64,4 +64,28 @@ describe("uploads cleanup preview cache", () => {
     expect(second).toEqual({ token: "second" });
     expect(loader).toHaveBeenCalledTimes(2);
   });
+
+  it("compartilha o preview em andamento e libera nova carga depois do TTL", async () => {
+    let resolvePreview!: (value: { token: string }) => void;
+    const loader = vi.fn(
+      () =>
+        new Promise<{ token: string }>((resolve) => {
+          resolvePreview = resolve;
+        }),
+    );
+
+    const first = loadCachedUploadsCleanupPreview(loader);
+    const second = loadCachedUploadsCleanupPreview(loader);
+
+    expect(loader).toHaveBeenCalledTimes(1);
+    resolvePreview({ token: "shared" });
+
+    await expect(first).resolves.toEqual({ token: "shared" });
+    await expect(second).resolves.toEqual({ token: "shared" });
+
+    const nextLoader = vi.fn().mockResolvedValueOnce({ token: "fresh" });
+    vi.advanceTimersByTime(__testing.getUploadsCleanupPreviewTtlMs() + 1);
+    await expect(loadCachedUploadsCleanupPreview(nextLoader)).resolves.toEqual({ token: "fresh" });
+    expect(nextLoader).toHaveBeenCalledTimes(1);
+  });
 });

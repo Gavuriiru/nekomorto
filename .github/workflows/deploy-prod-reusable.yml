@@ -10,15 +10,15 @@ on:
         default: ""
     secrets:
       PROD_DEPLOY_PATH:
-        required: false
+        required: true
       PROD_HOST:
-        required: false
+        required: true
       PROD_PORT:
         required: false
       PROD_SSH_KEY:
-        required: false
+        required: true
       PROD_USER:
-        required: false
+        required: true
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -26,7 +26,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production
+    environment: Production
     permissions:
       contents: read
     steps:
@@ -50,29 +50,69 @@ jobs:
           echo "image_repo=ghcr.io/nekomatasub/nekomorto" >> "${GITHUB_OUTPUT}"
           echo "image_tag=${RESOLVED_TAG}" >> "${GITHUB_OUTPUT}"
 
+      - name: Validate production deploy secrets
+        shell: bash
+        env:
+          PROD_DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH }}
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_PORT: ${{ secrets.PROD_PORT }}
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+        run: |
+          missing=()
+          for name in PROD_HOST PROD_USER PROD_SSH_KEY PROD_DEPLOY_PATH; do
+            if [ -z "${!name}" ]; then
+              missing+=("${name}")
+            fi
+          done
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required Production environment secret(s): %s\n' "$(IFS=', '; echo "${missing[*]}")" >&2
+            echo "Set them in GitHub Settings > Environments > Production > Environment secrets." >&2
+            exit 1
+          fi
+
+          if [ -n "${PROD_PORT}" ] && [[ ! "${PROD_PORT}" =~ ^[0-9]+$ ]]; then
+            echo "Invalid PROD_PORT: expected a numeric SSH port." >&2
+            exit 1
+          fi
+
+          if [[ ! "${PROD_DEPLOY_PATH}" =~ ^/[A-Za-z0-9._~+@%/=-]+$ ]]; then
+            echo "Invalid PROD_DEPLOY_PATH: expected an absolute Unix path without spaces or shell metacharacters." >&2
+            exit 1
+          fi
+
       - name: Configure SSH
         shell: bash
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_PORT: ${{ secrets.PROD_PORT }}
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
         run: |
-          PORT="${{ secrets.PROD_PORT }}"
+          PORT="${PROD_PORT}"
           if [ -z "${PORT}" ]; then
             PORT=22
           fi
 
           install -m 700 -d ~/.ssh
-          printf '%s\n' "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/id_ed25519
+          printf '%s\n' "${PROD_SSH_KEY}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p "${PORT}" "${{ secrets.PROD_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "${PORT}" "${PROD_HOST}" >> ~/.ssh/known_hosts
 
       - name: Run remote deploy
         shell: bash
+        env:
+          PROD_DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH }}
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_PORT: ${{ secrets.PROD_PORT }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          IMAGE_REPO: ${{ steps.resolve-image.outputs.image_repo }}
+          IMAGE_TAG: ${{ steps.resolve-image.outputs.image_tag }}
         run: |
-          PORT="${{ secrets.PROD_PORT }}"
+          PORT="${PROD_PORT}"
           if [ -z "${PORT}" ]; then
             PORT=22
           fi
 
-          IMAGE_REPO="${{ steps.resolve-image.outputs.image_repo }}"
-          IMAGE_TAG="${{ steps.resolve-image.outputs.image_tag }}"
-
-          ssh -o StrictHostKeyChecking=yes -p "${PORT}" "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
-            "cd '${{ secrets.PROD_DEPLOY_PATH }}' && git fetch --prune origin && git checkout main && git reset --hard origin/main && DEPLOY_PATH='${{ secrets.PROD_DEPLOY_PATH }}' DEPLOY_BRANCH='main' SKIP_GIT_SYNC='true' APP_IMAGE_REPO='${IMAGE_REPO}' APP_IMAGE_TAG='${IMAGE_TAG}' bash '${{ secrets.PROD_DEPLOY_PATH }}/ops/prod/deploy-prod.sh'"
+          ssh -o StrictHostKeyChecking=yes -p "${PORT}" "${PROD_USER}@${PROD_HOST}" \
+            "cd '${PROD_DEPLOY_PATH}' && git fetch --prune origin && git checkout main && git reset --hard origin/main && DEPLOY_PATH='${PROD_DEPLOY_PATH}' DEPLOY_BRANCH='main' SKIP_GIT_SYNC='true' APP_IMAGE_REPO='${IMAGE_REPO}' APP_IMAGE_TAG='${IMAGE_TAG}' bash '${PROD_DEPLOY_PATH}/ops/prod/deploy-prod.sh'"

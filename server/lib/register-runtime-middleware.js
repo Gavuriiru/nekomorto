@@ -79,17 +79,15 @@ export const buildPwaManifestPayload = ({
   pwaThemeColorDark,
   pwaThemeColorLight,
 }) => {
-  let themeMode = "dark";
-  let siteName = "";
-  let siteDescription = "";
+  let settings = null;
   try {
-    const settings = loadSiteSettings();
-    themeMode = settings?.theme?.mode;
-    siteName = String(settings?.site?.name || "").trim();
-    siteDescription = String(settings?.site?.description || "").trim();
+    settings = loadSiteSettings();
   } catch {
-    themeMode = "dark";
+    settings = null;
   }
+  const themeMode = settings?.theme?.mode || "dark";
+  const siteName = String(settings?.site?.name || "").trim();
+  const siteDescription = String(settings?.site?.description || "").trim();
   return {
     ...pwaManifestBase,
     name: siteName || String(pwaManifestBase?.name || "").trim(),

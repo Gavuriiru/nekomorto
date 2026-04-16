@@ -170,7 +170,6 @@ const buildReadingSubtitleLayout = ({ text, layout, subtitleTop }) => {
         });
         truncated = fittedLine.truncated;
       }
-      remainingWords = [];
       break;
     }
 

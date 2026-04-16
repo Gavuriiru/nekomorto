@@ -3480,10 +3480,6 @@ export const importProjectEpub = async ({
         : normalizedDefaultStatus;
     const sourceDocuments = resolveImportedChapterSourceDocuments(item);
     const manifestId = String(item?.id || "").trim() || null;
-    /* legacy single-pass conversion block removed */
-    if (false) {
-      const message = `Falha ao converter o capítulo ${chapterIndex + 1} ("${title}"), item "${String(item?.id || "").trim() || "unknown"}": ${String(error?.message || error || "conversion_failed")}`;
-    }
 
     chapters.push({
       number: chapterNumber,

@@ -214,7 +214,7 @@ export const storeUploadImageBuffer = async ({
     altText: String(altText || "").trim(),
   };
 
-  let uploadEntry = uploadEntryBase;
+  let uploadEntry;
   let variantsGenerated = true;
   let variantGenerationError = "";
   try {

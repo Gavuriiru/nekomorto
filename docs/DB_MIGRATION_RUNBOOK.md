@@ -143,13 +143,19 @@ Trigger:
 
 - push em `main`
 
-Secrets obrigatorios no ambiente `production` do GitHub:
+Secrets obrigatorios no ambiente `Production` do GitHub:
 
 - `PROD_HOST`
-- `PROD_PORT` (opcional; default 22)
 - `PROD_USER`
 - `PROD_SSH_KEY`
 - `PROD_DEPLOY_PATH` (ex.: `/srv/nekomorto`)
+
+- `PROD_PORT` e opcional; quando ausente, o workflow usa `22`.
+- Verifique os nomes configurados, sem expor valores:
+
+```bash
+gh secret list --repo NekomataSub/nekomorto --env Production
+```
 
 Fluxo remoto:
 
@@ -162,7 +168,7 @@ Fluxo remoto:
 
 Recomendacao:
 
-- manter `environment: production` com aprovacao manual nas primeiras semanas
+- manter `environment: Production` com aprovacao manual nas primeiras semanas
 
 ## 6. Backup e restore continuo
 

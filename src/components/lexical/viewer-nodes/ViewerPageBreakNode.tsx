@@ -49,14 +49,14 @@ export class ViewerPageBreakNode extends DecoratorNode<JSX.Element> {
   exportDOM(): DOMExportOutput {
     const element = document.createElement("figure");
     element.style.pageBreakAfter = "always";
-    element.setAttribute("type", this.getType());
+    element.setAttribute("type", ViewerPageBreakNode.getType());
     return { element };
   }
 
   createDOM(): HTMLElement {
     const element = document.createElement("figure");
     element.style.pageBreakAfter = "always";
-    element.setAttribute("type", this.getType());
+    element.setAttribute("type", ViewerPageBreakNode.getType());
     return element;
   }
 

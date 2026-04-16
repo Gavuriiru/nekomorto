@@ -208,17 +208,15 @@ export default function StickyComponent({
           }
           const stickContainer = stickyContainer;
           const positioning = positioningRef.current;
-          if (stickContainer !== null) {
-            const {top, left} = stickContainer.getBoundingClientRect();
-            const zoom = calculateZoomLevel(stickContainer);
-            positioning.offsetX = event.clientX / zoom - left;
-            positioning.offsetY = event.clientY / zoom - top;
-            positioning.isDragging = true;
-            stickContainer.classList.add('dragging');
-            document.addEventListener('pointermove', handlePointerMove);
-            document.addEventListener('pointerup', handlePointerUp);
-            event.preventDefault();
-          }
+          const {top, left} = stickContainer.getBoundingClientRect();
+          const zoom = calculateZoomLevel(stickContainer);
+          positioning.offsetX = event.clientX / zoom - left;
+          positioning.offsetY = event.clientY / zoom - top;
+          positioning.isDragging = true;
+          stickContainer.classList.add('dragging');
+          document.addEventListener('pointermove', handlePointerMove);
+          document.addEventListener('pointerup', handlePointerUp);
+          event.preventDefault();
         }}>
         <button
           onClick={handleDelete}

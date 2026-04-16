@@ -1,6 +1,6 @@
 export const normalizeAssetUrl = (rawUrl?: string | null) => {
   if (!rawUrl) {
-    return rawUrl || "";
+    return "";
   }
   if (typeof window === "undefined") {
     return rawUrl;

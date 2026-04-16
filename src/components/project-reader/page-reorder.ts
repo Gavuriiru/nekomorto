@@ -205,16 +205,10 @@ export const handleAltArrowReorder = ({
     return false;
   }
 
-  let targetIndex = index;
-  if (event.key === "ArrowUp") {
-    targetIndex = index - 1;
-  } else if (event.key === "ArrowDown") {
-    targetIndex = index + 1;
-  } else {
-    return false;
-  }
+  const targetIndex =
+    event.key === "ArrowUp" ? index - 1 : event.key === "ArrowDown" ? index + 1 : null;
 
-  if (targetIndex < 0 || targetIndex >= total || targetIndex === index) {
+  if (targetIndex === null || targetIndex < 0 || targetIndex >= total || targetIndex === index) {
     return false;
   }
 

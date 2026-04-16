@@ -330,9 +330,6 @@ function TableCellResizer({editor}: {editor: LexicalEditor}): JSX.Element {
         if (pointerStartPosRef.current) {
           const {x, y} = pointerStartPosRef.current;
 
-          if (activeCell === null) {
-            return;
-          }
           const zoom = calculateZoomLevel(event.target as Element);
 
           if (isHeightChanging(direction)) {

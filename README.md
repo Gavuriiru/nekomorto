@@ -722,13 +722,19 @@ Triggers:
 - `push` para `main`
 - `workflow_dispatch` (com input opcional `image_tag`)
 
-Secrets necessarios no ambiente `production` do GitHub (`Settings > Environments > production`):
+Secrets necessarios no ambiente `Production` do GitHub (`Settings > Environments > Production > Environment secrets`):
 
 - `PROD_HOST`
-- `PROD_PORT` (opcional, default `22`)
 - `PROD_USER`
 - `PROD_SSH_KEY`
 - `PROD_DEPLOY_PATH` (exemplo: `/srv/nekomorto`)
+- `PROD_PORT` (opcional, default `22`)
+
+Verificacao rapida dos nomes configurados, sem expor valores:
+
+```bash
+gh secret list --repo NekomataSub/nekomorto --env Production
+```
 
 Fluxo CI/CD:
 

@@ -234,7 +234,7 @@ export const isEpubCssEngineFailureDetail = (detail: unknown) => {
   );
 };
 
-const EPUB_TEMP_IMPORT_ID_PATTERN = /\/uploads\/tmp\/epub-imports\/[^/]+\/([^/?#"'\s/]+)/gi;
+const EPUB_TEMP_IMPORT_ID_PATTERN = /\/uploads\/tmp\/epub-imports\/[^/]+\/([^?#"'\s/]+)/gi;
 
 const collectEpubTempImportIds = (value: unknown, bucket: Set<string>) => {
   if (!value) {

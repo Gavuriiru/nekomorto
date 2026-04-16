@@ -213,7 +213,7 @@ export const getPublicCommentRequestError = ({
   if (!isStaff && normalizedEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail)) {
     return "invalid_email";
   }
-  if (String(normalizedContent || "").length > 2000) {
+  if (String(normalizedContent).length > 2000) {
     return "content_too_long";
   }
   return null;

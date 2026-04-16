@@ -108,7 +108,7 @@ export const normalizeLexicalViewerJson = (value: string) => {
     onError: () => {},
   });
 
-  let normalized: unknown = EMPTY_LEXICAL_JSON;
+  let normalized: unknown;
   try {
     const editorState = editor.parseEditorState(JSON.stringify(parsed));
     editor.setEditorState(editorState);

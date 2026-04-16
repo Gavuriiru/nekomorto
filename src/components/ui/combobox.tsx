@@ -144,10 +144,7 @@ const renderComboboxIcon = (
     return icon;
   }
 
-  if (
-    typeof icon === "function" ||
-    (typeof icon === "object" && icon !== null && "$$typeof" in icon)
-  ) {
+  if (typeof icon === "function" || (typeof icon === "object" && "$$typeof" in icon)) {
     const Icon = icon as React.ElementType<{ className?: string }>;
     return <Icon className={fallbackClassName} />;
   }

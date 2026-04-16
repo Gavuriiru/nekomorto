@@ -371,7 +371,7 @@ export const registerUploadManagementRoutes = (deps) => {
       });
     }
 
-    let enrichedEntry = entry;
+    let enrichedEntry;
     let variantsGenerated = true;
     let variantGenerationError = "";
     try {

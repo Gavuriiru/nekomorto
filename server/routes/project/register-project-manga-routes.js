@@ -445,14 +445,13 @@ export const registerProjectMangaRoutes = ({
 
     const expiresAtTs = new Date(job.expiresAt || 0).getTime();
     if (Number.isFinite(expiresAtTs) && Date.now() > expiresAtTs) {
-      job = expireProjectImageExportJob(job) || job;
+      expireProjectImageExportJob(job);
       return res.status(410).json({ error: "expired" });
     }
     if (!job.resultPath || !fs.existsSync(job.resultPath)) {
-      job =
-        expireProjectImageExportJob(job, {
-          error: "O arquivo exportado nao esta mais disponivel. Gere a exportacao novamente.",
-        }) || job;
+      expireProjectImageExportJob(job, {
+        error: "O arquivo exportado nao esta mais disponivel. Gere a exportacao novamente.",
+      });
       return res.status(410).json({ error: "expired" });
     }
 

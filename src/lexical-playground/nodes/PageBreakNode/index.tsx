@@ -83,7 +83,7 @@ export class PageBreakNode extends DecoratorNode<JSX.Element> {
     return {
       figure: (domNode: HTMLElement) => {
         const tp = domNode.getAttribute('type');
-        if (tp !== this.getType()) {
+        if (tp !== PageBreakNode.getType()) {
           return null;
         }
 
@@ -98,7 +98,7 @@ export class PageBreakNode extends DecoratorNode<JSX.Element> {
   createDOM(): HTMLElement {
     const el = document.createElement('figure');
     el.style.pageBreakAfter = 'always';
-    el.setAttribute('type', this.getType());
+    el.setAttribute('type', PageBreakNode.getType());
     return el;
   }
 

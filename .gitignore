@@ -55,6 +55,9 @@ ops/postgres/backups/
 # Local tooling / generated assets
 scratch-*
 temp_block.txt
+dev-dist/sw.js
+dev-dist/workbox-*.js
+dev-dist/workbox-*.js.map
 public/uploads/
 /reports/*
 !/reports/perf/

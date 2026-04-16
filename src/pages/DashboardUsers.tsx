@@ -763,42 +763,45 @@ const DashboardUsers = () => {
     }
 
     let active = true;
+    const isRequestActive = () => active;
     setIsLoadingSecurity(true);
     void Promise.all([
       apiFetch(apiBase, "/api/me/security", { auth: true }),
       apiFetch(apiBase, "/api/me/sessions", { auth: true }),
     ])
       .then(async ([securityRes, sessionsRes]) => {
-        if (!active) {
+        if (!isRequestActive()) {
           return;
         }
         if (securityRes.ok) {
           const body = await securityRes.json();
-          if (active) {
-            setSecuritySummary(body);
+          if (!isRequestActive()) {
+            return;
           }
-        } else if (active) {
+          setSecuritySummary(body);
+        } else {
           setSecuritySummary(null);
         }
 
         if (sessionsRes.ok) {
           const body = await sessionsRes.json();
-          if (active) {
-            setSecuritySessions(Array.isArray(body.sessions) ? body.sessions : []);
+          if (!isRequestActive()) {
+            return;
           }
-        } else if (active) {
+          setSecuritySessions(Array.isArray(body.sessions) ? body.sessions : []);
+        } else {
           setSecuritySessions([]);
         }
       })
       .catch(() => {
-        if (!active) {
+        if (!isRequestActive()) {
           return;
         }
         setSecuritySummary(null);
         setSecuritySessions([]);
       })
       .finally(() => {
-        if (active) {
+        if (isRequestActive()) {
           setIsLoadingSecurity(false);
         }
       });

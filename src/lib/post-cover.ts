@@ -187,7 +187,7 @@ export const getImageFileNameFromUrl = (value?: string | null) => {
   if (!raw) {
     return "";
   }
-  let pathname = raw;
+  let pathname: string;
   try {
     const parsed = new URL(raw, "https://local.invalid");
     pathname = parsed.pathname || raw;

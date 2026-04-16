@@ -171,7 +171,7 @@ export const registerUploadMetadataRoutes = (deps) => {
         ...(existingEntry || {}),
         ...uploadEntryBase,
       });
-      let uploadEntry = uploadEntryBase;
+      let uploadEntry;
       let variantsGenerated = true;
       let variantGenerationError = "";
       const stagingWorkspace = createUploadStagingWorkspace();

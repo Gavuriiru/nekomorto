@@ -224,10 +224,10 @@ export function useDashboardPostsResource(apiBase: string): UseDashboardPostsRes
         setHasLoadedOnce(true);
         setIsInitialLoading(false);
 
-        let nextUsers = usersRef.current;
-        let nextOwnerIds = ownerIdsRef.current;
-        let nextProjects = projectsRef.current;
-        let nextTagTranslations = tagTranslationsRef.current;
+        let nextUsers: UserRecord[];
+        let nextOwnerIds: string[];
+        let nextProjects: Project[];
+        let nextTagTranslations: Record<string, string>;
 
         const [usersResult, projectsResult, tagsResult] = await Promise.allSettled([
           usersPromise,

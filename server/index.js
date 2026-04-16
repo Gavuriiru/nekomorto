@@ -479,7 +479,6 @@ const AUDIT_META_ALLOWLIST = {
   "auth.bootstrap.denied": ["error"],
   "auth.bootstrap.disabled": [],
   "auth.bootstrap.rate_limited": [],
-  "users.delete": ["id", "wasOwner"],
   "uploads.image": [
     "uploadId",
     "fileName",
