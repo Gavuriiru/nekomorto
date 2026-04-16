@@ -53,6 +53,7 @@ backups/
 ops/postgres/backups/
 
 # Local tooling / generated assets
+scratch-*
 temp_block.txt
 public/uploads/
 /reports/*
