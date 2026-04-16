@@ -280,10 +280,10 @@ const MangaChapterPagesGrid = memo(
           isDragging: false,
         };
         pointerDragStateRef.current = nextState;
-        reorderGeometryRef.current = null;
+        captureReorderGeometry();
         setPointerDragState(nextState);
       },
-      [isUploading],
+      [captureReorderGeometry, isUploading],
     );
 
     const applyPagePointerMove = useCallback(
@@ -460,11 +460,7 @@ const MangaChapterPagesGrid = memo(
       </div>
     );
 
-    return shouldUseAnimatedLayout ? (
-      <LayoutGroup id={layoutGroupId}>{grid}</LayoutGroup>
-    ) : (
-      grid
-    );
+    return <LayoutGroup id={layoutGroupId}>{grid}</LayoutGroup>;
   },
 );
 

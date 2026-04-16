@@ -31,22 +31,6 @@
     <meta name="theme-color" content="#9667e0" />
     <!-- APP_PRELOADS -->
     <!-- APP_BOOTSTRAP -->
-    <script>
-      // Early bootstrap fetch — starts the API request in parallel with the JS
-      // module download. In production the Express server replaces APP_BOOTSTRAP
-      // with its own inline script that sets __BOOTSTRAP_PUBLIC__ directly, so
-      // this fetch is skipped (the guard checks for existing data).
-      (function () {
-        if (window.__BOOTSTRAP_PUBLIC__ || window.__BOOTSTRAP_PUBLIC_PROMISE__) return;
-        if (window.__BOOTSTRAP_SKIP_PUBLIC_FETCH__) return;
-        window.__BOOTSTRAP_PUBLIC_PROMISE__ = fetch('/api/public/bootstrap', {
-          credentials: 'same-origin',
-          cache: 'no-store',
-        })
-          .then(function (r) { return r.ok ? r.json() : null; })
-          .catch(function () { return null; });
-      })();
-    </script>
   </head>
 
   <body>
@@ -81,7 +65,7 @@
         100% { transform: rotate(360deg); }
       }
       /* When the server-injected hero shell is present, it already covers the
-         viewport with the hero image + veil — hide the spinner so there is only
+         viewport with the hero image + veil - hide the spinner so there is only
          one loading indicator visible at a time. */
       .public-home-hero-shell ~ .vite-app-loader {
         display: none;

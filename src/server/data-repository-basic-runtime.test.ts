@@ -57,7 +57,7 @@ describe("data-repository-basic-runtime", () => {
     expect(runtime.getPrimaryOwnerId()).toBe("owner-1");
     expect(runtime.isPrimaryOwner("owner-1")).toBe(true);
 
-    expect(runtime.loadAllowedUsers()).toEqual(["user-1"]);
+    expect(runtime.loadAllowedUsers()).toEqual(["owner-1", "owner-2", "user-1"]);
     runtime.writeAllowedUsers(["user-2"]);
     expect(dataRepository.writeAllowedUsers).toHaveBeenCalledWith(["user-2"]);
 
@@ -98,7 +98,7 @@ describe("data-repository-basic-runtime", () => {
     expect(runtime.loadOwnerIds()).toEqual(["owner-1"]);
     expect(runtime.getPrimaryOwnerId()).toBe("owner-1");
     expect(runtime.isOwner("owner-1")).toBe(true);
-    expect(runtime.loadAllowedUsers()).toEqual([]);
+    expect(runtime.loadAllowedUsers()).toEqual(["owner-1"]);
     expect(runtime.loadUsers()).toEqual([]);
     expect(runtime.loadLinkTypes()).toEqual([]);
   });

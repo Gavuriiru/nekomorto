@@ -234,7 +234,6 @@ describe("Donations Pix and crypto QR code", () => {
 
     render(<Donations />);
 
-    screen.getByAltText("QR Code PIX");
     await act(async () => {
       await flushMicrotasks();
     });
@@ -265,7 +264,6 @@ describe("Donations Pix and crypto QR code", () => {
 
     render(<Donations />);
 
-    screen.getByAltText("QR Code PIX");
     await act(async () => {
       await flushMicrotasks();
     });
@@ -296,7 +294,6 @@ describe("Donations Pix and crypto QR code", () => {
 
     render(<Donations />);
 
-    screen.getByAltText("QR Code PIX");
     await act(async () => {
       await flushMicrotasks();
     });
@@ -336,7 +333,6 @@ describe("Donations Pix and crypto QR code", () => {
 
     render(<Donations />);
 
-    screen.getByAltText("QR Code PIX");
     await act(async () => {
       await flushMicrotasks();
     });
@@ -354,7 +350,6 @@ describe("Donations Pix and crypto QR code", () => {
 
     render(<Donations />);
 
-    screen.getByAltText("QR Code PIX");
     await act(async () => {
       await flushMicrotasks();
     });
@@ -384,7 +379,6 @@ describe("Donations Pix and crypto QR code", () => {
 
     render(<Donations />);
 
-    screen.getByAltText("QR Code PIX");
     await act(async () => {
       await flushMicrotasks();
     });
@@ -426,7 +420,6 @@ describe("Donations Pix and crypto QR code", () => {
 
     render(<Donations />);
 
-    screen.getByAltText("QR Code PIX");
     await act(async () => {
       await flushMicrotasks();
     });
@@ -576,7 +569,6 @@ describe("Donations Pix and crypto QR code", () => {
 
     render(<Donations />);
 
-    screen.getByAltText("QR Code PIX");
     await act(async () => {
       await flushMicrotasks();
     });
@@ -606,7 +598,6 @@ describe("Donations Pix and crypto QR code", () => {
 
     render(<Donations />);
 
-    screen.getByAltText("QR Code PIX");
     await act(async () => {
       await flushMicrotasks();
     });

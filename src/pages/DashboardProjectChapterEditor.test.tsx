@@ -1122,11 +1122,11 @@ describe("DashboardProjectChapterEditor", () => {
     expect(structureAccordion).toHaveClass("project-editor-accordion", "space-y-2.5", "min-h-0");
     expect(structureSection).toHaveClass(
       "flex",
-      "h-[var(--dedicated-editor-sidebar-height,34rem)]",
       "max-h-[var(--dedicated-editor-sidebar-height,34rem)]",
       "min-h-0",
       "flex-col",
     );
+    expect(structureSection).not.toHaveClass("h-[var(--dedicated-editor-sidebar-height,34rem)]");
     expect(structureSection).not.toHaveClass("max-h-[calc(100dvh-9rem)]");
     expect(structureScrollRegion).toHaveClass(
       "no-scrollbar",
@@ -2046,11 +2046,11 @@ describe("DashboardProjectChapterEditor", () => {
     expect(structureAccordion).toHaveClass("project-editor-accordion", "space-y-2.5", "min-h-0");
     expect(structureSection).toHaveClass(
       "flex",
-      "h-[var(--dedicated-editor-sidebar-height,34rem)]",
       "max-h-[var(--dedicated-editor-sidebar-height,34rem)]",
       "min-h-0",
       "flex-col",
     );
+    expect(structureSection).not.toHaveClass("h-[var(--dedicated-editor-sidebar-height,34rem)]");
     expect(structureSection).not.toHaveClass("max-h-[calc(100dvh-9rem)]");
     expect(structureScrollRegion).toHaveClass(
       "no-scrollbar",

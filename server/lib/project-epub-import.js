@@ -2092,6 +2092,13 @@ const inlineEditorialComputedStyles = (document) => {
   for (const element of blockElements) {
     const tagName = String(element.tagName || "").toLowerCase();
     const computed = computeElementStyles(element);
+    const parentComputed = element.parentElement
+      ? computeElementStyles(element.parentElement)
+      : null;
+    const computedFontFamily = normalizeFontFamilyBucket(computed.fontFamily);
+    const parentFontFamily = parentComputed
+      ? normalizeFontFamilyBucket(parentComputed.fontFamily)
+      : "";
     const blockHeadingTag = classifyEditorialBlockScale(element, computed, { baseFontSize });
     const blockFontSizeRatio = computeFontSizeRatio(computed.fontSize, baseFontSize);
     const styleText = buildStyleDeclaration([
@@ -2113,9 +2120,7 @@ const inlineEditorialComputedStyles = (document) => {
       ["line-height", isMeaningfulStyleValue(computed.lineHeight) ? computed.lineHeight : ""],
       [
         "font-family",
-        isMeaningfulStyleValue(computed.fontFamily)
-          ? normalizeFontFamilyBucket(computed.fontFamily)
-          : "",
+        computedFontFamily && computedFontFamily !== parentFontFamily ? computedFontFamily : "",
       ],
     ]);
     applyInlineStyle(element, styleText);

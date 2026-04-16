@@ -242,6 +242,7 @@ describe("Projects query sync", () => {
       </MemoryRouter>,
     );
 
+    await screen.findByText("Projeto 1");
     const letterTrigger = await screen.findByRole("combobox", { name: "Filtrar por letra" });
     expect(container.querySelector("select")).toBeNull();
 
@@ -262,9 +263,9 @@ describe("Projects query sync", () => {
 
     const formatListbox = await screen.findByRole("listbox", { name: "Formato" });
     expect(screen.queryByLabelText(/Buscar em formato/i)).not.toBeInTheDocument();
-    expect(within(formatListbox).getByRole("option", { name: "Anime" })).toBeInTheDocument();
+    expect(within(formatListbox).getByText("Anime")).toBeInTheDocument();
 
-    fireEvent.click(within(formatListbox).getByRole("option", { name: "Anime" }));
+    fireEvent.click(within(formatListbox).getByText("Anime"));
 
     await waitFor(() => {
       expect(getSearchParams().get("type")).toBe("Anime");
@@ -695,7 +696,15 @@ describe("Projects query sync", () => {
       expect(getRenderedProjectCards(container)).toHaveLength(4);
     });
 
-    fireEvent.change(searchInput, { target: { value: "alpha" } });
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(searchInput, { target: { value: "alpha" } });
+      act(() => {
+        vi.advanceTimersByTime(SEARCH_QUERY_DEBOUNCE_MS);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
 
     await waitFor(() => {
       expect(getRenderedProjectCards(container)).toHaveLength(3);
@@ -703,7 +712,15 @@ describe("Projects query sync", () => {
       expect(screen.queryByRole("link", { name: "Beta 1" })).not.toBeInTheDocument();
     });
 
-    fireEvent.change(searchInput, { target: { value: "" } });
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(searchInput, { target: { value: "" } });
+      act(() => {
+        vi.advanceTimersByTime(SEARCH_QUERY_DEBOUNCE_MS);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
 
     await waitFor(() => {
       expect(getRenderedProjectCards(container)).toHaveLength(4);

@@ -63,6 +63,14 @@ const setBootstrapDonationsPage = () => {
             actionUrl: "",
           },
         ],
+        donors: [
+          {
+            name: "Apoiador Layout",
+            amount: "R$ 20,00",
+            goal: "Servidor",
+            date: "04/2026",
+          },
+        ],
       },
     },
     projects: [],

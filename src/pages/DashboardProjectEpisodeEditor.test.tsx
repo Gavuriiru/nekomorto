@@ -493,11 +493,11 @@ describe("DashboardProjectEpisodeEditor", () => {
     expect(sidebarPanel).not.toBeNull();
     expect(sidebarPanel).toHaveClass(
       "flex",
-      "h-[var(--dedicated-editor-sidebar-height,34rem)]",
       "max-h-[var(--dedicated-editor-sidebar-height,34rem)]",
       "min-h-0",
       "flex-col",
     );
+    expect(sidebarPanel).not.toHaveClass("h-[var(--dedicated-editor-sidebar-height,34rem)]");
     expect(sidebarPanel).not.toHaveClass("max-h-[calc(100dvh-9rem)]");
     expect(scrollRegion).toHaveClass(
       "no-scrollbar",
