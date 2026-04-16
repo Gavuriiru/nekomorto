@@ -44,7 +44,7 @@ jobs:
             RESOLVED_TAG="sha-${{ github.sha }}"
           fi
 
-          echo "image_repo=ghcr.io/gavuriiru/nekomorto" >> "${GITHUB_OUTPUT}"
+          echo "image_repo=ghcr.io/nekomatasub/nekomorto" >> "${GITHUB_OUTPUT}"
           echo "image_tag=${RESOLVED_TAG}" >> "${GITHUB_OUTPUT}"
 
       - name: Configure SSH
