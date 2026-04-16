@@ -12,7 +12,6 @@ const REQUIRED_DEPENDENCY_KEYS = [
   "prisma",
   "publicUploadsDir",
   "rateLimiter",
-  "redisUrl",
   "sessionCookieConfig",
 ];
 
@@ -55,7 +54,6 @@ export const createOperationalMonitoringRuntime = (dependencies = {}) => {
     prisma,
     publicUploadsDir,
     rateLimiter,
-    redisUrl,
     sessionCookieConfig,
   } = dependencies;
 
@@ -128,20 +126,14 @@ export const createOperationalMonitoringRuntime = (dependencies = {}) => {
     };
   };
 
-  const buildRateLimiterHealthCheck = () => {
-    const usingRedis = rateLimiter.mode === "redis";
-    return {
-      name: "rate_limit_backend",
-      status: isProduction && !usingRedis ? "warning" : "ok",
-      message: usingRedis
-        ? "Rate limit distribuido ativo (Redis)."
-        : "Rate limit local em memoria.",
-      meta: {
-        mode: rateLimiter.mode,
-        redisConfigured: Boolean(String(redisUrl || "").trim()),
-      },
-    };
-  };
+  const buildRateLimiterHealthCheck = () => ({
+    name: "rate_limit_backend",
+    status: "ok",
+    message: "Rate limit local em memoria.",
+    meta: {
+      mode: rateLimiter.mode,
+    },
+  });
 
   const probeDbHealthCheck = async () => {
     const startedAt = Date.now();

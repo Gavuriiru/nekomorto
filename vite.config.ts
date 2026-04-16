@@ -11,9 +11,7 @@ export default defineConfig(({ mode }) => {
   const serverConfig = {
     host: "::",
     port: 5173,
-    hmr: {
-      overlay: false,
-    },
+    hmr: true,
     ...(allowedHosts.length ? { allowedHosts } : {}),
   };
   return {

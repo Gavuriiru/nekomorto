@@ -71,141 +71,23 @@ class MemoryRateLimitStore {
   async close() {}
 }
 
-class RedisRateLimitStore {
-  constructor(client, prefix, onError) {
-    this.client = client;
-    this.prefix = String(prefix || "rate_limit");
-    this.onError = typeof onError === "function" ? onError : null;
-  }
-
-  reportError(label, error) {
-    if (!this.onError) {
-      return;
-    }
-    this.onError({ label, error });
-  }
-
-  buildRedisKey(bucket, key) {
-    const safeBucket = String(bucket || "default").trim() || "default";
-    const safeKey = String(key || "").trim();
-    return `${this.prefix}:${safeBucket}:${safeKey}`;
-  }
-
-  async consume({ bucket, key, limit, windowMs }) {
-    const normalizedKey = String(key || "").trim();
-    const normalizedLimit = normalizePositiveInteger(limit, DEFAULT_LIMIT);
-    const normalizedWindowMs = normalizePositiveInteger(windowMs, DEFAULT_WINDOW_MS);
-    if (!normalizedKey) {
-      return {
-        allowed: true,
-        count: 0,
-        remaining: normalizedLimit,
-        resetAt: Date.now() + normalizedWindowMs,
-        backend: "redis",
-      };
-    }
-    const redisKey = this.buildRedisKey(bucket, normalizedKey);
-    try {
-      const script = `
-        local current = redis.call("INCR", KEYS[1])
-        if current == 1 then
-          redis.call("PEXPIRE", KEYS[1], ARGV[1])
-        end
-        local ttl = redis.call("PTTL", KEYS[1])
-        if ttl < 0 then
-          ttl = ARGV[1]
-        end
-        return { current, ttl }
-      `;
-      const result = await this.client.sendCommand([
-        "EVAL",
-        script,
-        "1",
-        redisKey,
-        String(normalizedWindowMs),
-      ]);
-      const count = Number(Array.isArray(result) ? result[0] : 0) || 0;
-      const ttl =
-        Number(Array.isArray(result) ? result[1] : normalizedWindowMs) || normalizedWindowMs;
-      const resetAt = Date.now() + Math.max(0, ttl);
-      return {
-        allowed: count <= normalizedLimit,
-        count,
-        remaining: Math.max(0, normalizedLimit - count),
-        resetAt,
-        backend: "redis",
-      };
-    } catch (error) {
-      this.reportError("consume", error);
-      throw error;
-    }
-  }
-
-  async close() {
-    try {
-      if (this.client?.isOpen) {
-        await this.client.quit();
-      }
-    } catch (error) {
-      this.reportError("close", error);
-    }
-  }
-}
-
-const createRedisStoreIfAvailable = async ({ redisUrl, prefix, onError }) => {
-  const safeRedisUrl = String(redisUrl || "").trim();
-  if (!safeRedisUrl) {
-    return null;
-  }
-  try {
-    const redisModule = await import("redis");
-    const createClient = redisModule?.createClient;
-    if (typeof createClient !== "function") {
-      return null;
-    }
-    const client = createClient({
-      url: safeRedisUrl,
-      socket: {
-        reconnectStrategy: (attempt) => Math.min(250 * attempt, 5000),
-      },
-    });
-    if (typeof onError === "function") {
-      client.on("error", (error) => {
-        onError({ label: "redis_client", error });
-      });
-    }
-    await client.connect();
-    return new RedisRateLimitStore(client, prefix, onError);
-  } catch (error) {
-    if (typeof onError === "function") {
-      onError({ label: "redis_unavailable", error });
-    }
-    return null;
-  }
-};
-
-export const createRateLimiter = async ({ redisUrl, prefix = "rate_limit", onError } = {}) => {
-  const redisStore = await createRedisStoreIfAvailable({ redisUrl, prefix, onError });
-  const memoryStore = new MemoryRateLimitStore();
-  const activeStore = redisStore || memoryStore;
+export const createRateLimiter = ({ onError } = {}) => {
+  const store = new MemoryRateLimitStore();
 
   return {
-    mode: redisStore ? "redis" : "memory",
-    async consume({ bucket, key, limit, windowMs }) {
+    mode: "memory",
+    consume({ bucket, key, limit, windowMs }) {
       try {
-        return await activeStore.consume({ bucket, key, limit, windowMs });
+        return store.consume({ bucket, key, limit, windowMs });
       } catch (error) {
-        if (activeStore !== memoryStore) {
-          if (typeof onError === "function") {
-            onError({ label: "redis_fallback_memory", error });
-          }
-          return memoryStore.consume({ bucket, key, limit, windowMs });
+        if (typeof onError === "function") {
+          onError({ label: "memory_consume", error });
         }
-        return memoryStore.consume({ bucket, key, limit, windowMs });
+        return store.consume({ bucket, key, limit, windowMs });
       }
     },
     async close() {
-      await activeStore.close();
+      await store.close();
     },
   };
 };

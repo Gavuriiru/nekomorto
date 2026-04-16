@@ -88,6 +88,7 @@
 #root {
   position: relative;
   z-index: 1;
+  overflow-x: clip;
 }
 
 .no-scrollbar::-webkit-scrollbar {

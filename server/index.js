@@ -729,7 +729,6 @@ const {
   PUBLIC_READ_CACHE_MAX_ENTRIES,
   PUBLIC_READ_CACHE_TTL_MS,
   RATE_LIMIT_PREFIX,
-  REDIS_URL,
   SESSION_SECRET,
   SESSION_TABLE,
   adminExportsDir,
@@ -823,9 +822,7 @@ const DASHBOARD_WIDGET_IDS = new Set([
 ]);
 const DASHBOARD_HOME_ROLE_IDS = new Set(["editor", "moderador", "admin"]);
 
-const rateLimiter = await createRateLimiter({
-  redisUrl: REDIS_URL,
-  prefix: RATE_LIMIT_PREFIX,
+const rateLimiter = createRateLimiter({
   onError: ({ label, error }) => {
     console.warn(
       `[rate-limit:${String(label || "unknown")}] ${String(error?.message || error || "error")}`,
@@ -1476,7 +1473,6 @@ const { evaluateOperationalMonitoring } = createOperationalMonitoringRuntime(
   buildOperationalMonitoringRuntimeDependencies({
     OPS_ALERTS_DB_LATENCY_WARNING_MS,
     PUBLIC_UPLOADS_DIR,
-    REDIS_URL,
     backgroundJobQueue,
     buildHealthStatusResponse,
     buildOperationalAlertsResponse,

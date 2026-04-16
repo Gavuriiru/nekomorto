@@ -480,6 +480,7 @@ const HeroSection = () => {
   const [activeIndex, setActiveIndex] = React.useState(0);
   const [isCarouselAutoplayReady, setIsCarouselAutoplayReady] = React.useState(false);
   const [loadedSlideIds, setLoadedSlideIds] = React.useState<Set<string>>(() => new Set());
+  const [isHeroMounted, setIsHeroMounted] = React.useState(false);
   const primaryHeroImageRef = React.useRef<HTMLImageElement | null>(null);
   const heroReadyDispatchedRef = React.useRef(false);
   const heroReadyFrameRef = React.useRef<number | null>(null);
@@ -724,8 +725,26 @@ const HeroSection = () => {
   const shouldRenderCarouselControls = visibleSlides.length > 1;
   const hasInitialHomeShellSnapshot = initialHomeShellSnapshotRef.current;
 
+  // Flip mounted flag on first paint so the section fades in only after the
+  // overlay gradients are already in the DOM. When the server-side hero shell
+  // is present it becomes the visual cover (z-70 fixed overlay), so we skip
+  // the fade to avoid a double transition.
+  React.useEffect(() => {
+    setIsHeroMounted(true);
+  }, []);
+
+  const heroSectionStyle: React.CSSProperties = hasInitialHomeShellSnapshot
+    ? {}
+    : {
+        opacity: isHeroMounted ? 1 : 0,
+        transition: isHeroMounted ? "opacity 220ms ease-out" : undefined,
+      };
+
   return (
-    <section className={`relative overflow-hidden ${heroViewportClass}`}>
+    <section
+      className={`relative w-screen overflow-hidden ${heroViewportClass}`}
+      style={heroSectionStyle}
+    >
       {shouldRenderCarousel ? (
         <Carousel opts={{ loop: true }} setApi={setApi} className={heroViewportClass}>
           <CarouselContent className="ml-0">

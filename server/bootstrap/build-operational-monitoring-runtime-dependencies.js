@@ -17,7 +17,6 @@ export const buildOperationalMonitoringRuntimeDependencies = (dependencies = {})
   prisma: dependencies.prisma,
   publicUploadsDir: dependencies.publicUploadsDir ?? dependencies.PUBLIC_UPLOADS_DIR,
   rateLimiter: dependencies.rateLimiter,
-  redisUrl: dependencies.redisUrl ?? dependencies.REDIS_URL,
   sessionCookieConfig: dependencies.sessionCookieConfig,
 });
 

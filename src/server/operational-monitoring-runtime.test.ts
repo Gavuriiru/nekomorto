@@ -49,7 +49,6 @@ const createDeps = (overrides = {}) => ({
   rateLimiter: {
     mode: "memory",
   },
-  redisUrl: "",
   sessionCookieConfig: {
     name: "sid",
     usesDefaultSecretInProduction: true,
@@ -79,7 +78,7 @@ describe("operational-monitoring-runtime", () => {
         expect.objectContaining({ name: "database" }),
         expect.objectContaining({
           name: "rate_limit_backend",
-          status: "warning",
+          status: "ok",
         }),
         expect.objectContaining({
           name: "session_config",

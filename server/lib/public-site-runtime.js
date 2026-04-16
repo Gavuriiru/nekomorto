@@ -642,7 +642,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     }
   };
 
-  const buildHomeHeroShellCriticalCss = () => `
+  const buildHomeHeroShellCriticalCss = ({ focalObjectPosition } = {}) => `
 @supports (height: 1svh) {
   :root {
     --public-home-hero-height: 78svh;
@@ -671,8 +671,8 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
 .public-home-hero-shell {
   position: fixed;
   top: 0;
-  right: 0;
   left: 0;
+  width: 100vw;
   height: var(--public-home-hero-height);
   min-height: var(--public-home-hero-height);
   overflow: hidden;
@@ -682,6 +682,10 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
   transition: opacity 180ms ease-out;
   will-change: opacity;
   background: hsl(220 12% 7%);
+  isolation: isolate;
+}
+:root[data-theme-mode="light"] .public-home-hero-shell {
+  background: hsl(210 33% 98%);
 }
 .public-home-hero-shell--exiting {
   opacity: 0;
@@ -689,15 +693,100 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
 .public-home-hero-shell__image {
   position: absolute;
   inset: 0;
-}
-.public-home-hero-shell__image {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center;
+  object-position: ${focalObjectPosition || "center"};
+  z-index: 1;
+}
+.public-home-hero-shell__veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.public-home-hero-shell__veil--primary {
+  background: linear-gradient(
+    90deg,
+    hsl(220 12% 7%) 0%,
+    hsl(220 12% 7% / 0.8) 55%,
+    transparent 100%
+  );
+}
+.public-home-hero-shell__veil--secondary {
+  background: linear-gradient(
+    0deg,
+    hsl(220 12% 7%) 0%,
+    hsl(220 12% 7% / 0.3) 52%,
+    transparent 100%
+  );
+}
+:root[data-theme-mode="light"] .public-home-hero-shell__veil--primary {
+  background: linear-gradient(
+    90deg,
+    hsl(210 33% 98%) 0%,
+    hsl(210 33% 98% / 0.8) 55%,
+    transparent 100%
+  );
+}
+:root[data-theme-mode="light"] .public-home-hero-shell__veil--secondary {
+  background: linear-gradient(
+    0deg,
+    hsl(210 33% 98%) 0%,
+    hsl(210 33% 98% / 0.3) 52%,
+    transparent 100%
+  );
 }
 `;
+
+  const resolveHeroFocalObjectPosition = (publicBootstrap, imageUrl) => {
+    const mediaVariants = publicBootstrap?.mediaVariants;
+    if (!mediaVariants || typeof mediaVariants !== "object") {
+      return null;
+    }
+    const rawUrl = String(imageUrl || "").trim();
+    if (!rawUrl) {
+      return null;
+    }
+    // Normalize to /uploads/... pathname key (matching the client-side logic).
+    let key = "";
+    if (rawUrl.startsWith("/uploads/")) {
+      key = rawUrl.split("?")[0].split("#")[0];
+    } else {
+      try {
+        const parsed = new URL(rawUrl, "https://placeholder.local");
+        if (parsed.pathname.startsWith("/uploads/")) {
+          key = parsed.pathname;
+        }
+      } catch {
+        // Ignore.
+      }
+    }
+    if (!key) {
+      return null;
+    }
+    const entry = mediaVariants[key];
+    if (!entry || typeof entry !== "object") {
+      return null;
+    }
+    // Check hero-specific focal point, then generic focalPoint.
+    const focalPoints =
+      entry.focalPoints && typeof entry.focalPoints === "object" ? entry.focalPoints : null;
+    const heroFocal = focalPoints?.hero || null;
+    const genericFocal = entry.focalPoint || null;
+    const focal = heroFocal || genericFocal;
+    if (!focal || typeof focal !== "object") {
+      return null;
+    }
+    const x = Number(focal.x);
+    const y = Number(focal.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return null;
+    }
+    const clamp = (v) => Math.min(1, Math.max(0, v));
+    return `${(clamp(x) * 100).toFixed(1)}% ${(clamp(y) * 100).toFixed(1)}%`;
+  };
 
   const buildHomeHeroShellMarkup = (publicBootstrap) => {
     const homeHero = resolveBootstrapHomeHero(publicBootstrap);
@@ -719,12 +808,16 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     const heroSrcSet = String(heroPreload?.imagesrcset || "").trim();
     const heroSizes = String(heroPreload?.imagesizes || "100vw").trim() || "100vw";
 
+    const focalObjectPosition = resolveHeroFocalObjectPosition(
+      publicBootstrap,
+      firstSlide?.image || heroSrc,
+    );
+
     const attrs = [
       `src="${escapeHtmlAttribute(heroSrc)}"`,
       'alt=""',
       'aria-hidden="true"',
       'fetchpriority="high"',
-      'decoding="async"',
     ];
     if (heroSrcSet) {
       attrs.push(`srcset="${escapeHtmlAttribute(heroSrcSet)}"`);
@@ -734,6 +827,8 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     const shellMarkup = [
       '<div id="home-hero-shell" class="public-home-hero-shell public-home-hero-viewport" aria-hidden="true">',
       `  <img class="public-home-hero-shell__image" ${attrs.join(" ")} />`,
+      '  <div class="public-home-hero-shell__veil public-home-hero-shell__veil--primary"></div>',
+      '  <div class="public-home-hero-shell__veil public-home-hero-shell__veil--secondary"></div>',
       "</div>",
     ]
       .filter(Boolean)
@@ -741,7 +836,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
 
     return {
       markup: shellMarkup,
-      criticalCss: buildHomeHeroShellCriticalCss(),
+      criticalCss: buildHomeHeroShellCriticalCss({ focalObjectPosition }),
     };
   };
 

@@ -59,9 +59,9 @@ describe("operational-alerts", () => {
       alerts: [],
       checks: [
         {
-          name: "rate_limit_backend",
+          name: "background_jobs",
           status: "warning",
-          message: "Rate limit local em memoria.",
+          message: "Fila de jobs em atraso.",
         },
       ],
       generatedAt: "2026-02-26T00:00:00.000Z",
@@ -72,10 +72,10 @@ describe("operational-alerts", () => {
     expect(response.checkFindings).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          name: "rate_limit_backend",
+          name: "background_jobs",
           severity: "warning",
-          title: "Rate limiter",
-          description: "Rate limit local em memoria.",
+          title: "Fila de jobs",
+          description: "Fila de jobs em atraso.",
         }),
       ]),
     );

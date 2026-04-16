@@ -17,7 +17,6 @@ export const parseEnvInteger = (value, fallback, min, max) => {
 export const buildServerBootConfig = ({ env = process.env, repoRootDir = process.cwd() } = {}) => {
   const {
     DATABASE_URL = "",
-    REDIS_URL = "",
     MAINTENANCE_MODE: MAINTENANCE_MODE_ENV = "false",
     DISCORD_CLIENT_ID,
     DISCORD_CLIENT_SECRET,
@@ -219,7 +218,6 @@ export const buildServerBootConfig = ({ env = process.env, repoRootDir = process
     PUBLIC_READ_CACHE_MAX_ENTRIES,
     PUBLIC_READ_CACHE_TTL_MS,
     RATE_LIMIT_PREFIX,
-    REDIS_URL,
     SESSION_SECRET,
     SESSION_TABLE,
     adminExportsDir,

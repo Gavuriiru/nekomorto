@@ -443,13 +443,11 @@ describe("server bootstrap dependency builders", () => {
     const dependencies = buildOperationalMonitoringRuntimeDependencies({
       OPS_ALERTS_DB_LATENCY_WARNING_MS: 250,
       PUBLIC_UPLOADS_DIR: "/uploads",
-      REDIS_URL: "redis://localhost:6379",
       fs,
     });
 
     expect(dependencies.dbLatencyWarningMs).toBe(250);
     expect(dependencies.publicUploadsDir).toBe("/uploads");
-    expect(dependencies.redisUrl).toBe("redis://localhost:6379");
     expect(dependencies.fsConstants).toEqual(createNamedValue("constants"));
     await expect(dependencies.fsAccess("/tmp/file", 0)).resolves.toBe("ok");
     expect(fs.promises.access).toHaveBeenCalledWith("/tmp/file", 0);
