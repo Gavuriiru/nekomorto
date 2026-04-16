@@ -20,9 +20,16 @@ const getRouteLayer = (router: any, method: string, path: string) =>
       layer?.route?.path === path && Boolean(layer.route.methods?.[String(method || "").toLowerCase()]),
   ) || null;
 
+const getMiddlewareLayerBySnippet = (router: any, snippet: string) =>
+  router?.stack?.find(
+    (layer: any) =>
+      !layer?.route && typeof layer?.handle === "function" && String(layer.handle).includes(snippet),
+  ) || null;
+
 const createResponse = () => ({
   body: null as unknown,
   headers: new Map<string, string>(),
+  locals: {} as Record<string, unknown>,
   statusCode: 200,
   json(payload: unknown) {
     this.body = payload;
@@ -38,11 +45,8 @@ const createResponse = () => ({
   },
 });
 
-const invokeRoute = async (routeLayer: any, req: Record<string, unknown>) => {
+const invokeHandlers = async (handlers: Array<(...args: any[]) => unknown>, req: Record<string, unknown>) => {
   const res = createResponse();
-  const handlers = Array.isArray(routeLayer?.route?.stack)
-    ? routeLayer.route.stack.map((entry: any) => entry.handle)
-    : [];
   let index = 0;
   const next = async () => {
     const handler = handlers[index];
@@ -54,6 +58,13 @@ const invokeRoute = async (routeLayer: any, req: Record<string, unknown>) => {
   };
   await next();
   return res;
+};
+
+const invokeRoute = async (routeLayer: any, req: Record<string, unknown>) => {
+  const handlers = Array.isArray(routeLayer?.route?.stack)
+    ? routeLayer.route.stack.map((entry: any) => entry.handle)
+    : [];
+  return invokeHandlers(handlers, req);
 };
 
 const createDependencies = (overrides: Record<string, unknown> = {}) => {
@@ -120,8 +131,20 @@ describe("registerSelfServiceRoutes", () => {
       verifyTotpCode,
     });
     const routeLayer = getRouteLayer(dependencies.router, "post", "/api/me/security/totp/enroll/confirm");
+    const authenticatedUserIdLayer = getMiddlewareLayerBySnippet(
+      dependencies.router,
+      "authenticatedUserId",
+    );
+    const rateLimitLayer = getMiddlewareLayerBySnippet(dependencies.router, "action");
 
-    const res = await invokeRoute(routeLayer, {
+    const res = await invokeHandlers(
+      [
+        dependencies.requireAuth,
+        authenticatedUserIdLayer.handle,
+        rateLimitLayer.handle,
+        routeLayer.route.stack[0].handle,
+      ],
+      {
       body: {
         code: "123456",
         enrollmentToken: "token-1",
@@ -131,7 +154,8 @@ describe("registerSelfServiceRoutes", () => {
           id: "user-1",
         },
       },
-    });
+      },
+    );
 
     expect(res.statusCode).toBe(429);
     expect(res.body).toEqual({ error: "rate_limited" });
@@ -151,8 +175,20 @@ describe("registerSelfServiceRoutes", () => {
       verifyTotpOrRecoveryCode,
     });
     const routeLayer = getRouteLayer(dependencies.router, "post", "/api/me/security/totp/disable");
+    const authenticatedUserIdLayer = getMiddlewareLayerBySnippet(
+      dependencies.router,
+      "authenticatedUserId",
+    );
+    const rateLimitLayer = getMiddlewareLayerBySnippet(dependencies.router, "action");
 
-    const res = await invokeRoute(routeLayer, {
+    const res = await invokeHandlers(
+      [
+        dependencies.requireAuth,
+        authenticatedUserIdLayer.handle,
+        rateLimitLayer.handle,
+        routeLayer.route.stack[0].handle,
+      ],
+      {
       body: {
         codeOrRecoveryCode: "123456",
       },
@@ -161,12 +197,36 @@ describe("registerSelfServiceRoutes", () => {
           id: "user-1",
         },
       },
-    });
+      },
+    );
 
     expect(res.statusCode).toBe(429);
     expect(res.body).toEqual({ error: "rate_limited" });
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(canManageMfa).toHaveBeenCalledWith("198.51.100.40");
     expect(verifyTotpOrRecoveryCode).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 from the user context middleware before the TOTP confirm handler runs", async () => {
+    const verifyTotpCode = vi.fn();
+    const dependencies = createDependencies({
+      verifyTotpCode,
+    });
+    const authenticatedUserIdLayer = getMiddlewareLayerBySnippet(
+      dependencies.router,
+      "authenticatedUserId",
+    );
+
+    const res = await invokeHandlers([dependencies.requireAuth, authenticatedUserIdLayer.handle], {
+      body: {
+        code: "123456",
+        enrollmentToken: "token-1",
+      },
+      session: {},
+    });
+
+    expect(res.statusCode).toBe(401);
+    expect(res.body).toEqual({ error: "unauthorized" });
+    expect(verifyTotpCode).not.toHaveBeenCalled();
   });
 });

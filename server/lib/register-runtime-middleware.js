@@ -191,6 +191,42 @@ export const registerRuntimeMiddleware = ({
     return next();
   };
 
+  const handleMissingPwaAsset = (req, res, next) => {
+    const method = String(req.method || "").toUpperCase();
+    if (method !== "GET" && method !== "HEAD") {
+      return next();
+    }
+    const assetPath = resolvePwaCriticalAssetPath({
+      clientDistDir,
+      requestPath: req.path,
+    });
+    if (!assetPath) {
+      return next();
+    }
+    if (fs.existsSync(assetPath)) {
+      return next();
+    }
+    return res.status(404).json({ error: "pwa_asset_not_found" });
+  };
+
+  const handleMissingClientAsset = (req, res, next) => {
+    const method = String(req.method || "").toUpperCase();
+    if (method !== "GET" && method !== "HEAD") {
+      return next();
+    }
+    const assetPath = resolveClientStaticAssetPath({
+      clientDistDir,
+      requestPath: req.path,
+    });
+    if (!assetPath) {
+      return next();
+    }
+    if (fs.existsSync(assetPath)) {
+      return next();
+    }
+    return res.status(404).end();
+  };
+
   app.use((req, res, next) => {
     if (!isProduction) {
       return next();
@@ -438,9 +474,9 @@ export const registerRuntimeMiddleware = ({
 
   const uploadsPublicDir = path.join(clientRootDir, "public", "uploads");
   app.use("/uploads/_quarantine", (_req, res) => res.status(404).end());
+  app.use("/uploads", enforcePublicAssetReadRateLimit);
   app.use(
     "/uploads",
-    enforcePublicAssetReadRateLimit,
     createUploadsDeliveryMiddleware({
       uploadsDir: uploadsPublicDir,
       loadUploads,
@@ -450,7 +486,6 @@ export const registerRuntimeMiddleware = ({
   );
   app.use(
     "/uploads",
-    enforcePublicAssetReadRateLimit,
     express.static(uploadsPublicDir, {
       setHeaders: (res) => {
         res.setHeader("Cache-Control", staticDefaultCacheControl);
@@ -458,47 +493,17 @@ export const registerRuntimeMiddleware = ({
     }),
   );
   if (isProduction) {
+    app.use(enforcePublicAssetReadRateLimit);
     app.use(
-      enforcePublicAssetReadRateLimit,
       express.static(clientDistDir, {
         index: false,
         setHeaders: setStaticCacheHeaders,
       }),
     );
-    app.use(enforcePublicAssetReadRateLimit, async (req, res, next) => {
-      const method = String(req.method || "").toUpperCase();
-      if (method !== "GET" && method !== "HEAD") {
-        return next();
-      }
-      const assetPath = resolvePwaCriticalAssetPath({
-        clientDistDir,
-        requestPath: req.path,
-      });
-      if (!assetPath) {
-        return next();
-      }
-      if (fs.existsSync(assetPath)) {
-        return next();
-      }
-      return res.status(404).json({ error: "pwa_asset_not_found" });
-    });
-    app.use(enforcePublicAssetReadRateLimit, async (req, res, next) => {
-      const method = String(req.method || "").toUpperCase();
-      if (method !== "GET" && method !== "HEAD") {
-        return next();
-      }
-      const assetPath = resolveClientStaticAssetPath({
-        clientDistDir,
-        requestPath: req.path,
-      });
-      if (!assetPath) {
-        return next();
-      }
-      if (fs.existsSync(assetPath)) {
-        return next();
-      }
-      return res.status(404).end();
-    });
+    app.use(enforcePublicAssetReadRateLimit);
+    app.use(handleMissingPwaAsset);
+    app.use(enforcePublicAssetReadRateLimit);
+    app.use(handleMissingClientAsset);
   }
   if (!isProduction) {
     app.use((req, res, next) => {

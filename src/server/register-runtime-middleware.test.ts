@@ -258,9 +258,7 @@ const getUseEntryBySourceSnippet = (
   entries.find(
     (entry) =>
       entry.method === "use" &&
-      typeof entry.args[0] === "function" &&
-      typeof entry.args[1] === "function" &&
-      String(entry.args[1]).includes(snippet),
+      entry.args.some((arg) => typeof arg === "function" && String(arg).includes(snippet)),
   ) || null;
 
 describe("registerRuntimeMiddleware public asset throttling", () => {
@@ -271,8 +269,7 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
     });
     const uploadEntries = getUseEntriesByPath(entries, "/uploads");
 
-    expect(uploadEntries).toHaveLength(2);
-    expect(uploadEntries[0]?.args[1]).toBe(uploadEntries[1]?.args[1]);
+    expect(uploadEntries).toHaveLength(3);
 
     const req = {
       method: "GET",
@@ -281,7 +278,7 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
     };
 
     const first = await invokeMiddleware(uploadEntries[0]?.args[1], req);
-    const second = await invokeMiddleware(uploadEntries[1]?.args[1], req);
+    const second = await invokeMiddleware(uploadEntries[0]?.args[1], req);
 
     expect(first.next).toHaveBeenCalledTimes(1);
     expect(second.next).toHaveBeenCalledTimes(1);
@@ -310,19 +307,24 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
 
   it("returns 429 for missing PWA assets before checking the filesystem", async () => {
     const existsSyncSpy = vi.spyOn(fs, "existsSync");
-    const fallbackEntry = getUseEntryBySourceSnippet(
-      createRuntimeDependencies({
-        canReadPublicAsset: vi.fn(async () => false),
-      }).entries,
-      "pwa_asset_not_found",
+    const entries = createRuntimeDependencies({
+      canReadPublicAsset: vi.fn(async () => false),
+    }).entries;
+    const fallbackEntryIndex = entries.findIndex(
+      (entry) =>
+        entry.method === "use" &&
+        entry.args.some((arg) => typeof arg === "function" && String(arg).includes("pwa_asset_not_found")),
     );
+    const fallbackEntry = fallbackEntryIndex >= 0 ? entries[fallbackEntryIndex] : null;
+    const fallbackGateEntry = fallbackEntryIndex > 0 ? entries[fallbackEntryIndex - 1] : null;
 
     expect(fallbackEntry).not.toBeNull();
-    if (!fallbackEntry) {
+    expect(fallbackGateEntry).not.toBeNull();
+    if (!fallbackEntry || !fallbackGateEntry) {
       throw new Error("missing pwa fallback entry");
     }
 
-    const result = await invokeMiddleware(fallbackEntry.args[0], {
+    const result = await invokeMiddleware(fallbackGateEntry.args[0], {
       method: "GET",
       originalUrl: "/sw.js",
       path: "/sw.js",
@@ -337,12 +339,17 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
 
   it("returns 404 for missing PWA assets after the limiter allows the request", async () => {
     const existsSyncSpy = vi.spyOn(fs, "existsSync").mockReturnValue(false);
-    const fallbackEntry = getUseEntryBySourceSnippet(
-      createRuntimeDependencies().entries,
-      "pwa_asset_not_found",
+    const entries = createRuntimeDependencies().entries;
+    const fallbackEntryIndex = entries.findIndex(
+      (entry) =>
+        entry.method === "use" &&
+        entry.args.some((arg) => typeof arg === "function" && String(arg).includes("pwa_asset_not_found")),
     );
+    const fallbackEntry = fallbackEntryIndex >= 0 ? entries[fallbackEntryIndex] : null;
+    const fallbackGateEntry = fallbackEntryIndex > 0 ? entries[fallbackEntryIndex - 1] : null;
     expect(fallbackEntry).not.toBeNull();
-    if (!fallbackEntry) {
+    expect(fallbackGateEntry).not.toBeNull();
+    if (!fallbackEntry || !fallbackGateEntry) {
       throw new Error("missing pwa fallback entry");
     }
     const req = {
@@ -351,8 +358,8 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
       path: "/sw.js",
     };
 
-    const gate = await invokeMiddleware(fallbackEntry.args[0], req);
-    await (fallbackEntry.args[1] as any)(req, gate.res, gate.next);
+    const gate = await invokeMiddleware(fallbackGateEntry.args[0], req);
+    await (fallbackEntry.args[0] as any)(req, gate.res, gate.next);
 
     expect(gate.next).toHaveBeenCalledTimes(1);
     expect(gate.res.statusCode).toBe(404);
@@ -363,19 +370,26 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
 
   it("returns 429 for missing client assets before checking the filesystem", async () => {
     const existsSyncSpy = vi.spyOn(fs, "existsSync");
-    const fallbackEntry = getUseEntryBySourceSnippet(
-      createRuntimeDependencies({
-        canReadPublicAsset: vi.fn(async () => false),
-      }).entries,
-      "resolveClientStaticAssetPath",
+    const entries = createRuntimeDependencies({
+      canReadPublicAsset: vi.fn(async () => false),
+    }).entries;
+    const fallbackEntryIndex = entries.findIndex(
+      (entry) =>
+        entry.method === "use" &&
+        entry.args.some(
+          (arg) => typeof arg === "function" && String(arg).includes("resolveClientStaticAssetPath"),
+        ),
     );
+    const fallbackEntry = fallbackEntryIndex >= 0 ? entries[fallbackEntryIndex] : null;
+    const fallbackGateEntry = fallbackEntryIndex > 0 ? entries[fallbackEntryIndex - 1] : null;
 
     expect(fallbackEntry).not.toBeNull();
-    if (!fallbackEntry) {
+    expect(fallbackGateEntry).not.toBeNull();
+    if (!fallbackEntry || !fallbackGateEntry) {
       throw new Error("missing client asset fallback entry");
     }
 
-    const result = await invokeMiddleware(fallbackEntry.args[0], {
+    const result = await invokeMiddleware(fallbackGateEntry.args[0], {
       method: "GET",
       originalUrl: "/assets/index-missing.js",
       path: "/assets/index-missing.js",

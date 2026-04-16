@@ -49,7 +49,7 @@ export const registerSelfServiceRoutes = ({
 
   const createManageMfaRateLimitMiddleware = (action) => async (req, res, next) => {
     setNoStore(res);
-    const userId = String(req.session?.user?.id || "").trim();
+    const userId = String(res.locals?.authenticatedUserId || "").trim();
     if (!userId) {
       return next();
     }
@@ -58,6 +58,102 @@ export const registerSelfServiceRoutes = ({
       return rejectMfaRateLimited(req, res, userId, action);
     }
     return next();
+  };
+
+  const requireAuthenticatedUserId = (req, res, next) => {
+    setNoStore(res);
+    const userId = String(req.session?.user?.id || "").trim();
+    if (!userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+    res.locals.authenticatedUserId = userId;
+    return next();
+  };
+
+  const handleTotpEnrollConfirm = async (req, res) => {
+    setNoStore(res);
+    const userId = res.locals.authenticatedUserId;
+    const enrollmentToken = String(req.body?.enrollmentToken || req.body?.token || "").trim();
+    const code = String(req.body?.code || req.body?.codeOrRecoveryCode || "")
+      .trim()
+      .replace(/\s+/g, "");
+    if (!enrollmentToken || !code) {
+      appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
+        userId,
+        error: "enrollment_token_and_code_required",
+      });
+      return res.status(400).json({ error: "enrollment_token_and_code_required" });
+    }
+    const enrollment = resolveEnrollmentFromSession({ req, enrollmentToken, userId });
+    if (!enrollment) {
+      appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
+        userId,
+        error: "invalid_or_expired_enrollment",
+      });
+      return res.status(400).json({ error: "invalid_or_expired_enrollment" });
+    }
+    if (!verifyTotpCode({ secret: enrollment.secret, code })) {
+      handleMfaFailureSecuritySignals({
+        req,
+        userId,
+        error: "enroll_confirm_invalid_code",
+      });
+      appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
+        userId,
+        error: "invalid_totp_code",
+      });
+      return res.status(401).json({ error: "invalid_totp_code" });
+    }
+    const recoveryCodes = generateRecoveryCodes({ count: 8 });
+    const recoveryCodesHashed = recoveryCodes.map((entry) =>
+      hashRecoveryCode({ code: entry, pepper: mfaRecoveryCodePepper }),
+    );
+    const encryptedSecret = encryptStringWithKeyring({
+      keyring: dataEncryptionKeyring,
+      plaintext: JSON.stringify({ secret: enrollment.secret }),
+    });
+    writeUserMfaTotpRecord(userId, {
+      userId,
+      secretEncrypted: encryptedSecret,
+      secretKeyId: dataEncryptionKeyring.activeKeyId,
+      enabledAt: new Date().toISOString(),
+      disabledAt: null,
+      recoveryCodesHashed,
+    });
+    clearEnrollmentFromSession(req);
+    appendAuditLog(req, "auth.mfa.enroll.success", "auth", { userId });
+    metricsRegistry.inc("auth_mfa_verify_total", { status: "configured" });
+    return res.json({
+      ok: true,
+      recoveryCodes,
+      recoveryCodesRemaining: recoveryCodes.length,
+    });
+  };
+
+  const handleTotpDisable = async (req, res) => {
+    setNoStore(res);
+    const userId = res.locals.authenticatedUserId;
+    if (!isTotpEnabledForUser(userId)) {
+      return res.status(409).json({ error: "totp_not_enabled" });
+    }
+    const codeOrRecoveryCode = String(req.body?.codeOrRecoveryCode || req.body?.code || "").trim();
+    const verification = verifyTotpOrRecoveryCode({
+      userId,
+      codeOrRecoveryCode,
+      consumeRecoveryCode: true,
+    });
+    if (!verification.ok) {
+      handleMfaFailureSecuritySignals({
+        req,
+        userId,
+        error: verification.reason || "disable_invalid_code",
+      });
+      return res.status(401).json({ error: "invalid_mfa_code" });
+    }
+    deleteUserMfaTotpRecord(userId);
+    clearEnrollmentFromSession(req);
+    appendAuditLog(req, "auth.mfa.disable", "auth", { userId, method: verification.method });
+    return res.json({ ok: true });
   };
 
   router.get("/api/me/preferences", requireAuth, (req, res) => {
@@ -143,107 +239,18 @@ export const registerSelfServiceRoutes = ({
     });
   });
 
-  router.post(
+  router.use("/api/me/security/totp/enroll/confirm", requireAuth);
+  router.use("/api/me/security/totp/enroll/confirm", requireAuthenticatedUserId);
+  router.use(
     "/api/me/security/totp/enroll/confirm",
-    requireAuth,
     createManageMfaRateLimitMiddleware("enroll_confirm"),
-    async (req, res) => {
-      setNoStore(res);
-      const userId = String(req.session?.user?.id || "").trim();
-      if (!userId) {
-        return res.status(401).json({ error: "unauthorized" });
-      }
-      const enrollmentToken = String(req.body?.enrollmentToken || req.body?.token || "").trim();
-      const code = String(req.body?.code || req.body?.codeOrRecoveryCode || "")
-        .trim()
-        .replace(/\s+/g, "");
-      if (!enrollmentToken || !code) {
-        appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
-          userId,
-          error: "enrollment_token_and_code_required",
-        });
-        return res.status(400).json({ error: "enrollment_token_and_code_required" });
-      }
-      const enrollment = resolveEnrollmentFromSession({ req, enrollmentToken, userId });
-      if (!enrollment) {
-        appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
-          userId,
-          error: "invalid_or_expired_enrollment",
-        });
-        return res.status(400).json({ error: "invalid_or_expired_enrollment" });
-      }
-      if (!verifyTotpCode({ secret: enrollment.secret, code })) {
-        handleMfaFailureSecuritySignals({
-          req,
-          userId,
-          error: "enroll_confirm_invalid_code",
-        });
-        appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
-          userId,
-          error: "invalid_totp_code",
-        });
-        return res.status(401).json({ error: "invalid_totp_code" });
-      }
-      const recoveryCodes = generateRecoveryCodes({ count: 8 });
-      const recoveryCodesHashed = recoveryCodes.map((entry) =>
-        hashRecoveryCode({ code: entry, pepper: mfaRecoveryCodePepper }),
-      );
-      const encryptedSecret = encryptStringWithKeyring({
-        keyring: dataEncryptionKeyring,
-        plaintext: JSON.stringify({ secret: enrollment.secret }),
-      });
-      writeUserMfaTotpRecord(userId, {
-        userId,
-        secretEncrypted: encryptedSecret,
-        secretKeyId: dataEncryptionKeyring.activeKeyId,
-        enabledAt: new Date().toISOString(),
-        disabledAt: null,
-        recoveryCodesHashed,
-      });
-      clearEnrollmentFromSession(req);
-      appendAuditLog(req, "auth.mfa.enroll.success", "auth", { userId });
-      metricsRegistry.inc("auth_mfa_verify_total", { status: "configured" });
-      return res.json({
-        ok: true,
-        recoveryCodes,
-        recoveryCodesRemaining: recoveryCodes.length,
-      });
-    },
   );
+  router.post("/api/me/security/totp/enroll/confirm", handleTotpEnrollConfirm);
 
-  router.post(
-    "/api/me/security/totp/disable",
-    requireAuth,
-    createManageMfaRateLimitMiddleware("disable"),
-    async (req, res) => {
-      setNoStore(res);
-      const userId = String(req.session?.user?.id || "").trim();
-      if (!userId) {
-        return res.status(401).json({ error: "unauthorized" });
-      }
-      if (!isTotpEnabledForUser(userId)) {
-        return res.status(409).json({ error: "totp_not_enabled" });
-      }
-      const codeOrRecoveryCode = String(req.body?.codeOrRecoveryCode || req.body?.code || "").trim();
-      const verification = verifyTotpOrRecoveryCode({
-        userId,
-        codeOrRecoveryCode,
-        consumeRecoveryCode: true,
-      });
-      if (!verification.ok) {
-        handleMfaFailureSecuritySignals({
-          req,
-          userId,
-          error: verification.reason || "disable_invalid_code",
-        });
-        return res.status(401).json({ error: "invalid_mfa_code" });
-      }
-      deleteUserMfaTotpRecord(userId);
-      clearEnrollmentFromSession(req);
-      appendAuditLog(req, "auth.mfa.disable", "auth", { userId, method: verification.method });
-      return res.json({ ok: true });
-    },
-  );
+  router.use("/api/me/security/totp/disable", requireAuth);
+  router.use("/api/me/security/totp/disable", requireAuthenticatedUserId);
+  router.use("/api/me/security/totp/disable", createManageMfaRateLimitMiddleware("disable"));
+  router.post("/api/me/security/totp/disable", handleTotpDisable);
 
   router.get("/api/me/sessions", requireAuth, (req, res) => {
     setNoStore(res);

@@ -35,13 +35,6 @@ export const registerAuthRoutes = ({
   verifyTotpOrRecoveryCode,
 }) => {
   const router = Router();
-  const requirePendingMfaSession = (req, res, next) => {
-    if (req.session?.pendingMfaUser?.id) {
-      return next();
-    }
-    res.setHeader("Cache-Control", "no-store");
-    return res.status(401).json({ error: "mfa_not_pending" });
-  };
 
   const resolveLoginAppOrigin = (req) =>
     resolveAuthAppOrigin({
@@ -67,7 +60,7 @@ export const registerAuthRoutes = ({
         (typeof req.query?.state === "string" && req.query.state.trim()),
     );
     if (!hasOAuthCallbackParams) {
-      return next("route");
+      return next("router");
     }
     return next();
   };
@@ -91,7 +84,7 @@ export const registerAuthRoutes = ({
 
   const enforcePendingMfaVerifyRateLimit = async (req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
-    const pendingUser = req.session?.pendingMfaUser || null;
+    const pendingUser = res.locals.pendingMfaUser || null;
     const ip = getRequestIp(req);
     if (!(await canVerifyMfa(ip))) {
       metricsRegistry.inc("auth_mfa_verify_total", { status: "rate_limited" });
@@ -104,7 +97,17 @@ export const registerAuthRoutes = ({
     return next();
   };
 
-  router.get("/auth/discord", enforceDiscordAuthAttemptRateLimit, async (req, res) => {
+  const attachPendingMfaUser = (req, res, next) => {
+    const pendingUser = req.session?.pendingMfaUser || null;
+    if (pendingUser?.id) {
+      res.locals.pendingMfaUser = pendingUser;
+      return next();
+    }
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(401).json({ error: "mfa_not_pending" });
+  };
+
+  const handleDiscordAuthStart = async (req, res) => {
     const loginAppOrigin = resolveAuthAppOrigin({
       req,
       sessionOrigin: null,
@@ -146,59 +149,63 @@ export const registerAuthRoutes = ({
     });
 
     return res.redirect(`https://discord.com/oauth2/authorize?${params.toString()}`);
-  });
+  };
 
-  router.get(
-    "/login",
-    requireOAuthCallbackParams,
-    enforceLoginCallbackAuthAttemptRateLimit,
-    async (req, res) => {
-      const loginAppOrigin = resolveLoginAppOrigin(req);
-      const { code, state } = req.query;
+  const prepareLoginCallbackContext = (req, res, next) => {
+    const loginAppOrigin = resolveLoginAppOrigin(req);
+    const { code, state } = req.query;
 
-      if (!code || typeof code !== "string") {
-        metricsRegistry.inc("auth_login_total", { status: "failed" });
-        handleAuthFailureSecuritySignals({ req, error: "missing_code" });
-        appendAuditLog(req, "auth.login.failed", "auth", { error: "missing_code" });
-        return res.redirect(
+    if (!code || typeof code !== "string") {
+      metricsRegistry.inc("auth_login_total", { status: "failed" });
+      handleAuthFailureSecuritySignals({ req, error: "missing_code" });
+      appendAuditLog(req, "auth.login.failed", "auth", { error: "missing_code" });
+      return res.redirect(
+        buildAuthRedirectUrl({
+          appOrigin: loginAppOrigin,
+          path: "/login",
+          searchParams: { error: "missing_code" },
+        }),
+      );
+    }
+
+    if (!state || typeof state !== "string" || state !== req.session?.oauthState) {
+      metricsRegistry.inc("auth_login_total", { status: "failed" });
+      handleAuthFailureSecuritySignals({ req, error: "state_mismatch" });
+      appendAuditLog(req, "auth.login.failed", "auth", { error: "state_mismatch" });
+      return res.redirect(
+        buildAuthRedirectUrl({
+          appOrigin: loginAppOrigin,
+          path: "/login",
+          searchParams: { error: "state_mismatch" },
+        }),
+      );
+    }
+
+    if (req.session) {
+      req.session.oauthState = null;
+    }
+    res.locals.oauthLoginCallback = {
+      code,
+      loginAppOrigin,
+    };
+    return next();
+  };
+
+  const handleLoginOAuthCallback = async (req, res) => {
+    const { code, loginAppOrigin } = res.locals.oauthLoginCallback || {};
+    try {
+      const redirectToLoginServerError = () =>
+        res.redirect(
           buildAuthRedirectUrl({
             appOrigin: loginAppOrigin,
             path: "/login",
-            searchParams: { error: "missing_code" },
+            searchParams: { error: "server_error" },
           }),
         );
-      }
-
-      if (!state || typeof state !== "string" || state !== req.session?.oauthState) {
-        metricsRegistry.inc("auth_login_total", { status: "failed" });
-        handleAuthFailureSecuritySignals({ req, error: "state_mismatch" });
-        appendAuditLog(req, "auth.login.failed", "auth", { error: "state_mismatch" });
-        return res.redirect(
-          buildAuthRedirectUrl({
-            appOrigin: loginAppOrigin,
-            path: "/login",
-            searchParams: { error: "state_mismatch" },
-          }),
-        );
-      }
-
+      const redirectUri = req.session?.discordRedirectUri || resolveDiscordRedirectUri(req);
       if (req.session) {
-        req.session.oauthState = null;
+        req.session.discordRedirectUri = null;
       }
-
-      try {
-        const redirectToLoginServerError = () =>
-          res.redirect(
-            buildAuthRedirectUrl({
-              appOrigin: loginAppOrigin,
-              path: "/login",
-              searchParams: { error: "server_error" },
-            }),
-          );
-        const redirectUri = req.session?.discordRedirectUri || resolveDiscordRedirectUri(req);
-        if (req.session) {
-          req.session.discordRedirectUri = null;
-        }
 
       const tokenResponse = await fetch(`${discordApi}/oauth2/token`, {
         method: "POST",
@@ -367,88 +374,96 @@ export const registerAuthRoutes = ({
           searchParams: { error: "server_error" },
         }),
       );
-      }
-    },
-  );
+    }
+  };
 
-  router.post(
-    "/api/auth/mfa/verify",
-    requirePendingMfaSession,
-    enforcePendingMfaVerifyRateLimit,
-    async (req, res) => {
-      res.setHeader("Cache-Control", "no-store");
-      const pendingUser = req.session?.pendingMfaUser || null;
+  const handlePendingMfaVerification = async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    const pendingUser = res.locals.pendingMfaUser;
 
-      const codeOrRecoveryCode = String(req.body?.codeOrRecoveryCode || req.body?.code || "").trim();
-      if (!codeOrRecoveryCode) {
-        return res.status(400).json({ error: "code_required" });
-      }
+    const codeOrRecoveryCode = String(req.body?.codeOrRecoveryCode || req.body?.code || "").trim();
+    if (!codeOrRecoveryCode) {
+      return res.status(400).json({ error: "code_required" });
+    }
 
-      const verification = verifyTotpOrRecoveryCode({
-        userId: pendingUser.id,
-        codeOrRecoveryCode,
-        consumeRecoveryCode: true,
-      });
-      if (!verification.ok) {
-        handleMfaFailureSecuritySignals({
-          req,
-          userId: pendingUser.id,
-          error: verification.reason || "invalid_code",
-        });
-        appendAuditLog(req, "auth.mfa.failed", "auth", {
-          userId: pendingUser.id,
-          error: verification.reason || "invalid_code",
-        });
-        return res.status(401).json({ error: "invalid_mfa_code" });
-      }
-
-      const nextPath = String(req.session?.loginNext || "").trim();
-      const loginAppOrigin = resolveAuthAppOrigin({
+    const verification = verifyTotpOrRecoveryCode({
+      userId: pendingUser.id,
+      codeOrRecoveryCode,
+      consumeRecoveryCode: true,
+    });
+    if (!verification.ok) {
+      handleMfaFailureSecuritySignals({
         req,
-        sessionOrigin: req.session?.loginAppOrigin,
-        primaryAppOrigin,
-        isAllowedOriginFn: isAllowedOrigin,
-      });
-      try {
-        await establishAuthenticatedSession({
-          req,
-          user: pendingUser,
-          preserved: {
-            loginNext: null,
-            loginAppOrigin: null,
-            mfaVerifiedAt: new Date().toISOString(),
-          },
-        });
-      } catch {
-        return res.status(500).json({ error: "session_regenerate_failed" });
-      }
-      if (req.session) {
-        req.session.pendingMfaUser = null;
-      }
-      try {
-        await saveSessionState(req);
-      } catch {
-        return res.status(500).json({ error: "session_regenerate_failed" });
-      }
-      updateSessionIndexFromRequest(req, { force: true });
-      maybeEmitNewNetworkLoginEvent({ req, userId: pendingUser.id });
-      maybeEmitExcessiveSessionsEvent({ req, userId: pendingUser.id });
-      metricsRegistry.inc("auth_mfa_verify_total", { status: "success" });
-      appendAuditLog(req, "auth.mfa.success", "auth", {
         userId: pendingUser.id,
-        method: verification.method,
+        error: verification.reason || "invalid_code",
       });
-      return res.json({
-        ok: true,
-        method: verification.method,
-        recoveryCodesRemaining: verification.remainingRecoveryCodes ?? 0,
-        redirect: buildAuthRedirectUrl({
-          appOrigin: loginAppOrigin,
-          path: nextPath || "/dashboard",
-        }),
+      appendAuditLog(req, "auth.mfa.failed", "auth", {
+        userId: pendingUser.id,
+        error: verification.reason || "invalid_code",
       });
-    },
-  );
+      return res.status(401).json({ error: "invalid_mfa_code" });
+    }
+
+    const nextPath = String(req.session?.loginNext || "").trim();
+    const loginAppOrigin = resolveAuthAppOrigin({
+      req,
+      sessionOrigin: req.session?.loginAppOrigin,
+      primaryAppOrigin,
+      isAllowedOriginFn: isAllowedOrigin,
+    });
+    try {
+      await establishAuthenticatedSession({
+        req,
+        user: pendingUser,
+        preserved: {
+          loginNext: null,
+          loginAppOrigin: null,
+          mfaVerifiedAt: new Date().toISOString(),
+        },
+      });
+    } catch {
+      return res.status(500).json({ error: "session_regenerate_failed" });
+    }
+    if (req.session) {
+      req.session.pendingMfaUser = null;
+    }
+    try {
+      await saveSessionState(req);
+    } catch {
+      return res.status(500).json({ error: "session_regenerate_failed" });
+    }
+    updateSessionIndexFromRequest(req, { force: true });
+    maybeEmitNewNetworkLoginEvent({ req, userId: pendingUser.id });
+    maybeEmitExcessiveSessionsEvent({ req, userId: pendingUser.id });
+    metricsRegistry.inc("auth_mfa_verify_total", { status: "success" });
+    appendAuditLog(req, "auth.mfa.success", "auth", {
+      userId: pendingUser.id,
+      method: verification.method,
+    });
+    return res.json({
+      ok: true,
+      method: verification.method,
+      recoveryCodesRemaining: verification.remainingRecoveryCodes ?? 0,
+      redirect: buildAuthRedirectUrl({
+        appOrigin: loginAppOrigin,
+        path: nextPath || "/dashboard",
+      }),
+    });
+  };
+
+  router.use("/auth/discord", enforceDiscordAuthAttemptRateLimit);
+  router.get("/auth/discord", handleDiscordAuthStart);
+
+  const loginCallbackRouter = Router();
+  loginCallbackRouter.use(requireOAuthCallbackParams);
+  loginCallbackRouter.use(enforceLoginCallbackAuthAttemptRateLimit);
+  loginCallbackRouter.use(prepareLoginCallbackContext);
+  loginCallbackRouter.get("/", handleLoginOAuthCallback);
+  router.use("/login", loginCallbackRouter);
+
+  router.use("/api/auth/mfa/verify", attachPendingMfaUser);
+  router.use("/api/auth/mfa/verify", enforcePendingMfaVerifyRateLimit);
+  router.post("/api/auth/mfa/verify", handlePendingMfaVerification);
 
   router.post("/api/logout", (req, res) => {
     const currentSid = String(req.sessionID || "").trim();

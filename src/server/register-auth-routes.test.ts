@@ -20,10 +20,35 @@ const getRouteLayer = (router: any, method: string, path: string) =>
       layer?.route?.path === path && Boolean(layer.route.methods?.[String(method || "").toLowerCase()]),
   ) || null;
 
+const getMiddlewareLayerBySnippet = (router: any, snippet: string) =>
+  router?.stack?.find(
+    (layer: any) =>
+      !layer?.route && typeof layer?.handle === "function" && String(layer.handle).includes(snippet),
+  ) || null;
+
+const getNestedRouterBySnippet = (router: any, snippet: string) =>
+  router?.stack?.find(
+    (layer: any) =>
+      !layer?.route &&
+      Array.isArray(layer?.handle?.stack) &&
+      layer.handle.stack.some(
+        (childLayer: any) =>
+          (!childLayer?.route && typeof childLayer?.handle === "function" &&
+            String(childLayer.handle).includes(snippet)) ||
+          (childLayer?.route &&
+            Array.isArray(childLayer.route.stack) &&
+            childLayer.route.stack.some(
+              (entry: any) =>
+                typeof entry?.handle === "function" && String(entry.handle).includes(snippet),
+            )),
+      ),
+  )?.handle || null;
+
 const createResponse = () => ({
   body: null as unknown,
   clearedCookies: [] as Array<{ name: string; options: Record<string, unknown> }>,
   headers: new Map<string, string>(),
+  locals: {} as Record<string, unknown>,
   nextArgs: [] as unknown[],
   redirectUrl: "",
   statusCode: 200,
@@ -49,17 +74,14 @@ const createResponse = () => ({
   },
 });
 
-const invokeRoute = async (routeLayer: any, req: Record<string, unknown>) => {
+const invokeHandlers = async (handlers: Array<(...args: any[]) => unknown>, req: Record<string, unknown>) => {
   const res = createResponse();
-  const handlers = Array.isArray(routeLayer?.route?.stack)
-    ? routeLayer.route.stack.map((entry: any) => entry.handle)
-    : [];
   let index = 0;
   const runHandler = async (arg?: unknown) => {
     if (arg !== undefined) {
       res.nextArgs.push(arg);
     }
-    if (arg === "route") {
+    if (arg === "route" || arg === "router") {
       return;
     }
     const handler = handlers[index];
@@ -72,6 +94,13 @@ const invokeRoute = async (routeLayer: any, req: Record<string, unknown>) => {
   const next = async (arg?: unknown) => runHandler(arg);
   await runHandler();
   return res;
+};
+
+const invokeRoute = async (routeLayer: any, req: Record<string, unknown>) => {
+  const handlers = Array.isArray(routeLayer?.route?.stack)
+    ? routeLayer.route.stack.map((entry: any) => entry.handle)
+    : [];
+  return invokeHandlers(handlers, req);
 };
 
 const createDependencies = (overrides: Record<string, unknown> = {}) => {
@@ -143,6 +172,7 @@ describe("registerAuthRoutes", () => {
       saveSessionState,
     });
     const routeLayer = getRouteLayer(dependencies.router, "get", "/auth/discord");
+    const rateLimitLayer = getMiddlewareLayerBySnippet(dependencies.router, "auth.discord.rate_limited");
     const req = {
       query: {
         next: "/dashboard",
@@ -150,7 +180,7 @@ describe("registerAuthRoutes", () => {
       session: {},
     };
 
-    const res = await invokeRoute(routeLayer, req);
+    const res = await invokeHandlers([rateLimitLayer.handle, routeLayer.route.stack[0].handle], req);
 
     expect(res.statusCode).toBe(429);
     expect(res.body).toEqual({ error: "rate_limited" });
@@ -164,14 +194,15 @@ describe("registerAuthRoutes", () => {
     const dependencies = createDependencies({
       canAttemptAuth,
     });
-    const routeLayer = getRouteLayer(dependencies.router, "get", "/login");
+    const loginCallbackRouter = getNestedRouterBySnippet(dependencies.router, "hasOAuthCallbackParams");
+    const callbackGuard = getMiddlewareLayerBySnippet(loginCallbackRouter, "hasOAuthCallbackParams");
 
-    const res = await invokeRoute(routeLayer, {
+    const res = await invokeHandlers([callbackGuard.handle], {
       query: {},
       session: {},
     });
 
-    expect(res.nextArgs).toEqual(["route"]);
+    expect(res.nextArgs).toEqual(["router"]);
     expect(canAttemptAuth).not.toHaveBeenCalled();
   });
 
@@ -182,9 +213,14 @@ describe("registerAuthRoutes", () => {
       canAttemptAuth,
       resolveDiscordRedirectUri,
     });
-    const routeLayer = getRouteLayer(dependencies.router, "get", "/login");
+    const loginCallbackRouter = getNestedRouterBySnippet(dependencies.router, "auth.login.rate_limited");
+    const callbackGuard = getMiddlewareLayerBySnippet(loginCallbackRouter, "hasOAuthCallbackParams");
+    const rateLimitLayer = getMiddlewareLayerBySnippet(loginCallbackRouter, "auth.login.rate_limited");
+    const routeLayer = getRouteLayer(loginCallbackRouter, "get", "/");
 
-    const res = await invokeRoute(routeLayer, {
+    const res = await invokeHandlers(
+      [callbackGuard.handle, rateLimitLayer.handle, routeLayer.route.stack[0].handle],
+      {
       query: {
         code: "discord-code",
         state: "oauth-state",
@@ -193,7 +229,8 @@ describe("registerAuthRoutes", () => {
         loginAppOrigin: "https://example.com",
         oauthState: "oauth-state",
       },
-    });
+      },
+    );
 
     expect(res.redirectUrl).toBe("https://example.com/login");
     expect(canAttemptAuth).toHaveBeenCalledWith("203.0.113.5");
@@ -214,15 +251,20 @@ describe("registerAuthRoutes", () => {
       verifyTotpOrRecoveryCode,
     });
     const routeLayer = getRouteLayer(dependencies.router, "post", "/api/auth/mfa/verify");
+    const pendingUserLayer = getMiddlewareLayerBySnippet(dependencies.router, "mfa_not_pending");
+    const rateLimitLayer = getMiddlewareLayerBySnippet(dependencies.router, "auth.mfa.rate_limited");
 
-    const res = await invokeRoute(routeLayer, {
+    const res = await invokeHandlers(
+      [pendingUserLayer.handle, rateLimitLayer.handle, routeLayer.route.stack[0].handle],
+      {
       body: { code: "123456" },
       session: {
         pendingMfaUser: {
           id: "user-1",
         },
       },
-    });
+      },
+    );
 
     expect(res.statusCode).toBe(429);
     expect(res.body).toEqual({ error: "rate_limited" });
@@ -241,6 +283,26 @@ describe("registerAuthRoutes", () => {
         userId: "user-1",
       }),
     );
+  });
+
+  it("rejects MFA verification before the handler when no pending session exists", async () => {
+    const canVerifyMfa = vi.fn(async () => true);
+    const verifyTotpOrRecoveryCode = vi.fn();
+    const dependencies = createDependencies({
+      canVerifyMfa,
+      verifyTotpOrRecoveryCode,
+    });
+    const pendingUserLayer = getMiddlewareLayerBySnippet(dependencies.router, "mfa_not_pending");
+
+    const res = await invokeHandlers([pendingUserLayer.handle], {
+      body: { code: "123456" },
+      session: {},
+    });
+
+    expect(res.statusCode).toBe(401);
+    expect(res.body).toEqual({ error: "mfa_not_pending" });
+    expect(canVerifyMfa).not.toHaveBeenCalled();
+    expect(verifyTotpOrRecoveryCode).not.toHaveBeenCalled();
   });
 
   it("clears the session cookie with the same secure attributes on logout", async () => {
