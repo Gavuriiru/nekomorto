@@ -60,7 +60,7 @@ export const registerAuthRoutes = ({
         (typeof req.query?.state === "string" && req.query.state.trim()),
     );
     if (!hasOAuthCallbackParams) {
-      return next("router");
+      return next("route");
     }
     return next();
   };
@@ -451,19 +451,20 @@ export const registerAuthRoutes = ({
     });
   };
 
-  router.use("/auth/discord", enforceDiscordAuthAttemptRateLimit);
-  router.get("/auth/discord", handleDiscordAuthStart);
-
-  const loginCallbackRouter = Router();
-  loginCallbackRouter.use(requireOAuthCallbackParams);
-  loginCallbackRouter.use(enforceLoginCallbackAuthAttemptRateLimit);
-  loginCallbackRouter.use(prepareLoginCallbackContext);
-  loginCallbackRouter.get("/", handleLoginOAuthCallback);
-  router.use("/login", loginCallbackRouter);
-
-  router.use("/api/auth/mfa/verify", attachPendingMfaUser);
-  router.use("/api/auth/mfa/verify", enforcePendingMfaVerifyRateLimit);
-  router.post("/api/auth/mfa/verify", handlePendingMfaVerification);
+  router.get("/auth/discord", enforceDiscordAuthAttemptRateLimit, handleDiscordAuthStart);
+  router.get(
+    "/login",
+    requireOAuthCallbackParams,
+    enforceLoginCallbackAuthAttemptRateLimit,
+    prepareLoginCallbackContext,
+    handleLoginOAuthCallback,
+  );
+  router.post(
+    "/api/auth/mfa/verify",
+    attachPendingMfaUser,
+    enforcePendingMfaVerifyRateLimit,
+    handlePendingMfaVerification,
+  );
 
   router.post("/api/logout", (req, res) => {
     const currentSid = String(req.sessionID || "").trim();

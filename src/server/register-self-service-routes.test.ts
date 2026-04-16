@@ -20,12 +20,6 @@ const getRouteLayer = (router: any, method: string, path: string) =>
       layer?.route?.path === path && Boolean(layer.route.methods?.[String(method || "").toLowerCase()]),
   ) || null;
 
-const getMiddlewareLayerBySnippet = (router: any, snippet: string) =>
-  router?.stack?.find(
-    (layer: any) =>
-      !layer?.route && typeof layer?.handle === "function" && String(layer.handle).includes(snippet),
-  ) || null;
-
 const createResponse = () => ({
   body: null as unknown,
   headers: new Map<string, string>(),
@@ -131,20 +125,8 @@ describe("registerSelfServiceRoutes", () => {
       verifyTotpCode,
     });
     const routeLayer = getRouteLayer(dependencies.router, "post", "/api/me/security/totp/enroll/confirm");
-    const authenticatedUserIdLayer = getMiddlewareLayerBySnippet(
-      dependencies.router,
-      "authenticatedUserId",
-    );
-    const rateLimitLayer = getMiddlewareLayerBySnippet(dependencies.router, "action");
 
-    const res = await invokeHandlers(
-      [
-        dependencies.requireAuth,
-        authenticatedUserIdLayer.handle,
-        rateLimitLayer.handle,
-        routeLayer.route.stack[0].handle,
-      ],
-      {
+    const res = await invokeRoute(routeLayer, {
       body: {
         code: "123456",
         enrollmentToken: "token-1",
@@ -154,8 +136,7 @@ describe("registerSelfServiceRoutes", () => {
           id: "user-1",
         },
       },
-      },
-    );
+    });
 
     expect(res.statusCode).toBe(429);
     expect(res.body).toEqual({ error: "rate_limited" });
@@ -175,20 +156,8 @@ describe("registerSelfServiceRoutes", () => {
       verifyTotpOrRecoveryCode,
     });
     const routeLayer = getRouteLayer(dependencies.router, "post", "/api/me/security/totp/disable");
-    const authenticatedUserIdLayer = getMiddlewareLayerBySnippet(
-      dependencies.router,
-      "authenticatedUserId",
-    );
-    const rateLimitLayer = getMiddlewareLayerBySnippet(dependencies.router, "action");
 
-    const res = await invokeHandlers(
-      [
-        dependencies.requireAuth,
-        authenticatedUserIdLayer.handle,
-        rateLimitLayer.handle,
-        routeLayer.route.stack[0].handle,
-      ],
-      {
+    const res = await invokeRoute(routeLayer, {
       body: {
         codeOrRecoveryCode: "123456",
       },
@@ -197,8 +166,7 @@ describe("registerSelfServiceRoutes", () => {
           id: "user-1",
         },
       },
-      },
-    );
+    });
 
     expect(res.statusCode).toBe(429);
     expect(res.body).toEqual({ error: "rate_limited" });
@@ -212,12 +180,9 @@ describe("registerSelfServiceRoutes", () => {
     const dependencies = createDependencies({
       verifyTotpCode,
     });
-    const authenticatedUserIdLayer = getMiddlewareLayerBySnippet(
-      dependencies.router,
-      "authenticatedUserId",
-    );
+    const routeLayer = getRouteLayer(dependencies.router, "post", "/api/me/security/totp/enroll/confirm");
 
-    const res = await invokeHandlers([dependencies.requireAuth, authenticatedUserIdLayer.handle], {
+    const res = await invokeRoute(routeLayer, {
       body: {
         code: "123456",
         enrollmentToken: "token-1",
@@ -228,5 +193,30 @@ describe("registerSelfServiceRoutes", () => {
     expect(res.statusCode).toBe(401);
     expect(res.body).toEqual({ error: "unauthorized" });
     expect(verifyTotpCode).not.toHaveBeenCalled();
+  });
+
+  it("rate limits TOTP enrollment start before generating a secret", async () => {
+    const canManageMfa = vi.fn(async () => false);
+    const startTotpEnrollment = vi.fn();
+    const dependencies = createDependencies({
+      canManageMfa,
+      startTotpEnrollment,
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "post", "/api/me/security/totp/enroll/start");
+
+    const res = await invokeRoute(routeLayer, {
+      body: {},
+      session: {
+        user: {
+          id: "user-1",
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(429);
+    expect(res.body).toEqual({ error: "rate_limited" });
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(canManageMfa).toHaveBeenCalledWith("198.51.100.40");
+    expect(startTotpEnrollment).not.toHaveBeenCalled();
   });
 });

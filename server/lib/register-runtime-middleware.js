@@ -474,9 +474,9 @@ export const registerRuntimeMiddleware = ({
 
   const uploadsPublicDir = path.join(clientRootDir, "public", "uploads");
   app.use("/uploads/_quarantine", (_req, res) => res.status(404).end());
-  app.use("/uploads", enforcePublicAssetReadRateLimit);
   app.use(
     "/uploads",
+    enforcePublicAssetReadRateLimit,
     createUploadsDeliveryMiddleware({
       uploadsDir: uploadsPublicDir,
       loadUploads,
@@ -486,6 +486,7 @@ export const registerRuntimeMiddleware = ({
   );
   app.use(
     "/uploads",
+    enforcePublicAssetReadRateLimit,
     express.static(uploadsPublicDir, {
       setHeaders: (res) => {
         res.setHeader("Cache-Control", staticDefaultCacheControl);
@@ -493,17 +494,15 @@ export const registerRuntimeMiddleware = ({
     }),
   );
   if (isProduction) {
-    app.use(enforcePublicAssetReadRateLimit);
     app.use(
+      enforcePublicAssetReadRateLimit,
       express.static(clientDistDir, {
         index: false,
         setHeaders: setStaticCacheHeaders,
       }),
     );
-    app.use(enforcePublicAssetReadRateLimit);
-    app.use(handleMissingPwaAsset);
-    app.use(enforcePublicAssetReadRateLimit);
-    app.use(handleMissingClientAsset);
+    app.use(enforcePublicAssetReadRateLimit, handleMissingPwaAsset);
+    app.use(enforcePublicAssetReadRateLimit, handleMissingClientAsset);
   }
   if (!isProduction) {
     app.use((req, res, next) => {

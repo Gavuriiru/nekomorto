@@ -59,6 +59,10 @@ export const registerSelfServiceRoutes = ({
     }
     return next();
   };
+  const enforceTotpEnrollStartRateLimit = createManageMfaRateLimitMiddleware("enroll_start");
+  const enforceTotpEnrollConfirmRateLimit =
+    createManageMfaRateLimitMiddleware("enroll_confirm");
+  const enforceTotpDisableRateLimit = createManageMfaRateLimitMiddleware("disable");
 
   const requireAuthenticatedUserId = (req, res, next) => {
     setNoStore(res);
@@ -194,63 +198,72 @@ export const registerSelfServiceRoutes = ({
     return res.json(buildMySecuritySummary({ req, userId }));
   });
 
-  router.post("/api/me/security/totp/enroll/start", requireAuth, async (req, res) => {
-    setNoStore(res);
-    const userId = String(req.session?.user?.id || "").trim();
-    if (!userId) {
-      return res.status(401).json({ error: "unauthorized" });
-    }
-    if (isTotpEnabledForUser(userId)) {
-      return res.status(409).json({ error: "totp_already_enabled" });
-    }
-    const metadata = resolveMfaMetadata({
-      req,
-      userId,
-      accountName: req.session?.user?.username || req.session?.user?.name || userId,
-    });
-    const enrollment = startTotpEnrollment({
-      req,
-      userId,
-      accountName: metadata.accountLabel,
-      issuer: metadata.issuer,
-      iconUrl: metadata.iconUrl,
-    });
-    if (!enrollment) {
-      return res.status(500).json({ error: "enrollment_unavailable" });
-    }
-    try {
-      await saveSessionState(req);
-    } catch {
-      clearEnrollmentFromSession(req);
-      appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
+  router.post(
+    "/api/me/security/totp/enroll/start",
+    requireAuth,
+    requireAuthenticatedUserId,
+    enforceTotpEnrollStartRateLimit,
+    async (req, res) => {
+      setNoStore(res);
+      const userId = String(res.locals.authenticatedUserId || "").trim();
+      if (!userId) {
+        return res.status(401).json({ error: "unauthorized" });
+      }
+      if (isTotpEnabledForUser(userId)) {
+        return res.status(409).json({ error: "totp_already_enabled" });
+      }
+      const metadata = resolveMfaMetadata({
+        req,
         userId,
-        error: "enrollment_persist_failed",
+        accountName: req.session?.user?.username || req.session?.user?.name || userId,
       });
-      return res.status(500).json({ error: "enrollment_persist_failed" });
-    }
-    appendAuditLog(req, "auth.mfa.enroll.start", "auth", { userId });
-    return res.json({
-      enrollmentToken: enrollment.enrollmentToken,
-      otpauthUrl: enrollment.otpauthUrl,
-      manualSecret: enrollment.secret,
-      issuer: metadata.issuer,
-      accountLabel: metadata.accountLabel,
-      iconUrl: metadata.iconUrl,
-    });
-  });
-
-  router.use("/api/me/security/totp/enroll/confirm", requireAuth);
-  router.use("/api/me/security/totp/enroll/confirm", requireAuthenticatedUserId);
-  router.use(
-    "/api/me/security/totp/enroll/confirm",
-    createManageMfaRateLimitMiddleware("enroll_confirm"),
+      const enrollment = startTotpEnrollment({
+        req,
+        userId,
+        accountName: metadata.accountLabel,
+        issuer: metadata.issuer,
+        iconUrl: metadata.iconUrl,
+      });
+      if (!enrollment) {
+        return res.status(500).json({ error: "enrollment_unavailable" });
+      }
+      try {
+        await saveSessionState(req);
+      } catch {
+        clearEnrollmentFromSession(req);
+        appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
+          userId,
+          error: "enrollment_persist_failed",
+        });
+        return res.status(500).json({ error: "enrollment_persist_failed" });
+      }
+      appendAuditLog(req, "auth.mfa.enroll.start", "auth", { userId });
+      return res.json({
+        enrollmentToken: enrollment.enrollmentToken,
+        otpauthUrl: enrollment.otpauthUrl,
+        manualSecret: enrollment.secret,
+        issuer: metadata.issuer,
+        accountLabel: metadata.accountLabel,
+        iconUrl: metadata.iconUrl,
+      });
+    },
   );
-  router.post("/api/me/security/totp/enroll/confirm", handleTotpEnrollConfirm);
 
-  router.use("/api/me/security/totp/disable", requireAuth);
-  router.use("/api/me/security/totp/disable", requireAuthenticatedUserId);
-  router.use("/api/me/security/totp/disable", createManageMfaRateLimitMiddleware("disable"));
-  router.post("/api/me/security/totp/disable", handleTotpDisable);
+  router.post(
+    "/api/me/security/totp/enroll/confirm",
+    requireAuth,
+    requireAuthenticatedUserId,
+    enforceTotpEnrollConfirmRateLimit,
+    handleTotpEnrollConfirm,
+  );
+
+  router.post(
+    "/api/me/security/totp/disable",
+    requireAuth,
+    requireAuthenticatedUserId,
+    enforceTotpDisableRateLimit,
+    handleTotpDisable,
+  );
 
   router.get("/api/me/sessions", requireAuth, (req, res) => {
     setNoStore(res);
