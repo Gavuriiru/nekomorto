@@ -96,7 +96,6 @@ export const MuiBrazilDateField = ({
     id={id}
     value={value}
     onChange={(nextValue) => onChange(normalizeDate(nextValue))}
-    enableAccessibleFieldDOMStructure={false}
     format="dd/MM/yyyy"
     disabled={disabled}
     slotProps={{
@@ -121,7 +120,6 @@ export const MuiBrazilTimeField = ({
     id={id}
     value={value}
     onChange={(nextValue) => onChange(normalizeDate(nextValue))}
-    enableAccessibleFieldDOMStructure={false}
     format="HH:mm"
     ampm={false}
     disabled={disabled}
