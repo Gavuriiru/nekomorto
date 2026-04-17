@@ -268,7 +268,7 @@ validate_image_tag_for_rollback() {
 
 check_gitignore_env_rules() {
   if [[ ! -f ".gitignore" ]]; then
-    fail ".gitignore nao encontrado no deploy path." "Mantenha .env e .env.* fora do Git antes de criar secrets."
+    fail ".gitignore não encontrado no deploy path." "Mantenha .env e .env.* fora do Git antes de criar secrets."
   fi
 
   git check-ignore -q .env || fail ".env não esta ignorado pelo Git." \
