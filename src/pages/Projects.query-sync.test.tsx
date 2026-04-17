@@ -256,6 +256,8 @@ describe("Projects query sync", () => {
 
     await waitFor(() => {
       expect(getSearchParams().get("letter")).toBe("P");
+      expect(letterTrigger).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByRole("listbox", { name: "A-Z" })).not.toBeInTheDocument();
     });
 
     const formatTrigger = screen.getByRole("combobox", { name: "Filtrar por formato" });
@@ -264,7 +266,7 @@ describe("Projects query sync", () => {
     const formatListbox = await screen.findByRole("listbox", { name: "Formato" });
     expect(formatListbox).toHaveAttribute("aria-label", "Formato");
     expect(screen.queryByLabelText(/Buscar em formato/i)).not.toBeInTheDocument();
-    const animeOption = await screen.findByRole("option", { name: "Anime" });
+    const animeOption = await within(formatListbox).findByRole("option", { name: "Anime" });
     expect(animeOption).toBeInTheDocument();
 
     fireEvent.click(animeOption);
