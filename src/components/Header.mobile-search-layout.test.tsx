@@ -200,7 +200,7 @@ describe("Header mobile search layout", () => {
     });
   });
 
-  it("nao agenda preload de menus em idle no mobile", async () => {
+  it("não agenda preload de menus em idle no mobile", async () => {
     useIsMobileMock.mockReturnValue(true);
 
     render(
