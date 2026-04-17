@@ -1,7 +1,7 @@
 import * as http from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const bootSmoke = vi.hoisted(() => {
+const bootSmokeTestState = vi.hoisted(() => {
   const timerState = {
     immediates: [] as Array<{ callback: (...args: unknown[]) => unknown; args: unknown[] }>,
     intervals: [] as Array<{ callback: (...args: unknown[]) => unknown; delay: number }>,
