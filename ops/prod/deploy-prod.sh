@@ -594,7 +594,7 @@ run_deploy() {
       --check-public-media="${PUBLIC_MEDIA_SMOKE_ENABLED}"
   fi
 
-  if [[ "${DEPLOY_CHECKS}" == "full" || ("${DEPLOY_CHECKS}" == "safe" && "${RUN_CATEGORY6_SMOKE}" == "true") ]]; then
+  if should_run_category6_smoke; then
     log "Running category6 internal smoke checks..."
     compose_cmd run --rm app \
       node scripts/check-category6-smoke.mjs \
@@ -613,7 +613,7 @@ run_deploy() {
       --check-public-media="${PUBLIC_MEDIA_SMOKE_ENABLED}"
   fi
 
-  if [[ "${DEPLOY_CHECKS}" == "full" || ("${DEPLOY_CHECKS}" == "safe" && "${RUN_CATEGORY6_SMOKE}" == "true") ]]; then
+  if should_run_category6_smoke; then
     log "Running category6 external smoke checks..."
     compose_cmd run --rm app \
       node scripts/check-category6-smoke.mjs \
@@ -624,6 +624,10 @@ run_deploy() {
   compose_cmd ps
 
   log "Completed successfully."
+}
+
+should_run_category6_smoke() {
+  [[ "${DEPLOY_CHECKS}" == "full" || ("${DEPLOY_CHECKS}" == "safe" && "${RUN_CATEGORY6_SMOKE}" == "true") ]]
 }
 
 run_status() {
