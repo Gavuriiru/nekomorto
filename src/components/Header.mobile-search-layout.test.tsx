@@ -228,7 +228,7 @@ describe("Header mobile search layout", () => {
     expect(getScheduleOnBrowserLoadIdleCallsByDelay(1200).length).toBeGreaterThan(0);
   });
 
-  it("desliga preload idle dos menus em rotas de leitura e postagem", async () => {
+  it("disables idle menu preload on reading and posting routes", async () => {
     useIsMobileMock.mockReturnValue(false);
 
     render(
