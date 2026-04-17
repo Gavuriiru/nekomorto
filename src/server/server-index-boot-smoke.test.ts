@@ -159,7 +159,16 @@ describe.sequential("server/index boot smoke", () => {
     expect(listenSpy).toHaveBeenCalledWith(0, expect.any(Function));
     expect(onSpy).toHaveBeenCalledWith("error", expect.any(Function));
     expect(onSpy).toHaveBeenCalledWith("close", expect.any(Function));
+    // Boot should register asynchronous background work; assert timer intent by validating scheduled callback shape.
     expect(bootSmoke.timerState.immediates).toHaveLength(3);
+    for (const immediate of bootSmoke.timerState.immediates) {
+      expect(immediate.callback).toEqual(expect.any(Function));
+    }
     expect(bootSmoke.timerState.intervals.length).toBeGreaterThanOrEqual(3);
+    for (const interval of bootSmoke.timerState.intervals) {
+      expect(interval.callback).toEqual(expect.any(Function));
+      expect(Number.isFinite(interval.delay)).toBe(true);
+      expect(interval.delay).toBeGreaterThanOrEqual(0);
+    }
   }, 30000);
 });
