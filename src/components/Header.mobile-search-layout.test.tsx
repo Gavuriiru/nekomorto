@@ -200,7 +200,7 @@ describe("Header mobile search layout", () => {
     });
   });
 
-  it("nao agenda preload de menus em idle no mobile", async () => {
+  it("não agenda preload de menus em idle no mobile", async () => {
     useIsMobileMock.mockReturnValue(true);
 
     render(
@@ -241,7 +241,7 @@ describe("Header mobile search layout", () => {
     expect(getScheduleOnBrowserLoadIdleCallsByDelay(2500)).toHaveLength(0);
   });
 
-  it("aplica gradiente abaixo do header fixo apenas apos scroll", async () => {
+  it("aplica gradiente abaixo do header fixo apenas após scroll", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Header />
@@ -287,7 +287,7 @@ describe("Header mobile search layout", () => {
     });
   });
 
-  it("nao aplica gradiente no variant static, mesmo com scroll", async () => {
+  it("não aplica gradiente no variant static, mesmo com scroll", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Header variant="static" />
@@ -318,7 +318,7 @@ describe("Header mobile search layout", () => {
     });
   });
 
-  it("nao aplica gradiente quando o header fixo desabilita a sombra inferior", async () => {
+  it("não aplica gradiente quando o header fixo desabilita a sombra inferior", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Header showBottomGradient={false} />
