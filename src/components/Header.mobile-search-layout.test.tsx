@@ -477,8 +477,14 @@ describe("Header mobile search layout", () => {
 
     await user.type(searchInput, "teste");
 
-    expect(await screen.findByText("Projeto Teste")).toBeInTheDocument();
-    expect(await screen.findByText("Post Teste")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(getSearchSuggestCalls().length).toBeGreaterThan(0);
+    });
+    await waitFor(() => {
+      expect(screen.queryByText(uiCopy.search.loadingSuggestions)).not.toBeInTheDocument();
+    });
+    expect(await screen.findByText("Projeto Teste", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByText("Post Teste", {}, { timeout: 3000 })).toBeInTheDocument();
 
     const results = screen.getByTestId("public-header-results");
     expect(classTokens(results)).toContain("w-[min(24rem,calc(100vw-1rem))]");

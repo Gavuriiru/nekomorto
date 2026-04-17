@@ -13,4 +13,4 @@ export PWA_SMOKE_EXPECT_PROD_HTML="${PWA_SMOKE_EXPECT_PROD_HTML:-true}"
 export PUBLIC_MEDIA_SMOKE_ENABLED="${PUBLIC_MEDIA_SMOKE_ENABLED:-true}"
 export RUN_CATEGORY6_SMOKE="${RUN_CATEGORY6_SMOKE:-true}"
 
-exec bash "${ROOT_DIR}/prod/deploy-prod.sh"
+exec bash "${ROOT_DIR}/prod/deploy-prod.sh" deploy "$@"

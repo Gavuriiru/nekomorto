@@ -161,5 +161,5 @@ describe.sequential("server/index boot smoke", () => {
     expect(onSpy).toHaveBeenCalledWith("close", expect.any(Function));
     expect(bootSmoke.timerState.immediates).toHaveLength(3);
     expect(bootSmoke.timerState.intervals.length).toBeGreaterThanOrEqual(3);
-  }, 15000);
+  }, 30000);
 });

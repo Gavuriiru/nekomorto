@@ -1,18 +1,16 @@
-# Deploy mínimo sem clonar o repositório.
-# Uso: salve este arquivo e crie um .env.prod ao lado dele.
+# Deploy minimo sem clonar o repositorio.
+# Uso: salve este arquivo, quickstart-deploy.sh e crie um .env.prod ao lado.
 #
 #   curl -fsSLO https://raw.githubusercontent.com/NekomataSub/nekomorto/main/ops/prod/docker-compose.quickstart.yml
-#   cp .env.prod.example .env.prod   # edite com valores reais
+#   curl -fsSLO https://raw.githubusercontent.com/NekomataSub/nekomorto/main/ops/prod/quickstart-deploy.sh
+#   curl -fsSL https://raw.githubusercontent.com/NekomataSub/nekomorto/main/ops/prod/.env.prod.example -o .env.prod
+#   # edite .env.prod com valores reais
 #
 # Subir:
-#   docker compose --env-file .env.prod -f docker-compose.quickstart.yml up -d postgres
-#   docker compose --env-file .env.prod -f docker-compose.quickstart.yml pull app
-#   docker compose --env-file .env.prod -f docker-compose.quickstart.yml run --rm app npm run prisma:migrate:deploy
-#   docker compose --env-file .env.prod -f docker-compose.quickstart.yml run --rm app npm run uploads:check-integrity -- --mode=fast
-#   docker compose --env-file .env.prod -f docker-compose.quickstart.yml up -d app
+#   bash quickstart-deploy.sh deploy
 #
 # Validar:
-#   curl -fsS http://localhost:${APP_LISTEN_PORT:-80}/api/health
+#   bash quickstart-deploy.sh status
 
 name: nekomorto-prod
 

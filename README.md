@@ -484,7 +484,9 @@ Regras:
 - `ops/caddy/Caddyfile`
 - `ops/nginx/default.conf.template`
 - `ops/prod/.env.prod.example`
+- `ops/deploy.sh`
 - `ops/prod/deploy-prod.sh`
+- `ops/prod/quickstart-deploy.sh`
 - `.github/workflows/deploy-prod.yml`
 
 ### 8.2 Provisionamento inicial do host Ubuntu
@@ -564,9 +566,82 @@ sudo ufw allow 443/tcp
 sudo ufw enable
 ```
 
-### 8.6 Primeiro deploy (ordem obrigatoria)
+### 8.6 Deploy recomendado
 
-#### Com proxy reverso (caddy, nginx, traefik)
+Depois de preencher `.env.prod`, use o script unico. Ele valida secrets/placeholder, `.gitignore`, Docker, Compose, proxy, dominio e compose antes de subir a aplicacao.
+
+```bash
+cd /srv/nekomorto
+bash ops/deploy.sh prod setup
+bash ops/deploy.sh prod deploy
+```
+
+Comandos do dia a dia:
+
+| Acao | Comando |
+| --- | --- |
+| Primeiro deploy | `bash ops/deploy.sh prod setup && bash ops/deploy.sh prod deploy` |
+| Redeploy seguro | `bash ops/deploy.sh prod deploy` |
+| Status | `bash ops/deploy.sh prod status` |
+| Logs | `bash ops/deploy.sh prod logs` |
+| Rollback | `bash ops/deploy.sh prod rollback --tag sha-<40hex>` |
+| Troubleshooting inicial | `bash ops/prod/deploy-prod.sh --help` |
+
+O modo seguro (`--checks safe`) e o padrao: aplica migrations, valida uploads em modo `fast`, roda healthcheck interno/externo e smoke PWA/publico. Para janelas em que voce precisa reduzir tempo de validacao, use `--checks minimal`; para forcar a validacao mais completa disponivel, use `--checks full`.
+
+Esse fluxo pressupoe que a imagem ja foi publicada no GHCR (via `push` em `main` ou `workflow_dispatch`). Para usar uma imagem especifica:
+
+```bash
+bash ops/deploy.sh prod deploy --image-tag sha-<40hex>
+```
+
+#### Standalone
+
+Use `PROXY_PROVIDER=standalone` quando o TLS e tratado externamente (ex.: Cloudflare Proxy) ou em rede local/intranet. O script gera um override temporario para publicar `APP_LISTEN_PORT` e remove esse arquivo ao terminar.
+
+```dotenv
+PROXY_PROVIDER=standalone
+APP_LISTEN_PORT=8080
+```
+
+No modo standalone nenhum servico `edge-*` e iniciado. Para producao com Cloudflare, aponte `A/AAAA` para o host, mantenha o proxy ativado e use SSL/TLS `Full`.
+
+Notas operacionais para uploads:
+
+- `fast` e o modo recomendado no deploy por custo e latencia.
+- Use `deep` apenas para validacoes manuais mais fortes, especialmente apos sync/restore.
+- Se `UPLOAD_STORAGE_DRIVER=s3`, bucket e credenciais precisam existir antes do rollout.
+- Durante a fase mista (`local + s3`), preserve `public/uploads` no host ate concluir validacao e decidir pelo rollback ou consolidacao.
+
+### 8.7 Deploy rapido sem clonar o repositorio (quickstart)
+
+Para ambientes onde voce nao precisa clonar o repo inteiro, use o compose auto-contido e o script de quickstart. Esse modo combina postgres + app standalone em um unico diretorio.
+
+```bash
+mkdir -p /srv/nekomorto && cd /srv/nekomorto
+
+curl -fsSLO https://raw.githubusercontent.com/NekomataSub/nekomorto/main/ops/prod/docker-compose.quickstart.yml
+curl -fsSLO https://raw.githubusercontent.com/NekomataSub/nekomorto/main/ops/prod/quickstart-deploy.sh
+curl -fsSL https://raw.githubusercontent.com/NekomataSub/nekomorto/main/ops/prod/.env.prod.example -o .env.prod
+
+# Edite .env.prod com valores reais.
+bash quickstart-deploy.sh deploy
+```
+
+Comandos quickstart:
+
+| Acao | Comando |
+| --- | --- |
+| Deploy/redeploy | `bash quickstart-deploy.sh deploy` |
+| Status | `bash quickstart-deploy.sh status` |
+| Logs | `bash quickstart-deploy.sh logs` |
+| Rollback | `bash quickstart-deploy.sh rollback --tag sha-<40hex>` |
+
+Esse modo nao inclui proxy reverso. Para HTTPS em producao, use Cloudflare Proxy ou outro terminador TLS externo.
+
+### 8.8 Fallback manual
+
+O script recomendado chama estes passos por baixo. Use manualmente apenas para diagnostico:
 
 ```bash
 cd /srv/nekomorto
@@ -578,131 +653,12 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROX
 docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER}" up -d
 ```
 
-#### Sem proxy reverso (standalone)
-
-Use quando o TLS e tratado externamente (ex.: dominio apontando para Cloudflare com proxy ligado, nuvem laranja) ou em rede local/intranet.
-O deploy script gera automaticamente um override temporario para publicar `APP_LISTEN_PORT`.
-
-```bash
-cd /srv/nekomorto
-# Via deploy script (recomendado):
-PROXY_PROVIDER=standalone ./ops/prod/deploy-prod.sh
-
-# Ou manualmente:
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d postgres
-docker compose --env-file .env.prod -f docker-compose.prod.yml pull app
-docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run uploads:check-integrity -- --mode=fast
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d app
-```
-
-Observe que no modo standalone, nenhum servico `edge-*` e iniciado.
-
-Para mudar a porta publicada no host, defina `APP_LISTEN_PORT` no `.env.prod`:
-
-```dotenv
-APP_LISTEN_PORT=8080
-```
-
-Requisitos para deploy standalone em producao com Cloudflare:
-
-- No Cloudflare DNS, aponte `A`/`AAAA` do dominio para o IP do host com proxy ativado (nuvem laranja).
-- No Cloudflare SSL/TLS, use modo `Full` (nao precisa de `Full (Strict)` porque o origin nao tem certificado proprio).
-- Nao e necessario configurar `APP_WWW_DOMAIN`; o redirect `www` -> apex pode ser feito via Page Rule no Cloudflare.
-- A app ja aplica todos os headers de seguranca (HSTS, CSP com nonce, X-Frame-Options, COOP, CORP, Referrer-Policy, Permissions-Policy) e compressao gzip via middleware Express.
-
-Esse fluxo pressupoe que a imagem ja foi publicada no GHCR (via `push` em `main` ou `workflow_dispatch`).
-
-Notas operacionais para uploads:
-
-- `fast` e o modo recomendado no deploy por custo e latencia.
-- Use `deep` apenas para validacoes manuais mais fortes, especialmente apos sync/restore.
-- Se `UPLOAD_STORAGE_DRIVER=s3`, bucket e credenciais precisam existir antes do rollout.
-- Durante a fase mista (`local + s3`), preserve `public/uploads` no host ate concluir validacao e decidir pelo rollback ou consolidacao.
-
-### 8.7 Deploy rapido sem clonar o repositorio (quickstart)
-
-Para ambientes onde voce nao precisa (ou nao quer) clonar o repo inteiro, use o compose auto-contido `ops/prod/docker-compose.quickstart.yml`. Ele combina postgres + app standalone em um unico arquivo.
-
-Requisitos:
-
-- Docker + Docker Compose plugin
-- Acesso ao GHCR para pull da imagem
-
-Passo a passo:
-
-```bash
-mkdir -p /srv/nekomorto && cd /srv/nekomorto
-
-# Baixe o compose e o exemplo de env
-curl -fsSLO https://raw.githubusercontent.com/NekomataSub/nekomorto/main/ops/prod/docker-compose.quickstart.yml
-curl -fsSL https://raw.githubusercontent.com/NekomataSub/nekomorto/main/ops/prod/.env.prod.example -o .env.prod
-
-# Edite .env.prod com valores reais (DATABASE_URL, SESSION_SECRET, DISCORD_*, OWNER_IDS, etc.)
-
-# Subir
-docker compose --env-file .env.prod -f docker-compose.quickstart.yml up -d postgres
-docker compose --env-file .env.prod -f docker-compose.quickstart.yml pull app
-docker compose --env-file .env.prod -f docker-compose.quickstart.yml run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.quickstart.yml run --rm app npm run uploads:check-integrity -- --mode=fast
-docker compose --env-file .env.prod -f docker-compose.quickstart.yml up -d app
-```
-
-Validacao:
-
-```bash
-curl -fsS http://localhost:${APP_LISTEN_PORT:-80}/api/health
-docker compose --env-file .env.prod -f docker-compose.quickstart.yml logs -f app
-```
-
-Para atualizar a imagem (redeploy):
-
-```bash
-cd /srv/nekomorto
-docker compose --env-file .env.prod -f docker-compose.quickstart.yml pull app
-docker compose --env-file .env.prod -f docker-compose.quickstart.yml run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.quickstart.yml up -d app
-```
-
-O Docker Compose recria automaticamente o container quando a imagem muda. Nao e necessario derrubar manualmente nem rodar `down`.
-
-Rollback para uma versao anterior:
-
-```bash
-cd /srv/nekomorto
-# Use a tag sha-<commit> da versao desejada
-APP_IMAGE_TAG=sha-abc1234... docker compose --env-file .env.prod -f docker-compose.quickstart.yml pull app
-APP_IMAGE_TAG=sha-abc1234... docker compose --env-file .env.prod -f docker-compose.quickstart.yml up -d app
-```
-
-Notas:
-
-- `npm run prisma:migrate:deploy` e idempotente: se nao houver migracoes novas, ele nao faz nada. Pode rodar em todo redeploy sem risco.
-- Se o redeploy falhar no healthcheck, o container antigo continua rodando ate ser substituido com sucesso.
-- Para ver qual imagem esta rodando: `docker inspect nekomorto-app --format='{{.Config.Image}}'`.
-
-Para o fluxo com proxy (clone do repo), o redeploy e automatizado pelo script `ops/prod/deploy-prod.sh` ou pelo workflow do GitHub Actions (secao 9).
-
-Esse modo nao inclui proxy reverso. Para HTTPS em producao, use Cloudflare Proxy ou outro terminador TLS externo (ver secao 8.6 standalone).
-
-### 8.8 Validacao apos deploy
+Validacao manual:
 
 ```bash
 curl -fsS "https://<APP_DOMAIN>/api/health"
 docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER:-caddy}" ps
 docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER:-caddy}" logs -f app
-```
-
-Smoke test (opcao 1: com Node no host):
-
-```bash
-npm run api:smoke -- --base=https://<APP_DOMAIN>
-```
-
-Smoke test (opcao 2: sem Node no host, usando container da app):
-
-```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER:-caddy}" run --rm app node scripts/smoke-api.mjs --base=https://<APP_DOMAIN>
 ```
 
 ## 9. Deploy Automatico com GitHub Actions
@@ -744,7 +700,7 @@ Fluxo CI/CD:
 4. O job `deploy` resolve a tag:
    - sem `image_tag`: usa `sha-<commit_atual>`;
    - com `image_tag`: valida `latest` ou `sha-[0-9a-f]{40}` e usa a tag informada, sem rebuild.
-5. Via SSH, sincroniza o repositorio no host e chama `ops/prod/deploy-prod.sh` com `SKIP_GIT_SYNC=true`, `APP_IMAGE_REPO` e `APP_IMAGE_TAG`. O script resolve `PROXY_PROVIDER` e `APP_DOMAIN` a partir do `.env.prod` e ativa o profile correspondente do compose.
+5. Via SSH, sincroniza o repositorio no host e chama `ops/prod/deploy-prod.sh` com `SKIP_GIT_SYNC=true`, `APP_IMAGE_REPO` e `APP_IMAGE_TAG`. O script e a base do comando amigavel `ops/deploy.sh prod deploy`, resolve `PROXY_PROVIDER` e `APP_DOMAIN` a partir do `.env.prod` e ativa o profile correspondente do compose.
 
 Comportamento do deploy remoto (`ops/prod/deploy-prod.sh`):
 

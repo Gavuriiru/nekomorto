@@ -14,6 +14,7 @@ Arquivos usados em producao:
 - `ops/caddy/Caddyfile`
 - `ops/nginx/default.conf.template`
 - `ops/prod/.env.prod.example`
+- `ops/deploy.sh`
 - `ops/prod/deploy-prod.sh`
 - `.github/workflows/deploy-prod.yml`
 
@@ -91,18 +92,14 @@ No host:
 
 ```bash
 cd /srv/nekomorto
-export PROXY_PROVIDER="${PROXY_PROVIDER:-caddy}"
-docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER}" up -d postgres
-docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER}" build app
-docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER}" run --rm app npm run prisma:migrate:deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER}" up -d
+bash ops/deploy.sh prod setup
+bash ops/deploy.sh prod deploy
 ```
 
 Validar:
 
 ```bash
-curl -fsS https://<APP_DOMAIN>/api/health
-npm run api:smoke -- --base=https://<APP_DOMAIN>
+bash ops/deploy.sh prod status
 ```
 
 Criterio de aceite:
@@ -161,10 +158,11 @@ Fluxo remoto:
 
 1. o workflow sincroniza `origin/main` no host
 2. `ops/prod/deploy-prod.sh` resolve `PROXY_PROVIDER` e ativa o profile correspondente
-3. `docker compose build app`
+3. `docker compose pull app`
 4. `docker compose run --rm app npm run prisma:migrate:deploy`
-5. `docker compose up -d` (com `--profile <provider>`)
-6. health check interno/externo
+5. `docker compose run --rm app npm run uploads:check-integrity -- --mode=fast`
+6. `docker compose up -d` (com `--profile <provider>`)
+7. health check e smoke interno/externo
 
 Recomendacao:
 
@@ -211,7 +209,7 @@ npm run api:health:check -- --base=https://<APP_DOMAIN> --expect-source=db --exp
 
 Rollback suportado:
 
-1. Codigo: voltar commit e executar deploy novamente.
+1. Codigo/imagem: `bash ops/deploy.sh prod rollback --tag sha-<40hex>`.
 2. Dados: restore SQL + restore de uploads.
 
 Rollback para JSON nao e suportado.
