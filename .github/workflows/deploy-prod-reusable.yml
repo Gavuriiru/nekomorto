@@ -20,9 +20,6 @@ on:
       PROD_USER:
         required: true
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   deploy:
     runs-on: ubuntu-latest

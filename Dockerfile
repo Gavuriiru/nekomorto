@@ -35,8 +35,14 @@ RUN npm run prisma:generate && \
     npm run build
 
 # ---- Production Dependencies Stage ----
-FROM deps AS prod-deps
-RUN npm prune --omit=dev
+FROM base AS prod-deps
+
+COPY package.json package-lock.json ./
+# Scripts needed for postinstall patching
+COPY scripts/patch-vercel-og.mjs scripts/patch-lodash-subpaths.mjs ./scripts/
+
+RUN npm ci --omit=dev --omit=peer --legacy-peer-deps && \
+    npm cache clean --force
 
 # ---- Runtime Stage ----
 FROM base AS runtime
@@ -61,12 +67,16 @@ COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/package.json ./package.json 
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/prisma.config.ts ./prisma.config.ts
+COPY --from=build /app/scripts/check-health.mjs ./scripts/check-health.mjs
 COPY --from=build /app/server ./server
 COPY --from=build /app/shared ./shared
 COPY --from=build /app/dist ./dist
 
 # Create necessary directories and set permissions
-RUN mkdir -p /app/public/uploads && \
+RUN test ! -e /app/node_modules/next && \
+    test ! -e /app/node_modules/@next && \
+    test ! -e /app/node_modules/prisma && \
+    mkdir -p /app/public/uploads && \
     chown -R node:node /app/public/uploads
 
 USER node

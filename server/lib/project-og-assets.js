@@ -59,48 +59,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT_DIR = path.join(__dirname, "..", "..");
 const PUBLIC_DIR = path.join(PROJECT_ROOT_DIR, "public");
+const SERVER_ASSETS_DIR = path.join(PROJECT_ROOT_DIR, "server", "assets");
 
 const TRANSPARENT_PIXEL_DATA_URL =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 const PROJECT_OG_BACKDROP_BLUR = 10;
 
 const FONT_FILES = Object.freeze({
-  200: path.join(
-    PROJECT_ROOT_DIR,
-    "node_modules",
-    "geist",
-    "dist",
-    "fonts",
-    "geist-sans",
-    "Geist-UltraLight.ttf",
-  ),
-  300: path.join(
-    PROJECT_ROOT_DIR,
-    "node_modules",
-    "geist",
-    "dist",
-    "fonts",
-    "geist-sans",
-    "Geist-Light.ttf",
-  ),
-  500: path.join(
-    PROJECT_ROOT_DIR,
-    "node_modules",
-    "geist",
-    "dist",
-    "fonts",
-    "geist-sans",
-    "Geist-Medium.ttf",
-  ),
-  700: path.join(
-    PROJECT_ROOT_DIR,
-    "node_modules",
-    "geist",
-    "dist",
-    "fonts",
-    "geist-sans",
-    "Geist-Bold.ttf",
-  ),
+  200: path.join(SERVER_ASSETS_DIR, "og-fonts", "geist", "Geist-UltraLight.ttf"),
+  300: path.join(SERVER_ASSETS_DIR, "og-fonts", "geist", "Geist-Light.ttf"),
+  500: path.join(SERVER_ASSETS_DIR, "og-fonts", "geist", "Geist-Medium.ttf"),
+  700: path.join(SERVER_ASSETS_DIR, "og-fonts", "geist", "Geist-Bold.ttf"),
 });
 
 const fontBufferCache = new Map();
