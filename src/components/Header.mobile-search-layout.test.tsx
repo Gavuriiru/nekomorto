@@ -241,7 +241,7 @@ describe("Header mobile search layout", () => {
     expect(getScheduleOnBrowserLoadIdleCallsByDelay(2500)).toHaveLength(0);
   });
 
-  it("aplica gradiente abaixo do header fixo apenas apos scroll", async () => {
+  it("aplica gradiente abaixo do header fixo apenas após scroll", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Header />
