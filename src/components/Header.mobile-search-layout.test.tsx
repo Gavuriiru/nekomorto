@@ -213,7 +213,7 @@ describe("Header mobile search layout", () => {
     expect(getScheduleOnBrowserLoadIdleCallsByDelay(2500)).toHaveLength(0);
   });
 
-  it("agenda preload de menus em idle no desktop", async () => {
+  it("schedules menu preload on idle on desktop", async () => {
     useIsMobileMock.mockReturnValue(false);
 
     render(
