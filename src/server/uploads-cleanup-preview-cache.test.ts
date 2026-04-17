@@ -46,6 +46,21 @@ describe("uploads cleanup preview cache", () => {
     expect(loader).toHaveBeenCalledTimes(2);
   });
 
+  it("expira o preview exatamente no limite do TTL", async () => {
+    const loader = vi
+      .fn()
+      .mockResolvedValueOnce({ token: "first" })
+      .mockResolvedValueOnce({ token: "second" });
+
+    const first = await loadCachedUploadsCleanupPreview(loader);
+    vi.advanceTimersByTime(__testing.getUploadsCleanupPreviewTtlMs());
+    const second = await loadCachedUploadsCleanupPreview(loader);
+
+    expect(first).toEqual({ token: "first" });
+    expect(second).toEqual({ token: "second" });
+    expect(loader).toHaveBeenCalledTimes(2);
+  });
+
   it("invalida o preview quando o fluxo de escrita pede limpeza do cache", async () => {
     const loader = vi
       .fn()

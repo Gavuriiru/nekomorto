@@ -59,12 +59,10 @@ import { startServerJobs } from "./bootstrap/start-server-jobs.js";
 import { createAdminExportRuntime } from "./lib/admin-export-runtime.js";
 import * as adminExports from "./lib/admin-exports.js";
 import {
-  ADMIN_EXPORT_DATASETS,
   filterByDateRange,
   filterExportEntries,
   normalizeExportDataset,
   normalizeExportFilters,
-  normalizeExportFormat,
   normalizeExportStatus,
   writeExportFile,
 } from "./lib/admin-exports.js";
@@ -76,16 +74,13 @@ import * as authzLib from "./lib/authz.js";
 import {
   AccessRole,
   addOwnerRoleLabel,
-  BASIC_PROFILE_FIELDS,
   can,
   computeEffectiveAccessRole,
   computeGrants,
   defaultPermissionsForRole,
   expandLegacyPermissions,
-  isBasicProfileField,
   normalizeAccessRole,
   PermissionId,
-  pickBasicProfilePatch,
   removeOwnerRoleLabel,
   sanitizePermissionsForStorage,
 } from "./lib/authz.js";
@@ -146,7 +141,6 @@ import {
   resolveProjectUpdateUnitLabel,
 } from "./lib/project-episode-updates.js";
 import {
-  buildEpisodeKey,
   findDuplicateEpisodeKey,
   findPublishedImageEpisodeWithoutPages,
   resolveEpisodeLookup,
@@ -290,7 +284,6 @@ import {
   generateRecoveryCodes,
   generateTotpSecret,
   hashRecoveryCode,
-  normalizeRecoveryCode,
   verifyTotpCode,
 } from "./lib/totp.js";
 import {
@@ -323,7 +316,6 @@ import {
 } from "./lib/upload-runtime-helpers.js";
 import {
   createUploadStorageService,
-  getUploadAssetDescriptors,
   getUploadVariantUrlPrefix,
   normalizeUploadStorageProvider,
   readUploadStorageProvider,
@@ -364,7 +356,6 @@ import {
   clampWebhookInteger,
   createResolveEditorialAuthorFromPost,
   createWebhookAuditReqFromContext as createWebhookAuditReqFromContextBase,
-  pickFirstNonEmptyText,
   resolveWebhookAuditActions as resolveWebhookAuditActionsBase,
 } from "./lib/webhook-support.js";
 import {
@@ -396,9 +387,6 @@ import {
   OPERATIONAL_WEBHOOK_INTERVAL_DEFAULT_MS,
   OPERATIONAL_WEBHOOK_INTERVAL_MAX_MS,
   OPERATIONAL_WEBHOOK_INTERVAL_MIN_MS,
-  WEBHOOK_TIMEOUT_DEFAULT_MS,
-  WEBHOOK_TIMEOUT_MAX_MS,
-  WEBHOOK_TIMEOUT_MIN_MS,
 } from "./lib/webhooks/settings.js";
 import { buildOperationalAlertsWebhookNotification } from "./lib/webhooks/templates/operational-alerts.js";
 import { diffOperationalAlertSets } from "./lib/webhooks/transitions.js";

@@ -4,7 +4,6 @@ import path from "path";
 import {
   buildProjectChapterFolder,
   buildProjectFolderSet,
-  resolveVolumeFolderSegment,
 } from "../../shared/project-upload-folders.js";
 import { isChapterBasedType } from "./project-type-utils.js";
 

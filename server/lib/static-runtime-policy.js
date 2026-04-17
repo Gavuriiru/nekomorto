@@ -14,7 +14,7 @@ export const PWA_MANIFEST_BASE = Object.freeze({
   name: "Nekomata Fansub",
   short_name: "Nekomata",
   description:
-    "Fansub dedicada a trazer historias inesqueciveis com o carinho que a comunidade merece.",
+    "Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece.",
   start_url: "/",
   display: "standalone",
   lang: "pt-BR",
